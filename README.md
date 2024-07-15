@@ -4,6 +4,8 @@ Philter is an API-based application to identify and manipulate (redact, anonymiz
 
 Philter is built upon the open source PII and PHI redaction engine [Phileas](https://github.com/philterd/phileas). Philter provides an API on top of Phileas that allows for redaction and management of filtering policies.
 
+Philter was released as open source under the Apache License, version 2.0, in July 2024 for version 2.6.0, but Philter dates back to 2019. See the [Release Notes](https://github.com/philterd/philter/blob/main/RELEASE_NOTES.md) for a description of past versions.
+
 ## Philter on the Cloud Marketplaces
 
 Philter is available on the cloud marketplaces as a turnkey redaction solution.

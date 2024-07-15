@@ -8,6 +8,12 @@
   </parent>
   <artifactId>philter-services</artifactId>
   <name>philter-services</name>
+  <licenses>
+    <license>
+      <name>Apache License, version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
   <dependencies>
     <dependency>
       <groupId>ai.philterd</groupId>

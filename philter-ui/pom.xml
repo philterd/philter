@@ -10,10 +10,8 @@
 	<name>philter-ui</name>
 	<licenses>
 		<license>
-			<name>Philter License</name>
-			<url>https://www.philterd.ai</url>
-			<distribution>manual</distribution>
-			<comments>Philter is proprietary closed-source software.</comments>
+			<name>Apache License, version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
 		</license>
 	</licenses>
 	<properties>

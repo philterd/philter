@@ -1,6 +1,6 @@
 package ai.philterd.philter.ui.domain;
 
-public class Profile {
+public class Policy {
 
     private String name;
     private String description;

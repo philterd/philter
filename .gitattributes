@@ -1,2 +1,0 @@
-distribution/en-ner-person.bin filter=lfs diff=lfs merge=lfs -text
-distribution/en-sent.bin filter=lfs diff=lfs merge=lfs -text

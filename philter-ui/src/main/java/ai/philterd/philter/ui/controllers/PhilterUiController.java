@@ -3,7 +3,7 @@ package ai.philterd.philter.ui.controllers;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.BinaryFilterResponse;
 import ai.philterd.philter.model.ExplainResponse;
-import ai.philterd.philter.ui.domain.Profile;
+import ai.philterd.philter.ui.domain.Policy;
 import com.google.gson.Gson;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
@@ -136,9 +136,9 @@ public class PhilterUiController {
 
     }
 
-    private List<Profile> getFilterProfiles() throws IOException {
+    private List<Policy> getFilterProfiles() throws IOException {
 
-        final List<Profile> policies = new LinkedList<>();
+        final List<Policy> policies = new LinkedList<>();
 
         final List<String> policyNames = philterClient.getPolicies();
 
@@ -152,12 +152,12 @@ public class PhilterUiController {
             JsonObject jsonObject = element.getAsJsonObject();
             String description = jsonObject.get("description").getAsString();*/
 
-            final Profile profile1 = new Profile();
-            profile1.setName(policyName);
+            final Policy policy1 = new Policy();
+            policy1.setName(policyName);
          //   profile1.setDescription(description);
-            profile1.setFilters(8);
-            profile1.setEnabledFilters(5);
-            policies.add(profile1);
+            policy1.setFilters(8);
+            policy1.setEnabledFilters(5);
+            policies.add(policy1);
 
         }
 

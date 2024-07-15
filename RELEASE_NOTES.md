@@ -2,7 +2,11 @@
 
 Issues whose identifiers start with `PHI-` were previously tracked in Jira before the project's issues were managed in GitHub.
 
-## Version 2.5.0 - (Not yet released)
+## Version 2.6.0 - Not yet released
+
+* First open source release of Philter under the Apache License, version 2.0.
+
+## Version 2.5.0 - July 6, 2024
 
 This version uses Phileas 2.6.0.
 

@@ -1,0 +1,15 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get -y install openjdk-17-jre
+
+RUN mkdir -p /opt/philter/ssl
+
+COPY ./philter-ui/target/philter-ui.jar /opt/philter/philter-ui.jar
+COPY ./distribution/philter-ui.properties /opt/philter/philter-ui.properties
+
+RUN chmod +x /opt/philter/philter-ui.jar
+
+EXPOSE 9000
+
+WORKDIR /opt/philter
+CMD ["java", "-jar", "/opt/philter/philter-ui.jar"]

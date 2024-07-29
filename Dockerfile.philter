@@ -1,0 +1,32 @@
+FROM nvidia/cuda:12.5.0-runtime-ubuntu22.04
+
+RUN apt-get update && apt-get -y install openjdk-17-jre
+
+RUN mkdir -p /opt/philter/ssl \
+    && mkdir -p /opt/philter/indexes \
+    && mkdir -p /opt/philter/policies
+
+COPY ./distribution/README.txt /opt/philter/
+COPY ./distribution/LICENSE.txt /opt/philter/
+COPY ./distribution/indexes /opt/philter/indexes/
+COPY ./distribution/policies /opt/philter/policies/
+COPY ./distribution/philter.properties /opt/philter/
+
+COPY ./philter-app/target/philter.jar /opt/philter/philter.jar
+
+RUN keytool -genkeypair -keypass Password123! -dname "CN=philter, O=philter, C=US" -alias philter -keyalg RSA -keysize 4096 -storepass Password123! -storetype PKCS12 -keystore /opt/philter/ssl/philter.p12 -validity 3650 \
+    && echo "# SSL certificate settings" | tee -a /opt/philter/philter.properties \
+    && echo "server.ssl.key-store-type=PKCS12" | tee -a /opt/philter/philter.properties \
+    && echo "server.ssl.key-store=/opt/philter/ssl/philter.p12" | tee -a /opt/philter/philter.properties \
+    && echo "server.ssl.key-store-password=Password123!" | tee -a /opt/philter/philter.properties \
+    && echo "server.ssl.key-alias=philter" | tee -a /opt/philter/philter.properties \
+    && echo "#server.ssl.client-auth=want" | tee -a /opt/philter/philter.properties \
+    && echo "#server.ssl.trust-store=" | tee -a /opt/philter/philter.properties \
+    && echo "#server.ssl.trust-store-password=" | tee -a /opt/philter/philter.properties
+
+RUN chmod +x /opt/philter/philter.jar
+
+EXPOSE 8080
+
+WORKDIR /opt/philter
+CMD ["java", "-jar", "/opt/philter/philter.jar"]

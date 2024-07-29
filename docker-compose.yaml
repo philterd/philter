@@ -1,0 +1,32 @@
+services:
+  philter-ner:
+    build:
+      context: ./
+      dockerfile: Dockerfile.philter-ner
+    ports:
+      - "8000:18080"
+    networks:
+      - philter
+  philter:
+    depends_on:
+      - philter-ner
+    build:
+      context: ./
+      dockerfile: Dockerfile.philter
+    ports:
+      - "8080:8080"
+    networks:
+      - philter
+  philter-ui:
+    depends_on:
+      - philter-ner
+      - philter
+    build:
+      context: ./
+      dockerfile: Dockerfile.philter-ui
+    ports:
+      - "9000:9000"
+    networks:
+      - philter
+networks:
+  philter:

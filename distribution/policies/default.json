@@ -1,0 +1,73 @@
+{
+  "name": "default",
+  "ignored": [],
+  "identifiers": {
+    "dictionaries": [],
+    "person": {
+      "personFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "age": {
+      "ageFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "creditCard": {
+      "creditCardFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "date": {
+      "dateFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "emailAddress": {
+      "emailAddressFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "ipAddress": {
+      "ipAddressFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "phoneNumber": {
+      "phoneNumberFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "ssn": {
+      "ssnFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "url": {
+      "urlFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "vin": {
+      "vinFilterStrategies": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    },
+    "zipCode": {
+      "zipCodeFilterStrategy": [{
+        "strategy": "REDACT",
+        "redactionFormat": "{{{REDACTED-%t}}}"
+      }]
+    }
+  }
+}

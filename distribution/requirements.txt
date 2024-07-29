@@ -1,6 +1,6 @@
 # MAIN PACKAGES
 flair==0.12.1
-torch==2.0.1
+torch==2.2.0
 
 # DEPENDENCIES
 Cython==3.0.2

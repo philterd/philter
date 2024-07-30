@@ -6,6 +6,21 @@ Philter is built upon the open source PII and PHI redaction engine [Phileas](htt
 
 Philter was released as open source under the Apache License, version 2.0, in July 2024 for version 2.6.0, but Philter dates back to 2019. See the [Release Notes](https://github.com/philterd/philter/blob/main/RELEASE_NOTES.md) for a description of past versions.
 
+## Quick Start
+
+Philter can be run using `docker compose`:
+
+```
+docker compose build
+docker compose up
+```
+
+Once the containers are running, you can submit text to Philter's API for redaction:
+
+```
+curl -k -vvvv "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain"
+```
+
 ## Philter on the Cloud Marketplaces
 
 Philter is available on the cloud marketplaces as a turnkey redaction solution.

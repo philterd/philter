@@ -10,7 +10,7 @@ RUN rm /tmp/requirements.txt
 RUN python3 -c "import nltk; nltk.download('punkt')"
 
 # Copy the Philter model.
-COPY distribution/general-lite-3.0-with-base-model.zip /tmp/
+ADD https://files.philterd.ai/models/general-lite-3.0-with-base-model.zip /tmp/general-lite-3.0-with-base-model.zip 
 RUN mkdir -p /opt/philter/models/hub/ 
 RUN unzip -d /opt/philter/models/hub/ /tmp/general-lite-3.0-with-base-model.zip 
 RUN mv /opt/philter/models/hub/general-lite-3.0.lens /opt/philter/models/

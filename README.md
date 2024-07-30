@@ -8,9 +8,10 @@ Philter was released as open source under the Apache License, version 2.0, in Ju
 
 ## Quick Start
 
-Philter can be run using `docker compose`:
+Philter can be run using `docker compose` after building:
 
 ```
+mvn clean install
 docker compose build
 docker compose up
 ```

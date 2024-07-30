@@ -1,10 +1,10 @@
 # MAIN PACKAGES
 flair==0.12.1
-torch==2.0.1
+torch==2.2.0
 
 # DEPENDENCIES
 Cython==3.0.2
-setuptools==68.1.2
+setuptools==70.0.0
 wheel==0.41.2
 numpy==1.24.4
 textblob==0.17.1

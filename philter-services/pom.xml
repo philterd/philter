@@ -31,6 +31,11 @@
       <version>${phileas.version}</version>
     </dependency>
     <dependency>
+      <groupId>ai.philterd</groupId>
+      <artifactId>philter-metrics</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-web</artifactId>
       <version>${spring.version}</version>

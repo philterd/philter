@@ -1,5 +1,6 @@
 package ai.philterd.philter.services;
 
+import ai.philterd.phileas.metrics.PhilterMetricsService;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
 import ai.philterd.phileas.model.enums.MimeType;
 import ai.philterd.phileas.model.policy.Policy;
@@ -9,6 +10,7 @@ import ai.philterd.phileas.model.services.AlertService;
 import ai.philterd.phileas.model.services.FilterService;
 import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.phileas.services.PhileasFilterService;
+import ai.philterd.philter.PhilterConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +24,9 @@ public class PhilterService implements FilterService {
 
     @Autowired
     public PhilterService(PhileasConfiguration phileasConfiguration) throws IOException {
-        this.phileasFilterService = new PhileasFilterService(phileasConfiguration);
+        final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
+        final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
+        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService);
     }
 
     @Override

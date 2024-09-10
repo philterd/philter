@@ -42,6 +42,10 @@
     </distributionManagement>
     <repositories>
         <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
             <id>philterd-repository-releases</id>
             <url>https://artifacts.philterd.ai/releases</url>
             <snapshots>
@@ -55,16 +59,14 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2</url>
-        </repository>        
     </repositories>
     <modules>
         <module>philter-app</module>
         <module>philter-api</module>
         <module>philter-ui</module>
         <module>philter-services</module>
+        <module>philter-metrics</module>
+        <module>philter-configuration</module>
     </modules>
     <properties>
         <downloadSources>true</downloadSources>
@@ -74,6 +76,8 @@
         <!-- Project dependency versions -->
         <commons.io.version>2.16.1</commons.io.version>
         <commons.lang3.version>3.14.0</commons.lang3.version>
+        <dropwizard-metrics-cloudwatch.version>1.12.9</dropwizard-metrics-cloudwatch.version>
+        <dropwizard-metrics-prometheus.version>1.13.3</dropwizard-metrics-prometheus.version>
         <equals.verifier.version>3.16.1</equals.verifier.version>
         <gson.version>2.11.0</gson.version>
         <hibernate.validator.version>8.0.1.Final</hibernate.validator.version>
@@ -82,6 +86,7 @@
         <jakarta.servlet.version>6.1.0</jakarta.servlet.version>
         <jaxb.version>2.4.0-b180830.0359</jaxb.version>
         <junit.version>4.13.2</junit.version>
+        <micrometer.version>1.13.3</micrometer.version>
         <mockito.version>1.10.19</mockito.version>
         <phileas.version>2.7.0-SNAPSHOT</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>

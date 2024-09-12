@@ -34,10 +34,15 @@
         </developer>
     </developers>
     <distributionManagement>
+        <snapshotRepository>
+              <id>philterd-repository-snapshots</id>
+              <name>Philterd Snapshots Repository</name>
+              <url>https://artifacts.philterd.ai/snapshots</url>
+        </snapshotRepository>
         <repository>
-            <id>github</id>
-            <name>GitHub philterd/philter Apache Maven Packages</name>
-            <url>https://maven.pkg.github.com/philterd/philter</url>
+              <id>philterd-repository-releases</id>
+              <name>Philterd Repository</name>
+              <url>https://artifacts.philterd.ai/releases</url>
         </repository>
     </distributionManagement>
     <repositories>
@@ -88,7 +93,7 @@
         <junit.version>4.13.2</junit.version>
         <micrometer.version>1.13.3</micrometer.version>
         <mockito.version>1.10.19</mockito.version>
-        <phileas.version>2.7.0-SNAPSHOT</phileas.version>
+        <phileas.version>2.7.0</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
         <spring.boot.version>3.3.1</spring.boot.version>
         <spring.version>6.1.10</spring.version>

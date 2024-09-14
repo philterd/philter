@@ -14,9 +14,13 @@ Philter is available on the cloud marketplaces as a turnkey redaction solution. 
 * [Philter on the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/product/philterd-public/philter)
 * [Philter on the Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/philterdllc1687189098111.philter?tab=Overview)
 
-## AI PII/PHI Models
+## Building Philter
 
-AI models for identifying PII and PHI in text are available at https://github.com/philterd/pii-models. These models can be used by both Phileas and [Philter](https://github.com/philterd/philter).
+Philter is built with Maven:
+
+```
+mvn clean install
+```
 
 ## Running Philter
 
@@ -32,13 +36,9 @@ Once the containers are running, you can submit text to Philter's API for redact
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain"
 ```
 
-## Build Philter
+## AI PII/PHI Models
 
-Philter is built with Maven:
-
-```
-mvn clean install
-```
+AI models for identifying PII and PHI in text are available at https://github.com/philterd/pii-models. These models can be used by both Phileas and [Philter](https://github.com/philterd/philter).
 
 ## License
 

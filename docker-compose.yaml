@@ -1,8 +1,6 @@
 services:
   philter-ner:
-    build:
-      context: ./
-      dockerfile: Dockerfile.philter-ner
+    image: philterd/philter-ner:2.5.0-general-lite-3.0
     ports:
       - "8000:18080"
     networks:
@@ -10,9 +8,7 @@ services:
   philter:
     depends_on:
       - philter-ner
-    build:
-      context: ./
-      dockerfile: Dockerfile.philter
+    image: philterd/philter:2.5.0
     ports:
       - "8080:8080"
     networks:
@@ -21,9 +17,7 @@ services:
     depends_on:
       - philter-ner
       - philter
-    build:
-      context: ./
-      dockerfile: Dockerfile.philter-ui
+    image: philterd/philter-ui:2.5.0
     ports:
       - "9000:9000"
     networks:

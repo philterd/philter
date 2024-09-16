@@ -13,6 +13,9 @@ services:
       - "8080:8080"
     networks:
       - philter
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
   philter-ui:
     depends_on:
       - philter-ner

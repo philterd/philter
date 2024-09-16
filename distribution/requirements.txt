@@ -9,7 +9,7 @@ wheel==0.41.2
 numpy==1.24.4
 textblob==0.17.1
 CherryPy==18.8.0
-nltk==3.9
+nltk==3.9.1
 scipy==1.10.1
 
 # SPECIAL DEPENDENCIES

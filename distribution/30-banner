@@ -1,0 +1,13 @@
+#!/bin/sh
+cat << EOF
+
+  ___ _    _ _ _
+ | _ \ |_ (_) | |_ ___ _ _
+ |  _/ ' \| | |  _/ -_) '_|
+ |_| |_||_|_|_|\__\___|_|
+
+Philter
+Copyright 2024 Philterd, LLC
+www.philterd.ai | support@philterd.ai
+
+EOF

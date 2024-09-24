@@ -33,7 +33,7 @@ public class StatusApiController extends AbstractController {
 
     final String health = getPythonRESTServiceStatus(phileasConfiguration.nerEndpoint());
 
-    LOGGER.info("philter-ner status is: {}", health);
+    LOGGER.info("ph-eye status is: {}", health);
 
     if(health.startsWith("healthy:")) {
 

@@ -20,7 +20,7 @@ public abstract class AbstractController {
 
     protected String getPythonRESTServiceStatus(String philterNerEndpoint) {
 
-        LOGGER.trace("Retrieving philter-ner status.");
+        LOGGER.trace("Retrieving ph-eye status.");
 
         final HttpClient client = HttpClientBuilder.create().build();
 
@@ -42,12 +42,12 @@ public abstract class AbstractController {
             if (entity != null) {
 
                 final String response = EntityUtils.toString(entity);
-                LOGGER.debug("philter-ner status response: {}", response);
+                LOGGER.debug("ph-eye status response: {}", response);
                 return response;
 
             } else {
 
-                LOGGER.debug("Received empty response from philter-ner status.");
+                LOGGER.debug("Received empty response from ph-eye status.");
 
             }
 

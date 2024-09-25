@@ -31,19 +31,8 @@ public class StatusApiController extends AbstractController {
   @RequestMapping(value="/api/status", method=RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> status() throws IOException {
 
-    final String health = getPythonRESTServiceStatus(phileasConfiguration.nerEndpoint());
+    return new ResponseEntity<>("healthy: " + getVersion(), HttpStatus.OK);
 
-    LOGGER.info("ph-eye status is: {}", health);
-
-    if(health.startsWith("healthy:")) {
-
-      return new ResponseEntity<>(health + ": " + getVersion(), HttpStatus.OK);
-
-    } else {
-
-      return new ResponseEntity<>(NER_UNHEALTHY_OR_INITIALIZING, HttpStatus.SERVICE_UNAVAILABLE);
-
-    }
 
   }
 

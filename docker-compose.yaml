@@ -11,8 +11,6 @@ services:
     depends_on:
       - ph-eye
     image: philterd/philter:2.5.0
-    environment:
-      ner.endpoint: http://ph-eye:18080/
     ports:
       - "8080:8080"
     networks:

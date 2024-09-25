@@ -4,6 +4,9 @@
   "identifiers": {
     "dictionaries": [],
     "person": {
+      "phEyeConfiguration": {
+        "endpoint": "http://localhost:5000"
+      },
       "personFilterStrategies": [{
         "strategy": "REDACT",
         "redactionFormat": "{{{REDACTED-%t}}}"

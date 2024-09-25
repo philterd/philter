@@ -5,7 +5,7 @@
     "dictionaries": [],
     "person": {
       "phEyeConfiguration": {
-        "endpoint": "http://localhost:5000"
+        "endpoint": "http://ph-eye:5000"
       },
       "personFilterStrategies": [{
         "strategy": "REDACT",

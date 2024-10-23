@@ -6,30 +6,34 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="User guide for Philter, the open source PII/PHI redaction engine.">
+        <meta name="description" content="Describes how to use a signed SSL certificate with Philter.">
       
       
         <meta name="author" content="philterd">
       
       
-        <link rel="canonical" href="https://philterd.github.io/philter/policies/filters/common_filters/creditcards/">
+        <link rel="canonical" href="https://philterd.github.io/philter/howtos/signed_certificate/">
       
       
+        <link rel="prev" href="../evaluate_performance/">
       
       
-      <link rel="icon" href="../../../../assets/images/favicon.png">
+        <link rel="next" href="../apache_proxy/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.42">
     
     
       
-        <title>Credit Cards - Philter</title>
+        <title>How to Use a Signed SSL Certificate with Philter - Philter</title>
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.0253249f.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -48,7 +52,7 @@
       
     
     
-    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -72,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#credit-cards" class="md-skip">
+        <a href="#how-to-use-a-signed-ssl-certificate-with-philter" class="md-skip">
           Skip to content
         </a>
       
@@ -88,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../.." title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
+    <a href="../.." title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -108,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Credit Cards
+              How to Use a Signed SSL Certificate with Philter
             
           </span>
         </div>
@@ -195,7 +199,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../.." title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
+    <a href="../.." title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -225,7 +229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -245,7 +249,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../upgrading/" class="md-nav__link">
+      <a href="../../upgrading/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -265,7 +269,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../system_requirements/" class="md-nav__link">
+      <a href="../../system_requirements/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -320,7 +324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../quick_starts/quick_start_aws/" class="md-nav__link">
+      <a href="../../quick_starts/quick_start_aws/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -341,7 +345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../quick_starts/quick_start_azure/" class="md-nav__link">
+      <a href="../../quick_starts/quick_start_azure/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -362,7 +366,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../quick_starts/quick_start_gcp/" class="md-nav__link">
+      <a href="../../quick_starts/quick_start_gcp/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -425,7 +429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../deidentification/pii_phi_nppi/" class="md-nav__link">
+      <a href="../../deidentification/pii_phi_nppi/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -446,7 +450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../deidentification/deidentification/" class="md-nav__link">
+      <a href="../../deidentification/deidentification/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -502,7 +506,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../deidentification/bucketing/" class="md-nav__link">
+      <a href="../../deidentification/bucketing/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -523,7 +527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../deidentification/date-shifting/" class="md-nav__link">
+      <a href="../../deidentification/date-shifting/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -594,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../sample_policies/" class="md-nav__link">
+      <a href="../../policies/sample_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -615,7 +619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../filter_policies/" class="md-nav__link">
+      <a href="../../policies/filter_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -636,7 +640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
+      <a href="../../policies/filters/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -657,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../filter_strategies/" class="md-nav__link">
+      <a href="../../policies/filter_strategies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -713,7 +717,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../document_analysis/" class="md-nav__link">
+      <a href="../../policies/document_analysis/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -734,7 +738,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../excluding_by_document_type/" class="md-nav__link">
+      <a href="../../policies/excluding_by_document_type/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -763,7 +767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../splitting_input_text/" class="md-nav__link">
+      <a href="../../policies/splitting_input_text/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -784,7 +788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../ignoring_specific_information/" class="md-nav__link">
+      <a href="../../policies/ignoring_specific_information/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -847,7 +851,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../other_features/alerts/" class="md-nav__link">
+      <a href="../../other_features/alerts/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -868,7 +872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../other_features/consistent_anonymization/" class="md-nav__link">
+      <a href="../../other_features/consistent_anonymization/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -889,7 +893,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../other_features/span_disambiguation/" class="md-nav__link">
+      <a href="../../other_features/span_disambiguation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -910,7 +914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../other_features/dashboard/" class="md-nav__link">
+      <a href="../../other_features/dashboard/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -973,7 +977,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api_and_sdks/api/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1029,7 +1033,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api_and_sdks/api/filtering_api/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/filtering_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1050,7 +1054,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api_and_sdks/api/policies_api/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/policies_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1071,7 +1075,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api_and_sdks/api/alerts_api/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/alerts_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1100,7 +1104,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api_and_sdks/sdks/" class="md-nav__link">
+      <a href="../../api_and_sdks/sdks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1128,7 +1132,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../settings/" class="md-nav__link">
+      <a href="../../settings/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1148,7 +1152,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../monitoring_and_logging/" class="md-nav__link">
+      <a href="../../monitoring_and_logging/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1165,17 +1169,19 @@
       
   
   
+    
   
   
+  
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" checked>
         
           
           <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
@@ -1189,7 +1195,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             How-tos
@@ -1203,7 +1209,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../howtos/evaluate_performance/" class="md-nav__link">
+      <a href="../evaluate_performance/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1221,10 +1227,19 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../../../howtos/signed_certificate/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -1233,6 +1248,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -1245,7 +1261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../howtos/apache_proxy/" class="md-nav__link">
+      <a href="../apache_proxy/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1286,74 +1302,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#filter" class="md-nav__link">
-    <span class="md-ellipsis">
-      Filter
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Filter">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#required-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      Required Parameters
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optional-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      Optional Parameters
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#filter-strategies" class="md-nav__link">
-    <span class="md-ellipsis">
-      Filter Strategies
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#conditions" class="md-nav__link">
-    <span class="md-ellipsis">
-      Conditions
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example Policy
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1370,131 +1318,74 @@
   
 
 
-<h1 id="credit-cards">Credit Cards</h1>
-<h2 id="filter">Filter</h2>
-<p>This filter identifies credit cards such as <code>378282246310005</code> in text.</p>
-<h3 id="required-parameters">Required Parameters</h3>
-<p>This filter has no required parameters.</p>
-<h3 id="optional-parameters">Optional Parameters</h3>
+<h1 id="how-to-use-a-signed-ssl-certificate-with-philter">How to Use a Signed SSL Certificate with Philter</h1>
+<p>When Philter is deployed via the AWS Marketplace, Windows Azure Marketplace or other third-party cloud marketplace, SSL will already be enabled via a self-signed certificate. It is recommended you replace this self-signed certificate with a valid certificate issued to your organization by a trusted authority. The instructions for how to do this are described below.</p>
+<p>First, create a private key and a certificate signing request (CSR) for Philter on your domain. In this walkthrough we are using the domain <code>philter.yourdomain.com</code> as an example.</p>
+<pre><code>openssl req -new -newkey rsa:2048 -nodes -keyout philter_yourdomain_com.key -out philter_youdomain_com.csr
+</code></pre>
+<p>Submit the CSR to your SSL certificate vendor of choice and complete the SSL certificate ordering process. If prompted for a web server during the process, select Apache or Nginx. Once the process is complete and the certificate is issued you will receive a few files. The files you will need are summarized in the table below. The file names may vary and you may also receive other files as well.</p>
 <table>
 <thead>
 <tr>
-<th>Parameter</th>
+<th>File Name</th>
 <th>Description</th>
-<th>Default Value</th>
+<th>Creator</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>creditCardFilterStrategies</code></td>
-<td>A list of filter strategies.</td>
-<td>None</td>
+<td><code>philter_yourdomain_com.csr</code></td>
+<td>Certificate signing request</td>
+<td>Created by you</td>
 </tr>
 <tr>
-<td><code>enabled</code></td>
-<td>When set to false, the filter will be disabled and not applied</td>
-<td><code>true</code></td>
+<td><code>philter_yourdomain_com.key</code></td>
+<td>Certificate private key</td>
+<td>Created by you</td>
 </tr>
 <tr>
-<td><code>ignored</code></td>
-<td>A list of terms to be ignored by the filter.</td>
-<td>None</td>
+<td><code>philter_yourdomain_com.ca-bundle</code></td>
+<td>Intermediate certificates provided by the issuing authority</td>
+<td>Received from SSL authority</td>
 </tr>
 <tr>
-<td><code>onlyValidCreditCardNumbers</code></td>
-<td>When set to true, only valid credit card numbers will be filtered.</td>
-<td><code>true</code></td>
-</tr>
-<tr>
-<td><code>ignoreWhenInUnixTimestamp</code></td>
-<td>When set to true, only credit card numbers that do not match the pattern for a Unix timestamp will be filtered.</td>
-<td><code>false</code></td>
+<td><code>philter_yourdomain_com.crt</code></td>
+<td>The SSL certificate for philter.yourdomain.com</td>
+<td>Received from SSL authority</td>
 </tr>
 </tbody>
 </table>
-<h3 id="filter-strategies">Filter Strategies</h3>
-<p>The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of <code>REDACT</code> is used. When multiple filter strategies are given the filter strategies will be applied in order as they are listed. See <a href="#filter-strategies">Filter Strategies</a> for details.</p>
-<table>
-<thead>
-<tr>
-<th>Strategy</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>REDACT</code></td>
-<td>Replace the sensitive text with a placeholder.</td>
-</tr>
-<tr>
-<td><code>RANDOM_REPLACE</code></td>
-<td>Replace the sensitive text with a similar, random value.</td>
-</tr>
-<tr>
-<td><code>STATIC_REPLACE</code></td>
-<td>Replace the sensitive text with a given value.</td>
-</tr>
-<tr>
-<td><code>CRYPTO_REPLACE</code></td>
-<td>Replace the sensitive text with its encrypted value.</td>
-</tr>
-<tr>
-<td><code>HASH_SHA256_REPLACE</code></td>
-<td>Replace the sensitive text with its SHA256 hash value.</td>
-</tr>
-<tr>
-<td><code>FPE_ENCRYPT_REPLACE</code></td>
-<td>Replace the sensitive text with a value generated by <a href="filter-strategies.md#fpe">format-preserving encryption</a> (FPE)</td>
-</tr>
-<tr>
-<td><code>LAST_4</code></td>
-<td>Replace the sensitive text with just the last four characters of the text.</td>
-</tr>
-</tbody>
-</table>
-<h3 id="conditions">Conditions</h3>
-<p>Each filter strategy may have one condition. See <a href="#conditions">Conditions</a> for details.</p>
-<table>
-<thead>
-<tr>
-<th>Conditional</th>
-<th>Description</th>
-<th>Operators</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>TOKEN</code></td>
-<td>Compares the value of the sensitive text.</td>
-<td><code>==</code> , <code>!=</code></td>
-</tr>
-<tr>
-<td><code>CONTEXT</code></td>
-<td>Compares the filtering context.</td>
-<td><code>==</code> , <code>!=</code></td>
-</tr>
-<tr>
-<td><code>CONFIDENCE</code></td>
-<td>Compares the confidence in the sensitive text against a threshold value.</td>
-<td><code>&lt;</code> , <code>&lt;=</code>, <code>&gt;</code> , <code>&gt;=</code>, <code>==</code>, <code>!=</code></td>
-</tr>
-</tbody>
-</table>
-<h2 id="example-policy">Example Policy</h2>
-<pre><code>{
-   &quot;name&quot;: &quot;credit-cards-example&quot;,
-   &quot;identifiers&quot;: {
-      &quot;creditcard&quot;: {
-         &quot;onlyValidCreditCardNumbers&quot;: false,
-         &quot;creditCardFilterStrategies&quot;: [
-            {
-               &quot;strategy&quot;: &quot;REDACT&quot;,
-               &quot;redactionFormat&quot;: &quot;{{{REDACTED-%t}}}&quot;
-            }
-         ]
-      }
-   }
-}
+<p>When prompted for a keystore password we will use <code>changeit</code>. It's recommended you use a more secure password.</p>
+<p>The first thing to do is to convert the certificate and the private key to PKCS12 format in <code>philter.p12</code>:</p>
+<pre><code>openssl pkcs12 -export -in philter_yourdomain_com.crt -inkey philter_yourdomain_com.key -name philter -out philter.p12
+</code></pre>
+<p>Now import the P12 file into a keystore <code>philter.jks</code>:</p>
+<pre><code>keytool -importkeystore -deststorepass changeit -destkeystore philter.jks -srckeystore philter.p12 -srcstoretype PKCS12
+</code></pre>
+<p>Add the intermediate certificate provided by the issuing authority to the keystore:</p>
+<pre><code>keytool -import -alias intermediate -trustcacerts -file philter_yourdomain.com.ca-bundle -keystore philter.jks
+</code></pre>
+<p>Update Philter's settings in <code>application.properties</code>:</p>
+<pre><code># SSL certificate settings
+server.ssl.key-store-type=JKS
+server.ssl.key-store=/path/to/philter.jks
+server.ssl.key-store-password=changeit
+server.ssl.key-alias=philter
+</code></pre>
+<p>Restart Philter:</p>
+<pre><code>sudo systemctl restart philter
+</code></pre>
+<p>Execute an API status request to verify Philter is running as expected. With the <code>-v</code> option we can see the details of the SSL certificate:</p>
+<pre><code>curl -v https://philter.yourdomain.com:8080/api/status
+</code></pre>
+<p>Look in the response for details of the certificate. Our domain was <code>philter.mtnfog.dev</code>:</p>
+<pre><code>* Server certificate:
+*  subject: CN=philter.mtnfog.dev
+*  start date: Apr 21 00:00:00 2020 GMT
+*  expire date: Apr 21 23:59:59 2021 GMT
+*  subjectAltName: host &quot;philter.mtnfog.dev&quot; matched cert's &quot;philter.mtnfog.dev&quot;
+*  issuer: C=GB; ST=Greater Manchester; L=Salford; O=Sectigo Limited; CN=Sectigo RSA Domain Validation Secure Server CA
+*  SSL certificate verify ok.
 </code></pre>
 
 
@@ -1502,6 +1393,9 @@
 
 
 
+
+  
+  
 
 
 
@@ -1546,10 +1440,10 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../../../..", "features": [], "search": "../../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
       
     
   </body>

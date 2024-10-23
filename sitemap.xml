@@ -268,4 +268,36 @@
          <loc>https://philterd.github.io/philter/quick_starts/quick_start_gcp/</loc>
          <lastmod>2024-10-23</lastmod>
     </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/apache-nifi-and-philter/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/consistent-anonymization-with-redis/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/deploying-philter-in-a-hipaa-environment/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/deploying-philter-via-an-aws-cloudformation-template/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/managing-philters-configuration-in-an-auto-scaling-environment/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/monitoring-philter-in-aws/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/using-aws-kinesis-firehose-transformations-to-filter-sensitive-information-from-streaming-text/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/solutions/using-philter-with-microsoft-power-automate-flow/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
 </urlset>

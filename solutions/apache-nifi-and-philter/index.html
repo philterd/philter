@@ -1658,15 +1658,12 @@
 <h4 id="option-1-using-philter-via-its-api">Option 1 - Using Philter via its API</h4>
 <p>In the first option, a custom NiFi processor performs redaction by communicating with an instance of Philter through Philter's API. The processor sends text to Philter for redaction and receives back the redacted text. This option requires deploying an instance of Philter alongside your Cloudera DataFlow installation. Next, get the Philter NiFi processor from <a href="https://github.com/mtnfog/philter-nifi">GitHub</a>. Deploy the NAR file to CDF and make it accessible to Apache NiFi.</p>
 <p>Configure the Philter processor by specifying the location of Philter and any other necessary connection configuration, as shown in the image below.</p>
-<p><img alt="Philter NiFi processor configuration" src="rWrENHtKKXNLebN8C4VzA-1J2cvREck-4Y0Is8g-6JNyEq_V_kwZN7Md4_w4WzV9vftwftiE3jo9littUVTuF6kPMOrN7tuguFETNY9Cx1QfdFxdUc9HgcoZ34El4xwl-3Pa3hYW." /></p>
 <p>For a production environment, a cluster of Philter instances deployed behind a load balancer would provide improved performance and increased availability over a single instance.</p>
 <h4 id="option-2-using-philter-embedded-into-nifi">Option 2 - Using Philter Embedded into NiFi</h4>
 <p>The second option does not require an instance of Philter. Please contact us to receive a NiFi processor with all of Philter's capabilities embedded in it. This processor performs the text redaction entirely within your NiFi data flow with no external communication required. This processor is significantly more performant than the processor in the first option. When you receive the processor NAR file from us, deploy it to NiFi.</p>
 <p>Configure the processor as shown in the image below by specifying the name of the desired policy and filtering context:</p>
-<p><img alt="Philter NiFi embedded processor configuration" src="aqI0jxi3ggLChdmGrIrRXBi5yhd0sxIjQa2b1AK-petvxNbKWn-49VgJ3_-wGHGcbPMrwU_fDzFPjhbchgbCKv1SYQcsbRfW75c4AsXTtRBArSyIaQDroEt_GLhGOTXVwI_tJJ35." /></p>
 <h3 id="creating-a-flow">Creating a Flow</h3>
 <p>Both processors support the same transitions. The <code>redacted</code> transition contains the redacted version of the flow file's content. In the example flows shown below, the top flow uses the Philter processor utilizing Philter's API. The bottom flow uses the Philter embedded processor. As you can see, both flows are the same. The only differences are the middle processors and their individual configuration.</p>
-<p><img alt="" src="https://lh4.googleusercontent.com/LN5bW3WTbxr-sHazOquQnlGmm7oCT0g42NvdCws2GjLOkOAFQYxtxEEbcRAKpVYmIdCiTam0MxiuLVd6ENLWQmCtsm2nhQQa4TBizaLTFuWuUf-t0-VSDPh5Ql3dOf93kGWB6M6V" /></p>
 
 
 

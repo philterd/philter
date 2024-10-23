@@ -1291,55 +1291,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#metrics-idmetrics" class="md-nav__link">
+  <a href="#metrics" class="md-nav__link">
     <span class="md-ellipsis">
-      Metrics {id="metrics"}
+      Metrics
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Metrics {id="metrics"}">
+    <nav class="md-nav" aria-label="Metrics">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-prometheus-idprometheus" class="md-nav__link">
+  <a href="#reporting-metrics-to-prometheus" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to Prometheus {id="prometheus"}
+      Reporting Metrics to Prometheus
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-amazon-cloudwatch-idcloudwatch" class="md-nav__link">
+  <a href="#reporting-metrics-to-amazon-cloudwatch" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to Amazon CloudWatch {id="cloudwatch"}
+      Reporting Metrics to Amazon CloudWatch
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-datadog-iddatadog" class="md-nav__link">
+  <a href="#reporting-metrics-to-datadog" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to Datadog {id="datadog"}
+      Reporting Metrics to Datadog
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-jmx-idjmx" class="md-nav__link">
+  <a href="#reporting-metrics-to-jmx" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to JMX {id="jmx"}
+      Reporting Metrics to JMX
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#metrics-collected-and-reported-idcollected" class="md-nav__link">
+  <a href="#metrics-collected-and-reported" class="md-nav__link">
     <span class="md-ellipsis">
-      Metrics Collected and Reported {id="collected"}
+      Metrics Collected and Reported
     </span>
   </a>
   
@@ -1351,9 +1351,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#logging-idlogging" class="md-nav__link">
+  <a href="#logging" class="md-nav__link">
     <span class="md-ellipsis">
-      Logging {id="logging"}
+      Logging
     </span>
   </a>
   
@@ -1634,55 +1634,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#metrics-idmetrics" class="md-nav__link">
+  <a href="#metrics" class="md-nav__link">
     <span class="md-ellipsis">
-      Metrics {id="metrics"}
+      Metrics
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Metrics {id="metrics"}">
+    <nav class="md-nav" aria-label="Metrics">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-prometheus-idprometheus" class="md-nav__link">
+  <a href="#reporting-metrics-to-prometheus" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to Prometheus {id="prometheus"}
+      Reporting Metrics to Prometheus
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-amazon-cloudwatch-idcloudwatch" class="md-nav__link">
+  <a href="#reporting-metrics-to-amazon-cloudwatch" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to Amazon CloudWatch {id="cloudwatch"}
+      Reporting Metrics to Amazon CloudWatch
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-datadog-iddatadog" class="md-nav__link">
+  <a href="#reporting-metrics-to-datadog" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to Datadog {id="datadog"}
+      Reporting Metrics to Datadog
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#reporting-metrics-to-jmx-idjmx" class="md-nav__link">
+  <a href="#reporting-metrics-to-jmx" class="md-nav__link">
     <span class="md-ellipsis">
-      Reporting Metrics to JMX {id="jmx"}
+      Reporting Metrics to JMX
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#metrics-collected-and-reported-idcollected" class="md-nav__link">
+  <a href="#metrics-collected-and-reported" class="md-nav__link">
     <span class="md-ellipsis">
-      Metrics Collected and Reported {id="collected"}
+      Metrics Collected and Reported
     </span>
   </a>
   
@@ -1694,9 +1694,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#logging-idlogging" class="md-nav__link">
+  <a href="#logging" class="md-nav__link">
     <span class="md-ellipsis">
-      Logging {id="logging"}
+      Logging
     </span>
   </a>
   
@@ -1729,9 +1729,9 @@ sudo systemctl restart philter
 sudo systemctl status philter
 </code></pre>
 <p>Philter is installed in the <code>/opt/philter</code> directory. This directory contains the Philter binaries, configuration files, and supporting files.</p>
-<h2 id="metrics-idmetrics">Metrics {id="metrics"}</h2>
+<h2 id="metrics">Metrics</h2>
 <p>Philter collects metrics while running to provide insights into its operation and the text being processed. The metrics collected include a count of the documents processed by Philter, counts of the types of sensitive information identified per type, and the entity confidence values of entities extracted by non-deterministic natural language processing methods. These metrics can be reported via <a href="Monitoring-and-Management.md#jmx">JMX</a>, and to external services <a href="Monitoring-and-Management.md#prometheus">Prometheus</a>, <a href="Monitoring-and-Management.md#cloudwatch">Amazon CloudWatch</a>, and <a href="Monitoring-and-Management.md#datadog">Datadog</a>.</p>
-<h3 id="reporting-metrics-to-prometheus-idprometheus">Reporting Metrics to Prometheus {id="prometheus"}</h3>
+<h3 id="reporting-metrics-to-prometheus">Reporting Metrics to Prometheus</h3>
 <p>To enable Philter metric reporting to Prometheus modify Philter's <a href="../settings/#prometheus">Settings</a> to enable the Prometheus metrics. When enabled, the metrics HTTP endpoint will be <code>http://philter-ip:9100/metrics</code>.</p>
 <p>Enable scraping of Philter's metrics in Prometheus' settings:</p>
 <pre><code>global:
@@ -1743,7 +1743,7 @@ scrape_configs:
   - targets: ['10.0.2.104:9100']
 </code></pre>
 <p>You may need to make port <code>9100</code> accessible to Prometheus. For example, if you launch Philter in AWS you will need to modify Philter's security group to permit inbound network traffic on port <code>9100</code> to Prometheus.</p>
-<h3 id="reporting-metrics-to-amazon-cloudwatch-idcloudwatch">Reporting Metrics to Amazon CloudWatch {id="cloudwatch"}</h3>
+<h3 id="reporting-metrics-to-amazon-cloudwatch">Reporting Metrics to Amazon CloudWatch</h3>
 <p>To enable Philter metric reporting to Amazon CloudWatch modify Philter's <a href="../settings/#cloudwatch">Settings</a> to set the AWS properties. Metrics will be published to CloudWatch every 60 seconds, by default, when enabled.</p>
 <p>The AWS IAM user or role being used should have <code>PutMetricData</code> permissions:</p>
 <pre><code>{
@@ -1761,16 +1761,16 @@ scrape_configs:
 }
 </code></pre>
 <p>The metrics will be published to the Amazon CloudWatch namespace provided in Philter's settings. Amazon CloudWatch can then be used to visualize the metrics, set performance alarms, or perform other integrations with AWS services.</p>
-<p><img alt="Philter metrics reported and visualized in Amazon CloudWatch." src="cloudwatchmetrics.png" /></p>
-<h3 id="reporting-metrics-to-datadog-iddatadog">Reporting Metrics to Datadog {id="datadog"}</h3>
+<p><img alt="Philter metrics reported and visualized in Amazon CloudWatch." src="../img/cloudwatchmetrics.png" /></p>
+<h3 id="reporting-metrics-to-datadog">Reporting Metrics to Datadog</h3>
 <p>Metrics will be published to Datadog every 60 seconds when enabled.</p>
 <p>Metrics published to Datadog will have a <code>philter</code> prefix.</p>
-<p><img alt="Philter metrics in Datadog's Metrics Summary." src="datadog1.png" /></p>
+<p><img alt="Philter metrics in Datadog's Metrics Summary." src="../img/datadog1.png" /></p>
 <p>The metrics can be used to make graphs and dashboards.</p>
-<p><img alt="Example Datadog graphs of select Philter metrics." src="datadog2.png" /></p>
-<h3 id="reporting-metrics-to-jmx-idjmx">Reporting Metrics to JMX {id="jmx"}</h3>
+<p><img alt="Example Datadog graphs of select Philter metrics." src="../img/datadog2.png" /></p>
+<h3 id="reporting-metrics-to-jmx">Reporting Metrics to JMX</h3>
 <p>Metrics in JMX can be viewed using <a href="https://visualvm.github.io/">visualvm</a> or similar tool.</p>
-<h3 id="metrics-collected-and-reported-idcollected">Metrics Collected and Reported {id="collected"}</h3>
+<h3 id="metrics-collected-and-reported">Metrics Collected and Reported</h3>
 <p>The listing below shows an example of the metrics Philter collects and writes to standard out while running. The metrics reported to supported services such as JMX, Amazon CloudWatch and Datadog will contain the same metrics but may be represented or visualized differently between the services.</p>
 <p>The metrics collected include:</p>
 <ul>
@@ -1778,7 +1778,7 @@ scrape_configs:
 <li>The total count of documents processed.</li>
 </ul>
 <p>These metrics will be reset when Philter is stopped and restarted.</p>
-<h2 id="logging-idlogging">Logging {id="logging"}</h2>
+<h2 id="logging">Logging</h2>
 <p>Philter's log file can be viewed using the command <code>journalctl -u philter</code>. This log should be the first place checked for more information on Philter's status.</p>
 <p>The log level can be set using the <code>logging.level.root</code> property in Philter's <a href="../settings/">Settings</a>.</p>
 <blockquote>

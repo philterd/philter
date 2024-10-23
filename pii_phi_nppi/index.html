@@ -12,24 +12,28 @@
         <meta name="author" content="philterd">
       
       
-        <link rel="canonical" href="https://philterd.github.io/philter/deidentification/redaction-and-masking/">
+        <link rel="canonical" href="https://philterd.github.io/philter/pii_phi_nppi/">
       
       
+        <link rel="prev" href="../quick_starts/quick_start_gcp/">
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+        <link rel="next" href="../deidentification/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.42">
     
     
       
-        <title>Redaction and Masking - Philter</title>
+        <title>PII, PHI, and NPPI - Philter</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.0253249f.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -48,7 +52,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
   
@@ -82,7 +86,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#redaction-and-masking" class="md-skip">
+        <a href="#pii-phi-and-nppi" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +104,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="https://www.philterd.ai" title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
       
-  <img src="../../img/philterd.png" alt="logo">
+  <img src="../img/philterd.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -117,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Redaction and Masking
+              PII, PHI, and NPPI
             
           </span>
         </div>
@@ -206,7 +210,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="https://www.philterd.ai" title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
       
-  <img src="../../img/philterd.png" alt="logo">
+  <img src="../img/philterd.png" alt="logo">
 
     </a>
     Philter
@@ -233,7 +237,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -253,7 +257,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../upgrading/" class="md-nav__link">
+      <a href="../upgrading/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -273,7 +277,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system_requirements/" class="md-nav__link">
+      <a href="../system_requirements/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -330,7 +334,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quick_starts/quick_start_aws/" class="md-nav__link">
+      <a href="../quick_starts/quick_start_aws/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -351,7 +355,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quick_starts/quick_start_azure/" class="md-nav__link">
+      <a href="../quick_starts/quick_start_azure/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -372,7 +376,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quick_starts/quick_start_gcp/" class="md-nav__link">
+      <a href="../quick_starts/quick_start_gcp/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -397,47 +401,30 @@
       
   
   
+    
   
   
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
         
-        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
   
   <span class="md-ellipsis">
-    PII and De-identification
+    PII, PHI, and NPPI
   </span>
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            PII and De-identification
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pii_phi_nppi/" class="md-nav__link">
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -446,13 +433,41 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#predefined-types-of-pii-and-phi" class="md-nav__link">
+    <span class="md-ellipsis">
+      Predefined Types of PII and PHI
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -470,101 +485,6 @@
     </li>
   
 
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
-            
-  
-  <span class="md-ellipsis">
-    Deidentification Methods
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_3">
-            <span class="md-nav__icon md-icon"></span>
-            Deidentification Methods
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../bucketing/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Bucketing
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../date-shifting/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Date Shifting
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
     
       
       
@@ -582,10 +502,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -596,8 +516,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             Policies
           </label>
@@ -610,7 +530,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/sample_policies/" class="md-nav__link">
+      <a href="../policies/sample_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -631,7 +551,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/filter_policies/" class="md-nav__link">
+      <a href="../policies/filter_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -652,7 +572,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/filters/" class="md-nav__link">
+      <a href="../policies/filters/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -673,7 +593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/filter_strategies/" class="md-nav__link">
+      <a href="../policies/filter_strategies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -703,10 +623,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_5" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_5" >
         
           
-          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_5" id="__nav_7_5_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -717,8 +637,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_5">
             <span class="md-nav__icon md-icon"></span>
             Document Analysis
           </label>
@@ -731,7 +651,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/document_analysis/" class="md-nav__link">
+      <a href="../policies/document_analysis/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -752,7 +672,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/excluding_by_document_type/" class="md-nav__link">
+      <a href="../policies/excluding_by_document_type/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -781,7 +701,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/splitting_input_text/" class="md-nav__link">
+      <a href="../policies/splitting_input_text/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -802,7 +722,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../policies/ignoring_specific_information/" class="md-nav__link">
+      <a href="../policies/ignoring_specific_information/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -839,10 +759,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -853,8 +773,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             API and SDKs
           </label>
@@ -867,7 +787,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/" class="md-nav__link">
+      <a href="../api_and_sdks/api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -897,10 +817,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_2" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
         
           
-          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -911,8 +831,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
             <span class="md-nav__icon md-icon"></span>
             API Methods
           </label>
@@ -925,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/filtering_api/" class="md-nav__link">
+      <a href="../api_and_sdks/api/filtering_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -946,7 +866,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/policies_api/" class="md-nav__link">
+      <a href="../api_and_sdks/api/policies_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -967,7 +887,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/alerts_api/" class="md-nav__link">
+      <a href="../api_and_sdks/api/alerts_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -996,7 +916,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/sdks/" class="md-nav__link">
+      <a href="../api_and_sdks/sdks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1024,7 +944,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../settings/" class="md-nav__link">
+      <a href="../settings/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1044,7 +964,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../monitoring_and_logging/" class="md-nav__link">
+      <a href="../monitoring_and_logging/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1073,10 +993,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1087,8 +1007,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             Advanced Features
           </label>
@@ -1101,7 +1021,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/alerts/" class="md-nav__link">
+      <a href="../other_features/alerts/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1122,7 +1042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/consistent_anonymization/" class="md-nav__link">
+      <a href="../other_features/consistent_anonymization/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1143,7 +1063,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/span_disambiguation/" class="md-nav__link">
+      <a href="../other_features/span_disambiguation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1164,118 +1084,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/dashboard/" class="md-nav__link">
+      <a href="../other_features/dashboard/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     Dashboard
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
-        
-          
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
-            
-  
-  <span class="md-ellipsis">
-    How-tos
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_11">
-            <span class="md-nav__icon md-icon"></span>
-            How-tos
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../howtos/evaluate_performance/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    How to Evaluate Philter's Performance
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../howtos/signed_certificate/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    How to Use a Signed SSL Certificate with Philter
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../howtos/apache_proxy/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    How to Use an Apache Reverse Proxy with Philter
   </span>
   
 
@@ -1315,7 +1128,7 @@
             
   
   <span class="md-ellipsis">
-    Solutions
+    How-tos
   </span>
   
 
@@ -1324,6 +1137,113 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            How-tos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howtos/evaluate_performance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    How to Evaluate Philter's Performance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howtos/signed_certificate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    How to Use a Signed SSL Certificate with Philter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howtos/apache_proxy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    How to Use an Apache Reverse Proxy with Philter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Solutions
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
             <span class="md-nav__icon md-icon"></span>
             Solutions
           </label>
@@ -1336,7 +1256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/monitoring-philter-in-aws/" class="md-nav__link">
+      <a href="../solutions/monitoring-philter-in-aws/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1357,7 +1277,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/deploying-philter-in-a-hipaa-environment/" class="md-nav__link">
+      <a href="../solutions/deploying-philter-in-a-hipaa-environment/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1378,7 +1298,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/consistent-anonymization-with-redis/" class="md-nav__link">
+      <a href="../solutions/consistent-anonymization-with-redis/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1399,7 +1319,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/apache-nifi-and-philter/" class="md-nav__link">
+      <a href="../solutions/apache-nifi-and-philter/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1420,7 +1340,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/managing-philters-configuration-in-an-auto-scaling-environment/" class="md-nav__link">
+      <a href="../solutions/managing-philters-configuration-in-an-auto-scaling-environment/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1441,7 +1361,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/deploying-philter-via-an-aws-cloudformation-template/" class="md-nav__link">
+      <a href="../solutions/deploying-philter-via-an-aws-cloudformation-template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1462,7 +1382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/using-aws-kinesis-firehose-transformations-to-filter-sensitive-information-from-streaming-text/" class="md-nav__link">
+      <a href="../solutions/using-aws-kinesis-firehose-transformations-to-filter-sensitive-information-from-streaming-text/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1483,7 +1403,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../solutions/using-philter-with-microsoft-power-automate-flow/" class="md-nav__link">
+      <a href="../solutions/using-philter-with-microsoft-power-automate-flow/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1524,6 +1444,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#predefined-types-of-pii-and-phi" class="md-nav__link">
+    <span class="md-ellipsis">
+      Predefined Types of PII and PHI
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1540,9 +1477,116 @@
   
 
 
-<h1 id="redaction-and-masking">Redaction and Masking</h1>
-<p>Redaction and masking are two methods of de-identification that are often used interchangeably. The term redaction refers to removing a sensitive value from a document. When we hear the term redaction we often think of an image of a document with black bars across pieces of the text.</p>
-<p>Masking is similar to redaction but allows for configuring how the sensitive value is removed. The most common example is using asterisks (i.e. ******) in place of a sensitive value.</p>
+<h1 id="pii-phi-and-nppi">PII, PHI, and NPPI</h1>
+<p>Philter has many predefined types of sensitive information called <a href="filters_README.md">filters</a> that can be redacted. The individual types are described below.</p>
+<ul>
+<li>Personally identifiable information (PII) is any information that could potentially be used to identify a specific person.</li>
+<li>Protected health information (PHI) is any information about health status, provision of health care, or payment for health care that can be linked to an individual. The Health Insurance Portability And Accountability Act (HIPAA) defines 18 types of PHI.</li>
+</ul>
+<h2 id="predefined-types-of-pii-and-phi">Predefined Types of PII and PHI</h2>
+<p>The types of sensitive information that Philter will identify is customizable. For example, if you are not interested in VIN numbers you can have Philter ignore them. This configuration is performed through <a href="policies_README.md">Policies</a>.</p>
+<p>Because Philter only operates on text, the biometric identifiers and face images outlined in the HIPAA regulations as PHI are not applicable to Philter. The types of sensitive information and how Philter identifies each one is listed in the table below.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Type of PHI</th>
+<th>How Philter Identifies It</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><p><strong>Names</strong></p><p>Ex: John Smith, Jane Doe</p></td>
+<td><ul><li>Philter identifies names in natural language text using state of the art machine learning algorithms and natural language processing techniques to identify named-person entities.</li><li>Philter also uses common first name and surname dictionaries with spellcheck capability to identify common names per the US census.</li></ul></td>
+</tr>
+<tr>
+<td>2</td>
+<td><p>All <strong>geographical identifiers</strong> smaller than a state, except for the initial three digits of a zip code if, according to the current publicly available data from the U.S. Bureau of the Census: the geographic unit formed by combining all zip codes with the same three initial digits contains more than 20,000 people; and the initial three digits of a zip code for all such geographic units containing 20,000 or fewer people is changed to 000</p><p>Ex: 85055, 90213-1544</p></td>
+<td><ul><li>Philter can identify many US cities, US counties, and all US states (full names and abbreviations).</li><li>Philter uses a dictionary with spelling correction to identify misspelled locations.</li><li>Filter conditions in policies can be used to apply logic based on zip code population according to the US census. (Filter strategies can truncate the zip code.)</li><li>Philter also uses state of the art machine learning algorithms and natural language processing techniques to identify locations.</li><li>Philter includes a dictionary of some hospital locations to quickly identify medical locations.</li></ul></td>
+</tr>
+<tr>
+<td>3</td>
+<td><p><strong>Dates (other than year) directly related to an individual</strong></p><p>Ex: 10-10-2000. 10/10/2000, October 10, 2000</p></td>
+<td><ul><li>Philter can identify dates in many formats such as with hypens (10-10-2000), with slashes (10/10/2000), or spelled out (May 1, 2000).</li><li>Philter can also identify ages, e.g. 57 years, 57yrs.</li></ul></td>
+</tr>
+<tr>
+<td>4</td>
+<td><p><strong>Phone Numbers</strong></p><p>Ex: (304) 555-5555, 304-555-5555, 1-800-123-4567</p></td>
+<td><ul><li>Philter can identify phone numbers in many formats. (Philter is currently limited to US phone numbers.)</li></ul></td>
+</tr>
+<tr>
+<td>5</td>
+<td><p><strong>Fax numbers</strong></p><p>Ex: (304) 555-5555, 304-555-5555, 1-800-123-4567</p></td>
+<td><ul><li>Philter can identify fax numbers in many formats. (Philter is currently limited to US phone numbers.)</li></ul></td>
+</tr>
+<tr>
+<td>6</td>
+<td><p><strong>Email addresses</strong></p><p>Ex: john.fake.address@hotmail.com</p></td>
+<td><ul><li>Philter can identify email addresses per the email standard (summarized on <a href="https://en.wikipedia.org/wiki/Email_address">Wikipedia</a>).</li></ul></td>
+</tr>
+<tr>
+<td>7</td>
+<td><p><strong>Social Security numbers</strong></p><p>Ex: 123-45-6789, 123456789</p></td>
+<td><ul><li>Philter can identify social security numbers (SSNs) in multiple formats such as with spaces and hyphens.</li></ul></td>
+</tr>
+<tr>
+<td>8</td>
+<td><p><strong>Medical record numbers</strong></p><p>Ex: 86637729, AB473-6021, 473-6AB021</p></td>
+<td><ul><li>Philter can identify alphanumeric identifiers.</li></ul></td>
+</tr>
+<tr>
+<td>9</td>
+<td><p><strong>Health insurance beneficiary numbers</strong></p><p>Ex: 86637729, AB473-6021, 473-6AB021</p></td>
+<td><ul><li>Philter can identify alphanumeric identifiers.</li></ul></td>
+</tr>
+<tr>
+<td>10</td>
+<td><p><strong>Account numbers</strong></p><p>Ex: 86637729, AB473-6021, 473-6AB021</p></td>
+<td><ul><li>Philter can identify alphanumeric identifiers, as well as credit card numbers from all major types of credit cards.</li></ul></td>
+</tr>
+<tr>
+<td>11</td>
+<td><p><strong>Certificate/license numbers</strong></p><p>Ex: 86637729, AB473-6021, 473-6AB021</p></td>
+<td><ul><li>Philter can identify alphanumeric identifiers.</li></ul></td>
+</tr>
+<tr>
+<td>12</td>
+<td><p><strong>Vehicle identifiers and serial numbers, including license plate numbers</strong></p><p>Ex: WBAPM7G50ANL19218, 1GBJC34K3RE176005</p></td>
+<td><ul><li>Philter can identify vehicle serial numbers (17-character VIN numbers). License plates will be identified as alphanumeric identifiers.</li></ul></td>
+</tr>
+<tr>
+<td>13</td>
+<td><p><strong>Device identifiers and serial numbers</strong></p><p>Ex: H3SNPUHYEE7JD3H, 33778376</p></td>
+<td><ul><li>Philter can identify alphanumeric identifiers.</li></ul></td>
+</tr>
+<tr>
+<td>14</td>
+<td><p><strong>Web Uniform Resource Locators (URLs)</strong></p><p>Ex: myhomepage.com, http://myhomepage.com/folder/page.html, www.myhomepage.com/folder/page.html</p></td>
+<td><ul><li>Philter can identify URLs adhering to the URL naming standard.</li></ul></td>
+</tr>
+<tr>
+<td>15</td>
+<td><p><strong>Internet Protocol (IP) address numbers</strong></p><p>Ex: 127.0.0.1, 192.168.3.58, 2001:0db8:85a3:0000:0000:8a2e:0370:7334</p></td>
+<td><ul><li>Philter can identify IPv4 and IPv6 addresses.</li></ul></td>
+</tr>
+<tr>
+<td>16</td>
+<td>Biometric identifiers, including finger, retinal and voice prints</td>
+<td><ul><li>Not applicable – Philter only identifies PHI in text.</li></ul></td>
+</tr>
+<tr>
+<td>17</td>
+<td>Full face photographic images and any comparable images</td>
+<td><ul><li>Not applicable – Philter only identifies PHI in text.</li></ul></td>
+</tr>
+<tr>
+<td>18</td>
+<td><p><strong>Any other unique identifying number, characteristic, or code except the unique code assigned by the investigator to code the data</strong></p><p>Ex: 86637729, AB473-6021, 473-6AB021</p></td>
+<td><ul><li>Philter can identify alphanumeric identifiers.</li></ul></td>
+</tr>
+</tbody>
+</table>
 
 
 
@@ -1569,6 +1613,44 @@
       
         <footer class="md-footer">
   
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../quick_starts/quick_start_gcp/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Philter Quick Start on Google Cloud">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Philter Quick Start on Google Cloud
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../deidentification/" class="md-footer__link md-footer__link--next" aria-label="Next: Deidentification">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Deidentification
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
     
   
   <div class="md-footer-meta md-typeset">
@@ -1686,10 +1768,10 @@
       </div>
       <script>var consent=__md_get("__consent");if(consent)for(var input of document.forms.consent.elements)input.name&&(input.checked=consent[input.name]||!1);else"file:"!==location.protocol&&setTimeout((function(){document.querySelector("[data-md-component=consent]").hidden=!1}),250);var form=document.forms.consent;for(var action of["submit","reset"])form.addEventListener(action,(function(e){if(e.preventDefault(),"reset"===e.type)for(var n of document.forms.consent.elements)n.name&&(n.checked=!1);__md_set("__consent",Object.fromEntries(Array.from(new FormData(form).keys()).map((function(e){return[e,!0]})))),location.hash="",location.reload()}))</script>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.expand", "navigation.footer"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.expand", "navigation.footer"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      <script src="../assets/javascripts/bundle.83f73b43.min.js"></script>
       
     
   </body>

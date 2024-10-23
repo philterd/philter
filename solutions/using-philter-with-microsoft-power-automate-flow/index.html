@@ -1531,11 +1531,11 @@
 <h1 id="using-philter-with-microsoft-power-automate-flow">Using Philter with Microsoft Power Automate (Flow)</h1>
 <p><a href="https://flow.microsoft.com/en-us/">Microsoft Power Automate</a> (formerly Microsoft Flow) is an online application to automate tasks using an intuitive online editor. Using the tool you can create automations that are triggered by events, such as the receiving of an email or a new file being stored in OneDrive. In this example solution we will create a trivial automation that uses Philter to filter sensitive information from text.</p>
 <p>We will use an HTTP step to make the call to Philter. An upstream action is setting the content of <code>Input</code> that we are putting into the body of the message. The <code>Input</code> is plain text so we add an HTTP <code>Content-Type</code> header with the value of <code>text/plain</code>. In our example, the value of <code>Input</code> will be "George Washington was president and his SSN was 123-45-6789." Be sure to replace the IP address in the URI with the IP address or hostname of your Philter instance.</p>
-<p><img alt="Configuration of the HTTP action." src="img/http-action.png" /></p>
+<p><img alt="Configuration of the HTTP action." src="/img/http-action.png" /></p>
 <p>We are now ready to run our flow. We can do so by clicking the <code>Run</code> button. You can now switch to the <code>Runs</code> view to see the run.</p>
 <p><img alt="" src="img/runs.png" /></p>
 <p>Clicking on our run we can see the results of the HTTP step.</p>
-<p><img alt="Run status of the HTTP step." src="img/output.png" /></p>
+<p><img alt="Run status of the HTTP step." src="/img/output.png" /></p>
 <p>In the screen capture above, we can see a summary of the HTTP step run. We see the body of the message that was sent to Philter. At the bottom we can see the filtered text that was returned by Philter.</p>
 <p>Integrating Philter with Microsoft Power Automate is a fairly trivial exercise thanks to Philter's API. Although this example was trivial, it should show the potential possibilities for using Philter with Microsoft Power Automate.</p>
 

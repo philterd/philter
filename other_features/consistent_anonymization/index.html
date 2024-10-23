@@ -12,24 +12,28 @@
         <meta name="author" content="philterd">
       
       
-        <link rel="canonical" href="https://philterd.github.io/philter/apis_and_sdks/apis/filtering_api/">
+        <link rel="canonical" href="https://philterd.github.io/philter/other_features/consistent_anonymization/">
       
       
+        <link rel="prev" href="../alerts/">
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+        <link rel="next" href="../span_disambiguation/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.42">
     
     
       
-        <title>Filtering API - Philter</title>
+        <title>Consistent Anonymization - Philter</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -48,7 +52,7 @@
       
     
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -72,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#filtering-api" class="md-skip">
+        <a href="#consistent-anonymization" class="md-skip">
           Skip to content
         </a>
       
@@ -88,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
+    <a href="../.." title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -108,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Filtering API
+              Consistent Anonymization
             
           </span>
         </div>
@@ -195,7 +199,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
+    <a href="../.." title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -225,7 +229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -245,7 +249,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../upgrading/" class="md-nav__link">
+      <a href="../../upgrading/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -265,7 +269,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../system_requirements/" class="md-nav__link">
+      <a href="../../system_requirements/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -320,7 +324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../quick_starts/quick_start_aws/" class="md-nav__link">
+      <a href="../../quick_starts/quick_start_aws/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -341,7 +345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../quick_starts/quick_start_azure/" class="md-nav__link">
+      <a href="../../quick_starts/quick_start_azure/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -362,7 +366,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../quick_starts/quick_start_gcp/" class="md-nav__link">
+      <a href="../../quick_starts/quick_start_gcp/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -425,7 +429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../deidentification/pii_phi_nppi/" class="md-nav__link">
+      <a href="../../deidentification/pii_phi_nppi/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -446,7 +450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../deidentification/deidentification/" class="md-nav__link">
+      <a href="../../deidentification/deidentification/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -502,7 +506,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../deidentification/bucketing/" class="md-nav__link">
+      <a href="../../deidentification/bucketing/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -523,7 +527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../deidentification/date-shifting/" class="md-nav__link">
+      <a href="../../deidentification/date-shifting/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -594,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/sample_policies/" class="md-nav__link">
+      <a href="../../policies/sample_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -615,7 +619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/filter_policies/" class="md-nav__link">
+      <a href="../../policies/filter_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -636,7 +640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/filters/" class="md-nav__link">
+      <a href="../../policies/filters/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -657,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/filter_strategies/" class="md-nav__link">
+      <a href="../../policies/filter_strategies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -713,7 +717,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/document_analysis/" class="md-nav__link">
+      <a href="../../policies/document_analysis/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -734,7 +738,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/excluding_by_document_type/" class="md-nav__link">
+      <a href="../../policies/excluding_by_document_type/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -763,7 +767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/splitting_input_text/" class="md-nav__link">
+      <a href="../../policies/splitting_input_text/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -784,7 +788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../policies/ignoring_specific_information/" class="md-nav__link">
+      <a href="../../policies/ignoring_specific_information/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -809,34 +813,36 @@
       
   
   
+    
   
   
+  
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   <span class="md-ellipsis">
-    API and SDKs
+    Advanced Features
   </span>
   
 
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
-            API and SDKs
+            Advanced Features
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -847,11 +853,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../api_and_sdks/api.md" class="md-nav__link">
+      <a href="../alerts/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    API Overview
+    Alerts
   </span>
   
 
@@ -865,102 +871,66 @@
                 
   
   
+    
   
   
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
-        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
           
-          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
-            
   
   <span class="md-ellipsis">
-    APIs
+    Consistent Anonymization
   </span>
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2">
-            <span class="md-nav__icon md-icon"></span>
-            APIs
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../api_and_sdks/apis/filtering_api.md" class="md-nav__link">
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    Filtering API
+    Consistent Anonymization
   </span>
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../api_and_sdks/apis/policies_api.md" class="md-nav__link">
+      
         
-  
-  <span class="md-ellipsis">
-    Policies API
-  </span>
-  
 
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="../../../api_and_sdks/apis/alerts_api.md" class="md-nav__link">
-        
   
-  <span class="md-ellipsis">
-    Alerts API
-  </span>
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#consistent-anonymization_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consistent Anonymization
+    </span>
+  </a>
   
-
-      </a>
-    </li>
+</li>
+      
+    </ul>
   
-
-              
-            
-          </ul>
-        </nav>
+</nav>
       
     </li>
   
@@ -974,11 +944,32 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../api_and_sdks/sdks.md" class="md-nav__link">
+      <a href="../span_disambiguation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Client SDKs
+    Span Disambiguation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dashboard/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dashboard
   </span>
   
 
@@ -1016,7 +1007,7 @@
             
   
   <span class="md-ellipsis">
-    Other Features
+    API and SDKs
   </span>
   
 
@@ -1026,7 +1017,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
-            Other Features
+            API and SDKs
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1037,11 +1028,67 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../other_features/alerts/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Alerts
+    API Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API Methods
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            API Methods
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api_and_sdks/api/filtering_api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Filtering API
   </span>
   
 
@@ -1058,11 +1105,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../other_features/anonymization/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/policies_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Anonymization
+    Policies API
   </span>
   
 
@@ -1079,11 +1126,40 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../other_features/span_disambiguation/" class="md-nav__link">
+      <a href="../../api_and_sdks/api/alerts_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Span Disambiguation
+    Alerts API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api_and_sdks/sdks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Client SDKs
   </span>
   
 
@@ -1107,7 +1183,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../settings/" class="md-nav__link">
+      <a href="../../settings/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1147,75 +1223,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#filter" class="md-nav__link">
+  <a href="#consistent-anonymization_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Filter
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Filter">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#query-parameters-idfilter-query-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      Query Parameters {id="filter-query-parameters"}
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#headers-idfilter-headers" class="md-nav__link">
-    <span class="md-ellipsis">
-      Headers {id="filter-headers"}
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#explain" class="md-nav__link">
-    <span class="md-ellipsis">
-      Explain
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Explain">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#query-parameters-idexplain-query-params" class="md-nav__link">
-    <span class="md-ellipsis">
-      Query Parameters {id="explain-query-params"}
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#headers-idexplain-headers" class="md-nav__link">
-    <span class="md-ellipsis">
-      Headers {id="explain-headers"}
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
-    <span class="md-ellipsis">
-      Status
+      Consistent Anonymization
     </span>
   </a>
   
@@ -1239,139 +1249,16 @@
   
 
 
-<h1 id="filtering-api">Filtering API</h1>
-<p>Philter’s filtering API provides access to Philter’s ability to filter sensitive information from text and to retrieve the health status of Philter.</p>
-<blockquote>
-<p>The <code>curl</code> example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the <a href="settings.md#ssl-tls">SSL/TLS </a> settings for more information.
-{style="note"}</p>
-</blockquote>
-<p>Each filter request can optionally have a <code>context</code>. When not provided, the context defaults to <code>none</code>. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context <code>hospital1</code>, and documents pertaining to another health care provider may be submitted under the context <code>hospital2</code>.</p>
-<p>The context for each filter request impacts how sensitive information is replaced when found in the text. <a href="anonymization.md">Consistent anonymization</a> can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.</p>
-<p>Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the <code>x-document-id</code> header with each <code>filter</code> or <code>explain</code> API response.</p>
-<h2 id="filter">Filter</h2>
-<p>The <code>filter</code> endpoint receives plain text or a PDF document and returns the redacted text or redacted PDF document.</p>
-<p>The types of sensitive information found and how each type is redacted is determined by the chosen policy.</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Endpoint</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST</code></td>
-<td><code>/api/filter</code></td>
-<td>Filter the given text.</td>
-</tr>
-</tbody>
-</table>
-<h3 id="query-parameters-idfilter-query-parameters">Query Parameters {id="filter-query-parameters"}</h3>
-<ul>
-<li><code>d</code> - A document ID that uniquely identifies the text being submitted. Leave empty and Philter will generate a document ID derived from a hash of the submitted text.</li>
-<li><code>p</code> - The name of the policy to use for filtering. Defaults to <code>default</code> if not provided.</li>
-<li><code>c</code> - The filtering context. Defaults to <code>none</code> if not provided.</li>
-</ul>
-<h3 id="headers-idfilter-headers">Headers {id="filter-headers"}</h3>
-<ul>
-<li><code>Content-Type</code> - The value should be set to <code>text/plain</code> or <code>application/pdf</code>.</li>
-</ul>
-<p>Example request to filter plain text:</p>
-<pre><code>curl -k -X POST &quot;https://localhost:8080/api/filter&quot; -d @file.txt -H Content-Type &quot;text/plain&quot;
-</code></pre>
-<p>Example request to filter a PDF document:</p>
-<pre><code>curl -k -X POST &quot;https://localhost:8080/api/filter?&quot; -d @file.pdf -H Content-Type &quot;application/pdf&quot; -O redacted.zip
-</code></pre>
-<h2 id="explain">Explain</h2>
-<p>The <code>explain</code> endpoint behaves much like the <code>filter</code> endpoint in that receives plain text and returns the redacted plain text. However, the <code>explain</code> endpoint provides a detailed explanation describing how the text was redacted. Also, the <code>explain</code> endpoint does not support PDF documents.</p>
-<p>The types of sensitive information found and how each type is redacted is determined by the chosen policy.</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Endpoint</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST</code></td>
-<td><code>/api/explain</code></td>
-<td>Filter the given text and provide a detailed explanation.</td>
-</tr>
-</tbody>
-</table>
-<h3 id="query-parameters-idexplain-query-params">Query Parameters {id="explain-query-params"}</h3>
-<ul>
-<li><code>d</code> - A document ID that uniquely identifies the text being submitted. Leave empty and Philter will generate a document ID derived from a hash of the submitted text.</li>
-<li><code>p</code> - The name of the policy to use for filtering. Defaults to <code>default</code> if not provided.</li>
-<li><code>c</code> - The filtering context. Defaults to <code>none</code> if not provided.</li>
-</ul>
-<h3 id="headers-idexplain-headers">Headers {id="explain-headers"}</h3>
-<ul>
-<li><code>Content-Type</code> - The value should be set to <code>text/plain</code>.</li>
-</ul>
-<p>Example explain request:</p>
-<pre><code>curl -k -X POST &quot;https://localhost:8080/api/explain&quot; -d @file.txt -H Content-Type &quot;text/plain&quot;
-</code></pre>
-<p>Example explain response:</p>
-<pre><code>{
-  &quot;filteredText&quot;: &quot;{{{REDACTED-entity}}} was a patient and his ssn was {{{REDACTED-ssn}}}.&quot;,
-  &quot;context&quot;: &quot;none&quot;,
-  &quot;documentId&quot;: &quot;7a906866-4fc9-44d6-9bc3-22728b93a602&quot;,
-  &quot;explanation&quot;: {
-    &quot;appliedSpans&quot;: [
-      {
-        &quot;id&quot;: &quot;c78fb69c-84d6-4189-b376-63791793cbd2&quot;,
-        &quot;characterStart&quot;: 0,
-        &quot;characterEnd&quot;: 17,
-        &quot;filterType&quot;: &quot;NER_ENTITY&quot;,
-        &quot;context&quot;: &quot;C1&quot;,
-        &quot;documentId&quot;: &quot;7a906866-4fc9-44d6-9bc3-22728b93a602&quot;,
-        &quot;confidence&quot;: 0.9189682900905609,
-        &quot;text&quot;: &quot;George Washington&quot;,
-        &quot;replacement&quot;: &quot;{{{REDACTED-entity}}}&quot;,
-        &quot;ignored&quot;: false
-      },
-      {
-        &quot;id&quot;: &quot;f4556f62-2f80-4edc-96f0-aa1d44802157&quot;,
-        &quot;characterStart&quot;: 48,
-        &quot;characterEnd&quot;: 59,
-        &quot;filterType&quot;: &quot;SSN&quot;,
-        &quot;context&quot;: &quot;C1&quot;,
-        &quot;documentId&quot;: &quot;7a906866-4fc9-44d6-9bc3-22728b93a602&quot;,
-        &quot;confidence&quot;: 1,
-        &quot;text&quot;: &quot;123-45-6789&quot;,
-        &quot;replacement&quot;: &quot;{{{REDACTED-ssn}}}&quot;,
-        &quot;ignored&quot;: false
-      }
-    ],
-    &quot;ignoredSpans&quot;: []
-  }
-}
-</code></pre>
-<h2 id="status">Status</h2>
-<p>The <code>status</code> endpoint is useful in determining the current state of Philter. The <code>status</code> endpoint can be used by monitoring software to assess Philter's availability or by your cloud provider for purposes of determining Philter's health when deployed behind a load balancer.</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Endpoint</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET</code></td>
-<td><code>/api/status</code></td>
-<td>Gets the status of Philter.</td>
-</tr>
-</tbody>
-</table>
-<p>Example request:</p>
-<pre><code>curl -k -X POST &quot;https://localhost:8080/api/status&quot;
-</code></pre>
+<h1 id="consistent-anonymization">Consistent Anonymization</h1>
+<p>Anonymization in the context of Phileas is the process of replacing certain values with random but similar values. For example, the identified name of “John Smith” may be replaced with “David Jones”, or an identified phone number of 123-555-9358 may be replaced by 842-436-2042. A <a href="vins.md">VIN</a> number will be replaced by a 17 character randomly selected VIN number that adheres to the standard for VIN numbers.</p>
+<p>Anonymization is useful in instances where you want to remove sensitive information from text without changing the meaning of the text. Anonymization can be enabled for each type of sensitive information in the policy by setting the filter strategy to <code>RANDOM_REPLACE</code>. (See <a href="policies_README.md">Policies</a> for more information.)</p>
+<h2 id="consistent-anonymization_1">Consistent Anonymization</h2>
+<p>Consistent anonymization refers to the process of always anonymizing the same sensitive information with the same replacement values. For example, if the name "John Smith" is randomly replaced with "Pete Baker", all other occurrences of "John Smith" will also be replaced by "Pete Baker."</p>
+<p>Consistent anonymization can be done on the document level or on the context level. When enabled on the document level, "John Smith" will only be replaced by "Pete Baker" in the same document. If "John Smith" occurs in a separate document it will be anonymized with a different random name. When enabled on the context level, "John Smith" will be replaced by "Pete Baker" whenever "John Smith" is found in all documents in the same context.</p>
+<p>Enabling consistent anonymization on the context level requires a cache to store the sensitive information and the corresponding replacement values. If a single instance of Phileas is running, its internal cache service (enabled by default) is the best choice and no additional configuration is required.</p>
+<p>If multiple instances of Phileas are deployed together, Phileas requires access to a Redis cache service as shown below. See Phileas' <a href="settings.md">Settings</a> on how to configure the cache.</p>
+<p><strong>When Phileas is deployed in a cluster, a Redis cache is required to enable consistent anonymization.</strong></p>
+<p>The anonymization cache will contain PHI. It is important that you take the necessary precautions to secure the cache and all communication to and from the cache.</p>
 
 
 
@@ -1422,10 +1309,10 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
       
     
   </body>

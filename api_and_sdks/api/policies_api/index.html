@@ -12,28 +12,28 @@
         <meta name="author" content="philterd">
       
       
-        <link rel="canonical" href="https://philterd.github.io/philter/policies/document_analysis/">
+        <link rel="canonical" href="https://philterd.github.io/philter/api_and_sdks/api/policies_api/">
       
       
-        <link rel="prev" href="../filter_strategies/">
+        <link rel="prev" href="../filtering_api/">
       
       
-        <link rel="next" href="../excluding_by_document_type/">
+        <link rel="next" href="../alerts_api/">
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.42">
     
     
       
-        <title>Document Analysis - Philter</title>
+        <title>Policies API - Philter</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -52,7 +52,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#document-analysis" class="md-skip">
+        <a href="#policies-api" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
+    <a href="../../.." title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Document Analysis
+              Policies API
             
           </span>
         </div>
@@ -199,7 +199,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
+    <a href="../../.." title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -229,7 +229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -249,7 +249,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../upgrading/" class="md-nav__link">
+      <a href="../../../upgrading/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -269,7 +269,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../system_requirements/" class="md-nav__link">
+      <a href="../../../system_requirements/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -324,7 +324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quick_starts/quick_start_aws/" class="md-nav__link">
+      <a href="../../../quick_starts/quick_start_aws/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -345,7 +345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quick_starts/quick_start_azure/" class="md-nav__link">
+      <a href="../../../quick_starts/quick_start_azure/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -366,7 +366,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quick_starts/quick_start_gcp/" class="md-nav__link">
+      <a href="../../../quick_starts/quick_start_gcp/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -429,7 +429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deidentification/pii_phi_nppi/" class="md-nav__link">
+      <a href="../../../deidentification/pii_phi_nppi/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -450,7 +450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deidentification/deidentification/" class="md-nav__link">
+      <a href="../../../deidentification/deidentification/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -506,7 +506,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deidentification/bucketing/" class="md-nav__link">
+      <a href="../../../deidentification/bucketing/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -527,7 +527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deidentification/date-shifting/" class="md-nav__link">
+      <a href="../../../deidentification/date-shifting/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -560,19 +560,17 @@
       
   
   
-    
   
   
-  
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
@@ -586,7 +584,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Policies
@@ -600,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sample_policies/" class="md-nav__link">
+      <a href="../../../policies/sample_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -621,7 +619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../filter_policies/" class="md-nav__link">
+      <a href="../../../policies/filter_policies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -642,7 +640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../filters/" class="md-nav__link">
+      <a href="../../../policies/filters/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -663,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../filter_strategies/" class="md-nav__link">
+      <a href="../../../policies/filter_strategies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -681,19 +679,17 @@
                 
   
   
-    
   
   
-  
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
         
           
           <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
@@ -707,7 +703,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6_5">
             <span class="md-nav__icon md-icon"></span>
             Document Analysis
@@ -718,19 +714,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../policies/document_analysis/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -739,7 +726,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -752,7 +738,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../excluding_by_document_type/" class="md-nav__link">
+      <a href="../../../policies/excluding_by_document_type/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -781,7 +767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../splitting_input_text/" class="md-nav__link">
+      <a href="../../../policies/splitting_input_text/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -802,7 +788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ignoring_specific_information/" class="md-nav__link">
+      <a href="../../../policies/ignoring_specific_information/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -865,7 +851,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/alerts/" class="md-nav__link">
+      <a href="../../../other_features/alerts/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -886,7 +872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/consistent_anonymization/" class="md-nav__link">
+      <a href="../../../other_features/consistent_anonymization/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -907,7 +893,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/span_disambiguation/" class="md-nav__link">
+      <a href="../../../other_features/span_disambiguation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -928,7 +914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../other_features/dashboard/" class="md-nav__link">
+      <a href="../../../other_features/dashboard/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -953,17 +939,19 @@
       
   
   
+    
   
   
+  
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
@@ -977,7 +965,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             API and SDKs
@@ -991,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1009,17 +997,19 @@
                 
   
   
+    
   
   
+  
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" checked>
         
           
           <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
@@ -1033,7 +1023,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8_2">
             <span class="md-nav__icon md-icon"></span>
             API Methods
@@ -1047,7 +1037,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/filtering_api/" class="md-nav__link">
+      <a href="../filtering_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1065,10 +1055,30 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/policies_api/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Policies API
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -1077,6 +1087,62 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#get-policy-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get Policy Names
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get a Policy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upload-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upload a Policy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delete-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Delete a Policy
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1089,7 +1155,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/api/alerts_api/" class="md-nav__link">
+      <a href="../alerts_api/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1118,7 +1184,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api_and_sdks/sdks/" class="md-nav__link">
+      <a href="../../sdks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1146,7 +1212,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../settings/" class="md-nav__link">
+      <a href="../../../settings/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1179,6 +1245,50 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#get-policy-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get Policy Names
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get a Policy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upload-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upload a Policy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#delete-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Delete a Policy
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1195,24 +1305,62 @@
   
 
 
-<h1 id="document-analysis">Document Analysis</h1>
-<p>Philter analyzes received documents prior to redacting the document. This analysis is done to help Philter get a better understanding of the document. The results of the analysis are used to <a href="excluding-by-document-type.md">exclude certain document types from redaction</a> and to improve Philter's redaction performance.</p>
-<p>While not recommended, the automatic document analysis can be disabled in a policy. By default, document analysis is enabled.</p>
+<h1 id="policies-api">Policies API</h1>
+<p>The Policies API provides endpoints for retrieving, uploading, and deleting <a href="policies_README.md">policies</a>.</p>
 <blockquote>
-<p>Disabling document analysis will cause any policy features dependent on the results of the document analysis to not function.
-{style="warning"}</p>
+<p>The <code>curl</code> example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the <a href="settings.md#ssl-tls">SSL/TLS </a> settings for more information.
+{style="note"}</p>
 </blockquote>
-<p>An example policy with disabled document analysis is shown below.</p>
+<h2 id="get-policy-names">Get Policy Names</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/policies</code></td>
+<td>Get the names of all policies.</td>
+</tr>
+</tbody>
+</table>
+<p>Example request:</p>
+<pre><code>curl -k https://localhost:8080/api/policies
+</code></pre>
+<h2 id="get-a-policy">Get a Policy</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/policies/{policyName}</code></td>
+<td>Get the content of a policy, where {policyName} is the name of the policy to get.</td>
+</tr>
+</tbody>
+</table>
+<p>Example request:</p>
+<pre><code>curl -k https://localhost:8080/api/policies/my-policy
+</code></pre>
+<p>Example response:</p>
 <pre><code>{
-  &quot;name&quot;: &quot;email-and-phone-numbers&quot;,
-  &quot;config&quot;: {
-    &quot;analysis&quot;: {
-      &quot;enabled&quot;: false
-    }
-  },
+  &quot;name&quot;: &quot;just-phone-numbers&quot;,
+  &quot;ignored&quot;: [
+  ],
   &quot;identifiers&quot;: {
-    &quot;emailAddress&quot;: {
-      &quot;emailAddressFilterStrategies&quot;: [
+    &quot;dictionaries&quot;: [
+    ],
+    &quot;phoneNumber&quot;: {
+      &quot;phoneNumberFilterStrategies&quot;: [
         {
           &quot;strategy&quot;: &quot;REDACT&quot;,
           &quot;redactionFormat&quot;: &quot;{{{REDACTED-%t}}}&quot;
@@ -1221,6 +1369,46 @@
     }
   }
 }
+</code></pre>
+<h2 id="upload-a-policy">Upload a Policy</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/policies/{policyName}</code></td>
+<td>Upload a policy, where {policyName} is the name of the policy to get. If a policy with this name already exists it will be overwritten.</td>
+</tr>
+</tbody>
+</table>
+<p>Example request:</p>
+<pre><code>curl -X PUT -H &quot;Content-Type: application/json&quot; -k https://localhost:8080/api/profiles/my-profile -d @policy.json
+</code></pre>
+<h2 id="delete-a-policy">Delete a Policy</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/policies/{policyName}</code></td>
+<td>Delete a policy, where {policyName} is the name of the policy to delete.</td>
+</tr>
+</tbody>
+</table>
+<p>Example request:</p>
+<pre><code>curl -X DELETE -k https://localhost:8080/api/policies/exprofile
 </code></pre>
 
 
@@ -1272,10 +1460,10 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
       
     
   </body>

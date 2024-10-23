@@ -470,33 +470,25 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#bucketing" class="md-nav__link">
+  <a href="#summary-of-deidentification-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      Bucketing
+      Summary of Deidentification Methods
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#date-shifting" class="md-nav__link">
+  <a href="#deidentification-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      Date Shifting
+      Deidentification Methods
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#encryption" class="md-nav__link">
-    <span class="md-ellipsis">
-      Encryption
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
+    <nav class="md-nav" aria-label="Deidentification Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#redaction-and-masking" class="md-nav__link">
     <span class="md-ellipsis">
       Redaction and Masking
@@ -504,13 +496,45 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#replacement" class="md-nav__link">
     <span class="md-ellipsis">
       Replacement
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bucketing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bucketing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#date-shifting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Date Shifting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      Encryption
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1487,33 +1511,25 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#bucketing" class="md-nav__link">
+  <a href="#summary-of-deidentification-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      Bucketing
+      Summary of Deidentification Methods
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#date-shifting" class="md-nav__link">
+  <a href="#deidentification-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      Date Shifting
+      Deidentification Methods
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#encryption" class="md-nav__link">
-    <span class="md-ellipsis">
-      Encryption
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
+    <nav class="md-nav" aria-label="Deidentification Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#redaction-and-masking" class="md-nav__link">
     <span class="md-ellipsis">
       Redaction and Masking
@@ -1521,13 +1537,45 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#replacement" class="md-nav__link">
     <span class="md-ellipsis">
       Replacement
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bucketing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bucketing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#date-shifting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Date Shifting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      Encryption
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1555,21 +1603,23 @@
 <p>In this User's Guide, we may use the terms <code>filter</code> and <code>redact</code> interchangeably.</p>
 </blockquote>
 <p>In Philter, de-identification methods vary for each type of sensitive information. For example, all types can be replaced or redacted, but only dates can be shifted and only zip codes can be truncated. How a de-identification method is applied by Philter is called a filter strategy. Each type of sensitive information can have one or more filter strategies, and the combination of the filter strategies you select is called a policy. A policy determines how a document will be de-identified.</p>
-<p>The following is a list of de-identification methods that describes how each method works and its applicability to our <a href="https://philterd.ai/philter/">Philter</a> software. De-identifying a document is likely to require a combination of the following methods. For instance, you may want to redact names, encrypt credit card numbers, and shift appointment dates.</p>
-<table><thead><tr><th width="268">De-identification Method</th><th>Description</th></tr></thead><tbody><tr><td><a href="replacement.md">Replacement</a></td><td>Replaces sensitive information with a defined value. For example, you might want to replace a credit card number with the literal value "CREDIT_CARD_NUMBER".</td></tr><tr><td><a href="redaction-and-masking.md">Redaction and Masking</a></td><td>Removes sensitive information. Our Philter software gives you a choice of how to remove the sensitive information, whether it is by replacing it with ***** (masking) or by some other set of characters.</td></tr><tr><td><a href="encryption.md">Encryption</a></td><td>Encrypts sensitive information.</td></tr><tr><td><a href="date-shifting.md">Date Shifting</a></td><td>Shifts dates either forward or backward by some interval.</td></tr><tr><td><a href="bucketing.md">Bucketing</a></td><td>Categorizes data into buckets based on the data. Examples of bucketing is Philter can bucket dates into years, and zip codes by population.</td></tr></tbody></table>
+<p>The following is a list of de-identification methods that describes how each method works and its applicability to Philter. Deidentifying a document is likely to require a combination of the following methods. For instance, you may want to redact names, encrypt credit card numbers, and shift appointment dates.</p>
+<h2 id="summary-of-deidentification-methods">Summary of Deidentification Methods</h2>
+<table><thead><tr><th width="268">De-identification Method</th><th>Description</th></tr></thead><tbody><tr><td>Replacement</td><td>Replaces sensitive information with a defined value. For example, you might want to replace a credit card number with the literal value "CREDIT_CARD_NUMBER".</td></tr><tr><td>Redaction and Masking</td><td>Removes sensitive information. Philter gives you a choice of how to remove the sensitive information, whether it is by replacing it with ***** (masking) or by some other set of characters.</td></tr><tr><td>Encryption</td><td>Encrypts sensitive information.</td></tr><tr><td>Date Shifting</td><td>Shifts dates either forward or backward by some interval.</td></tr><tr><td>Bucketing</td><td>Categorizes data into buckets based on the data. Examples of bucketing is Philter can bucket dates into years, and zip codes by population.</td></tr></tbody></table>
 
 <blockquote>
-<p>A difference between <a href="https://philterd.ai/philter/">Philter</a> and other services is that Philter does not send your data to a third-party for de-identification. Philter runs in your cloud and your data stays in your cloud.</p>
+<p>A difference between <a href="https://philterd.ai/philter/">Philter</a> and other services is that Philter does not send your data to a third party for de-identification. Philter runs in your cloud and your data stays in your cloud.</p>
 </blockquote>
-<h2 id="bucketing">Bucketing</h2>
-<h2 id="date-shifting">Date Shifting</h2>
-<h2 id="encryption">Encryption</h2>
-<h2 id="redaction-and-masking">Redaction and Masking</h2>
+<h2 id="deidentification-methods">Deidentification Methods</h2>
+<h3 id="redaction-and-masking">Redaction and Masking</h3>
 <p>Redaction and masking are two methods of de-identification that are often used interchangeably. The term redaction refers to removing a sensitive value from a document. When we hear the term redaction we often think of an image of a document with black bars across pieces of the text.</p>
 <p>Masking is similar to redaction but allows for configuring how the sensitive value is removed. The most common example is using asterisks (i.e. ******) in place of a sensitive value.</p>
-<h2 id="replacement">Replacement</h2>
+<h3 id="replacement">Replacement</h3>
 <p>Replacement is a method of de-identification that simply replaces a sensitive value with another value. Replacement is useful when the sensitive value is not needed once the document has been de-identified. Philter can replace a sensitive value with a preset value or with a random value.</p>
 <p>In Philter's filter strategies, replacement is achieved by using the strategy to <code>REDACT</code>, <code>STATIC_REPLACE</code> , or <code>RANDOM_REPLACE</code> .</p>
+<h3 id="bucketing">Bucketing</h3>
+<h3 id="date-shifting">Date Shifting</h3>
+<h3 id="encryption">Encryption</h3>
 
 
 

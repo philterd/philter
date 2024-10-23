@@ -501,7 +501,7 @@
             
   
   <span class="md-ellipsis">
-    Deidentification
+    PII and De-identification
   </span>
   
 
@@ -510,6 +510,62 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            PII and De-identification
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deidentification/pii_phi_nppi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PII, PHI, and NPPI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Deidentification
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
             <span class="md-nav__icon md-icon"></span>
             Deidentification
           </label>
@@ -552,6 +608,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -934,8 +998,7 @@
 <h1 id="philter-quick-start-on-microsoft-azure">Philter Quick Start on Microsoft Azure</h1>
 <p>Philter on Microsoft Azure is a virtual machine-based product. A free trial period is available during which there is no charge for the Philter software but there may be charges for the underlying Azure infrastructure.</p>
 <blockquote>
-<p>Cloud virtual machines launched from a cloud marketplace may not be immediately suitable for a HIPAA environment. Refer to your compliance officer for your organization's requirements to ensure compliance with all relevant regulations.
-{style="warning"}</p>
+<p>Cloud virtual machines launched from a cloud marketplace may not be immediately suitable for a HIPAA environment. Refer to your compliance officer for your organization's requirements to ensure compliance with all relevant regulations.</p>
 </blockquote>
 <h2 id="launch-philter-on-microsoft-azure">Launch Philter on Microsoft Azure</h2>
 <ol>
@@ -949,8 +1012,7 @@
 </ol>
 <p>Your Philter virtual machine will now be launching.</p>
 <blockquote>
-<p>Microsoft Azure will automatically open ports <code>22</code> (SSH) and <code>8080</code> (Philter API). These ports are required to be open but you may want to modify the security groups to limit their scope of availability by restricting access to specific CIDR ranges.
-{style="note"}</p>
+<p>Microsoft Azure will automatically open ports <code>22</code> (SSH) and <code>8080</code> (Philter API). These ports are required to be open but you may want to modify the security groups to limit their scope of availability by restricting access to specific CIDR ranges.</p>
 </blockquote>
 <p>Congratulations! You have deployed Philter in Azure. You are now ready to filter text!</p>
 <h2 id="try-it-out">Try it out!</h2>
@@ -970,8 +1032,7 @@
 <h2 id="next-steps">Next Steps</h2>
 <p>Now that you have Philter running and know how to send text to it you are ready to integrate Philter into your existing workflow and systems. Philter’s API details how to send files to Philter. Clients for some languages for Philter’s API are available on GitHub.</p>
 <blockquote>
-<p>Be sure to check out <a href="policies_README.md">Policies</a> to see how you can customize the types of sensitive information Philter redacts!
-{style="note"}</p>
+<p>Be sure to check out <a href="policies_README.md">Policies</a> to see how you can customize the types of sensitive information Philter redacts!</p>
 </blockquote>
 <h2 id="example-uses">Example Uses</h2>
 <p>Here's a few examples showing how to use Philter with some common big-data and streaming applications.</p>

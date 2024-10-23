@@ -21,6 +21,26 @@
          <lastmod>2024-10-23</lastmod>
     </url>
     <url>
+         <loc>https://philterd.github.io/philter/apis_and_sdks/api/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/apis_and_sdks/sdks/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/apis_and_sdks/apis/alerts_api/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/apis_and_sdks/apis/filtering_api/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/apis_and_sdks/apis/policies_api/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
          <loc>https://philterd.github.io/philter/deidentification/bucketing/</loc>
          <lastmod>2024-10-23</lastmod>
     </url>
@@ -81,7 +101,7 @@
          <lastmod>2024-10-23</lastmod>
     </url>
     <url>
-         <loc>https://philterd.github.io/philter/policies/ignoring_sensitive_information/</loc>
+         <loc>https://philterd.github.io/philter/policies/ignoring_specific_information/</loc>
          <lastmod>2024-10-23</lastmod>
     </url>
     <url>

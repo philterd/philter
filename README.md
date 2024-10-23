@@ -6,6 +6,8 @@ Philter is built upon the open source PII and PHI redaction engine [Phileas](htt
 
 Philter was released as open source under the Apache License, version 2.0, in July 2024 for version 2.6.0, but Philter dates back to 2019. See the [Release Notes](https://github.com/philterd/philter/blob/main/RELEASE_NOTES.md) for a description of past versions.
 
+For Philter's User Guide please see https://philterd.github.io/philter/.
+
 ## Philter on the Cloud Marketplaces
 
 Philter is available on the cloud marketplaces as a turnkey redaction solution. These cloud images are pre-configured and ready to be used immediately after launch.

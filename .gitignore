@@ -32,3 +32,4 @@ _training-models/
 temp-files/
 vocab.txt
 dependencies.csv
+site/

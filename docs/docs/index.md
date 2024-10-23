@@ -1,6 +1,6 @@
 # Philter
 
-> This documentation applies to Philter 2.4.0. If you are upgrading to this version see [Upgrading](upgrading.md).
+> This documentation applies to Philter {$ version }. If you are upgrading to this version see [Upgrading](upgrading.md).
 
 Philter is an API-based application that finds and redacts sensitive information, such as protected health information (PHI) and personally identifiable information (PII), and user-defined sensitive information from natural language text. Philter is ideal for usage in text processing pipelines where sensitive information needs removed, encrypted, or redacted from the text.
 

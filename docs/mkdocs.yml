@@ -5,6 +5,11 @@ edit_uri: tree/main/docs/docs
 copyright: Copyright 2024 Philterd, LLC
 site_author: philterd
 site_description: User guide for Philter, the open source PII/PHI redaction engine.
+plugins:
+  - markdownextradata:
+      jinja_options:
+        variable_start_string: "{$"
+        variable_end_string: "}"
 theme:
   name: material
   logo: img/philterd.png
@@ -16,10 +21,13 @@ theme:
     - navigation.expand
     - navigation.footer
 extra:
+  version: 2.4.0
   homepage: https://www.philterd.ai
   social:
     - icon: fontawesome/brands/linkedin
       link: https://www.linkedin.com/company/philterd/
+    - icon: fontawesome/brands/github
+      link: https://www.github.com/philterd/
   analytics:
     provider: google
     property: G-SQ49ZGCWT2

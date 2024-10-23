@@ -31,14 +31,14 @@ A sample policy containing a filter strategy is shown below. In this example, em
 
 The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to `REDACT` for that filter type. When multiple filter strategies are given for a single filter type, the filter strategies will be applied in order as they are listed in the policy, top to bottom.
 
-* [`REDACT`](filter-strategies.md#the-redact-filter-strategy)
-* [`CRYPTO_REPLACE`](filter-strategies.md#crypto)(AES encryption)
-* [`HASH_SHA256_REPLACE`](filter-strategies.md#hash)(SHA512 encryption)
-* [`FPE_ENCRYPT_REPLACE`](filter-strategies.md#fpe)(Format-preserving encryption)
-* [`RANDOM_REPLACE`](filter-strategies.md#random)
-* [`STATIC_REPLACE`](filter-strategies.md#static)
-* [`TRUNCATE`](filter-strategies.md#truncate)
-* [`ZERO_LEADING`](filter-strategies.md#zero_leading)
+* REDACT
+* CRYPTO_REPLACE
+* HASH_SHA256_REPLACE
+* FPE_ENCRYPT_REPLACE
+* RANDOM_REPLACE
+* STATIC_REPLACE
+* TRUNCATE
+* ZERO_LEADING
 
 ### The `REDACT` Filter Strategy
 

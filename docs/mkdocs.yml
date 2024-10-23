@@ -1,7 +1,7 @@
 site_name: Philter
 repo_url: https://github.com/philterd/philter
 site_url: https://philterd.github.io/philter/
-edit_uri: '?query=docs/docs/'
+edit_uri: tree/main/docs/docs
 copyright: Copyright 2024 Philterd, LLC
 site_author: philterd
 site_description: User guide for Philter, the open source PII/PHI redaction engine.

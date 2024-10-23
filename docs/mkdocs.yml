@@ -7,22 +7,73 @@ site_author: philterd
 site_description: User guide for Philter, the open source PII/PHI redaction engine.
 theme:
   name: material
+  logo: img/philterd.png
   locale: en
   palette:
     primary: red
+  features:
+    #- navigation.tabs
+    - navigation.expand
+    - navigation.footer
+extra:
+  homepage: https://www.philterd.ai
+  social:
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/philterd/
+  analytics:
+    provider: google
+    property: G-SQ49ZGCWT2
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
 nav:
-  - Home: index.md
-  - Deidentification:
-    - 'Bucketing': 'deidentification/bucketing.md'
-    - 'Date Shifting': 'deidentification/date-shifting.md'
-  - 'Filter Policies':
-    - 'Filter Policies': 'filter_policies/filter_policies.md'
-    - 'Filters': 'filter_policies/filters.md'
-    - 'Filter Strategies': 'filter_policies/filter_strategies.md'
-    - 'Ignoring Sensitive Information': 'filter_policies/ignoring_sensitive_information.md'
-    - 'Sample Filter Policies': 'filter_policies/sample_filter_policies.md'
-  - 'Other Features':
-    - 'Alerts': 'other_features/alerts.md'
-    - 'Anonymization': 'other_features/anonymization.md'
-    - 'Span Disambiguation': 'other_features/span_disambiguation.md'
-  - Settings: settings.md
+  - 'Home': index.md
+  - 'Upgrading': upgrading.md
+  - 'System Requirements': system_requirements.md
+  - 'Quick Starts':
+      - 'Philter Quick Start on AWS': 'quick_starts/quick_start_aws.md'
+      - 'Philter Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'
+      - 'Philter Quick Start on Google Cloud': 'quick_starts/quick_start_gcp.md'
+  - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
+  - 'Deidentification': 'deidentification.md'
+  - 'Policies':
+    - 'Sample Policies': 'policies/sample_policies.md'
+    - 'Filter Policies': 'policies/filter_policies.md'
+    - 'Filters': 'policies/filters.md'
+    - 'Filter Strategies': 'policies/filter_strategies.md'
+    - 'Document Analysis':
+      - 'Document Analysis': 'policies/document_analysis.md'
+      - 'Excluding by DocumentType': 'policies/excluding_by_document_type.md'
+    - 'Splitting Input Text': 'policies/splitting_input_text.md'
+    - 'Ignoring Specific Information': 'policies/ignoring_specific_information.md'
+  - 'API and SDKs':
+    - 'API Overview': 'api_and_sdks/api.md'
+    - 'API Methods':
+      - 'Filtering API': 'api_and_sdks/api/filtering_api.md'
+      - 'Policies API': 'api_and_sdks/api/policies_api.md'
+      - 'Alerts API': 'api_and_sdks/api/alerts_api.md'
+    - 'Client SDKs': 'api_and_sdks/sdks.md'
+  - 'Settings': settings.md
+  - 'Monitoring and Logging': 'monitoring_and_logging.md'
+  - 'Advanced Features':
+      - 'Alerts': 'other_features/alerts.md'
+      - 'Consistent Anonymization': 'other_features/consistent_anonymization.md'
+      - 'Span Disambiguation': 'other_features/span_disambiguation.md'
+      - 'Dashboard': 'other_features/dashboard.md'
+  - 'How-tos':
+    - 'How to Evaluate Philter''s Performance': 'howtos/evaluate_performance.md'
+    - 'How to Use a Signed SSL Certificate with Philter': 'howtos/signed_certificate.md'
+    - 'How to Use an Apache Reverse Proxy with Philter': 'howtos/apache_proxy.md'
+  - 'Solutions':
+    - 'Monitoring Philter in AWS': 'solutions/monitoring-philter-in-aws.md'
+    - 'Deploying Philter in a HIPAA Environment': 'solutions/deploying-philter-in-a-hipaa-environment.md'
+    - 'Consistent Anonymization with Redis': 'solutions/consistent-anonymization-with-redis.md'
+    - 'Apache NiFi and Philter': 'solutions/apache-nifi-and-philter.md'
+    - 'Managing Philter’s Configuration in an Auto-Scaling Environment': 'solutions/managing-philters-configuration-in-an-auto-scaling-environment.md'
+    - 'Deploying Philter in AWS via a CloudFormation Template': 'solutions/deploying-philter-via-an-aws-cloudformation-template.md'
+    - 'Using AWS Kinesis Firehose Transformations to Filter Sensitive Information from Streaming Text': 'solutions/using-aws-kinesis-firehose-transformations-to-filter-sensitive-information-from-streaming-text.md'
+    - 'Using Philter with Microsoft Power Automate (Flow)': 'solutions/using-philter-with-microsoft-power-automate-flow.md'

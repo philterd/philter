@@ -2,7 +2,7 @@
 
 Phileas has settings to control how it operates. The settings and how to configure each are described below.
 
-> The configuration for the types of sensitive information that Phileas identifies are defined in [filter policies](filter_policies/filter_policies.md) outside of Phileas' configuration properties described on this page.
+> The configuration for the types of sensitive information that Phileas identifies are defined in [filter policies](policies/filter_policies.md) outside of Phileas' configuration properties described on this page.
 
 ## Configuring Phileas
 
@@ -30,7 +30,7 @@ Using environment variables to configure Phileas instead of using Phileas' setti
 
 ## Span Disambiguation
 
-These values configure Phileas' span disambiguation feature to determine the most appropriate type of sensitive information when duplicate spans are identified. In a deployment of multiple Phileas instances, you must enable the [cache service](Settings#cache) for span disambiguation to work as expected.
+These values configure Phileas' span disambiguation feature to determine the most appropriate type of sensitive information when duplicate spans are identified. In a deployment of multiple Phileas instances, you must enable the cache service for span disambiguation to work as expected.
 
 |                               | Description                                   | Allowed Values  | Default Value |
 | ----------------------------- | --------------------------------------------- | --------------- | ------------- |
@@ -38,7 +38,7 @@ These values configure Phileas' span disambiguation feature to determine the mos
 
 ## Cache Service
 
-The cache service is required to use [consistent anonymization](anonymization.md) and policies stored in Amazon S3. Phileas supports Redis as the backend cache. When Redis is not used, an in-memory cache is used instead. The in-memory cache is not recommended because all contents will be stored in memory on the local Phileas instance.
+The cache service is required to use [consistent anonymization](other_features/consistent_anonymization.md) and policies stored in Amazon S3. Phileas supports Redis as the backend cache. When Redis is not used, an in-memory cache is used instead. The in-memory cache is not recommended because all contents will be stored in memory on the local Phileas instance.
 
 The cache will contain sensitive information. It is important that you take the necessary precautions to secure the cache itself and all communication between Phileas and the cache.
 

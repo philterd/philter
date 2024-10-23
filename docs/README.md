@@ -1,4 +1,4 @@
-# Phileas Documentation
+# Philter Documentation
 
 The documentation files here are markdown files used by MkDocs.
 

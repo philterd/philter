@@ -1,7 +1,19 @@
 # Philter
 
-Philter is an application that finds, identifies, and removes sensitive information, such as protected health information (PHI) and personally identifiable information (PII), and user-defined sensitive information from natural language text. Philter is ideal for usage in text processing pipelines where sensitive information needs removed, encrypted, or redacted from the text.
+> This documentation applies to Philter 2.4.0. If you are upgrading to this version see [Upgrading](upgrading.md).
 
-This documentation applies to Philter 2.4.0. If you are upgrading to this version see Upgrading Philter.
+Philter is an API-based application that finds and redacts sensitive information, such as protected health information (PHI) and personally identifiable information (PII), and user-defined sensitive information from natural language text. Philter is ideal for usage in text processing pipelines where sensitive information needs removed, encrypted, or redacted from the text.
 
-To get going fast, jump to the Quick Starts to launch Philter on AWS, Azure, or Google Cloud.
+![Philter Logo](img/philter-logo-transparent.png)
+
+## Quick Start
+
+To get going fast, jump to one of the Quick Starts:
+
+* [Philter Quick Start on AWS](quick_starts/quick_start_aws.md)
+* [Philter Quick Start on Google Cloud](quick_starts/quick_start_gcp.md)
+* [Philter Quick Start on Microsoft Azure](quick_starts/quick_start_azure.md)
+
+## Open Source
+
+Philter is [open source software](https://github.com/philterd/philter).

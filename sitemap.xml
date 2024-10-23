@@ -200,4 +200,16 @@
          <loc>https://philterd.github.io/philter/other_features/span_disambiguation/</loc>
          <lastmod>2024-10-23</lastmod>
     </url>
+    <url>
+         <loc>https://philterd.github.io/philter/quick_starts/quick_start_aws/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/quick_starts/quick_start_azure/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
+    <url>
+         <loc>https://philterd.github.io/philter/quick_starts/quick_start_gcp/</loc>
+         <lastmod>2024-10-23</lastmod>
+    </url>
 </urlset>

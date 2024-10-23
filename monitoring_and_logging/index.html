@@ -1625,9 +1625,9 @@ sudo systemctl status philter
 </code></pre>
 <p>Philter is installed in the <code>/opt/philter</code> directory. This directory contains the Philter binaries, configuration files, and supporting files.</p>
 <h2 id="metrics">Metrics</h2>
-<p>Philter collects metrics while running to provide insights into its operation and the text being processed. The metrics collected include a count of the documents processed by Philter, counts of the types of sensitive information identified per type, and the entity confidence values of entities extracted by non-deterministic natural language processing methods. These metrics can be reported via <a href="Monitoring-and-Management.md#jmx">JMX</a>, and to external services <a href="Monitoring-and-Management.md#prometheus">Prometheus</a>, <a href="Monitoring-and-Management.md#cloudwatch">Amazon CloudWatch</a>, and <a href="Monitoring-and-Management.md#datadog">Datadog</a>.</p>
+<p>Philter collects metrics while running to provide insights into its operation and the text being processed. The metrics collected include a count of the documents processed by Philter, counts of the types of sensitive information identified per type, and the entity confidence values of entities extracted by non-deterministic natural language processing methods. These metrics can be reported via JMX, and to external services Prometheus, Amazon CloudWatch, and Datadog).</p>
 <h3 id="reporting-metrics-to-prometheus">Reporting Metrics to Prometheus</h3>
-<p>To enable Philter metric reporting to Prometheus modify Philter's <a href="../settings/#prometheus">Settings</a> to enable the Prometheus metrics. When enabled, the metrics HTTP endpoint will be <code>http://philter-ip:9100/metrics</code>.</p>
+<p>To enable Philter metric reporting to Prometheus modify Philter's <a href="../settings/">Settings</a> to enable the Prometheus metrics. When enabled, the metrics HTTP endpoint will be <code>http://philter-ip:9100/metrics</code>.</p>
 <p>Enable scraping of Philter's metrics in Prometheus' settings:</p>
 <pre><code>global:
   scrape_interval: 10s
@@ -1639,7 +1639,7 @@ scrape_configs:
 </code></pre>
 <p>You may need to make port <code>9100</code> accessible to Prometheus. For example, if you launch Philter in AWS you will need to modify Philter's security group to permit inbound network traffic on port <code>9100</code> to Prometheus.</p>
 <h3 id="reporting-metrics-to-amazon-cloudwatch">Reporting Metrics to Amazon CloudWatch</h3>
-<p>To enable Philter metric reporting to Amazon CloudWatch modify Philter's <a href="../settings/#cloudwatch">Settings</a> to set the AWS properties. Metrics will be published to CloudWatch every 60 seconds, by default, when enabled.</p>
+<p>To enable Philter metric reporting to Amazon CloudWatch modify Philter's <a href="../settings/">Settings</a> to set the AWS properties. Metrics will be published to CloudWatch every 60 seconds, by default, when enabled.</p>
 <p>The AWS IAM user or role being used should have <code>PutMetricData</code> permissions:</p>
 <pre><code>{
     &quot;Version&quot;: &quot;2012-10-17&quot;,
@@ -1677,8 +1677,7 @@ scrape_configs:
 <p>Philter's log file can be viewed using the command <code>journalctl -u philter</code>. This log should be the first place checked for more information on Philter's status.</p>
 <p>The log level can be set using the <code>logging.level.root</code> property in Philter's <a href="../settings/">Settings</a>.</p>
 <blockquote>
-<p>Philter's log file may contain sensitive information. It is possible that through the normal use of Philter, sensitive information may be written to the log file.
-{style="warning"}</p>
+<p>Philter's log file may contain sensitive information. It is possible that through the normal use of Philter, sensitive information may be written to the log file.</p>
 </blockquote>
 
 

@@ -1569,7 +1569,7 @@
 <p>In the command below, replace <code>&lt;PUBLIC_IP&gt;</code> with the virtual machine’s public IP address or public host name.</p>
 <pre><code>curl -k -X POST https://&lt;PUBLIC_IP&gt;:8080/api/filter --data &quot;George Washington was a patient and his SSN is 123-45-6789.&quot; -H &quot;Content-type: text/plain&quot;
 </code></pre>
-<p>With this command we are sending the text in the command to Philter for filtering. Philter will identify the patient name (George Washington) and the SSN (123-45-6789) and redact those values in the response. You can always use curl to send text to Philter as in these examples but there are also SDKs you can use, too, to integrate Philter with your applications.</p>
+<p>With this command we are sending the text in the command to Philter for filtering. Philter will identify the patient name (George Washington) and the SSN (123-45-6789) and redact those values in the response. You can always use curl to send text to Philter as in these examples but there are also <a href="../../api_and_sdks/sdks/">SDKs</a> you can use, too, to integrate Philter with your applications.</p>
 <h3 id="redacting-sensitive-information-from-text">Redacting Sensitive Information from Text</h3>
 <p>The types of sensitive information that Philter identifies and removes is controlled by policies. By default, Philter includes a filter profile that includes many of the types of sensitive information, such as names and social security numbers. We can send text to filter to Philter for filtering using this default filter profile with the following command:</p>
 <pre><code>curl -k -X POST https://localhost:8080/api/filter -d @file.txt -H &quot;Content-Type: text/plain&quot;
@@ -1578,9 +1578,9 @@
 <pre><code>curl -k -X POST https://localhost:8080/api/filter --data &quot;Your text goes here...&quot; -H &quot;Content-type: text/plain&quot;
 </code></pre>
 <h2 id="next-steps">Next Steps</h2>
-<p>Now that you have Philter running and know how to send text to it you are ready to integrate Philter into your existing workflow and systems. Philter’s API details how to send files to Philter. Clients for some languages for Philter’s API are available on GitHub.</p>
+<p>Now that you have Philter running and know how to send text to it, you are ready to integrate Philter into your existing workflow and systems. Philter’s API details how to send files to Philter. Clients for some languages for Philter’s API are available on GitHub.</p>
 <blockquote>
-<p>Be sure to check out <a href="policies_README.md">Policies</a> to see how you can customize the types of sensitive information Philter redacts!</p>
+<p>Be sure to check out <a href="../../policies/filter_policies/">Policies</a> to see how you can customize the types of sensitive information Philter redacts!</p>
 </blockquote>
 
 

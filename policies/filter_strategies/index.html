@@ -1682,8 +1682,8 @@
 
 
 <h1 id="filter-strategies">Filter Strategies</h1>
-<p>A filter strategy defines how sensitive information identified by Phileas should be manipulated, whether it is redacted, replaced, encrypted, or manipulated in some other fashion.</p>
-<p>In a policy, you list the types of sensitive information that should be filtered. How Phileas replaces each type of sensitive information is specific to each type. For instance, zip codes can be truncated based on the leading digits or zip code population while phone numbers are redacted. These replacements are performed by "filter strategies."</p>
+<p>A filter strategy defines how sensitive information identified by Philter should be manipulated, whether it is redacted, replaced, encrypted, or manipulated in some other fashion.</p>
+<p>In a policy, you list the types of sensitive information that should be filtered. How Philter replaces each type of sensitive information is specific to each type. For instance, zip codes can be truncated based on the leading digits or zip code population while phone numbers are redacted. These replacements are performed by "filter strategies."</p>
 <blockquote>
 <p>Each filter can have one or more filter strategies and conditions can be used to determine when to apply each filter strategy.</p>
 </blockquote>
@@ -1706,7 +1706,7 @@
 <p>Most of the filter strategies apply to all types of data, however, some filter strategies only apply to a few types. For example, the <code>TRUNCATE</code> filter strategy only applies to a zip code filter.</p>
 </blockquote>
 <h2 id="filter-strategies_1">Filter Strategies</h2>
-<p>The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Phileas will default to <code>REDACT</code> for that filter type. When multiple filter strategies are given for a single filter type, the filter strategies will be applied in order as they are listed in the policy, top to bottom.</p>
+<p>The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to <code>REDACT</code> for that filter type. When multiple filter strategies are given for a single filter type, the filter strategies will be applied in order as they are listed in the policy, top to bottom.</p>
 <ul>
 <li><a href="filter-strategies.md#the-redact-filter-strategy"><code>REDACT</code></a></li>
 <li><a href="filter-strategies.md#crypto"><code>CRYPTO_REPLACE</code></a>(AES encryption)</li>
@@ -1718,7 +1718,7 @@
 <li><a href="filter-strategies.md#zero_leading"><code>ZERO_LEADING</code></a></li>
 </ul>
 <h3 id="the-redact-filter-strategy">The <code>REDACT</code> Filter Strategy</h3>
-<p>The REDACT filter strategy replaces sensitive information with a given redaction format. You can put variables in the redaction format that Phileas will replace when performing the redaction.</p>
+<p>The REDACT filter strategy replaces sensitive information with a given redaction format. You can put variables in the redaction format that Philter will replace when performing the redaction.</p>
 <p>The available redaction variables are:</p>
 <table>
 <thead>
@@ -1791,7 +1791,7 @@
 }
 </code></pre>
 <h3 id="the-hash_sha256_replace-filter-strategy">The <code>HASH_SHA256_REPLACE</code> Filter Strategy</h3>
-<p>The <code>HASH_SHA256_REPLACE</code> filter strategy replaces sensitive information with the SHA256 hash value of the sensitive information. To append a random salt value to each value prior to hashing, set the <code>salt</code> property to <code>true</code>. The salt value used will be returned in the <code>explain</code> response from Phileas' API.</p>
+<p>The <code>HASH_SHA256_REPLACE</code> filter strategy replaces sensitive information with the SHA256 hash value of the sensitive information. To append a random salt value to each value prior to hashing, set the <code>salt</code> property to <code>true</code>. The salt value used will be returned in the <code>explain</code> response from Philter' API.</p>
 <p>An example policy using the <code>HASH_SHA256_REPLACE</code> filter strategy:</p>
 <pre><code>{
    &quot;name&quot;: &quot;email-address&quot;,
@@ -1807,7 +1807,7 @@
 }
 </code></pre>
 <h3 id="the-fpe_encrypt_replace-filter-strategy">The FPE_ENCRYPT_REPLACE Filter Strategy</h3>
-<p>The <code>FPE_ENCRYPT_REPLACE</code> filter strategy uses format-preserving encryption (FPE) to encrypt the sensitive information. Phileas uses the FF3-1 algorithm for format-preserving encryption. The FPE_ENCRYPT_REPLACE filter strategy requires a <code>key</code> and a <code>tweak</code> value. These values control the format-preserving encryption. For more information on these values and format-preserving encryption, refer to the resources below:</p>
+<p>The <code>FPE_ENCRYPT_REPLACE</code> filter strategy uses format-preserving encryption (FPE) to encrypt the sensitive information. Philter uses the FF3-1 algorithm for format-preserving encryption. The FPE_ENCRYPT_REPLACE filter strategy requires a <code>key</code> and a <code>tweak</code> value. These values control the format-preserving encryption. For more information on these values and format-preserving encryption, refer to the resources below:</p>
 <ul>
 <li><a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf">https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf</a></li>
 <li><a href="https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf">https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf</a></li>

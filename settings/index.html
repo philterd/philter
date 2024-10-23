@@ -1631,7 +1631,7 @@
 </tbody>
 </table>
 <h2 id="span-disambiguation">Span Disambiguation</h2>
-<p>These values configure Phileas' span disambiguation feature to determine the most appropriate type of sensitive information when duplicate spans are identified. In a deployment of multiple Phileas instances, you must enable the <a href="Settings#cache">cache service</a> for span disambiguation to work as expected.</p>
+<p>These values configure Phileas' span disambiguation feature to determine the most appropriate type of sensitive information when duplicate spans are identified. In a deployment of multiple Phileas instances, you must enable the cache service for span disambiguation to work as expected.</p>
 <table>
 <thead>
 <tr>
@@ -1651,7 +1651,7 @@
 </tbody>
 </table>
 <h2 id="cache-service">Cache Service</h2>
-<p>The cache service is required to use <a href="anonymization.md">consistent anonymization</a> and policies stored in Amazon S3. Phileas supports Redis as the backend cache. When Redis is not used, an in-memory cache is used instead. The in-memory cache is not recommended because all contents will be stored in memory on the local Phileas instance.</p>
+<p>The cache service is required to use <a href="../other_features/consistent_anonymization/">consistent anonymization</a> and policies stored in Amazon S3. Phileas supports Redis as the backend cache. When Redis is not used, an in-memory cache is used instead. The in-memory cache is not recommended because all contents will be stored in memory on the local Phileas instance.</p>
 <p>The cache will contain sensitive information. It is important that you take the necessary precautions to secure the cache itself and all communication between Phileas and the cache.</p>
 <table>
 <thead>

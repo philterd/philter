@@ -12,7 +12,7 @@ If your data is not exactly like another customer's data then the metrics will n
 We have created this guide to help guide you in evaluating Philter's performance on your data. The guide involves determining the types of sensitive information you want to redact, configuring those filters, optimizing the configuration, and then capturing the performance metrics.
 
 > We will gladly perform these steps for you and provide you a detailed Philter performance report generated from your data. Please contact us to start the process.
-{style="note"}
+
 
 #### What You Need
 

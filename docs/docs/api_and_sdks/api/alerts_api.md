@@ -1,9 +1,9 @@
 # Alerts API
 
-The Alerts API provides endpoints for retrieving and deleting alerts. Alerts can optionally be generated when a filter strategy's condition is met. See [Alerts](alerts.md) for more information on Philter alerts.
+The Alerts API provides endpoints for retrieving and deleting alerts. Alerts can optionally be generated when a filter strategy's condition is met. See [Alerts](../../other_features/alerts.md) for more information on Philter alerts.
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](settings.md#ssl-tls) settings for more information.
-{style="note"}
+> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
+
 
 ## Get Alerts
 

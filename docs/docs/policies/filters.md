@@ -8,7 +8,7 @@ Each filter is capable of identifying and redacting a specific type of sensitive
 
 This section of the documentation describes the filters available in Phileas. The configuration options for each filter can vary due to the type of the sensitive information. For instance, only the zip code filter has a configuration to truncate the zip code.
 
-A selection of filters and their configurations is called a [policy](policies_README.md). A policy describes how to de-identify a document.
+A selection of filters and their configurations is called a [policy](filter_policies.md). A policy describes how to de-identify a document.
 
 ## Predefined Filters
 

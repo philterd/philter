@@ -25,7 +25,7 @@ At least one of `terms` or `files` must be provided.
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in as they are listed. See [Filter Strategies ](filter-strategies.md)for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in as they are listed. See [Filter Strategies ](../../filter_strategies.md)for details.
 
 | Strategy              | Description                                              |
 | --------------------- | -------------------------------------------------------- |
@@ -37,7 +37,7 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 
 ### Conditions
 
-Each filter strategy may have one condition. See [Conditions](#conditions) for details.
+Each filter strategy may have one condition. See [Conditions](../../filter_strategies.md#filter-strategy-conditions) for details.
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |

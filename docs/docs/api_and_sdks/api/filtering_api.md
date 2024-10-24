@@ -2,12 +2,11 @@
 
 Philter’s filtering API provides access to Philter’s ability to filter sensitive information from text and to retrieve the health status of Philter.
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](settings.md#ssl-tls) settings for more information.
-{style="note"}
+> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
 Each filter request can optionally have a `context`. When not provided, the context defaults to `none`. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
 
-The context for each filter request impacts how sensitive information is replaced when found in the text. [Consistent anonymization](anonymization.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
+The context for each filter request impacts how sensitive information is replaced when found in the text. [Consistent anonymization](../../other_features/consistent_anonymization.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
 
 Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the `x-document-id` header with each `filter` or `explain` API response.
 

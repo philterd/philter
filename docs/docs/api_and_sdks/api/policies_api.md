@@ -1,9 +1,9 @@
 # Policies API
 
-The Policies API provides endpoints for retrieving, uploading, and deleting [policies](policies_README.md).
+The Policies API provides endpoints for retrieving, uploading, and deleting [policies](../../policies/filter_policies.md).
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](settings.md#ssl-tls) settings for more information.
-{style="note"}
+> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
+
 
 ## Get Policy Names
 

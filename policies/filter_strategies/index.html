@@ -1675,14 +1675,14 @@
 <h2 id="filter-strategies_1">Filter Strategies</h2>
 <p>The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to <code>REDACT</code> for that filter type. When multiple filter strategies are given for a single filter type, the filter strategies will be applied in order as they are listed in the policy, top to bottom.</p>
 <ul>
-<li>REDACT</li>
-<li>CRYPTO_REPLACE</li>
-<li>HASH_SHA256_REPLACE</li>
-<li>FPE_ENCRYPT_REPLACE</li>
-<li>RANDOM_REPLACE</li>
-<li>STATIC_REPLACE</li>
-<li>TRUNCATE</li>
-<li>ZERO_LEADING</li>
+<li><a href="#the-redact-filter-strategy">REDACT</a></li>
+<li><a href="#the-crypto_replace-filter-strategy">CRYPTO_REPLACE</a></li>
+<li><a href="#the-hash_sha256_replace-filter-strategy">HASH_SHA256_REPLACE</a></li>
+<li><a href="#the-fpe_encrypt_replace-filter-strategy">FPE_ENCRYPT_REPLACE</a></li>
+<li><a href="#the-random_replace-filter-strategy">RANDOM_REPLACE</a></li>
+<li><a href="#the-static_replace-filter-strategy">STATIC_REPLACE</a></li>
+<li><a href="#the-truncate-filter-strategy">TRUNCATE</a></li>
+<li><a href="#the-zero_leading-filter-strategy">ZERO_LEADING</a></li>
 </ul>
 <h3 id="the-redact-filter-strategy">The <code>REDACT</code> Filter Strategy</h3>
 <p>The REDACT filter strategy replaces sensitive information with a given redaction format. You can put variables in the redaction format that Philter will replace when performing the redaction.</p>

@@ -1521,14 +1521,14 @@
    }
 }
 </code></pre>
-<p>When an email address is identified by this policy, the email address is replaced with the text <code>{{{REDACTED-email-address}}}</code>. The <code>%t</code> gets replaced by the type of the filter. Likewise, when a phone number is found it is replaced with the text <code>{{{REDACTED-phone-number}}}</code>. You are free to change the redaction formats to whatever fits your use-case. See <a href="filter-strategies.md">Filter Strategies</a> for all replacement options.</p>
+<p>When an email address is identified by this policy, the email address is replaced with the text <code>{{{REDACTED-email-address}}}</code>. The <code>%t</code> gets replaced by the type of the filter. Likewise, when a phone number is found it is replaced with the text <code>{{{REDACTED-phone-number}}}</code>. You are free to change the redaction formats to whatever fits your use-case. See <a href="../filter_strategies/">Filter Strategies</a> for all replacement options.</p>
 <p>The name of the policy is <code>email-and-phone-numbers</code>. Policies can be named anything you like but their names must be unique from all other policies. As a best practice, the policy should be saved as <code>[name].json</code>, e.g. <code>email-and-phone-numbers.json</code>.</p>
 <h3 id="applying-a-policy-to-text">Applying a Policy to Text</h3>
 <p>To use this policy we will save it as <code>/opt/Philter/profiles/email-and-phone-numbers.json</code>. We must restart Philter for the new profile to be available for use. To apply the policy we will pass the policy's name to Philter when making a filter request, as shown in the example request below.</p>
 <pre><code>curl -k -X POST &quot;https://localhost:8080/api/filter?c=context&amp;p=email-and-phone-numbers&quot; \
   -d @file.txt -H Content-Type &quot;text/plain&quot;
 </code></pre>
-<p>In this command, we have provided the parameter <code>p</code> along with a value that is the name of the policy we want to use for this request. If we had multiple policies in Philter we could choose a different policy for this request simply by changing the name given to the parameter <code>p</code>. For more details see Philter’s <a href="filtering-api.md">API</a>.</p>
+<p>In this command, we have provided the parameter <code>p</code> along with a value that is the name of the policy we want to use for this request. If we had multiple policies in Philter we could choose a different policy for this request simply by changing the name given to the parameter <code>p</code>. For more details see Philter’s <a href="../../api_and_sdks/api/">API</a>.</p>
 <p>Philter will process the contents of <code>file.txt</code> by applying the policy named <code>email-and-phone-numbers</code>. As we saw in the policy above, this policy redacts email addresses and phone numbers. Philter will return the redacted text in response to the API call.</p>
 <p>To manipulate the sensitive information by methods other than redaction, see the <a href="../filter_strategies/">Filter Strategies</a>.</p>
 

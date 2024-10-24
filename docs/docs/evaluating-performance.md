@@ -23,7 +23,7 @@ To evaluate Philter's performance you need:
 
 #### Configuring Philter
 
-Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a file that defines the types of sensitive information that will be redacted and how it will be redacted. The policies are stored on the Philter instance under `/opt/Philter/policies`. You can edit the policies directly there using a text editor or you can use Philter's [API](policies-api.md) to upload a policy. In this case we recommend just using a text editor on the Philter instance to create a policy.
+Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a file that defines the types of sensitive information that will be redacted and how it will be redacted. The policies are stored on the Philter instance under `/opt/philter/policies`. You can edit the policies directly there using a text editor or you can use Philter's [API](policies-api.md) to upload a policy. In this case we recommend just using a text editor on the Philter instance to create a policy.
 
 When using a text editor to create and edit a policy, be sure to save the policy often. Frequent saving can make editing a policy easier.
 
@@ -33,9 +33,9 @@ We also recommend considering to place your policy directory under source contro
 
 Make a copy of the default policy, and we will modify the copy for our needs.
 
-`cp /opt/Philter/policies/default.json /opt/Philter/policies/evaluation.json`
+`cp /opt/philter/policies/default.json /opt/philter/policies/evaluation.json`
 
-Now open `/opt/Philter/policies/evaluation.json` in a text editor. (The content of `evaluation.json` will be similar to what's shown below but may have minor differences between different versions of Philter.)
+Now open `/opt/philter/policies/evaluation.json` in a text editor. (The content of `evaluation.json` will be similar to what's shown below but may have minor differences between different versions of Philter.)
 
 ```
 {

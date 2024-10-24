@@ -1,6 +1,6 @@
 # Filter Policies
 
-The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. A policy is a file stored under Philter’s `policies` directory, which by default is located at `/opt/Philter/policies/`. You can have an unlimited number of policies.
+The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. A policy is a file stored under Philter’s `policies` directory, which by default is located at `/opt/philter/policies/`. You can have an unlimited number of policies.
 
 Each policy has a `name` that is used by Philter to apply the appropriate de-identification methods. The `name` is passed to Philter’s [API](../api_and_sdks/api/filtering_api.md) along with the text to be filtered when submitting text to Philter. This provides flexibility and allows you to de-identify different types of documents in differing manners with a single instance of Philter. For example, you may have a policy for bankruptcy documents and a separate policy for financial documents.
 
@@ -51,7 +51,7 @@ The name of the policy is `email-and-phone-numbers`. Policies can be named anyth
 
 ### Applying a Policy to Text
 
-To use this policy we will save it as `/opt/Philter/profiles/email-and-phone-numbers.json`. We must restart Philter for the new profile to be available for use. To apply the policy we will pass the policy's name to Philter when making a filter request, as shown in the example request below.
+To use this policy we will save it as `/opt/philter/profiles/email-and-phone-numbers.json`. We must restart Philter for the new profile to be available for use. To apply the policy we will pass the policy's name to Philter when making a filter request, as shown in the example request below.
 
 ```
 curl -k -X POST "https://localhost:8080/api/filter?c=context&p=email-and-phone-numbers" \

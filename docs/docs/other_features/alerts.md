@@ -1,12 +1,12 @@
 # Alerts
 
-Phileas can optionally generate alerts when a particular type of sensitive information is identified.
+Philter can optionally generate alerts when a particular type of sensitive information is identified.
 
 ### Alert Conditions
 
 In a policy, each type of sensitive information can have zero or more filter strategies. Each filter strategy can optionally have a condition associated with it. When a condition is present, the filter strategy will only be satisfied when the condition is satisfied. For example, a condition may be created to only filter phone numbers that start with the digits `123` or only filter names that start with `John`. Filter strategy conditions give you granular control over the filtering process.
 
-When a filter strategy condition is satisfied, Phileas can optionally generate an alert. This feature allows you to be notified when a particular type of sensitive information is identified.
+When a filter strategy condition is satisfied, Philter can optionally generate an alert. This feature allows you to be notified when a particular type of sensitive information is identified.
 
 ### Enabling Alerts
 
@@ -47,4 +47,4 @@ An alert contains the following information:
 
 ### Retrieving and Deleting Alerts
 
-The alerts that Phileas has generated are available through Phileas' [alerts API](alerts-api.md). This API allows for retrieving and deleting alerts. Using this API you can build sophisticated notification systems around Phileas' capabilities.
+The alerts that Philter has generated are available through Philter' [alerts API](alerts-api.md). This API allows for retrieving and deleting alerts. Using this API you can build sophisticated notification systems around Philter' capabilities.

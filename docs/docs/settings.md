@@ -1,18 +1,18 @@
 # Settings
 
-Phileas has settings to control how it operates. The settings and how to configure each are described below.
+Philter has settings to control how it operates. The settings and how to configure each are described below.
 
-> The configuration for the types of sensitive information that Phileas identifies are defined in [filter policies](policies/filter_policies.md) outside of Phileas' configuration properties described on this page.
+> The configuration for the types of sensitive information that Philter identifies are defined in [filter policies](policies/filter_policies.md) outside of Philter' configuration properties described on this page.
 
-## Configuring Phileas
+## Configuring Philter
 
-### The Phileas Settings File
+### The Philter Settings File
 
-Phileas looks for its settings in an `application.properties` file.
+Philter looks for its settings in an `application.properties` file.
 
 ### Using Environment Variables
 
-Properties set via environment variables take precedence over properties set in Phileas' settings file.
+Properties set via environment variables take precedence over properties set in Philter' settings file.
 
 All following properties can also be set as environment variables by prepending `PHILTER_` to the property name and changing periods to underscores. For example, the property `filter.profiles.directory` can be set using the environment variable `PHILTER_FILTER_PROFILES_DIRECTORY` by:
 
@@ -20,7 +20,7 @@ All following properties can also be set as environment variables by prepending 
 export PHILTER_FILTER_PROFILES_DIRECTORY=/profiles/
 ```
 
-Using environment variables to configure Phileas instead of using Phileas' settings file can allow for easier configuration management when deploying Phileas.
+Using environment variables to configure Philter instead of using Philter' settings file can allow for easier configuration management when deploying Philter.
 
 ## Policies
 
@@ -30,7 +30,7 @@ Using environment variables to configure Phileas instead of using Phileas' setti
 
 ## Span Disambiguation
 
-These values configure Phileas' span disambiguation feature to determine the most appropriate type of sensitive information when duplicate spans are identified. In a deployment of multiple Phileas instances, you must enable the cache service for span disambiguation to work as expected.
+These values configure Philter' span disambiguation feature to determine the most appropriate type of sensitive information when duplicate spans are identified. In a deployment of multiple Philter instances, you must enable the cache service for span disambiguation to work as expected.
 
 |                               | Description                                   | Allowed Values  | Default Value |
 | ----------------------------- | --------------------------------------------- | --------------- | ------------- |
@@ -38,9 +38,9 @@ These values configure Phileas' span disambiguation feature to determine the mos
 
 ## Cache Service
 
-The cache service is required to use [consistent anonymization](other_features/consistent_anonymization.md) and policies stored in Amazon S3. Phileas supports Redis as the backend cache. When Redis is not used, an in-memory cache is used instead. The in-memory cache is not recommended because all contents will be stored in memory on the local Phileas instance.
+The cache service is required to use [consistent anonymization](other_features/consistent_anonymization.md) and policies stored in Amazon S3. Philter supports Redis as the backend cache. When Redis is not used, an in-memory cache is used instead. The in-memory cache is not recommended because all contents will be stored in memory on the local Philter instance.
 
-The cache will contain sensitive information. It is important that you take the necessary precautions to secure the cache itself and all communication between Phileas and the cache.
+The cache will contain sensitive information. It is important that you take the necessary precautions to secure the cache itself and all communication between Philter and the cache.
 
 | Setting                  | Description                                                       | Allowed Values            | Default Value |
 | ------------------------ | ----------------------------------------------------------------- | ------------------------- | ------------- |

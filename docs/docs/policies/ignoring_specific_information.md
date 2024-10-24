@@ -1,8 +1,8 @@
 # Ignoring Specific Information
 
-Phileas can optionally ignore a list of terms and prevent those terms from being redacted. For example, if the name `John Smith` is being redacted and you do not want it to be redacted, you can add `John Smith` to an ignore list. Each time Phileas identifies sensitive information it will check the ignore lists to see if the sensitive information is to be ignored.
+Philter can optionally ignore a list of terms and prevent those terms from being redacted. For example, if the name `John Smith` is being redacted and you do not want it to be redacted, you can add `John Smith` to an ignore list. Each time Philter identifies sensitive information it will check the ignore lists to see if the sensitive information is to be ignored.
 
-> Phileas can ignore terms and patterns per-policy, meaning each policy can have its own unique list of terms or patterns to ignore.
+> Philter can ignore terms and patterns per-policy, meaning each policy can have its own unique list of terms or patterns to ignore.
 
 ## Ignore Lists
 
@@ -84,7 +84,7 @@ In the policy shown below, an ignore list is set at the level of a filter. The t
 
 ## Ignoring Patterns
 
-Phileas can ignore information based on a regular expression pattern. An example use of this feature is to ignore terms that are present in your text but are dynamic, such as logged timestamps. When using the date filter these timestamps may be identified as being sensitive but you do not want them redacted. With an ignore pattern we can ignore the logged timestamps.
+Philter can ignore information based on a regular expression pattern. An example use of this feature is to ignore terms that are present in your text but are dynamic, such as logged timestamps. When using the date filter these timestamps may be identified as being sensitive but you do not want them redacted. With an ignore pattern we can ignore the logged timestamps.
 
 ## Ignore Patterns
 

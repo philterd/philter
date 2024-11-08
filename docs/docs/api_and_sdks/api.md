@@ -10,4 +10,4 @@ The Philter [SDKs](sdks.md) provide convenient methods for using Philter's API m
 
 ## Securing Philter's API
 
-Philter's API supports one-way and two-way SSL/TLS authentication. See the [settings](../settings.md) for more information.
+Philter's API supports one-way and two-way SSL/TLS authentication. See Philter's [Settings](../settings.md) for more information.

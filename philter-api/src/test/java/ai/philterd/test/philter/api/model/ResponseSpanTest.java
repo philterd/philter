@@ -28,9 +28,9 @@ public class ResponseSpanTest {
 
         final String[] window = new String[]{};
 
-        final Span span1 = Span.make(1, 6, FilterType.PERSON, "context", "document", 1.0, "test", "***", "", false, true, window);
-        final Span span2 = Span.make(8, 12, FilterType.PERSON, "context", "document", 1.0, "test", "***", "", false, true, window);
-        final Span span3 = Span.make(14, 20, FilterType.PERSON, "context", "document", 1.0, "test", "***", "", false, true, window);
+        final Span span1 = Span.make(1, 6, FilterType.AGE, "context", "document", 1.0, "test", "***", "", false, true, window);
+        final Span span2 = Span.make(8, 12, FilterType.AGE, "context", "document", 1.0, "test", "***", "", false, true, window);
+        final Span span3 = Span.make(14, 20, FilterType.AGE, "context", "document", 1.0, "test", "***", "", false, true, window);
 
         final List<Span> spans = Arrays.asList(span1, span2, span3);
 

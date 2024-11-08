@@ -12,7 +12,7 @@ Consistent anonymization can be done on the document level or on the context lev
 
 Enabling consistent anonymization on the context level requires a cache to store the sensitive information and the corresponding replacement values. If a single instance of Philter is running, its internal cache service (enabled by default) is the best choice and no additional configuration is required.
 
-If multiple instances of Philter are deployed together, Philter requires access to a Redis cache service as shown below. See Philter' [Settings](../settings.md) on how to configure the cache.
+If multiple instances of Philter are deployed together, Philter requires access to a Redis cache service as shown below. See Philter's [Settings](../settings.md) on how to configure the cache.
 
 **When Philter is deployed in a cluster, a Redis cache is required to enable consistent anonymization.**
 

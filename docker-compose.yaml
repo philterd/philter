@@ -1,16 +1,17 @@
 services:
   ph-eye:
-    image: philterd/ph-eye:1.0.0
+    image: philterd/ph-eye:1.1.0
     ports:
       - "18080:5000"
     networks:
       - philter
-    environment:
-      model_name: "urchade/gliner_medium-v2.1"
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
   philter:
     depends_on:
       - ph-eye
-    image: philterd/philter:2.6.0
+    image: philterd/philter:2.7.0
     ports:
       - "8080:8080"
     volumes:
@@ -19,13 +20,10 @@ services:
       - ./distribution/policies/:/opt/philter/policies/
     networks:
       - philter
-    # runtime: nvidia
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
   philter-ui:
     depends_on:
       - philter
-    image: philterd/philter-ui:2.6.0
+    image: philterd/philter-ui:2.7.0
     ports:
       - "9000:9000"
     networks:

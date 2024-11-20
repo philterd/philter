@@ -1,5 +1,12 @@
 {
   "name": "default",
+    "config": {
+    "splitting": {
+      "enabled": true,
+      "threshold": 384,
+      "method": "width"
+    }
+  },
   "ignored": [],
   "identifiers": {
     "dictionaries": [],

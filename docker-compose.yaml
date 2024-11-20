@@ -1,6 +1,6 @@
 services:
   ph-eye:
-    image: philterd/ph-eye:1.1.0
+    image: philterd/ph-eye:1.2.0
     ports:
       - "18080:5000"
     networks:
@@ -11,7 +11,9 @@ services:
   philter:
     depends_on:
       - ph-eye
-    image: philterd/philter:2.7.0
+    build:
+      context: .
+      dockerfile: Dockerfile.philter
     ports:
       - "8080:8080"
     volumes:
@@ -23,7 +25,9 @@ services:
   philter-ui:
     depends_on:
       - philter
-    image: philterd/philter-ui:2.7.0
+    build:
+      context: .
+      dockerfile: Dockerfile.philter-ui
     ports:
       - "9000:9000"
     networks:

@@ -38,10 +38,6 @@ Once the containers are running, you can submit text to Philter's API for redact
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain"
 ```
 
-## AI PII/PHI Models
-
-AI models for identifying PII and PHI in text are available at https://github.com/philterd/pii-models. These models can be used by both Phileas and [Philter](https://github.com/philterd/philter).
-
 ## License
 
 As of Philter 2.6.0, Philter is licensed under the Apache License, version 2.0. Previous versions were under a proprietary license.

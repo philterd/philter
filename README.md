@@ -29,6 +29,7 @@ mvn clean install
 To launch Philter, use the `docker-compose.yml`:
 
 ```
+docker build build
 docker compose up
 ```
 
@@ -37,10 +38,6 @@ Once the containers are running, you can submit text to Philter's API for redact
 ```
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain"
 ```
-
-## AI PII/PHI Models
-
-AI models for identifying PII and PHI in text are available at https://github.com/philterd/pii-models. These models can be used by both Phileas and [Philter](https://github.com/philterd/philter).
 
 ## License
 

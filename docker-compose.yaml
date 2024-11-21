@@ -1,6 +1,6 @@
 services:
   ph-eye:
-    image: philterd/ph-eye:1.2.0
+    image: philterd/ph-eye:1.2.1
     ports:
       - "18080:5000"
     networks:

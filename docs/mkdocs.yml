@@ -21,7 +21,7 @@ theme:
     - navigation.expand
     - navigation.footer
 extra:
-  version: 2.4.0
+  version: 3.0.0
   homepage: https://www.philterd.ai
   social:
     - icon: fontawesome/brands/linkedin

@@ -18,6 +18,7 @@ package ai.philterd.philter.services;
 import ai.philterd.phileas.metrics.PhilterMetricsService;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
 import ai.philterd.phileas.model.enums.MimeType;
+import ai.philterd.phileas.model.objects.Span;
 import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.responses.BinaryDocumentFilterResponse;
 import ai.philterd.phileas.model.responses.FilterResponse;
@@ -27,20 +28,25 @@ import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.phileas.services.PhileasFilterService;
 import ai.philterd.philter.PhilterConfiguration;
 import ai.philterd.redactionhub.client.RedactionHubClient;
+import ai.philterd.redactionhub.model.RedactedObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
 public class PhilterService implements FilterService {
 
     private final FilterService phileasFilterService;
+
     private final RedactionHubClient redactionHubClient;
     private final String certificateName;
+    private final boolean signingEnabled;
+    private final boolean indexingEnabled;
 
     @Autowired
-    public PhilterService(PhileasConfiguration phileasConfiguration) throws Exception {
+    public PhilterService(final PhileasConfiguration phileasConfiguration) throws Exception {
 
         final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
         final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
@@ -49,46 +55,68 @@ public class PhilterService implements FilterService {
         if(philterConfiguration.redactionHubEnabled()) {
             this.redactionHubClient = new RedactionHubClient(philterConfiguration.redactionHubApiKey(), philterConfiguration.redactionHubBaseUrl(), philterConfiguration.redactionHubTimeOut(), philterConfiguration.redactionHubIgnoreSsl());
             this.certificateName = philterConfiguration.redactionHubCertificateName();
+            this.signingEnabled = philterConfiguration.redactionHubSigningEnabled();
+            this.indexingEnabled = philterConfiguration.redactionHubIndexingEnabled();
         } else {
             this.redactionHubClient = null;
             this.certificateName = null;
+            this.signingEnabled = false;
+            this.indexingEnabled = false;
         }
 
     }
 
     @Override
-    public FilterResponse filter(Policy policy, String context, String documentId, String input, MimeType mimeType) throws Exception {
-
-        final FilterResponse filterResponse = phileasFilterService.filter(policy, context, documentId, input, mimeType);
-
-        if(redactionHubClient != null) {
-
-            final String signature = redactionHubClient.sign(filterResponse.getFilteredText(), certificateName);
-
-            return new SignedFilterResponse(filterResponse.getFilteredText(), filterResponse.getContext(),
-                    filterResponse.getDocumentId(), filterResponse.getPiece(), filterResponse.getExplanation(), filterResponse.getAttributes(),
-                    signature);
-
-        } else {
-
-            return filterResponse;
-
-        }
-
+    public FilterResponse filter(final Policy policy, final String context, final String documentId, final String input, final MimeType mimeType) throws Exception {
+        return filter(List.of(policy.getName()), context, documentId, input, mimeType);
     }
 
     @Override
-    public FilterResponse filter(List<String> policyNames, String context, String documentId, String input, MimeType mimeType) throws Exception {
+    public FilterResponse filter(final List<String> policyNames, final String context, final String documentId, final String input, final MimeType mimeType) throws Exception {
 
         final FilterResponse filterResponse = phileasFilterService.filter(policyNames, context, documentId, input, mimeType);
 
-        if(redactionHubClient != null) {
+        String indexedId = null;
+        String signature = null;
 
-            final String signature = redactionHubClient.sign(filterResponse.getFilteredText(), certificateName);
+        if(signingEnabled) {
 
-            return new SignedFilterResponse(filterResponse.getFilteredText(), filterResponse.getContext(),
+            signature = redactionHubClient.sign(filterResponse.getFilteredText(), certificateName);
+
+        }
+
+        if(indexingEnabled) {
+
+            final List<ai.philterd.redactionhub.model.Span> spans = new ArrayList<>();
+
+            // Convert the Phileas spans to Redaction Hub spans.
+            for(final Span span : filterResponse.getExplanation().appliedSpans()) {
+
+                final ai.philterd.redactionhub.model.Span spanObject = new ai.philterd.redactionhub.model.Span(span.getCharacterStart(),
+                        span.getCharacterEnd(), span.getFilterType().toString(), span.getReplacement(), span.getConfidence(),
+                        span.getText(), span.getReplacement(), span.getSalt());
+
+                spans.add(spanObject);
+            }
+
+            final RedactedObject redactedObject = new RedactedObject();
+            redactedObject.setText(filterResponse.getFilteredText());
+            redactedObject.setRedacted(filterResponse.getFilteredText());
+            redactedObject.setSpans(spans);
+            redactedObject.setContext(filterResponse.getContext());
+            redactedObject.setDocumentId(filterResponse.getDocumentId());
+            redactedObject.setCertificate(certificateName);
+            redactedObject.setSignature(signature);
+
+            indexedId = redactionHubClient.index(redactedObject);
+
+        }
+
+        if(signingEnabled || indexingEnabled) {
+
+            return new RedactionHubFilterResponse(filterResponse.getFilteredText(), filterResponse.getContext(),
                     filterResponse.getDocumentId(), filterResponse.getPiece(), filterResponse.getExplanation(), filterResponse.getAttributes(),
-                    signature);
+                    signature, indexedId);
 
         } else {
 
@@ -99,7 +127,7 @@ public class PhilterService implements FilterService {
     }
 
     @Override
-    public BinaryDocumentFilterResponse filter(List<String> policyNames, String context, String documentId, byte[] input, MimeType mimeType, MimeType outputMimeType) throws Exception {
+    public BinaryDocumentFilterResponse filter(final List<String> policyNames, final String context, final String documentId, final byte[] input, final MimeType mimeType, final MimeType outputMimeType) throws Exception {
         return phileasFilterService.filter(policyNames, context, documentId, input, mimeType, outputMimeType);
     }
 

@@ -59,6 +59,14 @@ public class PhilterConfiguration {
         return Boolean.parseBoolean(getProperty("redaction.hub.ignore.ssl", "false"));
     }
 
+    public boolean redactionHubSigningEnabled() {
+        return Boolean.parseBoolean(getProperty("redaction.hub.signing.enabled", "false"));
+    }
+
+    public boolean redactionHubIndexingEnabled() {
+        return Boolean.parseBoolean(getProperty("redaction.hub.indexing.enabled", "false"));
+    }
+
     public String redactionHubCertificateName() {
         return getProperty("redaction.hub.certificate.name", "");
     }

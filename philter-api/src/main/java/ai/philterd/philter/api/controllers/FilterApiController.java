@@ -1,10 +1,24 @@
+/*
+ *     Copyright 2024 Philterd, LLC @ https://www.philterd.ai
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package ai.philterd.philter.api.controllers;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.Filter;
-
-import ai.philterd.philter.services.PhilterService;
+import ai.philterd.phileas.model.enums.MimeType;
+import ai.philterd.phileas.model.responses.BinaryDocumentFilterResponse;
+import ai.philterd.phileas.model.responses.FilterResponse;
+import ai.philterd.phileas.model.services.FilterService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +32,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import ai.philterd.phileas.model.enums.MimeType;
-import ai.philterd.phileas.model.responses.BinaryDocumentFilterResponse;
-import ai.philterd.phileas.model.responses.FilterResponse;
-import ai.philterd.phileas.model.services.FilterService;
+import java.util.Arrays;
+import java.util.List;
 
 @Controller
 public class FilterApiController extends AbstractController {

@@ -1,10 +1,9 @@
 package ai.philterd.philter.api.controllers;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.Filter;
-
-import ai.philterd.philter.services.PhilterService;
+import ai.philterd.phileas.model.enums.MimeType;
+import ai.philterd.phileas.model.responses.BinaryDocumentFilterResponse;
+import ai.philterd.phileas.model.responses.FilterResponse;
+import ai.philterd.phileas.model.services.FilterService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +17,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import ai.philterd.phileas.model.enums.MimeType;
-import ai.philterd.phileas.model.responses.BinaryDocumentFilterResponse;
-import ai.philterd.phileas.model.responses.FilterResponse;
-import ai.philterd.phileas.model.services.FilterService;
+import java.util.Collections;
+import java.util.List;
 
 @Controller
 public class FilterApiController extends AbstractController {
@@ -45,7 +42,7 @@ public class FilterApiController extends AbstractController {
 
 		LOGGER.info("Received uploaded binary PDF file to be returned as ZIP.");
 
-		final List<String> policies = Arrays.asList(policyName);
+		final List<String> policies = Collections.singletonList(policyName);
 		final BinaryDocumentFilterResponse response = filterService.filter(policies, context, documentId, body, MimeType.APPLICATION_PDF, MimeType.IMAGE_JPEG);
 
 		return ResponseEntity.status(HttpStatus.OK)
@@ -63,7 +60,7 @@ public class FilterApiController extends AbstractController {
 
 		LOGGER.info("Received uploaded binary PDF file to be returned as PDF.");
 
-		final List<String> policies = Arrays.asList(policyName);
+		final List<String> policies = Collections.singletonList(policyName);
 		final BinaryDocumentFilterResponse response = filterService.filter(policies, context, documentId, body, MimeType.APPLICATION_PDF, MimeType.APPLICATION_PDF);
 
 		return ResponseEntity.status(HttpStatus.OK)
@@ -79,55 +76,13 @@ public class FilterApiController extends AbstractController {
             @RequestParam(value="p", defaultValue="default") String policyName,
             @RequestBody String body) throws Exception {
 
-		final List<String> policies = Arrays.asList(policyName);
+		final List<String> policies = Collections.singletonList(policyName);
 		final FilterResponse response = filterService.filter(policies, context, documentId, body, MimeType.TEXT_PLAIN);
 
 		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.documentId())
-				.body(response.filteredText());
+				.header("x-document-id", response.getDocumentId())
+				.body(response.getFilteredText());
 
 	}
-
-	/*@RequestMapping(value="/api/filter", method=RequestMethod.POST, produces = MediaType.IMAGE_JPEG_VALUE, consumes = MediaType.IMAGE_JPEG_VALUE)
-	public @ResponseBody ResponseEntity<byte[]> filterImageFacialRecognition(
-			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="d", defaultValue="") String documentId,
-			@RequestParam(value="p", defaultValue="default") String policyName,
-			@RequestBody byte[] body) throws Exception {
-
-		final BinaryDocumentFilterResponse response = filterService.filter(policyName, context, documentId, body, MimeType.IMAGE_JPEG, MimeType.IMAGE_JPEG);
-
-		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.getDocumentId())
-				.body(response.getDocument());
-
-	}*/
-
-	/*@RequestMapping(value="/api/filter", method=RequestMethod.POST, produces = "text/csv", consumes = "text/csv")
-	public @ResponseBody ResponseEntity<String> filterTextCsvAsTextCsv(
-			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="d", defaultValue="") String documentId,
-			@RequestParam(value="p", defaultValue="default") String policyName,
-			@RequestBody String body) throws Exception {
-
-		if(!statusUp) {
-			statusUp = getPythonRESTServiceStatus(phileasConfiguration.philterNerEndpoint());
-		}
-
-		if(statusUp) {
-
-			final FilterResponse response = filterService.filter(policyName, context, documentId, body, MimeType.CSV);
-
-			return ResponseEntity.status(HttpStatus.OK)
-					.header("x-document-id", response.getDocumentId())
-					.body(response.getFilteredText());
-
-		} else {
-
-			throw new ServiceUnavailableException("Philter is still initializing. If message persists refer to Philter's log file.");
-
-		}
-
-	}*/
 
 }

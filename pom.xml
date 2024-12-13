@@ -93,8 +93,9 @@
         <junit.version>4.13.2</junit.version>
         <micrometer.version>1.13.3</micrometer.version>
         <mockito.version>1.10.19</mockito.version>
-        <phileas.version>2.9.1</phileas.version>
+        <phileas.version>2.10.0-SNAPSHOT</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
+        <redaction.hub.version>1.0.0-SNAPSHOT</redaction.hub.version>
         <spring.boot.version>3.3.1</spring.boot.version>
         <spring.version>6.1.10</spring.version>
     </properties>

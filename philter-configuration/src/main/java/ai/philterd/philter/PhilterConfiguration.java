@@ -22,6 +22,32 @@ public class PhilterConfiguration {
         this.applicationName = applicationName;
     }
 
+    // Redaction Hub
+
+    public boolean redactionHubEnabled() {
+        return Boolean.parseBoolean(getProperty("redaction.hub.enabled", "false"));
+    }
+
+    public String redactionHubApiKey() {
+        return getProperty("redaction.hub.api.key", "");
+    }
+
+    public String redactionHubBaseUrl() {
+        return getProperty("redaction.hub.base.url", "");
+    }
+
+    public int redactionHubTimeOut() {
+        return Integer.parseInt(getProperty("redaction.hub.timeout", "3000"));
+    }
+
+    public boolean redactionHubIgnoreSsl() {
+        return Boolean.parseBoolean(getProperty("redaction.hub.ignore.ssl", "false"));
+    }
+
+    public String redactionHubCertificateName() {
+        return getProperty("redaction.hub.certificate.name", "");
+    }
+
     // Metrics
 
     public String metricsPrefix() {

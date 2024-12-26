@@ -52,7 +52,7 @@ public class ExplainApiController extends AbstractController {
 			final FilterResponse response = filterService.filter(policies, context, documentId, body, MimeType.TEXT_PLAIN);
 
 		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.documentId())
+				.header("x-document-id", response.getDocumentId())
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(gson.toJson(response));
 

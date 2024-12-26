@@ -5,12 +5,10 @@ ARG PHILTER_VERSION
 RUN apt-get update && apt-get -y install openjdk-17-jre
 
 RUN mkdir -p /opt/philter/ssl \
-    && mkdir -p /opt/philter/indexes \
     && mkdir -p /opt/philter/policies
 
 COPY ./README.md /opt/philter/
 COPY ./LICENSE.txt /opt/philter/
-COPY ./distribution/indexes /opt/philter/indexes/
 COPY ./distribution/policies /opt/philter/policies/
 COPY ./distribution/philter.properties /opt/philter/
 

@@ -199,7 +199,6 @@
         <profile>
             <id>sign</id>
             <activation>
-                <activeByDefault>false</activeByDefault>
                 <property>
                     <name>sign</name>
                 </property>
@@ -209,13 +208,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <configuration>
-                            <keyname>2B40608C61258E6D2B4873C95CDCC70F2E21BC01</keyname>
-                            <gpgArguments>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                        </configuration>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>

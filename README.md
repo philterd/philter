@@ -29,7 +29,7 @@ mvn clean install
 To launch Philter, use the `docker-compose.yml`:
 
 ```
-docker build build
+docker compose build
 docker compose up
 ```
 

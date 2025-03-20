@@ -93,7 +93,7 @@
         <junit.version>4.13.2</junit.version>
         <micrometer.version>1.13.3</micrometer.version>
         <mockito.version>1.10.19</mockito.version>
-        <phileas.version>2.11.0</phileas.version>
+        <phileas.version>2.12.0</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
         <spring.boot.version>3.4.3</spring.boot.version>
         <spring.version>6.1.10</spring.version>
@@ -234,11 +234,11 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>5.2.1</version>
+                        <version>12.1.0</version>
                         <configuration>
                             <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
                             <failOnError>false</failOnError>
-                            <failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
+                            <failBuildOnCVSS>0</failBuildOnCVSS>
                             <format>xml</format>
                             <skipProvidedScope>true</skipProvidedScope>
                             <skipTestScope>true</skipTestScope>

@@ -5,7 +5,7 @@
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
     <packaging>pom</packaging>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.1.0</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>

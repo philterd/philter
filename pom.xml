@@ -79,6 +79,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
+        <commons.codec.version>1.18.0</commons.codec.version>
         <commons.io.version>2.18.0</commons.io.version>
         <commons.lang3.version>3.17.0</commons.lang3.version>
         <dropwizard-metrics-cloudwatch.version>1.12.9</dropwizard-metrics-cloudwatch.version>
@@ -95,6 +96,7 @@
         <mockito.version>1.10.19</mockito.version>
         <phileas.version>2.13.0-SNAPSHOT</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
+        <redisson.version>3.45.1</redisson.version>
         <spring.boot.version>3.4.3</spring.boot.version>
         <spring.version>6.2.5</spring.version>
         <maven.compiler.source>17</maven.compiler.source>

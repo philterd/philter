@@ -16,12 +16,14 @@
 package ai.philterd.philter.services;
 
 import ai.philterd.phileas.metrics.PhilterMetricsService;
+import ai.philterd.phileas.model.cache.InMemoryCache;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
 import ai.philterd.phileas.model.enums.MimeType;
 import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.responses.BinaryDocumentFilterResponse;
 import ai.philterd.phileas.model.responses.FilterResponse;
 import ai.philterd.phileas.model.services.AlertService;
+import ai.philterd.phileas.model.services.CacheService;
 import ai.philterd.phileas.model.services.FilterService;
 import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.phileas.services.PhileasFilterService;
@@ -41,7 +43,10 @@ public class PhilterService implements FilterService {
     public PhilterService(PhileasConfiguration phileasConfiguration) throws IOException {
         final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
         final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
-        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService);
+
+        final CacheService cacheService = new InMemoryCache();
+
+        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService, cacheService);
     }
 
     @Override

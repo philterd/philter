@@ -17,6 +17,7 @@ package ai.philterd.philter;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Properties;
 import org.apache.commons.lang3.StringUtils;
 
@@ -35,6 +36,44 @@ public class PhilterConfiguration {
     public PhilterConfiguration(Properties properties, String applicationName) throws IOException {
         this.properties = properties;
         this.applicationName = applicationName;
+    }
+
+    // Cache
+
+    public boolean cacheEnabled() {
+        return Boolean.parseBoolean(getProperty("cache.cluster", "false"));
+    }
+
+    public String cacheEndpoint() {
+        return getProperty("cache.host", "127.0.0.1");
+    }
+
+    public int cachePort() {
+        return Integer.parseInt(getProperty("cache.port", "6379"));
+    }
+
+    public String cacheAuthtoken() {
+        return getProperty("cache.auth.token", "");
+    }
+
+    public boolean cacheSsl() {
+        return Boolean.parseBoolean(getProperty("cache.ssl", "false"));
+    }
+
+    public String cacheSslKeyStore() {
+        return getProperty("cache.ssl.keystore", "");
+    }
+
+    public String cacheSslKeyStorePassword() {
+        return getProperty("cache.ssl.keystore.password", "");
+    }
+
+    public String cacheTrustStore() {
+        return getProperty("cache.ssl.truststore", "");
+    }
+
+    public String cacheTrustStorePassword() {
+        return getProperty("cache.ssl.truststore.password", "");
     }
 
     // Metrics

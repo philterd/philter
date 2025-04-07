@@ -38,6 +38,10 @@ public class PhilterConfiguration {
         return Boolean.parseBoolean(getProperty("cache.enabled", "false"));
     }
 
+    public boolean cacheCluster() {
+        return Boolean.parseBoolean(getProperty("cache.cluster", "false"));
+    }
+
     public String cacheEndpoint() {
         return getProperty("cache.host", "127.0.0.1");
     }

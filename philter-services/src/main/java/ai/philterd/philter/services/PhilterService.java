@@ -43,9 +43,7 @@ public class PhilterService implements FilterService {
     public PhilterService(PhileasConfiguration phileasConfiguration) throws IOException {
         final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
         final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
-
-        final CacheService cacheService = new InMemoryCache();
-
+        final CacheService cacheService = CacheServiceFactory.getCacheService(philterConfiguration);
         this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService, cacheService);
     }
 

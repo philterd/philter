@@ -55,6 +55,7 @@ cache itself and all communication between Philter and the cache.
 | Setting            | Description                                                       | Allowed Values            | Default Value |
 |--------------------|-------------------------------------------------------------------|---------------------------|---------------|
 | `cache.enabled`    | Whether or not to use Redis as the cache.                         | `true`, `false`           | `false`       |
+| `cache.cluster`    | Whether or not to use a Redis cluster.                            | `true`, `false`           | `false`       |
 | `cache.host`       | The hostname or IP address of the Redis cache.                    | Any valid Redis endpoint. | None          |
 | `cache.port`       | The Redis cache port.                                             | Any valid port.           | `6379`        |
 | `cache.auth.token` | The Redis auth token.                                             | Any valid token.          | None          |
@@ -62,9 +63,9 @@ cache itself and all communication between Philter and the cache.
 
 The following Redis settings are only required when using a self-signed SSL certificate.
 
-| Setting                     | Description                  | Allowed Values       | Default Value |
-|-----------------------------|------------------------------|----------------------|---------------|
-| `cache.ssl.truststore`      | The path to the trust store. | Any valid file path. | None          |
+| Setting                         | Description                  | Allowed Values       | Default Value |
+|---------------------------------|------------------------------|----------------------|---------------|
+| `cache.ssl.truststore`          | The path to the trust store. | Any valid file path. | None          |
 | `cache.ssl.truststore.password` | The trust store password.    | Any valid file path. | None          |
 | `cache.ssl.keystore`            | The path to the keystore.    | Any valid file path. | None          |
 | `cache.ssl.keystore.password`   | The keystore password.       | Any valid file path. | None          |

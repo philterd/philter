@@ -17,7 +17,6 @@ package ai.philterd.philter;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.URL;
 import java.util.Properties;
 import org.apache.commons.lang3.StringUtils;
 
@@ -33,15 +32,10 @@ public class PhilterConfiguration {
         this.applicationName = applicationName;
     }
 
-    public PhilterConfiguration(Properties properties, String applicationName) throws IOException {
-        this.properties = properties;
-        this.applicationName = applicationName;
-    }
-
     // Cache
 
     public boolean cacheEnabled() {
-        return Boolean.parseBoolean(getProperty("cache.cluster", "false"));
+        return Boolean.parseBoolean(getProperty("cache.enabled", "false"));
     }
 
     public String cacheEndpoint() {
@@ -52,7 +46,7 @@ public class PhilterConfiguration {
         return Integer.parseInt(getProperty("cache.port", "6379"));
     }
 
-    public String cacheAuthtoken() {
+    public String cacheAuthToken() {
         return getProperty("cache.auth.token", "");
     }
 

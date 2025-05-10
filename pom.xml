@@ -41,6 +41,15 @@
         <module>philter-metrics</module>
         <module>philter-configuration</module>
     </modules>
+    <repositories>
+        <repository>
+            <id>maven-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <properties>
         <downloadSources>true</downloadSources>
         <downloadJavadocs>true</downloadJavadocs>

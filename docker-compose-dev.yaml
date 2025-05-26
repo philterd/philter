@@ -30,6 +30,8 @@ services:
       dockerfile: Dockerfile.philter-ui
     ports:
       - "9000:9000"
+    volumes:
+      - ./distribution/philter-ui.properties:/opt/philter/philter-ui.properties
     networks:
       - philter
 networks:

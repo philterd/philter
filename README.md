@@ -28,7 +28,7 @@ mvn clean install
 To run Philter:
 
 ```
-docker compose -f docker-compose.yaml build
+docker compose build
 docker compose up
 ```
 

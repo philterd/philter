@@ -16,7 +16,8 @@ Philter is available on the cloud marketplaces as a turnkey redaction solution. 
 * [Philter on the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/product/philterd-public/philter)
 * [Philter on the Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/philterdllc1687189098111.philter?tab=Overview)
 
-## Building Philter
+
+## Building and Running Philter
 
 Philter is built with Maven:
 
@@ -24,12 +25,10 @@ Philter is built with Maven:
 mvn clean install
 ```
 
-## Running Philter
-
-To launch Philter, use the `docker-compose.yml`:
+To run Philter:
 
 ```
-docker compose build
+docker compose -f docker-compose-dev.yaml build
 docker compose up
 ```
 
@@ -38,6 +37,8 @@ Once the containers are running, you can submit text to Philter's API for redact
 ```
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain"
 ```
+
+You can also access the UI at http://localhost:9000.
 
 ## License
 

@@ -19,7 +19,7 @@ Philter is available on the cloud marketplaces as a turnkey redaction solution. 
 
 ## Building and Running Philter
 
-Philter is built with Maven:
+Philter is built with Maven (requiring >= Java 17):
 
 ```
 mvn clean install

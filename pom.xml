@@ -5,7 +5,7 @@
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
     <packaging>pom</packaging>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>3.2.0</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>
@@ -41,17 +41,36 @@
         <module>philter-metrics</module>
         <module>philter-configuration</module>
     </modules>
+    <distributionManagement>
+        <snapshotRepository>
+            <id>philterd-repository-snapshots</id>
+            <name>Philterd Snapshots Repository</name>
+            <url>https://artifacts.philterd.ai/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>philterd-repository-releases</id>
+            <name>Philterd Repository</name>
+            <url>https://artifacts.philterd.ai/releases</url>
+        </repository>
+    </distributionManagement>
     <repositories>
         <repository>
-            <name>Central Portal Snapshots</name>
-            <id>central-portal-snapshots</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <releases>
+            <id>philterd-repository-releases</id>
+            <url>https://artifacts.philterd.ai/releases</url>
+            <snapshots>
                 <enabled>false</enabled>
-            </releases>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>philterd-repository-snapshots</id>
+            <url>https://artifacts.philterd.ai/snapshots</url>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
+        </repository>
+        <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
         </repository>
     </repositories>
     <properties>
@@ -91,15 +110,6 @@
                 <version>3.8.1</version>
                 <configuration>
                     <release>17</release>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.7.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
                 </configuration>
             </plugin>
             <plugin>

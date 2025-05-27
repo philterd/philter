@@ -4,19 +4,17 @@
 	<parent>
 		<groupId>ai.philterd</groupId>
 		<artifactId>philter</artifactId>
-		<version>3.3.0-SNAPSHOT</version>
+		<version>3.2.0</version>
 	</parent>
 	<artifactId>philter-ui</artifactId>
 	<name>philter-ui</name>
+	<packaging>jar</packaging>
 	<licenses>
 		<license>
 			<name>Apache License, version 2.0</name>
 			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
 		</license>
 	</licenses>
-	<properties>
-		<failOnMissingWebXml>false</failOnMissingWebXml>
-	</properties>
 	<build>
 		<finalName>philter-ui</finalName>
 		<resources>
@@ -29,7 +27,7 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<version>${spring.boot.version}</version>
+				<version>3.5.0</version>
 				<configuration>
 					<executable>true</executable>
 					<finalName>philter-ui</finalName>
@@ -66,7 +64,16 @@
 					<groupId>org.springframework.boot</groupId>
 					<artifactId>spring-boot-starter-logging</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-tomcat</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jetty</artifactId>
+			<version>${spring.boot.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

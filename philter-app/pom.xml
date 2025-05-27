@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>ai.philterd</groupId>
 		<artifactId>philter</artifactId>
-		<version>3.2.0</version>
+		<version>3.3.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>philter-app</artifactId>
 	<packaging>jar</packaging>

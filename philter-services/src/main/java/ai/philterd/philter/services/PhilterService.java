@@ -40,11 +40,12 @@ public class PhilterService implements FilterService {
     private final FilterService phileasFilterService;
 
     @Autowired
-    public PhilterService(PhileasConfiguration phileasConfiguration) throws IOException {
+    public PhilterService(PhileasConfiguration phileasConfiguration) throws Exception {
         final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
         final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
         final CacheService cacheService = CacheServiceFactory.getCacheService(philterConfiguration);
-        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService, cacheService);
+        final PolicyService policyService = new OpenSearchPolicyService(philterConfiguration);
+        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService, cacheService, policyService);
     }
 
     @Override

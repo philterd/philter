@@ -1,4 +1,5 @@
 services:
+
   ph-eye:
     image: philterd/ph-eye:1.2.1
     ports:
@@ -8,6 +9,7 @@ services:
     # runtime: nvidia
     # environment:
     #   - NVIDIA_VISIBLE_DEVICES=all
+
   philter:
     depends_on:
       - ph-eye
@@ -22,6 +24,7 @@ services:
       - ./distribution/policies/:/opt/philter/policies/
     networks:
       - philter
+
   philter-ui:
     depends_on:
       - philter
@@ -34,5 +37,18 @@ services:
       - ./distribution/philter-ui.properties:/opt/philter/philter-ui.properties
     networks:
       - philter
+
+  opensearch:
+    container_name: opensearch
+    image: opensearchproject/opensearch:3.0.0
+    environment:
+      discovery.type: single-node
+      node.name: opensearch
+      plugins.security.disabled: "true"
+      logger.level: info
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: Mysupersecretpassword_123
+    networks:
+      - philter
+
 networks:
   philter:

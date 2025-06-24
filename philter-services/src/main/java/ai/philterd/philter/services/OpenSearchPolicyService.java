@@ -4,32 +4,23 @@ import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.philter.PhilterConfiguration;
 import com.google.gson.Gson;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
-import org.apache.hc.core5.http.HttpHost;
-import org.opensearch.client.opensearch.core.IndexRequest;
-import org.opensearch.client.opensearch.core.SearchResponse;
-import org.opensearch.client.opensearch.indices.CreateIndexRequest;
-import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
-import org.apache.hc.client5.http.auth.AuthScope;
-import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
-import org.apache.hc.core5.function.Factory;
 import org.apache.hc.core5.http.HttpHost;
-import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
-import org.apache.hc.core5.reactor.ssl.TlsDetails;
-import org.apache.hc.core5.ssl.SSLContextBuilder;
+import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.opensearch._types.FieldValue;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
+import org.opensearch.client.opensearch.core.IndexRequest;
+import org.opensearch.client.opensearch.core.SearchResponse;
+import org.opensearch.client.opensearch.core.search.Hit;
+import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.transport.OpenSearchTransport;
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import java.io.IOException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
+import java.io.StringReader;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,39 +35,16 @@ public class OpenSearchPolicyService implements PolicyService {
 
         this.gson = new Gson();
 
-        //System.setProperty("javax.net.ssl.trustStore", "/full/path/to/keystore");
-        //System.setProperty("javax.net.ssl.trustStorePassword", "password-to-keystore");
-
         final HttpHost host = new HttpHost("https", "localhost", 9200);
-        final BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-
-        // Only for demo purposes. Don't specify your credentials in code.
-     //   credentialsProvider.setCredentials(new AuthScope(host), new UsernamePasswordCredentials("admin", "admin".toCharArray()));
-
-        /*final SSLContext sslcontext = SSLContextBuilder
-                .create()
-                .loadTrustMaterial(null, (chains, authType) -> true)
-                .build();*/
 
         final ApacheHttpClient5TransportBuilder builder = ApacheHttpClient5TransportBuilder.builder(host);
         builder.setHttpClientConfigCallback(httpClientBuilder -> {
-//            final TlsStrategy tlsStrategy = ClientTlsStrategyBuilder.create()
-//                    .setSslContext(sslcontext)
-//                    .setTlsDetailsFactory(new Factory<SSLEngine, TlsDetails>() {
-//                        @Override
-//                        public TlsDetails create(final SSLEngine sslEngine) {
-//                            return new TlsDetails(sslEngine.getSession(), sslEngine.getApplicationProtocol());
-//                        }
-//                    })
-//                    .build();
 
             final PoolingAsyncClientConnectionManager connectionManager = PoolingAsyncClientConnectionManagerBuilder
                     .create()
-         //           .setTlsStrategy(tlsStrategy)
                     .build();
 
             return httpClientBuilder
-         //           .setDefaultCredentialsProvider(credentialsProvider)
                     .setConnectionManager(connectionManager);
 
         });
@@ -84,21 +52,89 @@ public class OpenSearchPolicyService implements PolicyService {
         final OpenSearchTransport transport = builder.build();
         this.client = new OpenSearchClient(transport);
 
-        // TODO: Make sure the index does not already exist.
-        // TODO: Create a mapping.
-        final CreateIndexRequest createIndexRequest = new CreateIndexRequest.Builder().index(index).build();
-        client.indices().create(createIndexRequest);
+        // Make sure the index does not already exist.
+        if(!doesIndexExist()) {
+            final CreateIndexRequest createIndexRequest = new CreateIndexRequest.Builder().index(index).build();
+            client.indices().create(createIndexRequest);
+        }
 
     }
 
     @Override
     public List<String> get() throws IOException {
-        return List.of();
+
+        final List<String> policies = new LinkedList<>();
+        int pageSize = 100;
+        int from = 0;
+        long totalHits = 0;
+        boolean firstRun = true;
+
+        do {
+
+            int finalFrom = from;
+            SearchResponse<Policy> searchResponse = client.search(s -> s
+                            .index(index)
+                            .query(q -> q.matchAll(ma -> ma))
+                            .size(pageSize)
+                            .from(finalFrom),
+                    Policy.class
+            );
+
+            List<Hit<Policy>> hits = searchResponse.hits().hits();
+            if (firstRun) {
+                // Get total hits only on the first run, as it can be expensive
+                totalHits = searchResponse.hits().total() != null ? searchResponse.hits().total().value() : 0;
+                System.out.println("Total potential policies to retrieve: " + totalHits);
+                firstRun = false;
+            }
+
+            for (final Hit<Policy> hit : hits) {
+                final Policy policy = hit.source();
+                if (policy != null) {
+                    policies.add(gson.toJson(policy));
+                }
+            }
+
+            // Move to the next page
+            from += hits.size();
+
+            if (hits.isEmpty() || from >= totalHits) {
+                // Break if no more hits are returned or if we've reached the total hits reported
+                break;
+            }
+
+        } while (true); // Loop until explicitly broken
+
+        return policies;
+
     }
 
     @Override
     public String get(final String name) throws IOException {
-        return "";
+
+        final SearchResponse<Policy> searchResponse = client.search(s -> s
+                        .index(index)
+                        .query(q -> q
+                                .match(m -> m
+                                        .field("name")
+                                        .query(FieldValue.of(name))
+                                )
+                        )
+                        .size(1),
+                Policy.class
+        );
+
+        final List<Hit<Policy>> hits = searchResponse.hits().hits();
+
+        if (!hits.isEmpty()) {
+
+            final Policy policy = hits.get(0).source();
+            return gson.toJson(policy);
+
+        } else {
+            return null;
+        }
+
     }
 
     @Override
@@ -128,5 +164,10 @@ public class OpenSearchPolicyService implements PolicyService {
     public void delete(final String id) throws IOException {
         client.delete(b -> b.index(index).id(id));
     }
+
+    private boolean doesIndexExist() throws IOException {
+        return client.indices().exists(b -> b.index(index)).value();
+    }
+
 
 }

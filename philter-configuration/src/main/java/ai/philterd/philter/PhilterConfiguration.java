@@ -32,6 +32,11 @@ public class PhilterConfiguration {
         this.applicationName = applicationName;
     }
 
+    public PhilterConfiguration(final Properties properties, final String applicationName) {
+        this.properties = properties;
+        this.applicationName = applicationName;
+    }
+
     // Cache
 
     public boolean cacheEnabled() {
@@ -125,6 +130,14 @@ public class PhilterConfiguration {
 
     public String metricsHostname() {
         return String.valueOf(getProperty("metrics.hostname", ""));
+    }
+
+    public String policiesDirectory() {
+        return getProperty("filter.policies.directory", "./policies/");
+    }
+
+    public String policyService() {
+        return getProperty("filter.policies.service", "local");
     }
 
     private String getProperty(final String property, final String defaultValue) {

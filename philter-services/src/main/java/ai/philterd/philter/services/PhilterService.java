@@ -16,7 +16,6 @@
 package ai.philterd.philter.services;
 
 import ai.philterd.phileas.metrics.PhilterMetricsService;
-import ai.philterd.phileas.model.cache.InMemoryCache;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
 import ai.philterd.phileas.model.enums.MimeType;
 import ai.philterd.phileas.model.policy.Policy;
@@ -27,11 +26,11 @@ import ai.philterd.phileas.model.services.CacheService;
 import ai.philterd.phileas.model.services.FilterService;
 import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.phileas.services.PhileasFilterService;
+import ai.philterd.phileas.services.policies.InMemoryPolicyService;
 import ai.philterd.philter.PhilterConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.List;
 
 @Component
@@ -44,7 +43,16 @@ public class PhilterService implements FilterService {
         final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
         final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
         final CacheService cacheService = CacheServiceFactory.getCacheService(philterConfiguration);
-        final PolicyService policyService = new OpenSearchPolicyService(philterConfiguration);
+
+        final PolicyService policyService;
+        if("local".equalsIgnoreCase(philterConfiguration.policyService())) {
+            policyService = new LocalPolicyService(philterConfiguration, cacheService);
+        } else if("opensearch".equalsIgnoreCase(philterConfiguration.policyService())) {
+            policyService = new OpenSearchPolicyService(philterConfiguration);
+        } else {
+            policyService = new InMemoryPolicyService();
+        }
+
         this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService, cacheService, policyService);
     }
 

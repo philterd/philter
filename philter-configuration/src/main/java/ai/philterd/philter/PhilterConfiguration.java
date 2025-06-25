@@ -121,15 +121,15 @@ public class PhilterConfiguration {
     }
 
     public String metricsCloudWatchRegion() {
-        return String.valueOf(getProperty("metrics.cloudwatch.region", "us-east-1"));
+        return getProperty("metrics.cloudwatch.region", "us-east-1");
     }
 
     public String metricsCloudWatchNamespace() {
-        return String.valueOf(getProperty("metrics.cloudwatch.namespace", applicationName));
+        return getProperty("metrics.cloudwatch.namespace", applicationName);
     }
 
     public String metricsHostname() {
-        return String.valueOf(getProperty("metrics.hostname", ""));
+        return getProperty("metrics.hostname", "");
     }
 
     // Policy Services
@@ -147,7 +147,7 @@ public class PhilterConfiguration {
     }
 
     public int opensearchPort() {
-        return getProperty("filter.policies.service.opensearch.port", 9200);
+        return Integer.parseInt(getProperty("filter.policies.service.opensearch.port", "9200"));
     }
 
     private String getProperty(final String property, final String defaultValue) {

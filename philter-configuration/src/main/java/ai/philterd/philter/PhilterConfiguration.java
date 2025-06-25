@@ -32,6 +32,11 @@ public class PhilterConfiguration {
         this.applicationName = applicationName;
     }
 
+    public PhilterConfiguration(final Properties properties, final String applicationName) {
+        this.properties = properties;
+        this.applicationName = applicationName;
+    }
+
     // Cache
 
     public boolean cacheEnabled() {
@@ -116,15 +121,37 @@ public class PhilterConfiguration {
     }
 
     public String metricsCloudWatchRegion() {
-        return String.valueOf(getProperty("metrics.cloudwatch.region", "us-east-1"));
+        return getProperty("metrics.cloudwatch.region", "us-east-1");
     }
 
     public String metricsCloudWatchNamespace() {
-        return String.valueOf(getProperty("metrics.cloudwatch.namespace", applicationName));
+        return getProperty("metrics.cloudwatch.namespace", applicationName);
     }
 
     public String metricsHostname() {
-        return String.valueOf(getProperty("metrics.hostname", ""));
+        return getProperty("metrics.hostname", "");
+    }
+
+    // Policy Services
+
+    public String policiesDirectory() {
+        return getProperty("filter.policies.directory", "./policies/");
+    }
+
+    public String policyService() {
+        return getProperty("filter.policies.service", "local");
+    }
+
+    public String opensearchScheme() {
+        return getProperty("filter.policies.service.opensearch.scheme", "http");
+    }
+
+    public String opensearchHost() {
+        return getProperty("filter.policies.service.opensearch.host", "localhost");
+    }
+
+    public int opensearchPort() {
+        return Integer.parseInt(getProperty("filter.policies.service.opensearch.port", "9200"));
     }
 
     private String getProperty(final String property, final String defaultValue) {

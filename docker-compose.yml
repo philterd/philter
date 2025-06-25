@@ -1,4 +1,5 @@
 services:
+
   ph-eye:
     image: philterd/ph-eye:1.2.1
     ports:
@@ -8,20 +9,30 @@ services:
     # runtime: nvidia
     # environment:
     #   - NVIDIA_VISIBLE_DEVICES=all
+
   philter:
     depends_on:
-      - ph-eye
+      ph-eye:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
     build:
       context: .
       dockerfile: Dockerfile.philter
     ports:
       - "8080:8080"
+    environment:
+      filter.policies.service: opensearch
+      filter.policies.service.opensearch.scheme: http
+      filter.policies.service.opensearch.host: opensearch
+      filter.policies.service.opensearch.port: 9200
     volumes:
       - ./distribution/philter.properties:/opt/philter/philter.properties
       - ./distribution/indexes/:/opt/philter/indexes/
       - ./distribution/policies/:/opt/philter/policies/
     networks:
       - philter
+
   philter-ui:
     depends_on:
       - philter
@@ -34,5 +45,26 @@ services:
       - ./distribution/philter-ui.properties:/opt/philter/philter-ui.properties
     networks:
       - philter
+
+  opensearch:
+    container_name: opensearch
+    image: opensearchproject/opensearch:3.1.0
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      node.name: opensearch
+      plugins.security.disabled: "true"
+      logger.level: info
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: a2qfzT55F%aWPGvhgDrU#pXSYSR
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health?wait_for_status=green -s > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - philter
+
 networks:
   philter:

@@ -7,6 +7,8 @@ import com.google.gson.Gson;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.core5.http.HttpHost;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch.core.IndexRequest;
@@ -24,17 +26,22 @@ import java.util.UUID;
 
 public class OpenSearchPolicyService implements PolicyService {
 
+    private static final Logger LOGGER = LogManager.getLogger(OpenSearchPolicyService.class);
+
     private final OpenSearchClient client;
     private final String index = "policies";
     private final Gson gson;
 
     public OpenSearchPolicyService(final PhilterConfiguration philterConfiguration) throws Exception {
 
+        LOGGER.info("Initializing the OpenSearch policy service.");
+
         this.gson = new Gson();
 
+        final String opensearchScheme = philterConfiguration.opensearchScheme();
         final String opensearchHost = philterConfiguration.opensearchHost();
         final int opensearchPort = philterConfiguration.opensearchPort();
-        final HttpHost host = new HttpHost(opensearchHost, opensearchPort);
+        final HttpHost host = new HttpHost(opensearchScheme, opensearchHost, opensearchPort);
 
         final ApacheHttpClient5TransportBuilder builder = ApacheHttpClient5TransportBuilder.builder(host);
         builder.setHttpClientConfigCallback(httpClientBuilder -> {

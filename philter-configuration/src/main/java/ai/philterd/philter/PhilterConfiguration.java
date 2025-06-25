@@ -142,8 +142,12 @@ public class PhilterConfiguration {
         return getProperty("filter.policies.service", "local");
     }
 
+    public String opensearchScheme() {
+        return getProperty("filter.policies.service.opensearch.scheme", "http");
+    }
+
     public String opensearchHost() {
-        return getProperty("filter.policies.service.opensearch.host", "http://localhost:9200");
+        return getProperty("filter.policies.service.opensearch.host", "localhost");
     }
 
     public int opensearchPort() {

@@ -7,10 +7,8 @@ import com.google.gson.Gson;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.core5.http.HttpHost;
-import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.FieldValue;
-import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch.core.IndexRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
 import org.opensearch.client.opensearch.core.search.Hit;
@@ -19,7 +17,6 @@ import org.opensearch.client.transport.OpenSearchTransport;
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +32,9 @@ public class OpenSearchPolicyService implements PolicyService {
 
         this.gson = new Gson();
 
-        final HttpHost host = new HttpHost("https", "localhost", 9200);
+        final String opensearchHost = philterConfiguration.opensearchHost();
+        final int opensearchPort = philterConfiguration.opensearchPort();
+        final HttpHost host = new HttpHost(opensearchHost, opensearchPort);
 
         final ApacheHttpClient5TransportBuilder builder = ApacheHttpClient5TransportBuilder.builder(host);
         builder.setHttpClientConfigCallback(httpClientBuilder -> {
@@ -52,7 +51,7 @@ public class OpenSearchPolicyService implements PolicyService {
         final OpenSearchTransport transport = builder.build();
         this.client = new OpenSearchClient(transport);
 
-        // Make sure the index does not already exist.
+        // Create the index if it does not already exist.
         if(!doesIndexExist()) {
             final CreateIndexRequest createIndexRequest = new CreateIndexRequest.Builder().index(index).build();
             client.indices().create(createIndexRequest);
@@ -82,9 +81,7 @@ public class OpenSearchPolicyService implements PolicyService {
 
             List<Hit<Policy>> hits = searchResponse.hits().hits();
             if (firstRun) {
-                // Get total hits only on the first run, as it can be expensive
                 totalHits = searchResponse.hits().total() != null ? searchResponse.hits().total().value() : 0;
-                System.out.println("Total potential policies to retrieve: " + totalHits);
                 firstRun = false;
             }
 
@@ -95,15 +92,13 @@ public class OpenSearchPolicyService implements PolicyService {
                 }
             }
 
-            // Move to the next page
             from += hits.size();
 
             if (hits.isEmpty() || from >= totalHits) {
-                // Break if no more hits are returned or if we've reached the total hits reported
                 break;
             }
 
-        } while (true); // Loop until explicitly broken
+        } while (true);
 
         return policies;
 
@@ -168,6 +163,5 @@ public class OpenSearchPolicyService implements PolicyService {
     private boolean doesIndexExist() throws IOException {
         return client.indices().exists(b -> b.index(index)).value();
     }
-
 
 }

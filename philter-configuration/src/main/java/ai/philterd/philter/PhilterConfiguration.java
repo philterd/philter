@@ -132,12 +132,22 @@ public class PhilterConfiguration {
         return String.valueOf(getProperty("metrics.hostname", ""));
     }
 
+    // Policy Services
+
     public String policiesDirectory() {
         return getProperty("filter.policies.directory", "./policies/");
     }
 
     public String policyService() {
         return getProperty("filter.policies.service", "local");
+    }
+
+    public String opensearchHost() {
+        return getProperty("filter.policies.service.opensearch.host", "http://localhost:9200");
+    }
+
+    public int opensearchPort() {
+        return getProperty("filter.policies.service.opensearch.port", 9200);
     }
 
     private String getProperty(final String property, final String defaultValue) {

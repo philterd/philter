@@ -15,8 +15,10 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.model.exceptions.api.BadRequestException;
+import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.services.FilterService;
+import ai.philterd.philter.api.exceptions.BadRequestException;
+import com.google.gson.Gson;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -46,14 +48,14 @@ public class PoliciesApiController extends AbstractController {
 
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET)
     public @ResponseBody
-    ResponseEntity<String> get(
+    ResponseEntity<Policy> get(
             @PathVariable(name="policyName") String policyName) throws IOException {
 
         if (StringUtils.isEmpty(policyName)) {
             throw new BadRequestException("The policy name is missing.");
         }
 
-        final String policy = filterService.getPolicyService().get(policyName);
+        final Policy policy = filterService.getPolicyService().get(policyName);
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(policy);
@@ -63,7 +65,7 @@ public class PoliciesApiController extends AbstractController {
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public void save(
-            @RequestBody String policy) throws IOException {
+            @RequestBody Policy policy) throws IOException {
 
         filterService.getPolicyService().save(policy);
 

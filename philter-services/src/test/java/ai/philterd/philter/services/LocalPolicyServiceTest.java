@@ -56,8 +56,8 @@ public class LocalPolicyServiceTest {
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration(), cacheService);
 
-        policyService.save(gson.toJson(getPolicy("name1")));
-        policyService.save(gson.toJson(getPolicy("name2")));
+        policyService.save(getPolicy("name1"));
+        policyService.save(getPolicy("name2"));
 
         final List<String> names = policyService.get();
 
@@ -74,10 +74,10 @@ public class LocalPolicyServiceTest {
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration(), cacheService);
 
-        policyService.save(gson.toJson(getPolicy("name1")));
-        policyService.save(gson.toJson(getPolicy("name2")));
+        policyService.save(getPolicy("name1"));
+        policyService.save(getPolicy("name2"));
 
-        final Map<String, String> all = policyService.getAll();
+        final Map<String, Policy> all = policyService.getAll();
 
         Assert.assertEquals(2, all.size());
         Assert.assertTrue(all.containsKey("name1"));
@@ -92,16 +92,16 @@ public class LocalPolicyServiceTest {
 
         final String name = "default";
 
-        final String policy = gson.toJson(getPolicy(name));
+        final Policy policy = getPolicy(name);
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration(), cacheService);
 
         policyService.save(policy);
 
-        final String saved = policyService.get("default");
+        final Policy saved = policyService.get("default");
 
         Assert.assertNotNull(saved);
-        Assert.assertEquals(policy, saved);
+        Assert.assertEquals(gson.toJson(policy), gson.toJson(saved));
 
     }
 
@@ -112,15 +112,15 @@ public class LocalPolicyServiceTest {
 
         final String name = "default";
 
-        final String policy = gson.toJson(getPolicy(name));
+        final Policy policy = getPolicy(name);
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration(), cacheService);
 
         policyService.save(policy);
 
-        final String policyJson = policyService.get(name);
+        final Policy retrievedPolicy = policyService.get(name);
 
-        Assert.assertEquals(policy, policyJson);
+        Assert.assertEquals(gson.toJson(policy), (gson.toJson(retrievedPolicy)));
 
     }
 
@@ -130,7 +130,7 @@ public class LocalPolicyServiceTest {
         final CacheService cacheService = Mockito.mock(CacheService.class);
 
         final String name = "default";
-        final String policy = gson.toJson(getPolicy(name));
+        final Policy policy = getPolicy(name);
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration(), cacheService);
 
@@ -161,8 +161,6 @@ public class LocalPolicyServiceTest {
     }
 
     private Policy getPolicy(String name) {
-
-        final CacheService cacheService = Mockito.mock(CacheService.class);
 
         AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
 

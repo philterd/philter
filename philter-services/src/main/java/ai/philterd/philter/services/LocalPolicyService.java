@@ -15,10 +15,11 @@
  */
 package ai.philterd.philter.services;
 
-import ai.philterd.phileas.model.exceptions.api.BadRequestException;
+import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.services.CacheService;
 import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.philter.PhilterConfiguration;
+import com.google.gson.Gson;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,6 +44,7 @@ public class LocalPolicyService implements PolicyService {
 
     private final String policiesDirectory;
     private final CacheService cacheService;
+    private final Gson gson;
 
     public LocalPolicyService(final PhilterConfiguration philterConfiguration, final CacheService cacheService) {
 
@@ -50,6 +52,7 @@ public class LocalPolicyService implements PolicyService {
         LOGGER.info("Looking for policies in {}", policiesDirectory);
 
         this.cacheService = cacheService;
+        this.gson = new Gson();
 
     }
 
@@ -79,22 +82,23 @@ public class LocalPolicyService implements PolicyService {
     }
 
     @Override
-    public String get(String policyName) throws IOException {
+    public Policy get(String policyName) throws IOException {
 
-        String policyJson = cacheService.getPolicy(policyName);
+        Policy policy = cacheService.getPolicy(policyName);
 
-        if(policyJson == null) {
+        if(policy == null) {
 
-            // The policy wasn't found in the cache so look on the file system.
+            // The policy wasn't found in the cache, so look on the file system.
 
             final File file = new File(policiesDirectory, policyName + JSON_EXTENSION);
 
             if (file.exists()) {
 
-                policyJson = FileUtils.readFileToString(file, Charset.defaultCharset());
+                final String policyJson = FileUtils.readFileToString(file, Charset.defaultCharset());
+                policy = gson.fromJson(policyJson, Policy.class);
 
                 // Put it in the cache.
-                cacheService.insertPolicy(policyName, policyJson);
+                cacheService.insertPolicy(policyName, policy);
 
             } else {
                 throw new FileNotFoundException("Policy [" + policyName + "] does not exist.");
@@ -102,14 +106,14 @@ public class LocalPolicyService implements PolicyService {
 
         }
 
-        return policyJson;
+        return policy;
 
     }
 
     @Override
-    public Map<String, String> getAll() throws IOException {
+    public Map<String, Policy> getAll() throws IOException {
 
-        final Map<String, String> policies = new HashMap<>();
+        final Map<String, Policy> policies = new HashMap<>();
 
         // Read the policies from the file system.
         final Collection<File> files = FileUtils.listFiles(new File(policiesDirectory), new String[]{"json"}, false);
@@ -120,11 +124,10 @@ public class LocalPolicyService implements PolicyService {
             LOGGER.info("Loading policy {}", file.getAbsolutePath());
             final String json = FileUtils.readFileToString(file, Charset.defaultCharset());
 
-            final JSONObject object = new JSONObject(json);
-            final String name = object.getString("name");
+            final Policy policy = gson.fromJson(json, Policy.class);
 
-            policies.put(name, json);
-            LOGGER.info("Added policy named [{}]", name);
+            policies.put(policy.getName(), policy);
+            LOGGER.info("Added policy named [{}]", policy.getName());
 
         }
 
@@ -133,26 +136,17 @@ public class LocalPolicyService implements PolicyService {
     }
 
     @Override
-    public void save(String policyJson) throws IOException {
+    public void save(Policy policy) throws IOException {
 
-        try {
+        final String policyName = policy.getName();
+        final String policyJson = gson.toJson(policy);
 
-            final JSONObject object = new JSONObject(policyJson);
-            final String policyName = object.getString("name");
+        final File file = new File(policiesDirectory, policyName + JSON_EXTENSION);
 
-            final File file = new File(policiesDirectory, policyName + JSON_EXTENSION);
+        FileUtils.writeStringToFile(file, policyJson, Charset.defaultCharset());
 
-            FileUtils.writeStringToFile(file, policyJson, Charset.defaultCharset());
-
-            // Put this policy into the cache.
-            cacheService.insertPolicy(policyName, policyJson);
-
-        } catch (JSONException ex) {
-
-            LOGGER.error("The provided policy is not valid.", ex);
-            throw new BadRequestException("The provided policy is not valid.");
-
-        }
+        // Put this policy into the cache.
+        cacheService.insertPolicy(policyName, policy);
 
     }
 

@@ -244,28 +244,6 @@ public class PhilterMetricsService implements MetricsService {
     }
 
     @Override
-    public void incrementFilterType(FilterType filterType) {
-
-        filterTypes.get(filterType).increment();
-
-    }
-
-    @Override
-    public void incrementProcessed() {
-
-        incrementProcessed(1);
-
-    }
-
-    @Override
-    public void incrementProcessed(long count) {
-
-        processed.increment(count);
-        documents.increment(count);
-
-    }
-
-    @Override
     public void logFilterTime(FilterType filterType, long timeMs) {
 
         filterTimers.get(filterType).record(timeMs, TimeUnit.MILLISECONDS);

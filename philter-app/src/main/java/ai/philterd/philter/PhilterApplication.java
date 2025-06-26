@@ -27,7 +27,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.Properties;
 
 @PropertySource(value="file:philter.properties")
 @SpringBootApplication(exclude = {MongoAutoConfiguration.class, MongoDataAutoConfiguration.class})
@@ -50,7 +52,13 @@ public class PhilterApplication {
 
     @Bean
     public PhileasConfiguration phileasConfiguration() throws IOException {
-        return new PhileasConfiguration("philter.properties", "Philter");
+
+        final FileReader fileReader = new FileReader("philter.properties");
+        final Properties properties = new Properties();
+        properties.load(fileReader);
+
+        return new PhileasConfiguration(properties);
+
     }
 
 }

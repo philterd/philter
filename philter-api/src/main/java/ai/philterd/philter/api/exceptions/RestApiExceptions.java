@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.api.exceptions;
 
-import ai.philterd.phileas.model.exceptions.InvalidPolicyException;
-import ai.philterd.phileas.model.exceptions.api.BadRequestException;
-import ai.philterd.phileas.model.exceptions.api.ServiceUnavailableException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
@@ -36,7 +33,7 @@ public class RestApiExceptions {
 	private static final Logger LOGGER = LogManager.getLogger(RestApiExceptions.class);
 
 	@ResponseBody
-	@ExceptionHandler({BadRequestException.class, FileNotFoundException.class, InvalidPolicyException.class, HttpMessageNotReadableException.class})
+	@ExceptionHandler({BadRequestException.class, FileNotFoundException.class, HttpMessageNotReadableException.class})
 	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
 	public String handleMissingParameterException(Exception ex) {
 		final String message = "A required parameter is missing or contains an invalid value.";

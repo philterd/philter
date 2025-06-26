@@ -112,7 +112,7 @@ public class OpenSearchPolicyService implements PolicyService {
     }
 
     @Override
-    public String get(final String name) throws IOException {
+    public Policy get(final String name) throws IOException {
 
         final SearchResponse<Policy> searchResponse = client.search(s -> s
                         .index(index)
@@ -130,8 +130,7 @@ public class OpenSearchPolicyService implements PolicyService {
 
         if (!hits.isEmpty()) {
 
-            final Policy policy = hits.get(0).source();
-            return gson.toJson(policy);
+            return hits.get(0).source();
 
         } else {
             return null;
@@ -140,7 +139,7 @@ public class OpenSearchPolicyService implements PolicyService {
     }
 
     @Override
-    public Map<String, String> getAll() throws IOException {
+    public Map<String, Policy> getAll() throws IOException {
 
         final SearchResponse<Policy> searchResponse = client.search(s -> s.index(index), Policy.class);
         for (int i = 0; i< searchResponse.hits().hits().size(); i++) {
@@ -151,11 +150,10 @@ public class OpenSearchPolicyService implements PolicyService {
     }
 
     @Override
-    public void save(final String json) throws IOException {
+    public void save(final Policy policy) throws IOException {
 
         final String id = UUID.randomUUID().toString();
 
-        final Policy policy = gson.fromJson(json, Policy.class);
         final IndexRequest<Policy> indexRequest = new IndexRequest.Builder<Policy>().index(index).id(id).document(policy).build();
 
         client.index(indexRequest);

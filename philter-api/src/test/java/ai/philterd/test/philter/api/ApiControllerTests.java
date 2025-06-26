@@ -72,8 +72,8 @@ public class ApiControllerTests {
         }
 
         @Bean
-        public PhileasConfiguration phileasConfiguration() throws IOException {
-            return new PhileasConfiguration(new Properties(), "Philter");
+        public PhileasConfiguration phileasConfiguration() {
+            return new PhileasConfiguration(new Properties());
         }
 
     }

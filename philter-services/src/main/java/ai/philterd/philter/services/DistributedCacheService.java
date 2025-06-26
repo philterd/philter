@@ -19,6 +19,7 @@ import ai.philterd.phileas.model.enums.FilterType;
 import ai.philterd.phileas.model.objects.Alert;
 import ai.philterd.phileas.model.objects.Span;
 import ai.philterd.phileas.model.objects.SpanVector;
+import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.services.CacheService;
 import ai.philterd.philter.PhilterConfiguration;
 import com.google.gson.Gson;
@@ -229,16 +230,15 @@ public class DistributedCacheService implements CacheService {
     }
 
     @Override
-    public String getPolicy(String policyName) throws IOException {
+    public Policy getPolicy(String policyName) throws IOException {
 
-        // Get the policy from the cache and return it.
         final RMap<String, String> map = redisson.getMap(POLICIES_CACHE_KEY);
-        return map.get(policyName);
+        return gson.fromJson(map.get(policyName), Policy.class);
 
     }
 
     @Override
-    public Map<String, String> getAllPolicies() {
+    public Map<String, Policy> getAllPolicies() {
 
         final long count = redisson.getKeys().countExists(POLICIES_CACHE_KEY);
 
@@ -247,9 +247,10 @@ public class DistributedCacheService implements CacheService {
             // Get the policies from the cache and return them.
             final RMap<String, String> map = redisson.getMap(POLICIES_CACHE_KEY);
 
-            Map<String, String> m = new HashMap<>();
+            final Map<String, Policy> m = new HashMap<>();
+
             for(String k : map.keySet()) {
-                m.put(k, map.get(k));
+                m.put(k, gson.fromJson(map.get(k), Policy.class));
             }
 
             return m;
@@ -263,10 +264,10 @@ public class DistributedCacheService implements CacheService {
     }
 
     @Override
-    public void insertPolicy(String policyName, String policy) {
+    public void insertPolicy(String policyName, Policy policy) {
 
         final RMap<String, String> map = redisson.getMap(POLICIES_CACHE_KEY);
-        map.put(policyName, policy);
+        map.put(policyName, gson.toJson(policy));
 
     }
 

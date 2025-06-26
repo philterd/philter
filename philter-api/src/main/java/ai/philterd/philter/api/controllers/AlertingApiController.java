@@ -15,9 +15,9 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.model.exceptions.api.BadRequestException;
 import ai.philterd.phileas.model.objects.Alert;
 import ai.philterd.phileas.model.services.FilterService;
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -52,7 +52,7 @@ public class AlertingApiController extends AbstractController {
     }
 
     @RequestMapping(value = "/api/alerts/{alertId}", method = RequestMethod.DELETE)
-    public @ResponseBody ResponseEntity deleteAlert(@PathVariable(name="alertId") String alertId) {
+    public @ResponseBody ResponseEntity<String> deleteAlert(@PathVariable(name="alertId") String alertId) {
 
         if (StringUtils.isEmpty(alertId)) {
             throw new BadRequestException("The alert ID is missing.");

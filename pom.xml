@@ -95,7 +95,7 @@
         <micrometer.version>1.15.0</micrometer.version>
         <mockito.version>1.10.19</mockito.version>
         <opensearch.version>3.1.0</opensearch.version>
-        <phileas.version>2.12.4-SNAPSHOT</phileas.version>
+        <phileas.version>2.13.0-SNAPSHOT</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
         <redisson.version>3.45.1</redisson.version>
         <spring.boot.version>3.5.0</spring.boot.version>

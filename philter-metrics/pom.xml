@@ -4,7 +4,7 @@
   <parent>
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
-    <version>3.2.1-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
   <artifactId>philter-metrics</artifactId>
   <name>philter-metrics</name>

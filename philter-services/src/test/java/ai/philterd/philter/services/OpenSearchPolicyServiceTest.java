@@ -56,15 +56,7 @@ public class OpenSearchPolicyServiceTest {
                               "removeTrailingNewLines": true
                             },
                             "analysis": {
-                              "identification": true,
-                              "sentiment": {
-                                "model": "classpath:en-sentiment.bin",
-                                "enabled": false
-                              },
-                              "offensiveness": {
-                                "model": "classpath:/en-offensiveness.bin",
-                                "enabled": false
-                              }
+                              "identification": true
                             }
                           },
                           "identifiers": {

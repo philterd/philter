@@ -15,7 +15,15 @@
  */
 package ai.philterd.philter;
 
+import ai.philterd.phileas.metrics.PhilterMetricsService;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
+import ai.philterd.phileas.model.services.CacheService;
+import ai.philterd.phileas.model.services.MetricsService;
+import ai.philterd.philter.services.CacheServiceFactory;
+import ai.philterd.philter.services.policies.InMemoryPolicyService;
+import ai.philterd.philter.services.policies.LocalPolicyService;
+import ai.philterd.philter.services.policies.OpenSearchPolicyService;
+import ai.philterd.philter.services.policies.PolicyService;
 import com.google.gson.Gson;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -58,6 +66,40 @@ public class PhilterApplication {
         properties.load(fileReader);
 
         return new PhileasConfiguration(properties);
+
+    }
+
+    @Bean
+    public PhilterConfiguration philterConfiguration() throws IOException {
+        return  new PhilterConfiguration("philter.properties", "Philter");
+    }
+
+    @Bean
+    public MetricsService metricsService() throws IOException {
+        return new PhilterMetricsService(philterConfiguration());
+    }
+
+    @Bean
+    public CacheService cacheService() throws IOException {
+        return CacheServiceFactory.getCacheService(philterConfiguration());
+    }
+
+    @Bean
+    public PolicyService policyService() throws Exception {
+
+        final PhilterConfiguration philterConfiguration = philterConfiguration();
+
+        final PolicyService policyService;
+
+        if("local".equalsIgnoreCase(philterConfiguration.policyService())) {
+            policyService = new LocalPolicyService(philterConfiguration, cacheService());
+        } else if("opensearch".equalsIgnoreCase(philterConfiguration.policyService())) {
+            policyService = new OpenSearchPolicyService(philterConfiguration);
+        } else {
+            policyService = new InMemoryPolicyService();
+        }
+
+        return policyService;
 
     }
 

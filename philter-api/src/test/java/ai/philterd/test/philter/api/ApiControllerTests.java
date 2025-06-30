@@ -3,6 +3,7 @@ package ai.philterd.test.philter.api;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
 import ai.philterd.phileas.model.enums.MimeType;
 import ai.philterd.phileas.model.objects.Explanation;
+import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.responses.FilterResponse;
 import ai.philterd.phileas.model.services.FilterService;
 import ai.philterd.philter.api.controllers.FilterApiController;
@@ -94,8 +95,8 @@ public class ApiControllerTests {
     @Ignore("Throwing an NPE")
     public void filterTest() throws Exception {
 
-        final List<String> policies = Arrays.asList("default");
-        when(filterService.filter(policies, "George Washington was president.", "none", "documentid", MimeType.TEXT_PLAIN)).thenReturn(new FilterResponse("*** was president.", "none", "none", 0, new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyMap()));
+        final Policy policy = new Policy();
+        when(filterService.filter(policy, "George Washington was president.", "none", "documentid", MimeType.TEXT_PLAIN)).thenReturn(new FilterResponse("*** was president.", "none", "none", 0, new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyMap()));
 
         mockMvc.perform(post("/api/filter").content("George Washington was president.").param("c", "none").param("d", "none").contentType("text/plain")).andExpect(status().isOk());
 

@@ -24,14 +24,15 @@ import ai.philterd.phileas.model.responses.FilterResponse;
 import ai.philterd.phileas.model.services.AlertService;
 import ai.philterd.phileas.model.services.CacheService;
 import ai.philterd.phileas.model.services.FilterService;
-import ai.philterd.phileas.model.services.PolicyService;
+import ai.philterd.phileas.model.services.MetricsService;
 import ai.philterd.phileas.services.PhileasFilterService;
-import ai.philterd.phileas.services.policies.InMemoryPolicyService;
 import ai.philterd.philter.PhilterConfiguration;
+import ai.philterd.philter.services.policies.InMemoryPolicyService;
+import ai.philterd.philter.services.policies.LocalPolicyService;
+import ai.philterd.philter.services.policies.OpenSearchPolicyService;
+import ai.philterd.philter.services.policies.PolicyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Component
 public class PhilterService implements FilterService {
@@ -39,21 +40,14 @@ public class PhilterService implements FilterService {
     private final FilterService phileasFilterService;
 
     @Autowired
+    private MetricsService metricsService;
+
+    @Autowired
+    private CacheService cacheService;
+
+    @Autowired
     public PhilterService(PhileasConfiguration phileasConfiguration) throws Exception {
-        final PhilterConfiguration philterConfiguration = new PhilterConfiguration("philter.properties", "Philter");
-        final PhilterMetricsService philterMetricsService = new PhilterMetricsService(philterConfiguration);
-        final CacheService cacheService = CacheServiceFactory.getCacheService(philterConfiguration);
-
-        final PolicyService policyService;
-        if("local".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new LocalPolicyService(philterConfiguration, cacheService);
-        } else if("opensearch".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new OpenSearchPolicyService(philterConfiguration);
-        } else {
-            policyService = new InMemoryPolicyService();
-        }
-
-        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, philterMetricsService, cacheService, policyService);
+        this.phileasFilterService = new PhileasFilterService(phileasConfiguration, metricsService, cacheService);
     }
 
     @Override
@@ -62,18 +56,8 @@ public class PhilterService implements FilterService {
     }
 
     @Override
-    public FilterResponse filter(List<String> policyNames, String context, String documentId, String input, MimeType mimeType) throws Exception {
-        return phileasFilterService.filter(policyNames, context, documentId, input, mimeType);
-    }
-
-    @Override
-    public BinaryDocumentFilterResponse filter(List<String> policyNames, String context, String documentId, byte[] input, MimeType mimeType, MimeType outputMimeType) throws Exception {
-        return phileasFilterService.filter(policyNames, context, documentId, input, mimeType, outputMimeType);
-    }
-
-    @Override
-    public PolicyService getPolicyService() {
-        return phileasFilterService.getPolicyService();
+    public BinaryDocumentFilterResponse filter(Policy policy, String context, String documentId, byte[] input, MimeType mimeType, MimeType outputMimeType) throws Exception {
+        return phileasFilterService.filter(policy, context, documentId, input, mimeType, outputMimeType);
     }
 
     @Override

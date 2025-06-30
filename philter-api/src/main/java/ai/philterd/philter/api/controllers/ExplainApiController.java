@@ -16,28 +16,33 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.phileas.model.enums.MimeType;
+import ai.philterd.phileas.model.policy.Policy;
 import ai.philterd.phileas.model.responses.FilterResponse;
 import ai.philterd.phileas.model.services.FilterService;
+import ai.philterd.philter.services.policies.PolicyService;
 import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Arrays;
-import java.util.List;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
 public class ExplainApiController extends AbstractController {
 
 	private final FilterService filterService;
+	private final PolicyService policyService;
 	private final Gson gson;
 
 	@Autowired
-	public ExplainApiController(FilterService filterService, Gson gson) {
+	public ExplainApiController(FilterService filterService, PolicyService policyService, Gson gson) {
 		this.filterService = filterService;
+		this.policyService = policyService;
 		this.gson = gson;
 	}
 
@@ -48,8 +53,8 @@ public class ExplainApiController extends AbstractController {
 			@RequestParam(value="p", defaultValue="default") String policyName,
 			@RequestBody String body) throws Exception {
 
-			final List<String> policies = Arrays.asList(policyName);
-			final FilterResponse response = filterService.filter(policies, context, documentId, body, MimeType.TEXT_PLAIN);
+			final Policy policy = policyService.get(policyName);
+			final FilterResponse response = filterService.filter(policy, context, documentId, body, MimeType.TEXT_PLAIN);
 
 		return ResponseEntity.status(HttpStatus.OK)
 				.header("x-document-id", response.getDocumentId())

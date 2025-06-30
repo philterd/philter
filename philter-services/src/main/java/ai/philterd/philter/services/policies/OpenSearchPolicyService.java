@@ -1,7 +1,6 @@
-package ai.philterd.philter.services;
+package ai.philterd.philter.services.policies;
 
 import ai.philterd.phileas.model.policy.Policy;
-import ai.philterd.phileas.model.services.PolicyService;
 import ai.philterd.philter.PhilterConfiguration;
 import com.google.gson.Gson;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;

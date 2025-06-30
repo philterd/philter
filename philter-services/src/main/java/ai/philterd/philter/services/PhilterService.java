@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.services;
 
-import ai.philterd.phileas.metrics.PhilterMetricsService;
 import ai.philterd.phileas.model.configuration.PhileasConfiguration;
 import ai.philterd.phileas.model.enums.MimeType;
 import ai.philterd.phileas.model.policy.Policy;
@@ -26,11 +25,6 @@ import ai.philterd.phileas.model.services.CacheService;
 import ai.philterd.phileas.model.services.FilterService;
 import ai.philterd.phileas.model.services.MetricsService;
 import ai.philterd.phileas.services.PhileasFilterService;
-import ai.philterd.philter.PhilterConfiguration;
-import ai.philterd.philter.services.policies.InMemoryPolicyService;
-import ai.philterd.philter.services.policies.LocalPolicyService;
-import ai.philterd.philter.services.policies.OpenSearchPolicyService;
-import ai.philterd.philter.services.policies.PolicyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

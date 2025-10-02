@@ -15,11 +15,11 @@
  */
 package ai.philterd.philter;
 
-import ai.philterd.phileas.metrics.PhilterMetricsService;
-import ai.philterd.phileas.model.configuration.PhileasConfiguration;
-import ai.philterd.phileas.model.services.CacheService;
-import ai.philterd.phileas.model.services.MetricsService;
-import ai.philterd.philter.services.CacheServiceFactory;
+import ai.philterd.phileas.PhileasConfiguration;
+import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.phileas.services.context.DefaultContextService;
+import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
+import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.services.policies.InMemoryPolicyService;
 import ai.philterd.philter.services.policies.LocalPolicyService;
 import ai.philterd.philter.services.policies.OpenSearchPolicyService;
@@ -75,16 +75,6 @@ public class PhilterApplication {
     }
 
     @Bean
-    public MetricsService metricsService() throws IOException {
-        return new PhilterMetricsService(philterConfiguration());
-    }
-
-    @Bean
-    public CacheService cacheService() throws IOException {
-        return CacheServiceFactory.getCacheService(philterConfiguration());
-    }
-
-    @Bean
     public PolicyService policyService() throws Exception {
 
         final PhilterConfiguration philterConfiguration = philterConfiguration();
@@ -92,7 +82,7 @@ public class PhilterApplication {
         final PolicyService policyService;
 
         if("local".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new LocalPolicyService(philterConfiguration, cacheService());
+            policyService = new LocalPolicyService(philterConfiguration);
         } else if("opensearch".equalsIgnoreCase(philterConfiguration.policyService())) {
             policyService = new OpenSearchPolicyService(philterConfiguration);
         } else {
@@ -101,6 +91,16 @@ public class PhilterApplication {
 
         return policyService;
 
+    }
+
+    @Bean
+    public ContextService contextService() {
+        return new DefaultContextService();
+    }
+
+    @Bean
+    public VectorService vectorService() {
+        return new InMemoryVectorService();
     }
 
 }

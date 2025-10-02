@@ -35,11 +35,7 @@
     </developers>
     <modules>
         <module>philter-app</module>
-        <module>philter-api</module>
         <module>philter-ui</module>
-        <module>philter-services</module>
-        <module>philter-metrics</module>
-        <module>philter-configuration</module>
     </modules>
     <distributionManagement>
         <snapshotRepository>
@@ -79,25 +75,21 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
-        <commons.codec.version>1.18.0</commons.codec.version>
-        <commons.io.version>2.18.0</commons.io.version>
-        <commons.lang3.version>3.17.0</commons.lang3.version>
-        <dropwizard-metrics-cloudwatch.version>1.12.13</dropwizard-metrics-cloudwatch.version>
-        <dropwizard-metrics-prometheus.version>1.13.3</dropwizard-metrics-prometheus.version>
+        <commons.codec.version>1.19.0</commons.codec.version>
+        <commons.io.version>2.20.0</commons.io.version>
+        <commons.lang3.version>3.19.0</commons.lang3.version>
         <equals.verifier.version>3.16.1</equals.verifier.version>
-        <gson.version>2.12.1</gson.version>
+        <gson.version>2.13.2</gson.version>
         <hibernate.validator.version>8.0.1.Final</hibernate.validator.version>
         <httpclient.version>4.5.14</httpclient.version>
         <jackson.databind.version>2.19.0</jackson.databind.version>
         <jakarta.servlet.version>6.1.0</jakarta.servlet.version>
         <jaxb.version>2.4.0-b180830.0359</jaxb.version>
         <junit.version>4.13.2</junit.version>
-        <micrometer.version>1.15.0</micrometer.version>
         <mockito.version>1.10.19</mockito.version>
         <opensearch.version>3.1.0</opensearch.version>
-        <phileas.version>2.13.0-SNAPSHOT</phileas.version>
+        <phileas.version>3.0.0-SNAPSHOT</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
-        <redisson.version>3.45.1</redisson.version>
         <spring.boot.version>3.5.0</spring.boot.version>
         <spring.version>6.2.7</spring.version>
         <maven.compiler.source>17</maven.compiler.source>
@@ -177,7 +169,7 @@
                 <version>1.19</version>
                 <configuration>
                     <includeTransitiveDependencies>true</includeTransitiveDependencies>
-                    <excludedArtifacts>phileas-*</excludedArtifacts>
+                    <excludedArtifacts>phileas</excludedArtifacts>
                     <excludedScopes>test,system</excludedScopes>
                     <force>true</force>
                     <sortArtifactByName>true</sortArtifactByName>

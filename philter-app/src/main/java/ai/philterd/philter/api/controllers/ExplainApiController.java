@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.model.enums.MimeType;
-import ai.philterd.phileas.model.objects.FilterResponse;
+import ai.philterd.phileas.model.filtering.FilterResult;
+import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.FilterService;
 import ai.philterd.philter.services.policies.PolicyService;
@@ -49,18 +49,15 @@ public class ExplainApiController extends AbstractController {
 	@RequestMapping(value="/api/explain", method=RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
 	public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
 			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="d", defaultValue="") String documentId,
 			@RequestParam(value="p", defaultValue="default") String policyName,
 			@RequestBody String body) throws Exception {
 
 			final Policy policy = policyService.get(policyName);
-			final FilterResponse response = filterService.filter(policy, context, documentId, body, MimeType.TEXT_PLAIN);
+			final FilterResult response = filterService.filter(policy, context, body, MimeType.TEXT_PLAIN);
 
 		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.getDocumentId())
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(gson.toJson(response));
-
 
 	}
 

@@ -1,7 +1,7 @@
 package api.model;
 
-import ai.philterd.phileas.model.enums.FilterType;
-import ai.philterd.phileas.model.objects.Span;
+import ai.philterd.phileas.model.filtering.FilterType;
+import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.philter.api.model.ResponseSpan;
 import com.google.gson.Gson;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -28,9 +28,9 @@ public class ResponseSpanTest {
 
         final String[] window = new String[]{};
 
-        final Span span1 = Span.make(1, 6, FilterType.AGE, "context", "document", 1.0, "test", "***", "", false, true, window, 0);
-        final Span span2 = Span.make(8, 12, FilterType.AGE, "context", "document", 1.0, "test", "***", "", false, true, window, 0);
-        final Span span3 = Span.make(14, 20, FilterType.AGE, "context", "document", 1.0, "test", "***", "", false, true, window, 0);
+        final Span span1 = Span.make(1, 6, FilterType.AGE, "context", 1.0, "test", "***", "", false, true, window, 0);
+        final Span span2 = Span.make(8, 12, FilterType.AGE, "context", 1.0, "test", "***", "", false, true, window, 0);
+        final Span span3 = Span.make(14, 20, FilterType.AGE, "context",  1.0, "test", "***", "", false, true, window, 0);
 
         final List<Span> spans = Arrays.asList(span1, span2, span3);
 
@@ -42,7 +42,6 @@ public class ResponseSpanTest {
             Assert.assertEquals(spans.get(i).getCharacterEnd(), responseSpans.get(i).getCharacterEnd());
             Assert.assertEquals(spans.get(i).getConfidence(), responseSpans.get(i).getConfidence(), 0);
             Assert.assertEquals(spans.get(i).getContext(), responseSpans.get(i).getContext());
-            Assert.assertEquals(spans.get(i).getDocumentId(), responseSpans.get(i).getDocumentId());
             Assert.assertEquals(spans.get(i).getReplacement(), responseSpans.get(i).getReplacement());
             Assert.assertEquals(spans.get(i).getFilterType().toString(), responseSpans.get(i).getFilterType());
 

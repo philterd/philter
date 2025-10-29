@@ -16,16 +16,21 @@
 package ai.philterd.philter.services;
 
 import ai.philterd.phileas.PhileasConfiguration;
-import ai.philterd.phileas.model.objects.BinaryDocumentFilterResponse;
-import ai.philterd.phileas.model.objects.FilterResponse;
+import ai.philterd.phileas.model.filtering.ApplyResult;
+import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
+import ai.philterd.phileas.model.filtering.FilterResult;
+import ai.philterd.phileas.model.filtering.MimeType;
+import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.FilterService;
-import ai.philterd.phileas.model.enums.MimeType;
 import ai.philterd.phileas.services.PhileasFilterService;
+import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class PhilterService implements FilterService {
@@ -38,13 +43,19 @@ public class PhilterService implements FilterService {
     }
 
     @Override
-    public FilterResponse filter(Policy policy, String context, String documentId, String input, MimeType mimeType) throws Exception {
-        return phileasFilterService.filter(policy, context, documentId, input, mimeType);
+    public FilterResult filter(Policy policy, String context, String input, MimeType mimeType) throws Exception {
+        return phileasFilterService.filter(policy, context, input, mimeType);
     }
 
     @Override
-    public BinaryDocumentFilterResponse filter(Policy policy, String context, String documentId, byte[] input, MimeType mimeType, MimeType outputMimeType) throws Exception {
-        return phileasFilterService.filter(policy, context, documentId, input, mimeType, outputMimeType);
+    public BinaryDocumentFilterResult filter(Policy policy, String context, byte[] input, MimeType mimeType, MimeType outputMimeType) throws Exception {
+        return phileasFilterService.filter(policy, context, input, mimeType, outputMimeType);
     }
+
+    @Override
+    public ApplyResult apply(final List<Span> spans, final String input) {
+        throw new NotImplementedException();
+    }
+
 
 }

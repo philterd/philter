@@ -15,8 +15,7 @@
  */
 package ai.philterd.philter.api.model;
 
-import ai.philterd.phileas.model.objects.Span;
-
+import ai.philterd.phileas.model.filtering.Span;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
@@ -24,7 +23,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * A {@link Span span} returnable to the client.
+ * A span returnable to the client.
  */
 public final class ResponseSpan {
 
@@ -32,18 +31,16 @@ public final class ResponseSpan {
     private int characterEnd;
     private String filterType;
     private String context;
-    private String documentId;
     private double confidence;
     private String replacement;
     private String salt;
 
-    private ResponseSpan(int characterStart, int characterEnd, String filterType, String context, String documentId, double confidence, String replacement, String salt) {
+    private ResponseSpan(int characterStart, int characterEnd, String filterType, String context, double confidence, String replacement, String salt) {
 
         this.characterStart = characterStart;
         this.characterEnd = characterEnd;
         this.filterType = filterType;
         this.context = context;
-        this.documentId = documentId;
         this.confidence = confidence;
         this.replacement = replacement;
         this.salt = salt;
@@ -57,7 +54,6 @@ public final class ResponseSpan {
                 span.getCharacterEnd(),
                 span.getFilterType().toString(),
                 span.getContext(),
-                span.getDocumentId(),
                 span.getConfidence(),
                 span.getReplacement(),
                 span.getSalt()
@@ -86,7 +82,6 @@ public final class ResponseSpan {
                 append(filterType).
                 append(confidence).
                 append(context).
-                append(documentId).
                 append(replacement).
                 append(salt).
                 toHashCode();
@@ -107,7 +102,6 @@ public final class ResponseSpan {
                 + " characterEnd: " + characterEnd
                 + " filterType: " + filterType
                 + " context: " + context
-                + " documentId: " + documentId
                 + " confidence: " + confidence
                 + " replacement: " + replacement
                 + " salt: " + salt;
@@ -144,14 +138,6 @@ public final class ResponseSpan {
 
     public void setContext(String context) {
         this.context = context;
-    }
-
-    public String getDocumentId() {
-        return documentId;
-    }
-
-    public void setDocumentId(String documentId) {
-        this.documentId = documentId;
     }
 
     public double getConfidence() {

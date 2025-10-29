@@ -15,9 +15,9 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.model.enums.MimeType;
-import ai.philterd.phileas.model.objects.BinaryDocumentFilterResponse;
-import ai.philterd.phileas.model.objects.FilterResponse;
+import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
+import ai.philterd.phileas.model.filtering.FilterResult;
+import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.FilterService;
 import ai.philterd.philter.services.policies.PolicyService;
@@ -60,10 +60,9 @@ public class FilterApiController extends AbstractController {
 		LOGGER.info("Received uploaded binary PDF file to be returned as ZIP.");
 
 		final Policy policy = policyService.get(policyName);
-		final BinaryDocumentFilterResponse response = filterService.filter(policy, context, documentId, body, MimeType.APPLICATION_PDF, MimeType.IMAGE_JPEG);
+		final BinaryDocumentFilterResult response = filterService.filter(policy, context, body, MimeType.APPLICATION_PDF, MimeType.IMAGE_JPEG);
 
 		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.getDocumentId())
 				.body(response.getDocument());
 
 	}
@@ -78,10 +77,9 @@ public class FilterApiController extends AbstractController {
 		LOGGER.info("Received uploaded binary PDF file to be returned as PDF.");
 
 		final Policy policy = policyService.get(policyName);
-		final BinaryDocumentFilterResponse response = filterService.filter(policy, context, documentId, body, MimeType.APPLICATION_PDF, MimeType.APPLICATION_PDF);
+		final BinaryDocumentFilterResult response = filterService.filter(policy, context, body, MimeType.APPLICATION_PDF, MimeType.APPLICATION_PDF);
 
 		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.getDocumentId())
 				.body(response.getDocument());
 
 	}
@@ -94,10 +92,9 @@ public class FilterApiController extends AbstractController {
             @RequestBody String body) throws Exception {
 
 		final Policy policy = policyService.get(policyName);
-		final FilterResponse response = filterService.filter(policy, context, documentId, body, MimeType.TEXT_PLAIN);
+		final FilterResult response = filterService.filter(policy, context, body, MimeType.TEXT_PLAIN);
 
 		return ResponseEntity.status(HttpStatus.OK)
-				.header("x-document-id", response.getDocumentId())
 				.body(response.getFilteredText());
 
 	}

@@ -2,7 +2,7 @@ package api;
 
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.Explanation;
-import ai.philterd.phileas.model.filtering.FilterResult;
+import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.FilterService;
@@ -94,7 +94,7 @@ public class ApiControllerTests {
     public void filterTest() throws Exception {
 
         final Policy policy = new Policy();
-        when(filterService.filter(policy, "George Washington was president.", "none", MimeType.TEXT_PLAIN)).thenReturn(new FilterResult("*** was president.", "none", 0, new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0));
+        when(filterService.filter(policy, "George Washington was president.", "none")).thenReturn(new TextFilterResult("*** was president.", "none", 0, new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0));
 
         mockMvc.perform(post("/api/filter").content("George Washington was president.").param("c", "none").param("d", "none").contentType("text/plain")).andExpect(status().isOk());
 

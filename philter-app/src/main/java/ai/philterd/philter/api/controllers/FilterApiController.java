@@ -16,8 +16,8 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
-import ai.philterd.phileas.model.filtering.FilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
+import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.FilterService;
 import ai.philterd.philter.services.policies.PolicyService;
@@ -92,7 +92,7 @@ public class FilterApiController extends AbstractController {
             @RequestBody String body) throws Exception {
 
 		final Policy policy = policyService.get(policyName);
-		final FilterResult response = filterService.filter(policy, context, body, MimeType.TEXT_PLAIN);
+		final TextFilterResult response = filterService.filter(policy, context, body);
 
 		return ResponseEntity.status(HttpStatus.OK)
 				.body(response.getFilteredText());

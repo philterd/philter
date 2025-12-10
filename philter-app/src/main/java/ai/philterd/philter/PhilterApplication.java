@@ -20,6 +20,8 @@ import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
+import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
+import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.services.policies.InMemoryPolicyService;
 import ai.philterd.philter.services.policies.LocalPolicyService;
 import ai.philterd.philter.services.policies.OpenSearchPolicyService;
@@ -56,6 +58,16 @@ public class PhilterApplication {
     @Bean
     public Gson gson() {
         return new Gson();
+    }
+
+    @Bean
+    public PdfFilterService pdfFilterService() throws IOException {
+        return new PdfFilterService(phileasConfiguration(), contextService(), vectorService());
+    }
+
+    @Bean
+    public PlainTextFilterService plainTextFilterService() throws IOException {
+        return new PlainTextFilterService(phileasConfiguration(), contextService(), vectorService());
     }
 
     @Bean

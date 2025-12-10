@@ -3,9 +3,8 @@ package api;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.Explanation;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
-import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Policy;
-import ai.philterd.phileas.services.filters.FilterService;
+import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.api.controllers.FilterApiController;
 import ai.philterd.philter.api.controllers.StatusApiController;
 import com.google.gson.Gson;
@@ -41,19 +40,16 @@ public class ApiControllerTests {
     private MockMvc mockMvc;
 
     @Autowired
-    private FilterService filterService;
-
-    @Autowired
     private WebApplicationContext ctx;
 
     @Configuration
     @EnableWebMvc
     static class ContextConfiguration {
 
-        @Bean
-        public FilterApiController filterApiController() {
-            return new FilterApiController(filterService());
-        }
+//        @Bean
+//        public FilterApiController filterApiController() {
+//            return new FilterApiController(filterService());
+//        }
 
         @Bean
         public StatusApiController statusApiControllerApiController() throws IOException {
@@ -61,8 +57,8 @@ public class ApiControllerTests {
         }
 
         @Bean
-        public FilterService filterService() {
-            return Mockito.mock(FilterService.class);
+        public PlainTextFilterService filterService() {
+            return Mockito.mock(PlainTextFilterService.class);
         }
 
         @Bean
@@ -89,16 +85,16 @@ public class ApiControllerTests {
 
     }
 
-    @Test
-    @Ignore("Throwing an NPE")
-    public void filterTest() throws Exception {
-
-        final Policy policy = new Policy();
-        when(filterService.filter(policy, "George Washington was president.", "none")).thenReturn(new TextFilterResult("*** was president.", "none", 0, new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0));
-
-        mockMvc.perform(post("/api/filter").content("George Washington was president.").param("c", "none").param("d", "none").contentType("text/plain")).andExpect(status().isOk());
-
-    }
+//    @Test
+//    @Ignore("Throwing an NPE")
+//    public void filterTest() throws Exception {
+//
+//        final Policy policy = new Policy();
+//        when(filterService.filter(policy, "George Washington was president.", "none")).thenReturn(new TextFilterResult("*** was president.", "none", 0, new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0));
+//
+//        mockMvc.perform(post("/api/filter").content("George Washington was president.").param("c", "none").param("d", "none").contentType("text/plain")).andExpect(status().isOk());
+//
+//    }
 
     @Test()
     public void statusTest() throws Exception {

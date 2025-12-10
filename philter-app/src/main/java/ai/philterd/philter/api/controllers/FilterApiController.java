@@ -19,7 +19,8 @@ import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
-import ai.philterd.phileas.services.filters.FilterService;
+import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
+import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.services.policies.PolicyService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,28 +40,27 @@ public class FilterApiController extends AbstractController {
 
 	private static final Logger LOGGER = LogManager.getLogger(FilterApiController.class);
 
-	@Autowired
-	private FilterService filterService;
+	private final PdfFilterService pdfFilterService;
+	private final PlainTextFilterService plainTextFilterService;
+	private final PolicyService policyService;
 
 	@Autowired
-	private PolicyService policyService;
-
-	@Autowired
-	public FilterApiController(FilterService filterService) {
-		this.filterService = filterService;
+	public FilterApiController(final PlainTextFilterService plainTextFilterService, final PdfFilterService pdfFilterService, final PolicyService policyService) {
+		this.pdfFilterService = pdfFilterService;
+		this.plainTextFilterService = plainTextFilterService;
+		this.policyService = policyService;
 	}
 
 	@RequestMapping(value="/api/filter", method=RequestMethod.POST, produces = "application/zip", consumes = MediaType.APPLICATION_PDF_VALUE)
 	public @ResponseBody ResponseEntity<byte[]> filterApplicationPdfAsApplicationZip(
 			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="d", defaultValue="") String documentId,
 			@RequestParam(value="p", defaultValue="default") String policyName,
 			@RequestBody byte[] body) throws Exception {
 
 		LOGGER.info("Received uploaded binary PDF file to be returned as ZIP.");
 
 		final Policy policy = policyService.get(policyName);
-		final BinaryDocumentFilterResult response = filterService.filter(policy, context, body, MimeType.APPLICATION_PDF, MimeType.IMAGE_JPEG);
+		final BinaryDocumentFilterResult response = pdfFilterService.filter(policy, context, body, MimeType.IMAGE_JPEG);
 
 		return ResponseEntity.status(HttpStatus.OK)
 				.body(response.getDocument());
@@ -70,14 +70,13 @@ public class FilterApiController extends AbstractController {
 	@RequestMapping(value="/api/filter", method=RequestMethod.POST, produces = MediaType.APPLICATION_PDF_VALUE, consumes = MediaType.APPLICATION_PDF_VALUE)
 	public @ResponseBody ResponseEntity<byte[]> filterApplicationPdfAsApplicationPdf(
 			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="d", defaultValue="") String documentId,
 			@RequestParam(value="p", defaultValue="default") String policyName,
 			@RequestBody byte[] body) throws Exception {
 
 		LOGGER.info("Received uploaded binary PDF file to be returned as PDF.");
 
 		final Policy policy = policyService.get(policyName);
-		final BinaryDocumentFilterResult response = filterService.filter(policy, context, body, MimeType.APPLICATION_PDF, MimeType.APPLICATION_PDF);
+		final BinaryDocumentFilterResult response = pdfFilterService.filter(policy, context, body, MimeType.APPLICATION_PDF);
 
 		return ResponseEntity.status(HttpStatus.OK)
 				.body(response.getDocument());
@@ -87,12 +86,11 @@ public class FilterApiController extends AbstractController {
 	@RequestMapping(value="/api/filter", method=RequestMethod.POST, produces = MediaType.TEXT_PLAIN_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
 	public @ResponseBody ResponseEntity<String> filterTextPlainAsTextPlain(
 			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="d", defaultValue="") String documentId,
             @RequestParam(value="p", defaultValue="default") String policyName,
             @RequestBody String body) throws Exception {
 
 		final Policy policy = policyService.get(policyName);
-		final TextFilterResult response = filterService.filter(policy, context, body);
+		final TextFilterResult response = plainTextFilterService.filter(policy, context, body);
 
 		return ResponseEntity.status(HttpStatus.OK)
 				.body(response.getFilteredText());

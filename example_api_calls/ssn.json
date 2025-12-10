@@ -1,0 +1,29 @@
+{
+  "name": "ssn",
+  "identifiers": {
+    "ssn": {
+      "ssnFilterStrategies": [
+        {
+          "filterType": "SSN",
+          "id": "3df4611d-fb21-47d8-a1e6-5a5502cbcd0b",
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-%t}}}",
+          "replacementScope": "DOCUMENT",
+          "staticReplacement": "",
+          "maskCharacter": "*",
+          "maskLength": "SAME",
+          "truncateCharacter": "*",
+          "truncateDirection": "LEADING",
+          "condition": "",
+          "salt": false
+        }
+      ],
+      "enabled": true,
+      "ignored": [],
+      "ignoredFiles": [],
+      "ignoredPatterns": [],
+      "windowSize": 0,
+      "priority": 0
+    }
+  }
+}

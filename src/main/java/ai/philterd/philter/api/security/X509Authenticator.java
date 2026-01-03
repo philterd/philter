@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.api.security;
 
-import ai.philterd.philter.api.controllers.PoliciesApiApiController;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,6 +24,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -32,7 +32,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class X509Authenticator {
 
-    private static final Logger LOGGER = LogManager.getLogger(PoliciesApiApiController.class);
+    private static final Logger LOGGER = LogManager.getLogger(X509Authenticator.class);
 
     @Autowired
     private UserDetailsService userDetailsService;
@@ -41,20 +41,19 @@ public class X509Authenticator {
     private String clientAuth;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) {
 
         if(!StringUtils.equalsIgnoreCase(clientAuth, "none")) {
 
             LOGGER.info("Mutual SSL authentication is enabled.");
 
-            http.authorizeRequests()
+            http.authorizeHttpRequests(authorize -> authorize
                     .requestMatchers("/api/status").permitAll()
-                    .anyRequest()
-                    .authenticated()
-                    .and()
-                    .x509()
+                    .anyRequest().authenticated()
+            ).x509(x509 -> x509
                     .subjectPrincipalRegex("CN=(.*?)(?:,|$)")
-                    .userDetailsService(userDetailsService);
+                    .userDetailsService(userDetailsService)
+            );
 
             return http.build();
 
@@ -62,7 +61,10 @@ public class X509Authenticator {
 
             LOGGER.info("Mutual SSL authentication is disabled.");
 
-            http.csrf().disable().authorizeRequests().anyRequest().permitAll();
+            http.csrf(AbstractHttpConfigurer::disable)
+                    .authorizeHttpRequests(authorize -> authorize
+                            .anyRequest().permitAll()
+                    );
 
         }
 

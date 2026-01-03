@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 Philterd, LLC @ https://www.philterd.ai
+ *     Copyright 2026 Philterd, LLC @ https://www.philterd.ai
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.ui;
 
-import ai.philterd.philter.PhilterClient;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -26,7 +25,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.PropertySource;
-import org.apache.commons.lang3.StringUtils;
 
 @PropertySource(value="file:philter-ui.properties")
 @ComponentScan("ai.philterd.philter")
@@ -60,34 +58,6 @@ public class PhilterUiApplication {
     @Bean
     public Gson gson() {
         return new GsonBuilder().setPrettyPrinting().create();
-    }
-
-    @Bean
-    public PhilterClient philterClient() throws Exception {
-
-        LOGGER.info("Using Philter endpoint {}", philterEndpoint);
-
-        if(StringUtils.isBlank(sslKeystore)) {
-
-            return new PhilterClient.PhilterClientBuilder()
-                    .withTimeout(timeout)
-                    .withEndpoint(philterEndpoint)
-                    .build();
-
-        } else {
-
-            LOGGER.info("Client SSL keystore: {}", sslKeystore);
-            LOGGER.info("Client SSL truststore: {}", sslTruststore);
-
-            // PHI-359: Handle client certificate.
-            return new PhilterClient.PhilterClientBuilder()
-                    .withTimeout(timeout)
-                    .withSslConfiguration(sslKeystore, sslKeystorePassword, sslTruststore, sslTruststorePassword)
-                    .withEndpoint(philterEndpoint)
-                    .build();
-
-        }
-
     }
 
 }

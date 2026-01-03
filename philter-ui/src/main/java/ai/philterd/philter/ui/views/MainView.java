@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 Philterd, LLC @ https://www.philterd.ai
+ *     Copyright 2026 Philterd, LLC @ https://www.philterd.ai
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,22 @@
  */
 package ai.philterd.philter.ui.views;
 
-import ai.philterd.philter.PhilterClient;
-import ai.philterd.philter.model.BinaryFilterResponse;
-import ai.philterd.philter.model.ExplainResponse;
 import ai.philterd.philter.ui.domain.Policy;
 import com.google.gson.Gson;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Html;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.H5;
+import com.vaadin.flow.component.html.H6;
+import com.vaadin.flow.component.html.Hr;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -40,22 +42,14 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.StreamResource;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Enumeration;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 @Route("")
 @PageTitle("Philter - Dashboard")
@@ -63,7 +57,6 @@ public class MainView extends VerticalLayout {
 
     private static final Logger LOGGER = LogManager.getLogger(MainView.class);
 
-    private final PhilterClient philterClient;
     private final Gson gson;
 
     private final ComboBox<String> policyComboBox = new ComboBox<>("Policy");
@@ -73,8 +66,8 @@ public class MainView extends VerticalLayout {
     private final Grid<Policy> policyGrid = new Grid<>(Policy.class, false);
 
     @Autowired
-    public MainView(PhilterClient philterClient, Gson gson) {
-        this.philterClient = philterClient;
+    public MainView(Gson gson) {
+
         this.gson = gson;
 
         setSizeFull();
@@ -209,13 +202,13 @@ public class MainView extends VerticalLayout {
         policyGrid.addColumn(Policy::getName).setHeader("Name");
         policyGrid.addComponentColumn(policy -> {
             Button deleteButton = new Button("Delete", e -> {
-                try {
-                    philterClient.deletePolicy(policy.getName());
-                    refreshPolicies();
-                } catch (IOException ex) {
-                    LOGGER.error("Error deleting policy", ex);
-                    Notification.show("Error deleting policy: " + ex.getMessage());
-                }
+//                try {
+//                    philterClient.deletePolicy(policy.getName());
+//                    refreshPolicies();
+//                } catch (IOException ex) {
+//                    LOGGER.error("Error deleting policy", ex);
+//                    Notification.show("Error deleting policy: " + ex.getMessage());
+//                }
             });
             deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
             return deleteButton;
@@ -305,7 +298,7 @@ public class MainView extends VerticalLayout {
         footer.setPadding(true);
         
         Image img = new Image("img/philterd.png", "Philterd");
-        Span copyright = new Span("Copyright © Philterd, LLC. \"Philter\" is a registered trademarks of Philterd, LLC.");
+        Span copyright = new Span("Copyright © Philterd, LLC. \"Philter\" is a registered trademark of Philterd, LLC.");
         copyright.getStyle().set("font-size", "0.8rem");
         copyright.getStyle().set("color", "#858796");
         
@@ -322,14 +315,14 @@ public class MainView extends VerticalLayout {
             return;
         }
 
-        try {
-            ExplainResponse explainResponse = philterClient.explain("context", "", profile, text);
-            filteredTextSpan.setText(explainResponse.getFilteredText());
-            explanationTextArea.setValue(gson.toJson(explainResponse.getExplanation()));
-        } catch (IOException e) {
-            LOGGER.error("Error filtering text", e);
-            Notification.show("Error filtering text: " + e.getMessage());
-        }
+//        try {
+//            ExplainResponse explainResponse = philterClient.explain("context", "", profile, text);
+//            filteredTextSpan.setText(explainResponse.getFilteredText());
+//            explanationTextArea.setValue(gson.toJson(explainResponse.getExplanation()));
+//        } catch (IOException e) {
+//            LOGGER.error("Error filtering text", e);
+//            Notification.show("Error filtering text: " + e.getMessage());
+//        }
     }
 
     private void filterPdf(String profile, InputStream inputStream, String fileName) {
@@ -337,30 +330,30 @@ public class MainView extends VerticalLayout {
             File tempFile = File.createTempFile("temp", "pdf");
             FileUtils.copyInputStreamToFile(inputStream, tempFile);
 
-            BinaryFilterResponse binaryFilterResponse = philterClient.filter("context", "", profile, tempFile);
-
-            File zipFileTemp = File.createTempFile("philter", ".zip");
-            FileUtils.writeByteArrayToFile(zipFileTemp, binaryFilterResponse.getContent());
-
-            try (ZipFile zipFile = new ZipFile(zipFileTemp.getAbsolutePath())) {
-                Enumeration<? extends ZipEntry> entries = zipFile.entries();
-                if (entries.hasMoreElements()) {
-                    ZipEntry zipEntry = entries.nextElement();
-                    try (InputStream zipInputStream = zipFile.getInputStream(zipEntry)) {
-                        byte[] bytes = IOUtils.toByteArray(zipInputStream);
-                        StreamResource resource = new StreamResource("filtered-" + fileName + ".jpg", () -> new ByteArrayInputStream(bytes));
-                        
-                        Dialog dialog = new Dialog();
-                        dialog.setHeaderTitle("Filtered PDF (as Image)");
-                        Image image = new Image(resource, "Filtered PDF");
-                        image.setMaxWidth("100%");
-                        dialog.add(new VerticalLayout(image));
-                        Button closeButton = new Button("Close", e -> dialog.close());
-                        dialog.getFooter().add(closeButton);
-                        dialog.open();
-                    }
-                }
-            }
+//            BinaryFilterResponse binaryFilterResponse = philterClient.filter("context", "", profile, tempFile);
+//
+//            File zipFileTemp = File.createTempFile("philter", ".zip");
+//            FileUtils.writeByteArrayToFile(zipFileTemp, binaryFilterResponse.getContent());
+//
+//            try (ZipFile zipFile = new ZipFile(zipFileTemp.getAbsolutePath())) {
+//                Enumeration<? extends ZipEntry> entries = zipFile.entries();
+//                if (entries.hasMoreElements()) {
+//                    ZipEntry zipEntry = entries.nextElement();
+//                    try (InputStream zipInputStream = zipFile.getInputStream(zipEntry)) {
+//                        byte[] bytes = IOUtils.toByteArray(zipInputStream);
+//                        StreamResource resource = new StreamResource("filtered-" + fileName + ".jpg", () -> new ByteArrayInputStream(bytes));
+//
+//                        Dialog dialog = new Dialog();
+//                        dialog.setHeaderTitle("Filtered PDF (as Image)");
+//                        Image image = new Image(resource, "Filtered PDF");
+//                        image.setMaxWidth("100%");
+//                        dialog.add(new VerticalLayout(image));
+//                        Button closeButton = new Button("Close", e -> dialog.close());
+//                        dialog.getFooter().add(closeButton);
+//                        dialog.open();
+//                    }
+//                }
+//            }
         } catch (IOException e) {
             LOGGER.error("Error filtering PDF", e);
             Notification.show("Error filtering PDF: " + e.getMessage());
@@ -376,14 +369,14 @@ public class MainView extends VerticalLayout {
         jsonTextArea.setHeight("300px");
 
         Button saveButton = new Button("Save", e -> {
-            try {
-                philterClient.savePolicy(jsonTextArea.getValue());
-                refreshPolicies();
-                dialog.close();
-            } catch (IOException ex) {
-                LOGGER.error("Error saving policy", ex);
-                Notification.show("Error saving policy: " + ex.getMessage());
-            }
+//            try {
+//                //philterClient.savePolicy(jsonTextArea.getValue());
+//                refreshPolicies();
+//                dialog.close();
+//            } catch (IOException ex) {
+//                LOGGER.error("Error saving policy", ex);
+//                Notification.show("Error saving policy: " + ex.getMessage());
+//            }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -395,23 +388,23 @@ public class MainView extends VerticalLayout {
     }
 
     private void refreshPolicies() {
-        try {
-            List<String> policyNames = philterClient.getPolicies();
-            policyComboBox.setItems(policyNames);
-            if (!policyNames.isEmpty()) {
-                policyComboBox.setValue(policyNames.get(0));
-            }
-
-            List<Policy> policies = new LinkedList<>();
-            for (String name : policyNames) {
-                Policy p = new Policy();
-                p.setName(name);
-                policies.add(p);
-            }
-            policyGrid.setItems(policies);
-        } catch (IOException e) {
-            LOGGER.error("Error refreshing policies", e);
-            Notification.show("Error refreshing policies: " + e.getMessage());
-        }
+//        try {
+//           // List<String> policyNames = philterClient.getPolicies();
+//            policyComboBox.setItems(policyNames);
+//            if (!policyNames.isEmpty()) {
+//                policyComboBox.setValue(policyNames.get(0));
+//            }
+//
+//            List<Policy> policies = new LinkedList<>();
+//            for (String name : policyNames) {
+//                Policy p = new Policy();
+//                p.setName(name);
+//                policies.add(p);
+//            }
+//            policyGrid.setItems(policies);
+//        } catch (IOException e) {
+//            LOGGER.error("Error refreshing policies", e);
+//            Notification.show("Error refreshing policies: " + e.getMessage());
+//        }
     }
 }

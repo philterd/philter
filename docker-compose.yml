@@ -18,7 +18,6 @@ services:
         condition: service_healthy
     build:
       context: .
-      dockerfile: Dockerfile.philter
     ports:
       - "8080:8080"
     environment:
@@ -30,19 +29,6 @@ services:
       - ./distribution/philter.properties:/opt/philter/philter.properties
       - ./distribution/indexes/:/opt/philter/indexes/
       - ./distribution/policies/:/opt/philter/policies/
-    networks:
-      - philter
-
-  philter-ui:
-    depends_on:
-      - philter
-    build:
-      context: .
-      dockerfile: Dockerfile.philter-ui
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./distribution/philter-ui.properties:/opt/philter/philter-ui.properties
     networks:
       - philter
 

@@ -5,7 +5,7 @@
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
     <packaging>pom</packaging>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>
@@ -37,6 +37,18 @@
         <module>philter-app</module>
         <module>philter-ui</module>
     </modules>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.vaadin</groupId>
+                <artifactId>vaadin-bom</artifactId>
+                <version>${vaadin.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <distributionManagement>
         <snapshotRepository>
             <id>philterd-repository-snapshots</id>
@@ -72,6 +84,7 @@
         <philter.sdk.version>1.4.0</philter.sdk.version>
         <spring.boot.version>3.5.7</spring.boot.version>
         <spring.version>6.2.7</spring.version>
+        <vaadin.version>24.9.8</vaadin.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>

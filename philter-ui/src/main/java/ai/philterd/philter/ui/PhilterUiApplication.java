@@ -26,7 +26,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.PropertySource;
-import org.thymeleaf.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 @PropertySource(value="file:philter-ui.properties")
 @ComponentScan("ai.philterd.philter")
@@ -67,7 +67,7 @@ public class PhilterUiApplication {
 
         LOGGER.info("Using Philter endpoint {}", philterEndpoint);
 
-        if(StringUtils.isEmptyOrWhitespace(sslKeystore)) {
+        if(StringUtils.isBlank(sslKeystore)) {
 
             return new PhilterClient.PhilterClientBuilder()
                     .withTimeout(timeout)

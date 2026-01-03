@@ -33,3 +33,4 @@ temp-files/
 vocab.txt
 dependencies.csv
 site/
+.output.txt

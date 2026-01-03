@@ -17,9 +17,11 @@ package ai.philterd.philter.ui;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.lumo.Lumo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -29,31 +31,14 @@ import org.springframework.context.annotation.PropertySource;
 @PropertySource(value="file:philter-ui.properties")
 @ComponentScan("ai.philterd.philter")
 @SpringBootApplication
-public class PhilterUiApplication {
+@Theme(themeClass = Lumo.class, variant = Lumo.LIGHT)
+public class PhilterUiApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterUiApplication.class);
 
     public static void main(String[] args) {
         SpringApplication.run(PhilterUiApplication.class, args);
     }
-
-    @Value("${philter.endpoint}")
-    private String philterEndpoint;
-
-    @Value("${client.timeout}")
-    private long timeout = 60000;
-
-    @Value("${client.ssl.keystore}")
-    private String sslKeystore;
-
-    @Value("${client.ssl.keystore.password}")
-    private String sslKeystorePassword;
-
-    @Value("${client.ssl.truststore}")
-    private String sslTruststore;
-
-    @Value("${client.ssl.truststore.password}")
-    private String sslTruststorePassword;
 
     @Bean
     public Gson gson() {

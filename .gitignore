@@ -34,3 +34,5 @@ vocab.txt
 dependencies.csv
 site/
 .output.txt
+node_modules/
+generated/

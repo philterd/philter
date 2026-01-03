@@ -16,7 +16,7 @@ import org.apache.logging.log4j.Logger;
 
 @Route(value = "filter-pdf", layout = MainLayout.class)
 @PageTitle("Philter - Filter PDF")
-public class FilterPdfView extends VerticalLayout {
+public class FilterPdfView extends AbstractView {
 
     private static final Logger LOGGER = LogManager.getLogger(FilterPdfView.class);
 
@@ -63,6 +63,7 @@ public class FilterPdfView extends VerticalLayout {
         pageVerticalLayout.add(pdfPolicyComboBox, upload, filterPdfButton);
 
         add(pageVerticalLayout);
+        add(getFooter());
 
     }
 

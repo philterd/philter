@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Route(value = "filter-text", layout = MainLayout.class)
 @PageTitle("Philter - Filter Text")
-public class FilterTextView extends VerticalLayout {
+public class FilterTextView extends AbstractView {
 
     private static final Logger LOGGER = LogManager.getLogger(FilterTextView.class);
 
@@ -63,6 +63,7 @@ public class FilterTextView extends VerticalLayout {
         pageVerticalLayout.add(filterButton);
 
         add(pageVerticalLayout);
+        add(getFooter());
 
         // TODO
         policyComboBox.setItems("default", "policy1", "policy2");

@@ -20,7 +20,7 @@ import java.util.LinkedList;
 
 @Route(value = "policies", layout = MainLayout.class)
 @PageTitle("Philter - Policies")
-public class PoliciesView extends VerticalLayout {
+public class PoliciesView extends AbstractView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
 
@@ -82,6 +82,7 @@ public class PoliciesView extends VerticalLayout {
         pageVerticalLayout.add(policyGrid);
 
         add(pageVerticalLayout);
+        add(getFooter());
 
     }
 

@@ -15,21 +15,14 @@
  */
 package ai.philterd.philter.ui.views;
 
-import ai.philterd.philter.ui.domain.Policy;
 import com.google.gson.Gson;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H5;
-import com.vaadin.flow.component.html.H6;
-import com.vaadin.flow.component.html.Hr;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
@@ -40,59 +33,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Route(value = "", layout = MainLayout.class)
 @PageTitle("Philter - Dashboard")
-public class MainView extends VerticalLayout {
+public class DashboardView extends AbstractView {
 
-    private static final Logger LOGGER = LogManager.getLogger(MainView.class);
+    private static final Logger LOGGER = LogManager.getLogger(DashboardView.class);
 
     @Autowired
-    public MainView(final Gson gson) {
+    public DashboardView(final Gson gson) {
 
         setSizeFull();
         setPadding(true);
-        setSpacing(true);
 
-        add(createSdkSection());
-        add(createFooter());
+        final VerticalLayout pageVerticalLayout = new VerticalLayout();
+        pageVerticalLayout.setSizeFull();
 
-    }
+        pageVerticalLayout.add(new H1("Philter Dashboard"));
 
-    private Component createCard(final String title, final VaadinIcon icon) {
+        pageVerticalLayout.add(new H2("Usage Metrics"));
+        pageVerticalLayout.add(new Paragraph("Metrics are not persistent and reset upon Philter restart."));
 
-        VerticalLayout card = new VerticalLayout();
-        card.addClassName("shadow");
-        card.getStyle().set("background-color", "white");
-        card.getStyle().set("border-radius", "0.35rem");
-        card.setPadding(true);
-        card.setSpacing(true);
-        card.setMargin(true);
+        pageVerticalLayout.add(new H2("Philter SDKs"));
 
-        HorizontalLayout header = new HorizontalLayout();
-        header.setWidthFull();
-        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        header.setVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
-
-        H6 h6 = new H6(title);
-        h6.getStyle().set("color", "#4e73df");
-        h6.getStyle().set("margin", "0");
-
-        Icon vaadinIcon = icon.create();
-        vaadinIcon.setColor("#dddfeb");
-
-        header.add(h6, vaadinIcon);
-        card.add(header, new Hr());
-
-        return card;
-
-    }
-
-    private Component createSdkSection() {
-
-        VerticalLayout section = new VerticalLayout();
-        section.setPadding(true);
-
-        VerticalLayout card = (VerticalLayout) createCard("Philter SDKs", VaadinIcon.TOOLS);
-
-        HorizontalLayout sdkRow = new HorizontalLayout();
+        final HorizontalLayout sdkRow = new HorizontalLayout();
         sdkRow.setWidthFull();
 
         sdkRow.add(createSdkItem("CLI", "Command Line", "https://github.com/philterd/philter-cli", "Filter text from the command line."));
@@ -100,10 +61,10 @@ public class MainView extends VerticalLayout {
         sdkRow.add(createSdkItem("SDK", ".NET", "https://github.com/philterd/philter-sdk-net", "Filter text from your .NET apps"));
         sdkRow.add(createSdkItem("SDK", "Golang", "https://github.com/philterd/philter-sdk-golang", "Filter text from your Golang apps"));
 
-        card.add(sdkRow);
-        section.add(card);
+        pageVerticalLayout.add(sdkRow);
 
-        return section;
+        add(pageVerticalLayout);
+        add(getFooter());
 
     }
 
@@ -131,24 +92,6 @@ public class MainView extends VerticalLayout {
         item.add(typeSpan, nameH5, link, desc);
 
         return item;
-
-    }
-
-    private Component createFooter() {
-
-        VerticalLayout footer = new VerticalLayout();
-        footer.setWidthFull();
-        footer.setAlignItems(FlexComponent.Alignment.CENTER);
-        footer.setPadding(true);
-
-        Image img = new Image("img/philterd.png", "Philterd");
-        Span copyright = new Span("Copyright © Philterd, LLC. \"Philter\" is a registered trademark of Philterd, LLC.");
-        copyright.getStyle().set("font-size", "0.8rem");
-        copyright.getStyle().set("color", "#858796");
-
-        footer.add(img, copyright);
-
-        return footer;
 
     }
 

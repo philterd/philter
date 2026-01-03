@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.List;
 
 @Controller
-public class PoliciesApiController extends AbstractController {
+public class PoliciesApiApiController extends AbstractApiController {
 
     @Autowired
     private PolicyService policyService;
@@ -53,7 +53,7 @@ public class PoliciesApiController extends AbstractController {
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET)
     public @ResponseBody
     ResponseEntity<Policy> get(
-            @PathVariable(name="policyName") String policyName) throws IOException {
+            @PathVariable(name = "policyName") String policyName) throws IOException {
 
         if (StringUtils.isEmpty(policyName)) {
             throw new BadRequestException("The policy name is missing.");
@@ -78,7 +78,7 @@ public class PoliciesApiController extends AbstractController {
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.DELETE)
     @ResponseStatus(HttpStatus.OK)
     public void delete(
-            @PathVariable(name="policyName") String policyName) throws IOException {
+            @PathVariable(name = "policyName") String policyName) throws IOException {
 
         if (StringUtils.isEmpty(policyName)) {
             throw new BadRequestException("The policy name is missing.");

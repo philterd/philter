@@ -15,14 +15,11 @@
  */
 package ai.philterd.philter.api.exceptions;
 
-/**
- * This exception corresponds to HTTP exception 400 Bad Request.
- *
-* @author Philterd, LLC
- *
- */
+import java.io.Serial;
+
 public final class BadRequestException extends RuntimeException {
 
+    @Serial
     private static final long serialVersionUID = 8498236096061129077L;
 
     public BadRequestException(String message) {

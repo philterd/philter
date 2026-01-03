@@ -15,7 +15,7 @@
  */
 package ai.philterd.philter.api.security;
 
-import ai.philterd.philter.api.controllers.PoliciesApiController;
+import ai.philterd.philter.api.controllers.PoliciesApiApiController;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,7 +32,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class X509Authenticator {
 
-    private static final Logger LOGGER = LogManager.getLogger(PoliciesApiController.class);
+    private static final Logger LOGGER = LogManager.getLogger(PoliciesApiApiController.class);
 
     @Autowired
     private UserDetailsService userDetailsService;

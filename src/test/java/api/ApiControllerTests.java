@@ -2,7 +2,7 @@ package api;
 
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
-import ai.philterd.philter.api.controllers.StatusApiController;
+import ai.philterd.philter.api.controllers.StatusApiApiController;
 import com.google.gson.Gson;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -46,8 +46,8 @@ public class ApiControllerTests {
 //        }
 
         @Bean
-        public StatusApiController statusApiControllerApiController() throws IOException {
-            return new StatusApiController();
+        public StatusApiApiController statusApiControllerApiController() throws IOException {
+            return new StatusApiApiController();
         }
 
         @Bean

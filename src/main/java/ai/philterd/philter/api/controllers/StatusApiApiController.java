@@ -15,10 +15,8 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.PhileasConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,24 +28,24 @@ import java.io.IOException;
 import java.util.Properties;
 
 @Controller
-public class StatusApiController extends AbstractController {
+public class StatusApiApiController extends AbstractApiController {
 
-  private static final Logger LOGGER = LogManager.getLogger(StatusApiController.class);
+    private static final Logger LOGGER = LogManager.getLogger(StatusApiApiController.class);
 
-  @RequestMapping(value={"/api/status", "/api/health"}, method=RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<String> status() throws IOException {
+    @RequestMapping(value = {"/api/status", "/api/health"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> status() throws IOException {
 
-    return new ResponseEntity<>("healthy: " + getVersion(), HttpStatus.OK);
+        return new ResponseEntity<>("healthy: " + getVersion(), HttpStatus.OK);
 
 
-  }
+    }
 
-  private String getVersion() throws IOException {
+    private String getVersion() throws IOException {
 
-    final Properties properties = new Properties();
-    properties.load(StatusApiController.this.getClass().getClassLoader().getResourceAsStream("internal.properties"));
-    return properties.getProperty("build.version");
+        final Properties properties = new Properties();
+        properties.load(StatusApiApiController.this.getClass().getClassLoader().getResourceAsStream("internal.properties"));
+        return properties.getProperty("build.version");
 
-  }
+    }
 
 }

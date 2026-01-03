@@ -32,32 +32,32 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
-public class ExplainApiController extends AbstractController {
+public class ExplainApiApiController extends AbstractApiController {
 
-	private final PlainTextFilterService plainTextFilterService;
-	private final PolicyService policyService;
-	private final Gson gson;
+    private final PlainTextFilterService plainTextFilterService;
+    private final PolicyService policyService;
+    private final Gson gson;
 
-	@Autowired
-	public ExplainApiController(final PlainTextFilterService plainTextFilterService, final PolicyService policyService, final Gson gson) {
-		this.plainTextFilterService = plainTextFilterService;
-		this.policyService = policyService;
-		this.gson = gson;
-	}
+    @Autowired
+    public ExplainApiApiController(final PlainTextFilterService plainTextFilterService, final PolicyService policyService, final Gson gson) {
+        this.plainTextFilterService = plainTextFilterService;
+        this.policyService = policyService;
+        this.gson = gson;
+    }
 
-	@RequestMapping(value="/api/explain", method=RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
-	public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
-			@RequestParam(value="c", defaultValue="none") String context,
-			@RequestParam(value="p", defaultValue="default") String policyName,
-			@RequestBody String body) throws Exception {
+    @RequestMapping(value = "/api/explain", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
+    public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
+            @RequestParam(value = "c", defaultValue = "none") String context,
+            @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestBody String body) throws Exception {
 
-			final Policy policy = policyService.get(policyName);
-			final TextFilterResult response = plainTextFilterService.filter(policy, context, body);
+        final Policy policy = policyService.get(policyName);
+        final TextFilterResult response = plainTextFilterService.filter(policy, context, body);
 
-		return ResponseEntity.status(HttpStatus.OK)
-				.contentType(MediaType.APPLICATION_JSON)
-				.body(gson.toJson(response));
+        return ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(gson.toJson(response));
 
-	}
+    }
 
 }

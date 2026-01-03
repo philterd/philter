@@ -15,14 +15,11 @@
  */
 package ai.philterd.philter.api.exceptions;
 
-/**
- * This exception corresponds to HTTP error 503 Service Unavailable.
- *
-* @author Philterd, LLC
- *
- */
+import java.io.Serial;
+
 public final class ServiceUnavailableException extends RuntimeException {
 
+    @Serial
     private static final long serialVersionUID = 8498236096061129077L;
 
     public ServiceUnavailableException(String message) {

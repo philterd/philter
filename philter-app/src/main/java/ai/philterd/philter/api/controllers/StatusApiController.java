@@ -34,16 +34,7 @@ public class StatusApiController extends AbstractController {
 
   private static final Logger LOGGER = LogManager.getLogger(StatusApiController.class);
 
-  private static final String NER_UNHEALTHY_OR_INITIALIZING = "Philter is currently initializing or unhealthy if status persists.";
-
-  private final PhileasConfiguration phileasConfiguration;
-
-  @Autowired
-  public StatusApiController(PhileasConfiguration phileasConfiguration) {
-    this.phileasConfiguration = phileasConfiguration;
-  }
-
-  @RequestMapping(value="/api/status", method=RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+  @RequestMapping(value={"/api/status", "/api/health"}, method=RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> status() throws IOException {
 
     return new ResponseEntity<>("healthy: " + getVersion(), HttpStatus.OK);

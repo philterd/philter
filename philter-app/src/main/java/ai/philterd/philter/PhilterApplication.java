@@ -27,6 +27,9 @@ import ai.philterd.philter.services.policies.LocalPolicyService;
 import ai.philterd.philter.services.policies.OpenSearchPolicyService;
 import ai.philterd.philter.services.policies.PolicyService;
 import com.google.gson.Gson;
+import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.lumo.Lumo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.SpringApplication;
@@ -44,7 +47,8 @@ import java.util.Properties;
 @PropertySource(value="file:philter.properties")
 @SpringBootApplication(exclude = {MongoAutoConfiguration.class, MongoDataAutoConfiguration.class})
 @Configuration
-public class PhilterApplication {
+@Theme(themeClass = Lumo.class, variant = Lumo.LIGHT)
+public class PhilterApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
 

@@ -44,7 +44,7 @@ import java.util.Properties;
 
 @PropertySource(value="file:philter.properties")
 @Configuration
-@Theme(themeClass = Lumo.class, variant = Lumo.LIGHT)
+@Theme(value="philter", variant=Lumo.LIGHT)
 @SpringBootApplication
 public class PhilterApplication implements AppShellConfigurator {
 

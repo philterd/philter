@@ -1,0 +1,47 @@
+/* Set background color for the entire SideNav */
+vaadin-side-nav {
+    background-color: #ffffff;
+}
+
+/* Set background color for individual SideNavItems on hover */
+vaadin-side-nav-item::part(link):hover {
+    background-color: #F3F5F7FF; /* Slightly darker gray on hover */
+}
+
+/* Set background color for the currently selected SideNavItem */
+vaadin-side-nav-item[current]::part(content) {
+    background-color: #F3F5F7FF; /* Example color for selected item */
+}
+
+/* Philterd red */
+/* A61D1FFF */
+
+vaadin-side-nav > [slot="label"] {
+    color: #FFFFFF;
+    font-weight: bold;
+}
+
+.bold-text {
+    font-weight: bold;
+}
+
+.v-loading-indicator {
+    position: fixed; /* Occupy whole screen even if scrolled */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Eat mouse events when visible, doesn't prevent scrolling */
+    pointer-events: auto;
+    /* Animated with delay to prevent flashing */
+    animation: fadein 0.3s ease-out 0.2s normal 1 both;
+    z-index: 2147483647;
+}
+@keyframes fadein {
+    0% {
+        background: rgba(0,0,0,0);
+    }
+    100% {
+        background: rgba(0,0,0,.5); /* Darkens the UI */
+    }
+}

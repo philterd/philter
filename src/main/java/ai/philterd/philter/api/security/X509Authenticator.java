@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.security;
 
+import com.vaadin.flow.spring.security.RequestUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,11 +35,17 @@ public class X509Authenticator {
 
     private static final Logger LOGGER = LogManager.getLogger(X509Authenticator.class);
 
+    private final RequestUtil requestUtil;
+
     @Autowired
     private UserDetailsService userDetailsService;
 
     @Value("${server.ssl.client-auth:none}")
     private String clientAuth;
+
+    public X509Authenticator(final RequestUtil requestUtil) {
+        this.requestUtil = requestUtil;
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) {
@@ -46,8 +53,9 @@ public class X509Authenticator {
         if(!StringUtils.equalsIgnoreCase(clientAuth, "none")) {
 
             LOGGER.info("Mutual SSL authentication is enabled.");
-
             http.authorizeHttpRequests(authorize -> authorize
+                    .requestMatchers(requestUtil::isFrameworkInternalRequest).permitAll()
+                    .requestMatchers("/public/**", "/styles/**", "/images/**", "/VAADIN/**").permitAll()
                     .requestMatchers("/api/status").permitAll()
                     .anyRequest().authenticated()
             ).x509(x509 -> x509
@@ -55,20 +63,23 @@ public class X509Authenticator {
                     .userDetailsService(userDetailsService)
             );
 
-            return http.build();
-
         } else {
 
-            LOGGER.info("Mutual SSL authentication is disabled.");
-
-            http.csrf(AbstractHttpConfigurer::disable)
-                    .authorizeHttpRequests(authorize -> authorize
+            http
+                    .authorizeHttpRequests(auth -> auth
+                            .requestMatchers(requestUtil::isFrameworkInternalRequest).permitAll()
+                            .requestMatchers("/public/**", "/styles/**", "/images/**", "/VAADIN/**").permitAll()
+                            .requestMatchers("/api/status").permitAll()
                             .anyRequest().permitAll()
+                    )
+                    .csrf(csrf -> csrf
+                            .ignoringRequestMatchers(requestUtil::isFrameworkInternalRequest)
                     );
 
         }
 
         return http.build();
+
     }
 
 }

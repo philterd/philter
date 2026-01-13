@@ -15,13 +15,41 @@
  */
 package ai.philterd.philter.ui.views;
 
+import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.sidenav.SideNav;
+import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 
-public abstract class AbstractView extends VerticalLayout {
+public abstract class AbstractView extends AppLayout {
+
+    public AbstractView() {
+
+            final Image logo = new Image("images/philter.png", "Philter");
+            logo.setHeight("75px");
+
+            final Anchor logoLinkAnchor = new Anchor("/", logo);
+
+            final HorizontalLayout header = new HorizontalLayout(logoLinkAnchor);
+            header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+            header.setWidthFull();
+            header.addClassNames(LumoUtility.Padding.Vertical.NONE, LumoUtility.Padding.Horizontal.MEDIUM);
+
+            addToNavbar(header);
+
+            final SideNav sideNav = new SideNav();
+            sideNav.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
+            sideNav.addItem(new SideNavItem("Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
+
+            addToDrawer(sideNav);
+
+        }
 
     protected VerticalLayout getFooter() {
 
@@ -30,7 +58,7 @@ public abstract class AbstractView extends VerticalLayout {
         footer.setAlignItems(FlexComponent.Alignment.CENTER);
         footer.setPadding(true);
 
-        final Image logo = new Image("img/philterd.png", "Philterd");
+        final Image logo = new Image("images/philterd.png", "Philterd");
 
         final Anchor link = new Anchor("https://www.philterd.ai", logo);
         link.setTarget("_blank");

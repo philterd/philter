@@ -33,16 +33,13 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedList;
 
-@Route(value = "policies", layout = MainLayout.class)
+@Route(value = "policies")
 @PageTitle("Philter - Policies")
 public class PoliciesView extends AbstractView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
 
     public PoliciesView() {
-
-        setSizeFull();
-        setPadding(true);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(new H1("Policies"));
@@ -57,6 +54,7 @@ public class PoliciesView extends AbstractView {
             TextArea jsonTextArea = new TextArea("Policy JSON");
             jsonTextArea.setWidthFull();
             jsonTextArea.setHeight("300px");
+            jsonTextArea.setWidth("600px");
 
             Button saveButton = new Button("Save", e -> {
                 Notification.show("Saving policy...");
@@ -95,9 +93,10 @@ public class PoliciesView extends AbstractView {
         policyGrid.setSizeFull();
 
         pageVerticalLayout.add(policyGrid);
+        pageVerticalLayout.add(getFooter());
+        pageVerticalLayout.setSizeFull();
 
-        add(pageVerticalLayout);
-        add(getFooter());
+        setContent(pageVerticalLayout);
 
     }
 

@@ -10,16 +10,6 @@ services:
     # environment:
     #   - NVIDIA_VISIBLE_DEVICES=all
 
-  ph-eye-medical-conditions:
-    image: philterd/ph-eye-medical-conditions:1.2.3
-    ports:
-      - "18081:5000"
-    networks:
-      - philter
-    # runtime: nvidia
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
-
   philter:
     depends_on:
       ph-eye:

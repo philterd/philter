@@ -5,7 +5,7 @@
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
     <packaging>pom</packaging>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>3.3.0</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>
@@ -68,7 +68,7 @@
         <junit.version>4.13.2</junit.version>
         <mockito.version>1.10.19</mockito.version>
         <opensearch.version>3.1.0</opensearch.version>
-        <phileas.version>3.2.0-SNAPSHOT</phileas.version>
+        <phileas.version>3.2.0</phileas.version>
         <philter.sdk.version>1.4.0</philter.sdk.version>
         <spring.boot.version>3.5.7</spring.boot.version>
         <spring.version>6.2.7</spring.version>

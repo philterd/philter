@@ -26,22 +26,6 @@
     }
   },
   "identifiers": {
-    "medicalCondition": {
-      "removePunctuation": false,
-      "thresholds": {},
-      "phEyeConfiguration": {
-        "endpoint": "http://philter-ph-eye-medical-conditions-1:5000",
-        "timeout": 600,
-        "maxIdleConnections": 30,
-        "labels": ["DISEASE_DISORDER"]
-      },
-      "enabled": true,
-      "ignored": [],
-      "ignoredFiles": [],
-      "ignoredPatterns": [],
-      "windowSize": 0,
-      "priority": 0
-    },
     "person": {
       "removePunctuation": false,
       "thresholds": {},

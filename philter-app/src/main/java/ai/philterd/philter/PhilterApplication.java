@@ -69,7 +69,6 @@ public class PhilterApplication {
     @Bean
     public HttpClient httpClient() {
 
-        // Initializing this as static for the same reasons.
         final PoolingHttpClientConnectionManager connectionManager =
                 PoolingHttpClientConnectionManagerBuilder.create()
                         .setMaxConnTotal(10)
@@ -77,13 +76,12 @@ public class PhilterApplication {
                         .setValidateAfterInactivity(TimeValue.ofSeconds(5))
                         .build();
 
-        // Reused across invocations in the same execution environment
         final CloseableHttpClient httpClient =
                 HttpClients.custom()
                         .setConnectionManager(connectionManager)
                         .evictIdleConnections(TimeValue.ofSeconds(30))
                         .evictExpiredConnections()
-                        .disableAutomaticRetries() // optional; consider enabling if idempotent
+                        .disableAutomaticRetries()
                         .build();
 
         return httpClient;

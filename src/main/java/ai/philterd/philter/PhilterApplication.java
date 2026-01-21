@@ -30,6 +30,12 @@ import com.google.gson.Gson;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
+import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.util.TimeValue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.SpringApplication;
@@ -63,13 +69,35 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public HttpClient httpClient() {
+
+        final PoolingHttpClientConnectionManager connectionManager =
+                PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(10)
+                        .setMaxConnPerRoute(10)
+                        .setValidateAfterInactivity(TimeValue.ofSeconds(5))
+                        .build();
+
+        final CloseableHttpClient httpClient =
+                HttpClients.custom()
+                        .setConnectionManager(connectionManager)
+                        .evictIdleConnections(TimeValue.ofSeconds(30))
+                        .evictExpiredConnections()
+                        .disableAutomaticRetries()
+                        .build();
+
+        return httpClient;
+
+    }
+
+    @Bean
     public PdfFilterService pdfFilterService() throws IOException {
-        return new PdfFilterService(phileasConfiguration(), contextService(), vectorService());
+        return new PdfFilterService(phileasConfiguration(), contextService(), vectorService(), httpClient());
     }
 
     @Bean
     public PlainTextFilterService plainTextFilterService() throws IOException {
-        return new PlainTextFilterService(phileasConfiguration(), contextService(), vectorService());
+        return new PlainTextFilterService(phileasConfiguration(), contextService(), vectorService(), httpClient());
     }
 
     @Bean

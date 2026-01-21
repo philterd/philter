@@ -1,0 +1,30 @@
+services:
+
+  ph-eye:
+    image: philterd/ph-eye:1.2.1
+    ports:
+      - "5000"
+    networks:
+      - philter
+
+  ph-eye-medical-conditions:
+    image: philterd/ph-eye-medical-conditions:1.2.3
+    ports:
+      - "5000"
+    networks:
+      - philter
+
+  philter:
+    build:
+      context: .
+      dockerfile: Dockerfile.philter
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./distribution/philter.properties:/opt/philter/philter.properties
+      - ./distribution/policies/:/opt/philter/policies/
+    networks:
+      - philter
+
+networks:
+  philter:

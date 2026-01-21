@@ -14,17 +14,10 @@ services:
     depends_on:
       ph-eye:
         condition: service_started
-      opensearch:
-        condition: service_healthy
     build:
       context: .
     ports:
       - "8080:8080"
-    environment:
-      filter.policies.service: opensearch
-      filter.policies.service.opensearch.scheme: http
-      filter.policies.service.opensearch.host: opensearch
-      filter.policies.service.opensearch.port: 9200
     volumes:
       - ./distribution/philter.properties:/opt/philter/philter.properties
       - ./distribution/indexes/:/opt/philter/indexes/

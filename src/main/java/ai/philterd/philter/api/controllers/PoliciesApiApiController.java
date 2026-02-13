@@ -17,9 +17,10 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
-import ai.philterd.philter.services.policies.PolicyService;
+import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.services.PolicyDataService;
+import com.google.gson.Gson;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -37,13 +39,18 @@ import java.util.List;
 @Controller
 public class PoliciesApiApiController extends AbstractApiController {
 
-    @Autowired
-    private PolicyService policyService;
+    private final PolicyDataService policyDataService;
+    private final Gson gson;
+
+    public PoliciesApiApiController(final PolicyDataService policyDataService, final Gson gson) {
+        this.policyDataService = policyDataService;
+        this.gson = gson;
+    }
 
     @RequestMapping(value = "/api/policies", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<List<String>> getPolicyNames() throws IOException {
 
-        final List<String> policyNames = policyService.get();
+        final List<String> policyNames = policyDataService.get();
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(policyNames);
@@ -51,15 +58,14 @@ public class PoliciesApiApiController extends AbstractApiController {
     }
 
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET)
-    public @ResponseBody
-    ResponseEntity<Policy> get(
-            @PathVariable(name = "policyName") String policyName) throws IOException {
+    public @ResponseBody ResponseEntity<Policy> get(@PathVariable(name = "policyName") String policyName) throws IOException {
 
         if (StringUtils.isEmpty(policyName)) {
             throw new BadRequestException("The policy name is missing.");
         }
 
-        final Policy policy = policyService.get(policyName);
+        final PolicyEntity policyEntity = policyDataService.get(policyName);
+        final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(policy);
@@ -68,10 +74,13 @@ public class PoliciesApiApiController extends AbstractApiController {
 
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public void save(
-            @RequestBody Policy policy) throws IOException {
+    public void save(@RequestParam("name") final String name, @RequestBody Policy policy) throws IOException {
 
-        policyService.save(policy);
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setPolicy(gson.toJson(policy));
+        policyEntity.setName(name);
+
+        policyDataService.save(policyEntity);
 
     }
 
@@ -84,7 +93,7 @@ public class PoliciesApiApiController extends AbstractApiController {
             throw new BadRequestException("The policy name is missing.");
         }
 
-        policyService.delete(policyName);
+        policyDataService.delete(policyName);
 
     }
 

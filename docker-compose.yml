@@ -25,23 +25,14 @@ services:
     networks:
       - philter
 
-  opensearch:
-    container_name: opensearch
-    image: opensearchproject/opensearch:3.1.0
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
     ports:
-      - "9200:9200"
+      - "27017:27017"
     environment:
-      discovery.type: single-node
-      node.name: opensearch
-      plugins.security.disabled: "true"
-      logger.level: info
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: a2qfzT55F%aWPGvhgDrU#pXSYSR
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health?wait_for_status=green -s > /dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
     networks:
       - philter
 

@@ -22,11 +22,10 @@ import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
-import ai.philterd.philter.services.policies.InMemoryPolicyService;
-import ai.philterd.philter.services.policies.LocalPolicyService;
-import ai.philterd.philter.services.policies.OpenSearchPolicyService;
-import ai.philterd.philter.services.policies.PolicyService;
+import ai.philterd.philter.data.MongoClientUtil;
+import ai.philterd.philter.services.PolicyDataService;
 import com.google.gson.Gson;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
@@ -43,6 +42,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -91,6 +92,11 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public MongoClient mongoClient() {
+        return MongoClientUtil.getClient();
+    }
+
+    @Bean
     public PdfFilterService pdfFilterService() throws IOException {
         return new PdfFilterService(phileasConfiguration(), contextService(), vectorService(), httpClient());
     }
@@ -117,22 +123,8 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public PolicyService policyService() throws Exception {
-
-        final PhilterConfiguration philterConfiguration = philterConfiguration();
-
-        final PolicyService policyService;
-
-        if("local".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new LocalPolicyService(philterConfiguration);
-        } else if("opensearch".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new OpenSearchPolicyService(philterConfiguration);
-        } else {
-            policyService = new InMemoryPolicyService();
-        }
-
-        return policyService;
-
+    public PolicyDataService policyDataService() {
+        return new PolicyDataService(mongoClient());
     }
 
     @Bean
@@ -143,6 +135,11 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public VectorService vectorService() {
         return new InMemoryVectorService();
+    }
+
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return new InMemoryUserDetailsManager();
     }
 
 }

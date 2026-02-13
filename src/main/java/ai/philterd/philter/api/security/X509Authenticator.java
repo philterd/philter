@@ -23,14 +23,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@Order(1)
 public class X509Authenticator {
 
     private static final Logger LOGGER = LogManager.getLogger(X509Authenticator.class);
@@ -48,7 +49,7 @@ public class X509Authenticator {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         if(!StringUtils.equalsIgnoreCase(clientAuth, "none")) {
 
@@ -68,8 +69,7 @@ public class X509Authenticator {
             http
                     .authorizeHttpRequests(auth -> auth
                             .requestMatchers(requestUtil::isFrameworkInternalRequest).permitAll()
-                            .requestMatchers("/public/**", "/styles/**", "/images/**", "/VAADIN/**").permitAll()
-                            .requestMatchers("/api/status").permitAll()
+                            .requestMatchers("/public/**", "/styles/**", "/images/**", "/VAADIN/**", "/api/status").permitAll()
                             .anyRequest().permitAll()
                     )
                     .csrf(csrf -> csrf

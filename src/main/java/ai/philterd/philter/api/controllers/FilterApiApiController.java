@@ -21,7 +21,9 @@ import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
-import ai.philterd.philter.services.policies.PolicyService;
+import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.services.PolicyDataService;
+import com.google.gson.Gson;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,13 +44,15 @@ public class FilterApiApiController extends AbstractApiController {
 
     private final PdfFilterService pdfFilterService;
     private final PlainTextFilterService plainTextFilterService;
-    private final PolicyService policyService;
+    private final PolicyDataService policyDataService;
+    private final Gson gson;
 
     @Autowired
-    public FilterApiApiController(final PlainTextFilterService plainTextFilterService, final PdfFilterService pdfFilterService, final PolicyService policyService) {
+    public FilterApiApiController(final PlainTextFilterService plainTextFilterService, final PdfFilterService pdfFilterService, final PolicyDataService policyDataService, final Gson gson) {
         this.pdfFilterService = pdfFilterService;
         this.plainTextFilterService = plainTextFilterService;
-        this.policyService = policyService;
+        this.policyDataService = policyDataService;
+        this.gson = gson;
     }
 
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = "application/zip", consumes = MediaType.APPLICATION_PDF_VALUE)
@@ -59,7 +63,8 @@ public class FilterApiApiController extends AbstractApiController {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as ZIP.");
 
-        final Policy policy = policyService.get(policyName);
+        final PolicyEntity policyEntity = policyDataService.get(policyName);
+        final Policy policy = gson.fromJson(gson.toJson(policyEntity.getPolicy()), Policy.class);
         final BinaryDocumentFilterResult response = pdfFilterService.filter(policy, context, body, MimeType.IMAGE_JPEG);
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -75,7 +80,8 @@ public class FilterApiApiController extends AbstractApiController {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as PDF.");
 
-        final Policy policy = policyService.get(policyName);
+        final PolicyEntity policyEntity = policyDataService.get(policyName);
+        final Policy policy = gson.fromJson(gson.toJson(policyEntity.getPolicy()), Policy.class);
         final BinaryDocumentFilterResult response = pdfFilterService.filter(policy, context, body, MimeType.APPLICATION_PDF);
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -89,7 +95,8 @@ public class FilterApiApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestBody String body) throws Exception {
 
-        final Policy policy = policyService.get(policyName);
+        final PolicyEntity policyEntity = policyDataService.get(policyName);
+        final Policy policy = gson.fromJson(gson.toJson(policyEntity.getPolicy()), Policy.class);
         final TextFilterResult response = plainTextFilterService.filter(policy, context, body);
 
         return ResponseEntity.status(HttpStatus.OK)

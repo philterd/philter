@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.2</version>
+        <version>4.0.2</version>
     </parent>
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
@@ -69,9 +69,9 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
         <json.version>20251224</json.version>
-        <spring.boot.version>3.4.2</spring.boot.version>
+        <spring.boot.version>4.0.2</spring.boot.version>
         <spring-security.version>6.5.7</spring-security.version>
-        <vaadin.version>24.9.11</vaadin.version>
+        <vaadin.version>25.0.5</vaadin.version>
         <commons.codec.version>1.19.0</commons.codec.version>
         <commons.io.version>2.20.0</commons.io.version>
         <commons.lang3.version>3.19.0</commons.lang3.version>
@@ -251,6 +251,43 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>9.0.2</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+                    <commitIdGenerationMode>full</commitIdGenerationMode>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>^git.commit.id.full$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Implementation-Title>${project.name}</Implementation-Title>
+                            <Implementation-Version>${project.version}</Implementation-Version>
+                            <Git-SHA>${git.commit.id.full}</Git-SHA>
+                            <Build-Time>${maven.build.timestamp}</Build-Time>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     <profiles>
@@ -411,7 +448,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.13</version>
+            <version>3.0.1</version>
         </dependency>
         <dependency>
             <groupId>commons-net</groupId>

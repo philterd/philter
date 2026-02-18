@@ -20,6 +20,7 @@ import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
+import com.vaadin.flow.spring.security.RequestUtil;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,10 +37,12 @@ public class SecurityConfig {
 
     private final MongoClient mongoClient;
     private final Gson gson;
+    private final RequestUtil requestUtil;
 
-    public SecurityConfig(final MongoClient mongoClient, final Gson gson) {
+    public SecurityConfig(final MongoClient mongoClient, final Gson gson, final RequestUtil requestUtil) {
         this.mongoClient = mongoClient;
         this.gson = gson;
+        this.requestUtil = requestUtil;
     }
 
     @Bean
@@ -50,6 +53,25 @@ public class SecurityConfig {
     @Bean
     @java.lang.SuppressWarnings("squid:S4502")  // Disabling CSRF is ok here since this is a stateless REST API.
     public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher, final SizeLimitingFilter sizeLimitingFilter) throws Exception {
+
+        http
+                .authorizeHttpRequests(auth -> auth
+
+                        // 1. Explicitly permit Vaadin's internal framework requests (Critical)
+                        .requestMatchers(requestUtil::isFrameworkInternalRequest).permitAll()
+
+                        // 2. Explicitly permit the paths for anonymous/public views
+                        .requestMatchers("/", "/api", "/contexts", "/lists", "/policies", "/sdks").permitAll()
+
+                        // 3. Permit access to static resources (Added /VAADIN/** to fix login loop)
+                        .requestMatchers("/public/**", "/styles/**", "/icons/**", "/VAADIN/**").permitAll()
+
+                        .requestMatchers("/api/**").authenticated()
+
+                        // 4. All other requests require authentication (The most restrictive rule, published last)
+                       // .anyRequest().authenticated()
+
+                );
 
         http.addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, gson), UsernamePasswordAuthenticationFilter.class);

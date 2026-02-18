@@ -49,11 +49,9 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
         LOGGER.debug("API path requested: {}", path);
 
         // Don't authorize requests to health check endpoint.
-        if ("/health".equals(path) || "/actuator/health".equals(path)) {
+        if ("/api/health".equals(path) || "/api/status".equals(path)) {
 
-            LOGGER.trace("Request to health check endpoint, ignoring: {}", path);
-
-            final Map<String, Object> health = Map.of("health", "ok");
+            LOGGER.trace("Request to health check/status endpoint, allowing: {}", path);
 
             final Properties props = new Properties();
             props.load(getClass().getClassLoader().getResourceAsStream("git.properties"));
@@ -67,8 +65,9 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             httpServletResponse.setCharacterEncoding("UTF-8");
             httpServletResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
             httpServletResponse.setHeader("Pragma", "no-cache");
-            httpServletResponse.setHeader("X-App-Version", gitHash);
             httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+
+            final Map<String, Object> health = Map.of("health", "ok", "git-commit", gitHash);
 
             final String responseToClient = gson.toJson(health);
 
@@ -80,7 +79,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             // Allow all access to the OpenAPI specs.
             chain.doFilter(request, response);
 
-        } else {
+        } else if(path.startsWith("/api/")) {
 
             // Create a request ID.
             final String requestId = RequestIdGenerator.generate();
@@ -115,7 +114,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
             }
 
-            if (apiKeyEntity != null) {
+            if(apiKeyEntity != null) {
 
                 // TODO: Implement IP address restrictions.
 
@@ -132,7 +131,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
             }
 
-            final ContentCachingRequestWrapper reqWrapper = new ContentCachingRequestWrapper((HttpServletRequest) request);
+            // TODO: Set an appropriate value for the limit.
+            final ContentCachingRequestWrapper reqWrapper = new ContentCachingRequestWrapper((HttpServletRequest) request, 0);
             final ContentCachingResponseWrapper resWrapper = new ContentCachingResponseWrapper((HttpServletResponse) response);
 
             final long startTime = System.currentTimeMillis();
@@ -161,6 +161,10 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                 resWrapper.copyBodyToResponse();
 
             }
+
+        } else {
+
+            chain.doFilter(request, response);
 
         }
 

@@ -30,17 +30,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Route(value = "sdks")
-@PageTitle("Philter - SDKs")
+@PageTitle("Philter - Client SDKs")
 @AnonymousAllowed
 public class SdksView extends AbstractView {
 
     private static final Logger LOGGER = LogManager.getLogger(SdksView.class);
 
+    @Override
+    public String getHelpMarkdownText() {
+        return "Placeholder for sdks help text.";
+    }
+
     public SdksView() {
+        super(true);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();
-        pageVerticalLayout.add(new H1("Philter SDKs"));
+        pageVerticalLayout.add(getTitle("Client SDKs"));
 
         final HorizontalLayout sdkRow = new HorizontalLayout();
         sdkRow.setWidthFull();
@@ -54,7 +60,12 @@ public class SdksView extends AbstractView {
         pageVerticalLayout.add(getFooter());
         pageVerticalLayout.setSizeFull();
 
-        setContent(pageVerticalLayout);
+        final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
+        pageHorizontalLayout.add(pageVerticalLayout);
+        pageHorizontalLayout.add(helpWindowVerticalLayout);
+        pageHorizontalLayout.setSizeFull();
+
+        setContent(pageHorizontalLayout);
 
     }
 

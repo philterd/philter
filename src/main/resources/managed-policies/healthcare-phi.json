@@ -1,0 +1,103 @@
+{
+  "version": "1.0.0",
+  "name": "managed_healthcare_phi",
+  "description": "Healthcare PHI including names, dates, addresses, and medical identifiers",
+  "lens": "healthcare",
+  "filters": {
+    "email-address": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "state": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "ssn": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "city": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "phone-number": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "zip-code": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "person": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "date": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ],
+    "age": [
+      {
+        "strategy": "Redact",
+        "parameters": {},
+        "simplifiedCondition": {
+          "confidence": 85
+        },
+        "redactionScope": "Document"
+      }
+    ]
+  },
+  "termsToIgnore": [],
+  "termsToAlwaysRedact": [],
+  "highlightChangesinWordDocuments": false,
+  "turnOnRevisionsinWordDocuments": false,
+  "disambiguationScope": "Document"
+}

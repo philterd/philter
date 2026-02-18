@@ -8,6 +8,7 @@
     "@vaadin/common-frontend": "0.0.19",
     "@vaadin/polymer-legacy-adapter": "24.9.10",
     "@vaadin/react-components": "24.9.10",
+    "@vaadin/react-components-pro": "24.9.10",
     "@vaadin/vaadin-development-mode-detector": "2.0.7",
     "@vaadin/vaadin-lumo-styles": "24.9.10",
     "@vaadin/vaadin-material-styles": "24.9.10",
@@ -16,6 +17,7 @@
     "construct-style-sheets-polyfill": "3.1.0",
     "date-fns": "2.29.3",
     "lit": "3.3.2",
+    "proj4": "2.15.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router": "7.12.0"
@@ -48,6 +50,7 @@
       "@vaadin/common-frontend": "0.0.19",
       "@vaadin/polymer-legacy-adapter": "24.9.10",
       "@vaadin/react-components": "24.9.10",
+      "@vaadin/react-components-pro": "24.9.10",
       "@vaadin/vaadin-development-mode-detector": "2.0.7",
       "@vaadin/vaadin-lumo-styles": "24.9.10",
       "@vaadin/vaadin-material-styles": "24.9.10",
@@ -56,6 +59,7 @@
       "construct-style-sheets-polyfill": "3.1.0",
       "date-fns": "2.29.3",
       "lit": "3.3.2",
+      "proj4": "2.15.0",
       "react": "18.3.1",
       "react-dom": "18.3.1",
       "react-router": "7.12.0"
@@ -81,7 +85,7 @@
       "workbox-core": "7.3.0",
       "workbox-precaching": "7.3.0"
     },
-    "hash": "375b6f8aeba1fffcef5343ff3c112cbe9c48be040f147c07652eabb194bfc102"
+    "hash": "839ad531eb3d96c5ec3ab1807f51a9214fffcfcda30f1bdb422a3caba3808c36"
   },
   "overrides": {
     "@vaadin/vaadin-development-mode-detector": "$@vaadin/vaadin-development-mode-detector",
@@ -158,6 +162,16 @@
     "@vaadin/upload": "24.9.10",
     "@vaadin/router": "2.0.1",
     "@vaadin/vertical-layout": "24.9.10",
-    "@vaadin/virtual-list": "24.9.10"
+    "@vaadin/virtual-list": "24.9.10",
+    "@vaadin/react-components-pro": "$@vaadin/react-components-pro",
+    "proj4": "$proj4",
+    "@vaadin/board": "24.9.10",
+    "@vaadin/charts": "24.9.10",
+    "@vaadin/cookie-consent": "24.9.10",
+    "@vaadin/crud": "24.9.10",
+    "@vaadin/dashboard": "24.9.10",
+    "@vaadin/grid-pro": "24.9.10",
+    "@vaadin/map": "24.9.10",
+    "@vaadin/rich-text-editor": "24.9.10"
   }
 }

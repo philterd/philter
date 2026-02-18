@@ -18,8 +18,11 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
-import ai.philterd.philter.services.PolicyDataService;
+import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -40,7 +43,9 @@ public class ExplainApiApiController extends AbstractApiController {
     private final Gson gson;
 
     @Autowired
-    public ExplainApiApiController(final PlainTextFilterService plainTextFilterService, final PolicyDataService policyDataService, final Gson gson) {
+    public ExplainApiApiController(final PlainTextFilterService plainTextFilterService, final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
+                                   final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
+        super(apiKeyDataService, apiKeyCache);
         this.plainTextFilterService = plainTextFilterService;
         this.policyDataService = policyDataService;
         this.gson = gson;
@@ -52,7 +57,7 @@ public class ExplainApiApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestBody String body) throws Exception {
 
-        final PolicyEntity policyEntity = policyDataService.get(policyName);
+        final PolicyEntity policyEntity = policyDataService.findOne(policyName);
         final Policy policy = gson.fromJson(gson.toJson(policyEntity.getPolicy()), Policy.class);
         final TextFilterResult response = plainTextFilterService.filter(policy, context, body);
 

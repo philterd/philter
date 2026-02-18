@@ -23,7 +23,24 @@ import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.data.MongoClientUtil;
-import ai.philterd.philter.services.PolicyDataService;
+import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
+import ai.philterd.philter.data.providers.CustomListEntityDataProvider;
+import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.ContextDataService;
+import ai.philterd.philter.data.services.ContextEntryDataService;
+import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.data.services.LensDataService;
+import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.audit.NoOpAuditEventPublisher;
+import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.encryption.LocalEncryptionService;
+import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
+import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
+import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.page.AppShellConfigurator;
@@ -47,15 +64,22 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Properties;
 
-@PropertySource(value="file:philter.properties")
+@PropertySource(value="file:philter.properties", ignoreResourceNotFound = true)
 @Configuration
 @Theme(value="philter", variant=Lumo.LIGHT)
 @SpringBootApplication
 public class PhilterApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
+
+    private final String CACHE_HOSTNAME = System.getenv().getOrDefault("CACHE_HOSTNAME", "localhost");
+    private final String CACHE_PASSWORD = System.getenv().getOrDefault("CACHE_PASSWORD", "");
+    private final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv().getOrDefault("CACHE_SSL", "false"));
 
     public static void main(String[] args) {
 
@@ -109,22 +133,107 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public PhileasConfiguration phileasConfiguration() throws IOException {
 
-        final FileReader fileReader = new FileReader("philter.properties");
         final Properties properties = new Properties();
-        properties.load(fileReader);
+
+        final Path path = Paths.get("philter.properties");
+        if(Files.exists(path)) {
+            final FileReader fileReader = new FileReader("philter.properties");
+            properties.load(fileReader);
+        } else {
+            LOGGER.warn("Philter configuration file not found: philter.properties. Default values will be used.");
+        }
 
         return new PhileasConfiguration(properties);
 
     }
 
     @Bean
+    public AuditEventPublisher auditEventPublisher() {
+        return new NoOpAuditEventPublisher();
+    }
+
+    @Bean
     public PhilterConfiguration philterConfiguration() throws IOException {
-        return  new PhilterConfiguration("philter.properties", "Philter");
+
+        final Properties properties = new Properties();
+
+        final Path path = Paths.get("philter.properties");
+        if(Files.exists(path)) {
+            final FileReader fileReader = new FileReader("philter.properties");
+            properties.load(fileReader);
+        } else {
+            LOGGER.warn("Philter configuration file not found: philter.properties. Default values will be used.");
+        }
+
+        return new PhilterConfiguration(properties);
+
+    }
+
+    @Bean
+    public ContextCache contextCache() {
+        LOGGER.info("Initializing context cache.");
+        return new ContextCache(CACHE_HOSTNAME, 6379, CACHE_PASSWORD, CACHE_SSL);
+    }
+
+    @Bean
+    public ApiKeyCache apiKeyCache() {
+        LOGGER.info("Initializing API key cache.");
+        return new ApiKeyCache(CACHE_HOSTNAME, 6379, CACHE_PASSWORD, CACHE_SSL);
+    }
+
+    @Bean
+    public ContextEntryDataService contextEntryDataService() {
+        return new ContextEntryDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public ContextDataService contextDataService() {
+        return new ContextDataService(mongoClient(), contextCache(), auditEventPublisher());
+    }
+
+    @Bean
+    public OpenSearchRedactionsUsageService openSearchRedactionsUsageService() {
+        return new OpenSearchRedactionsUsageService();
+    }
+
+    @Bean
+    public ApiRequestsUsageService apiRequestsUsageService() {
+        return new OpenSearchApiRequestsUsageService();
+    }
+
+    @Bean
+    public GlobalTermsDataService globalTermsService() {
+        return new GlobalTermsDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public LensDataService lensDataService() {
+        return new LensDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public ApiKeyDataService apiKeyDataService() {
+        return new ApiKeyDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean
     public PolicyDataService policyDataService() {
-        return new PolicyDataService(mongoClient());
+        return new PolicyDataService(mongoClient(), auditEventPublisher(), gson());
+    }
+
+    @Bean
+    public CustomListDataService customListDataService() {
+        return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
+    }
+
+    @Bean
+    public CustomListEntityDataProvider customListEntityDataProvider(final CustomListDataService customListDataService) {
+        return new CustomListEntityDataProvider(customListDataService);
+    }
+
+    @Bean
+    public EncryptionService encryptionService() {
+        return new LocalEncryptionService();
     }
 
     @Bean
@@ -140,6 +249,11 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public UserDetailsService userDetailsService() {
         return new InMemoryUserDetailsManager();
+    }
+
+    @Bean
+    public ApiKeyEntityDataProvider apiKeyEntityDataProvider() {
+        return new ApiKeyEntityDataProvider(apiKeyDataService());
     }
 
 }

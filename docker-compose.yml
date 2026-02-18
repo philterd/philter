@@ -36,5 +36,14 @@ services:
     networks:
       - philter
 
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey
+    ports:
+      - "6379:6379"
+    networks:
+      - philter
+    command: valkey-server --save 60 1 --loglevel warning
+
 networks:
   philter:

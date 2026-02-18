@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.services.cache.ApiKeyCache;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
@@ -32,11 +34,14 @@ public class StatusApiApiController extends AbstractApiController {
 
     private static final Logger LOGGER = LogManager.getLogger(StatusApiApiController.class);
 
+    public StatusApiApiController(final ApiKeyDataService apiKeyDataService, final ApiKeyCache apiKeyCache) {
+        super(apiKeyDataService, apiKeyCache);
+    }
+
     @RequestMapping(value = {"/api/status", "/api/health"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> status() throws IOException {
 
         return new ResponseEntity<>("healthy: " + getVersion(), HttpStatus.OK);
-
 
     }
 

@@ -17,25 +17,15 @@ package ai.philterd.philter;
 
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
 
 public class PhilterConfiguration {
 
    private final Properties properties;
-   private final String applicationName;
 
-    public PhilterConfiguration(String propertyFileName, String applicationName) throws IOException {
-        FileReader fileReader = new FileReader(propertyFileName);
-        this.properties = new Properties();
-        this.properties.load(fileReader);
-        this.applicationName = applicationName;
-    }
-
-    public PhilterConfiguration(final Properties properties, final String applicationName) {
+    public PhilterConfiguration(final Properties properties) throws IOException {
         this.properties = properties;
-        this.applicationName = applicationName;
     }
 
     private String getProperty(final String property, final String defaultValue) {

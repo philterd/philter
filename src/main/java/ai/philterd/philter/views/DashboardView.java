@@ -15,12 +15,11 @@
  */
 package ai.philterd.philter.views;
 
-import com.google.gson.Gson;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -33,7 +32,6 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Route(value = "")
 @PageTitle("Philter - Dashboard")
@@ -42,12 +40,17 @@ public class DashboardView extends AbstractView {
 
     private static final Logger LOGGER = LogManager.getLogger(DashboardView.class);
 
-    @Autowired
-    public DashboardView(final Gson gson) {
+    @Override
+    public String getHelpMarkdownText() {
+        return "Placeholder for dashboard help text.";
+    }
+
+    public DashboardView() {
+        super(true);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();
-        pageVerticalLayout.add(new H1("Philter Dashboard"));
+        pageVerticalLayout.add(getTitle(("Philter Dashboard")));
 
         final HorizontalLayout filterHorizontalLayout = new HorizontalLayout();
         filterHorizontalLayout.setWidthFull();
@@ -55,14 +58,15 @@ public class DashboardView extends AbstractView {
         filterHorizontalLayout.add(createPdfFilter());
 
         pageVerticalLayout.add(filterHorizontalLayout);
-
-        pageVerticalLayout.add(new H2("Usage Metrics"));
-        pageVerticalLayout.add(new Paragraph("Metrics are not persistent and reset upon Philter restart."));
-
         pageVerticalLayout.add(getFooter());
         pageVerticalLayout.setSizeFull();
 
-        setContent(pageVerticalLayout);
+        final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
+        pageHorizontalLayout.add(pageVerticalLayout);
+        pageHorizontalLayout.add(helpWindowVerticalLayout);
+        pageHorizontalLayout.setSizeFull();
+
+        setContent(pageHorizontalLayout);
 
     }
 

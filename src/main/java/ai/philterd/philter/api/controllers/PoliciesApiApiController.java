@@ -17,9 +17,14 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
-import ai.philterd.philter.services.PolicyDataService;
+import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -42,15 +47,21 @@ public class PoliciesApiApiController extends AbstractApiController {
     private final PolicyDataService policyDataService;
     private final Gson gson;
 
-    public PoliciesApiApiController(final PolicyDataService policyDataService, final Gson gson) {
+    public PoliciesApiApiController(final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
+                                    final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
+        super(apiKeyDataService, apiKeyCache);
         this.policyDataService = policyDataService;
         this.gson = gson;
     }
 
     @RequestMapping(value = "/api/policies", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<List<String>> getPolicyNames() throws IOException {
+    public @ResponseBody ResponseEntity<List<String>> getPolicyNames(
+            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "limit", defaultValue = "25") int limit
+    ) {
 
-        final List<String> policyNames = policyDataService.get();
+        final List<PolicyEntity> policies = policyDataService.findAll(offset, limit, false);
+        final List<String> policyNames = policies.stream().map(PolicyEntity::getName).toList();
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(policyNames);
@@ -64,7 +75,7 @@ public class PoliciesApiApiController extends AbstractApiController {
             throw new BadRequestException("The policy name is missing.");
         }
 
-        final PolicyEntity policyEntity = policyDataService.get(policyName);
+        final PolicyEntity policyEntity = policyDataService.findOne(policyName);
         final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -87,13 +98,16 @@ public class PoliciesApiApiController extends AbstractApiController {
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.DELETE)
     @ResponseStatus(HttpStatus.OK)
     public void delete(
-            @PathVariable(name = "policyName") String policyName) throws IOException {
+            @PathVariable(name = "policyName") String policyName,
+            final HttpServletRequest request) throws IOException {
 
         if (StringUtils.isEmpty(policyName)) {
             throw new BadRequestException("The policy name is missing.");
         }
 
-        policyDataService.delete(policyName);
+        final String requestId = RequestIdGenerator.generate();
+
+        policyDataService.deleteByName(requestId, policyName, getClientIpAddress(request));
 
     }
 

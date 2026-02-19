@@ -5,6 +5,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.usage.AbstractUsageService;
+import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import jakarta.servlet.FilterChain;
@@ -13,7 +14,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.commons.net.util.SubnetUtils;
+import org.apache.commons.lang3.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -23,7 +24,6 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -32,12 +32,15 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiAuthenticationFilter.class);
     private static final Pattern API_KEY_PATTERN = Pattern.compile("^sk_[a-zA-Z0-9]{32}$");
+    private static final String API_REQUESTS_INDEXING_ENABLED = System.getenv().getOrDefault("API_REQUESTS_INDEXING_ENABLED", "false");
 
     private final ApiKeyDataService apiKeyService;
+    private final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService;
     private final Gson gson;
 
-    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson) {
+    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService, final Gson gson) {
         this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher);
+        this.openSearchApiRequestsUsageService = openSearchApiRequestsUsageService;
         this.gson = gson;
     }
 
@@ -154,8 +157,10 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                 logEntry.put("duration_ms", duration);
                 logEntry.put("api_key", apiKey);
 
-                // TODO: Index this API request (if enabled).
-                queueApiRequest(logEntry);
+                // Index this API request (if enabled).
+                if(Strings.CI.equals(API_REQUESTS_INDEXING_ENABLED, "true")) {
+                    indexApiRequest(logEntry);
+                }
 
                 // Copy the request back to the client.
                 resWrapper.copyBodyToResponse();
@@ -171,8 +176,14 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     }
 
     @Async
-    protected void queueApiRequest(final Map<String, Object> logEntry) {
-        // TODO: Put this request onto a queue to be indexed.
+    protected void indexApiRequest(final Map<String, Object> logEntry) {
+
+        try {
+            openSearchApiRequestsUsageService.index(logEntry);
+        } catch (Exception ex) {
+            LOGGER.error("Error indexing API request: {}", ex.getMessage());
+        }
+
     }
 
     public boolean isIpAddressAllowed(final String ipAddress) {

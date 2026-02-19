@@ -18,6 +18,8 @@ package ai.philterd.philter.api.security;
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
+import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.spring.security.RequestUtil;
@@ -52,7 +54,7 @@ public class SecurityConfig {
 
     @Bean
     @java.lang.SuppressWarnings("squid:S4502")  // Disabling CSRF is ok here since this is a stateless REST API.
-    public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher, final SizeLimitingFilter sizeLimitingFilter) throws Exception {
+    public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher, final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService, final SizeLimitingFilter sizeLimitingFilter) throws Exception {
 
         http
                 .authorizeHttpRequests(auth -> auth
@@ -74,7 +76,7 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, gson), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, openSearchApiRequestsUsageService, gson), UsernamePasswordAuthenticationFilter.class);
         http.csrf(AbstractHttpConfigurer::disable);
 
         return http.build();

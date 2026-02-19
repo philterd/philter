@@ -20,9 +20,6 @@ public class UsageService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UsageService.class);
 
-    public static final int MIN_DAYS = 1;
-    public static final int MAX_DAYS = 365;
-
     private final ApiRequestsUsageService openSearchApiRequestsService;
     private final RedactionsUsageService openSearchRedactionsService;
 

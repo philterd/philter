@@ -16,6 +16,8 @@ services:
         condition: service_started
     build:
       context: .
+    environment:
+      API_REQUESTS_INDEXING_ENABLED: true
     ports:
       - "8080:8080"
     volumes:

@@ -197,7 +197,7 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public ApiRequestsUsageService apiRequestsUsageService() {
+    public OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService() {
         return new OpenSearchApiRequestsUsageService();
     }
 

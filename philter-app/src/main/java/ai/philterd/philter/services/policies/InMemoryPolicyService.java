@@ -46,8 +46,8 @@ public class InMemoryPolicyService implements PolicyService {
     }
 
     @Override
-    public void save(Policy policy) {
-        policies.put(policy.getName(), policy);
+    public void save(Policy policy, String policyName) {
+        policies.put(policyName, policy);
     }
 
     @Override

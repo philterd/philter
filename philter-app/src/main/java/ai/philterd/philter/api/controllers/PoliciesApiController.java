@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -69,9 +70,9 @@ public class PoliciesApiController extends AbstractController {
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public void save(
-            @RequestBody Policy policy) throws IOException {
+            @RequestBody Policy policy, @RequestParam("name") String policyName) throws IOException {
 
-        policyService.save(policy);
+        policyService.save(policy, policyName);
 
     }
 

@@ -25,7 +25,6 @@ import ai.philterd.philter.services.policies.PolicyService;
 import com.google.gson.Gson;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,8 +53,8 @@ public class LocalPolicyServiceTest {
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration());
 
-        policyService.save(getPolicy("name1"));
-        policyService.save(getPolicy("name2"));
+        policyService.save(getPolicy(), "name1");
+        policyService.save(getPolicy(), "name2");
 
         final List<String> names = policyService.get();
 
@@ -70,10 +69,14 @@ public class LocalPolicyServiceTest {
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration());
 
-        policyService.save(getPolicy("name1"));
-        policyService.save(getPolicy("name2"));
+        policyService.save(getPolicy(), "name1");
+        policyService.save(getPolicy(), "name2");
 
         final Map<String, Policy> all = policyService.getAll();
+
+        for(String s : all.keySet()) {
+            System.out.println(s);
+        }
 
         Assert.assertEquals(2, all.size());
         Assert.assertTrue(all.containsKey("name1"));
@@ -86,11 +89,11 @@ public class LocalPolicyServiceTest {
 
         final String name = "default";
 
-        final Policy policy = getPolicy(name);
+        final Policy policy = getPolicy();
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration());
 
-        policyService.save(policy);
+        policyService.save(policy, name);
 
         final Policy saved = policyService.get("default");
 
@@ -104,11 +107,11 @@ public class LocalPolicyServiceTest {
 
         final String name = "default";
 
-        final Policy policy = getPolicy(name);
+        final Policy policy = getPolicy();
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration());
 
-        policyService.save(policy);
+        policyService.save(policy, name);
 
         final Policy retrievedPolicy = policyService.get(name);
 
@@ -120,11 +123,11 @@ public class LocalPolicyServiceTest {
     public void delete() throws IOException {
 
         final String name = "default";
-        final Policy policy = getPolicy(name);
+        final Policy policy = getPolicy();
 
         final PolicyService policyService = new LocalPolicyService(getConfiguration());
 
-        policyService.save(policy);
+        policyService.save(policy, name);
 
         policyService.delete(name);
 
@@ -148,7 +151,7 @@ public class LocalPolicyServiceTest {
 
     }
 
-    private Policy getPolicy(String name) {
+    private Policy getPolicy() {
 
         AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
 
@@ -156,11 +159,9 @@ public class LocalPolicyServiceTest {
         age.setAgeFilterStrategies(List.of(ageFilterStrategy));
 
         Identifiers identifiers = new Identifiers();
-
         identifiers.setAge(age);
 
         Policy policy = new Policy();
-        policy.setName(name);
         policy.setIdentifiers(identifiers);
 
         return policy;

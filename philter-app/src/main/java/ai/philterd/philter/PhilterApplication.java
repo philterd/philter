@@ -22,9 +22,7 @@ import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
-import ai.philterd.philter.services.policies.InMemoryPolicyService;
 import ai.philterd.philter.services.policies.LocalPolicyService;
-import ai.philterd.philter.services.policies.OpenSearchPolicyService;
 import ai.philterd.philter.services.policies.PolicyService;
 import com.google.gson.Gson;
 import org.apache.hc.client5.http.classic.HttpClient;
@@ -118,18 +116,7 @@ public class PhilterApplication {
     public PolicyService policyService() throws Exception {
 
         final PhilterConfiguration philterConfiguration = philterConfiguration();
-
-        final PolicyService policyService;
-
-        if("local".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new LocalPolicyService(philterConfiguration);
-        } else if("opensearch".equalsIgnoreCase(philterConfiguration.policyService())) {
-            policyService = new OpenSearchPolicyService(philterConfiguration);
-        } else {
-            policyService = new InMemoryPolicyService();
-        }
-
-        return policyService;
+        return new LocalPolicyService(philterConfiguration);
 
     }
 

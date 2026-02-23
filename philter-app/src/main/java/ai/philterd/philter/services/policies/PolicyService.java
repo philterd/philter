@@ -35,7 +35,7 @@ public interface PolicyService {
      * @param policy The content of the policy as JSON.
      * @throws IOException Thrown if the policy cannot be saved.
      */
-    void save(Policy policy) throws IOException;
+    void save(Policy policy, String policyName) throws IOException;
 
     /**
      * Deletes a policy.

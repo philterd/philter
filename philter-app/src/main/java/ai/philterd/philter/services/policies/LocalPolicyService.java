@@ -21,7 +21,6 @@ import com.google.gson.Gson;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -29,7 +28,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -54,25 +52,10 @@ public class LocalPolicyService implements PolicyService {
     @Override
     public List<String> get() throws IOException {
 
-        // This function never uses a cache.
-
-        final List<String> names = new LinkedList<>();
-
         // Read the policies from the file system.
         final Collection<File> files = FileUtils.listFiles(new File(policiesDirectory), new String[]{"json"}, false);
 
-        for(final File file : files) {
-
-            final String json = FileUtils.readFileToString(file, Charset.defaultCharset());
-
-            final JSONObject object = new JSONObject(json);
-            final String name = object.getString("name");
-
-            names.add(name);
-
-        }
-
-        return names;
+        return files.stream().map(File::getName).map(name -> name.substring(0, name.length() - JSON_EXTENSION.length())).toList();
 
     }
 
@@ -112,8 +95,8 @@ public class LocalPolicyService implements PolicyService {
 
             final Policy policy = gson.fromJson(json, Policy.class);
 
-            policies.put(policy.getName(), policy);
-            LOGGER.info("Added policy named [{}]", policy.getName());
+            policies.put(file.getName().replace(JSON_EXTENSION, ""), policy);
+            LOGGER.info("Added policy named [{}]", file.getName());
 
         }
 
@@ -122,9 +105,8 @@ public class LocalPolicyService implements PolicyService {
     }
 
     @Override
-    public void save(Policy policy) throws IOException {
+    public void save(Policy policy, String policyName) throws IOException {
 
-        final String policyName = policy.getName();
         final String policyJson = gson.toJson(policy);
 
         final File file = new File(policiesDirectory, policyName + JSON_EXTENSION);

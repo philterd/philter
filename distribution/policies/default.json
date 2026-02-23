@@ -1,30 +1,4 @@
 {
-  "name": "default",
-  "config": {
-    "splitting": {
-      "enabled": true,
-      "threshold": 384,
-      "method": "width"
-    },
-    "pdf": {
-      "redactionColor": "black",
-      "showReplacement": false,
-      "replacementFont": "helvetica",
-      "replacementMaxFontSize": 12.0,
-      "scale": 0.25,
-      "dpi": 150,
-      "compressionQuality": 1.0,
-      "preserveUnredactedPages": false
-    },
-    "postFilters": {
-      "removeTrailingPeriods": true,
-      "removeTrailingSpaces": true,
-      "removeTrailingNewLines": true
-    },
-    "analysis": {
-      "identification": true
-    }
-  },
   "identifiers": {
     "medicalCondition": {
       "removePunctuation": false,
@@ -33,7 +7,9 @@
         "endpoint": "http://philter-ph-eye-medical-conditions-1:5000",
         "timeout": 600,
         "maxIdleConnections": 30,
-        "labels": ["DISEASE_DISORDER"]
+        "labels": [
+          "DISEASE_DISORDER"
+        ]
       },
       "enabled": true,
       "ignored": [],
@@ -42,22 +18,26 @@
       "windowSize": 0,
       "priority": 0
     },
-    "person": {
-      "removePunctuation": false,
-      "thresholds": {},
-      "phEyeConfiguration": {
-        "endpoint": "http://philter-ph-eye-1:5000",
-        "timeout": 600,
-        "maxIdleConnections": 30,
-        "labels": ["Person"]
-      },
-      "enabled": true,
-      "ignored": [],
-      "ignoredFiles": [],
-      "ignoredPatterns": [],
-      "windowSize": 0,
-      "priority": 0
-    },
+    "pheye": [
+      {
+        "removePunctuation": false,
+        "thresholds": {},
+        "phEyeConfiguration": {
+          "endpoint": "http://philter-ph-eye-1:5000",
+          "timeout": 600,
+          "maxIdleConnections": 30,
+          "labels": [
+            "Person"
+          ]
+        },
+        "enabled": true,
+        "ignored": [],
+        "ignoredFiles": [],
+        "ignoredPatterns": [],
+        "windowSize": 0,
+        "priority": 0
+      }
+    ],
     "age": {
       "ageFilterStrategies": [
         {

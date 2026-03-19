@@ -18,7 +18,6 @@ package ai.philterd.philter.views;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.UserEntity;
-import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
 import ai.philterd.philter.data.providers.ContextEntityDataProvider;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;

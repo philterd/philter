@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;

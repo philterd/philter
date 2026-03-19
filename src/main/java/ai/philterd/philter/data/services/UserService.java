@@ -15,9 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.DataInitializer;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;

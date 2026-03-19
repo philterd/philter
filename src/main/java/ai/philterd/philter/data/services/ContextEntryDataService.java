@@ -15,11 +15,10 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;

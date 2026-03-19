@@ -16,8 +16,8 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import com.mongodb.client.MongoClient;
 import org.bson.types.ObjectId;

@@ -29,6 +29,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.views.components.policyeditor.PolicyEditorComponents;
 import ai.philterd.philter.views.widgets.CommonWidgets;
+import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -50,7 +51,6 @@ import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.gson.Gson;
 import java.util.stream.Collectors;
 
 @Route(value = "policies")

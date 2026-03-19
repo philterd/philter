@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.api.security;
 
-import static com.vaadin.flow.spring.security.VaadinSecurityConfigurer.vaadin;
-import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
-
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -29,7 +26,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -37,6 +33,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
+
+import static com.vaadin.flow.spring.security.VaadinSecurityConfigurer.vaadin;
 
 @Configuration
 @EnableWebSecurity

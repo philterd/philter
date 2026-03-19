@@ -139,6 +139,8 @@ public class PhilterApplication implements AppShellConfigurator {
             LOGGER.warn("Philter configuration file not found: philter.properties. Default values will be used.");
         }
 
+        properties.put("incremental.redactions.enabled", "true");  // Required for ledger.
+
         return new PhileasConfiguration(properties);
 
     }

@@ -25,6 +25,8 @@ public class UserEntity extends AbstractEncryptedEntity {
     private String email;
     private String password;
     private String role;
+    private String fpeKey;
+    private boolean changesetsEnabled;
 
     public static UserEntity fromDocument(final Document document) {
         final UserEntity userEntity = new UserEntity();
@@ -32,6 +34,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setEmail(document.getString("email"));
         userEntity.setPassword(document.getString("password"));
         userEntity.setRole(document.getString("role"));
+        userEntity.setFpeKey(document.getString("fpe_key"));
+        userEntity.setChangesetsEnabled(document.getBoolean("changesets_enabled", false));
         return userEntity;
     }
 
@@ -44,6 +48,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("email", email);
         document.put("password", password);
         document.put("role", role);
+        document.put("fpe_key", fpeKey);
+        document.put("changesets_enabled", changesetsEnabled);
         return document;
     }
 
@@ -80,4 +86,19 @@ public class UserEntity extends AbstractEncryptedEntity {
         this.role = role;
     }
 
+    public String getFpeKey() {
+        return fpeKey;
+    }
+
+    public void setFpeKey(String fpeKey) {
+        this.fpeKey = fpeKey;
+    }
+
+    public boolean isChangesetsEnabled() {
+        return changesetsEnabled;
+    }
+
+    public void setChangesetsEnabled(boolean changesetsEnabled) {
+        this.changesetsEnabled = changesetsEnabled;
+    }
 }

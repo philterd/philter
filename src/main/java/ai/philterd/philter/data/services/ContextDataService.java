@@ -100,6 +100,20 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
+    public ContextEntity findOneByIdAndUserId(final ObjectId id, final ObjectId userId) {
+
+        final Document query = new Document("_id", id).append("user_id", userId);
+
+        final Document document = collection.find(query).first();
+
+        if(document != null) {
+            return ContextEntity.fromDocument(document);
+        } else {
+            return null;
+        }
+
+    }
+
     public List<ContextEntity> findBySearchTerm(final ObjectId userId, final String searchTerm, final int limit) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);

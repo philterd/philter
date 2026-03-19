@@ -16,6 +16,7 @@
 
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import com.mongodb.client.MongoClient;

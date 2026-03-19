@@ -92,7 +92,7 @@ public class CustomListsApiController extends AbstractApiController {
 
         final List<CustomListEntity> customListEntities = customListService.findAll(userId);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, null, getClientIpAddress(httpServletRequest));
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getId(), getClientIpAddress(httpServletRequest));
 
         final List<String> lists = new ArrayList<>();
 
@@ -132,7 +132,7 @@ public class CustomListsApiController extends AbstractApiController {
 
         } else {
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED, null, customListEntity.getId(), getClientIpAddress(httpServletRequest));
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED, apiKeyEntity.getId(), customListEntity.getId(), getClientIpAddress(httpServletRequest));
 
             final GetListsResponse getListsResponse = new GetListsResponse(customListEntity.getItems());
 

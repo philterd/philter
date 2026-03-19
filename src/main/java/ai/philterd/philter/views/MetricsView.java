@@ -15,16 +15,17 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
 import ai.philterd.philter.services.usage.UsageService;
 import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.dashboard.Dashboard;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,8 +37,7 @@ import java.util.List;
 
 @Route(value = "metrics")
 @PageTitle("Philter - Metrics")
-@AnonymousAllowed
-public class MetricsView extends AbstractView {
+public class MetricsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(MetricsView.class);
 
@@ -47,8 +47,9 @@ public class MetricsView extends AbstractView {
     }
 
     @Autowired
-    public MetricsView(final OpenSearchRedactionsUsageService openSearchRedactionsService, final ApiRequestsUsageService apiRequestsUsageService) throws IOException {
-        super(false);
+    public MetricsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
+                       final OpenSearchRedactionsUsageService openSearchRedactionsService, final ApiRequestsUsageService apiRequestsUsageService) throws IOException {
+        super(mongoClient, encryptionService, auditEventPublisher,false);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();

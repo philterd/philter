@@ -15,17 +15,21 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -36,25 +40,25 @@ import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Route(value = "api")
 @PageTitle("Philter - API")
-@AnonymousAllowed
-public class ApiView extends AbstractView {
+public class ApiKeyView extends AbstractRestrictedView {
 
-    private static final Logger LOGGER = LogManager.getLogger(ApiView.class);
+    private static final Logger LOGGER = LogManager.getLogger(ApiKeyView.class);
 
     @Override
     public String getHelpMarkdownText() {
         return "Placeholder for API help text.";
     }
 
-    public ApiView(final ApiKeyDataService apiKeyService, final ApiKeyEntityDataProvider apiKeyDataProvider) {
+    public ApiKeyView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final ApiKeyDataService apiKeyService, final ApiKeyEntityDataProvider apiKeyDataProvider, final UserService userService) {
 
-        super(true);
+        super(mongoClient, encryptionService, auditEventPublisher, true);
+
+        final UserEntity userEntity = getCurrentUser();
 
         final Grid<ApiKeyEntity> apiKeysGrid = new Grid<>(ApiKeyEntity.class, false);
         apiKeysGrid.addColumn(ApiKeyEntity::getApiKeyPrefix).setHeader("Key").setResizable(true).setSortable(true);
@@ -102,7 +106,7 @@ public class ApiView extends AbstractView {
         createApiKeyButton.addClickListener(event -> {
 
             final String requestId = RequestIdGenerator.generate();
-            final ServiceResponse serviceResponse = apiKeyService.createApiKey(requestId, null, getClientIpAddress());
+            final ServiceResponse serviceResponse = apiKeyService.createApiKey(requestId, userEntity.getId(), getClientIpAddress());
 
             if(serviceResponse.isSuccessful()) {
 

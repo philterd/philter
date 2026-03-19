@@ -15,12 +15,15 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.providers.ContextEntityDataProvider;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -37,7 +40,6 @@ import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -45,8 +47,7 @@ import java.util.Map;
 
 @Route(value = "contexts")
 @PageTitle("Philter - Contexts")
-@AnonymousAllowed
-public class ContextsView extends AbstractView {
+public class ContextsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(ContextsView.class);
 
@@ -110,8 +111,9 @@ public class ContextsView extends AbstractView {
 
     }
 
-    public ContextsView(final ContextDataService contextService, final ContextEntryDataService contextEntryService) {
-        super(true);
+    public ContextsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
+                        final ContextDataService contextService, final ContextEntryDataService contextEntryService) {
+        super(mongoClient, encryptionService, auditEventPublisher, true);
 
         final Grid<ContextEntity> grid = new Grid<>(ContextEntity.class, false);
 
@@ -160,7 +162,7 @@ public class ContextsView extends AbstractView {
                 final String contextName = contextNameTextField.getValue();
                 final boolean coref = corefCheckbox.getValue();
                 final boolean disambiguation = disambiguationCheckbox.getValue();
-                final ServiceResponse serviceResponse = contextService.create(contextName, null, coref, disambiguation);
+                final ServiceResponse serviceResponse = contextService.create(contextName, userEntity.getId(), coref, disambiguation);
 
                 if(serviceResponse.isSuccessful()) {
 
@@ -211,7 +213,7 @@ public class ContextsView extends AbstractView {
                 verticalLayout.add(new Paragraph("Filter type counts for context: " + contextEntity.getContextName()));
 
                 // Get filter type counts instead of showing grid
-                final Map<String, Long> filterTypeCounts = contextEntryService.getFilterTypeCounts(contextEntity.getContextName(), null);
+                final Map<String, Long> filterTypeCounts = contextEntryService.getFilterTypeCounts(contextEntity.getContextName(), userEntity.getId());
 
                 if(filterTypeCounts != null && !filterTypeCounts.isEmpty()) {
 
@@ -317,7 +319,7 @@ public class ContextsView extends AbstractView {
 
                 final Button confirmButton = new Button("Clear", e -> {
 
-                    final ServiceResponse serviceResponse = contextService.emptyByName(contextEntity.getContextName(), null);
+                    final ServiceResponse serviceResponse = contextService.emptyByName(contextEntity.getContextName(), userEntity.getId());
 
                     if(serviceResponse.isSuccessful()) {
 
@@ -360,7 +362,7 @@ public class ContextsView extends AbstractView {
 
                     final Button confirmButton = new Button("Delete", e -> {
 
-                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), null);
+                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), userEntity.getId());
 
                         if(serviceResponse.isSuccessful()) {
 

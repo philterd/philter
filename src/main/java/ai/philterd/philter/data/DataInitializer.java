@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
@@ -42,14 +43,16 @@ public class DataInitializer {
     private final AuditEventPublisher auditEventPublisher;
     private final ContextDataService contextService;
     private final ApiKeyDataService apiKeyService;
+    private final UserService userService;
     private final Gson gson;
 
     // Inject the beans Spring has already created
-    public DataInitializer(final MongoClient mongoClient, final ContextDataService contextService, final ApiKeyDataService apiKeyService, final AuditEventPublisher auditEventPublisher, final Gson gson) {
+    public DataInitializer(final MongoClient mongoClient, final ContextDataService contextService, final ApiKeyDataService apiKeyService, final UserService userService, final AuditEventPublisher auditEventPublisher, final Gson gson) {
         this.mongoClient = mongoClient;
         this.auditEventPublisher = auditEventPublisher;
         this.contextService = contextService;
         this.apiKeyService = apiKeyService;
+        this.userService = userService;
         this.gson = gson;
     }
 
@@ -57,22 +60,17 @@ public class DataInitializer {
     @EventListener(ApplicationReadyEvent.class)
     public void init() {
 
+        // Check for the admin user.
+        if (userService.findByEmail("admin") == null) {
+            LOGGER.info("Creating default admin user");
+            userService.createUser("admin", "admin", "admin");
+        }
+
+        final ObjectId defaultUserId = userService.findByEmail("admin").getId();
+
         final PolicyDataService policyService = new PolicyDataService(mongoClient, auditEventPublisher, gson);
         // Load managed policies from JSON files
         policyService.loadAndSaveManagedPolicies();
-
-        // Create a default API key if none exists.
-        // This will serve as our default user.
-        final ObjectId defaultUserId;
-        if (apiKeyService.count(null) == 0) {
-            LOGGER.info("Creating default API key");
-            apiKeyService.createApiKey("internal", null, "internal");
-            // The above call returns a ServiceResponse, we need the ID.
-            // Since we know there's only one now:
-            defaultUserId = apiKeyService.findAll(null, 0, 1).get(0).getId();
-        } else {
-            defaultUserId = apiKeyService.findAll(null, 0, 1).get(0).getId();
-        }
 
         // Make sure there is a default context.
         final ContextEntity defaultContextEntity = contextService.findOne("default", defaultUserId);

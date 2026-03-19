@@ -31,6 +31,7 @@ public class CustomListEntity extends AbstractEncryptedEntity {
     private String description;
     private List<String> items;
     private String itemsEncryptedKey;
+    private ObjectId userId;
 
     public static CustomListEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final CustomListEntity customListEntity = new CustomListEntity();
@@ -87,10 +88,6 @@ public class CustomListEntity extends AbstractEncryptedEntity {
         this.id = id;
     }
 
-    public void setUserId(ObjectId userId) {
-        this.userId = userId;
-    }
-
     public String getName() {
         return name;
     }
@@ -121,6 +118,14 @@ public class CustomListEntity extends AbstractEncryptedEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
     }
 
 }

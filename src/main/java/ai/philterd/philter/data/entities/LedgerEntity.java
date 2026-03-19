@@ -39,6 +39,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     private String hash;
     private String filename;
     private String type;
+    private ObjectId userId;
 
     public LedgerEntity() {
 
@@ -150,10 +151,6 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         this.id = id;
     }
 
-    public void setUserId(ObjectId userId) {
-        this.userId = userId;
-    }
-
     public String getDocumentId() {
         return documentId;
     }
@@ -232,6 +229,14 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
     }
 
 }

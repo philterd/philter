@@ -32,6 +32,7 @@ public class PolicyEntity extends AbstractEntity {
     private String notes;
     private String description;
     private boolean managed;
+    private ObjectId userId;
 
     public static PolicyEntity fromDocument(final Document document) {
         final PolicyEntity policyEntity = new PolicyEntity();
@@ -86,10 +87,6 @@ public class PolicyEntity extends AbstractEntity {
 
     public void setPolicy(String policy) {
         this.policy = policy;
-    }
-
-    public void setUserId(ObjectId userId) {
-        this.userId = userId;
     }
 
     public String getName() {
@@ -154,6 +151,14 @@ public class PolicyEntity extends AbstractEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
     }
 
 }

@@ -15,8 +15,12 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.services.encryption.EncryptionService;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.applayout.AppLayout;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
@@ -30,21 +34,44 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.server.VaadinService;
 import com.vaadin.flow.theme.lumo.LumoUtility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
-public abstract class AbstractView extends AppLayout {
+public abstract class AbstractRestrictedView extends AppLayout implements BeforeEnterObserver {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRestrictedView.class);
 
     public abstract String getHelpMarkdownText();
 
     protected final VerticalLayout helpWindowVerticalLayout = new VerticalLayout();
+    protected final UserService userService;
+    protected final UserEntity userEntity;
 
-    public AbstractView(final boolean showHelpPanel) {
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+
+        if (getCurrentUser() == null) {
+            LOGGER.warn("Redirecting to /login because user is null.");
+            event.forwardTo(LoginView.class);
+        }
+
+    }
+
+    public AbstractRestrictedView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final boolean showHelpPanel) {
+
+        this.userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
+        this.userEntity = getCurrentUser();
 
         final Image logo = new Image("public/philter.png", "Philter");
         logo.setHeight("75px");
 
-        final Anchor logoLinkAnchor = new Anchor("/", logo);
+        final Anchor logoLinkAnchor = new Anchor("/dashboard", logo);
 
         final HorizontalLayout header = new HorizontalLayout(logoLinkAnchor);
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
@@ -58,7 +85,7 @@ public abstract class AbstractView extends AppLayout {
         sideNav.addItem(new SideNavItem("Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
         sideNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.DOCTOR.create()));
         sideNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
-        sideNav.addItem(new SideNavItem("API", ApiView.class, VaadinIcon.COG.create()));
+        sideNav.addItem(new SideNavItem("API", ApiKeyView.class, VaadinIcon.COG.create()));
         sideNav.addItem(new SideNavItem("Metrics", MetricsView.class, VaadinIcon.CHART_LINE.create()));
         sideNav.addItem(new SideNavItem("Client SDKs", SdksView.class, VaadinIcon.WRENCH.create()));
 
@@ -85,6 +112,15 @@ public abstract class AbstractView extends AppLayout {
             //   helpWindowVerticalLayout.setHeightFull();
 
         }
+
+    }
+
+    public UserEntity getCurrentUser() {
+
+        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        final String email = authentication.getName();
+
+        return userService.findByEmail(email);
 
     }
 

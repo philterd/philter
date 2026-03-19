@@ -15,16 +15,20 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.PoliciesDataProvider;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.views.components.policyeditor.PolicyEditorComponents;
 import ai.philterd.philter.views.widgets.CommonWidgets;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -41,7 +45,6 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.ListDataProvider;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,8 +53,7 @@ import java.util.stream.Collectors;
 
 @Route(value = "policies")
 @PageTitle("Philter - Policies")
-@AnonymousAllowed
-public class PoliciesView extends AbstractView {
+public class PoliciesView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
 
@@ -60,9 +62,11 @@ public class PoliciesView extends AbstractView {
         return "Placeholder for policies help text.";
     }
 
-    public PoliciesView(final PolicyDataService policyService,
+    public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService,
                         final GlobalTermsDataService globalTermsService, final PoliciesDataProvider policiesDataProvider) {
-        super(true);
+        super(mongoClient, encryptionService, auditEventPublisher, true);
+
+        final UserEntity userEntity = getCurrentUser();
 
         final Button newPolicyButton = new Button("New Policy", VaadinIcon.PLUS.create());
         newPolicyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
@@ -151,7 +155,7 @@ public class PoliciesView extends AbstractView {
 
                         final String requestId = RequestIdGenerator.generate();
 
-                        final ServiceResponse serviceResponse = policyService.update(requestId, null, policy.getId(), policyJson, policyDescription, policyNotes, getClientIpAddress());
+                        final ServiceResponse serviceResponse = policyService.update(requestId, userEntity.getId(), policy.getId(), policyJson, policyDescription, policyNotes, getClientIpAddress());
 
                         if(serviceResponse.isSuccessful()) {
 
@@ -269,7 +273,7 @@ public class PoliciesView extends AbstractView {
 
                     final String requestId = RequestIdGenerator.generate();
 
-                    final ServiceResponse serviceResponse = policyService.create(requestId, null, policyJson, policyDescription, policyNotes, policyName, getClientIpAddress());
+                    final ServiceResponse serviceResponse = policyService.create(requestId, userEntity.getId(), policyJson, policyDescription, policyNotes, policyName, getClientIpAddress());
 
                     if(serviceResponse.isSuccessful()) {
 
@@ -376,7 +380,7 @@ public class PoliciesView extends AbstractView {
                     final String policyJson = managedPolicyEntity.getPolicy();
                     final String policyDescription = managedPolicyEntity.getDescription();
 
-                    final ServiceResponse serviceResponse = policyService.create(requestId, null, policyJson, policyDescription, "Created from managed policy " + managedPolicyEntity.getName(), newPolicyName, getClientIpAddress());
+                    final ServiceResponse serviceResponse = policyService.create(requestId, userEntity.getId(), policyJson, policyDescription, "Created from managed policy " + managedPolicyEntity.getName(), newPolicyName, getClientIpAddress());
 
                     if (serviceResponse.isSuccessful()) {
 

@@ -27,6 +27,7 @@ public class GlobalTermsEntity extends AbstractEntity {
     private ObjectId id;
     private List<String> termsToAlwaysRedact;
     private List<String> termsToNeverRedact;
+    private ObjectId userId;
 
     public static GlobalTermsEntity fromDocument(final Document document) {
 
@@ -102,6 +103,14 @@ public class GlobalTermsEntity extends AbstractEntity {
 
     public List<String> getTermsToNeverRedact() {
         return termsToNeverRedact;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
     }
 
 }

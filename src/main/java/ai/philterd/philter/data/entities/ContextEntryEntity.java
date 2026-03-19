@@ -30,6 +30,7 @@ public class ContextEntryEntity extends AbstractEntity {
     private long reads;
     private Date timestamp;
     private String filterType;
+    private ObjectId userId;
 
     public static ContextEntryEntity fromDocument(final Document document) {
         final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
@@ -78,10 +79,6 @@ public class ContextEntryEntity extends AbstractEntity {
         this.contextName = contextName;
     }
 
-    public void setUserId(ObjectId userId) {
-        this.userId = userId;
-    }
-
     public String getTokenHash() {
         return tokenHash;
     }
@@ -128,6 +125,14 @@ public class ContextEntryEntity extends AbstractEntity {
 
     public void setReplacementUuid(boolean replacementUuid) {
         this.replacementUuid = replacementUuid;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
     }
 
 }

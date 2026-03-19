@@ -15,11 +15,12 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.services.encryption.EncryptionService;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -29,14 +30,14 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
+import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Route(value = "")
+@Route(value = "dashboard")
 @PageTitle("Philter - Dashboard")
-@AnonymousAllowed
-public class DashboardView extends AbstractView {
+@PermitAll
+public class DashboardView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(DashboardView.class);
 
@@ -45,8 +46,8 @@ public class DashboardView extends AbstractView {
         return "Placeholder for dashboard help text.";
     }
 
-    public DashboardView() {
-        super(true);
+    public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+        super(mongoClient, encryptionService, auditEventPublisher, true);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();

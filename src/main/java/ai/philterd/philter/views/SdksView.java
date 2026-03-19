@@ -15,9 +15,11 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.services.encryption.EncryptionService;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Anchor;
-import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H5;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -25,14 +27,12 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Route(value = "sdks")
 @PageTitle("Philter - Client SDKs")
-@AnonymousAllowed
-public class SdksView extends AbstractView {
+public class SdksView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(SdksView.class);
 
@@ -41,8 +41,8 @@ public class SdksView extends AbstractView {
         return "Placeholder for sdks help text.";
     }
 
-    public SdksView() {
-        super(true);
+    public SdksView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+        super(mongoClient, encryptionService, auditEventPublisher,true);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();

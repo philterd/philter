@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.philter.data.entities.AbstractEntity;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.AbstractEntity;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -48,10 +48,7 @@ public class AbstractService<T extends AbstractEntity> {
     public void update(final T entity) {
 
         collection.updateOne(
-                Filters.and(
-                        Filters.eq("_id", entity.getId()),
-                        Filters.eq("user_id", entity.getUserId())
-                ),
+                Filters.eq("_id", entity.getId()),
                 new Document("$set", entity.toDocument())
         );
 

@@ -32,6 +32,7 @@ public class ContextEntity extends AbstractEntity {
     private boolean disambiguation;
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
+    private ObjectId userId;
 
     public static ContextEntity fromDocument(final Document document) {
         final ContextEntity contextEntity = new ContextEntity();
@@ -117,4 +118,13 @@ public class ContextEntity extends AbstractEntity {
     public void setTimestamp(Date timestamp) {
         this.timestamp = timestamp;
     }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
+    }
+
 }

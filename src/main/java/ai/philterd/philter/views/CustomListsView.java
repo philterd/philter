@@ -15,13 +15,17 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.CustomListEntityDataProvider;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
+import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -37,7 +41,6 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,8 +50,7 @@ import java.util.List;
 
 @Route(value = "lists")
 @PageTitle("Philter - Custom Lists")
-@AnonymousAllowed
-public class CustomListsView extends AbstractView {
+public class CustomListsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(CustomListsView.class);
 
@@ -57,8 +59,11 @@ public class CustomListsView extends AbstractView {
         return "Placeholder for custom lists help text.";
     }
 
-    public CustomListsView(final CustomListDataService customListService, final CustomListEntityDataProvider dataProvider) {
-        super(true);
+    public CustomListsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
+                           final CustomListDataService customListService, final CustomListEntityDataProvider dataProvider) {
+        super(mongoClient, encryptionService, auditEventPublisher, true);
+
+        final UserEntity userEntity = getCurrentUser();
 
         final Grid<CustomListEntity> grid = new Grid<>(CustomListEntity.class, false);
         grid.addColumn(CustomListEntity::getName).setHeader("Name").setResizable(true).setSortable(true).setSortProperty("name");
@@ -79,7 +84,7 @@ public class CustomListsView extends AbstractView {
         grid.addComponentColumn(originalListEntity -> {
 
             // Get the most up-to-date list object from the database.
-            final CustomListEntity listEntity = customListService.findOneById(originalListEntity.getId(), null);
+            final CustomListEntity listEntity = customListService.findOneById(originalListEntity.getId(), userEntity.getId());
 
             final Button editListButton = new Button(VaadinIcon.EDIT.create());
             editListButton.setTooltipText("Edit list");
@@ -137,7 +142,7 @@ public class CustomListsView extends AbstractView {
 
                     final List<String> listItems = new ArrayList<>(Arrays.asList(listTextArea.getValue().split("\n")));
 
-                    final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, null, listEntity.getName(), descriptionTextField.getValue(), listItems, false, Source.WEBUI.getSource());
+                    final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userEntity.getId(), listEntity.getName(), descriptionTextField.getValue(), listItems, false, Source.WEBUI.getSource());
 
                     if(serviceResponse.isSuccessful()) {
 
@@ -180,7 +185,7 @@ public class CustomListsView extends AbstractView {
 
                 final Button confirmButton = new Button("Delete", e -> {
 
-                    customListService.deleteByName(listEntity.getName(), null);
+                    customListService.deleteByName(listEntity.getName(), userEntity.getId());
                     confirmDialog.close();
 
                     dataProvider.refreshAll();
@@ -253,7 +258,7 @@ public class CustomListsView extends AbstractView {
                 final String description = descriptionTextField.getValue();
                 final List<String> listItems = new ArrayList<>(Arrays.asList(listTextArea.getValue().split("\n")));
 
-                final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, null, listName, description, listItems, false, Source.WEBUI.getSource());
+                final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userEntity.getId(), listName, description, listItems, false, Source.WEBUI.getSource());
 
                 if(serviceResponse.isSuccessful()) {
 

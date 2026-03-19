@@ -193,7 +193,7 @@ public class SimplifiedPolicy {
         for (final String term : terms) {
             if (isCustomListReference(term)) {
                 final String listName = extractListName(term);
-                final CustomListEntity customList = customListService.findOneByName(listName, null);
+                final CustomListEntity customList = customListService.findOneByName(listName, userId);
                 
                 if (customList != null && customList.getItems() != null) {
                     LOGGER.info("Resolved custom list reference '{}' to {} items", term, customList.getItems().size());
@@ -207,18 +207,6 @@ public class SimplifiedPolicy {
         }
 
         return resolvedTerms;
-    }
-
-    /**
-     * Convert this object to a Phileas policy.
-     * @param fpeKey The FPE key.
-     * @param fpeTweak The FPE tweak.
-     * @return A Phileas policy.
-     * @deprecated Use {@link #toPolicy(String, String, CustomListDataService, ObjectId)} instead.
-     */
-    @Deprecated
-    public Policy toPolicy(final String fpeKey, final String fpeTweak) throws IOException {
-        return toPolicy(fpeKey, fpeTweak, null, null);
     }
 
     /**

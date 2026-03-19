@@ -27,6 +27,7 @@ public class VectorEntity extends AbstractEntity {
     private Span span;
     private int vectorSize;
     private String filterType;
+    private ObjectId userId;
 
     public VectorEntity() {
 
@@ -104,4 +105,13 @@ public class VectorEntity extends AbstractEntity {
     public void setHash(double hash) {
         this.hash = hash;
     }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
+    }
+
 }

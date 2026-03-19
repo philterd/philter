@@ -32,6 +32,7 @@ import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -52,13 +53,13 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -220,6 +221,11 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public UserService userService() {
+        return new UserService(mongoClient(), encryptionService(), auditEventPublisher());
+    }
+
+    @Bean
     public CustomListEntityDataProvider customListEntityDataProvider(final CustomListDataService customListDataService) {
         return new CustomListEntityDataProvider(customListDataService);
     }
@@ -240,9 +246,20 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        return new InMemoryUserDetailsManager();
+    public UserDetailsService userDetailsService(final UserService userService) {
+        return email -> {
+            final ai.philterd.philter.data.entities.UserEntity user = userService.findByEmail(email);
+            if (user == null) {
+                throw new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email);
+            }
+            return org.springframework.security.core.userdetails.User
+                    .withUsername(user.getEmail())
+                    .password(user.getPassword())
+                    .roles(user.getRole() != null ? user.getRole().toUpperCase() : "USER")
+                    .build();
+        };
     }
+
 
     @Bean
     public ApiKeyEntityDataProvider apiKeyEntityDataProvider() {

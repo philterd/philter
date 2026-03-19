@@ -28,6 +28,7 @@ public class ApiKeyEntity extends AbstractEntity {
     private boolean deleted;
     private Date timestamp;
     private transient String apiKey;
+    private ObjectId userId;
 
     public static ApiKeyEntity fromDocument(final Document document) {
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
@@ -103,6 +104,14 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public void setApiKeyPrefix(final String apiKeyPrefix) {
         this.apiKeyPrefix = apiKeyPrefix;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
     }
 
 }

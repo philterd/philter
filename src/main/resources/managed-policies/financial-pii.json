@@ -2,7 +2,6 @@
   "version": "1.0.0",
   "name": "managed_financial_pii",
   "description": "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses",
-  "lens": "financial",
   "filters": {
     "bitcoin-address": [
       {

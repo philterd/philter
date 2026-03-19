@@ -154,7 +154,7 @@ public class PolicyEditorComponents {
         return policyJsonEditor;
     }
 
-    public String buildPolicy(final String policyName, final String lens) {
+    public String buildPolicy(final String policyName) {
 
         final Map<FilterType, List<SimplifiedStrategy>> filters = new HashMap<>();
 
@@ -505,7 +505,6 @@ public class PolicyEditorComponents {
 
         final SimplifiedPolicy simplifiedPolicy = new SimplifiedPolicy();
         simplifiedPolicy.setName(policyName);
-        simplifiedPolicy.setLens(lens);
         simplifiedPolicy.setFilters(filters);
 
         // Terms to never redact

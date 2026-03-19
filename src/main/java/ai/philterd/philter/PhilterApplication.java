@@ -22,6 +22,8 @@ import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.audit.NoOpAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
 import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
 import ai.philterd.philter.data.providers.CustomListEntityDataProvider;
@@ -30,16 +32,12 @@ import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
-import ai.philterd.philter.data.services.LensDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
-import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.audit.NoOpAuditEventPublisher;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
-import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
 import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
@@ -204,11 +202,6 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public GlobalTermsDataService globalTermsService() {
         return new GlobalTermsDataService(mongoClient(), auditEventPublisher());
-    }
-
-    @Bean
-    public LensDataService lensDataService() {
-        return new LensDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean

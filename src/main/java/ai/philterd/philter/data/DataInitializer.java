@@ -17,10 +17,8 @@ package ai.philterd.philter.data;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
-import ai.philterd.philter.data.entities.LensEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ContextDataService;
-import ai.philterd.philter.data.services.LensDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import com.google.gson.Gson;
@@ -58,63 +56,6 @@ public class DataInitializer {
         final PolicyDataService policyService = new PolicyDataService(mongoClient, auditEventPublisher, gson);
         // Load managed policies from JSON files
         policyService.loadAndSaveManagedPolicies();
-
-        final LensDataService lensService = new LensDataService(mongoClient, auditEventPublisher);
-
-        if(lensService.findGeneralLens() == null) {
-
-            LOGGER.info("Inserting general lens.");
-            final LensEntity defaultLensEntity = new LensEntity();
-            defaultLensEntity.setName("general");
-            defaultLensEntity.setDescription("General purpose lens for all types of text");
-            defaultLensEntity.setDisplayName("general - General purpose lens for all types of text");
-            lensService.save(defaultLensEntity);
-
-        }
-
-        if(lensService.findOneByName("healthcare") == null) {
-
-            LOGGER.info("Inserting healthcare lens.");
-            final LensEntity defaultLensEntity = new LensEntity();
-            defaultLensEntity.setName("healthcare");
-            defaultLensEntity.setDescription("Lens tuned for healthcare text");
-            defaultLensEntity.setDisplayName("healthcare - Lens tuned for healthcare text");
-            lensService.save(defaultLensEntity);
-
-        }
-
-        if(lensService.findOneByName("financial") == null) {
-
-            LOGGER.info("Inserting financial lens.");
-            final LensEntity defaultLensEntity = new LensEntity();
-            defaultLensEntity.setName("financial");
-            defaultLensEntity.setDescription("Lens tuned for financial text");
-            defaultLensEntity.setDisplayName("financial - Lens tuned for financial text");
-            lensService.save(defaultLensEntity);
-
-        }
-
-        if(lensService.findOneByName("legal") == null) {
-
-            LOGGER.info("Inserting legal lens.");
-            final LensEntity defaultLensEntity = new LensEntity();
-            defaultLensEntity.setName("legal");
-            defaultLensEntity.setDescription("Lens tuned for legal text");
-            defaultLensEntity.setDisplayName("legal - Lens tuned for legal text");
-            lensService.save(defaultLensEntity);
-
-        }
-
-        if(lensService.findOneByName("news") == null) {
-
-            LOGGER.info("Inserting news lens.");
-            final LensEntity defaultLensEntity = new LensEntity();
-            defaultLensEntity.setName("news");
-            defaultLensEntity.setDescription("Lens tuned for news text");
-            defaultLensEntity.setDisplayName("news - Lens tuned for news text");
-            lensService.save(defaultLensEntity);
-
-        }
 
         // Make sure there is a default context.
         final ContextEntity defaultContextEntity = contextService.findOne("default");

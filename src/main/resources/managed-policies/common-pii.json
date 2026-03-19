@@ -2,7 +2,6 @@
   "version": "1.0.0",
   "name": "managed_common_pii",
   "description": "Common PII including names, emails, phone numbers, and SSNs",
-  "lens": "general",
   "filters": {
     "email-address": [
       {

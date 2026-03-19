@@ -16,11 +16,9 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
-import ai.philterd.philter.data.entities.LensEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.providers.PoliciesDataProvider;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
-import ai.philterd.philter.data.services.LensDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
@@ -29,10 +27,8 @@ import ai.philterd.philter.views.components.policyeditor.PolicyEditorComponents;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -63,7 +59,7 @@ public class PoliciesView extends AbstractView {
         return "Placeholder for policies help text.";
     }
 
-    public PoliciesView(final LensDataService lensService, final PolicyDataService policyService,
+    public PoliciesView(final PolicyDataService policyService,
                         final GlobalTermsDataService globalTermsService, final PoliciesDataProvider policiesDataProvider) {
         super(true);
 
@@ -140,15 +136,6 @@ public class PoliciesView extends AbstractView {
             policyNameTextField.setPattern(PolicyDataService.POLICY_NAME_REGEX);
             policyNameTextField.setHelperText("The policy name must only contain letters, numbers, dashes, and underscores.");
 
-            final ComboBox<LensEntity> policyLensComboBox = new ComboBox<>("Lens");
-            policyLensComboBox.setItems(lensService.findAll());
-            policyLensComboBox.setItemLabelGenerator(LensEntity::getDisplayName);
-            policyLensComboBox.setRequired(true);
-            policyLensComboBox.setRequiredIndicatorVisible(true);
-            policyLensComboBox.setWidthFull();
-            policyLensComboBox.setReadOnly(false);
-            policyLensComboBox.setValue(lensService.findGeneralLens());
-
             final Dialog createPolicyDialog = new Dialog();
             createPolicyDialog.setMinWidth("900px");
             createPolicyDialog.setMaxWidth("900px");
@@ -156,14 +143,12 @@ public class PoliciesView extends AbstractView {
             createPolicyDialog.setMaxHeight("700px");
             createPolicyDialog.add(new H3("Create Policy"));
             createPolicyDialog.add(policyNameTextField);
-            createPolicyDialog.add(policyLensComboBox);
             createPolicyDialog.add(tabSheet);
 
             final Button saveButton = new Button("Save", e -> {
 
                 final String policyName = policyNameTextField.getValue();
-                final String policyLens = policyLensComboBox.getValue().getName();
-                final String policyJson = policyEditorComponents.buildPolicy(policyName, policyLens);
+                final String policyJson = policyEditorComponents.buildPolicy(policyName);
                 final String policyDescription = policyDescriptionTextField.getValue();
                 final String policyNotes = policyNotesTextArea.getValue();
 

@@ -356,7 +356,7 @@ public class ContextsView extends AbstractView {
 
                     final Dialog confirmDialog = new Dialog();
                     confirmDialog.add(new H3("Confirm Deletion"));
-                    confirmDialog.add(new Paragraph("Are you sure you want to delete the context " + contextEntity.getContextName() + "? This cannot be undone. This will not affect any documents that have already been redacted."));
+                    confirmDialog.add(new Paragraph("Are you sure you want to delete the context " + contextEntity.getContextName() + "? This cannot be undone."));
 
                     final Button confirmButton = new Button("Delete", e -> {
 

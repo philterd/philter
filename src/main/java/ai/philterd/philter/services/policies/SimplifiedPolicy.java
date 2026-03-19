@@ -114,7 +114,6 @@ public class SimplifiedPolicy {
     private String version = "1.0.0";
     private String name = "";
     private String description = "";
-    private String lens = "general";
     private Map<FilterType, List<SimplifiedStrategy>> filters = Collections.emptyMap();
     private List<String> termsToIgnore = Collections.emptyList();
     private List<String> termsToAlwaysRedact = Collections.emptyList();
@@ -1153,14 +1152,6 @@ public class SimplifiedPolicy {
 
     public void setTermsToIgnore(List<String> termsToIgnore) {
         this.termsToIgnore = termsToIgnore;
-    }
-
-    public String getLens() {
-        return lens;
-    }
-
-    public void setLens(String lens) {
-        this.lens = lens;
     }
 
     public boolean isHighlightChangesinWordDocuments() {

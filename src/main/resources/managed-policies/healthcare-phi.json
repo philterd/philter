@@ -2,7 +2,6 @@
   "version": "1.0.0",
   "name": "managed_healthcare_phi",
   "description": "Healthcare PHI including names, dates, addresses, and medical identifiers",
-  "lens": "healthcare",
   "filters": {
     "email-address": [
       {

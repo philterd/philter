@@ -48,8 +48,6 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     private static final Logger LOGGER = LogManager.getLogger(PolicyDataService.class);
 
-    public static final List<String> VALID_LENS = List.of("general", "financial", "healthcare", "legal", "news");
-
     public static final String POLICY_NAME_REGEX = "^[a-zA-Z0-9_-]+$";
     public static final int MAX_NUMBER_OF_POLICIES = 50;
     public static final int POLICY_NAME_MAX_LENGTH = 50;
@@ -237,11 +235,6 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             if(!containsValidChoice(simplifiedPolicy.getDisambiguationScope(), SimplifiedPolicy.DISAMBIGUATION_SCOPES)) {
                 LOGGER.warn("Policy validation failed: Invalid disambiguation scope.");
                 return PolicyValidation.invalid("Disambiguation scope must be one of: " + String.join(", ", SimplifiedPolicy.DISAMBIGUATION_SCOPES));
-            }
-
-            if(!containsValidChoice(simplifiedPolicy.getLens(), VALID_LENS)) {
-                LOGGER.warn("Policy validation failed: Invalid lens.");
-                return PolicyValidation.invalid("Lens must be one of: " + String.join(", ", VALID_LENS));
             }
 
             LOGGER.info("Policy validation successful.");

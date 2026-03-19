@@ -24,10 +24,7 @@ import org.opensearch.client.RestClient;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
-import org.opensearch.client.opensearch.core.BulkRequest;
-import org.opensearch.client.opensearch.core.BulkResponse;
 import org.opensearch.client.opensearch.core.IndexRequest;
-import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.opensearch.indices.ExistsRequest;
 import org.opensearch.client.transport.endpoints.BooleanResponse;
@@ -39,8 +36,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -99,7 +94,7 @@ public abstract class AbstractUsageService {
 
             if(!booleanResponse.value()) {
 
-                LOGGER.info("Creating OpenSearch index: " + REDACTIONS_USAGE_INDEX_NAME);
+                LOGGER.info("Creating OpenSearch index: {}", REDACTIONS_USAGE_INDEX_NAME);
 
                 final TypeMapping mapping = new TypeMapping.Builder()
                         .properties("user_id", p -> p.keyword(k -> k))
@@ -163,50 +158,6 @@ public abstract class AbstractUsageService {
                 .build();
 
         client.index(indexRequest);
-
-    }
-
-    public List<Integer> bulkIndex(final List<Map<String, Object>> documents) throws IOException {
-
-        createIndex();
-
-        final BulkRequest.Builder br = new BulkRequest.Builder();
-
-        for (final Map<String, Object> document : documents) {
-
-            br.operations(op -> op
-                    .index(idx -> idx
-                            .index(indexName)
-                            .id(UUID.randomUUID().toString())
-                            .document(document)
-                    )
-            );
-
-        }
-
-        final BulkResponse bulkResponse = client.bulk(br.build());
-
-        final List<Integer> failedDocumentIndexes = new ArrayList<>();
-
-        if(bulkResponse.errors()) {
-
-            final List<BulkResponseItem> items = bulkResponse.items();
-
-            for(int i = 0; i < bulkResponse.items().size(); i++) {
-
-                final BulkResponseItem item = items.get(i);
-
-                if(item.error() != null) {
-                    failedDocumentIndexes.add(i);
-                }
-
-                LOGGER.error("Unable to index: {}", item.error().reason());
-
-            }
-
-        }
-
-        return failedDocumentIndexes;
 
     }
 

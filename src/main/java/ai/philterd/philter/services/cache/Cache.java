@@ -31,9 +31,9 @@ public abstract class Cache {
 
     /**
      * Creates a new cache.
-     * @param host The hostname of the Redis server.
-     * @param port The port of the Redis server.
-     * @param password The password for the Redis server.
+     * @param host The hostname of the Valkey server.
+     * @param port The port of the Valkey server.
+     * @param password The password for the Valkey server.
      * @param ssl Whether to use SSL for the connection.
      */
     public Cache(final String host, final int port, final String password, final boolean ssl) {

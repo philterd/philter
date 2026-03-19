@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.security;
 
 import static com.vaadin.flow.spring.security.VaadinSecurityConfigurer.vaadin;
+import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
 
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
@@ -28,7 +29,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -58,20 +61,26 @@ public class SecurityConfig {
     }
 
     @Bean
-    @java.lang.SuppressWarnings("squid:S4502")  // Disabling CSRF is ok here since this is a stateless REST API.
-    public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher, final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService, final SizeLimitingFilter sizeLimitingFilter) throws Exception {
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers("/public/**", "/themes/**", "/favicon.ico");
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher,
+                                           final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService,
+                                           final SizeLimitingFilter sizeLimitingFilter) throws Exception {
 
         http
+                .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers.frameOptions(headers2 -> headers2.disable()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").authenticated()
-                        .requestMatchers("/public/**", "/styles/**", "/icons/**").permitAll()
-                );
+                        .requestMatchers("/public/**", "/styles/**", "/icons/**", "/api/**","/themes/**", "/favicon.ico").permitAll()
+                )
 
-        http.addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, openSearchApiRequestsUsageService, gson), UsernamePasswordAuthenticationFilter.class);
-        http.formLogin(form -> form.defaultSuccessUrl("/dashboard", true));
-
-        http.with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
+                .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, openSearchApiRequestsUsageService, gson), UsernamePasswordAuthenticationFilter.class)
+                .formLogin(form -> form.defaultSuccessUrl("/dashboard", true))
+                .with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
 
         return http.build();
 

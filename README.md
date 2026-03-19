@@ -34,13 +34,13 @@ docker compose build
 docker compose up
 ```
 
-Once the containers are running, you can submit text to Philter's API for redaction:
+Once the containers are running, you can submit text to Philter's API for redaction (using the default API key `default`):
 
 ```
-curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain"
+curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer default"
 ```
 
-You can also access the UI at http://localhost:9000.
+You can also access the UI at https://localhost:8080. The default credentials are `admin` / `admin`.
 
 ## License
 

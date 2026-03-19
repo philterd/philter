@@ -32,9 +32,9 @@ public class ApiKeyCache extends Cache {
 
     /**
      * Creates a new API key cache.
-     * @param host The hostname of the Redis server.
-     * @param port The port of the Redis server.
-     * @param password The password for the Redis server.
+     * @param host The hostname of the Valkey server.
+     * @param port The port of the Valkey server.
+     * @param password The password for the Valkey server.
      * @param ssl Whether to use SSL for the connection.
      */
     public ApiKeyCache(final String host, final int port, final String password, final boolean ssl) {

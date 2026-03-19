@@ -1,4 +1,4 @@
-# How to Evaluate Philter'ss Performance
+# How to Evaluate Philter's Performance
 
 A common question we receive is how well does Philter perform? Our answer to this question is probably less than satisfactory because it simply depends. What does it depend on? Philter's performance is heavily dependent upon your individual data. Sharing to compare metrics of Philter's performance between different customer datasets is like comparing apples and oranges.
 
@@ -9,8 +9,6 @@ If your data is not exactly like another customer's data then the metrics will n
 ## Guide to Evaluating Performance
 
 We have created this guide to help guide you in evaluating Philter's performance on your data. The guide involves determining the types of sensitive information you want to redact, configuring those filters, optimizing the configuration, and then capturing the performance metrics.
-
-> If you are using Philter we will gladly perform these steps for you and provide you a detailed Philter performance report generated from your data. Please contact us to start the process.
 
 #### What You Need
 
@@ -23,19 +21,13 @@ To evaluate Philter's performance you need:
 
 #### Configuring Philter
 
-Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a file that defines the types of sensitive information that will be redacted and how it will be redacted. The policies are stored on the Philter instance under `/opt/philter/policies`. You can edit the policies directly there using a text editor or you can use Philter's [API](policies-api.md) to upload a policy. In this case we recommend just using a text editor on the Philter instance to create a policy.
-
-When using a text editor to create and edit a policy, be sure to save the policy often. Frequent saving can make editing a policy easier.
-
-We also recommend considering to place your policy directory under source control to have a history and change log of your policies.
+Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a configuration that defines the types of sensitive information that will be redacted and how it will be redacted. Policies are stored in a database and are managed using Philter's [web dashboard](other_features/dashboard.md) or [API](api_and_sdks/api/policies_api.md).
 
 #### Creating a Policy
 
-Make a copy of the default policy, and we will modify the copy for our needs.
+Log into the Philter dashboard and navigate to the Policies page. You can create a new policy by clicking the "New Policy" button, or you can clone the default policy and modify it for your needs.
 
-`cp /opt/philter/policies/default.json /opt/philter/policies/evaluation.json`
-
-Now open `/opt/philter/policies/evaluation.json` in a text editor. (The content of `evaluation.json` will be similar to what's shown below but may have minor differences between different versions of Philter.)
+When creating a new policy, the configuration will be similar to what's shown below:
 
 ```
 {
@@ -61,15 +53,15 @@ Now open `/opt/philter/policies/evaluation.json` in a text editor. (The content 
 }
 ```
 
-The first thing we need to do is to set the name of the policy. Replace `default` with `evaluation` and save the file.
+The first thing we need to do is to set the name of the policy. Set the name to `evaluation` and save the policy.
 
 #### Identifying the Filters You Need
 
-The rest of the file contains the filters that are enabled in the default policy. We need to make sure that each type of sensitive information that you want to redact is represented by a filter in this file. Look through the rest of the policy and determine which filters are listed that you do not need and also which filters you do need that are not listed.
+The policy contains the filters that are enabled. We need to make sure that each type of sensitive information that you want to redact is represented by a filter in the policy. Look through the policy and determine which filters are listed that you do not need and also which filters you do need that are not listed.
 
 #### Disabling Filters We Do Not Need
 
-If a filter is listed in the policy, and you do not need the filter you have two options. You can either delete those lines from the policy and save the file, or you can set the filter's `enabled` property to false. Using the `enabled` property allows you to keep the filter configuration in the policy in case it is needed later but both options have the same effect.
+If a filter is listed in the policy, and you do not need the filter you have two options. You can either remove the filter from the policy, or you can set the filter's `enabled` property to false. Using the `enabled` property allows you to keep the filter configuration in the policy in case it is needed later but both options have the same effect.
 
 #### Enabling Filters Not in the Default Policy
 
@@ -126,22 +118,21 @@ The order of the filters in the policy does not matter and has no impact on perf
 
 Repeat these steps until you have added a filter for each of the types of sensitive information you want to redact. Typically, the default redaction `strategy` and `redactionFormat` values for each filter should be fine for evaluation.
 
-When finished modifying the policy, save the file and close the text editor. Now restart Philter for the policy changes to be loaded:
-
-```
-sudo systemctl restart Philter
-```
+When finished modifying the policy, save the policy in the dashboard. There is no need to restart Philter; the policy will be available immediately for use.
 
 #### Submitting Text for Redaction
 
 With our policy in place we can now send text to Philter for redaction using that policy:
 
 ```
-PhilterConfiguration PhilterConfiguration = ConfigFactory.create(PhilterConfiguration.class);
+PhilterConfiguration philterConfiguration = new PhilterConfiguration.Builder()
+        .withEndpoint("https://localhost:8080")
+        .withToken("your-api-token")
+        .build();
 
-FilterService filterService = new PhilterFilterService(PhilterConfiguration);
+FilterService filterService = new PhilterFilterService(philterConfiguration);
 
-FilterResponse response = filterService.filter(policies, context, documentId, body, MimeType.TEXT_PLAIN);
+FilterResponse response = filterService.filter("evaluation", "context", "documentId", body, MimeType.TEXT_PLAIN);
 ```
 
 The `explain` API [endpoint](api_and_sdks/api/filtering_api.md) produces a detailed description of the redaction. The response will include a list of spans that contain the start and stop positions of redacted text and the type of sensitive information that was redacted. Using this information we can compare the redacted information to our annotated file to calculate precision and recall metrics.

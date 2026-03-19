@@ -1,81 +1,78 @@
-# Policies API
+# Contexts API
 
-The Policies API provides endpoints for retrieving, uploading, and deleting [policies](../../policies/filter_policies.md).
+The Contexts API provides endpoints for retrieving, creating, and deleting contexts.
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
-
-## Get Policy Names
+## Get Context Names
 
 | Method | Endpoint        | Description                    |
 | ------ |-----------------|--------------------------------| 
-| `GET` | `/api/policies` | Get the names of all policies. |
-
-
-Example request:
-
-```
-curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/policies
-```
-
-## Get a Policy
-
-| Method | Endpoint                     | Description                                                                       |
-| ------ |------------------------------|-----------------------------------------------------------------------------------| 
-| `GET` | `/api/policies/{policyName}` | Get the content of a policy, where {policyName} is the name of the policy to get. |
+| `GET` | `/api/contexts` | Get the names of all contexts. |
 
 Example request:
 
-```
-curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/policies/my-policy
+```bash
+curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/contexts
 ```
 
 Example response:
 
-```
+```json
 {
-  "name": "just-phone-numbers",
-  "ignored": [
-  ],
-  "identifiers": {
-    "dictionaries": [
-    ],
-    "phoneNumber": {
-      "phoneNumberFilterStrategies": [
-        {
-          "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
-        }
-      ]
-    }
-  }
+  "contexts": [
+    "default",
+    "my-context"
+  ]
 }
 ```
 
-## Save a Policy
+## Get Context Details
 
 | Method | Endpoint                     | Description                                                                       |
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
-| `POST` | `/api/policies` | Save a policy. If a policy with this name already exists it will be overwritten.|
+| `GET` | `/api/contexts/{name}` | Get the details of a context, where {name} is the name of the context to get. |
+
+Example request:
+
+```bash
+curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/contexts/my-context
+```
+
+Example response:
+
+```json
+{
+  "size": 125
+}
+```
+
+## Create a Context
+
+| Method | Endpoint                     | Description                                                                       |
+| ------ |------------------------------|-----------------------------------------------------------------------------------| 
+| `POST` | `/api/contexts` | Create a new context. |
 
 ### Query Parameters
 
-* `name` - The name of the policy to save.
+* `name` (required) - The name of the context to create.
+* `coref` (optional, default: `false`) - Whether to enable coreference resolution for this context.
+* `disambiguation` (optional, default: `false`) - Whether to enable disambiguation for this context.
 
 Example request:
 
-```
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies?name=my-policy" -d @policy.json
+```bash
+curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/contexts?name=my-context&coref=true"
 ```
 
-## Delete a Policy
+## Delete a Context
 
 | Method   | Endpoint                     | Description                                                                                                                                 |
 |----------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------| 
-| `DELETE` | `/api/policies/{policyName}` | Delete a policy, where {policyName} is the name of the policy to delete. |
+| `DELETE` | `/api/contexts/{name}` | Delete a context, where {name} is the name of the context to delete. |
 
 Example request:
 
-```
-curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/policies/my-policy
+```bash
+curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/contexts/my-context
 ```

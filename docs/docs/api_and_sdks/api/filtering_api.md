@@ -6,7 +6,7 @@ Philter’s filtering API provides access to Philter’s ability to filter sensi
 
 Each filter request can optionally have a `context`. When not provided, the context defaults to `none`. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
 
-The context for each filter request impacts how sensitive information is replaced when found in the text. [Consistent anonymization](../../other_features/consistent_anonymization.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
+The context for each filter request impacts how sensitive information is replaced when found in the text. [Referential integrity](../../other_features/referential_integrity.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
 
 Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the `x-document-id` header with each `filter` or `explain` API response.
 
@@ -22,24 +22,24 @@ The types of sensitive information found and how each type is redacted is determ
 
 ### Query Parameters
 
-* `d` - A document ID that uniquely identifies the text being submitted. Leave empty and Philter will generate a document ID derived from a hash of the submitted text.
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Defaults to `none` if not provided.
 
 ### Headers
 
+* `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
 * `Content-Type` - The value should be set to `text/plain` or `application/pdf`.
 
 Example request to filter plain text:
 
 ```
-curl -k -X POST "https://localhost:8080/api/filter" -d @file.txt -H Content-Type "text/plain"
+curl -k -X POST "https://localhost:8080/api/filter" -d @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer <token>"
 ```
 
 Example request to filter a PDF document:
 
 ```
-curl -k -X POST "https://localhost:8080/api/filter?" -d @file.pdf -H Content-Type "application/pdf" -O redacted.zip
+curl -k -X POST "https://localhost:8080/api/filter?" -d @file.pdf -H "Content-Type: application/pdf" -H "Authorization: Bearer <token>" -O redacted.zip
 ```
 
 ## Explain
@@ -54,18 +54,18 @@ The types of sensitive information found and how each type is redacted is determ
 
 ### Query Parameters
 
-* `d` - A document ID that uniquely identifies the text being submitted. Leave empty and Philter will generate a document ID derived from a hash of the submitted text.
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Defaults to `none` if not provided.
 
 ### Headers
 
+* `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
 * `Content-Type` - The value should be set to `text/plain`.
 
 Example explain request:
 
 ```
-curl -k -X POST "https://localhost:8080/api/explain" -d @file.txt -H Content-Type "text/plain"
+curl -k -X POST "https://localhost:8080/api/explain" -d @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer <token>"
 ```
 
 Example explain response:
@@ -118,5 +118,5 @@ The `status` endpoint is useful in determining the current state of Philter. The
 Example request:
 
 ```
-curl -k -X POST "https://localhost:8080/api/status"
+curl -k -X GET "https://localhost:8080/api/status"
 ```

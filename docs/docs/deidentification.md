@@ -30,6 +30,31 @@ In Philter's filter strategies, replacement is achieved by using the strategy to
 
 ### Bucketing
 
+Bucketing is a method of de-identification that categorizes data into buckets based on the data. Bucketing is useful when the exact value is not needed, but the general category is important for analysis.
+
+In Philter, bucketing can be applied to several types of data. For example:
+
+* **Zip Codes**: Zip codes can be bucketed by their population. This allows for redacting zip codes with a population below a certain threshold.
+* **Dates**: Dates can be bucketed into years or other time intervals.
+
 ### Date Shifting
 
+Date shifting is a method of de-identification that shifts dates either forward or backward by some interval. Date shifting is useful when the exact date is sensitive, but the relationship between dates in a document or set of documents is important to preserve.
+
+In Philter, date shifting is achieved by using the `SHIFT` or `SHIFTRANDOM` filter strategies. These strategies allow you to specify the number of days, minutes, months, and years to shift the date.
+
+| Option | Description |
+| --- | --- |
+| `shiftDays` | The number of days to shift the date. Can be a negative or positive integer. |
+| `shiftMinutes` | The number of minutes to shift the date. Can be a negative or positive integer. |
+| `shiftMonths` | The number of months to shift the date. Can be a negative or positive integer. |
+| `shiftYears` | The number of years to shift the date. Can be a negative or positive integer. |
+
 ### Encryption
+
+Encryption is a method of de-identification that replaces a sensitive value with its encrypted version. Encryption is useful when the sensitive value may need to be recovered later by an authorized party.
+
+Philter provides two primary methods of encryption:
+
+* **AES Encryption**: Using the `CRYPTO_REPLACE` filter strategy, Philter encrypts the sensitive value using the AES encryption algorithm. This requires a key and an initialization vector (IV) to be defined in the policy.
+* **Format Preserving Encryption (FPE)**: Using the `FPE_ENCRYPT_REPLACE` filter strategy, Philter encrypts the sensitive value while preserving its original format (e.g., an encrypted credit card number will still look like a credit card number).

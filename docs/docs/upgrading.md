@@ -2,32 +2,30 @@
 
 We recommend reviewing the [Philter Release Notes](https://www.philterd.ai/philter-release-notes/) prior to upgrading.
 
-## Upgrading from a 2.x Version
+Philter 3.x introduced significant changes to how policies and configuration are managed. Due to these changes, upgrading from Philter 1.x or 2.x to 3.x requires manual migration of your policies and configuration.
 
-Upgrading Philter to the newest version requires moving Philter's configuration to the new version of Philter. To upgrade Philter from a 2.x version, follow the steps below.
+### Policy Storage Changes
 
-1. Launch a new instance of the newest version of Philter.
-2. Copy your policies from /opt/philter/policies to the new instance.
-3. Copy your /opt/philter/philter.properties to the new instance.
-4. Copy your /opt/philter/philter-ui.properties to the new instance.
-5. Replace the new virtual machine's properties file with your copy from step 1.
-6. Copy your policies from /opt/philter/policies to the new instance.
-7. If you have configured any SSL certificates for Philter, copy those files over to the new instance.
-8. Restart Philter: sudo systemctl restart philter.service && sudo systemctl restart philter-ui.service && sudo systemctl restart philter-ner.service
-9. Test the new Philter virtual machine to make sure it is behaving as expected.
-10. Decommission the old Philter instance.
+In Philter 3.x, filter policies are no longer stored on the local file system. Instead, they are stored in a MongoDB database. This allows for easier management of policies across multiple instances of Philter and provides a more robust storage mechanism.
 
-## Upgrading from a 1.x Version
+Because of this change:
 
-Upgrading Philter to the newest version requires moving Philter's configuration to the new version of Philter. To upgrade Philter from a 1.x version, follow the steps below.
+1.  **Policies must be recreated:** You cannot simply copy policy files from `/opt/philter/policies` to a Philter 3.x instance.
+2.  **Use the Dashboard or API:** Policies must be recreated using the Philter web dashboard or the Policies API.
+3.  **Authentication:** Access to the Policies API now requires Bearer token authentication.
 
-1. Make local copies of your current Philter's properties files.
+### Configuration Changes
 
-  * `/opt/philter/philter.properties` (prior to 1.10.1 the filename was /opt/philter/application.properties)
-  * `/opt/philter/philter-ui.properties` (not applicable prior to version 1.10)
+Philter 3.x has moved away from `.properties` files for most configurations, favoring environment variables instead. This makes Philter more cloud-native and easier to configure in containerized environments like Docker and Kubernetes.
 
-2. Launch a new instance of the newest version of Philter.
-3. Replace the new virtual machine's properties file with your copy from step 1.
-4. Restart Philter: sudo systemctl restart philter.service sudo systemctl restart philter-ui.service sudo systemctl restart philter-ner.service
-5. Test the new Philter virtual machine to make sure it is behaving appropriately.
-6. Decommission the old Philter instance.
+### Steps to Upgrade to 3.x
+
+1.  **Back up your current policies:** Ensure you have copies of your existing policy JSON files from your current Philter instance (usually in `/opt/philter/policies`).
+2.  **Launch Philter 3.x:** Deploy a new Philter 3.x instance. Ensure you have MongoDB, Valkey, and OpenSearch available as required.
+3.  **Configure 3.x:** Use environment variables to configure your new Philter instance. Refer to the [Settings](settings.md) documentation for a full list of available variables.
+4.  **Recreate Policies:**
+    *   **Via Dashboard:** Open the Philter dashboard (default port 8080), log in (default admin/admin), and use the policy editor to recreate your policies. You can copy and paste the JSON from your old policies into the editor.
+    *   **Via API:** Use the [Policies API](api_and_sdks/api/policies_api.md) to upload your old policy JSON files to the new instance. Note that you will need to provide an API token.
+5.  **Update your clients:** Ensure your client applications are updated to use the new Bearer token authentication and point to the correct Philter 3.x endpoints.
+6.  **Test:** Thoroughly test your redaction workflows to ensure they are performing as expected with the new version.
+7.  **Decommission:** Once verified, decommission your old Philter instance.

@@ -2,7 +2,6 @@
 
 > This is not intended to be a comprehensive or legal HIPAA guide so please refer to your HIPAA compliance or security officer prior to deploying and using Philter in a PHI environment.
 
-
 The steps below outline how to configure a Philter deployment for encryption of data at rest and in motion.
 
 ### Encryption of Data at Rest

@@ -42,12 +42,14 @@ public class DataInitializer {
     // Inject the beans Spring has already created
     public DataInitializer(final MongoClient mongoClient, final ContextDataService contextService, final PolicyDataService policyDataService,
                            final UserService userService, final AuditEventPublisher auditEventPublisher, final Gson gson) {
+
         this.mongoClient = mongoClient;
         this.auditEventPublisher = auditEventPublisher;
         this.contextService = contextService;
         this.policyDataService = policyDataService;
         this.userService = userService;
         this.gson = gson;
+
     }
 
     // Insert initial data.

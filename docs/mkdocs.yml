@@ -47,6 +47,7 @@ nav:
       - 'Philter Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'
       - 'Philter Quick Start on Google Cloud': 'quick_starts/quick_start_gcp.md'
   - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
+  - 'Dashboard': 'dashboard.md'
   - 'Deidentification': 'deidentification.md'
   - 'Policies':
     - 'Sample Policies': 'policies/sample_policies.md'
@@ -96,11 +97,13 @@ nav:
     - 'API Methods':
       - 'Filtering API': 'api_and_sdks/api/filtering_api.md'
       - 'Policies API': 'api_and_sdks/api/policies_api.md'
+      - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
+      - 'Contexts API': 'api_and_sdks/api/contexts_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
   - 'Settings': settings.md
   - 'Monitoring and Logging': 'monitoring_and_logging.md'
   - 'Advanced Features':
-      - 'Consistent Anonymization': 'other_features/consistent_anonymization.md'
+      - 'Referential Integrity': 'other_features/referential_integrity.md'
       - 'Span Disambiguation': 'other_features/span_disambiguation.md'
       - 'Dashboard': 'other_features/dashboard.md'
   - 'How-tos':
@@ -110,7 +113,7 @@ nav:
   - 'Solutions':
     - 'Monitoring Philter in AWS': 'solutions/monitoring-philter-in-aws.md'
     - 'Deploying Philter in a HIPAA Environment': 'solutions/deploying-philter-in-a-hipaa-environment.md'
-    - 'Consistent Anonymization with Redis': 'solutions/consistent-anonymization-with-redis.md'
+    - 'Referential Integrity with Valkey': 'solutions/referential-integrity-with-redis.md'
     - 'Apache NiFi and Philter': 'solutions/apache-nifi-and-philter.md'
     - 'Managing Philter’s Configuration in an Auto-Scaling Environment': 'solutions/managing-philters-configuration-in-an-auto-scaling-environment.md'
     - 'Deploying Philter in AWS via a CloudFormation Template': 'solutions/deploying-philter-via-an-aws-cloudformation-template.md'

@@ -72,7 +72,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         this.userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
         this.userEntity = getCurrentUser();
 
-        final Image logoImage = new Image("public/philter.png", "Philter");
+        final Image logoImage = new Image("/images/philter.png", "Philter");
         logoImage.setWidth("35px");
         logoImage.getStyle().set("cursor", "pointer");
         logoImage.addClickListener(click -> {

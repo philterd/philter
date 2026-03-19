@@ -44,7 +44,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         super(mongoClient, "custom_lists", encryptionService, auditEventPublisher);
     }
 
-    public ServiceResponse saveOrUpdate(final String requestId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {
+    public ServiceResponse saveOrUpdate(final String requestId, final ObjectId userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {
 
         if(listItems == null) {
             return new ServiceResponse("List items cannot be empty.", false, 400);
@@ -73,13 +73,13 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             }
         }
 
-        if(existsForUser(listName)) {
+        if(existsForUser(listName, userId)) {
 
             if(allowUpdate) {
 
                 // Is updating the existing list ok?
 
-                final CustomListEntity customListEntity = findOneByName(listName);
+                final CustomListEntity customListEntity = findOneByName(listName, userId);
 
                 // If it does already exist, we are just going to update it's content.
                 customListEntity.setItems(trimmedListItems);
@@ -100,6 +100,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         } else {
 
             final CustomListEntity customListEntity = new CustomListEntity();
+            customListEntity.setUserId(userId);
             customListEntity.setName(listName);
             customListEntity.setDescription(description);
             customListEntity.setItems(trimmedListItems);
@@ -113,23 +114,12 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public CustomListEntity findOneById(final ObjectId id) {
+    public CustomListEntity findOneById(final ObjectId id, final ObjectId userId) {
 
-        final Bson filter1 = Filters.eq("_id", id);
-
-        final Document document = collection.find(filter1).first();
-
-        if(document != null) {
-            return CustomListEntity.fromDocument(document, encryptionService);
-        } else {
-            return null;
-        }
-
-    }
-
-    public CustomListEntity findOneByName(final String name) {
-
-        final Bson filter1 = Filters.eq("name", name);
+        final Bson filter1 = Filters.and(
+                Filters.eq("_id", id),
+                Filters.eq("user_id", userId)
+        );
 
         final Document document = collection.find(filter1).first();
 
@@ -141,9 +131,29 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public boolean existsForUser(final String name) {
+    public CustomListEntity findOneByName(final String name, final ObjectId userId) {
 
-        final Bson filter1 = Filters.eq("name", name);
+        final Bson filter1 = Filters.and(
+                Filters.eq("name", name),
+                Filters.eq("user_id", userId)
+        );
+
+        final Document document = collection.find(filter1).first();
+
+        if(document != null) {
+            return CustomListEntity.fromDocument(document, encryptionService);
+        } else {
+            return null;
+        }
+
+    }
+
+    public boolean existsForUser(final String name, final ObjectId userId) {
+
+        final Bson filter1 = Filters.and(
+                Filters.eq("name", name),
+                Filters.eq("user_id", userId)
+        );
 
         final Document document = collection.find(filter1).first();
 
@@ -151,9 +161,15 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public List<CustomListEntity> findAll() {
+    public List<CustomListEntity> findAll(final ObjectId userId) {
 
-        final FindIterable<Document> documents = collection.find();
+        final Document query = new Document();
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
+
+        final FindIterable<Document> documents = collection.find(query);
 
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
@@ -165,17 +181,27 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public List<CustomListEntity> findBySearchTerm(final String searchTerm, final int limit) {
+    public List<CustomListEntity> findBySearchTerm(final ObjectId userId, final String searchTerm, final int limit) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
         final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
 
-        final Bson query = Filters.and(
-                Filters.or(
-                        Filters.regex("name", pattern),
-                        Filters.regex("description", pattern)
-                )
-        );
+        final Bson query;
+
+        if (userId != null) {
+            query = Filters.and(
+                    Filters.eq("user_id", userId),
+                    Filters.or(
+                            Filters.regex("name", pattern),
+                            Filters.regex("description", pattern)
+                    )
+            );
+        } else {
+            query = Filters.or(
+                    Filters.regex("name", pattern),
+                    Filters.regex("description", pattern)
+            );
+        }
 
         final FindIterable<Document> documents = collection.find(query).limit(effectiveLimit);
 
@@ -189,11 +215,11 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public List<CustomListEntity> findAll(final int offset, final int limit) {
-        return findAll(offset, limit, null, null);
+    public List<CustomListEntity> findAll(final ObjectId userId, final int offset, final int limit) {
+        return findAll(userId, offset, limit, null, null);
     }
 
-    public List<CustomListEntity> findAll(final int offset, final int limit, final String sortField, final String sortDirection) {
+    public List<CustomListEntity> findAll(final ObjectId userId, final int offset, final int limit, final String sortField, final String sortDirection) {
 
         // Apply sorting if specified
         final Document sortDocument = new Document();
@@ -210,7 +236,13 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             sortDocument.append("name", 1);
         }
 
-        final FindIterable<Document> documents = collection.find()
+        final Document query = new Document();
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
+
+        final FindIterable<Document> documents = collection.find(query)
                 .sort(sortDocument)
                 .skip(offset)
                 .limit(limit);
@@ -225,17 +257,23 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public int count() {
+    public int count(final ObjectId userId) {
 
-        final long count = collection.countDocuments();
+        final Document query = new Document();
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
+
+        final long count = collection.countDocuments(query);
 
         return (int) count;
 
     }
 
-    public void deleteByName(final String name) {
+    public void deleteByName(final String name, final ObjectId userId) {
 
-        final Document filter = new Document("name", name);
+        final Document filter = new Document("name", name).append("user_id", userId);
         collection.deleteOne(filter);
 
     }

@@ -32,6 +32,7 @@ public class GlobalTermsEntity extends AbstractEntity {
 
         final GlobalTermsEntity globalTermsEntity = new GlobalTermsEntity();
         globalTermsEntity.setId(document.getObjectId("_id"));
+        globalTermsEntity.setUserId(document.getObjectId("user_id"));
 
         if(document.getList("terms_to_always_redact", String.class) != null) {
             globalTermsEntity.setTermsToAlwaysRedact(document.getList("terms_to_always_redact", String.class));
@@ -73,6 +74,7 @@ public class GlobalTermsEntity extends AbstractEntity {
         if(id != null) {
             document.put("_id", id);
         }
+        document.put("user_id", userId);
         document.put("terms_to_always_redact", termsToAlwaysRedact);
         document.put("terms_to_never_redact", termsToNeverRedact);
         return document;

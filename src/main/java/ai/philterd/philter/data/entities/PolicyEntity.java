@@ -25,7 +25,6 @@ public class PolicyEntity extends AbstractEntity {
     private ObjectId id;
     private String policy;
     private String name;
-    private ObjectId userId;
     private Date createdTimestamp;
     private int revision;
     private Date lastUpdatedTimestamp;
@@ -87,10 +86,6 @@ public class PolicyEntity extends AbstractEntity {
 
     public void setPolicy(String policy) {
         this.policy = policy;
-    }
-
-    public ObjectId getUserId() {
-        return userId;
     }
 
     public void setUserId(ObjectId userId) {

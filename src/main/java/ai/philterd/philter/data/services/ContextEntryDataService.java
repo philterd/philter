@@ -144,22 +144,24 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     }
 
-    public void deleteByContextName(final String contextName) {
+    public void deleteByContextName(final String contextName, final ObjectId userId) {
 
         // Safeguard to prevent deleting the default context.
         if(!"default".equalsIgnoreCase(contextName)) {
 
-            final Document filter = new Document("context_name", contextName);
+            final Document filter = new Document("context_name", contextName).append("user_id", userId);
             collection.deleteMany(filter);
 
         }
 
     }
 
-    public Map<String, Long> getFilterTypeCounts(final String contextName) {
+    public Map<String, Long> getFilterTypeCounts(final String contextName, final ObjectId userId) {
 
         final Document matchStage = new Document("$match",
-                new Document("context_name", contextName).append("replacement_uuid", false));
+                new Document("context_name", contextName)
+                        .append("user_id", userId)
+                        .append("replacement_uuid", false));
 
         final Document groupStage = new Document("$group",
                 new Document("_id", "$filter_type")

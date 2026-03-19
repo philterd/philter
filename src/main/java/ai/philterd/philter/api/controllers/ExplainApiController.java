@@ -18,33 +18,38 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
+import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
-public class ExplainApiApiController extends AbstractApiController {
+public class ExplainApiController extends AbstractApiController {
 
     private final PlainTextFilterService plainTextFilterService;
     private final PolicyDataService policyDataService;
     private final Gson gson;
 
     @Autowired
-    public ExplainApiApiController(final PlainTextFilterService plainTextFilterService, final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
-                                   final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
+    public ExplainApiController(final PlainTextFilterService plainTextFilterService, final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
+                                final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.plainTextFilterService = plainTextFilterService;
         this.policyDataService = policyDataService;
@@ -53,11 +58,20 @@ public class ExplainApiApiController extends AbstractApiController {
 
     @RequestMapping(value = "/api/explain", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam(value = "c", defaultValue = "none") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestBody String body) throws Exception {
 
-        final PolicyEntity policyEntity = policyDataService.findOne(policyName);
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+
+        if(apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ObjectId userId = apiKeyEntity.getId();
+
+        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
         final Policy policy = gson.fromJson(gson.toJson(policyEntity.getPolicy()), Policy.class);
         final TextFilterResult response = plainTextFilterService.filter(policy, context, body);
 

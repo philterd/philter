@@ -22,6 +22,7 @@ import com.mongodb.client.MongoClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 
 import java.util.List;
 
@@ -33,14 +34,15 @@ public class GlobalTermsDataService extends AbstractService<GlobalTermsEntity> {
         super(mongoClient, "global_terms", auditEventPublisher);
     }
 
-    public void saveOrUpdate(final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact) {
+    public void saveOrUpdate(final ObjectId userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact) {
 
-        final GlobalTermsEntity globalTermsEntity = find();
+        final GlobalTermsEntity globalTermsEntity = find(userId);
 
         if(globalTermsEntity == null) {
 
             // Save a new entity.
             final GlobalTermsEntity newGlobalTermsEntity = new GlobalTermsEntity();
+            newGlobalTermsEntity.setUserId(userId);
             newGlobalTermsEntity.setTermsToAlwaysRedact(termsToAlwaysRedact);
             newGlobalTermsEntity.setTermsToNeverRedact(termsToNeverRedact);
 
@@ -57,9 +59,10 @@ public class GlobalTermsDataService extends AbstractService<GlobalTermsEntity> {
 
     }
 
-    public GlobalTermsEntity find() {
+    public GlobalTermsEntity find(final ObjectId userId) {
 
-        final Document document = collection.find().first();
+        final Document query = new Document("user_id", userId);
+        final Document document = collection.find(query).first();
 
         if(document != null) {
             return GlobalTermsEntity.fromDocument(document);

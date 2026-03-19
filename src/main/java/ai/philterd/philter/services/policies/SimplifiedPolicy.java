@@ -193,7 +193,7 @@ public class SimplifiedPolicy {
         for (final String term : terms) {
             if (isCustomListReference(term)) {
                 final String listName = extractListName(term);
-                final CustomListEntity customList = customListService.findOneByName(listName);
+                final CustomListEntity customList = customListService.findOneByName(listName, null);
                 
                 if (customList != null && customList.getItems() != null) {
                     LOGGER.info("Resolved custom list reference '{}' to {} items", term, customList.getItems().size());

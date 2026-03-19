@@ -34,12 +34,12 @@ public class PoliciesDataProvider extends AbstractBackEndDataProvider<PolicyEnti
 
     @Override
     protected Stream<PolicyEntity> fetchFromBackEnd(Query<PolicyEntity, Void> query) {
-        return policyDataService.findAll(query.getOffset(), query.getLimit(), false).stream();
+        return policyDataService.findAll(null, query.getOffset(), query.getLimit(), false).stream();
     }
 
     @Override
     protected int sizeInBackEnd(Query<PolicyEntity, Void> query) {
-        return policyDataService.count();
+        return policyDataService.count(null);
     }
 
 }

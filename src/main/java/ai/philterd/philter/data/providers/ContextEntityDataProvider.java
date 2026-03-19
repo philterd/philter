@@ -35,12 +35,12 @@ public class ContextEntityDataProvider extends AbstractBackEndDataProvider<Conte
             sortDirection = sortOrder.getDirection() == SortDirection.ASCENDING ? "ASC" : "DESC";
         }
         
-        return contextService.findAll(offset, limit, sortField, sortDirection).stream();
+        return contextService.findAll(null, offset, limit, sortField, sortDirection).stream();
     }
 
     @Override
     protected int sizeInBackEnd(final Query<ContextEntity, Void> query) {
-        return contextService.count();
+        return contextService.count(null);
     }
 
 }

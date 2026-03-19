@@ -75,7 +75,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
-    public ServiceResponse createApiKey(final String requestId, final String source) {
+    public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source) {
 
         // Generate an API key.
         final String apiKey = generateApiKey();
@@ -86,6 +86,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         }
 
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
+        apiKeyEntity.setUserId(userId);
         apiKeyEntity.setApiKey(apiKey);
         apiKeyEntity.setApiKeyHash(EncryptionService.hashSha256(apiKey));
         apiKeyEntity.setApiKeyPrefix(apiKey.substring(0, 12) + "...");
@@ -114,9 +115,13 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
-    public List<ApiKeyEntity> findAll(final int offset, final int limit) {
+    public List<ApiKeyEntity> findAll(final ObjectId userId, final int offset, final int limit) {
 
         final Document query = new Document("deleted", false);
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
 
         final FindIterable<Document> documents = collection.find(query).sort(Sorts.ascending("timestamp")).skip(offset).limit(limit);
 
@@ -130,9 +135,13 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
-    public int count() {
+    public int count(final ObjectId userId) {
 
         final Document query = new Document("deleted", false);
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
 
         return (int) collection.countDocuments(query);
 

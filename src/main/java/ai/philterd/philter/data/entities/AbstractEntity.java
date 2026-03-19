@@ -24,8 +24,18 @@ import org.bson.types.ObjectId;
 
 public abstract class AbstractEntity {
 
+    protected ObjectId userId;
+
     public abstract ObjectId getId();
     public abstract Document toDocument();
+
+    public ObjectId getUserId() {
+        return userId;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
+    }
 
     @Override
     public String toString() {

@@ -29,7 +29,6 @@ public class CustomListEntity extends AbstractEncryptedEntity {
     private ObjectId id;
     private String name;
     private String description;
-    private ObjectId userId;
     private List<String> items;
     private String itemsEncryptedKey;
 
@@ -86,10 +85,6 @@ public class CustomListEntity extends AbstractEncryptedEntity {
 
     public void setId(ObjectId id) {
         this.id = id;
-    }
-
-    public ObjectId getUserId() {
-        return userId;
     }
 
     public void setUserId(ObjectId userId) {

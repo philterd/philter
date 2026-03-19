@@ -151,7 +151,7 @@ public class PoliciesView extends AbstractView {
 
                         final String requestId = RequestIdGenerator.generate();
 
-                        final ServiceResponse serviceResponse = policyService.update(requestId, policy.getId(), policyJson, policyDescription, policyNotes, getClientIpAddress());
+                        final ServiceResponse serviceResponse = policyService.update(requestId, null, policy.getId(), policyJson, policyDescription, policyNotes, getClientIpAddress());
 
                         if(serviceResponse.isSuccessful()) {
 
@@ -269,7 +269,7 @@ public class PoliciesView extends AbstractView {
 
                     final String requestId = RequestIdGenerator.generate();
 
-                    final ServiceResponse serviceResponse = policyService.create(requestId, policyJson, policyDescription, policyNotes, policyName, getClientIpAddress());
+                    final ServiceResponse serviceResponse = policyService.create(requestId, null, policyJson, policyDescription, policyNotes, policyName, getClientIpAddress());
 
                     if(serviceResponse.isSuccessful()) {
 
@@ -376,7 +376,7 @@ public class PoliciesView extends AbstractView {
                     final String policyJson = managedPolicyEntity.getPolicy();
                     final String policyDescription = managedPolicyEntity.getDescription();
 
-                    final ServiceResponse serviceResponse = policyService.create(requestId, policyJson, policyDescription, "Created from managed policy " + managedPolicyEntity.getName(), newPolicyName, getClientIpAddress());
+                    final ServiceResponse serviceResponse = policyService.create(requestId, null, policyJson, policyDescription, "Created from managed policy " + managedPolicyEntity.getName(), newPolicyName, getClientIpAddress());
 
                     if (serviceResponse.isSuccessful()) {
 
@@ -411,7 +411,7 @@ public class PoliciesView extends AbstractView {
 
         // Begin Global Terms
 
-        final GlobalTermsEntity globalTermsEntity = globalTermsService.find();
+        final GlobalTermsEntity globalTermsEntity = globalTermsService.find(null);
 
         final TextArea termsToAlwaysRedactTextArea = new TextArea();
         termsToAlwaysRedactTextArea.setSizeFull();
@@ -428,7 +428,7 @@ public class PoliciesView extends AbstractView {
         final Button saveGlobalTermsButton = new Button("Save Terms");
         saveGlobalTermsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveGlobalTermsButton.addClickListener(event -> {
-            globalTermsService.saveOrUpdate(termsToAlwaysRedactTextArea.getValue().lines().collect(Collectors.toList()), termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()));
+            globalTermsService.saveOrUpdate(null, termsToAlwaysRedactTextArea.getValue().lines().collect(Collectors.toList()), termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()));
             showSuccessNotification("Terms saved.");
         });
 

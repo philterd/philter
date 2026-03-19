@@ -27,7 +27,6 @@ import java.util.Date;
 public class LedgerEntity extends AbstractEncryptedEntity {
 
     private ObjectId id;
-    private ObjectId userId;
     private String documentId;
     private String token;
     private String tokenEncryptedKey;
@@ -149,10 +148,6 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
     public void setId(ObjectId id) {
         this.id = id;
-    }
-
-    public ObjectId getUserId() {
-        return userId;
     }
 
     public void setUserId(ObjectId userId) {

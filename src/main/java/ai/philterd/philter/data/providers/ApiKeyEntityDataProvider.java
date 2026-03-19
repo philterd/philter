@@ -38,12 +38,12 @@ public class ApiKeyEntityDataProvider extends AbstractBackEndDataProvider<ApiKey
     protected Stream<ApiKeyEntity> fetchFromBackEnd(final Query<ApiKeyEntity, Void> query) {
         final int offset = query.getOffset();
         final int limit = query.getLimit();
-        return apiKeyService.findAll(offset, limit).stream();
+        return apiKeyService.findAll(null, offset, limit).stream();
     }
 
     @Override
     protected int sizeInBackEnd(final Query<ApiKeyEntity, Void> query) {
-        return apiKeyService.count();
+        return apiKeyService.count(null);
     }
 
 }

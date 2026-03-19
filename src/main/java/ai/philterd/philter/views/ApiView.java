@@ -102,7 +102,7 @@ public class ApiView extends AbstractView {
         createApiKeyButton.addClickListener(event -> {
 
             final String requestId = RequestIdGenerator.generate();
-            final ServiceResponse serviceResponse = apiKeyService.createApiKey(requestId, getClientIpAddress());
+            final ServiceResponse serviceResponse = apiKeyService.createApiKey(requestId, null, getClientIpAddress());
 
             if(serviceResponse.isSuccessful()) {
 

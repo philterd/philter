@@ -160,7 +160,7 @@ public class ContextsView extends AbstractView {
                 final String contextName = contextNameTextField.getValue();
                 final boolean coref = corefCheckbox.getValue();
                 final boolean disambiguation = disambiguationCheckbox.getValue();
-                final ServiceResponse serviceResponse = contextService.create(contextName, coref, disambiguation);
+                final ServiceResponse serviceResponse = contextService.create(contextName, null, coref, disambiguation);
 
                 if(serviceResponse.isSuccessful()) {
 
@@ -211,7 +211,7 @@ public class ContextsView extends AbstractView {
                 verticalLayout.add(new Paragraph("Filter type counts for context: " + contextEntity.getContextName()));
 
                 // Get filter type counts instead of showing grid
-                final Map<String, Long> filterTypeCounts = contextEntryService.getFilterTypeCounts(contextEntity.getContextName());
+                final Map<String, Long> filterTypeCounts = contextEntryService.getFilterTypeCounts(contextEntity.getContextName(), null);
 
                 if(filterTypeCounts != null && !filterTypeCounts.isEmpty()) {
 
@@ -317,7 +317,7 @@ public class ContextsView extends AbstractView {
 
                 final Button confirmButton = new Button("Clear", e -> {
 
-                    final ServiceResponse serviceResponse = contextService.emptyByName(contextEntity.getContextName());
+                    final ServiceResponse serviceResponse = contextService.emptyByName(contextEntity.getContextName(), null);
 
                     if(serviceResponse.isSuccessful()) {
 
@@ -360,7 +360,7 @@ public class ContextsView extends AbstractView {
 
                     final Button confirmButton = new Button("Delete", e -> {
 
-                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName());
+                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), null);
 
                         if(serviceResponse.isSuccessful()) {
 

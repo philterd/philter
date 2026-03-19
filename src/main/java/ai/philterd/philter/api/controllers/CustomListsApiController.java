@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetListsResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -33,6 +34,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -82,7 +84,13 @@ public class CustomListsApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
-        final List<CustomListEntity> customListEntities = customListService.findAll();
+        if(apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ObjectId userId = apiKeyEntity.getId();
+
+        final List<CustomListEntity> customListEntities = customListService.findAll(userId);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, null, getClientIpAddress(httpServletRequest));
 
@@ -110,7 +118,13 @@ public class CustomListsApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
-        final CustomListEntity customListEntity = customListService.findOneByName(name);
+        if(apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ObjectId userId = apiKeyEntity.getId();
+
+        final CustomListEntity customListEntity = customListService.findOneByName(name, userId);
 
         if(customListEntity == null) {
 
@@ -146,7 +160,13 @@ public class CustomListsApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
-        final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId,list, description, listItems, true, getClientIpAddress(httpServletRequest));
+        if(apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ObjectId userId = apiKeyEntity.getId();
+
+        final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userId, list, description, listItems, true, getClientIpAddress(httpServletRequest));
 
         return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.valueOf(serviceResponse.getStatusCode()));
 
@@ -166,8 +186,14 @@ public class CustomListsApiController extends AbstractApiController {
 
          final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
+         if(apiKeyEntity == null) {
+             throw new UnauthorizedException("Unauthorized.");
+         }
+
+         final ObjectId userId = apiKeyEntity.getId();
+
         // See if this list exists.
-        final CustomListEntity customListEntity = customListService.findOneByName(list);
+        final CustomListEntity customListEntity = customListService.findOneByName(list, userId);
 
         if(customListEntity == null) {
 
@@ -177,7 +203,7 @@ public class CustomListsApiController extends AbstractApiController {
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_DELETED, customListEntity.getId(), getClientIpAddress(httpServletRequest));
 
-            customListService.deleteByName(list);
+            customListService.deleteByName(list, userId);
 
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 

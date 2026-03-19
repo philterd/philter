@@ -35,6 +35,7 @@ public class VectorEntity extends AbstractEntity {
     public static VectorEntity fromDocument(final Document document) {
         final VectorEntity vectorEntity = new VectorEntity();
         vectorEntity.setId(document.getObjectId("_id"));
+        vectorEntity.setUserId(document.getObjectId("user_id"));
         vectorEntity.setContext(document.getString("context"));
         vectorEntity.setHash(document.getDouble("hash"));
         vectorEntity.setVectorSize(document.getInteger("vector_size"));
@@ -48,6 +49,7 @@ public class VectorEntity extends AbstractEntity {
         if(id != null) {
             document.put("_id", id);
         }
+        document.put("user_id", userId);
         document.put("context", context);
         document.put("hash", hash);
         document.put("vector_size", vectorSize);

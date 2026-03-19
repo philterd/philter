@@ -79,7 +79,7 @@ public class CustomListsView extends AbstractView {
         grid.addComponentColumn(originalListEntity -> {
 
             // Get the most up-to-date list object from the database.
-            final CustomListEntity listEntity = customListService.findOneById(originalListEntity.getId());
+            final CustomListEntity listEntity = customListService.findOneById(originalListEntity.getId(), null);
 
             final Button editListButton = new Button(VaadinIcon.EDIT.create());
             editListButton.setTooltipText("Edit list");
@@ -137,7 +137,7 @@ public class CustomListsView extends AbstractView {
 
                     final List<String> listItems = new ArrayList<>(Arrays.asList(listTextArea.getValue().split("\n")));
 
-                    final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, listEntity.getName(), descriptionTextField.getValue(), listItems, false, Source.WEBUI.getSource());
+                    final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, null, listEntity.getName(), descriptionTextField.getValue(), listItems, false, Source.WEBUI.getSource());
 
                     if(serviceResponse.isSuccessful()) {
 
@@ -180,7 +180,7 @@ public class CustomListsView extends AbstractView {
 
                 final Button confirmButton = new Button("Delete", e -> {
 
-                    customListService.deleteByName(listEntity.getName());
+                    customListService.deleteByName(listEntity.getName(), null);
                     confirmDialog.close();
 
                     dataProvider.refreshAll();
@@ -253,7 +253,7 @@ public class CustomListsView extends AbstractView {
                 final String description = descriptionTextField.getValue();
                 final List<String> listItems = new ArrayList<>(Arrays.asList(listTextArea.getValue().split("\n")));
 
-                final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, listName, description, listItems, false, Source.WEBUI.getSource());
+                final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, null, listName, description, listItems, false, Source.WEBUI.getSource());
 
                 if(serviceResponse.isSuccessful()) {
 

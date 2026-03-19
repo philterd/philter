@@ -50,6 +50,14 @@ public class RestApiExceptions {
 	}
 
 	@ResponseBody
+	@ExceptionHandler(UnauthorizedException.class)
+	@ResponseStatus(value = HttpStatus.UNAUTHORIZED)
+	public String handleUnauthorizedException(UnauthorizedException ex) {
+		LOGGER.error("Unauthorized access.", ex);
+		return ex.getMessage();
+	}
+
+	@ResponseBody
 	@ExceptionHandler({IOException.class, Exception.class})
 	@ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR)
 	public String handleUnknownException(Exception ex) {

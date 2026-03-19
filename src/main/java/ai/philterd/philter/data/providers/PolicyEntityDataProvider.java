@@ -52,10 +52,10 @@ public class PolicyEntityDataProvider extends AbstractBackEndDataProvider<Policy
             // Map Java property name to MongoDB field name
             final String mongoField = mapPropertyToMongoField(sortField);
 
-            return policyService.findAll(offset, limit, false, mongoField, ascending).stream();
+            return policyService.findAll(null, offset, limit, false, mongoField, ascending).stream();
         } else {
             // No sorting specified, use default
-            return policyService.findAll(offset, limit, false).stream();
+            return policyService.findAll(null, offset, limit, false).stream();
         }
     }
 
@@ -75,7 +75,7 @@ public class PolicyEntityDataProvider extends AbstractBackEndDataProvider<Policy
 
     @Override
     protected int sizeInBackEnd(final Query<PolicyEntity, Void> query) {
-        return policyService.count();
+        return policyService.count(null);
     }
 
 }

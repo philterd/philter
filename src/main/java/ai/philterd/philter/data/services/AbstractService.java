@@ -48,7 +48,10 @@ public class AbstractService<T extends AbstractEntity> {
     public void update(final T entity) {
 
         collection.updateOne(
-                Filters.eq("_id", entity.getId()),
+                Filters.and(
+                        Filters.eq("_id", entity.getId()),
+                        Filters.eq("user_id", entity.getUserId())
+                ),
                 new Document("$set", entity.toDocument())
         );
 

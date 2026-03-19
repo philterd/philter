@@ -72,9 +72,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @param source The source of the change
      * @return A {@link ServiceResponse} indicating the result of the operation.
      */
-    public ServiceResponse update(final String requestId, final ObjectId policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source) {
+    public ServiceResponse update(final String requestId, final ObjectId userId, final ObjectId policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source) {
 
-        final PolicyEntity policyEntity = findOneById(policyId);
+        final PolicyEntity policyEntity = findOneById(policyId, userId);
 
         // Make sure the policy exists.
         if(policyEntity == null) {
@@ -138,7 +138,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    public ServiceResponse create(final String requestId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source) {
+    public ServiceResponse create(final String requestId, final ObjectId userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source) {
 
         // Make sure the policy name is not empty.
         if (policyName == null || policyName.isEmpty()) {
@@ -161,7 +161,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         // Make sure the policy name is unique.
-        if (!isPolicyNameUnique(policyName)) {
+        if (!isPolicyNameUnique(policyName, userId)) {
             return new ServiceResponse("A policy with this name already exists.", false, 409);
         }
 
@@ -176,6 +176,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         } else {
 
             final PolicyEntity policyEntity = new PolicyEntity();
+            policyEntity.setUserId(userId);
             policyEntity.setPolicy(policyJson);
             policyEntity.setName(policyName);
             policyEntity.setCreatedTimestamp(new Date());
@@ -318,11 +319,22 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @param includeManagedPolicies Whether to include managed policies in the result.
      * @return A list of {@link PolicyEntity} objects.
      */
-    public List<PolicyEntity> findAll(final int offset, final int limit, final boolean includeManagedPolicies) {
+    public List<PolicyEntity> findAll(final ObjectId userId, final int offset, final int limit, final boolean includeManagedPolicies) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
-        final FindIterable<Document> documents = collection.find()
+        final Bson query;
+
+        if (userId != null) {
+            query = Filters.or(
+                    Filters.eq("user_id", userId),
+                    Filters.eq("shared", true)
+            );
+        } else {
+            query = new Document();
+        }
+
+        final FindIterable<Document> documents = collection.find(query)
                 .sort(Sorts.ascending("name"))
                 .skip(offset)
                 .limit(effectiveLimit);
@@ -348,20 +360,25 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    public List<PolicyEntity> findAll(final int offset, final int limit, final boolean includeManagedPolicies, final String sortField, final boolean ascending) {
+    public List<PolicyEntity> findAll(final ObjectId userId, final int offset, final int limit, final boolean includeManagedPolicies, final String sortField, final boolean ascending) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
-
-        // Validate sort field to prevent MongoDB injection
-        final List<String> allowedSortFields = List.of("name", "description", "created_timestamp", "last_updated_timestamp");
-        if (!allowedSortFields.contains(sortField)) {
-            throw new IllegalArgumentException("Invalid sort field: " + sortField);
-        }
 
         // Build the sort criteria
         final Bson sortCriteria = ascending ? Sorts.ascending(sortField) : Sorts.descending(sortField);
 
-        final FindIterable<Document> documents = collection.find()
+        final Bson query;
+
+        if (userId != null) {
+            query = Filters.or(
+                    Filters.eq("user_id", userId),
+                    Filters.eq("shared", true)
+            );
+        } else {
+            query = new Document();
+        }
+
+        final FindIterable<Document> documents = collection.find(query)
                 .sort(sortCriteria)
                 .skip(offset)
                 .limit(effectiveLimit);
@@ -391,11 +408,18 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * Counts the total number of policies for a user (excludes managed policies).
      * @return The count of policies.
      */
-    public int count() {
+    public int count(final ObjectId userId) {
 
-        final Bson query = Filters.and(
-                Filters.eq("managed", false)
-        );
+        final Bson query;
+
+        if (userId != null) {
+            query = Filters.and(
+                    Filters.eq("managed", false),
+                    Filters.eq("user_id", userId)
+            );
+        } else {
+            query = Filters.eq("managed", false);
+        }
 
         final long count = collection.countDocuments(query);
 
@@ -403,37 +427,20 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    public boolean isPolicyNameUnique(final String name) {
+    public boolean isPolicyNameUnique(final String name, final ObjectId userId) {
 
-        return findOne(name) == null;
-
-    }
-
-    public PolicyEntity findOneById(final ObjectId id) {
-
-        final Bson query = Filters.or(
-                Filters.eq("_id", id),
-                Filters.eq("shared", true)
-        );
-
-        final Document document = collection.find(query).first();
-
-        if(document != null) {
-
-            return PolicyEntity.fromDocument(document);
-
-        } else {
-
-            return null;
-
-        }
+        return findOne(name, userId) == null;
 
     }
 
-    public PolicyEntity findOne(final String name) {
+    public PolicyEntity findOneById(final ObjectId id, final ObjectId userId) {
 
         final Bson query = Filters.and(
-                Filters.eq("name", name)
+                Filters.eq("_id", id),
+                Filters.or(
+                        Filters.eq("user_id", userId),
+                        Filters.eq("shared", true)
+                )
         );
 
         final Document document = collection.find(query).first();
@@ -450,7 +457,28 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    public ServiceResponse duplicatePolicy(final String requestId, final String name, final String newName, String source) {
+    public PolicyEntity findOne(final String name, final ObjectId userId) {
+
+        final Bson query = Filters.and(
+                Filters.eq("name", name),
+                Filters.eq("user_id", userId)
+        );
+
+        final Document document = collection.find(query).first();
+
+        if(document != null) {
+
+            return PolicyEntity.fromDocument(document);
+
+        } else {
+
+            return null;
+
+        }
+
+    }
+
+    public ServiceResponse duplicatePolicy(final String requestId, final ObjectId userId, final String name, final String newName, String source) {
 
         // Make sure the policy name is not empty.
         if (newName == null || newName.isEmpty()) {
@@ -473,13 +501,14 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         // Make sure the new name is unique.
-        if(!isPolicyNameUnique(newName)) {
+        if(!isPolicyNameUnique(newName, userId)) {
             return new ServiceResponse("A policy with this name already exists.", false, 409);
         }
 
-        final PolicyEntity policyEntity = findOne(name);
+        final PolicyEntity policyEntity = findOne(name, userId);
         policyEntity.setName(newName);
         policyEntity.setId(null);
+        policyEntity.setUserId(userId);
 
         final ObjectId objectId = collection.insertOne(policyEntity.toDocument()).getInsertedId().asObjectId().getValue();
 
@@ -489,9 +518,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    public ServiceResponse deleteByName(final String requestId, final String policyName, final String source) {
+    public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId, final String source) {
 
-        if(findOne(policyName) == null) {
+        if(findOne(policyName, userId) == null) {
             return new ServiceResponse("Policy does not exist.", false, 404);
         }
 
@@ -500,7 +529,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         // There should never be a policy that is "managed=true" and has a user_id != null but this is just a safeguard.
-        final Document query = new Document("name", policyName).append("managed", false);
+        final Document query = new Document("name", policyName).append("managed", false).append("user_id", userId);
         final DeleteResult deleteResult = collection.deleteOne(query);
 
         if(deleteResult.getDeletedCount() == 1) {

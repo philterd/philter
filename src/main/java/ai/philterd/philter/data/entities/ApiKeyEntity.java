@@ -32,6 +32,7 @@ public class ApiKeyEntity extends AbstractEntity {
     public static ApiKeyEntity fromDocument(final Document document) {
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setId(document.getObjectId("_id"));
+        apiKeyEntity.setUserId(document.getObjectId("user_id"));
 
         // Read hash and prefix from document
         apiKeyEntity.setApiKeyHash(document.getString("api_key_hash"));
@@ -48,6 +49,7 @@ public class ApiKeyEntity extends AbstractEntity {
         if(id != null) {
             document.put("_id", id);
         }
+        document.put("user_id", userId);
         document.put("api_key_hash", apiKeyHash);
         document.put("api_key_prefix", apiKeyPrefix);
         document.put("deleted", deleted);

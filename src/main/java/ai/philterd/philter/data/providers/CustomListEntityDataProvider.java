@@ -35,12 +35,12 @@ public class CustomListEntityDataProvider extends AbstractBackEndDataProvider<Cu
             sortDirection = sortOrder.getDirection() == SortDirection.ASCENDING ? "ASC" : "DESC";
         }
         
-        return customListService.findAll(offset, limit, sortField, sortDirection).stream();
+        return customListService.findAll(null, offset, limit, sortField, sortDirection).stream();
     }
 
     @Override
     protected int sizeInBackEnd(final Query<CustomListEntity, Void> query) {
-        return customListService.count();
+        return customListService.count(null);
     }
 
 }

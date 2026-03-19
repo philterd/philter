@@ -44,29 +44,30 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         this.contextCache = contextCache;
     }
 
-    public ServiceResponse create(final String contextName) {
-        return create(contextName, false, false);
+    public ServiceResponse create(final String contextName, final ObjectId userId) {
+        return create(contextName, userId, false, false);
     }
 
-    public ServiceResponse create(final String contextName, final boolean coref) {
-        return create(contextName, coref, false);
+    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref) {
+        return create(contextName, userId, coref, false);
     }
 
-    public ServiceResponse create(final String contextName, final boolean coref, final boolean disambiguation) {
+    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation) {
 
         if(contextName == null || contextName.isBlank()) {
             return new ServiceResponse("Context name cannot be blank.", false, 400);
         }
 
-        if(findAll().size() >= MAXIMUM_CONTEXTS_PER_USER) {
+        if(findAll(userId).size() >= MAXIMUM_CONTEXTS_PER_USER) {
             return new ServiceResponse("Maximum number of contexts reached.", false, 412);
         }
 
-        if(findOne(contextName) != null) {
+        if(findOne(contextName, userId) != null) {
             return new ServiceResponse("Context already exists.", false, 409);
         }
 
         final ContextEntity contextEntity = new ContextEntity();
+        contextEntity.setUserId(userId);
         contextEntity.setContextName(contextName);
         contextEntity.setCoref(coref);
         contextEntity.setDisambiguation(disambiguation);
@@ -76,9 +77,15 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public List<ContextEntity> findAll() {
+    public List<ContextEntity> findAll(final ObjectId userId) {
 
-        final Iterable<Document> documents = collection.find();
+        final Document query = new Document();
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
+
+        final Iterable<Document> documents = collection.find(query);
 
         final List<ContextEntity> contextEntities = new ArrayList<>();
 
@@ -93,14 +100,21 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public List<ContextEntity> findBySearchTerm(final String searchTerm, final int limit) {
+    public List<ContextEntity> findBySearchTerm(final ObjectId userId, final String searchTerm, final int limit) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
         final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
 
-        final Bson query = Filters.and(
-                Filters.regex("context_name", pattern)
-        );
+        final Bson query;
+
+        if (userId != null) {
+            query = Filters.and(
+                    Filters.eq("user_id", userId),
+                    Filters.regex("context_name", pattern)
+            );
+        } else {
+            query = Filters.regex("context_name", pattern);
+        }
 
         final FindIterable<Document> documents = collection.find(query).limit(effectiveLimit);
 
@@ -115,11 +129,11 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public List<ContextEntity> findAll(final int offset, final int limit) {
-        return findAll(offset, limit, null, null);
+    public List<ContextEntity> findAll(final ObjectId userId, final int offset, final int limit) {
+        return findAll(userId, offset, limit, null, null);
     }
 
-    public List<ContextEntity> findAll(final int offset, final int limit, final String sortField, final String sortDirection) {
+    public List<ContextEntity> findAll(final ObjectId userId, final int offset, final int limit, final String sortField, final String sortDirection) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
@@ -130,11 +144,17 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             sortDocument.append(sortField, direction);
         }
 
+        final Document query = new Document();
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
+
         final Iterable<Document> documents;
         if (sortDocument.isEmpty()) {
-            documents = collection.find().skip(offset).limit(effectiveLimit);
+            documents = collection.find(query).skip(offset).limit(effectiveLimit);
         } else {
-            documents = collection.find().sort(sortDocument).skip(offset).limit(effectiveLimit);
+            documents = collection.find(query).sort(sortDocument).skip(offset).limit(effectiveLimit);
         }
 
         final List<ContextEntity> contextEntities = new ArrayList<>();
@@ -150,9 +170,15 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public int count() {
+    public int count(final ObjectId userId) {
 
-        return (int) collection.countDocuments();
+        final Document query = new Document();
+
+        if (userId != null) {
+            query.append("user_id", userId);
+        }
+
+        return (int) collection.countDocuments(query);
 
     }
 
@@ -170,9 +196,9 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ContextEntity findOne(final String contextName) {
+    public ContextEntity findOne(final String contextName, final ObjectId userId) {
 
-        final Document query = new Document("context_name", contextName);
+        final Document query = new Document("context_name", contextName).append("user_id", userId);
 
         final Document document = collection.find(query).first();
 
@@ -184,17 +210,17 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ServiceResponse emptyByName(final String contextName) {
+    public ServiceResponse emptyByName(final String contextName, final ObjectId userId) {
 
         // Make sure the context exists.
-        final ContextEntity contextEntity = findOne(contextName);
+        final ContextEntity contextEntity = findOne(contextName, userId);
 
         if(contextEntity == null) {
             return new ServiceResponse("Context does not exist.", false, 400);
         }
 
         // Delete the individual context entries for this context.
-        contextEntryService.deleteByContextName(contextName);
+        contextEntryService.deleteByContextName(contextName, userId);
 
         // Remove this context from the cache.
         contextCache.deleteContext(contextName);
@@ -203,23 +229,23 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ServiceResponse deleteByName(final String contextName) {
+    public ServiceResponse deleteByName(final String contextName, final ObjectId userId) {
 
         // Safeguard to prevent deleting the default context.
         if(!"default".equalsIgnoreCase(contextName)) {
 
             // Make sure the context exists.
-            final ContextEntity contextEntity = findOne(contextName);
+            final ContextEntity contextEntity = findOne(contextName, userId);
 
             if(contextEntity == null) {
                 return new ServiceResponse("Context does not exist.", false, 400);
             }
 
-            final Document filter = new Document("context_name", contextName);
+            final Document filter = new Document("context_name", contextName).append("user_id", userId);
             collection.deleteOne(filter);
 
             // Delete the individual context entries for this context.
-            contextEntryService.deleteByContextName(contextName);
+            contextEntryService.deleteByContextName(contextName, userId);
 
             // Remove this context from the cache.
             contextCache.deleteContext(contextName);

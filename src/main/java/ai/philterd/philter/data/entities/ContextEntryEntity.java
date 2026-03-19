@@ -23,7 +23,6 @@ import java.util.Date;
 public class ContextEntryEntity extends AbstractEntity {
 
     private ObjectId id;
-    private ObjectId userId;
     private String contextName;
     private String tokenHash;
     private String replacement;
@@ -77,10 +76,6 @@ public class ContextEntryEntity extends AbstractEntity {
 
     public void setContextName(String contextName) {
         this.contextName = contextName;
-    }
-
-    public ObjectId getUserId() {
-        return userId;
     }
 
     public void setUserId(ObjectId userId) {

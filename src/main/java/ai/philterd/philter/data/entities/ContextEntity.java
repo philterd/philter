@@ -36,6 +36,7 @@ public class ContextEntity extends AbstractEntity {
     public static ContextEntity fromDocument(final Document document) {
         final ContextEntity contextEntity = new ContextEntity();
         contextEntity.id = document.getObjectId("_id");
+        contextEntity.userId = document.getObjectId("user_id");
         contextEntity.contextName = document.getString("context_name");
         contextEntity.maxSize = document.getInteger("max_size", MAX_CONTEXT_SIZE);
         contextEntity.coref = document.getBoolean("coref", false);
@@ -51,6 +52,7 @@ public class ContextEntity extends AbstractEntity {
         if(id != null) {
             document.put("_id", id);
         }
+        document.put("user_id", userId);
         document.put("context_name", contextName);
         document.put("max_size", maxSize);
         document.put("coref", coref);

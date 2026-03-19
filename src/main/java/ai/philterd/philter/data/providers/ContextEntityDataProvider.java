@@ -6,6 +6,7 @@ import com.vaadin.flow.data.provider.AbstractBackEndDataProvider;
 import com.vaadin.flow.data.provider.Query;
 import com.vaadin.flow.data.provider.QuerySortOrder;
 import com.vaadin.flow.data.provider.SortDirection;
+import org.bson.types.ObjectId;
 
 import java.util.stream.Stream;
 
@@ -15,13 +16,16 @@ import java.util.stream.Stream;
 public class ContextEntityDataProvider extends AbstractBackEndDataProvider<ContextEntity, Void> {
 
     private final ContextDataService contextService;
+    private final ObjectId userId;
 
-    public ContextEntityDataProvider(final ContextDataService contextService) {
+    public ContextEntityDataProvider(final ObjectId userId, final ContextDataService contextService) {
         this.contextService = contextService;
+        this.userId = userId;
     }
 
     @Override
     protected Stream<ContextEntity> fetchFromBackEnd(final Query<ContextEntity, Void> query) {
+
         final int offset = query.getOffset();
         final int limit = query.getLimit();
         
@@ -35,12 +39,13 @@ public class ContextEntityDataProvider extends AbstractBackEndDataProvider<Conte
             sortDirection = sortOrder.getDirection() == SortDirection.ASCENDING ? "ASC" : "DESC";
         }
         
-        return contextService.findAll(null, offset, limit, sortField, sortDirection).stream();
+        return contextService.findAll(userId, offset, limit, sortField, sortDirection).stream();
+
     }
 
     @Override
     protected int sizeInBackEnd(final Query<ContextEntity, Void> query) {
-        return contextService.count(null);
+        return contextService.count(userId);
     }
 
 }

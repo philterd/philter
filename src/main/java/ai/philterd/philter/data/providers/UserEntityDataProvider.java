@@ -15,31 +15,34 @@
  */
 package ai.philterd.philter.data.providers;
 
-import ai.philterd.philter.data.entities.PolicyEntity;
-import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.services.UserService;
 import com.vaadin.flow.data.provider.AbstractBackEndDataProvider;
 import com.vaadin.flow.data.provider.Query;
-import org.springframework.stereotype.Service;
 
 import java.util.stream.Stream;
 
-@Service
-public class PoliciesDataProvider extends AbstractBackEndDataProvider<PolicyEntity, Void> {
+/**
+ * Used by the grid on the users view for paging users.
+ */
+public class UserEntityDataProvider extends AbstractBackEndDataProvider<UserEntity, Void> {
 
-    private final PolicyDataService policyDataService;
+    private final UserService userService;
 
-    public PoliciesDataProvider(final PolicyDataService policyDataService) {
-        this.policyDataService = policyDataService;
+    public UserEntityDataProvider(final UserService userService) {
+        this.userService = userService;
     }
 
     @Override
-    protected Stream<PolicyEntity> fetchFromBackEnd(Query<PolicyEntity, Void> query) {
-        return policyDataService.findAll(null, query.getOffset(), query.getLimit(), false).stream();
+    protected Stream<UserEntity> fetchFromBackEnd(final Query<UserEntity, Void> query) {
+        final int offset = query.getOffset();
+        final int limit = query.getLimit();
+        return userService.findAll(offset, limit).stream();
     }
 
     @Override
-    protected int sizeInBackEnd(Query<PolicyEntity, Void> query) {
-        return policyDataService.count(null);
+    protected int sizeInBackEnd(final Query<UserEntity, Void> query) {
+        return userService.count();
     }
 
 }

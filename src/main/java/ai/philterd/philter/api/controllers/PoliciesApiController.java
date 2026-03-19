@@ -23,6 +23,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
@@ -151,7 +152,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final String requestId = RequestIdGenerator.generate();
 
-        policyDataService.deleteByName(requestId, policyName, userId, getClientIpAddress(request));
+        policyDataService.deleteByName(requestId, policyName, userId, Source.API);
 
     }
 

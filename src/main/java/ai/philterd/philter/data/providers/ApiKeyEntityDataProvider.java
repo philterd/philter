@@ -29,21 +29,23 @@ import java.util.stream.Stream;
 public class ApiKeyEntityDataProvider extends AbstractBackEndDataProvider<ApiKeyEntity, Void> {
 
     private final ApiKeyDataService apiKeyService;
+    private final ObjectId userId;
 
-    public ApiKeyEntityDataProvider(final ApiKeyDataService apiKeyService) {
+    public ApiKeyEntityDataProvider(final ObjectId userId, final ApiKeyDataService apiKeyService) {
         this.apiKeyService = apiKeyService;
+        this.userId = userId;
     }
 
     @Override
     protected Stream<ApiKeyEntity> fetchFromBackEnd(final Query<ApiKeyEntity, Void> query) {
         final int offset = query.getOffset();
         final int limit = query.getLimit();
-        return apiKeyService.findAll(null, offset, limit).stream();
+        return apiKeyService.findAll(userId, offset, limit).stream();
     }
 
     @Override
     protected int sizeInBackEnd(final Query<ApiKeyEntity, Void> query) {
-        return apiKeyService.count(null);
+        return apiKeyService.count(userId);
     }
 
 }

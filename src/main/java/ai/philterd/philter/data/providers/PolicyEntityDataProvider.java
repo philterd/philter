@@ -21,20 +21,18 @@ import com.vaadin.flow.data.provider.AbstractBackEndDataProvider;
 import com.vaadin.flow.data.provider.Query;
 import com.vaadin.flow.data.provider.QuerySortOrder;
 import com.vaadin.flow.data.provider.SortDirection;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.bson.types.ObjectId;
-import org.springframework.stereotype.Service;
 
 import java.util.stream.Stream;
 
-@Service
 public class PolicyEntityDataProvider extends AbstractBackEndDataProvider<PolicyEntity, Void> {
 
     private final PolicyDataService policyService;
+    private final ObjectId userId;
 
-    public PolicyEntityDataProvider(final PolicyDataService policyService) {
+    public PolicyEntityDataProvider(final ObjectId userId, final PolicyDataService policyService) {
         this.policyService = policyService;
+        this.userId = userId;
     }
 
     @Override
@@ -52,10 +50,10 @@ public class PolicyEntityDataProvider extends AbstractBackEndDataProvider<Policy
             // Map Java property name to MongoDB field name
             final String mongoField = mapPropertyToMongoField(sortField);
 
-            return policyService.findAll(null, offset, limit, false, mongoField, ascending).stream();
+            return policyService.findAll(userId, offset, limit, false, mongoField, ascending).stream();
         } else {
             // No sorting specified, use default
-            return policyService.findAll(null, offset, limit, false).stream();
+            return policyService.findAll(userId, offset, limit, false).stream();
         }
     }
 
@@ -75,7 +73,7 @@ public class PolicyEntityDataProvider extends AbstractBackEndDataProvider<Policy
 
     @Override
     protected int sizeInBackEnd(final Query<PolicyEntity, Void> query) {
-        return policyService.count(null);
+        return policyService.count(userId);
     }
 
 }

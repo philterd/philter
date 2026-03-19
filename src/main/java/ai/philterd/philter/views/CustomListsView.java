@@ -41,6 +41,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,6 +51,7 @@ import java.util.List;
 
 @Route(value = "lists")
 @PageTitle("Philter - Custom Lists")
+@PermitAll
 public class CustomListsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(CustomListsView.class);
@@ -60,10 +62,11 @@ public class CustomListsView extends AbstractRestrictedView {
     }
 
     public CustomListsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
-                           final CustomListDataService customListService, final CustomListEntityDataProvider dataProvider) {
+                           final CustomListDataService customListService) {
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
         final UserEntity userEntity = getCurrentUser();
+        final CustomListEntityDataProvider dataProvider = new CustomListEntityDataProvider(userEntity.getId(), customListService);
 
         final Grid<CustomListEntity> grid = new Grid<>(CustomListEntity.class, false);
         grid.addColumn(CustomListEntity::getName).setHeader("Name").setResizable(true).setSortable(true).setSortProperty("name");

@@ -26,6 +26,7 @@ import com.vaadin.flow.component.dashboard.Dashboard;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,7 @@ import java.util.List;
 
 @Route(value = "metrics")
 @PageTitle("Philter - Metrics")
+@PermitAll
 public class MetricsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(MetricsView.class);
@@ -88,13 +90,8 @@ public class MetricsView extends AbstractRestrictedView {
 
         pageVerticalLayout.add(dashboard);
         pageVerticalLayout.add(downloadUsageLink);
-        pageVerticalLayout.add(getFooter());
+        pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
-//
-//        final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
-//        pageHorizontalLayout.add(pageVerticalLayout);
-//        //pageHorizontalLayout.add(helpWindowVerticalLayout);
-//        pageHorizontalLayout.setSizeFull();
 
         setContent(pageVerticalLayout);
 

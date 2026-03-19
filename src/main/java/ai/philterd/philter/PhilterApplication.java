@@ -25,15 +25,13 @@ import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.NoOpAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
-import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
-import ai.philterd.philter.data.providers.CustomListEntityDataProvider;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
-import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -53,7 +51,6 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -226,11 +223,6 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public CustomListEntityDataProvider customListEntityDataProvider(final CustomListDataService customListDataService) {
-        return new CustomListEntityDataProvider(customListDataService);
-    }
-
-    @Bean
     public EncryptionService encryptionService() {
         return new LocalEncryptionService();
     }
@@ -258,12 +250,6 @@ public class PhilterApplication implements AppShellConfigurator {
                     .roles(user.getRole() != null ? user.getRole().toUpperCase() : "USER")
                     .build();
         };
-    }
-
-
-    @Bean
-    public ApiKeyEntityDataProvider apiKeyEntityDataProvider() {
-        return new ApiKeyEntityDataProvider(apiKeyDataService());
     }
 
 }

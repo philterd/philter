@@ -24,6 +24,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.policies.ManagedPolicyLoader;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
@@ -518,7 +519,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId, final String source) {
+    public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId, final Source source) {
 
         if(findOne(policyName, userId) == null) {
             return new ServiceResponse("Policy does not exist.", false, 404);
@@ -534,7 +535,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         if(deleteResult.getDeletedCount() == 1) {
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, null, null,"Policy Name: " + policyName, source);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, null, null,"Policy Name: " + policyName, source.getSource());
 
             return new ServiceResponse("Policy deleted.", true, 200);
 

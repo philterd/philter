@@ -55,7 +55,7 @@ public class CommonWidgets {
 
     public static Span getContactSupportLink() {
 
-        final Anchor link = new Anchor("https://docs.philterd.ai/support.html", "Support");
+        final Anchor link = new Anchor("https://www.philterd.ai/support/", "Support");
         link.setTarget("_blank");
 
         final Span span = new Span(link);
@@ -63,32 +63,6 @@ public class CommonWidgets {
         span.getStyle().set("color", "var(--lumo-secondary-text-color)");
 
         return span;
-
-    }
-
-    public static Span getPrivacyPolicyLink() {
-
-        final Anchor link = new Anchor("https://www.philterd.ai/philterd-data-services-policies/", "Privacy Policy");
-        link.setTarget("_blank");
-
-        final Span contactSupport = new Span(link);
-        contactSupport.getStyle().set("font-size", "var(--lumo-font-size-s)");
-        contactSupport.getStyle().set("color", "var(--lumo-secondary-text-color)");
-
-        return contactSupport;
-
-    }
-
-    public static Span getTermsOfUseLink() {
-
-        final Anchor link = new Anchor("https://www.philterd.ai/philterd-data-services-policies/", "Terms of Use");
-        link.setTarget("_blank");
-
-        final Span contactSupport = new Span(link);
-        contactSupport.getStyle().set("font-size", "var(--lumo-font-size-s)");
-        contactSupport.getStyle().set("color", "var(--lumo-secondary-text-color)");
-
-        return contactSupport;
 
     }
 
@@ -104,8 +78,6 @@ public class CommonWidgets {
         footer.setAlignItems(FlexComponent.Alignment.END);
         footer.add(copyright);
         footer.add(getContactSupportLink());
-        footer.add(getPrivacyPolicyLink());
-        footer.add(getTermsOfUseLink());
 
         final Anchor link = new Anchor("https://docs.philterd.ai/mistakes.html", "Redactions can include mistakes - learn more.");
         link.setTarget("_blank");

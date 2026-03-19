@@ -16,7 +16,10 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -41,13 +44,18 @@ public class DashboardView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(DashboardView.class);
 
+    private final PolicyDataService policyDataService;
+
     @Override
     public String getHelpMarkdownText() {
         return "Placeholder for dashboard help text.";
     }
 
-    public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+    public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService,
+                         final AuditEventPublisher auditEventPublisher, final PolicyDataService policyDataService) {
         super(mongoClient, encryptionService, auditEventPublisher, true);
+
+        this.policyDataService = policyDataService;
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();
@@ -59,7 +67,7 @@ public class DashboardView extends AbstractRestrictedView {
         filterHorizontalLayout.add(createPdfFilter());
 
         pageVerticalLayout.add(filterHorizontalLayout);
-        pageVerticalLayout.add(getFooter());
+        pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
@@ -77,6 +85,8 @@ public class DashboardView extends AbstractRestrictedView {
         policyComboBox.setWidthFull();
         policyComboBox.setPlaceholder("Select a policy");
         policyComboBox.setAllowCustomValue(false);
+        policyComboBox.setItems(policyDataService.findAll(userEntity.getId(), 0, 100, false).stream().map(PolicyEntity::getName).toList());
+        policyComboBox.setValue("default");
 
         final TextArea textToFilter = new TextArea("Text");
         textToFilter.setWidthFull();
@@ -121,7 +131,7 @@ public class DashboardView extends AbstractRestrictedView {
         pdfPolicyComboBox.setWidthFull();
         pdfPolicyComboBox.setPlaceholder("Select a policy");
         pdfPolicyComboBox.setAllowCustomValue(false);
-        pdfPolicyComboBox.setItems("default", "policy1", "policy2");
+        pdfPolicyComboBox.setItems(policyDataService.findAll(userEntity.getId(), 0, 100, false).stream().map(PolicyEntity::getName).toList());
         pdfPolicyComboBox.setValue("default");
 
         final MemoryBuffer buffer = new MemoryBuffer();

@@ -17,6 +17,8 @@ package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
 import ai.philterd.philter.data.providers.ContextEntityDataProvider;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
@@ -40,6 +42,7 @@ import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,6 +50,7 @@ import java.util.Map;
 
 @Route(value = "contexts")
 @PageTitle("Philter - Contexts")
+@PermitAll
 public class ContextsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(ContextsView.class);
@@ -115,10 +119,12 @@ public class ContextsView extends AbstractRestrictedView {
                         final ContextDataService contextService, final ContextEntryDataService contextEntryService) {
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
+        final UserEntity userEntity = getCurrentUser();
+
         final Grid<ContextEntity> grid = new Grid<>(ContextEntity.class, false);
 
         // Create the data provider
-        final ContextEntityDataProvider dataProvider = new ContextEntityDataProvider(contextService);
+        final ContextEntityDataProvider dataProvider = new ContextEntityDataProvider(userEntity.getId(), contextService);
         grid.setDataProvider(dataProvider);
 
         // Button to create a new context.

@@ -19,10 +19,11 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
-import ai.philterd.philter.data.providers.PoliciesDataProvider;
+import ai.philterd.philter.data.providers.PolicyEntityDataProvider;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
@@ -45,6 +46,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.ListDataProvider;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -53,6 +55,7 @@ import java.util.stream.Collectors;
 
 @Route(value = "policies")
 @PageTitle("Philter - Policies")
+@PermitAll
 public class PoliciesView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
@@ -63,13 +66,14 @@ public class PoliciesView extends AbstractRestrictedView {
     }
 
     public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService,
-                        final GlobalTermsDataService globalTermsService, final PoliciesDataProvider policiesDataProvider) {
+                        final GlobalTermsDataService globalTermsService) {
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
         final UserEntity userEntity = getCurrentUser();
+        final PolicyEntityDataProvider policiesDataProvider = new PolicyEntityDataProvider(userEntity.getId(), policyService);
 
         final Button newPolicyButton = new Button("New Policy", VaadinIcon.PLUS.create());
-        newPolicyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+        newPolicyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_PRIMARY);
 
         final Grid<PolicyEntity> policyGrid = new Grid<>(PolicyEntity.class, false);
         policyGrid.setDataProvider(policiesDataProvider);
@@ -183,24 +187,30 @@ public class PoliciesView extends AbstractRestrictedView {
 
             });
 
+            return editPolicyButton;
+
+        }).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
+
+        policyGrid.addComponentColumn(policy -> {
+
             final Button deletePolicyButton = new Button("Delete", VaadinIcon.TRASH.create());
             deletePolicyButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
             deletePolicyButton.addClickListener(event -> {
-                try {
-                    // TODO: Wire up policy deletion.
-                   // policyDataService.deleteByName(policy.getName());
+
+                final ServiceResponse serviceResponse = policyService.deleteByName("", policy.getName(), userEntity.getId(), Source.WEBUI);
+
+                if(serviceResponse.isSuccessful()) {
                     policiesDataProvider.refreshAll();
-                    showSuccessNotification("Policy deleted.");
-                } catch (Exception ex) {
-                    LOGGER.error("Unable to delete policy.", ex);
-                    showFailureNotification("Unable to delete the policy.");
+                    showSuccessNotification(serviceResponse.getMessage());
+                } else {
+                    showSuccessNotification(serviceResponse.getMessage());
                 }
+
             });
 
-            final HorizontalLayout actions = new HorizontalLayout(editPolicyButton, deletePolicyButton);
-            return actions;
+            return deletePolicyButton;
 
-        });
+        }).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
 
         newPolicyButton.addClickListener(event -> {
 
@@ -302,10 +312,8 @@ public class PoliciesView extends AbstractRestrictedView {
         });
 
         final VerticalLayout policiesVerticalLayout = new VerticalLayout();
-        policiesVerticalLayout.add(new Span("Policies control what types of PII to redact and how to redact each type."));
         policiesVerticalLayout.add(newPolicyButton);
         policiesVerticalLayout.add(policyGrid);
-        policiesVerticalLayout.add(CommonWidgets.getLink("Learn more about policies.", "https://docs.philterd.ai/policies.html", true));
         policiesVerticalLayout.setSizeFull();
 
         // Begin Managed Policies
@@ -458,6 +466,7 @@ public class PoliciesView extends AbstractRestrictedView {
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(getTitle(("Policies")));
         pageVerticalLayout.add(tabSheet);
+        pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();

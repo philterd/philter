@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.philter.data.entities.AbstractEncryptedEntity;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.AbstractEncryptedEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -31,7 +31,7 @@ import org.bson.types.ObjectId;
  */
 public class AbstractEncryptedService<T extends AbstractEncryptedEntity> {
 
-    private static final String database = "philterd_data_services";
+    private static final String database = "philter";
 
     protected final MongoCollection<Document> collection;
     protected final EncryptionService encryptionService;
@@ -54,10 +54,7 @@ public class AbstractEncryptedService<T extends AbstractEncryptedEntity> {
     public void update(final T entity) {
 
         collection.updateOne(
-                Filters.and(
-                        Filters.eq("_id", entity.getId()),
-                        Filters.eq("user_id", entity.getUserId())
-                ),
+                Filters.eq("_id", entity.getId()),
                 new Document("$set", entity.toDocument(encryptionService))
         );
 

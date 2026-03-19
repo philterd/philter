@@ -6,6 +6,7 @@ import com.vaadin.flow.data.provider.AbstractBackEndDataProvider;
 import com.vaadin.flow.data.provider.Query;
 import com.vaadin.flow.data.provider.QuerySortOrder;
 import com.vaadin.flow.data.provider.SortDirection;
+import org.bson.types.ObjectId;
 
 import java.util.stream.Stream;
 
@@ -15,9 +16,11 @@ import java.util.stream.Stream;
 public class CustomListEntityDataProvider extends AbstractBackEndDataProvider<CustomListEntity, Void> {
 
     private final CustomListDataService customListService;
+    private final ObjectId userId;
 
-    public CustomListEntityDataProvider(final CustomListDataService customListService) {
+    public CustomListEntityDataProvider(final ObjectId userId, final CustomListDataService customListService) {
         this.customListService = customListService;
+        this.userId = userId;
     }
 
     @Override
@@ -35,12 +38,12 @@ public class CustomListEntityDataProvider extends AbstractBackEndDataProvider<Cu
             sortDirection = sortOrder.getDirection() == SortDirection.ASCENDING ? "ASC" : "DESC";
         }
         
-        return customListService.findAll(null, offset, limit, sortField, sortDirection).stream();
+        return customListService.findAll(userId, offset, limit, sortField, sortDirection).stream();
     }
 
     @Override
     protected int sizeInBackEnd(final Query<CustomListEntity, Void> query) {
-        return customListService.count(null);
+        return customListService.count(userId);
     }
 
 }

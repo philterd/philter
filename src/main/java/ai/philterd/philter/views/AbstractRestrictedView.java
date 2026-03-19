@@ -20,7 +20,9 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
@@ -37,11 +39,13 @@ import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.server.VaadinService;
+import com.vaadin.flow.server.VaadinServletRequest;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
 public abstract class AbstractRestrictedView extends AppLayout implements BeforeEnterObserver {
 
@@ -68,15 +72,23 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         this.userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
         this.userEntity = getCurrentUser();
 
-        final Image logo = new Image("public/philter.png", "Philter");
-        logo.setHeight("75px");
+        final Image logoImage = new Image("public/philter.png", "Philter");
+        logoImage.setWidth("35px");
+        logoImage.getStyle().set("cursor", "pointer");
+        logoImage.addClickListener(click -> {
+            UI.getCurrent().navigate(DashboardView.class);
+        });
 
-        final Anchor logoLinkAnchor = new Anchor("/dashboard", logo);
+        final Button logoutButton = new Button("Sign Out", VaadinIcon.SIGN_OUT.create(), click -> {
+            logout();
+        });
 
-        final HorizontalLayout header = new HorizontalLayout(logoLinkAnchor);
+        final HorizontalLayout header = new HorizontalLayout();
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         header.setWidthFull();
         header.addClassNames(LumoUtility.Padding.Vertical.NONE, LumoUtility.Padding.Horizontal.MEDIUM);
+        header.add(logoImage);
+        header.add(logoutButton);
 
         addToNavbar(header);
 
@@ -85,9 +97,9 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         sideNav.addItem(new SideNavItem("Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
         sideNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.DOCTOR.create()));
         sideNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
-        sideNav.addItem(new SideNavItem("API", ApiKeyView.class, VaadinIcon.COG.create()));
+        sideNav.addItem(new SideNavItem("API and SDKs", ApiKeysAndSDKsView.class, VaadinIcon.COG.create()));
+        sideNav.addItem(new SideNavItem("Users", UsersView.class, VaadinIcon.USERS.create()));
         sideNav.addItem(new SideNavItem("Metrics", MetricsView.class, VaadinIcon.CHART_LINE.create()));
-        sideNav.addItem(new SideNavItem("Client SDKs", SdksView.class, VaadinIcon.WRENCH.create()));
 
         addToDrawer(sideNav);
 
@@ -115,6 +127,15 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
 
     }
 
+    public void logout() {
+
+        final SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
+        logoutHandler.logout(VaadinServletRequest.getCurrent().getHttpServletRequest(), null, null);
+
+        UI.getCurrent().navigate(LoginView.class);
+
+    }
+
     public UserEntity getCurrentUser() {
 
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -139,28 +160,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
 
     public String getClientIpAddress() {
         return VaadinService.getCurrentRequest().getHeader("X-Forwarded-For");
-    }
-
-    protected VerticalLayout getFooter() {
-
-        final VerticalLayout footer = new VerticalLayout();
-        footer.setWidthFull();
-        footer.setAlignItems(FlexComponent.Alignment.CENTER);
-        footer.setPadding(true);
-
-        final Image logo = new Image("philterd.png", "Philterd");
-
-        final Anchor link = new Anchor("https://www.philterd.ai", logo);
-        link.setTarget("_blank");
-
-        final Span copyright = new Span("Copyright 2026 © Philterd, LLC. \"Philter\" is a registered trademark of Philterd, LLC.");
-        copyright.getStyle().set("font-size", "0.8rem");
-        copyright.getStyle().set("color", "#858796");
-
-        footer.add(link, copyright);
-
-        return footer;
-
     }
 
     public void showSuccessNotification(final String message) {

@@ -411,11 +411,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     public PolicyEntity findOneById(final ObjectId id) {
 
-        final Bson query = Filters.and(
+        final Bson query = Filters.or(
                 Filters.eq("_id", id),
-                Filters.or(
-                        Filters.eq("shared", true)
-                )
+                Filters.eq("shared", true)
         );
 
         final Document document = collection.find(query).first();

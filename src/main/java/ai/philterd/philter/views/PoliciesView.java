@@ -45,6 +45,7 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.gson.Gson;
 import java.util.stream.Collectors;
 
 @Route(value = "policies")
@@ -72,6 +73,112 @@ public class PoliciesView extends AbstractView {
         policyGrid.addColumn(PolicyEntity::getName).setHeader("Name");
         policyGrid.addComponentColumn(policy -> {
 
+            final Button editPolicyButton = new Button("Edit", VaadinIcon.EDIT.create());
+            editPolicyButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            editPolicyButton.addClickListener(event -> {
+
+                final PolicyEditorComponents policyEditorComponents = new PolicyEditorComponents();
+
+                // Get the policy JSON and deserialize it into a SimplifiedPolicy.
+                final Gson gson = new Gson();
+                final SimplifiedPolicy simplifiedPolicy = gson.fromJson(policy.getPolicy(), SimplifiedPolicy.class);
+
+                final VerticalLayout filtersVerticalLayout = policyEditorComponents.getFilters(simplifiedPolicy);
+                final VerticalLayout termsToAlwaysRedactVerticalLayout = policyEditorComponents.getTermsToAlwaysRedact(simplifiedPolicy);
+                final VerticalLayout ignoredTermsVerticalLayout = policyEditorComponents.getIgnored(simplifiedPolicy);
+                final VerticalLayout optionsVerticalLayout = policyEditorComponents.getOptions(simplifiedPolicy);
+
+                final TextField policyDescriptionTextField = new TextField();
+                policyDescriptionTextField.setWidthFull();
+                policyDescriptionTextField.setLabel("Policy Description");
+                policyDescriptionTextField.setPlaceholder("optional description about the policy");
+                policyDescriptionTextField.setMaxLength(200);
+                policyDescriptionTextField.setValue(policy.getDescription() != null ? policy.getDescription() : "");
+
+                final TextArea policyNotesTextArea = new TextArea();
+                policyNotesTextArea.setWidthFull();
+                policyNotesTextArea.setHeight("150px");
+                policyNotesTextArea.setLabel("Policy Notes");
+                policyNotesTextArea.setPlaceholder("optional notes about the policy");
+                policyNotesTextArea.setMaxLength(1000);
+                policyNotesTextArea.setValue(policy.getNotes() != null ? policy.getNotes() : "");
+
+                final VerticalLayout policyDetailsVerticalLayout = new VerticalLayout();
+                policyDetailsVerticalLayout.add(policyDescriptionTextField);
+                policyDetailsVerticalLayout.add(policyNotesTextArea);
+
+                final TabSheet tabSheet = new TabSheet();
+                tabSheet.add("Policy Details", policyDetailsVerticalLayout);
+                tabSheet.add("PII/PHI Filters", filtersVerticalLayout);
+                tabSheet.add("Always Redact", termsToAlwaysRedactVerticalLayout);
+                tabSheet.add("Never Redact", ignoredTermsVerticalLayout);
+                tabSheet.add("Options", optionsVerticalLayout);
+
+                final TextField policyNameTextField = new TextField();
+                policyNameTextField.setWidthFull();
+                policyNameTextField.setLabel("Policy Name");
+                policyNameTextField.setPlaceholder("policy name");
+                policyNameTextField.setRequired(true);
+                policyNameTextField.setRequiredIndicatorVisible(true);
+                policyNameTextField.setMaxLength(PolicyDataService.POLICY_NAME_MAX_LENGTH);
+                policyNameTextField.setPattern(PolicyDataService.POLICY_NAME_REGEX);
+                policyNameTextField.setHelperText("The policy name must only contain letters, numbers, dashes, and underscores.");
+                policyNameTextField.setValue(policy.getName());
+                policyNameTextField.setReadOnly(true);
+
+                final Dialog editPolicyDialog = new Dialog();
+                editPolicyDialog.setMinWidth("900px");
+                editPolicyDialog.setMaxWidth("900px");
+                editPolicyDialog.setMinHeight("700px");
+                editPolicyDialog.setMaxHeight("700px");
+                editPolicyDialog.add(new H3("Edit Policy"));
+                editPolicyDialog.add(policyNameTextField);
+                editPolicyDialog.add(tabSheet);
+
+                final Button saveButton = new Button("Save", e -> {
+
+                    final String policyName = policyNameTextField.getValue();
+                    final String policyJson = policyEditorComponents.buildPolicy(policyName);
+                    final String policyDescription = policyDescriptionTextField.getValue();
+                    final String policyNotes = policyNotesTextArea.getValue();
+
+                    if(policyJson == null) {
+
+                        // The policy builder did not validate.
+                        LOGGER.warn("The policy could not be validated.");
+
+                    } else {
+
+                        final String requestId = RequestIdGenerator.generate();
+
+                        final ServiceResponse serviceResponse = policyService.update(requestId, policy.getId(), policyJson, policyDescription, policyNotes, getClientIpAddress());
+
+                        if(serviceResponse.isSuccessful()) {
+
+                            policiesDataProvider.refreshAll();
+                            editPolicyDialog.close();
+                            showSuccessNotification("Policy updated.");
+
+                        } else {
+
+                            policyNameTextField.setInvalid(true);
+                            policyNameTextField.setErrorMessage(serviceResponse.getMessage());
+
+                        }
+
+                    }
+
+                });
+                saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", e -> editPolicyDialog.close());
+                cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+                editPolicyDialog.getFooter().add(cancelButton, saveButton);
+                editPolicyDialog.open();
+
+            });
+
             final Button deletePolicyButton = new Button("Delete", VaadinIcon.TRASH.create());
             deletePolicyButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
             deletePolicyButton.addClickListener(event -> {
@@ -86,7 +193,8 @@ public class PoliciesView extends AbstractView {
                 }
             });
 
-            return deletePolicyButton;
+            final HorizontalLayout actions = new HorizontalLayout(editPolicyButton, deletePolicyButton);
+            return actions;
 
         });
 

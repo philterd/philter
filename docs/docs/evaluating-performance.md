@@ -130,9 +130,9 @@ PhilterConfiguration philterConfiguration = new PhilterConfiguration.Builder()
         .withToken("your-api-token")
         .build();
 
-FilterService filterService = new PhilterFilterService(philterConfiguration);
+FilterService redactionService = new PhilterFilterService(philterConfiguration);
 
-FilterResponse response = filterService.filter("evaluation", "context", "documentId", body, MimeType.TEXT_PLAIN);
+FilterResponse response = redactionService.filter("evaluation", "context", "documentId", body, MimeType.TEXT_PLAIN);
 ```
 
 The `explain` API [endpoint](api_and_sdks/api/filtering_api.md) produces a detailed description of the redaction. The response will include a list of spans that contain the start and stop positions of redacted text and the type of sensitive information that was redacted. Using this information we can compare the redacted information to our annotated file to calculate precision and recall metrics.

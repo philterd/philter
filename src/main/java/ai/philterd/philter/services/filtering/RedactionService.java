@@ -16,14 +16,16 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.PhileasConfiguration;
+import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.Explanation;
 import ai.philterd.phileas.model.filtering.IncrementalRedaction;
-import ai.philterd.phileas.model.filtering.TextFilterResult;
+import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Ignored;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CustomDictionary;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
+import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -38,12 +40,12 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ChangeSetType;
 import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
-import ai.philterd.philter.services.context.NoOpContextService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
@@ -71,9 +73,9 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 
-public class FilterService {
+public class RedactionService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(FilterService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedactionService.class);
 
     private static final String CACHE_HOSTNAME = System.getenv("CACHE_HOSTNAME");
     private static final String CACHE_PASSWORD = System.getenv("CACHE_PASSWORD");
@@ -88,6 +90,7 @@ public class FilterService {
     private final AuditEventPublisher auditEventPublisher;
     private final ChangeSetDataService changeSetService;
     private final LedgerDataService ledgerService;
+    private final UserService userService;
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -121,12 +124,15 @@ public class FilterService {
                     .disableAutomaticRetries() // optional; consider enabling if idempotent
                     .build();
 
-    public FilterService(final MongoClient mongoClient, final PolicyDataService policyDataService,
-                         final CustomListDataService customListService, final GlobalTermsDataService globalTermsService,
-                         final ContextDataService contextService,
-                         final ChangeSetDataService changeSetService,
-                         final AuditEventPublisher auditEventPublisher,
-                         final LedgerDataService ledgerService) {
+    public RedactionService(final MongoClient mongoClient,
+                            final PolicyDataService policyDataService,
+                            final CustomListDataService customListService,
+                            final GlobalTermsDataService globalTermsService,
+                            final ContextDataService contextService,
+                            final ChangeSetDataService changeSetService,
+                            final AuditEventPublisher auditEventPublisher,
+                            final LedgerDataService ledgerService,
+                            final UserService userService) {
 
         this.mongoClient = mongoClient;;
         this.policyDataService = policyDataService;
@@ -136,10 +142,13 @@ public class FilterService {
         this.auditEventPublisher = auditEventPublisher;
         this.changeSetService = changeSetService;
         this.ledgerService = ledgerService;
+        this.userService = userService;
 
     }
 
-    public void filter(final String policyName, final UserEntity userEntity, final String body, final ObjectId contextId) throws Exception {
+    public AbstractFilterResult filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
+
+        final UserEntity userEntity = userService.findOneById(userId);
 
         final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
 
@@ -194,66 +203,46 @@ public class FilterService {
 
         // The context service will either use Mongo or be a NoOp (when a context is not used).
         final ai.philterd.phileas.services.context.ContextService phileasContextService;
-        final String contextName;
 
         // Set up the vector service for entity type disambiguation.
         final VectorService vectorService;
 
-        if(contextId != null) {
+        // Find the context by its name.
+        final ContextEntity contextEntity = contextService.findOneByNameAndUserId(contextName, userEntity.getId());
 
-            // If there is a context in the request make sure it exists.
+        if(contextEntity == null) {
 
-            final ContextEntity contextEntity = contextService.findOneByIdAndUserId(contextId, userEntity.getId());
+            final String eventId = UUID.randomUUID().toString();
+            final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
 
-            // Check if the context exists - it may have been deleted after document submission
-            if(contextEntity == null) {
-
-                final String eventId = UUID.randomUUID().toString();
-                final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
-
-               // TODO: Send webhook notification for failure
-
-                throw new Exception("Context not found.");
-
-            } else {
-
-                contextName = contextEntity.getContextName();
-
-                // Create the MongoDB context service.
-                LOGGER.info("Using MongoDB context service...");
-                phileasContextService = new MongoContextService(mongoClient, contextCache, userEntity.getId(), contextEntity.getContextName(), auditEventPublisher);
-
-                if (contextEntity.isDisambiguation()) {
-
-                    // Entity type disambiguation for this context is enabled.
-
-                    if (simplifiedPolicy.getDisambiguationScope().equalsIgnoreCase("Document")) {
-                        vectorService = new InMemoryVectorService();
-                    } else if (simplifiedPolicy.getDisambiguationScope().equalsIgnoreCase("Context")) {
-                        vectorService = new MongoVectorService(mongoClient, userEntity.getId(), auditEventPublisher);
-                    } else {
-                        LOGGER.info("Invalid disambiguation scope: {}", simplifiedPolicy.getDisambiguationScope());
-                        vectorService = new InMemoryVectorService();
-                    }
-
-                } else {
-
-                    // Entity type disambiguation for this context is disabled.
-                    vectorService = new NoOpVectorService();
-
-                }
-
-            }
+            // TODO: Send webhook notification for failure
+            throw new Exception(errorMessage);
 
         } else {
 
-            // Not using a context for this redaction.
-            LOGGER.info("Not using a context.");
-            contextName = "none";
-            phileasContextService = new NoOpContextService();
+            // Create the MongoDB context service.
+            LOGGER.info("Using MongoDB context service...");
+            phileasContextService = new MongoContextService(mongoClient, contextCache, userEntity.getId(), contextEntity.getContextName(), auditEventPublisher);
 
-            // Entity type disambiguation for this context is disabled.
-            vectorService = new NoOpVectorService();
+            if (contextEntity.isDisambiguation()) {
+
+                // Entity type disambiguation for this context is enabled.
+
+                if (simplifiedPolicy.getDisambiguationScope().equalsIgnoreCase("Document")) {
+                    vectorService = new InMemoryVectorService();
+                } else if (simplifiedPolicy.getDisambiguationScope().equalsIgnoreCase("Context")) {
+                    vectorService = new MongoVectorService(mongoClient, userEntity.getId(), auditEventPublisher);
+                } else {
+                    LOGGER.info("Invalid disambiguation scope: {}", simplifiedPolicy.getDisambiguationScope());
+                    vectorService = new InMemoryVectorService();
+                }
+
+            } else {
+
+                // Entity type disambiguation for this context is disabled.
+                vectorService = new NoOpVectorService();
+
+            }
 
         }
 
@@ -270,7 +259,28 @@ public class FilterService {
         final PlainTextFilterService plainTextFilterService = new PlainTextFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
 
         LOGGER.info("Processing text with Phileas");
-        final TextFilterResult filterResult = plainTextFilterService.filter(phileasPolicy, contextName, body);
+        final AbstractFilterResult filterResult;
+
+        if(mimeType == MimeType.TEXT_PLAIN) {
+
+            final String plainText = new String(body);
+            filterResult = plainTextFilterService.filter(phileasPolicy, contextName, plainText);
+
+        } else if(mimeType == MimeType.APPLICATION_PDF) {
+
+            final PdfFilterService pdfFilterService = new PdfFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
+            filterResult = pdfFilterService.filter(phileasPolicy, contextName, body, MimeType.APPLICATION_PDF);
+
+        } else if(mimeType == MimeType.IMAGE_JPEG) {
+
+            final PdfFilterService pdfFilterService = new PdfFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
+            filterResult = pdfFilterService.filter(phileasPolicy, contextName, body, MimeType.IMAGE_JPEG);
+
+        } else {
+
+            throw new Exception("Unsupported MIME type: " + mimeType);
+
+        }
 
         final Map<Integer, Explanation> explanations = new HashMap<>();
         explanations.put(0, filterResult.getExplanation());
@@ -315,6 +325,8 @@ public class FilterService {
 
         // TODO: Send webhook notification for successful completion
         //sendWebhookNotification(userEntity, redactedDocumentEntity, WebhookEventType.DOCUMENT_REDACTION_COMPLETE, "");
+
+        return filterResult;
 
     }
 

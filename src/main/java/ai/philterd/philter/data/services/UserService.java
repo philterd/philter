@@ -59,6 +59,24 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return null;
     }
 
+    public UserEntity findOneById(final ObjectId id) {
+
+        final Document query = new Document("_id", id);
+
+        final Document document = collection.find(query).first();
+
+        if(document != null) {
+
+            return UserEntity.fromDocument(document);
+
+        } else {
+
+            return null;
+
+        }
+
+    }
+
     public ServiceResponse createUser(final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService) {
 
         if(findByEmail(email) != null) {

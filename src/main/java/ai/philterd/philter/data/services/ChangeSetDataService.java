@@ -45,7 +45,7 @@ public class ChangeSetDataService extends AbstractEncryptedService<ChangeSetEnti
 
     private final EncryptionService encryptionService;
 
-    protected ChangeSetDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+    public ChangeSetDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "change_sets", encryptionService, auditEventPublisher);
         this.encryptionService = encryptionService;
     }

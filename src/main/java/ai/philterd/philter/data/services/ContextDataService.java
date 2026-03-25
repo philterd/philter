@@ -114,32 +114,17 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public List<ContextEntity> findBySearchTerm(final ObjectId userId, final String searchTerm, final int limit) {
+    public ContextEntity findOneByNameAndUserId(final String contextName, final ObjectId userId) {
 
-        final int effectiveLimit = Math.min(limit, MAX_LIMIT);
-        final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
+        final Document query = new Document("name", contextName).append("user_id", userId);
 
-        final Bson query;
+        final Document document = collection.find(query).first();
 
-        if (userId != null) {
-            query = Filters.and(
-                    Filters.eq("user_id", userId),
-                    Filters.regex("context_name", pattern)
-            );
+        if(document != null) {
+            return ContextEntity.fromDocument(document);
         } else {
-            query = Filters.regex("context_name", pattern);
+            return null;
         }
-
-        final FindIterable<Document> documents = collection.find(query).limit(effectiveLimit);
-
-        final List<ContextEntity> contextEntities = new ArrayList<>();
-
-        for(final Document document : documents) {
-            final ContextEntity contextEntity = ContextEntity.fromDocument(document);
-            contextEntities.add(contextEntity);
-        }
-
-        return contextEntities;
 
     }
 
@@ -196,20 +181,6 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ContextEntity findOneById(final ObjectId id, final ObjectId userId) {
-
-        final Document query = new Document("_id", id).append("user_id", userId);
-
-        final Document document = collection.find(query).first();
-
-        if(document != null) {
-            return ContextEntity.fromDocument(document);
-        } else {
-            return null;
-        }
-
-    }
-
     public ContextEntity findOne(final String contextName, final ObjectId userId) {
 
         final Document query = new Document("context_name", contextName).append("user_id", userId);
@@ -246,29 +217,27 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     public ServiceResponse deleteByName(final String contextName, final ObjectId userId) {
 
         // Safeguard to prevent deleting the default context.
-        if(!"default".equalsIgnoreCase(contextName)) {
-
-            // Make sure the context exists.
-            final ContextEntity contextEntity = findOne(contextName, userId);
-
-            if(contextEntity == null) {
-                return new ServiceResponse("Context does not exist.", false, 400);
-            }
-
-            final Document filter = new Document("context_name", contextName).append("user_id", userId);
-            collection.deleteOne(filter);
-
-            // Delete the individual context entries for this context.
-            contextEntryService.deleteByContextName(contextName, userId);
-
-            // Remove this context from the cache.
-            contextCache.deleteContext(contextName);
-
-            return new ServiceResponse("Context deleted successfully.", true);
-
-        } else {
+        if("default".equalsIgnoreCase(contextName)) {
             return new ServiceResponse("The default context cannot be deleted.", false);
         }
+
+        // Make sure the context exists.
+        final ContextEntity contextEntity = findOne(contextName, userId);
+
+        if(contextEntity == null) {
+            return new ServiceResponse("Context does not exist.", false, 400);
+        }
+
+        final Document filter = new Document("context_name", contextName).append("user_id", userId);
+        collection.deleteOne(filter);
+
+        // Delete the individual context entries for this context.
+        contextEntryService.deleteByContextName(contextName, userId);
+
+        // Remove this context from the cache.
+        contextCache.deleteContext(contextName);
+
+        return new ServiceResponse("Context deleted successfully.", true);
 
     }
 

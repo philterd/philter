@@ -20,22 +20,23 @@ import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
-import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
-import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.NoOpAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.ChangeSetDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
+import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
 import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import com.google.gson.Gson;
@@ -112,19 +113,15 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public RedactionService redactionService() {
+        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), changeSetService(), auditEventPublisher(), ledgerService(), userService());
+    }
+
+    @Bean
     public MongoClient mongoClient() {
         return MongoClientUtil.getClient();
     }
 
-    @Bean
-    public PdfFilterService pdfFilterService() throws IOException {
-        return new PdfFilterService(phileasConfiguration(), contextService(), vectorService(), httpClient());
-    }
-
-    @Bean
-    public PlainTextFilterService plainTextFilterService() throws IOException {
-        return new PlainTextFilterService(phileasConfiguration(), contextService(), vectorService(), httpClient());
-    }
 
     @Bean
     public PhileasConfiguration phileasConfiguration() throws IOException {
@@ -180,13 +177,28 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public ContextDataService contextDataService() {
+        return new ContextDataService(mongoClient(), contextCache(), auditEventPublisher());
+    }
+
+    @Bean
+    public ChangeSetDataService changeSetService() {
+        return new ChangeSetDataService(mongoClient(), encryptionService(), auditEventPublisher());
+    }
+
+    @Bean
+    public LedgerDataService ledgerService() {
+        return new LedgerDataService(mongoClient(), encryptionService(), auditEventPublisher());
+    }
+
+    @Bean
     public ContextEntryDataService contextEntryDataService() {
         return new ContextEntryDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean
-    public ContextDataService contextDataService() {
-        return new ContextDataService(mongoClient(), contextCache(), auditEventPublisher());
+    public CustomListDataService customListService() {
+        return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean

@@ -46,7 +46,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public static final String EMPTY_ENTRY = "";
     public static final int MAX_LIMIT = 100;
 
-    protected LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+    public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
     }
 

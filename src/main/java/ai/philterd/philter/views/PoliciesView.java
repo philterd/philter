@@ -196,6 +196,59 @@ public class PoliciesView extends AbstractRestrictedView {
 
         policyGrid.addComponentColumn(policy -> {
 
+            final Button duplicatePolicyButton = new Button("Duplicate", VaadinIcon.COPY.create());
+            duplicatePolicyButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            duplicatePolicyButton.addClickListener(event -> {
+
+                final TextField policyNameTextField = new TextField();
+                policyNameTextField.setWidthFull();
+                policyNameTextField.setLabel("New Policy Name");
+                policyNameTextField.setPlaceholder("new policy name");
+                policyNameTextField.setRequired(true);
+                policyNameTextField.setRequiredIndicatorVisible(true);
+                policyNameTextField.setMaxLength(PolicyDataService.POLICY_NAME_MAX_LENGTH);
+                policyNameTextField.setPattern(PolicyDataService.POLICY_NAME_REGEX);
+                policyNameTextField.setHelperText("The policy name must only contain letters, numbers, dashes, and underscores.");
+
+                final Dialog duplicatePolicyDialog = new Dialog();
+                duplicatePolicyDialog.setMinWidth("400px");
+                duplicatePolicyDialog.add(new H3("Duplicate Policy"));
+                duplicatePolicyDialog.add(new Paragraph("Enter a name for the new duplicated policy."));
+                duplicatePolicyDialog.add(policyNameTextField);
+
+                final Button duplicateButton = new Button("Duplicate", e -> {
+
+                    final String newName = policyNameTextField.getValue();
+                    final String requestId = RequestIdGenerator.generate();
+
+                    final ServiceResponse serviceResponse = policyService.duplicatePolicy(requestId, userEntity.getId(), policy.getName(), newName, Source.WEBUI.getSource());
+
+                    if(serviceResponse.isSuccessful()) {
+                        policiesDataProvider.refreshAll();
+                        duplicatePolicyDialog.close();
+                        showSuccessNotification(serviceResponse.getMessage());
+                    } else {
+                        policyNameTextField.setInvalid(true);
+                        policyNameTextField.setErrorMessage(serviceResponse.getMessage());
+                    }
+
+                });
+                duplicateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", e -> duplicatePolicyDialog.close());
+                cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+                duplicatePolicyDialog.getFooter().add(cancelButton, duplicateButton);
+                duplicatePolicyDialog.open();
+
+            });
+
+            return duplicatePolicyButton;
+
+        }).setHeader("Duplicate").setAutoWidth(true).setFlexGrow(0);
+
+        policyGrid.addComponentColumn(policy -> {
+
             final Button deletePolicyButton = new Button("Delete", VaadinIcon.TRASH.create());
             deletePolicyButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
             deletePolicyButton.addClickListener(event -> {

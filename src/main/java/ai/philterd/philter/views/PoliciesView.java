@@ -30,6 +30,9 @@ import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.views.components.policyeditor.PolicyEditorComponents;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -329,11 +332,15 @@ public class PoliciesView extends AbstractRestrictedView {
             viewPolicyButton.setTooltipText("View Policy");
             viewPolicyButton.addClickListener(event -> {
 
+                final Gson prettyGson = new GsonBuilder().setPrettyPrinting().create();
+                final JsonElement jsonElement = JsonParser.parseString(managedPolicyEntity.getPolicy());
+                final String prettyJson = prettyGson.toJson(jsonElement);
+
                 final TextArea policyTextArea = new TextArea();
                 policyTextArea.setLabel(managedPolicyEntity.getName());
                 policyTextArea.setWidthFull();
                 policyTextArea.setReadOnly(true);
-                policyTextArea.setValue(managedPolicyEntity.getPolicy());
+                policyTextArea.setValue(prettyJson);
 
                 final VerticalLayout viewPolicyVerticalLayout = new VerticalLayout();
                 viewPolicyVerticalLayout.add(policyTextArea);

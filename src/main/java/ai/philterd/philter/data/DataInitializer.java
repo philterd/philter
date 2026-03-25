@@ -66,8 +66,7 @@ public class DataInitializer {
         }
 
         // Load managed policies from JSON files
-        final PolicyDataService policyService = new PolicyDataService(mongoClient, auditEventPublisher, gson);
-        policyService.loadAndSaveManagedPolicies();
+        policyDataService.loadAndSaveManagedPolicies();
 
     }
 

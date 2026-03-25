@@ -91,7 +91,6 @@ public class CustomListsView extends AbstractRestrictedView {
 
             final Button editListButton = new Button(VaadinIcon.EDIT.create());
             editListButton.setTooltipText("Edit list");
-            //editListButton.setText("Edit");
             editListButton.addClickListener(event -> {
 
                 final TextField listNameTextField = new TextField();
@@ -145,7 +144,7 @@ public class CustomListsView extends AbstractRestrictedView {
 
                     final List<String> listItems = new ArrayList<>(Arrays.asList(listTextArea.getValue().split("\n")));
 
-                    final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userEntity.getId(), listEntity.getName(), descriptionTextField.getValue(), listItems, false, Source.WEBUI.getSource());
+                    final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userEntity.getId(), listEntity.getName(), descriptionTextField.getValue(), listItems, true, Source.WEBUI.getSource());
 
                     if(serviceResponse.isSuccessful()) {
 

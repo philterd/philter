@@ -34,7 +34,6 @@ import java.util.regex.Pattern;
 
 public class CustomListDataService extends AbstractEncryptedService<CustomListEntity> {
 
-    public static final int MAXIMUM_NUMBER_OF_LISTS = 25;
     public static final int MAXIMUM_NUMBER_OF_ITEMS = 100;
     public static final int MAXIMUM_ITEM_LENGTH = 50;
     public static final int MAX_LIMIT = 100;

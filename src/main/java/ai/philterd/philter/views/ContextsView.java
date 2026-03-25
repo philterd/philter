@@ -358,7 +358,6 @@ public class ContextsView extends AbstractRestrictedView {
 
                 final Button deleteContextButton = new Button(VaadinIcon.TRASH.create());
                 deleteContextButton.setTooltipText("Delete context " + contextEntity.getContextName());
-                //deleteContextButton.setText("Delete");
                 deleteContextButton.addClickListener(event -> {
 
                     final Dialog confirmDialog = new Dialog();

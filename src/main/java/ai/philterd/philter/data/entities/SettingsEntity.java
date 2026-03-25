@@ -21,11 +21,13 @@ import org.bson.types.ObjectId;
 public class SettingsEntity extends AbstractEntity {
 
     private ObjectId id;
+    private ObjectId userId;
     private boolean loggingEnabled;
 
     public static SettingsEntity fromDocument(final Document document) {
         final SettingsEntity settingsEntity = new SettingsEntity();
         settingsEntity.setId(document.getObjectId("_id"));
+        settingsEntity.setUserId(document.getObjectId("user_id"));
         settingsEntity.setLoggingEnabled(document.getBoolean("logging_enabled", false));
         return settingsEntity;
     }
@@ -36,6 +38,7 @@ public class SettingsEntity extends AbstractEntity {
         if (id != null) {
             document.put("_id", id);
         }
+        document.put("user_id", userId);
         document.put("logging_enabled", loggingEnabled);
         return document;
     }
@@ -47,6 +50,14 @@ public class SettingsEntity extends AbstractEntity {
 
     public void setId(ObjectId id) {
         this.id = id;
+    }
+
+    public ObjectId getUserId() {
+        return userId;
+    }
+
+    public void setUserId(ObjectId userId) {
+        this.userId = userId;
     }
 
     public boolean isLoggingEnabled() {

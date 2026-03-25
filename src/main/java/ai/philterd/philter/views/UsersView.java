@@ -41,14 +41,14 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import org.apache.commons.lang3.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Route(value = "users")
 @PageTitle("Philter - Users")
-@PermitAll
+@RolesAllowed("ADMIN")
 public class UsersView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(UsersView.class);
@@ -63,7 +63,6 @@ public class UsersView extends AbstractRestrictedView {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
-        final UserEntity userEntity = getCurrentUser();
         final UserEntityDataProvider userEntityDataProvider = new UserEntityDataProvider(userService);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
@@ -73,20 +72,10 @@ public class UsersView extends AbstractRestrictedView {
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.setSizeFull();
 
-        if(!Strings.CI.equals(userEntity.getRole(), "admin")) {
-
-            pageVerticalLayout.add(new Span("Only admin users can manage users."));
-            pageVerticalLayout.add(CommonWidgets.getFooter());
-
-            pageHorizontalLayout.add(pageVerticalLayout);
-            pageHorizontalLayout.add(helpWindowVerticalLayout);
-
-        } else {
-
-            // Button to create a new API key
-            final Button createUserButton = new Button("New User", VaadinIcon.PLUS.create());
-            createUserButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-            createUserButton.addClickListener(event -> {
+        // Button to create a new API key
+        final Button createUserButton = new Button("New User", VaadinIcon.PLUS.create());
+        createUserButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createUserButton.addClickListener(event -> {
 
                 final Dialog createUserDialog = new Dialog();
                 createUserDialog.setHeaderTitle("New User");
@@ -198,8 +187,6 @@ public class UsersView extends AbstractRestrictedView {
 
             pageHorizontalLayout.add(pageVerticalLayout);
             pageHorizontalLayout.add(helpWindowVerticalLayout);
-
-        }
 
         setContent(pageHorizontalLayout);
 

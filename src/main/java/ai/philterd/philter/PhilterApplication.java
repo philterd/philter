@@ -31,6 +31,7 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.SettingsDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -229,6 +230,11 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public CustomListDataService customListDataService() {
         return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
+    }
+
+    @Bean
+    public SettingsDataService settingsDataService() {
+        return new SettingsDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean

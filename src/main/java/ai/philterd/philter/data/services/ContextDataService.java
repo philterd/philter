@@ -19,16 +19,12 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
-import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.model.Filters;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 public class ContextDataService extends AbstractService<ContextEntity> {
 

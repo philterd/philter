@@ -46,7 +46,6 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 import org.apache.hc.client5.http.classic.HttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -101,15 +100,12 @@ public class PhilterApplication implements AppShellConfigurator {
                         .setValidateAfterInactivity(TimeValue.ofSeconds(5))
                         .build();
 
-        final CloseableHttpClient httpClient =
-                HttpClients.custom()
-                        .setConnectionManager(connectionManager)
-                        .evictIdleConnections(TimeValue.ofSeconds(30))
-                        .evictExpiredConnections()
-                        .disableAutomaticRetries()
-                        .build();
-
-        return httpClient;
+        return HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                .evictIdleConnections(TimeValue.ofSeconds(30))
+                .evictExpiredConnections()
+                .disableAutomaticRetries()
+                .build();
 
     }
 

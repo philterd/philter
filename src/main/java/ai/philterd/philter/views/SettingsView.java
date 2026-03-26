@@ -29,13 +29,14 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Route(value = "settings")
 @PageTitle("Philter - Settings")
-@RolesAllowed("ADMIN")
+@PermitAll
 public class SettingsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(SettingsView.class);
@@ -48,6 +49,9 @@ public class SettingsView extends AbstractRestrictedView {
     public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final SettingsDataService settingsDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
+
+        final VerticalLayout mySettingsVerticalLayout = new VerticalLayout();
+        mySettingsVerticalLayout.setSizeFull();
 
         final VerticalLayout generalVerticalLayout = new VerticalLayout();
         generalVerticalLayout.setSizeFull();
@@ -80,8 +84,13 @@ public class SettingsView extends AbstractRestrictedView {
         loggingVerticalLayout.add(loggingEnabledCheckbox, saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();
-        tabSheet.add("General", generalVerticalLayout);
-        tabSheet.add("Logging", loggingVerticalLayout);
+        tabSheet.add("My Settings", mySettingsVerticalLayout);
+
+        if(userEntity.getRole().equalsIgnoreCase("ADMIN")) {
+            tabSheet.add("General", generalVerticalLayout);
+            tabSheet.add("Logging", loggingVerticalLayout);
+        }
+
         tabSheet.setSizeFull();
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();

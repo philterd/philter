@@ -97,10 +97,10 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         sideNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
         sideNav.addItem(new SideNavItem("API and SDKs", ApiKeysAndSDKsView.class, VaadinIcon.COG.create()));
         sideNav.addItem(new SideNavItem("Metrics", MetricsView.class, VaadinIcon.CHART_LINE.create()));
+        sideNav.addItem(new SideNavItem("Settings", SettingsView.class, VaadinIcon.COG.create()));
 
         if ("admin".equalsIgnoreCase(userEntity.getRole())) {
-            sideNav.addItem(new SideNavItem("Users", UsersView.class, VaadinIcon.USERS.create()));
-            sideNav.addItem(new SideNavItem("Settings", SettingsView.class, VaadinIcon.COG.create()));
+            sideNav.addItem(new SideNavItem("Admin", AdminView.class, VaadinIcon.USER_STAR.create()));
         }
 
         addToDrawer(sideNav);

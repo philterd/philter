@@ -137,6 +137,22 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return (int) collection.countDocuments();
     }
 
+    public ServiceResponse changePassword(final UserEntity userEntity, final String newPassword) {
+
+        if(userEntity == null) {
+
+            return ServiceResponse.failure("User does not exist.");
+
+        } else {
+
+            userEntity.setPassword(passwordEncoder.encode(newPassword));
+            save(userEntity);
+            return ServiceResponse.success("Password changed.");
+
+        }
+        
+    }
+
     public void deleteUser(final UserEntity userEntity) {
 
         final MongoDatabase philterDatabase = mongoClient.getDatabase("philter");

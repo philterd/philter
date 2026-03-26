@@ -141,7 +141,59 @@ public class AdminView extends AbstractRestrictedView {
         usersGrid.addColumn(UserEntity::getRole).setHeader("Role").setResizable(true).setSortable(true);
 
         usersGrid.addComponentColumn(user -> {
-            final Button deleteButton = new Button(VaadinIcon.TRASH.create());
+            final Button changePasswordButton = new Button("Change Password", VaadinIcon.KEY.create());
+            changePasswordButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            changePasswordButton.setTooltipText("Change Password");
+            changePasswordButton.addClickListener(clickEvent -> {
+
+                final Dialog changePasswordDialog = new Dialog();
+                changePasswordDialog.setHeaderTitle("Change Password");
+
+                final PasswordField passwordField = new PasswordField("New Password");
+                passwordField.setWidthFull();
+                passwordField.setRequired(true);
+
+                final VerticalLayout dialogVerticalLayout = new VerticalLayout();
+                dialogVerticalLayout.add(new Paragraph("Enter a new password for the user " + user.getEmail()));
+                dialogVerticalLayout.add(passwordField);
+                changePasswordDialog.add(dialogVerticalLayout);
+
+                final Button saveButton = new Button("Submit", e -> {
+
+                    final String password = passwordField.getValue();
+
+                    if (password == null || password.isEmpty()) {
+
+                        passwordField.setErrorMessage("Password is required.");
+
+                    } else {
+
+                        final ServiceResponse serviceResponse = userService.changePassword(user, password);
+
+                        if (serviceResponse.isSuccessful()) {
+                            changePasswordDialog.close();
+                            showSuccessNotification(serviceResponse.getMessage());
+                        } else {
+                            showFailureNotification(serviceResponse.getMessage());
+                        }
+
+                    }
+
+                });
+
+                saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", e -> changePasswordDialog.close());
+
+                changePasswordDialog.getFooter().add(cancelButton, saveButton);
+                changePasswordDialog.open();
+
+            });
+            return changePasswordButton;
+        }).setHeader("Change Password").setAutoWidth(true).setFlexGrow(0);
+
+        usersGrid.addComponentColumn(user -> {
+            final Button deleteButton = new Button("Delete User", VaadinIcon.TRASH.create());
             deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
             deleteButton.setTooltipText("Delete User");
             deleteButton.addClickListener(clickEvent -> {

@@ -33,11 +33,13 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouteAlias;
 import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Route(value = "dashboard")
+@RouteAlias(value = "")
 @PageTitle("Philter - Dashboard")
 @PermitAll
 public class DashboardView extends AbstractRestrictedView {

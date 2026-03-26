@@ -17,6 +17,7 @@ package ai.philterd.philter.views.widgets;
 
 import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
 import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.charts.Chart;
 import com.vaadin.flow.component.charts.model.Configuration;
 import com.vaadin.flow.component.charts.model.DataSeries;
@@ -28,6 +29,7 @@ import com.vaadin.flow.component.charts.model.YAxis;
 import com.vaadin.flow.component.dashboard.DashboardWidget;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -46,7 +48,7 @@ public class CommonWidgets {
         }
 
         final Span span = new Span(link);
-        span.getStyle().set("font-size", "var(--lumo-font-size-m)");
+        span.getStyle().set("font-size", "var(--lumo-font-size-s)");
         span.getStyle().set("color", "var(--lumo-secondary-text-color)");
 
         return span;
@@ -68,6 +70,13 @@ public class CommonWidgets {
 
     public static HorizontalLayout getFooter() {
 
+        final Image logoImage = new Image("/public/philterd.png", "Philter");
+        logoImage.setWidth("100px");
+        logoImage.getStyle().set("cursor", "pointer");
+        logoImage.addClickListener(click -> {
+            UI.getCurrent().navigate("https://www.philterd.ai/");
+        });
+
         // --- Copyright Label ---
         final Span copyright = new Span("© 2026 Philterd, LLC. All rights reserved.");
         copyright.getStyle().set("font-size", "var(--lumo-font-size-s)");
@@ -76,10 +85,12 @@ public class CommonWidgets {
         final HorizontalLayout footer = new HorizontalLayout();
         footer.setPadding(true);
         footer.setAlignItems(FlexComponent.Alignment.END);
+        footer.add(logoImage);
         footer.add(copyright);
         footer.add(getContactSupportLink());
+        footer.add(getLink("Documentation", "/public/docs/index.html", true));
 
-        final Anchor link = new Anchor("https://docs.philterd.ai/mistakes.html", "Redactions can include mistakes - learn more.");
+        final Anchor link = new Anchor("/public/docs/mistakes.html", "Redactions can include mistakes - learn more.");
         link.setTarget("_blank");
 
         final Span mistakesSpan = new Span(link);

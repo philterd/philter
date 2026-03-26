@@ -2,9 +2,10 @@ site_name: Philter
 repo_url: https://github.com/philterd/philter
 site_url: https://philterd.github.io/philter/
 edit_uri: tree/main/docs/docs
-copyright: Copyright 2024 Philterd, LLC
+copyright: Copyright 2026 Philterd, LLC
 site_author: philterd
 site_description: User guide for Philter, the open source PII/PHI redaction engine.
+use_directory_urls: false
 plugins:
   - markdownextradata:
       jinja_options:
@@ -42,6 +43,7 @@ nav:
   - 'Home': index.md
   - 'Upgrading': upgrading.md
   - 'System Requirements': system_requirements.md
+  - 'Mistakes': 'mistakes.md'
   - 'Quick Starts':
       - 'Philter Quick Start on AWS': 'quick_starts/quick_start_aws.md'
       - 'Philter Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'

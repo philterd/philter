@@ -77,7 +77,7 @@ public class SecurityConfig {
 
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, openSearchApiRequestsUsageService, gson), UsernamePasswordAuthenticationFilter.class)
-                .formLogin(form -> form.defaultSuccessUrl("/dashboard", true))
+                .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/dashboard", true))
                 .with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
 
         return http.build();

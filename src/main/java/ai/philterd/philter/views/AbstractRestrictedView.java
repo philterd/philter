@@ -23,6 +23,7 @@ import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -81,11 +82,16 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
             logout();
         });
 
+        final Div spacer = new Div();
+
         final HorizontalLayout header = new HorizontalLayout();
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         header.setWidthFull();
         header.addClassNames(LumoUtility.Padding.Vertical.NONE, LumoUtility.Padding.Horizontal.MEDIUM);
         header.add(logoImage);
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.setPadding(true);
+        header.expand(spacer);
         header.add(logoutButton);
 
         addToNavbar(header);

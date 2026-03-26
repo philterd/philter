@@ -3,5 +3,5 @@
  |  _/ ' \| | |  _/ -_) '_|
  |_| |_||_|_|_|\__\___|_|
 
-Copyright 2019 Mountain Fog, Inc.
-www.mtnfog.com | support@mtnfog.com
+Copyright 2026 Philterd LLC
+www.philterd.ai | support@philterd.ai

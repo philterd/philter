@@ -70,8 +70,8 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         this.userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
         this.userEntity = getCurrentUser();
 
-        final Image logoImage = new Image("/images/philter.png", "Philter");
-        logoImage.setWidth("35px");
+        final Image logoImage = new Image("/public/philter.png", "Philter");
+        logoImage.setWidth("150px");
         logoImage.getStyle().set("cursor", "pointer");
         logoImage.addClickListener(click -> {
             UI.getCurrent().navigate(DashboardView.class);

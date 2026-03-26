@@ -1,6 +1,6 @@
 # Redacting High-Volume Data Sets via S3
 
-For organizations dealing with massive volumes of information, Philterd Data Services offers a high-throughput dataset redaction capability. This feature allows you to process entire datasets stored directly in your own Amazon S3 buckets, providing a secure and scalable way to anonymize large-scale data for research, analytics, or secondary use.
+For organizations dealing with massive volumes of information, Philter offers a high-throughput dataset redaction capability. This feature allows you to process entire datasets stored directly in your own Amazon S3 buckets, providing a secure and scalable way to anonymize large-scale data for research, analytics, or secondary use.
 
 ## Architectural Overview: Secure S3 Integration
 
@@ -17,7 +17,7 @@ We strongly recommend using two separate S3 buckets:
 
 ## Configuring AWS Permissions
 
-To enable Philterd Data Services to interact with your S3 buckets, you must establish the appropriate IAM policies and roles within your AWS account.
+To enable Philter to interact with your S3 buckets, you must establish the appropriate IAM policies and roles within your AWS account.
 
 ### 1. Granting Read Access to Source Data
 
@@ -57,13 +57,13 @@ Next, create a second IAM policy that allows the engine to deposit the redacted 
 
 ### 3. Establishing the Trust Relationship (IAM Role)
 
-Once the policies are created, you must create an IAM Role that Philterd Data Services can assume.
+Once the policies are created, you must create an IAM Role that Philter can assume.
 
 1.  **Trust Type**: When creating the role in the AWS Console, select **AWS account** as the trusted entity type.
-2.  **Account ID**: Provide the Philterd Data Services AWS Account ID. (Please [contact our support team](../support.md) to receive our current production Account ID).
+2.  **Account ID**: Provide the Philter AWS Account ID. (Please [contact our support team](../support.md) to receive our current production Account ID).
 3.  **Attach Policies**: Attach the Read and Write policies you created in the previous steps to this role.
 4.  **Register the ARN**: After the role is created, copy its **Role ARN** (e.g., `arn:aws:iam::123456789012:role/Philterd-Dataset-Access`).
-5.  **Configure Philterd**: Enter this ARN in your Philterd Data Services Account Settings under the **Dataset Role ARN** section.
+5.  **Configure Philterd**: Enter this ARN in your Philter Account Settings under the **Dataset Role ARN** section.
 
 ## Initiating a Dataset Redaction Task
 
@@ -77,5 +77,5 @@ With the AWS permissions in place, you can trigger a dataset redaction task thro
 ## Important Security Considerations
 
 *   **Principle of Least Privilege**: Always scope your IAM policies to the specific buckets and folders required. Avoid using `*` for resources whenever possible.
-*   **Encryption**: Ensure that both your source and destination buckets have server-side encryption enabled. Philterd Data Services is fully compatible with S3-managed encryption (SSE-S3).
+*   **Encryption**: Ensure that both your source and destination buckets have server-side encryption enabled. Philter is fully compatible with S3-managed encryption (SSE-S3).
 *   **Audit Trails**: Use AWS CloudTrail to monitor when and how the Philterd IAM role accesses your data, providing an extra layer of visibility and compliance.

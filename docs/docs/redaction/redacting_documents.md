@@ -1,6 +1,6 @@
 # Redacting Documents and Text
 
-Document redaction is the core capability of Philterd Data Services. It involves the sophisticated process of identifying, classifying, and removing or masking sensitive information — collectively known as Personally Identifiable Information (PII) and Protected Health Information (PHI)—from your digital files.
+Document redaction is the core capability of Philter. It involves the sophisticated process of identifying, classifying, and removing or masking sensitive information — collectively known as Personally Identifiable Information (PII) and Protected Health Information (PHI)—from your digital files.
 
 Our platform is engineered to handle a variety of common document formats, ensuring that your sensitive data is protected regardless of how it is stored. Every redaction operation is governed by a user-defined [redaction policy](policies.md) and organized within a specific [context](contexts.md).
 
@@ -8,7 +8,7 @@ Our platform is engineered to handle a variety of common document formats, ensur
 
 ## Supported File Formats
 
-Philterd Data Services provides specialized processing for the following document types:
+Philter provides specialized processing for the following document types:
 
 *   **Microsoft Word (.docx)**: Word documents are processed with high precision. Our engine parses the document paragraph by paragraph, identifying sensitive entities within the text. You have the flexibility to choose how redactions are represented in the output, such as highlighting changes or enabling "Track Changes" (revisions) via your [policy settings](policy_syntax.md).
 *   **PDF (.pdf)**: PDF files are processed to ensure that sensitive information is visually and data-level obscured. Redactions are typically applied by drawing opaque black boxes over the identified sensitive text, preventing both visual recognition and digital extraction.
@@ -16,7 +16,7 @@ Philterd Data Services provides specialized processing for the following documen
 
 ## The Comprehensive Redaction Workflow
 
-When you submit a document to Philterd Data Services for redaction, it undergoes a rigorous multi-step workflow designed for security and accuracy:
+When you submit a document to Philter for redaction, it undergoes a rigorous multi-step workflow designed for security and accuracy:
 
 1.  **Secure Upload**: The document is securely transmitted and uploaded to dedicated, encrypted storage associated with your account.
 2.  **Automated MIME Type Detection**: Our system automatically analyzes the file to determine its MIME type. This ensures that the correct processing engine (Word, PDF, or Text) is used for optimal results.
@@ -27,7 +27,7 @@ When you submit a document to Philterd Data Services for redaction, it undergoes
 
 ## How to Redact a Document via the Dashboard
 
-The Philterd Data Services dashboard provides an intuitive interface for managing your redaction tasks. To redact a document, follow these steps:
+The Philter dashboard provides an intuitive interface for managing your redaction tasks. To redact a document, follow these steps:
 
 1.  **Access the Documents Section**: Log in to your Philterd dashboard and navigate to the **Redaction** menu on the sidebar, then select **Documents**.
 2.  **Initiate Upload**: Click the **Upload Document** button located at the top of the page.

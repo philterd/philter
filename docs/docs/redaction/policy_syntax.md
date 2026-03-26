@@ -1,8 +1,8 @@
 # Redaction Policy Syntax Reference
 
-**Important: Knowledge of the policy syntax is not necessary to use Philterd Data Services. Creating or editing policies by hand allows for powerful control over the redaction process, but it is not required.**
+**Important: Knowledge of the policy syntax is not necessary to use Philter. Creating or editing policies by hand allows for powerful control over the redaction process, but it is not required.**
 
-Philterd Data Services uses a powerful and flexible JSON-based syntax for defining redaction policies. This structure allows you to exercise precise control over how sensitive information is identified, classified, and subsequently protected within your documents and datasets.
+Philter uses a powerful and flexible JSON-based syntax for defining redaction policies. This structure allows you to exercise precise control over how sensitive information is identified, classified, and subsequently protected within your documents and datasets.
 
 This reference guide provides a deep dive into the individual components of a policy, the available filters, and the diverse processing strategies at your disposal.
 

@@ -1,8 +1,8 @@
 # Redaction Ledgers
 
-A Redaction Ledger is a core security feature of Philterd Data Services, providing a cryptographically-verifiable and immutable log of every redaction performed on your documents. In an era where data integrity and transparency are paramount, ledgers offer a definitive way to audit and trust the automated redaction process.
+A Redaction Ledger is a core security feature of Philter, providing a cryptographically-verifiable and immutable log of every redaction performed on your documents. In an era where data integrity and transparency are paramount, ledgers offer a definitive way to audit and trust the automated redaction process.
 
-By maintaining a permanent record of what was changed, why it was changed, and how it was changed, Philterd Data Services empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA.
+By maintaining a permanent record of what was changed, why it was changed, and how it was changed, Philter empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA.
 
 ## How Redaction Ledgers Work
 

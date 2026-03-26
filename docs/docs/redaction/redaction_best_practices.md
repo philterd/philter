@@ -24,7 +24,7 @@ Every document is unique. Differences in formatting, context, and language usage
 
 ## Human-in-the-Loop Review
 
-While Philterd Data Services uses advanced AI and machine learning, automated redaction is not a substitute for human oversight. Especially for highly sensitive or regulated data, a "human-in-the-loop" review of the redacted documents is strongly encouraged.
+While Philter uses advanced AI and machine learning, automated redaction is not a substitute for human oversight. Especially for highly sensitive or regulated data, a "human-in-the-loop" review of the redacted documents is strongly encouraged.
 
 ## Start with a Risk Assessment
 

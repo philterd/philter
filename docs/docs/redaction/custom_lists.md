@@ -13,7 +13,7 @@ Custom Lists are typically used in two primary scenarios within a [redaction pol
 
 ## Managing Custom Lists via the Dashboard
 
-The Philterd Data Services dashboard offers a streamlined interface for the entire lifecycle of your custom lists.
+The Philter dashboard offers a streamlined interface for the entire lifecycle of your custom lists.
 
 ### Viewing Your Lists
 
@@ -76,7 +76,7 @@ When the policy is processed, `list:my-custom-list` will be replaced with the ac
 
 ## Programmatic Management via API
 
-For developers and organizations with dynamic data protection needs, Philterd Data Services provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with the Philterd platform, among other use-cases.
+For developers and organizations with dynamic data protection needs, Philter provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with the Philterd platform, among other use-cases.
 
 *   **List Retrieval**: Programmatically fetch the names of all your custom lists.
 *   **Item Management**: Retrieve, add, or update the specific items within any list.

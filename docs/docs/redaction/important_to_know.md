@@ -1,6 +1,6 @@
 # Important to Know
 
-Redaction is a complex process with many variables. To ensure you get the best results from Philterd Data Services, keep the following considerations in mind.
+Redaction is a complex process with many variables. To ensure you get the best results from Philter, keep the following considerations in mind.
 
 ## Document Metadata is Not Redacted
 
@@ -26,8 +26,8 @@ Philterd uses a combination of techniques to redact text. See [Mistakes](../mist
 
 ## Redaction is One-Way
 
-Philterd Data Services does not provide a way to reverse redaction. Changesets allow you to see the changes made to documents, but they do not provide a way to undo the changes.
+Philter does not provide a way to reverse redaction. Changesets allow you to see the changes made to documents, but they do not provide a way to undo the changes.
 
 ## Regulatory Compliance
 
-While Philterd Data Services provides the tools to help you achieve compliance with regulations like HIPAA, GDPR, and CCPA, using the service does not automatically make you compliant. Compliance is a result of your overall data handling policies, how you configure your redaction policies, and how you verify the output.
+While Philter provides the tools to help you achieve compliance with regulations like HIPAA, GDPR, and CCPA, using the service does not automatically make you compliant. Compliance is a result of your overall data handling policies, how you configure your redaction policies, and how you verify the output.

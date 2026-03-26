@@ -2,7 +2,7 @@
 
 **The information on this page is very important. If you have questions or would like clarification on anything discussed here, please [contact us](mailto:support@philterd.ai) and we will be glad to assist.**
 
-Redaction is a critical process for protecting sensitive information, but it is important to understand that it is not an exact science. While Philterd Data Services makes use of sophisticated technologies to identify and mask sensitive data, the process is inherently probabilistic and can occasionally result in mistakes.
+Redaction is a critical process for protecting sensitive information, but it is important to understand that it is not an exact science. While Philter makes use of sophisticated technologies to identify and mask sensitive data, the process is inherently probabilistic and can occasionally result in mistakes.
 
 ## Redaction is Not a Scientific Process
 
@@ -15,7 +15,7 @@ In document redaction, there are two primary types of errors:
 
 ## Redaction Methods
 
-Philterd Data Services uses a multi-layered approach to identification. The following two methods are primarily used to identify sensitive information:
+Philter uses a multi-layered approach to identification. The following two methods are primarily used to identify sensitive information:
 
 ### Pattern-Based Redaction
 
@@ -35,7 +35,7 @@ Statistical-based redaction using machine learning and natural language processi
 
 ## Improving Accuracy with Custom Lists
 
-When you identify mistakes in the automated redaction process, Philterd Data Services provides several tools to help you remediate them and improve future performance.
+When you identify mistakes in the automated redaction process, Philter provides several tools to help you remediate them and improve future performance.
 
 ### Always Redact and Never Redact Lists
 
@@ -61,7 +61,7 @@ Automated redaction should be viewed as a powerful tool to accelerate the protec
 2.  **The document remains readable and useful** (ensuring non-sensitive information was not over-redacted).
 3.  **Contextual nuances are correctly handled** that an algorithm might misunderstand.
 
-Philterd Data Services provides tools like **Redaction Summaries** and **Changesets** to assist in this review process, allowing you to quickly see what was changed and verify the results.
+Philter provides tools like **Redaction Summaries** and **Changesets** to assist in this review process, allowing you to quickly see what was changed and verify the results.
 
 ### Best Practices for Review
 

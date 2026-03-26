@@ -1,12 +1,12 @@
 # Redaction Policies
 
-Redaction Policies are the foundational rule sets that govern how Philterd Data Services identifies, classifies, and processes sensitive information within your documents. A policy acts as a comprehensive blueprint, detailing exactly which types of Personally Identifiable Information (PII) and Protected Health Information (PHI) should be targeted and what specific actions should be taken when they are found.
+Redaction Policies are the foundational rule sets that govern how Philter identifies, classifies, and processes sensitive information within your documents. A policy acts as a comprehensive blueprint, detailing exactly which types of Personally Identifiable Information (PII) and Protected Health Information (PHI) should be targeted and what specific actions should be taken when they are found.
 
 Through the Policies management view in your dashboard, you can create, refine, and maintain a library of policies tailored to different regulatory requirements, departments, or document types.
 
 ## Understanding Redaction Policy Syntax
 
-Every policy in Philterd Data Services is internally represented as a JSON (JavaScript Object Notation) object. This structured format allows for an incredible degree of granularity and flexibility. You can define specific "filters" for different data types (like social security numbers, names, or dates) and assign unique "strategies" to each (such as masking, encrypting, or replacing with a placeholder).
+Every policy in Philter is internally represented as a JSON (JavaScript Object Notation) object. This structured format allows for an incredible degree of granularity and flexibility. You can define specific "filters" for different data types (like social security numbers, names, or dates) and assign unique "strategies" to each (such as masking, encrypting, or replacing with a placeholder).
 
 For a comprehensive guide on the available filters, processing strategies, and advanced configuration options, please refer to our detailed [Redaction Policy Syntax](policy_syntax.md) documentation. You can also learn how Philterd resolves overlapping sensitive terms in our [Disambiguation](disambiguation.md) guide.
 

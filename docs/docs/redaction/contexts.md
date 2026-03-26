@@ -1,6 +1,6 @@
 # Redaction Contexts
 
-Redaction Contexts are a powerful organizational and functional feature of Philterd Data Services. They serve two primary purposes: logically grouping related document processing tasks and ensuring referential integrity when using replacement strategies like anonymization.
+Redaction Contexts are a powerful organizational and functional feature of Philter. They serve two primary purposes: logically grouping related document processing tasks and ensuring referential integrity when using replacement strategies like anonymization.
 
 By utilizing contexts, you can manage your data protection activities more effectively, whether you are organizing by department, project, or individual client.
 
@@ -18,7 +18,7 @@ When the `coref` option is enabled for a context, anonymized PII is co-reference
 
 ### Entity Type Disambiguation
 
-Entity type disambiguation can be enabled or disabled for a context. When enabled, Philterd Data Services uses information from all documents in the context to resolve overlapping or conflicting entity types. This allows the system to make more informed decisions about the type of sensitive information identified.
+Entity type disambiguation can be enabled or disabled for a context. When enabled, Philter uses information from all documents in the context to resolve overlapping or conflicting entity types. This allows the system to make more informed decisions about the type of sensitive information identified.
 
 Note that co-referencing may not catch all references to the same entity. For example, misspelled names or abbreviations may not be detected, or general ambiguities may result in false positive and false negative matches.
 

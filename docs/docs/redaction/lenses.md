@@ -1,6 +1,6 @@
 # Redaction Lenses
 
-Redaction lenses are specialized configurations within Philterd Data Services that optimize the redaction process for specific domains or types of text. By applying a lens, you can enhance the accuracy and relevance of sensitive data identification based on the context of your documents.
+Redaction lenses are specialized configurations within Philter that optimize the redaction process for specific domains or types of text. By applying a lens, you can enhance the accuracy and relevance of sensitive data identification based on the context of your documents.
 
 It is **not** necessary to use a lens that specifically matches the type of text you are redacting. The `general` lens has been created to provide a balance between performance and accuracy, and it is the default lens used when no other lens is selected.
 
@@ -18,7 +18,7 @@ Using a lens provides several key benefits:
 
 ## Available Lens Choices
 
-Philterd Data Services currently offers the following lenses:
+Philter currently offers the following lenses:
 
 | Lens Name | Description | Recommended Use Case |
 | :--- | :--- | :--- |

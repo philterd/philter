@@ -15,11 +15,12 @@
  */
 package ai.philterd.philter.services.usage;
 
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.util.Timeout;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
@@ -41,7 +42,7 @@ import java.util.UUID;
 
 public abstract class AbstractUsageService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractUsageService.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(AbstractUsageService.class);
 
     private static final String OPENSEARCH_HOST = System.getenv().getOrDefault("OPENSEARCH_HOST", "localhost");
     private static final int OPENSEARCH_PORT = Integer.parseInt(System.getenv().getOrDefault("OPENSEARCH_PORT", "9200"));
@@ -62,16 +63,16 @@ public abstract class AbstractUsageService {
         LOGGER.info("Connecting to OpenSearch: {}://{}:{}", OPENSEARCH_SCHEME, OPENSEARCH_HOST, OPENSEARCH_PORT);
 
         final BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD));
+        credentialsProvider.setCredentials(new AuthScope(null, OPENSEARCH_HOST, OPENSEARCH_PORT, null, null),
+                new UsernamePasswordCredentials(OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD.toCharArray()));
 
-        final RestClient restClient = RestClient.builder(new HttpHost(OPENSEARCH_HOST, OPENSEARCH_PORT, OPENSEARCH_SCHEME))
+        final RestClient restClient = RestClient.builder(new HttpHost(OPENSEARCH_SCHEME, OPENSEARCH_HOST, OPENSEARCH_PORT))
                 .setHttpClientConfigCallback(httpClientBuilder -> {
                     httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
                     httpClientBuilder.setDefaultRequestConfig(
                             RequestConfig.custom()
-                                    .setConnectionRequestTimeout(5000)  // 5 seconds
-                                    .setSocketTimeout(60000)        // 60 seconds
-                                    .setConnectionRequestTimeout(5000) // 1 second
+                                    .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                                    .setResponseTimeout(Timeout.ofSeconds(60))
                                     .build()
                     );
 

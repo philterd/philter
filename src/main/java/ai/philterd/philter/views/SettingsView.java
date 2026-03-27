@@ -30,7 +30,6 @@ import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
-import jakarta.annotation.security.RolesAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

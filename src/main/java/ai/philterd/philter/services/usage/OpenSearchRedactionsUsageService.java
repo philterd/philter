@@ -24,8 +24,6 @@ import org.opensearch.client.opensearch._types.aggregations.FieldDateMath;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch.core.SearchRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -35,8 +33,6 @@ import java.util.List;
 import java.util.Map;
 
 public class OpenSearchRedactionsUsageService extends AbstractUsageService implements RedactionsUsageService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(OpenSearchRedactionsUsageService.class);
 
     public OpenSearchRedactionsUsageService() {
         super(AbstractUsageService.REDACTIONS_USAGE_INDEX_NAME);
@@ -143,7 +139,7 @@ public class OpenSearchRedactionsUsageService extends AbstractUsageService imple
 
             if(b.keyAsString() != null) {
 
-                final long tokens = (long) b.aggregations().get("total").sum().value();
+                final long tokens = (long) (double) b.aggregations().get("total").sum().value();
 
                 // Doing substring to trim out just the YYYY-MM-DD
                 out.put(b.keyAsString().substring(0, 10), tokens);

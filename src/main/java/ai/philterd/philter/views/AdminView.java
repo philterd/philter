@@ -16,10 +16,13 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.UserEntityDataProvider;
+import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.SettingsDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -27,6 +30,7 @@ import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -57,9 +61,22 @@ public class AdminView extends AbstractRestrictedView {
     }
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
-                     final UserService userService, final ContextDataService contextService, final PolicyDataService policyService) {
+                     final UserService userService, final ContextDataService contextService, final PolicyDataService policyService,
+                     final SettingsDataService settingsDataService, final AdminSettingsDataService adminSettingsDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
+
+        AdminSettingsEntity adminSettingsEntity = adminSettingsDataService.findAdminSettings();
+
+        if (adminSettingsEntity == null) {
+            adminSettingsEntity = new AdminSettingsEntity();
+            adminSettingsEntity.setLoggingEnabled(false);
+            adminSettingsEntity.setRedactionLedgerOptionEnabled(true);
+            adminSettingsDataService.saveLoggingEnabled(false);
+            adminSettingsDataService.saveRedactionLedgerOptionEnabled(true);
+        }
+
+        final AdminSettingsEntity finalAdminSettingsEntity = adminSettingsEntity;
 
         final UserEntityDataProvider userEntityDataProvider = new UserEntityDataProvider(userService);
 
@@ -300,8 +317,27 @@ public class AdminView extends AbstractRestrictedView {
         usersVerticalLayout.add(usersGrid);
         usersVerticalLayout.setSizeFull();
 
+        final VerticalLayout adminSettingsVerticalLayout = new VerticalLayout();
+        adminSettingsVerticalLayout.setSizeFull();
+
+        final Checkbox loggingEnabledCheckbox = new Checkbox("Enable Logging");
+        loggingEnabledCheckbox.setValue(finalAdminSettingsEntity.isLoggingEnabled());
+
+        final Checkbox redactionLedgerOptionEnabledCheckbox = new Checkbox("Allow users to enable/disable ledgers");
+        redactionLedgerOptionEnabledCheckbox.setValue(finalAdminSettingsEntity.isRedactionLedgerOptionEnabled());
+
+        final Button saveLoggingSettingsButton = new Button("Save", e -> {
+            adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
+            adminSettingsDataService.saveRedactionLedgerOptionEnabled(redactionLedgerOptionEnabledCheckbox.getValue());
+            showSuccessNotification("Admin settings saved.");
+        });
+        saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, redactionLedgerOptionEnabledCheckbox, saveLoggingSettingsButton);
+
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Users", usersVerticalLayout);
+        tabSheet.add("Admin Settings", adminSettingsVerticalLayout);
         tabSheet.setSizeFull();
 
         pageVerticalLayout.add(tabSheet);

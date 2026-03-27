@@ -16,21 +16,22 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.SettingsEntity;
 import ai.philterd.philter.data.services.SettingsDataService;
+import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
-import jakarta.annotation.security.RolesAllowed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -46,56 +47,49 @@ public class SettingsView extends AbstractRestrictedView {
         return "Placeholder for settings help text.";
     }
 
-    public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final SettingsDataService settingsDataService) {
+    public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final SettingsDataService settingsDataService, final AdminSettingsDataService adminSettingsDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
         final VerticalLayout mySettingsVerticalLayout = new VerticalLayout();
         mySettingsVerticalLayout.setSizeFull();
 
-        final VerticalLayout generalVerticalLayout = new VerticalLayout();
-        generalVerticalLayout.setSizeFull();
-
-        final VerticalLayout loggingVerticalLayout = new VerticalLayout();
-        loggingVerticalLayout.setSizeFull();
-
         SettingsEntity settingsEntity = settingsDataService.findByUserId(userEntity.getId());
         if (settingsEntity == null) {
             settingsEntity = new SettingsEntity();
             settingsEntity.setUserId(userEntity.getId());
-            settingsEntity.setLoggingEnabled(false);
+            settingsEntity.setRedactionLedgerEnabled(true);
         }
 
-        final Checkbox loggingEnabledCheckbox = new Checkbox("Enable Logging");
-        loggingEnabledCheckbox.setValue(settingsEntity.isLoggingEnabled());
+        final Checkbox redactionLedgerEnabledCheckbox = new Checkbox("Enable Redaction Ledgers");
+        redactionLedgerEnabledCheckbox.setValue(settingsEntity.isRedactionLedgerEnabled());
+
+        final AdminSettingsEntity adminSettingsEntity = adminSettingsDataService.findAdminSettings();
+        if (adminSettingsEntity != null) {
+            redactionLedgerEnabledCheckbox.setEnabled(adminSettingsEntity.isRedactionLedgerOptionEnabled());
+            redactionLedgerEnabledCheckbox.setTooltipText("This option is disabled by the admin.");
+            redactionLedgerEnabledCheckbox.setLabel("Enable Redaction Ledgers (disabled by admin)");
+        }
 
         final SettingsEntity finalSettingsEntity = settingsEntity;
-        final Button saveLoggingSettingsButton = new Button("Save", e -> {
-            finalSettingsEntity.setLoggingEnabled(loggingEnabledCheckbox.getValue());
+
+        final Button saveMySettingsButton = new Button("Save", e -> {
+            finalSettingsEntity.setRedactionLedgerEnabled(redactionLedgerEnabledCheckbox.getValue());
             if (finalSettingsEntity.getId() == null) {
                 settingsDataService.save(finalSettingsEntity);
             } else {
                 settingsDataService.update(finalSettingsEntity);
             }
-            showSuccessNotification("Logging settings saved.");
+            showSuccessNotification("Settings saved.");
         });
-        saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveMySettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        loggingVerticalLayout.add(loggingEnabledCheckbox, saveLoggingSettingsButton);
-
-        final TabSheet tabSheet = new TabSheet();
-        tabSheet.add("My Settings", mySettingsVerticalLayout);
-
-        if(userEntity.getRole().equalsIgnoreCase("ADMIN")) {
-            tabSheet.add("General", generalVerticalLayout);
-            tabSheet.add("Logging", loggingVerticalLayout);
-        }
-
-        tabSheet.setSizeFull();
+        mySettingsVerticalLayout.add(new Span("These settings are specific to your user account."));
+        mySettingsVerticalLayout.add(redactionLedgerEnabledCheckbox, saveMySettingsButton);
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(getTitle("Settings"));
-        pageVerticalLayout.add(tabSheet);
+        pageVerticalLayout.add(mySettingsVerticalLayout);
         pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
 

@@ -48,9 +48,10 @@ The **Contexts** section is used to manage redaction contexts, which enable:
 *   **Disambiguation**: Improves accuracy by resolving entity type ambiguities.
 
 ### User Management
-
-Admin users can access the **Users** section to:
-
-*   **Manage Users**: Create and delete user accounts.
-*   **Assign Roles**: Control access by assigning roles (e.g., `admin`, `user`).
-*   **Password Reset**: Reset user passwords.
+ 
+ Admin users can access the **Admin** section to manage users.
+ 
+ *   **Add Users**: Create new user accounts by providing an email address, password, and role (`admin` or `user`).
+ *   **Change Passwords**: Update a user's password.
+ *   **Set Roles**: Change a user's role to `admin` or `user`. Note that users cannot change their own role.
+ *   **Delete Users**: Remove user accounts. This will also delete all of the user's data, including API keys, contexts, policies, and ledger entries. Users cannot delete their own account.

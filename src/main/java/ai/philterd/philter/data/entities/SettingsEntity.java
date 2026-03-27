@@ -22,13 +22,13 @@ public class SettingsEntity extends AbstractEntity {
 
     private ObjectId id;
     private ObjectId userId;
-    private boolean loggingEnabled;
+    private boolean redactionLedgerEnabled;
 
     public static SettingsEntity fromDocument(final Document document) {
         final SettingsEntity settingsEntity = new SettingsEntity();
         settingsEntity.setId(document.getObjectId("_id"));
         settingsEntity.setUserId(document.getObjectId("user_id"));
-        settingsEntity.setLoggingEnabled(document.getBoolean("logging_enabled", false));
+        settingsEntity.setRedactionLedgerEnabled(document.getBoolean("redaction_ledger_enabled", true));
         return settingsEntity;
     }
 
@@ -39,7 +39,7 @@ public class SettingsEntity extends AbstractEntity {
             document.put("_id", id);
         }
         document.put("user_id", userId);
-        document.put("logging_enabled", loggingEnabled);
+        document.put("redaction_ledger_enabled", redactionLedgerEnabled);
         return document;
     }
 
@@ -60,12 +60,12 @@ public class SettingsEntity extends AbstractEntity {
         this.userId = userId;
     }
 
-    public boolean isLoggingEnabled() {
-        return loggingEnabled;
+    public boolean isRedactionLedgerEnabled() {
+        return redactionLedgerEnabled;
     }
 
-    public void setLoggingEnabled(boolean loggingEnabled) {
-        this.loggingEnabled = loggingEnabled;
+    public void setRedactionLedgerEnabled(boolean redactionLedgerEnabled) {
+        this.redactionLedgerEnabled = redactionLedgerEnabled;
     }
 
 }

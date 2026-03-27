@@ -50,8 +50,8 @@ public abstract class AbstractUsageService {
     private static final String OPENSEARCH_USERNAME = System.getenv().getOrDefault("OPENSEARCH_USERNAME", "");
     private static final String OPENSEARCH_PASSWORD = System.getenv().getOrDefault("OPENSEARCH_PASSWORD", "");
 
-    public static final String REDACTIONS_USAGE_INDEX_NAME = System.getenv().getOrDefault("REDACTIONS_INDEX_NAME", "pds-redactions");
-    public static final String API_REQUESTS_USAGE_INDEX_NAME = System.getenv().getOrDefault("API_REQUESTS_INDEX_NAME", "pds-api-requests");
+    public static final String REDACTIONS_USAGE_INDEX_NAME = System.getenv().getOrDefault("REDACTIONS_INDEX_NAME", "philter-redactions");
+    public static final String API_REQUESTS_USAGE_INDEX_NAME = System.getenv().getOrDefault("API_REQUESTS_INDEX_NAME", "philter-requests");
 
     protected final OpenSearchClient client;
     protected final String indexName;
@@ -86,7 +86,7 @@ public abstract class AbstractUsageService {
 
     }
 
-    private void createIndex() throws IOException {
+    public void createIndex() throws IOException {
 
         if(indexName.equals(REDACTIONS_USAGE_INDEX_NAME)) {
 

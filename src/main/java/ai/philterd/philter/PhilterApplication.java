@@ -57,17 +57,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
-import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Properties;
 
-@PropertySource(value="file:philter.properties", ignoreResourceNotFound = true)
 @Configuration
 @Theme(value="philter", variant=Lumo.LIGHT)
 @SpringBootApplication
@@ -76,10 +70,11 @@ public class PhilterApplication implements AppShellConfigurator {
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
 
     private final String CACHE_HOSTNAME = System.getenv().getOrDefault("CACHE_HOSTNAME", "localhost");
+    private final int CACHE_PORT = Integer.parseInt(System.getenv().getOrDefault("CACHE_PORT", "6379"));
     private final String CACHE_PASSWORD = System.getenv().getOrDefault("CACHE_PASSWORD", "");
     private final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv().getOrDefault("CACHE_SSL", "false"));
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
 
         LOGGER.info("Starting Philter...");
         SpringApplication.run(PhilterApplication.class, args);
@@ -126,14 +121,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
         final Properties properties = new Properties();
 
-        final Path path = Paths.get("philter.properties");
-        if(Files.exists(path)) {
-            final FileReader fileReader = new FileReader("philter.properties");
-            properties.load(fileReader);
-        } else {
-            LOGGER.warn("Philter configuration file not found: philter.properties. Default values will be used.");
-        }
-
+        // TODO: Read this from an environment variable.
         properties.put("incremental.redactions.enabled", "true");  // Required for ledger.
 
         return new PhileasConfiguration(properties);
@@ -146,32 +134,15 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public PhilterConfiguration philterConfiguration() throws IOException {
-
-        final Properties properties = new Properties();
-
-        final Path path = Paths.get("philter.properties");
-        if(Files.exists(path)) {
-            final FileReader fileReader = new FileReader("philter.properties");
-            properties.load(fileReader);
-        } else {
-            LOGGER.warn("Philter configuration file not found: philter.properties. Default values will be used.");
-        }
-
-        return new PhilterConfiguration(properties);
-
-    }
-
-    @Bean
     public ContextCache contextCache() {
         LOGGER.info("Initializing context cache.");
-        return new ContextCache(CACHE_HOSTNAME, 6379, CACHE_PASSWORD, CACHE_SSL);
+        return new ContextCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
     }
 
     @Bean
     public ApiKeyCache apiKeyCache() {
         LOGGER.info("Initializing API key cache.");
-        return new ApiKeyCache(CACHE_HOSTNAME, 6379, CACHE_PASSWORD, CACHE_SSL);
+        return new ApiKeyCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
     }
 
     @Bean

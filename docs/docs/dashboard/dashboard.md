@@ -1,6 +1,6 @@
 # Dashboard
 
-Philter includes a user interface dashboard that can be accessed at `http://<Philter>:8080`.
+Philter includes a user interface dashboard that can be accessed at `http://your-philter-endpoint:8080:8080`.
 
 The dashboard is protected by a login screen. The default username and password for the administrator is `admin` / `admin`. It is recommended to change the administrator password after logging in.
 
@@ -53,3 +53,4 @@ Admin users can access the **Users** section to:
 
 *   **Manage Users**: Create and delete user accounts.
 *   **Assign Roles**: Control access by assigning roles (e.g., `admin`, `user`).
+*   **Password Reset**: Reset user passwords.

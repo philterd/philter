@@ -193,9 +193,81 @@ public class AdminView extends AbstractRestrictedView {
         }).setHeader("Change Password").setAutoWidth(true).setFlexGrow(0);
 
         usersGrid.addComponentColumn(user -> {
+
+            final Button setRoleButton = new Button("Set Role", VaadinIcon.USER_CHECK.create());
+            setRoleButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            setRoleButton.setTooltipText("Set Role");
+
+            // Don't allow the current user to change their own role.
+            final UserEntity currentUser = getCurrentUser();
+            if (currentUser != null && user.getId().equals(currentUser.getId())) {
+                setRoleButton.setEnabled(false);
+                setRoleButton.setTooltipText("You cannot change your own role.");
+            }
+
+            setRoleButton.addClickListener(clickEvent -> {
+
+                final Dialog setRoleDialog = new Dialog();
+                setRoleDialog.setHeaderTitle("Set User Role");
+
+                final ComboBox<String> roleComboBox = new ComboBox<>("Role");
+                roleComboBox.setItems("admin", "user");
+                roleComboBox.setValue(user.getRole());
+                roleComboBox.setWidthFull();
+                roleComboBox.setRequired(true);
+                roleComboBox.setAllowCustomValue(false);
+
+                final VerticalLayout dialogVerticalLayout = new VerticalLayout();
+                dialogVerticalLayout.add(new Paragraph("Select a new role for the user " + user.getEmail()));
+                dialogVerticalLayout.add(roleComboBox);
+                setRoleDialog.add(dialogVerticalLayout);
+
+                final Button saveButton = new Button("Submit", e -> {
+
+                    final String role = roleComboBox.getValue();
+
+                    if (role == null || role.isEmpty()) {
+                        roleComboBox.setErrorMessage("Role is required.");
+
+                    } else {
+
+                        final ServiceResponse serviceResponse = userService.setUserRole(user, role);
+
+                        if (serviceResponse.isSuccessful()) {
+                            setRoleDialog.close();
+                            userEntityDataProvider.refreshAll();
+                            showSuccessNotification(serviceResponse.getMessage());
+                        } else {
+                            showFailureNotification(serviceResponse.getMessage());
+                        }
+
+                    }
+
+                });
+
+                saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", e -> setRoleDialog.close());
+
+                setRoleDialog.getFooter().add(cancelButton, saveButton);
+                setRoleDialog.open();
+
+            });
+            return setRoleButton;
+        }).setHeader("Set Role").setAutoWidth(true).setFlexGrow(0);
+
+        usersGrid.addComponentColumn(user -> {
             final Button deleteButton = new Button("Delete User", VaadinIcon.TRASH.create());
             deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
             deleteButton.setTooltipText("Delete User");
+
+            // Don't allow the current user to delete themselves.
+            final UserEntity currentUser = getCurrentUser();
+            if (currentUser != null && user.getId().equals(currentUser.getId())) {
+                deleteButton.setEnabled(false);
+                deleteButton.setTooltipText("You cannot delete yourself.");
+            }
+
             deleteButton.addClickListener(clickEvent -> {
 
                 final Dialog confirmDialog = new Dialog();

@@ -115,10 +115,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    public PasswordEncoder getPasswordEncoder() {
-        return passwordEncoder;
-    }
-
     public List<UserEntity> findAll(final int offset, final int limit) {
 
         final FindIterable<Document> documents = collection.find().sort(Sorts.ascending("email")).skip(offset).limit(limit);
@@ -146,11 +142,24 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         } else {
 
             userEntity.setPassword(passwordEncoder.encode(newPassword));
-            save(userEntity);
+            update(userEntity);
             return ServiceResponse.success("Password changed.");
 
         }
         
+    }
+
+    public ServiceResponse setUserRole(final UserEntity userEntity, final String newRole) {
+
+        if (userEntity == null) {
+            return ServiceResponse.failure("User does not exist.");
+
+        } else {
+            userEntity.setRole(newRole);
+            update(userEntity);
+            return ServiceResponse.success("User role updated.");
+        }
+
     }
 
     public void deleteUser(final UserEntity userEntity) {

@@ -11,27 +11,39 @@ plugins:
       jinja_options:
         variable_start_string: "{$"
         variable_end_string: "}"
+  - search
+  - glightbox:
+      skip_classes:
+        - no-lightbox
 theme:
   name: material
-  logo: img/philterd.png
   locale: en
+  logo: assets/logo.png
+  #favicon: assets/favicon.png
+  font:
+    text: Roboto
+    code: Roboto Mono
   palette:
     primary: red
   features:
-    #- navigation.tabs
-    - navigation.expand
-    - navigation.footer
+    - content.code.annotate
 extra:
-  version: 3.0.0
+  version: 4.0.0
   homepage: https://www.philterd.ai
+  generator: false
   social:
-    - icon: fontawesome/brands/linkedin
-      link: https://www.linkedin.com/company/philterd/
+    - icon: material/link
+      link: https://www.philterd.ai
+      name: Philterd Home Page
     - icon: fontawesome/brands/github
-      link: https://www.github.com/philterd/
-  analytics:
-    provider: google
-    property: G-SQ49ZGCWT2
+      link: https://www.github.com/philterd
+      name: Philterd on GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/philterd
+      name: Philterd on LinkedIn
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:support@philterd.ai
+      name: Email Us
   consent:
     title: Cookie consent
     description: >-
@@ -44,6 +56,7 @@ nav:
   - 'Upgrading': upgrading.md
   - 'System Requirements': system_requirements.md
   - 'Mistakes': 'mistakes.md'
+  - 'Support': 'support.md'
   - 'Quick Starts':
       - 'Philter Quick Start on AWS': 'quick_starts/quick_start_aws.md'
       - 'Philter Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'
@@ -102,7 +115,10 @@ nav:
       - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
-  - 'Settings': settings.md
+  - Developers:
+      - 'Overview': 'developers/developers.md'
+      - 'Quick Start': 'developers/developer_quick_start.md'
+  - 'Settings': 'settings.md'
   - 'Monitoring and Logging': 'monitoring_and_logging.md'
   - 'Advanced Features':
       - 'Referential Integrity': 'other_features/referential_integrity.md'

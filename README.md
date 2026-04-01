@@ -47,4 +47,4 @@ You can also access the UI at https://localhost:8080. The default credentials ar
 
 As of Philter 2.6.0, Philter is licensed under the Apache License, version 2.0. Previous versions were under a proprietary license.
 
-Copyright 2024 Philterd, LLC. Copyright 2018-2023 Mountain Fog, Inc.
+Copyright 2024-2026 Philterd, LLC. Copyright 2018-2023 Mountain Fog, Inc.

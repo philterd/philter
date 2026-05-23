@@ -77,7 +77,7 @@
         <mongodb.version>5.6.4</mongodb.version>
         <opensearch.client.version>3.8.0</opensearch.client.version>
         <opensearch.rest.client.version>3.5.0</opensearch.rest.client.version>
-        <phileas.version>3.3.0-SNAPSHOT</phileas.version>
+        <phileas.version>3.4.0-SNAPSHOT</phileas.version>
         <spring.boot.version>4.0.5</spring.boot.version>
         <springdoc.version>3.0.2</springdoc.version>
         <spring-security.version>7.0.4</spring-security.version>

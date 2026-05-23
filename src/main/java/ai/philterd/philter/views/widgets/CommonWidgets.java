@@ -18,23 +18,19 @@ package ai.philterd.philter.views.widgets;
 import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
 import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.charts.Chart;
-import com.vaadin.flow.component.charts.model.Configuration;
-import com.vaadin.flow.component.charts.model.DataSeries;
-import com.vaadin.flow.component.charts.model.DataSeriesItem;
-import com.vaadin.flow.component.charts.model.PlotOptionsLine;
-import com.vaadin.flow.component.charts.model.Tooltip;
-import com.vaadin.flow.component.charts.model.XAxis;
-import com.vaadin.flow.component.charts.model.YAxis;
-import com.vaadin.flow.component.dashboard.DashboardWidget;
+import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class CommonWidgets {
@@ -102,69 +98,51 @@ public class CommonWidgets {
 
     }
 
-    public static DashboardWidget buildTokenCountsLastXDays(final OpenSearchRedactionsUsageService openSearchRedactionsService, final int previousDays) throws IOException {
+    public static Div buildTokenCountsLastXDays(final OpenSearchRedactionsUsageService openSearchRedactionsService, final int previousDays) throws IOException {
 
         final Map<String, Long> tokenCounts = openSearchRedactionsService.getTokensPreviousXDays(previousDays);
-        return createTimeSeriesWidget(tokenCounts, "Token Counts", "Token Counts for Last " + previousDays + " Days", "Date", "Token", "tokens");
+        return createTimeSeriesWidget(tokenCounts, "Token Counts for Last " + previousDays + " Days", "Tokens");
 
     }
 
-    public static DashboardWidget buildRedactionCountsLastXDays(final OpenSearchRedactionsUsageService openSearchRedactionsService, final int previousDays) throws IOException {
+    public static Div buildRedactionCountsLastXDays(final OpenSearchRedactionsUsageService openSearchRedactionsService, final int previousDays) throws IOException {
 
         final Map<String, Long> redactions = openSearchRedactionsService.getRedactionsPreviousXDays(previousDays);
-        return createTimeSeriesWidget(redactions,  "Redactions", "Redactions for Last " + previousDays + " Days","Date", "Redactions", "redactions");
+        return createTimeSeriesWidget(redactions, "Redactions for Last " + previousDays + " Days", "Redactions");
 
     }
 
-    public static DashboardWidget buildStandardApiRequestsLastXDays(final ApiRequestsUsageService apiRequestsUsageService, final int previousDays) throws IOException {
+    public static Div buildStandardApiRequestsLastXDays(final ApiRequestsUsageService apiRequestsUsageService, final int previousDays) throws IOException {
 
         final Map<String, Long> tokenCounts = apiRequestsUsageService.getApiRequestsLastXDays(previousDays);
-        return createTimeSeriesWidget(tokenCounts, "API Requests", "API Requests for Last " + previousDays + " Days", "Date", "Standard API Requests", "requests");
+        return createTimeSeriesWidget(tokenCounts, "API Requests for Last " + previousDays + " Days", "Requests");
 
     }
 
-    private static DashboardWidget createTimeSeriesWidget(final Map<String, Long> data, final String title,
-                                                          final String widgetTitle, final String xAxisLabel,
-                                                          final String yAxisLabel, final String tooltipSuffix) {
+    private static Div createTimeSeriesWidget(final Map<String, Long> data, final String widgetTitle, final String valueColumnLabel) {
 
-        final Chart chart = new Chart();
-        Configuration configuration = chart.getConfiguration();
-        configuration.setTitle(title);
+        final List<TimeSeriesRow> rows = new ArrayList<>();
+        data.forEach((date, value) -> rows.add(new TimeSeriesRow(date, value)));
 
-        final XAxis xAxis = new XAxis();
-        xAxis.setCategories(data.keySet().toArray(new String[0]));
-        xAxis.setTitle(xAxisLabel);
-        configuration.addxAxis(xAxis);
+        final Grid<TimeSeriesRow> grid = new Grid<>(TimeSeriesRow.class, false);
+        grid.addColumn(TimeSeriesRow::date).setHeader("Date").setAutoWidth(true);
+        grid.addColumn(TimeSeriesRow::value).setHeader(valueColumnLabel).setAutoWidth(true);
+        grid.setItems(rows);
+        grid.setAllRowsVisible(true);
 
-        final YAxis yAxis = new YAxis();
-        yAxis.setMin(0);
-        yAxis.setTitle(yAxisLabel);
-        configuration.addyAxis(yAxis);
+        final VerticalLayout layout = new VerticalLayout();
+        layout.setPadding(true);
+        layout.add(new H4(widgetTitle));
+        layout.add(grid);
 
-        final Tooltip tooltip = new Tooltip();
-        tooltip.setValueSuffix(" " + tooltipSuffix);
-        configuration.setTooltip(tooltip);
-
-        final DataSeries series = new DataSeries(title);
-        final PlotOptionsLine plotOptions = new PlotOptionsLine();
-        plotOptions.setAllowPointSelect(false);
-        series.setPlotOptions(plotOptions);
-
-        data.forEach((date, tokens) -> {
-            series.add(new DataSeriesItem(date, tokens)); // Add token count as the Y-value
-        });
-
-        configuration.setSeries(series);
-
-        chart.drawChart();
-
-        final Div div = new Div(chart);
-
-        final DashboardWidget dashboardWidget = new DashboardWidget(widgetTitle);
-        dashboardWidget.setContent(div);
-
-        return dashboardWidget;
+        final Div div = new Div(layout);
+        div.getStyle().set("border", "1px solid var(--lumo-contrast-10pct)");
+        div.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
+        div.getStyle().set("padding", "var(--lumo-space-s)");
+        return div;
 
     }
+
+    private record TimeSeriesRow(String date, Long value) {}
 
 }

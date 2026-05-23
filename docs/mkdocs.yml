@@ -111,6 +111,8 @@ nav:
     - 'API Overview': 'api_and_sdks/api.md'
     - 'API Methods':
       - 'Filtering API': 'api_and_sdks/api/filtering_api.md'
+      - 'Documents API': 'api_and_sdks/api/documents_api.md'
+      - 'Webhooks': 'api_and_sdks/api/webhooks.md'
       - 'Policies API': 'api_and_sdks/api/policies_api.md'
       - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'

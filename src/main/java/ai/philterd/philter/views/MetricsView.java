@@ -22,7 +22,7 @@ import ai.philterd.philter.services.usage.UsageService;
 import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
-import com.vaadin.flow.component.dashboard.Dashboard;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -57,16 +57,14 @@ public class MetricsView extends AbstractRestrictedView {
         pageVerticalLayout.setSizeFull();
         pageVerticalLayout.add(getTitle("Metrics"));
 
-        final Dashboard dashboard = new Dashboard();
-        dashboard.setSizeUndefined();
-        dashboard.setMinimumColumnWidth("150px");
-        dashboard.setMaximumColumnCount(2);
-        dashboard.setSizeFull();
+        final FlexLayout dashboard = new FlexLayout();
+        dashboard.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        dashboard.getStyle().set("gap", "var(--lumo-space-m)");
+        dashboard.setWidthFull();
 
-        // Usage widgets
         dashboard.add(CommonWidgets.buildTokenCountsLastXDays(openSearchRedactionsService, 30));
-        dashboard.add(CommonWidgets.buildRedactionCountsLastXDays(openSearchRedactionsService,30));
-        dashboard.add(CommonWidgets.buildStandardApiRequestsLastXDays(apiRequestsUsageService,  30));
+        dashboard.add(CommonWidgets.buildRedactionCountsLastXDays(openSearchRedactionsService, 30));
+        dashboard.add(CommonWidgets.buildStandardApiRequestsLastXDays(apiRequestsUsageService, 30));
 
         // Download CSV of usage
 

@@ -215,7 +215,6 @@ public class RedactionService {
             final String eventId = UUID.randomUUID().toString();
             final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
 
-            // TODO: Send webhook notification for failure
             throw new Exception(errorMessage);
 
         } else {
@@ -322,9 +321,6 @@ public class RedactionService {
 
         // TODO: Audit that document redaction has been completed
         //auditEventPublisher.auditEvent(requestId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, userEntity.getId(), redactedDocumentEntity.getId(), redactedDocumentEntity.getClientIp());
-
-        // TODO: Send webhook notification for successful completion
-        //sendWebhookNotification(userEntity, redactedDocumentEntity, WebhookEventType.DOCUMENT_REDACTION_COMPLETE, "");
 
         return filterResult;
 

@@ -1,11 +1,13 @@
 # API
 
-Philter's API is divided into five parts, the [Filtering API](api/filtering_api.md), the [Policies API](api/policies_api.md), the [Custom Lists API](api/custom_lists_api.md), the [Contexts API](api/contexts_api.md), and the [Alerts API](api/alerts_api.md).
+Philter's API has the following sections:
 
-* [Filtering API](api/filtering_api.md) - The filtering API is used to redact text. With the filtering API, you can send text or PDF documents to Philter and receive back the redacted text or PDF document.
-* [Policies API](api/policies_api.md) - The policies API allows you to create, modify, and delete [policies](../policies/filter_policies.md). Policies can also be created manually with access to Philter, but the API provides a programmatic way to manage policies.
-* [Custom Lists API](api/custom_lists_api.md) - The custom lists API allows you to create, modify, and delete custom lists. Custom lists are used by policies to identify terms to be redacted.
-* [Contexts API](api/contexts_api.md) - The contexts API allows you to create, modify, and delete contexts. Contexts are used to maintain referential integrity across documents.
+* [Filtering API](api/filtering_api.md) - Submit text or PDFs for redaction. In Philter 4.0, PDF requests are asynchronous by default; the redacted bytes are downloaded via the Documents API.
+* [Documents API](api/documents_api.md) - List, poll, download, and delete asynchronous PDF redactions.
+* [Webhooks](api/webhooks.md) - Receive signed HTTP notifications when an asynchronous redaction completes or fails.
+* [Policies API](api/policies_api.md) - Create, modify, and delete [policies](../policies/filter_policies.md). Policies can also be managed in the dashboard.
+* [Custom Lists API](api/custom_lists_api.md) - Create, modify, and delete custom lists. Custom lists are referenced by policies to identify terms to redact.
+* [Contexts API](api/contexts_api.md) - Create, update, and delete contexts and inspect their entries. Contexts maintain referential integrity across documents.
 
 ## Securing Philter's API
 

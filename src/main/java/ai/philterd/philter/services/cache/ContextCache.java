@@ -16,6 +16,7 @@
 package ai.philterd.philter.services.cache;
 
 import ai.philterd.philter.services.encryption.EncryptionService;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -33,6 +34,12 @@ public class ContextCache extends Cache {
     private static final int CONTEXT_CACHE_TTL_SECONDS = 3600;
 
     /**
+     * Cached values are encoded as the entry's 24-character ObjectId hex followed by the replacement.
+     * Storing the id lets the caller increment the entry's read count on a cache hit without a DB lookup.
+     */
+    private static final int ENTRY_ID_HEX_LENGTH = 24;
+
+    /**
      * Creates a new context cache.
      *
      * @param host     The hostname of the Valkey server.
@@ -45,19 +52,24 @@ public class ContextCache extends Cache {
     }
 
     /**
-     * Sets a token replacement in the cache.
-     *
-     * @param context     The context.
-     * @param token       The token.
-     * @param replacement The replacement value.
+     * Sets a token replacement in the cache, tagged with the entry's id so the caller can later
+     * increment the entry's read count on a cache hit.
      */
-    public void setTokenReplacement(final String context, final String token, final String replacement) {
+    public void setTokenReplacement(final String context, final String token, final ObjectId entryId, final String replacement) {
 
         // The token must be hashed.
         final String tokenHash = EncryptionService.hashSha256(token);
 
+        if (entryId == null) {
+            // Without an id, the cache value would be ambiguous on read; skip caching rather than store a value
+            // that can't be re-validated.
+            return;
+        }
+
+        final String encoded = entryId.toHexString() + replacement;
+
         try (final Jedis jedis = pool.getResource()) {
-            jedis.hset(context, tokenHash, replacement);
+            jedis.hset(context, tokenHash, encoded);
             // Set TTL of 60 minutes on the cache entry
             jedis.expire(context, CONTEXT_CACHE_TTL_SECONDS);
         }
@@ -67,22 +79,36 @@ public class ContextCache extends Cache {
     /**
      * Gets a replacement for a token from the cache.
      *
-     * @param context The context.
-     * @param token   The token.
-     * @return The replacement value, or <code>null</code> if not found.
+     * @return The cached entry, or {@code null} if not present or the cached value is in an
+     *         unrecognized (legacy) format.
      */
-    public String getReplacement(final String context, final String token) {
+    public CachedReplacement getReplacement(final String context, final String token) {
 
-        // The replacement is not encrypted and does not need to be decrypted.
-
-        // The token must be hashed.
         final String tokenHash = EncryptionService.hashSha256(token);
 
+        final String raw;
         try (final Jedis jedis = pool.getResource()) {
-            return jedis.hget(context, tokenHash);
+            raw = jedis.hget(context, tokenHash);
         }
 
+        if (raw == null || raw.length() < ENTRY_ID_HEX_LENGTH) {
+            return null;
+        }
+
+        final String hexPrefix = raw.substring(0, ENTRY_ID_HEX_LENGTH);
+        if (!ObjectId.isValid(hexPrefix)) {
+            // Legacy value without an id prefix — treat as a cache miss so the caller refreshes from the DB.
+            return null;
+        }
+
+        return new CachedReplacement(new ObjectId(hexPrefix), raw.substring(ENTRY_ID_HEX_LENGTH));
+
     }
+
+    /**
+     * A cached entry, paired with the id of the underlying database row.
+     */
+    public record CachedReplacement(ObjectId entryId, String replacement) {}
 
     /**
      * Checks if the cache contains a replacement for a token.

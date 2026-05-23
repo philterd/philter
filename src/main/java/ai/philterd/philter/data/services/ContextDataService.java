@@ -20,7 +20,10 @@ import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
@@ -188,6 +191,21 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         } else {
             return null;
         }
+
+    }
+
+    public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation) {
+
+        final ContextEntity existing = findOne(contextName, userId);
+        if (existing == null) {
+            return new ServiceResponse("Context does not exist.", false, 404);
+        }
+
+        final Bson filter = Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", userId));
+        final Bson update = Updates.combine(Updates.set("coref", coref), Updates.set("disambiguation", disambiguation));
+        collection.updateOne(filter, update);
+
+        return new ServiceResponse("Context updated.", true);
 
     }
 

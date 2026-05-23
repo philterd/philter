@@ -72,6 +72,8 @@ class ContextEntryDataServiceTest {
         String contextName = "testContext";
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.sort(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
         when(findIterable.limit(anyInt())).thenReturn(findIterable);
         MongoCursor<Document> cursor = mock(MongoCursor.class);
         when(findIterable.iterator()).thenReturn(cursor);
@@ -194,4 +196,88 @@ class ContextEntryDataServiceTest {
     void saveThrowsException() {
         assertThrows(UnsupportedOperationException.class, () -> contextEntryDataService.save(new ContextEntryEntity()));
     }
+
+    @Test
+    void putReplacementEvictsLeastReadWhenAtCapacity() {
+        final ObjectId userId = new ObjectId();
+        final String contextName = "ctx";
+
+        // First call is containsToken (returns null = no match); second call is the eviction lookup.
+        final FindIterable<Document> containsFind = mock(FindIterable.class);
+        when(containsFind.first()).thenReturn(null);
+
+        final ObjectId victimId = new ObjectId();
+        final FindIterable<Document> evictFind = mock(FindIterable.class);
+        when(evictFind.sort(any(Bson.class))).thenReturn(evictFind);
+        when(evictFind.first()).thenReturn(new Document("_id", victimId).append("reads", 0L));
+
+        when(mongoCollection.find(any(Bson.class)))
+                .thenReturn(containsFind)
+                .thenReturn(evictFind);
+
+        when(mongoCollection.countDocuments(any(Bson.class)))
+                .thenReturn((long) ContextEntryDataService.MAX_CONTEXT_SIZE);
+
+        when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(mock(com.mongodb.client.result.DeleteResult.class));
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(mock(InsertOneResult.class));
+
+        contextEntryDataService.putReplacement(userId, contextName, "tok", "REPLACEMENT", "PERSON");
+
+        verify(mongoCollection, times(1)).deleteOne(any(Bson.class));
+        verify(mongoCollection, times(1)).insertOne(any(Document.class));
+    }
+
+    @Test
+    void putReplacementSkipsEvictionWhenUnderCapacity() {
+        final ObjectId userId = new ObjectId();
+
+        final FindIterable<Document> containsFind = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(containsFind);
+        when(containsFind.first()).thenReturn(null);
+
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(mock(InsertOneResult.class));
+
+        contextEntryDataService.putReplacement(userId, "ctx", "tok", "R", "PERSON");
+
+        verify(mongoCollection, never()).deleteOne(any(Bson.class));
+        verify(mongoCollection, times(1)).insertOne(any(Document.class));
+    }
+
+    @Test
+    void incrementReadsIssuesIncUpdate() {
+        final ObjectId id = new ObjectId();
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
+
+        contextEntryDataService.incrementReads(id);
+
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
+    void deleteByIdAndUserIdReturnsCount() {
+        final com.mongodb.client.result.DeleteResult result = mock(com.mongodb.client.result.DeleteResult.class);
+        when(result.getDeletedCount()).thenReturn(1L);
+        when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(result);
+
+        assertEquals(1L, contextEntryDataService.deleteByIdAndUserId(new ObjectId(), new ObjectId()));
+    }
+
+    @Test
+    void findOneEntryByTokenReturnsEntityWhenPresent() {
+        final ObjectId id = new ObjectId();
+        final Document doc = new Document("_id", id)
+                .append("replacement", "R")
+                .append("reads", 0L);
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final ContextEntryEntity entry = contextEntryDataService.findOneEntryByToken(new ObjectId(), "ctx", "tok");
+        assertNotNull(entry);
+        assertEquals(id, entry.getId());
+        assertEquals("R", entry.getReplacement());
+    }
+
 }

@@ -76,6 +76,19 @@ To permanently remove a context and all its associated mappings:
 2.  **Impact**: Deleting a context removes the organizational unit and its internal mappings. This will **not** affect documents that have already been redacted and downloaded.
 3.  **Default Context**: Every account has a **default** context. The default context cannot be deleted.
 
+## Capacity and Eviction
+
+Each context is bounded so that referential-integrity storage does not grow without limit:
+
+*   **Token mappings** — Each context stores up to `MAX_CONTEXT_SIZE` entries (default `10000`, overridable via the `MAX_CONTEXT_SIZE` environment variable). When the limit is reached, the **least-read** entry is evicted before the new one is inserted (ties broken by oldest entry first). Read counts are updated on every lookup, including cache hits.
+*   **Disambiguation vectors** — When entity-type disambiguation is enabled, each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`). Eviction here is FIFO by insertion order.
+
+In practice this means a long-running context will retain its most actively-referenced mappings indefinitely while quietly discarding entries that no incoming document has touched in a long time.
+
+## Deleting a Context With Pending Work
+
+If your application uses [asynchronous PDF redaction](../api_and_sdks/api/documents_api.md), Philter blocks deletion of any context that has a document in the `PENDING` or `PROCESSING` state. The API will return `409 Conflict`. Wait for the jobs to finish (or delete them from the Documents API) before deleting the context.
+
 ## Integration and Best Practices
 
 *   **Organization**: Use contexts to mirror your internal organizational structure or project list.

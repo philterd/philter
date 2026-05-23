@@ -15,15 +15,20 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.phileas.model.filtering.AbstractFilterResult;
+import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
+import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -34,9 +39,12 @@ import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
+import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.ByteArrayInputStream;
 
 @Route(value = "dashboard")
 @RouteAlias(value = "")
@@ -47,6 +55,7 @@ public class DashboardView extends AbstractRestrictedView {
     private static final Logger LOGGER = LogManager.getLogger(DashboardView.class);
 
     private final PolicyDataService policyDataService;
+    private final RedactionService redactionService;
 
     @Override
     public String getHelpMarkdownText() {
@@ -54,10 +63,12 @@ public class DashboardView extends AbstractRestrictedView {
     }
 
     public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService,
-                         final AuditEventPublisher auditEventPublisher, final PolicyDataService policyDataService) {
+                         final AuditEventPublisher auditEventPublisher, final PolicyDataService policyDataService,
+                         final RedactionService redactionService) {
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
         this.policyDataService = policyDataService;
+        this.redactionService = redactionService;
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();
@@ -141,6 +152,9 @@ public class DashboardView extends AbstractRestrictedView {
         upload.setAcceptedFileTypes("application/pdf");
         upload.setWidthFull();
 
+        final HorizontalLayout downloadRow = new HorizontalLayout();
+        downloadRow.setVisible(false);
+
         final Button filterPdfButton = new Button("Submit PDF", event -> {
             final String selectedPolicy = pdfPolicyComboBox.getValue();
             if (selectedPolicy == null) {
@@ -151,13 +165,37 @@ public class DashboardView extends AbstractRestrictedView {
                 Notification.show("Please select a file.");
                 return;
             }
-            // TODO
-            //Notification.show("Filtering PDF: " + fileName + " with policy: " + profile);
-            //filterPdf(selectedPolicy, buffer.getInputStream(), buffer.getFileName());
+
+            try {
+                final byte[] body = buffer.getInputStream().readAllBytes();
+
+                final AbstractFilterResult result = redactionService.filter(
+                        selectedPolicy, userEntity.getId(), "none", body, MimeType.APPLICATION_PDF);
+
+                final byte[] redactedBytes = ((BinaryDocumentFilterResult) result).getDocument();
+
+                final String fileName = buffer.getFileName();
+                final StreamResource resource = new StreamResource(
+                        "redacted-" + fileName, () -> new ByteArrayInputStream(redactedBytes));
+                resource.setContentType("application/pdf");
+
+                final Anchor downloadLink = new Anchor(resource, "Download redacted " + fileName);
+                downloadLink.getElement().setAttribute("download", true);
+
+                downloadRow.removeAll();
+                downloadRow.add(downloadLink);
+                downloadRow.setVisible(true);
+
+                showSuccessNotification("PDF redacted.");
+
+            } catch (Exception ex) {
+                LOGGER.error("Failed to redact PDF", ex);
+                showFailureNotification("Failed to redact PDF: " + ex.getMessage());
+            }
         });
         filterPdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        pageVerticalLayout.add(pdfPolicyComboBox, upload, filterPdfButton);
+        pageVerticalLayout.add(pdfPolicyComboBox, upload, filterPdfButton, downloadRow);
 
         return pageVerticalLayout;
 

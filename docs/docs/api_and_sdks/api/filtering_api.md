@@ -24,23 +24,54 @@ The types of sensitive information found and how each type is redacted is determ
 
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Defaults to `none` if not provided.
+* `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 
 ### Headers
 
 * `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
 * `Content-Type` - The value should be set to `text/plain` or `application/pdf`.
 
-Example request to filter plain text:
+### Plain text
+
+Plain text redaction is always synchronous. The response body is the redacted text.
 
 ```
 curl -k -X POST "https://localhost:8080/api/filter" -d @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer <token>"
 ```
 
-Example request to filter a PDF document:
+### PDF documents
+
+PDF redaction is **asynchronous by default** in Philter 4.0. The server enqueues the request and returns `202 Accepted` with a JSON body containing the assigned `documentId` and a `Location: /api/documents/{documentId}` header. The redacted bytes can then be downloaded from the [Documents API](documents_api.md) once the job's status is `COMPLETE`.
 
 ```
-curl -k -X POST "https://localhost:8080/api/filter?" -d @file.pdf -H "Content-Type: application/pdf" -H "Authorization: Bearer <token>" -O redacted.zip
+curl -k -X POST "https://localhost:8080/api/filter" \
+  -d @file.pdf \
+  -H "Content-Type: application/pdf" \
+  -H "Authorization: Bearer <token>" \
+  -i
 ```
+
+Example response (async, default):
+
+```
+HTTP/1.1 202 Accepted
+Location: /api/documents/c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f
+Content-Type: application/json
+
+{"documentId":"c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f"}
+```
+
+To receive the redacted PDF inline (3.x behavior), append `?async=false`:
+
+```
+curl -k -X POST "https://localhost:8080/api/filter?async=false" \
+  -d @file.pdf \
+  -H "Content-Type: application/pdf" \
+  -H "Authorization: Bearer <token>" \
+  -o redacted.pdf
+```
+
+> **Migration from 3.x.** Clients that previously consumed the redacted bytes directly from `POST /api/filter` should either (a) add `?async=false` to keep the synchronous behavior, or (b) switch to the async flow (poll `GET /api/documents/{id}/status`, then download from `GET /api/documents/{id}`). Async deliveries can additionally trigger a signed [webhook](webhooks.md) when they complete.
 
 ## Explain
 

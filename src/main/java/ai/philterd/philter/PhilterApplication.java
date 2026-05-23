@@ -30,15 +30,18 @@ import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.SettingsDataService;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
+import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
 import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import com.google.gson.Gson;
@@ -57,6 +60,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.io.IOException;
@@ -65,6 +69,7 @@ import java.util.Properties;
 @Configuration
 @Theme(value="philter", variant=Lumo.LIGHT)
 @SpringBootApplication
+@EnableScheduling
 public class PhilterApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
@@ -188,6 +193,21 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public ApiKeyDataService apiKeyDataService() {
         return new ApiKeyDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public PendingDocumentDataService pendingDocumentDataService() {
+        return new PendingDocumentDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public WebhookDeliveryDataService webhookDeliveryDataService() {
+        return new WebhookDeliveryDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public WebhookService webhookService() {
+        return new WebhookService(httpClient());
     }
 
     @Bean

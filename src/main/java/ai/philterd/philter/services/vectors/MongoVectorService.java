@@ -23,14 +23,22 @@ import ai.philterd.philter.data.entities.VectorEntity;
 import ai.philterd.philter.data.services.AbstractService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class MongoVectorService extends AbstractService<VectorEntity> implements VectorService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MongoVectorService.class);
+
+    public static final int MAX_VECTORS_PER_CONTEXT = Integer.parseInt(
+            System.getenv().getOrDefault("MAX_VECTORS_PER_CONTEXT", "100000"));
 
     private final ObjectId userId;
 
@@ -44,14 +52,14 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
     @Override
     public void hashAndInsert(final String context, final double[] hashes, final Span span, final int vectorSize) {
 
-        // TODO: Should there be a limit on the number of stored vectors per context?
-        // See https://github.com/philterd/philterd-data-services/issues/283
-
         for (double hash : hashes) {
 
             if (hash != 0) {
 
+                evictIfFull(context);
+
                 final VectorEntity vectorEntity = new VectorEntity();
+                vectorEntity.setUserId(userId);
                 vectorEntity.setContext(context);
                 vectorEntity.setHash(hash);
                 vectorEntity.setSpan(span);
@@ -88,6 +96,27 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
         }
 
         return vectorRepresentation;
+
+    }
+
+    private void evictIfFull(final String context) {
+
+        final Bson scope = Filters.and(
+                Filters.eq("user_id", userId),
+                Filters.eq("context", context)
+        );
+
+        final long currentSize = collection.countDocuments(scope);
+        if (currentSize < MAX_VECTORS_PER_CONTEXT) {
+            return;
+        }
+
+        final Document victim = collection.find(scope).sort(Sorts.ascending("_id")).first();
+        if (victim != null) {
+            collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
+            LOGGER.debug("Evicted vector {} from context {} to honor MAX_VECTORS_PER_CONTEXT={}",
+                    victim.getObjectId("_id"), context, MAX_VECTORS_PER_CONTEXT);
+        }
 
     }
 

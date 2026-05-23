@@ -2,9 +2,140 @@
 
 Issues whose identifiers start with `PHI-` were previously tracked in Jira before the project's issues were managed in GitHub.
 
-## Version 2.6.0 - Not yet released
+## Version 4.0.0 - Not yet released
 
-* First open source release of Philter under the Apache License, version 2.0.
+This is a major release. It rebuilds the Philter UI on Vaadin 25 and upgrades the
+runtime to Spring Boot 4 and Phileas 3.3. It also introduces asynchronous PDF
+redaction as the default behavior of the filter API.
+
+### Breaking changes
+
+* **PDF redaction is asynchronous by default.** `POST /api/filter` with
+  `application/pdf` now responds with `202 Accepted` and a JSON body of the form
+  `{"documentId": "..."}` plus a `Location: /api/documents/{documentId}` header.
+  The redacted bytes are no longer returned in the original response.
+* Clients that depend on the previous synchronous response must opt out by
+  appending `?async=false`. The synchronous response shape is otherwise
+  unchanged.
+* The text endpoint (`text/plain` in / `text/plain` out) is **not affected** and
+  remains synchronous. The `async` parameter has no effect on text redaction.
+* The Vaadin-based UI no longer uses the commercial `vaadin-charts` or
+  `vaadin-dashboard` components. Metrics views render with the open-source
+  `Grid` and `FlexLayout` instead.
+
+### New features
+
+* **Asynchronous PDF redaction.** Submitted PDFs are persisted to a new
+  `pending_documents` collection and processed by an in-process worker. Multiple
+  Philter instances coordinate via an atomic `findOneAndUpdate` claim and recover
+  from crashed workers automatically.
+* **New `/api/documents` endpoints** for managing asynchronous redactions:
+  * `GET /api/documents` — list submissions for the calling API key
+  * `GET /api/documents/{documentId}/status` — status only
+  * `GET /api/documents/{documentId}` — download the redacted bytes (`200`),
+    `409 Conflict` if still processing, `410 Gone` if redaction failed
+  * `DELETE /api/documents/{documentId}` — remove a record
+* **TTL on pending documents.** A MongoDB TTL index on `completed_at` deletes
+  finished records after a configurable interval. Default 7 days; override with
+  the `PENDING_DOCUMENTS_TTL_SECONDS` environment variable.
+* **Dashboard PDF redaction** is wired up. The dashboard runs the redaction
+  synchronously (the equivalent of `?async=false`) and offers the redacted
+  document as an immediate browser download.
+* **Webhook delivery for async redactions.** When a user has a webhook URL and
+  secret configured, the worker fires a signed HTTP POST after each async
+  redaction completes or fails. Deliveries that fail are retried with
+  exponential backoff (30s, 1m, 5m, 15m, 30m, 1h, 2h, 4h) for up to 8 attempts
+  before being marked failed. Records are persisted in a new
+  `webhook_deliveries` collection and expire via TTL after delivery.
+
+  Headers on outgoing webhooks:
+  * `X-Philter-Event` — `DOCUMENT_REDACTION_COMPLETE` or `DOCUMENT_REDACTION_FAILED`
+  * `X-Philter-Delivery-Id` — unique id for this delivery attempt
+  * `X-Philter-Timestamp` — Unix timestamp (seconds) of signing
+  * `X-Philter-Signature` — `sha256=<hex>` HMAC of `<timestamp>.<body>`
+
+  Signing scheme: the signed string is the timestamp, a literal `.`, and the
+  raw JSON body, hashed with HMAC-SHA256 using the shared secret. Receivers
+  should reject any request whose timestamp is more than 5 minutes off from the
+  current wall clock — this prevents replay of an old, valid signature. A fresh
+  timestamp and signature are generated for every attempt, so retries always
+  carry a current timestamp.
+
+  Sample verification (Python):
+  ```python
+  import hmac, hashlib, time
+  ts = int(request.headers["X-Philter-Timestamp"])
+  sig = request.headers["X-Philter-Signature"].removeprefix("sha256=")
+  expected = hmac.new(secret.encode(), f"{ts}.{request.body}".encode(),
+                      hashlib.sha256).hexdigest()
+  assert hmac.compare_digest(expected, sig)
+  assert abs(time.time() - ts) < 300
+  ```
+
+  Payload (JSON):
+  ```json
+  {
+    "event": "DOCUMENT_REDACTION_COMPLETE",
+    "documentId": "...",
+    "fileName": "...",
+    "status": "COMPLETE",
+    "timestamp": "2026-05-22T21:00:00Z"
+  }
+  ```
+  Failed deliveries also include an `error` field.
+
+### Context feature improvements
+
+* **Bounded context entry storage.** `ContextEntryDataService.putReplacement`
+  now enforces `MAX_CONTEXT_SIZE` (default 10,000 entries per context).
+  When the limit is reached, the least-read entry (ties broken by oldest) is
+  evicted before the new entry is inserted.
+* **Bounded vector storage.** `MongoVectorService.hashAndInsert` enforces
+  `MAX_VECTORS_PER_CONTEXT` (default 100,000 per `(user, context)` pair) with
+  FIFO eviction. This also fixes a pre-existing bug where stored vectors did
+  not carry `user_id`, so `getVectorRepresentation` could not match what
+  `hashAndInsert` wrote.
+* **Cache-hit read counting.** `ContextCache` now stores each entry's
+  ObjectId alongside its replacement (encoded as `<24-char-hex><replacement>`).
+  On a cache hit, `MongoContextService` increments the entry's read count via
+  the stored id — previously cache hits silently skipped this. Legacy
+  (unprefixed) cache values are treated as a miss for safe upgrade.
+* **New context API endpoints.**
+  * `PUT /api/contexts/{name}` — update the `coref` and `disambiguation` flags
+    on an existing context.
+  * `GET /api/contexts/{name}/entries` — paginated list of entries
+    (`offset`, `limit`) with id, replacement, filter type, reads, and timestamp.
+  * `DELETE /api/contexts/{name}/entries` — empty all entries for a context.
+  * `DELETE /api/contexts/{name}/entries/{entryId}` — remove a single entry.
+* **Context delete is guarded against in-flight async jobs.**
+  `DELETE /api/contexts/{name}` returns `409 Conflict` if any
+  `pending_documents` entry references the context with status `PENDING` or
+  `PROCESSING`. This prevents async redaction failures caused by deleting a
+  context out from under a queued job.
+
+### Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PENDING_DOCUMENTS_TTL_SECONDS` | `604800` (7 days) | TTL for completed async redactions |
+| `WEBHOOK_DELIVERIES_TTL_SECONDS` | `2592000` (30 days) | TTL for delivered webhook records |
+| `MAX_CONTEXT_SIZE` | `10000` | Maximum entries per context before least-read eviction |
+| `MAX_VECTORS_PER_CONTEXT` | `100000` | Maximum vectors per (user, context) before FIFO eviction |
+| `philter.worker.poll-interval-ms` | `5000` | Async worker poll interval |
+| `philter.webhook.poll-interval-ms` | `5000` | Webhook delivery worker poll interval |
+
+Webhook URL and secret are configured per user (`webhook_url` and
+`webhook_secret` fields on the `users` document). No webhook is sent if either
+field is missing.
+
+### Migration from 3.x
+
+* If you currently call `POST /api/filter` with a PDF body and consume the
+  response bytes, add `?async=false` to keep the existing synchronous behavior.
+* If you want to adopt the async flow, switch to: submit with no query
+  parameter, capture the `documentId`, poll `GET /api/documents/{id}/status`,
+  and download from `GET /api/documents/{id}` once the status is `COMPLETE`.
+* No client changes are required for the text redaction endpoint.
 
 ## Version 2.5.0 - July 6, 2024
 

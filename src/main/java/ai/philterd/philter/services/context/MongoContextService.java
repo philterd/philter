@@ -17,6 +17,7 @@ package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import com.mongodb.client.MongoClient;
@@ -34,11 +35,15 @@ public class MongoContextService implements ContextService {
     private final String contextName;
 
     public MongoContextService(final MongoClient mongoClient, final ContextCache contextCache, final ObjectId userId, final String contextName, final AuditEventPublisher auditEventPublisher) {
+        this(contextCache, new ContextEntryDataService(mongoClient, auditEventPublisher), userId, contextName);
+    }
+
+    MongoContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final ObjectId userId, final String contextName) {
 
         LOGGER.info("Instantiating MongoContextService for user {} and context {}", userId, contextName);
 
         this.contextCache = contextCache;
-        this.contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher);
+        this.contextEntryService = contextEntryService;
         this.userId = userId;
         this.contextName = contextName;
 
@@ -47,56 +52,49 @@ public class MongoContextService implements ContextService {
     @Override
     public boolean containsToken(final String token) {
 
-        // Look in the cache first.
-        if(contextCache.containsToken(contextName, token)) {
-
+        if (contextCache.containsToken(contextName, token)) {
             return true;
-
-        } else {
-
-            // Look in the database.
-            return contextEntryService.containsToken(userId, contextName, token);
-
         }
+
+        return contextEntryService.containsToken(userId, contextName, token);
 
     }
 
     @Override
     public boolean containsReplacement(final String replacement) {
-
-        // The replacement does not need to be encrypted.
-
-        // There's no good way to find by value, so always look at the database.
         return contextEntryService.containsReplacement(userId, contextName, replacement);
-
     }
 
     @Override
     public String getReplacement(final String token) {
 
-        // Try to get from the cache first.
-        if(contextCache.containsToken(contextName, token)) {
-            // TODO: When the replacement is retrieved from the cache, the ContextEntryEntity's read count does not get updated.
-            // Need the ID of the ContextEntryEntity to update the read count.
-            // With the ID, collection.UpdateOne(Filters.eq("_id", id), Updates.inc("reads",1));
-            return contextCache.getReplacement(contextName, token);
+        final ContextCache.CachedReplacement cached = contextCache.getReplacement(contextName, token);
+        if (cached != null) {
+            contextEntryService.incrementReads(cached.entryId());
+            return cached.replacement();
         }
 
-        // Not in the cache, so get from the database and insert into the cache.
-        final String replacement = contextEntryService.getReplacement(userId, contextName, token);
-        contextCache.setTokenReplacement(contextName, token, replacement);
+        final ContextEntryEntity entry = contextEntryService.findOneEntryByToken(userId, contextName, token);
+        if (entry == null) {
+            return null;
+        }
 
-        return replacement;
+        contextEntryService.incrementReads(entry.getId());
+        contextCache.setTokenReplacement(contextName, token, entry.getId(), entry.getReplacement());
+
+        return entry.getReplacement();
 
     }
 
     @Override
     public void putReplacement(final String token, final String replacement, final String filterType) {
 
-        // Insert into the cache and the database.
-        contextCache.setTokenReplacement(contextName, token, replacement);
-
         contextEntryService.putReplacement(userId, contextName, token, replacement, filterType);
+
+        final ContextEntryEntity entry = contextEntryService.findOneEntryByToken(userId, contextName, token);
+        if (entry != null) {
+            contextCache.setTokenReplacement(contextName, token, entry.getId(), entry.getReplacement());
+        }
 
     }
 

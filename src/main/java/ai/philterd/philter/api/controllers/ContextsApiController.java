@@ -16,15 +16,19 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.responses.ContextEntryView;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.GetContextEntriesResponse;
 import ai.philterd.philter.api.responses.GetContextResponse;
 import ai.philterd.philter.api.responses.GetContextsResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
+import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -59,17 +63,20 @@ public class ContextsApiController extends AbstractApiController {
 
     private final ContextDataService contextService;
     private final ContextEntryDataService contextEntryService;
+    private final PendingDocumentDataService pendingDocumentDataService;
     private final AuditEventPublisher auditEventPublisher;
     private final Gson gson;
 
     public ContextsApiController(final ContextDataService contextService,
                                  final ContextEntryDataService contextEntryService,
+                                 final PendingDocumentDataService pendingDocumentDataService,
                                  final ApiKeyDataService apiKeyDataService,
                                  final AuditEventPublisher auditEventPublisher,
                                  final ApiKeyCache apiKeyCache, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.contextService = contextService;
         this.contextEntryService = contextEntryService;
+        this.pendingDocumentDataService = pendingDocumentDataService;
         this.auditEventPublisher = auditEventPublisher;
         this.gson = gson;
     }
@@ -181,7 +188,8 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Delete a context.", description = "Delete an existing context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was deleted."),
-            @ApiResponse(responseCode = "400", description = "The context could not be deleted.")
+            @ApiResponse(responseCode = "400", description = "The context could not be deleted."),
+            @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
     })
     @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> deleteContext(
@@ -198,6 +206,12 @@ public class ContextsApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getId();
 
+        if (pendingDocumentDataService.hasOpenJobsForContext(userId, name)) {
+            return new ResponseEntity<>(
+                    new GenericResponse("Context has pending or processing redaction jobs; cannot delete."),
+                    HttpStatus.CONFLICT);
+        }
+
         final ServiceResponse serviceResponse = contextService.deleteByName(name, userId);
 
         if(serviceResponse.isSuccessful()) {
@@ -210,6 +224,112 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.BAD_REQUEST);
 
         }
+
+    }
+
+    @Operation(summary = "Update a context's settings.", description = "Update the coref and disambiguation flags on an existing context.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "404", description = "Context not found.")
+    })
+    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.PUT)
+    public ResponseEntity<GenericResponse> updateContext(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String name,
+            final @RequestParam(value = "coref", required = false, defaultValue = "false") boolean coref,
+            final @RequestParam(value = "disambiguation", required = false, defaultValue = "false") boolean disambiguation) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ServiceResponse response = contextService.updateSettings(name, apiKeyEntity.getId(), coref, disambiguation);
+
+        return new ResponseEntity<>(new GenericResponse(response.getMessage()),
+                response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+
+    }
+
+    @Operation(summary = "List entries within a context.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "404", description = "Context not found.")
+    })
+    @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.GET)
+    public ResponseEntity<String> listEntries(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String name,
+            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "limit", defaultValue = "25") int limit) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ObjectId userId = apiKeyEntity.getId();
+
+        if (contextService.findOne(name, userId) == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(userId, name, offset, limit);
+        final int total = contextEntryService.countByUserIdAndContext(userId, name);
+
+        final List<ContextEntryView> views = new ArrayList<>(entries.size());
+        for (final ContextEntryEntity entry : entries) {
+            views.add(new ContextEntryView(
+                    entry.getId() != null ? entry.getId().toHexString() : null,
+                    entry.getReplacement(),
+                    entry.getFilterType(),
+                    entry.getReads(),
+                    entry.getTimestamp()));
+        }
+
+        return new ResponseEntity<>(gson.toJson(new GetContextEntriesResponse(views, total)), HttpStatus.OK);
+
+    }
+
+    @Operation(summary = "Empty all entries from a context.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.DELETE)
+    public ResponseEntity<GenericResponse> emptyEntries(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String name) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ServiceResponse response = contextService.emptyByName(name, apiKeyEntity.getId());
+        return new ResponseEntity<>(new GenericResponse(response.getMessage()),
+                response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+
+    }
+
+    @Operation(summary = "Delete a single context entry by id.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequestMapping(value = "/api/contexts/{name}/entries/{entryId}", method = RequestMethod.DELETE)
+    public ResponseEntity<GenericResponse> deleteEntry(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String name,
+            final @PathVariable("entryId") String entryId) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (!ObjectId.isValid(entryId)) {
+            return new ResponseEntity<>(new GenericResponse("Invalid entry id."), HttpStatus.BAD_REQUEST);
+        }
+
+        final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), apiKeyEntity.getId());
+        return deleted > 0
+                ? new ResponseEntity<>(new GenericResponse("Entry deleted."), HttpStatus.OK)
+                : new ResponseEntity<>(new GenericResponse("Entry not found."), HttpStatus.NOT_FOUND);
 
     }
 

@@ -16,10 +16,15 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Updates;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +42,9 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     public static final int MAX_LIMIT = 100;
 
+    public static final int MAX_CONTEXT_SIZE = Integer.parseInt(
+            System.getenv().getOrDefault("MAX_CONTEXT_SIZE", String.valueOf(ContextEntity.MAX_CONTEXT_SIZE)));
+
     private static final Pattern UUID_REGEX_PATTERN = Pattern.compile(
             "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
     );
@@ -45,13 +53,24 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         super(mongoClient, "context_entries", auditEventPublisher);
     }
 
+    public void incrementReads(final ObjectId id) {
+        collection.updateOne(Filters.eq("_id", id), Updates.inc("reads", 1L));
+    }
+
     public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int limit) {
+        return findAllByUserIdAndContext(userId, contextName, 0, limit);
+    }
+
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int offset, int limit) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
         final Document query = new Document("user_id", userId).append("context_name", contextName);
 
-        final Iterable<Document> documents = collection.find(query).limit(effectiveLimit);
+        final Iterable<Document> documents = collection.find(query)
+                .sort(Sorts.descending("timestamp"))
+                .skip(Math.max(0, offset))
+                .limit(effectiveLimit);
 
         final List<ContextEntryEntity> contextEntities = new ArrayList<>();
 
@@ -61,6 +80,14 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
         return contextEntities;
 
+    }
+
+    public int countByUserIdAndContext(final ObjectId userId, final String contextName) {
+        return (int) collection.countDocuments(new Document("user_id", userId).append("context_name", contextName));
+    }
+
+    public long deleteByIdAndUserId(final ObjectId id, final ObjectId userId) {
+        return collection.deleteOne(Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId))).getDeletedCount();
     }
 
     public boolean containsToken(final ObjectId userId, final String contextName, final String token) {
@@ -85,6 +112,15 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     }
 
     public String getReplacement(final ObjectId userId, final String contextName, final String token) {
+        final ContextEntryEntity entry = findOneEntryByToken(userId, contextName, token);
+        if (entry == null) {
+            return null;
+        }
+        incrementReads(entry.getId());
+        return entry.getReplacement();
+    }
+
+    public ContextEntryEntity findOneEntryByToken(final ObjectId userId, final String contextName, final String token) {
 
         // The token must be hashed.
         final String tokenHash = EncryptionService.hashSha256(token);
@@ -92,20 +128,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         final Document query = new Document("user_id", userId).append("context_name", contextName).append("token_hash", tokenHash);
         final Document document = collection.find(query).first();
 
-        if(document != null) {
-
-            final ContextEntryEntity contextEntryEntity = ContextEntryEntity.fromDocument(document);
-
-            // Increment the number of reads for this document.
-            LOGGER.info("Incrementing the reads for the context entry {}", contextEntryEntity.getId());
-            contextEntryEntity.setReads(contextEntryEntity.getReads() + 1);
-            update(contextEntryEntity);
-
-            return contextEntryEntity.getReplacement();
-
-        } else {
-            return null;
-        }
+        return document != null ? ContextEntryEntity.fromDocument(document) : null;
 
     }
 
@@ -122,6 +145,8 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         // Check to see if this token already exists in the context.
         if(!containsToken(userId, contextName, token)) {
 
+            evictIfFull(userId, contextName);
+
             final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
             contextEntryEntity.setUserId(userId);
             contextEntryEntity.setContextName(contextName);
@@ -134,11 +159,32 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
             // Does the replacement match the regex for a UUID?
             contextEntryEntity.setReplacementUuid(UUID_REGEX_PATTERN.matcher(replacement).matches());
 
-            // TOOD: Check the size of the context against ContextEntity.MAX_CONTEXT_SIZE.
-            // If it exceeds the max, remove the context entry that has been used the least (per the `reads``).
-
             collection.insertOne(contextEntryEntity.toDocument());
 
+        }
+
+    }
+
+    private void evictIfFull(final ObjectId userId, final String contextName) {
+
+        final Bson contextFilter = Filters.and(
+                Filters.eq("user_id", userId),
+                Filters.eq("context_name", contextName)
+        );
+
+        final long currentSize = collection.countDocuments(contextFilter);
+        if (currentSize < MAX_CONTEXT_SIZE) {
+            return;
+        }
+
+        final Document victim = collection.find(contextFilter)
+                .sort(Sorts.orderBy(Sorts.ascending("reads"), Sorts.ascending("timestamp")))
+                .first();
+
+        if (victim != null) {
+            collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
+            LOGGER.info("Evicted context entry {} from context {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
+                    victim.getObjectId("_id"), contextName, victim.getLong("reads"), MAX_CONTEXT_SIZE);
         }
 
     }

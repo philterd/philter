@@ -27,6 +27,8 @@ public class UserEntity extends AbstractEncryptedEntity {
     private String role;
     private String fpeKey;
     private boolean changesetsEnabled;
+    private String webhookUrl;
+    private String webhookSecret;
 
     public static UserEntity fromDocument(final Document document) {
         final UserEntity userEntity = new UserEntity();
@@ -36,6 +38,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setRole(document.getString("role"));
         userEntity.setFpeKey(document.getString("fpe_key"));
         userEntity.setChangesetsEnabled(document.getBoolean("changesets_enabled", false));
+        userEntity.setWebhookUrl(document.getString("webhook_url"));
+        userEntity.setWebhookSecret(document.getString("webhook_secret"));
         return userEntity;
     }
 
@@ -50,6 +54,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("role", role);
         document.put("fpe_key", fpeKey);
         document.put("changesets_enabled", changesetsEnabled);
+        document.put("webhook_url", webhookUrl);
+        document.put("webhook_secret", webhookSecret);
         return document;
     }
 
@@ -100,5 +106,21 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setChangesetsEnabled(boolean changesetsEnabled) {
         this.changesetsEnabled = changesetsEnabled;
+    }
+
+    public String getWebhookUrl() {
+        return webhookUrl;
+    }
+
+    public void setWebhookUrl(final String webhookUrl) {
+        this.webhookUrl = webhookUrl;
+    }
+
+    public String getWebhookSecret() {
+        return webhookSecret;
+    }
+
+    public void setWebhookSecret(final String webhookSecret) {
+        this.webhookSecret = webhookSecret;
     }
 }

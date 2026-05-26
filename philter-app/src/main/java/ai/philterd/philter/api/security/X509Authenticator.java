@@ -47,22 +47,21 @@ public class X509Authenticator {
 
             LOGGER.info("Mutual SSL authentication is enabled.");
 
-            http.authorizeRequests()
-                    .requestMatchers("/api/status").permitAll()
-                    .anyRequest()
-                    .authenticated()
-                    .and()
-                    .x509()
-                    .subjectPrincipalRegex("CN=(.*?)(?:,|$)")
-                    .userDetailsService(userDetailsService);
-
-            return http.build();
+            http.authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/api/status").permitAll()
+                        .anyRequest().authenticated()
+                    )
+                    .x509(x509 -> x509
+                        .subjectPrincipalRegex("CN=(.*?)(?:,|$)")
+                        .userDetailsService(userDetailsService)
+                    );
 
         } else {
 
             LOGGER.info("Mutual SSL authentication is disabled.");
 
-            http.csrf().disable().authorizeRequests().anyRequest().permitAll();
+            http.csrf(csrf -> csrf.disable())
+                    .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
 
         }
 

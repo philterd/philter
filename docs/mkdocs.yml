@@ -126,7 +126,3 @@ nav:
       - 'Referential Integrity': 'other_features/referential_integrity.md'
       - 'Span Disambiguation': 'other_features/span_disambiguation.md'
       - 'Dashboard': 'other_features/dashboard.md'
-  - 'How-tos':
-    - 'How to Evaluate Philter''s Performance': 'howtos/evaluate_performance.md'
-    - 'How to Use a Signed SSL Certificate with Philter': 'howtos/signed_certificate.md'
-    - 'How to Use an Apache Reverse Proxy with Philter': 'howtos/apache_proxy.md'

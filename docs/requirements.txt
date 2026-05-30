@@ -2,3 +2,4 @@ mkdocs
 mkdocs-material
 mkdocs-markdownextradata-plugin
 mkdocs-glightbox
+mike

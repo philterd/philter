@@ -28,7 +28,9 @@ theme:
   features:
     - content.code.annotate
 extra:
-  version: 4.0.0
+  philter_version: 4.0.0
+  version:
+    provider: mike
   homepage: https://www.philterd.ai
   generator: false
   social:

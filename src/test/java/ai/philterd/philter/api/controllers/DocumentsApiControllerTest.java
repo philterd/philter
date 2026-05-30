@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
@@ -36,6 +37,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -131,8 +133,8 @@ class DocumentsApiControllerTest {
 
         verify(pendingDocumentDataService).findOneByDocumentIdAndUserId(documentId, userId);
         // The download is audited against the owning user, not the API key id.
-        verify(auditEventPublisher).auditEvent(eq(documentId), eq(ai.philterd.philter.model.AuditLogEvent.REDACTED_FILE_DOWNLOAD),
-                eq(userId), eq(null), eq(null), org.mockito.ArgumentMatchers.contains(documentId));
+        verify(auditEventPublisher).auditEvent(eq(documentId), eq(AuditLogEvent.REDACTED_FILE_DOWNLOAD),
+                eq(userId), eq(null), eq(null), contains(documentId));
     }
 
     @Test
@@ -144,8 +146,8 @@ class DocumentsApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(pendingDocumentDataService).deleteByDocumentIdAndUserId(documentId, userId);
-        verify(auditEventPublisher).auditEvent(eq(documentId), eq(ai.philterd.philter.model.AuditLogEvent.REDACTED_FILE_DELETED),
-                eq(userId), eq(null), eq(null), org.mockito.ArgumentMatchers.contains(documentId));
+        verify(auditEventPublisher).auditEvent(eq(documentId), eq(AuditLogEvent.REDACTED_FILE_DELETED),
+                eq(userId), eq(null), eq(null), contains(documentId));
     }
 
 }

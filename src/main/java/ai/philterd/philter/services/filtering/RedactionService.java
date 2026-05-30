@@ -155,7 +155,17 @@ public class RedactionService {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
+        // The user may have been deleted after the API key was cached.
+        if (userEntity == null) {
+            throw new Exception("The user associated with this request no longer exists.");
+        }
+
         final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
+
+        // The named policy must exist for this user.
+        if (policyEntity == null) {
+            throw new Exception("The policy '" + policyName + "' does not exist.");
+        }
 
         // Build the simplified policy.
         final SimplifiedPolicy simplifiedPolicy = gson.fromJson(policyEntity.getPolicy(), SimplifiedPolicy.class);
@@ -202,9 +212,12 @@ public class RedactionService {
 
         }
 
-        // Initialize the contextCache.
+        // Initialize the contextCache. It is created per request and must be closed before returning
+        // so that, when backed by Valkey/Redis, its connection pool is released rather than leaked.
         LOGGER.info("Initializing contextCache with hostname: {}:6379", CACHE_HOSTNAME);
         final ContextCache contextCache = new ContextCache(CACHE_HOSTNAME, 6379, CACHE_PASSWORD, CACHE_SSL);
+
+        try {
 
         // The context service will either use Mongo or be a NoOp (when a context is not used).
         final ai.philterd.phileas.services.context.ContextService phileasContextService;
@@ -333,6 +346,11 @@ public class RedactionService {
                 "redactions: " + filterResult.getExplanation().appliedSpans().size());
 
         return filterResult;
+
+        } finally {
+            // Release the per-request cache (closes the Valkey/Redis pool when one is configured).
+            contextCache.close();
+        }
 
     }
 

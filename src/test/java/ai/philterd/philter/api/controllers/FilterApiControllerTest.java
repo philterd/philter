@@ -43,9 +43,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -158,7 +160,7 @@ class FilterApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // The body is a JSON object carrying the generated documentId.
-        final String documentId = new Gson().fromJson(responseBody, java.util.Map.class).get("documentId").toString();
+        final String documentId = new Gson().fromJson(responseBody, Map.class).get("documentId").toString();
         org.junit.jupiter.api.Assertions.assertFalse(documentId.isBlank());
 
         // The async path enqueues a pending document scoped to the owning user, with APPLICATION_PDF input.
@@ -183,7 +185,7 @@ class FilterApiControllerTest {
                 .andExpect(header().exists("Location"))
                 .andReturn().getResponse().getContentAsString();
 
-        final Object documentId = new Gson().fromJson(responseBody, java.util.Map.class).get("documentId");
+        final Object documentId = new Gson().fromJson(responseBody, Map.class).get("documentId");
         org.junit.jupiter.api.Assertions.assertNotNull(documentId);
 
         final ArgumentCaptor<PendingDocumentEntity> captor = ArgumentCaptor.forClass(PendingDocumentEntity.class);
@@ -214,7 +216,7 @@ class FilterApiControllerTest {
 
         // Synchronous path must filter directly (using the owning user id) and never enqueue.
         verify(redactionService).filter(eq("default"), eq(userId), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF));
-        org.mockito.Mockito.verify(pendingDocumentDataService, org.mockito.Mockito.never()).save(any());
+        verify(pendingDocumentDataService, never()).save(any());
     }
 
 }

@@ -88,11 +88,11 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final List<CustomListEntity> customListEntities = customListService.findAll(userId);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getId(), getClientIpAddress(httpServletRequest));
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
 
         final List<String> lists = new ArrayList<>();
 
@@ -122,7 +122,7 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final CustomListEntity customListEntity = customListService.findOneByName(name, userId);
 
@@ -132,7 +132,7 @@ public class CustomListsApiController extends AbstractApiController {
 
         } else {
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED, apiKeyEntity.getId(), customListEntity.getId(), getClientIpAddress(httpServletRequest));
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED, apiKeyEntity.getUserId(), customListEntity.getId(), getClientIpAddress(httpServletRequest));
 
             final GetListsResponse getListsResponse = new GetListsResponse(customListEntity.getItems());
 
@@ -164,7 +164,7 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userId, list, description, listItems, true, getClientIpAddress(httpServletRequest));
 
@@ -190,7 +190,7 @@ public class CustomListsApiController extends AbstractApiController {
              throw new UnauthorizedException("Unauthorized.");
          }
 
-         final ObjectId userId = apiKeyEntity.getId();
+         final ObjectId userId = apiKeyEntity.getUserId();
 
         // See if this list exists.
         final CustomListEntity customListEntity = customListService.findOneByName(list, userId);

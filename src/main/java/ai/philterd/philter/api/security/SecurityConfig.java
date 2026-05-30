@@ -69,7 +69,11 @@ public class SecurityConfig {
                                            final SizeLimitingFilter sizeLimitingFilter) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())
+                // CSRF protection is left enabled for the Vaadin UI (Vaadin's security configurer
+                // handles its own internal requests). It is disabled only for the stateless,
+                // Bearer-token API and the actuator endpoints, which do not use cookie-based sessions
+                // and are therefore not susceptible to CSRF.
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/actuator/**"))
                 .headers(headers -> headers.frameOptions(headers2 -> headers2.disable()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**", "/styles/**", "/icons/**", "/api/**", "/actuator/**", "/themes/**", "/favicon.ico").permitAll()

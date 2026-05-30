@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
@@ -48,8 +49,7 @@ public class WebhookDeliveryDataService extends AbstractService<WebhookDeliveryE
 
         collection.createIndex(Indexes.ascending("status", "next_attempt_at"));
 
-        final long ttlSeconds = Long.parseLong(
-                System.getenv().getOrDefault("WEBHOOK_DELIVERIES_TTL_SECONDS", String.valueOf(DEFAULT_TTL_SECONDS)));
+        final long ttlSeconds = EnvUtils.getLong("WEBHOOK_DELIVERIES_TTL_SECONDS", DEFAULT_TTL_SECONDS);
 
         collection.createIndex(
                 Indexes.ascending("delivered_at"),

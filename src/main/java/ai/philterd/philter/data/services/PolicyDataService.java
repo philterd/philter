@@ -525,6 +525,12 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         final PolicyEntity policyEntity = findOne(name, userId);
+
+        // The source policy must exist.
+        if (policyEntity == null) {
+            return new ServiceResponse("Policy does not exist.", false, 404);
+        }
+
         policyEntity.setName(newName);
         policyEntity.setId(null);
         policyEntity.setUserId(userId);

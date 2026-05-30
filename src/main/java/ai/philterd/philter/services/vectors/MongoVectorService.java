@@ -21,6 +21,7 @@ import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.VectorEntity;
 import ai.philterd.philter.data.services.AbstractService;
+import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
@@ -37,8 +38,8 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MongoVectorService.class);
 
-    public static final int MAX_VECTORS_PER_CONTEXT = Integer.parseInt(
-            System.getenv().getOrDefault("MAX_VECTORS_PER_CONTEXT", "100000"));
+    public static final int MAX_VECTORS_PER_CONTEXT =
+            EnvUtils.getInt("MAX_VECTORS_PER_CONTEXT", 100000);
 
     private final ObjectId userId;
 

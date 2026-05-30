@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
@@ -43,8 +44,8 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     public static final int MAX_LIMIT = 100;
 
-    public static final int MAX_CONTEXT_SIZE = Integer.parseInt(
-            System.getenv().getOrDefault("MAX_CONTEXT_SIZE", String.valueOf(ContextEntity.MAX_CONTEXT_SIZE)));
+    public static final int MAX_CONTEXT_SIZE =
+            EnvUtils.getInt("MAX_CONTEXT_SIZE", ContextEntity.MAX_CONTEXT_SIZE);
 
     private static final Pattern UUID_REGEX_PATTERN = Pattern.compile(
             "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"

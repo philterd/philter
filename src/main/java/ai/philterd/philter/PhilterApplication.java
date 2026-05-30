@@ -42,6 +42,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.webhook.WebhookService;
+import ai.philterd.philter.utils.EnvUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
@@ -75,7 +76,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     // When unset/blank, the caches fall back to an in-memory (ephemeral) implementation.
     private final String CACHE_HOSTNAME = System.getenv().getOrDefault("CACHE_HOSTNAME", "");
-    private final int CACHE_PORT = Integer.parseInt(System.getenv().getOrDefault("CACHE_PORT", "6379"));
+    private final int CACHE_PORT = EnvUtils.getInt("CACHE_PORT", 6379);
     private final String CACHE_PASSWORD = System.getenv().getOrDefault("CACHE_PASSWORD", "");
     private final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv().getOrDefault("CACHE_SSL", "false"));
 

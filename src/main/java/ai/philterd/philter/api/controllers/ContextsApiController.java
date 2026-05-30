@@ -97,11 +97,11 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final List<ContextEntity> contextEntities = contextService.findAll(userId);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, apiKeyEntity.getId(), getClientIpAddress(httpServletRequest));
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
 
         final List<String> contexts = new ArrayList<>();
 
@@ -133,7 +133,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final ContextEntity contextEntity = contextService.findOne(name, userId);
 
@@ -168,13 +168,13 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final ServiceResponse serviceResponse = contextService.create(name, userId, coref, disambiguation);
 
         if(serviceResponse.isSuccessful()) {
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_CREATED, apiKeyEntity.getId(), getClientIpAddress(httpServletRequest));
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_CREATED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
             return new ResponseEntity<>(new GenericResponse("Context created."), HttpStatus.OK);
 
         } else {
@@ -204,7 +204,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         if (pendingDocumentDataService.hasOpenJobsForContext(userId, name)) {
             return new ResponseEntity<>(
@@ -216,7 +216,7 @@ public class ContextsApiController extends AbstractApiController {
 
         if(serviceResponse.isSuccessful()) {
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_DELETED, apiKeyEntity.getId(), getClientIpAddress(httpServletRequest));
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_DELETED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
             return new ResponseEntity<>(new GenericResponse("Context deleted."), HttpStatus.OK);
 
         } else {
@@ -244,7 +244,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ServiceResponse response = contextService.updateSettings(name, apiKeyEntity.getId(), coref, disambiguation);
+        final ServiceResponse response = contextService.updateSettings(name, apiKeyEntity.getUserId(), coref, disambiguation);
 
         return new ResponseEntity<>(new GenericResponse(response.getMessage()),
                 response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
@@ -268,7 +268,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         if (contextService.findOne(name, userId) == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -305,10 +305,10 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ServiceResponse response = contextService.emptyByName(name, apiKeyEntity.getId());
+        final ServiceResponse response = contextService.emptyByName(name, apiKeyEntity.getUserId());
 
         if (response.isSuccessful()) {
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_PURGED, apiKeyEntity.getId(), null,
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_PURGED, apiKeyEntity.getUserId(), null,
                     getClientIpAddress(httpServletRequest), "context: " + name);
         }
 
@@ -336,10 +336,10 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse("Invalid entry id."), HttpStatus.BAD_REQUEST);
         }
 
-        final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), apiKeyEntity.getId());
+        final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), apiKeyEntity.getUserId());
 
         if (deleted > 0) {
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getId(), null,
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getUserId(), null,
                     getClientIpAddress(httpServletRequest), "context: " + name + ", entryId: " + entryId);
             return new ResponseEntity<>(new GenericResponse("Entry deleted."), HttpStatus.OK);
         }

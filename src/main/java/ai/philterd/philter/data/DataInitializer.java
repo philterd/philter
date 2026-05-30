@@ -18,6 +18,8 @@ package ai.philterd.philter.data;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.Source;
+import ai.philterd.philter.services.RequestIdGenerator;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Indexes;
 import org.slf4j.Logger;
@@ -57,7 +59,7 @@ public class DataInitializer {
         if (userService.findByEmail("admin") == null) {
 
             LOGGER.info("Creating default admin user");
-            userService.createUser(ai.philterd.philter.services.RequestIdGenerator.generate(), "admin", "admin", "admin", contextService, policyDataService, ai.philterd.philter.model.Source.SYSTEM.getSource());
+            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", "admin", contextService, policyDataService, Source.SYSTEM.getSource());
 
 
         }

@@ -73,7 +73,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final List<PolicyEntity> policies = policyDataService.findAll(userId, offset, limit, false);
         final List<String> policyNames = policies.stream().map(PolicyEntity::getName).toList();
@@ -98,7 +98,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
         final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
@@ -120,7 +120,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setUserId(userId);
@@ -148,7 +148,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         final String requestId = RequestIdGenerator.generate();
 

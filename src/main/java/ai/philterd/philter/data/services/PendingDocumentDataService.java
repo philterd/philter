@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -29,6 +30,7 @@ import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +49,7 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
     public PendingDocumentDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "pending_documents", auditEventPublisher);
 
-        final long ttlSeconds = Long.parseLong(
-                System.getenv().getOrDefault("PENDING_DOCUMENTS_TTL_SECONDS", String.valueOf(DEFAULT_TTL_SECONDS)));
+        final long ttlSeconds = EnvUtils.getLong("PENDING_DOCUMENTS_TTL_SECONDS", DEFAULT_TTL_SECONDS);
 
         collection.createIndex(
                 Indexes.ascending("completed_at"),
@@ -135,7 +136,7 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
         final Bson query = Filters.eq("_id", id);
         final Bson update = Updates.combine(
                 Updates.set("status", PendingDocumentEntity.STATUS_COMPLETE),
-                Updates.set("output", new org.bson.types.Binary(output)),
+                Updates.set("output", new Binary(output)),
                 Updates.set("completed_at", new Date()),
                 Updates.unset("input")
         );

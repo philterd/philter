@@ -144,7 +144,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
             } else {
 
-                LOGGER.warn("Unauthorized access attempt with header: {}", apiKey);
+                LOGGER.warn("Unauthorized access attempt: invalid or missing API key.");
 
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, null, null,
                         AbstractApiController.getClientIpAddress(httpRequest),

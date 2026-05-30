@@ -115,7 +115,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     public ContextEntity findOneByNameAndUserId(final String contextName, final ObjectId userId) {
 
-        final Document query = new Document("name", contextName).append("user_id", userId);
+        final Document query = new Document("context_name", contextName).append("user_id", userId);
 
         final Document document = collection.find(query).first();
 

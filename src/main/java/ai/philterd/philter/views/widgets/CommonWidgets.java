@@ -15,10 +15,7 @@
  */
 package ai.philterd.philter.views.widgets;
 
-import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
-import ai.philterd.philter.services.usage.apirequests.ApiRequestsUsageService;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H4;
@@ -97,52 +94,5 @@ public class CommonWidgets {
         return footer;
 
     }
-
-    public static Div buildTokenCountsLastXDays(final OpenSearchRedactionsUsageService openSearchRedactionsService, final int previousDays) throws IOException {
-
-        final Map<String, Long> tokenCounts = openSearchRedactionsService.getTokensPreviousXDays(previousDays);
-        return createTimeSeriesWidget(tokenCounts, "Token Counts for Last " + previousDays + " Days", "Tokens");
-
-    }
-
-    public static Div buildRedactionCountsLastXDays(final OpenSearchRedactionsUsageService openSearchRedactionsService, final int previousDays) throws IOException {
-
-        final Map<String, Long> redactions = openSearchRedactionsService.getRedactionsPreviousXDays(previousDays);
-        return createTimeSeriesWidget(redactions, "Redactions for Last " + previousDays + " Days", "Redactions");
-
-    }
-
-    public static Div buildStandardApiRequestsLastXDays(final ApiRequestsUsageService apiRequestsUsageService, final int previousDays) throws IOException {
-
-        final Map<String, Long> tokenCounts = apiRequestsUsageService.getApiRequestsLastXDays(previousDays);
-        return createTimeSeriesWidget(tokenCounts, "API Requests for Last " + previousDays + " Days", "Requests");
-
-    }
-
-    private static Div createTimeSeriesWidget(final Map<String, Long> data, final String widgetTitle, final String valueColumnLabel) {
-
-        final List<TimeSeriesRow> rows = new ArrayList<>();
-        data.forEach((date, value) -> rows.add(new TimeSeriesRow(date, value)));
-
-        final Grid<TimeSeriesRow> grid = new Grid<>(TimeSeriesRow.class, false);
-        grid.addColumn(TimeSeriesRow::date).setHeader("Date").setAutoWidth(true);
-        grid.addColumn(TimeSeriesRow::value).setHeader(valueColumnLabel).setAutoWidth(true);
-        grid.setItems(rows);
-        grid.setAllRowsVisible(true);
-
-        final VerticalLayout layout = new VerticalLayout();
-        layout.setPadding(true);
-        layout.add(new H4(widgetTitle));
-        layout.add(grid);
-
-        final Div div = new Div(layout);
-        div.getStyle().set("border", "1px solid var(--lumo-contrast-10pct)");
-        div.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
-        div.getStyle().set("padding", "var(--lumo-space-s)");
-        return div;
-
-    }
-
-    private record TimeSeriesRow(String date, Long value) {}
 
 }

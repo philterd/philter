@@ -19,7 +19,6 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 
 /**
  * An implementation of {@link Cache} for managing context-based token replacements.
@@ -68,11 +67,9 @@ public class ContextCache extends Cache {
 
         final String encoded = entryId.toHexString() + replacement;
 
-        try (final Jedis jedis = pool.getResource()) {
-            jedis.hset(context, tokenHash, encoded);
-            // Set TTL of 60 minutes on the cache entry
-            jedis.expire(context, CONTEXT_CACHE_TTL_SECONDS);
-        }
+        backend.hset(context, tokenHash, encoded);
+        // Set TTL of 60 minutes on the cache entry.
+        backend.expire(context, CONTEXT_CACHE_TTL_SECONDS);
 
     }
 
@@ -86,10 +83,7 @@ public class ContextCache extends Cache {
 
         final String tokenHash = EncryptionService.hashSha256(token);
 
-        final String raw;
-        try (final Jedis jedis = pool.getResource()) {
-            raw = jedis.hget(context, tokenHash);
-        }
+        final String raw = backend.hget(context, tokenHash);
 
         if (raw == null || raw.length() < ENTRY_ID_HEX_LENGTH) {
             return null;
@@ -123,9 +117,7 @@ public class ContextCache extends Cache {
 
         final String tokenHash = EncryptionService.hashSha256(token);
 
-        try (final Jedis jedis = pool.getResource()) {
-            return jedis.hexists(context, tokenHash);
-        }
+        return backend.hexists(context, tokenHash);
 
     }
 
@@ -138,9 +130,7 @@ public class ContextCache extends Cache {
 
         LOGGER.info("Deleting context {} from cache.", context);
 
-        try (final Jedis jedis = pool.getResource()) {
-            jedis.del(context);
-        }
+        backend.del(context);
 
     }
 

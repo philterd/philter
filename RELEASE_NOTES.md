@@ -19,9 +19,22 @@ redaction as the default behavior of the filter API.
   unchanged.
 * The text endpoint (`text/plain` in / `text/plain` out) is **not affected** and
   remains synchronous. The `async` parameter has no effect on text redaction.
-* The Vaadin-based UI no longer uses the commercial `vaadin-charts` or
-  `vaadin-dashboard` components. Metrics views render with the open-source
-  `Grid` and `FlexLayout` instead.
+* **OpenSearch has been removed.** Philter no longer stores usage metrics in
+  OpenSearch, and the in-application Metrics dashboard has been removed. Metrics
+  are now exposed for Prometheus to scrape at `/actuator/prometheus`
+  (`philter_redactions_total`, `philter_tokens_total`, `philter_api_requests_total`).
+  Operators visualize and retain metrics in their own observability stack (for
+  example, Grafana). The `opensearch` service, the `OPENSEARCH_*` and
+  `API_REQUESTS_INDEXING_ENABLED` environment variables, and the `Metrics` UI view
+  no longer exist.
+* **An encryption key must now be configured.** The at-rest encryption key is no
+  longer a built-in default; Philter reads it from the `PHILTER_ENCRYPTION_KEY`
+  environment variable and refuses to start if it is missing or not a valid
+  base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`.
+  Existing encrypted data is unaffected — each record stores the key used to
+  encrypt it, so previously written data continues to decrypt regardless of the
+  configured value. Set the variable to the same value across restarts and
+  instances so newly written data stays consistent.
 
 ### New features
 
@@ -117,6 +130,10 @@ redaction as the default behavior of the filter API.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `PHILTER_ENCRYPTION_KEY` | _(none — required)_ | Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest. Philter fails to start if missing or invalid. Generate with `openssl rand -base64 32`. |
+| `POLICY_EDITOR_URL` | `/policy-editor/` | Browser-facing URL of the policy editor linked from the Policies view. Defaults to the same-origin path served by the bundled reverse proxy, so it works for any host without configuration. |
+| `API_IP_ALLOWLIST` | _(empty — allow all)_ | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. Bare addresses are treated as a single host. IPv4 only. |
+| `CACHE_HOSTNAME` | _(empty — in-memory)_ | Valkey/Redis host for the context and API-key caches. When unset or blank, Philter uses an in-memory cache that is ephemeral, not shared across instances, and lost on restart (a warning is printed at startup). Set it for a durable, shared cache. |
 | `PENDING_DOCUMENTS_TTL_SECONDS` | `604800` (7 days) | TTL for completed async redactions |
 | `WEBHOOK_DELIVERIES_TTL_SECONDS` | `2592000` (30 days) | TTL for delivered webhook records |
 | `MAX_CONTEXT_SIZE` | `10000` | Maximum entries per context before least-read eviction |

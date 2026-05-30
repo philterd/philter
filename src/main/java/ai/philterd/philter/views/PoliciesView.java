@@ -27,7 +27,6 @@ import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.views.components.policyeditor.PolicyEditorComponents;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -63,9 +62,22 @@ public class PoliciesView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
 
+    // URL of the policy editor shown to users. Defaults to the same-origin path served by the
+    // reverse proxy (see proxy/nginx.conf), so it works for any host with no configuration.
+    // Override with POLICY_EDITOR_URL for other deployment topologies.
+    private static final String POLICY_EDITOR_URL =
+            System.getenv().getOrDefault("POLICY_EDITOR_URL", "/policy-editor/");
+
     @Override
     public String getHelpMarkdownText() {
-        return "Placeholder for policies help text.";
+        return """
+            ## Policies
+
+            Policies define what Philter redacts and how. Create or edit a policy as JSON, or build
+            one in the policy editor and paste it here. **Managed policies** are read-only starting
+            points you can copy from, and **Global Terms** let you always or never redact specific
+            terms across every policy.
+            """;
     }
 
     public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService,
@@ -88,16 +100,13 @@ public class PoliciesView extends AbstractRestrictedView {
             editPolicyButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
             editPolicyButton.addClickListener(event -> {
 
-                final PolicyEditorComponents policyEditorComponents = new PolicyEditorComponents();
-
-                // Get the policy JSON and deserialize it into a SimplifiedPolicy.
-                final Gson gson = new Gson();
-                final SimplifiedPolicy simplifiedPolicy = gson.fromJson(policy.getPolicy(), SimplifiedPolicy.class);
-
-                final VerticalLayout filtersVerticalLayout = policyEditorComponents.getFilters(simplifiedPolicy);
-                final VerticalLayout termsToAlwaysRedactVerticalLayout = policyEditorComponents.getTermsToAlwaysRedact(simplifiedPolicy);
-                final VerticalLayout ignoredTermsVerticalLayout = policyEditorComponents.getIgnored(simplifiedPolicy);
-                final VerticalLayout optionsVerticalLayout = policyEditorComponents.getOptions(simplifiedPolicy);
+                // Pretty-print the stored policy JSON for editing.
+                final TextArea policyJsonTextArea = new TextArea();
+                policyJsonTextArea.setWidthFull();
+                policyJsonTextArea.setHeight("400px");
+                policyJsonTextArea.setLabel("Policy (JSON)");
+                policyJsonTextArea.setValue(prettyPrintJson(policy.getPolicy()));
+                policyJsonTextArea.setHelperComponent(CommonWidgets.getLink("Build a policy in the policy editor, then paste the JSON here.", POLICY_EDITOR_URL, true));
 
                 final TextField policyDescriptionTextField = new TextField();
                 policyDescriptionTextField.setWidthFull();
@@ -118,12 +127,13 @@ public class PoliciesView extends AbstractRestrictedView {
                 policyDetailsVerticalLayout.add(policyDescriptionTextField);
                 policyDetailsVerticalLayout.add(policyNotesTextArea);
 
+                final VerticalLayout policyJsonVerticalLayout = new VerticalLayout();
+                policyJsonVerticalLayout.setSizeFull();
+                policyJsonVerticalLayout.add(policyJsonTextArea);
+
                 final TabSheet tabSheet = new TabSheet();
                 tabSheet.add("Policy Details", policyDetailsVerticalLayout);
-                tabSheet.add("PII/PHI Filters", filtersVerticalLayout);
-                tabSheet.add("Always Redact", termsToAlwaysRedactVerticalLayout);
-                tabSheet.add("Never Redact", ignoredTermsVerticalLayout);
-                tabSheet.add("Options", optionsVerticalLayout);
+                tabSheet.add("Policy (JSON)", policyJsonVerticalLayout);
 
                 final TextField policyNameTextField = new TextField();
                 policyNameTextField.setWidthFull();
@@ -148,17 +158,18 @@ public class PoliciesView extends AbstractRestrictedView {
 
                 final Button saveButton = new Button("Save", e -> {
 
-                    final String policyName = policyNameTextField.getValue();
-                    final String policyJson = policyEditorComponents.buildPolicy(policyName);
+                    final String policyJson = policyJsonTextArea.getValue();
                     final String policyDescription = policyDescriptionTextField.getValue();
                     final String policyNotes = policyNotesTextArea.getValue();
 
-                    if(policyJson == null) {
+                    if(!isValidJson(policyJson)) {
 
-                        // The policy builder did not validate.
-                        LOGGER.warn("The policy could not be validated.");
+                        policyJsonTextArea.setInvalid(true);
+                        policyJsonTextArea.setErrorMessage("The policy is not valid JSON.");
 
                     } else {
+
+                        policyJsonTextArea.setInvalid(false);
 
                         final String requestId = RequestIdGenerator.generate();
 
@@ -172,8 +183,9 @@ public class PoliciesView extends AbstractRestrictedView {
 
                         } else {
 
-                            policyNameTextField.setInvalid(true);
-                            policyNameTextField.setErrorMessage(serviceResponse.getMessage());
+                            // Surface the server-side validation message.
+                            policyJsonTextArea.setInvalid(true);
+                            policyJsonTextArea.setErrorMessage(serviceResponse.getMessage());
 
                         }
 
@@ -270,15 +282,13 @@ public class PoliciesView extends AbstractRestrictedView {
 
         newPolicyButton.addClickListener(event -> {
 
-            final PolicyEditorComponents policyEditorComponents = new PolicyEditorComponents();
-
-            // We are creating a new policy, so this is just a new instance of a SimplifiedPolicy.
-            final SimplifiedPolicy simplifiedPolicy = new SimplifiedPolicy();
-
-            final VerticalLayout filtersVerticalLayout = policyEditorComponents.getFilters(simplifiedPolicy);
-            final VerticalLayout termsToAlwaysRedactVerticalLayout = policyEditorComponents.getTermsToAlwaysRedact(simplifiedPolicy);
-            final VerticalLayout ignoredTermsVerticalLayout = policyEditorComponents.getIgnored(simplifiedPolicy);
-            final VerticalLayout optionsVerticalLayout = policyEditorComponents.getOptions(simplifiedPolicy);
+            // Start a new policy from the default template.
+            final TextArea policyJsonTextArea = new TextArea();
+            policyJsonTextArea.setWidthFull();
+            policyJsonTextArea.setHeight("400px");
+            policyJsonTextArea.setLabel("Policy (JSON)");
+            policyJsonTextArea.setValue(SimplifiedPolicy.getDefaultPolicy());
+            policyJsonTextArea.setHelperText("Build policies visually at https://policies.philterd.ai/ and paste the JSON here.");
 
             final TextField policyDescriptionTextField = new TextField();
             policyDescriptionTextField.setWidthFull();
@@ -297,12 +307,13 @@ public class PoliciesView extends AbstractRestrictedView {
             policyDetailsVerticalLayout.add(policyDescriptionTextField);
             policyDetailsVerticalLayout.add(policyNotesTextArea);
 
+            final VerticalLayout policyJsonVerticalLayout = new VerticalLayout();
+            policyJsonVerticalLayout.setSizeFull();
+            policyJsonVerticalLayout.add(policyJsonTextArea);
+
             final TabSheet tabSheet = new TabSheet();
             tabSheet.add("Policy Details", policyDetailsVerticalLayout);
-            tabSheet.add("PII/PHI Filters", filtersVerticalLayout);
-            tabSheet.add("Always Redact", termsToAlwaysRedactVerticalLayout);
-            tabSheet.add("Never Redact", ignoredTermsVerticalLayout);
-            tabSheet.add("Options", optionsVerticalLayout);
+            tabSheet.add("Policy (JSON)", policyJsonVerticalLayout);
 
             final TextField policyNameTextField = new TextField();
             policyNameTextField.setWidthFull();
@@ -326,16 +337,18 @@ public class PoliciesView extends AbstractRestrictedView {
             final Button saveButton = new Button("Save", e -> {
 
                 final String policyName = policyNameTextField.getValue();
-                final String policyJson = policyEditorComponents.buildPolicy(policyName);
+                final String policyJson = policyJsonTextArea.getValue();
                 final String policyDescription = policyDescriptionTextField.getValue();
                 final String policyNotes = policyNotesTextArea.getValue();
 
-                if(policyJson == null) {
+                if(!isValidJson(policyJson)) {
 
-                    // The policy builder did not validate.
-                    LOGGER.warn("The policy could not be validated.");
+                    policyJsonTextArea.setInvalid(true);
+                    policyJsonTextArea.setErrorMessage("The policy is not valid JSON.");
 
                 } else {
+
+                    policyJsonTextArea.setInvalid(false);
 
                     final String requestId = RequestIdGenerator.generate();
 
@@ -349,6 +362,7 @@ public class PoliciesView extends AbstractRestrictedView {
 
                     } else {
 
+                        // Surface the server-side validation message (policy name or policy JSON).
                         policyNameTextField.setInvalid(true);
                         policyNameTextField.setErrorMessage(serviceResponse.getMessage());
 
@@ -536,6 +550,35 @@ public class PoliciesView extends AbstractRestrictedView {
 
         setContent(pageHorizontalLayout);
 
+    }
+
+    /**
+     * Pretty-prints policy JSON for display in the editor. If the value cannot be parsed
+     * it is returned unchanged so the user can still see and correct it.
+     */
+    private static String prettyPrintJson(final String json) {
+        try {
+            final JsonElement jsonElement = JsonParser.parseString(json);
+            return new GsonBuilder().setPrettyPrinting().create().toJson(jsonElement);
+        } catch (final Exception ex) {
+            return json != null ? json : "";
+        }
+    }
+
+    /**
+     * Returns true if the given string is non-blank, syntactically valid JSON. The server
+     * performs the deeper policy validation; this is a fast client-side guard.
+     */
+    private static boolean isValidJson(final String json) {
+        if(json == null || json.isBlank()) {
+            return false;
+        }
+        try {
+            JsonParser.parseString(json);
+            return true;
+        } catch (final Exception ex) {
+            return false;
+        }
     }
 
 }

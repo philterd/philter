@@ -42,8 +42,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.webhook.WebhookService;
-import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
-import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
+import io.micrometer.core.instrument.MeterRegistry;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.page.AppShellConfigurator;
@@ -74,7 +73,8 @@ public class PhilterApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
 
-    private final String CACHE_HOSTNAME = System.getenv().getOrDefault("CACHE_HOSTNAME", "localhost");
+    // When unset/blank, the caches fall back to an in-memory (ephemeral) implementation.
+    private final String CACHE_HOSTNAME = System.getenv().getOrDefault("CACHE_HOSTNAME", "");
     private final int CACHE_PORT = Integer.parseInt(System.getenv().getOrDefault("CACHE_PORT", "6379"));
     private final String CACHE_PASSWORD = System.getenv().getOrDefault("CACHE_PASSWORD", "");
     private final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv().getOrDefault("CACHE_SSL", "false"));
@@ -111,8 +111,8 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public RedactionService redactionService() {
-        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), changeSetService(), auditEventPublisher(), ledgerService(), userService());
+    public RedactionService redactionService(final MeterRegistry meterRegistry) {
+        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), changeSetService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry);
     }
 
     @Bean
@@ -173,16 +173,6 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public CustomListDataService customListService() {
         return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public OpenSearchRedactionsUsageService openSearchRedactionsUsageService() {
-        return new OpenSearchRedactionsUsageService();
-    }
-
-    @Bean
-    public OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService() {
-        return new OpenSearchApiRequestsUsageService();
     }
 
     @Bean

@@ -18,6 +18,7 @@ package ai.philterd.philter.views;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
+import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -45,6 +46,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 
 @Route(value = "dashboard")
 @RouteAlias(value = "")
@@ -59,7 +61,13 @@ public class DashboardView extends AbstractRestrictedView {
 
     @Override
     public String getHelpMarkdownText() {
-        return "Placeholder for dashboard help text.";
+        return """
+            ## Dashboard
+
+            Try out your Philter configuration here. Select a policy, then filter sample text or
+            upload a PDF to see the redacted result. This is for testing policies only and does
+            not change any stored data.
+            """;
     }
 
     public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService,
@@ -106,18 +114,38 @@ public class DashboardView extends AbstractRestrictedView {
         textToFilter.setValue("George Washington was president.");
         textToFilter.setHeight("300px");
 
+        final TextArea redactedTextArea = new TextArea("Redacted Text");
+        redactedTextArea.setWidthFull();
+        redactedTextArea.setHeight("300px");
+        redactedTextArea.setReadOnly(true);
+        redactedTextArea.setVisible(false);
+
         final Button filterButton = new Button("Submit Text", event -> {
 
-            String profile = policyComboBox.getValue();
-            String text = textToFilter.getValue();
+            final String selectedPolicy = policyComboBox.getValue();
+            final String text = textToFilter.getValue();
 
-            if (profile == null || text == null || text.isEmpty()) {
+            if (selectedPolicy == null || text == null || text.isEmpty()) {
                 Notification.show("Please select a policy and enter text.");
                 return;
             }
 
-            // Mocking the behavior for now as it was commented out in MainView
-            Notification.show("Filtering text with policy: " + profile);
+            try {
+
+                final AbstractFilterResult result = redactionService.filter(
+                        selectedPolicy, userEntity.getId(), "none", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+
+                final String redactedText = ((TextFilterResult) result).getFilteredText();
+
+                redactedTextArea.setValue(redactedText != null ? redactedText : "");
+                redactedTextArea.setVisible(true);
+
+                showSuccessNotification("Text redacted.");
+
+            } catch (Exception ex) {
+                LOGGER.error("Failed to redact text", ex);
+                showFailureNotification("Failed to redact text: " + ex.getMessage());
+            }
 
         });
         filterButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -128,6 +156,7 @@ public class DashboardView extends AbstractRestrictedView {
         filterTextVerticalLayout.add(policyComboBox);
         filterTextVerticalLayout.add(textToFilter);
         filterTextVerticalLayout.add(filterButton);
+        filterTextVerticalLayout.add(redactedTextArea);
 
         return filterTextVerticalLayout;
 

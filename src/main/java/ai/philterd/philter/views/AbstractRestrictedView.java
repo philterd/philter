@@ -23,6 +23,7 @@ import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
@@ -102,7 +103,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         sideNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.DOCTOR.create()));
         sideNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
         sideNav.addItem(new SideNavItem("API and SDKs", ApiKeysAndSDKsView.class, VaadinIcon.COG.create()));
-        sideNav.addItem(new SideNavItem("Metrics", MetricsView.class, VaadinIcon.CHART_LINE.create()));
         sideNav.addItem(new SideNavItem("Settings", SettingsView.class, VaadinIcon.COG.create()));
 
         if ("admin".equalsIgnoreCase(userEntity.getRole())) {
@@ -113,23 +113,25 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
 
         if (showHelpPanel) {
 
-            // Add side the panel for the help.
+            // Side panel for the help text.
             final Markdown helpMarkdown = new Markdown();
             helpMarkdown.setContent(getHelpMarkdownText());
-            //helpMarkdown.setSizeFull();
             helpMarkdown.getElement().getStyle().set("font-size", "var(--lumo-font-size-s)");
 
-            final HorizontalLayout moreHelpHorizontalLayout = new HorizontalLayout();
-            //moreHelpHorizontalLayout.add(closeHelpButton);
-            // moreHelpHorizontalLayout.add(moreHelpButton);
+            // Button to dismiss the help panel for the current page.
+            final Button closeHelpButton = new Button(VaadinIcon.CLOSE_SMALL.create(), click -> helpWindowVerticalLayout.setVisible(false));
+            closeHelpButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+            closeHelpButton.setAriaLabel("Close help");
+
+            final HorizontalLayout helpHeader = new HorizontalLayout(closeHelpButton);
+            helpHeader.setWidthFull();
+            helpHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
 
             helpWindowVerticalLayout.setWidth("800px");
             helpWindowVerticalLayout.getStyle().set("background-color", "#f0f3fa");
+            helpWindowVerticalLayout.add(helpHeader);
             helpWindowVerticalLayout.add(helpMarkdown);
-
-            helpWindowVerticalLayout.add(moreHelpHorizontalLayout);
-            //helpWindowVerticalLayout.setVisible(userEntity.isHelpPanelOpen());
-            //   helpWindowVerticalLayout.setHeightFull();
+            helpWindowVerticalLayout.setVisible(true);
 
         }
 
@@ -159,8 +161,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         title.setPadding(true);
         title.setAlignItems(FlexComponent.Alignment.END);
         title.add(new H2(name));
-
-        helpWindowVerticalLayout.setVisible(true);
 
         return title;
 

@@ -23,26 +23,37 @@ Philter requires a MongoDB database to store policies and other data.
 |----------------------|-------------|---------------|
 | `MONGODB_CONNECTION_STRING` | The MongoDB connection string. | `mongodb://localhost:27017` |
 
+## Encryption
+
+Philter encrypts sensitive data at rest and requires an encryption key. Philter will not start if the key is missing or invalid.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `PHILTER_ENCRYPTION_KEY` | A base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`. Use the same value across restarts and instances. | (none — required) |
+
 ## Cache Settings
 
-The cache service is used for API key and context caching. Philter supports Valkey as the backend cache.
+The cache is used for API key and context caching. Philter supports Valkey/Redis as the backend cache. The cache is **optional**: when `CACHE_HOSTNAME` is unset or blank, Philter uses an in-memory cache instead. The in-memory cache is ephemeral — it is not shared across instances and is lost on restart — and a warning is printed at startup. Configure Valkey for a durable, shared cache.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `CACHE_HOSTNAME` | The hostname or IP address of the Valkey cache. | `localhost` |
+| `CACHE_HOSTNAME` | The hostname or IP address of the Valkey cache. Leave unset to use an in-memory cache. | (empty — in-memory) |
+| `CACHE_PORT` | The Valkey port. | `6379` |
 | `CACHE_PASSWORD` | The Valkey password. | (empty) |
-| `CACHE_SSL` | Whether or not to use SSL for communication with the Valkey cache. | `false` |
+| `CACHE_SSL` | Whether to use SSL for communication with the Valkey cache. | `false` |
 
-## Usage and Auditing Settings (OpenSearch)
+## Metrics
 
-Philter can send redaction and API request usage data to OpenSearch.
+Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Monitoring and Logging](monitoring_and_logging.md). There are no metrics-storage settings to configure.
+
+## API Access
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `OPENSEARCH_HOST` | The OpenSearch hostname. | `localhost` |
-| `OPENSEARCH_PORT` | The OpenSearch port. | `9200` |
-| `OPENSEARCH_SCHEME` | The OpenSearch scheme (`http` or `https`). | `http` |
-| `OPENSEARCH_USERNAME` | The OpenSearch username. | (empty) |
-| `OPENSEARCH_PASSWORD` | The OpenSearch password. | (empty) |
-| `REDACTIONS_INDEX_NAME` | The name of the index for redaction usage. | `pds-redactions` |
-| `API_REQUESTS_INDEX_NAME` | The name of the index for API request usage. | `pds-api-requests` |
+| `API_IP_ALLOWLIST` | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. A bare address is treated as a single host. IPv4 only. | (empty — allow all) |
+
+## User Interface
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `POLICY_EDITOR_URL` | Browser-facing URL of the policy editor linked from the Policies view. Defaults to the same-origin path served by the bundled reverse proxy. | `/policy-editor/` |

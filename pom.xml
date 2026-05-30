@@ -75,8 +75,6 @@
         <json.version>20251224</json.version>
         <junit.version>4.13.2</junit.version>
         <mongodb.version>5.6.4</mongodb.version>
-        <opensearch.client.version>3.8.0</opensearch.client.version>
-        <opensearch.rest.client.version>3.5.0</opensearch.rest.client.version>
         <phileas.version>3.4.0-SNAPSHOT</phileas.version>
         <spring.boot.version>4.0.5</spring.boot.version>
         <springdoc.version>3.0.2</springdoc.version>
@@ -447,14 +445,12 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.opensearch.client</groupId>
-            <artifactId>opensearch-java</artifactId>
-            <version>${opensearch.client.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.opensearch.client</groupId>
-            <artifactId>opensearch-rest-client</artifactId>
-            <version>${opensearch.rest.client.version}</version>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>

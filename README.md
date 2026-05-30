@@ -30,10 +30,18 @@ mvn clean install
 
 To run Philter:
 
+Philter encrypts sensitive data at rest and requires a base64-encoded 32-byte
+(AES-256) key supplied via the `PHILTER_ENCRYPTION_KEY` environment variable.
+Generate one and export it before starting the containers:
+
 ```
+export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
 docker compose build
 docker compose up
 ```
+
+Keep this key safe and use the same value across restarts and instances —
+Philter will refuse to start if it is missing or not a valid 32-byte key.
 
 Once the containers are running, you can submit text to Philter's API for redaction (using the default API key `default`):
 

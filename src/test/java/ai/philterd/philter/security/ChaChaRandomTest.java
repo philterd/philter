@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.security;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -24,8 +23,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class ChaChaRandomTest {
 
-    // TODO: Enable this test.
-    @Disabled
     @Test
     public void fairness() {
 
@@ -60,8 +57,10 @@ public class ChaChaRandomTest {
         System.out.println("------------------------------------");
         System.out.printf("Total Chi-Squared Statistic: %.4f\n", chiSquare);
 
-        // For 9 degrees of freedom (10-1), a value < 16.92 is "fair" at 95% confidence
-        if (chiSquare < 16.92) {
+        // For 9 degrees of freedom (10-1), a value < 27.88 is "fair" at 99.9% confidence.
+        // The 99.9% (p=0.001) threshold is used instead of 95% so a fair RNG only trips this
+        // assertion about 1 run in 1000, keeping the test from flaking in CI.
+        if (chiSquare < 27.88) {
 
             System.out.println("Result: The RNG appears to be FAIR.");
 
@@ -110,10 +109,12 @@ public class ChaChaRandomTest {
         }
 
         // Degrees of freedom = (side^2 - 1) = 99
-        // For 99 degrees of freedom, critical value at 0.05 is ~123.2
+        // For 99 degrees of freedom, the critical value at p=0.001 (99.9% confidence) is ~148.2.
+        // The 99.9% threshold (vs. ~123.2 at 0.05) keeps a fair RNG from tripping this assertion
+        // more than about 1 run in 1000, which avoids flaky CI failures.
         System.out.printf("Serial Chi-Squared Statistic: %.4f\n", chiSquare);
 
-        if (chiSquare < 123.2) {
+        if (chiSquare < 148.2) {
             System.out.println("Result: No predictable patterns detected (Success).");
         } else {
             System.out.println("Result: Sequential patterns detected (Failure).");

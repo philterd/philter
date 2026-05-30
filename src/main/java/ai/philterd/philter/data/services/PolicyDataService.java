@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CreditCard;
 import ai.philterd.phileas.policy.filters.EmailAddress;
@@ -43,7 +44,9 @@ import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class PolicyDataService extends AbstractService<PolicyEntity> {
 
@@ -91,9 +94,10 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         policyEntity.setPolicy(policyJson);
         policyEntity.setLastUpdatedTimestamp(new Date());
 
-        // TODO: Don't overwrite the existing notes if none are passed in.
-        // None might be passed in if not updating via the API or if using the Adv Policy Editor.
-        if(policyNotes != null) {
+        // Only update the notes when a value is provided. A null or blank value (e.g. an update
+        // via the API or the advanced policy editor that omits notes) preserves the existing notes
+        // rather than blanking them.
+        if(policyNotes != null && !policyNotes.isBlank()) {
 
             // Truncate the notes to 1000 characters, if needed.
             if(policyNotes.length() > POLICY_NOTES_MAX_LENGTH) {
@@ -105,9 +109,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         }
 
-        // TODO: Don't overwrite the existing description if none are passed in.
-        // None might be passed in if not updating via the API or if using the Adv Policy Editor.
-        if(policyDescription != null) {
+        // Only update the description when a value is provided. A null or blank value preserves the
+        // existing description rather than blanking it.
+        if(policyDescription != null && !policyDescription.isBlank()) {
 
             // Truncate the description to 200 characters, if needed.
             if(policyDescription.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
@@ -237,6 +241,15 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             if(!containsValidChoice(simplifiedPolicy.getDisambiguationScope(), SimplifiedPolicy.DISAMBIGUATION_SCOPES)) {
                 LOGGER.warn("Policy validation failed: Invalid disambiguation scope.");
                 return PolicyValidation.invalid("Disambiguation scope must be one of: " + String.join(", ", SimplifiedPolicy.DISAMBIGUATION_SCOPES));
+            }
+
+            // Reject filter types that would be silently ignored during redaction. Without this
+            // check a policy could appear to enable redaction for a type that is never applied.
+            final Set<FilterType> unsupportedFilterTypes = simplifiedPolicy.getUnsupportedFilterTypes();
+            if(!unsupportedFilterTypes.isEmpty()) {
+                final String names = unsupportedFilterTypes.stream().map(Enum::name).collect(Collectors.joining(", "));
+                LOGGER.warn("Policy validation failed: unsupported filter types: {}", names);
+                return PolicyValidation.invalid("The policy uses filter types that are not supported and would not be redacted: " + names);
             }
 
             LOGGER.info("Policy validation successful.");

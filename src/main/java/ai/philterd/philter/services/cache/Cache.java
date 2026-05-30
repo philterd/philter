@@ -17,8 +17,8 @@ package ai.philterd.philter.services.cache;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An abstract class for a cache.
@@ -27,53 +27,42 @@ public abstract class Cache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Cache.class);
 
-    protected final JedisPool pool;
+    // Ensures the ephemeral-cache warning is printed only once per process.
+    private static final AtomicBoolean EPHEMERAL_WARNING_PRINTED = new AtomicBoolean(false);
+
+    protected final CacheBackend backend;
 
     /**
-     * Creates a new cache.
-     * @param host The hostname of the Valkey server.
+     * Creates a new cache. When no host is configured (null or blank) an in-memory, ephemeral cache
+     * is used instead of connecting to Valkey/Redis.
+     * @param host The hostname of the Valkey server, or null/blank to use an in-memory cache.
      * @param port The port of the Valkey server.
      * @param password The password for the Valkey server.
      * @param ssl Whether to use SSL for the connection.
      */
     public Cache(final String host, final int port, final String password, final boolean ssl) {
 
-        final JedisPoolConfig poolConfig = new JedisPoolConfig();
+        if (host == null || host.isBlank()) {
 
-        // Keep this conservative in Lambda; tune based on in-process concurrency
-        poolConfig.setMaxTotal(16);
-        poolConfig.setMaxIdle(16);
-        poolConfig.setMinIdle(0);
+            if (EPHEMERAL_WARNING_PRINTED.compareAndSet(false, true)) {
+                System.out.println("WARNING: No cache host configured (CACHE_HOSTNAME). Using an in-memory cache. "
+                        + "Cached data is ephemeral, is not shared across instances, and will be lost on restart. "
+                        + "Configure a Valkey/Redis server for a durable, shared cache.");
+            }
 
-        // Avoid hanging forever
-        poolConfig.setBlockWhenExhausted(true);
-        poolConfig.setMaxWaitMillis(2_000);
+            this.backend = InMemoryCacheBackend.INSTANCE;
 
-        // Helps avoid stale connections in reused execution contexts
-        poolConfig.setTestOnBorrow(true);
-        poolConfig.setTestWhileIdle(true);
-
-        // Optional: periodic idle connection validation/eviction
-        poolConfig.setTimeBetweenEvictionRunsMillis(30_000);
-        poolConfig.setMinEvictableIdleTimeMillis(60_000);
-
-        final int timeout = 5000;
-
-        LOGGER.info("Connecting to cache at {}:{} with timeout of {}ms", host, port, timeout);
-
-        if(password != null && !password.isEmpty()) {
-            this.pool = new JedisPool(poolConfig, host, port, timeout, password, ssl);
         } else {
-            this.pool = new JedisPool(poolConfig, host, port, timeout, ssl);
+            this.backend = new JedisCacheBackend(host, port, password, ssl);
         }
 
     }
 
     /**
-     * Closes the cache connection pool.
+     * Closes the cache, releasing any backing resources.
      */
     public void close() {
-        pool.close();
+        backend.close();
     }
 
 }

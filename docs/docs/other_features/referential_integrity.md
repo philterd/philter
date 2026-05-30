@@ -10,8 +10,8 @@ Referential integrity refers to the process of always anonymizing the same sensi
 
 Referential integrity can be done on the document level or on the context level. When enabled on the document level, "John Smith" will only be replaced by "Pete Baker" in the same document. If "John Smith" occurs in a separate document it will be anonymized with a different random name. When enabled on the context level, "John Smith" will be replaced by "Pete Baker" whenever "John Smith" is found in all documents in the same context.
 
-Enabling referential integrity on the context level requires a cache to store the sensitive information and the corresponding replacement values. Philter uses a Valkey cache to store these values. See Philter's [Settings](../settings.md) on how to configure the cache.
+Enabling referential integrity on the context level requires a cache to store the sensitive information and the corresponding replacement values. Philter uses a Valkey cache when configured, and otherwise falls back to an in-memory cache. See Philter's [Settings](../settings.md#cache-settings) on how to configure the cache.
 
-**When Philter is deployed in a cluster, a Valkey cache is required to enable referential integrity across all nodes.**
+**A Valkey cache is required for referential integrity when Philter is deployed in a cluster.** The in-memory fallback is local to a single instance and is not shared across nodes, so a shared Valkey cache must be configured for consistent replacements across all nodes. The in-memory cache is also ephemeral and is lost on restart.
 
 The referential integrity cache will contain PHI. It is important that you take the necessary precautions to secure the cache and all communication to and from the cache.

@@ -57,7 +57,12 @@ public class AdminView extends AbstractRestrictedView {
 
     @Override
     public String getHelpMarkdownText() {
-        return "Placeholder for users help text.";
+        return """
+            ## Administration
+
+            Manage user accounts — create users, reset passwords, and assign roles — and configure
+            system-wide admin settings. Deleting a user also removes all of their data.
+            """;
     }
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,

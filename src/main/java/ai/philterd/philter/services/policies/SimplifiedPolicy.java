@@ -91,8 +91,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class is a simplified version of a Phileas policy.
@@ -108,6 +110,37 @@ public class SimplifiedPolicy {
     public static final String DISAMBIGUATION_SCOPE_DOCUMENT = "Document";
     public static final String DISAMBIGUATION_SCOPE_CONTEXT = "Context";
     public static final List<String> DISAMBIGUATION_SCOPES = List.of(DISAMBIGUATION_SCOPE_DOCUMENT.toLowerCase(), DISAMBIGUATION_SCOPE_CONTEXT.toLowerCase());
+
+    // Filter types that toPolicy() translates into Phileas filters. A policy referencing any other
+    // filter type would be silently ignored during redaction, so policy validation rejects it.
+    // IMPORTANT: keep this set in sync with the filter types handled in toPolicy().
+    public static final Set<FilterType> SUPPORTED_FILTER_TYPES = Set.of(
+            FilterType.AGE,
+            FilterType.BANK_ROUTING_NUMBER,
+            FilterType.BITCOIN_ADDRESS,
+            FilterType.CREDIT_CARD,
+            FilterType.CURRENCY,
+            FilterType.DATE,
+            FilterType.DRIVERS_LICENSE_NUMBER,
+            FilterType.EMAIL_ADDRESS,
+            FilterType.FIRST_NAME,
+            FilterType.IBAN_CODE,
+            FilterType.IDENTIFIER,
+            FilterType.IP_ADDRESS,
+            FilterType.LOCATION_CITY,
+            FilterType.LOCATION_COUNTY,
+            FilterType.LOCATION_STATE,
+            FilterType.MAC_ADDRESS,
+            FilterType.PASSPORT_NUMBER,
+            FilterType.PERSON,
+            FilterType.PHONE_NUMBER,
+            FilterType.SSN,
+            FilterType.STREET_ADDRESS,
+            FilterType.SURNAME,
+            FilterType.TRACKING_NUMBER,
+            FilterType.URL,
+            FilterType.VIN,
+            FilterType.ZIP_CODE);
 
     // The default values here are important because the user doesn't have to supply value for all properties,
     // and the default values should be used instead.
@@ -1120,6 +1153,27 @@ public class SimplifiedPolicy {
 
     public Map<FilterType, List<SimplifiedStrategy>> getFilters() {
         return filters;
+    }
+
+    /**
+     * Returns the filter types in this policy that are not translated into Phileas filters by
+     * {@link #toPolicy}. Such types would be silently ignored during redaction, so callers should
+     * reject the policy rather than store it. Returns an empty set when every filter type is supported.
+     */
+    public Set<FilterType> getUnsupportedFilterTypes() {
+
+        final Set<FilterType> unsupported = new LinkedHashSet<>();
+
+        if (filters != null) {
+            for (final FilterType filterType : filters.keySet()) {
+                if (!SUPPORTED_FILTER_TYPES.contains(filterType)) {
+                    unsupported.add(filterType);
+                }
+            }
+        }
+
+        return unsupported;
+
     }
 
     public void setFilters(Map<FilterType, List<SimplifiedStrategy>> filters) {

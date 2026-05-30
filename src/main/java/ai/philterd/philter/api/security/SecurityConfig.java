@@ -18,10 +18,10 @@ package ai.philterd.philter.api.security;
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import ai.philterd.philter.views.LoginView;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -65,18 +65,18 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher,
-                                           final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService,
+                                           final MeterRegistry meterRegistry,
                                            final SizeLimitingFilter sizeLimitingFilter) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
                 .headers(headers -> headers.frameOptions(headers2 -> headers2.disable()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**", "/styles/**", "/icons/**", "/api/**","/themes/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/public/**", "/styles/**", "/icons/**", "/api/**", "/actuator/**", "/themes/**", "/favicon.ico").permitAll()
                 )
 
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, openSearchApiRequestsUsageService, gson), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, gson), UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/dashboard", true))
                 .with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
 

@@ -101,13 +101,13 @@ public class FilterApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, MimeType.IMAGE_JPEG, "application/zip", policyName, context);
+            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context);
         }
 
-        final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body, MimeType.IMAGE_JPEG);
+        final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) response;
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -141,7 +141,7 @@ public class FilterApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
 
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context);

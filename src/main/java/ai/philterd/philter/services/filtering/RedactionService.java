@@ -50,6 +50,7 @@ import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.utils.FilterTypeCounter;
+import io.micrometer.core.instrument.MeterRegistry;
 import ai.philterd.philter.utils.HttpUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -91,6 +92,7 @@ public class RedactionService {
     private final ChangeSetDataService changeSetService;
     private final LedgerDataService ledgerService;
     private final UserService userService;
+    private final MeterRegistry meterRegistry;
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -132,7 +134,8 @@ public class RedactionService {
                             final ChangeSetDataService changeSetService,
                             final AuditEventPublisher auditEventPublisher,
                             final LedgerDataService ledgerService,
-                            final UserService userService) {
+                            final UserService userService,
+                            final MeterRegistry meterRegistry) {
 
         this.mongoClient = mongoClient;;
         this.policyDataService = policyDataService;
@@ -143,6 +146,7 @@ public class RedactionService {
         this.changeSetService = changeSetService;
         this.ledgerService = ledgerService;
         this.userService = userService;
+        this.meterRegistry = meterRegistry;
 
     }
 
@@ -315,9 +319,14 @@ public class RedactionService {
 
         LOGGER.debug("Redaction request processed successfully. Tokens: {}, Redactions: {}", tokenCount, filterResult.getExplanation().appliedSpans().size());
 
-        // Publish the tokens/redactions for this document.
+        // Publish redaction metrics to Micrometer (scraped via /actuator/prometheus).
         final Map<String, Integer> filterTypeCounts = FilterTypeCounter.countFilterTypes(filterResult.getExplanation().appliedSpans());
-        // TODO: Write these values to OpenSearch.
+
+        meterRegistry.counter("philter.tokens").increment(tokenCount);
+
+        for (final Map.Entry<String, Integer> filterTypeCount : filterTypeCounts.entrySet()) {
+            meterRegistry.counter("philter.redactions", "filter_type", filterTypeCount.getKey()).increment(filterTypeCount.getValue());
+        }
 
         // TODO: Audit that document redaction has been completed
         //auditEventPublisher.auditEvent(requestId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, userEntity.getId(), redactedDocumentEntity.getId(), redactedDocumentEntity.getClientIp());

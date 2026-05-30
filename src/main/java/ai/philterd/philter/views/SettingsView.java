@@ -56,7 +56,13 @@ public class SettingsView extends AbstractRestrictedView {
 
     @Override
     public String getHelpMarkdownText() {
-        return "Placeholder for settings help text.";
+        return """
+            ## Settings
+
+            Settings specific to your account. Enable redaction ledgers, and configure a webhook
+            URL and secret to receive a signed HTTP POST when an asynchronous redaction completes
+            or fails.
+            """;
     }
 
     public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final SettingsDataService settingsDataService, final AdminSettingsDataService adminSettingsDataService) {

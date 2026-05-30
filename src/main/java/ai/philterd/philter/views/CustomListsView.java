@@ -58,7 +58,13 @@ public class CustomListsView extends AbstractRestrictedView {
 
     @Override
     public String getHelpMarkdownText() {
-        return "Placeholder for custom lists help text.";
+        return """
+            ## Custom Lists
+
+            Custom lists are named sets of terms you can reference from a policy (using
+            `list:<name>`) to always or never redact them. Create a list here, then reference
+            it from your policies.
+            """;
     }
 
     public CustomListsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,

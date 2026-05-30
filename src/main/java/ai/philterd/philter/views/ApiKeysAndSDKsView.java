@@ -55,7 +55,13 @@ public class ApiKeysAndSDKsView extends AbstractRestrictedView {
 
     @Override
     public String getHelpMarkdownText() {
-        return "Placeholder for API help text.";
+        return """
+            ## API Keys & SDKs
+
+            Create and manage the API keys used to authenticate requests to Philter's API. A new
+            key is shown only once, so save it securely. The Client SDKs tab lists libraries for
+            calling the API.
+            """;
     }
 
     public ApiKeysAndSDKsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final ApiKeyDataService apiKeyService) {
@@ -123,16 +129,7 @@ public class ApiKeysAndSDKsView extends AbstractRestrictedView {
                 apiKeyTextField.setReadOnly(true);
                 apiKeyTextField.setWidthFull();
 
-//                final Button copyButton = new Button("Copy");
-//
-//                copyButton.addClickListener(e -> {
-//                    // Write the text field's value to the clipboard
-//                    Clipboard.copyToClipboard(apiKeyTextField.getValue());
-//                    showSuccessNotification("API key copied to clipboard.");
-//                });
-
                 newApiKeyDialog.add(apiKeyTextField);
-                //newApiKeyDialog.add(copyButton);
 
                 final Button cancelButton = new Button("Close", e -> newApiKeyDialog.close());
                 cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);

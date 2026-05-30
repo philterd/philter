@@ -15,10 +15,14 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
+import ai.philterd.philter.services.policies.PolicyValidation;
+import ai.philterd.philter.services.policies.SimplifiedPolicy;
+import ai.philterd.philter.services.policies.SimplifiedStrategy;
 import com.google.gson.Gson;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -27,6 +31,7 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.result.UpdateResult;
 import org.bson.BsonObjectId;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -34,6 +39,7 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.quality.Strictness;
@@ -41,6 +47,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -160,5 +167,95 @@ class PolicyDataServiceTest {
         when(findIterable.first()).thenReturn(null);
 
         assertTrue(policyDataService.isPolicyNameUnique(name, userId));
+    }
+
+    private String validPolicyJson() {
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("REDACT"))));
+        return gson.toJson(policy);
+    }
+
+    private Document existingPolicyDocument(final ObjectId policyId, final ObjectId userId) {
+        return new Document("_id", policyId)
+                .append("name", "existing-policy")
+                .append("user_id", userId)
+                .append("notes", "existing notes")
+                .append("description", "existing description")
+                .append("managed", false);
+    }
+
+    private Document captureUpdateSet() {
+        final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);
+        verify(mongoCollection).updateOne(any(Bson.class), updateCaptor.capture());
+        return ((Document) updateCaptor.getValue()).get("$set", Document.class);
+    }
+
+    @Test
+    void updatePreservesNotesAndDescriptionWhenBlankOrNull() {
+        final ObjectId userId = new ObjectId();
+        final ObjectId policyId = new ObjectId();
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(existingPolicyDocument(policyId, userId));
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
+
+        // description is blank, notes is null -> both should be preserved.
+        final ServiceResponse response = policyDataService.update("req", userId, policyId, validPolicyJson(), "   ", null, "source");
+
+        assertTrue(response.isSuccessful());
+
+        final Document set = captureUpdateSet();
+        assertEquals("existing notes", set.getString("notes"));
+        assertEquals("existing description", set.getString("description"));
+    }
+
+    @Test
+    void updateReplacesNotesAndDescriptionWhenProvided() {
+        final ObjectId userId = new ObjectId();
+        final ObjectId policyId = new ObjectId();
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(existingPolicyDocument(policyId, userId));
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
+
+        // update(requestId, userId, policyId, policyJson, policyDescription, policyNotes, source)
+        final ServiceResponse response = policyDataService.update("req", userId, policyId, validPolicyJson(), "new description", "new notes", "source");
+
+        assertTrue(response.isSuccessful());
+
+        final Document set = captureUpdateSet();
+        assertEquals("new notes", set.getString("notes"));
+        assertEquals("new description", set.getString("description"));
+    }
+
+    @Test
+    void validatePolicyAcceptsSupportedFilterTypes() {
+        final PolicyValidation validation = policyDataService.validatePolicy(validPolicyJson());
+        assertTrue(validation.isValid());
+    }
+
+    @Test
+    void validatePolicyRejectsUnsupportedFilterTypes() {
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(
+                FilterType.SSN, List.of(new SimplifiedStrategy("REDACT")),
+                FilterType.MEDICAL_CONDITION, List.of(new SimplifiedStrategy("REDACT"))));
+
+        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
+
+        assertFalse(validation.isValid());
+        assertTrue(validation.getMessage().contains("MEDICAL_CONDITION"));
+    }
+
+    @Test
+    void validatePolicyRejectsInvalidDisambiguationScope() {
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setDisambiguationScope("not-a-scope");
+
+        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
+
+        assertFalse(validation.isValid());
     }
 }

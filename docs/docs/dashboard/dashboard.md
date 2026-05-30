@@ -1,6 +1,6 @@
 # Dashboard
 
-Philter includes a user interface dashboard that can be accessed at `http://your-philter-endpoint:8080:8080`.
+Philter includes a user interface dashboard that can be accessed at `http://your-philter-endpoint:8080`.
 
 The dashboard is protected by a login screen. The default username and password for the administrator is `admin` / `admin`. It is recommended to change the administrator password after logging in.
 
@@ -18,18 +18,13 @@ The **Dashboard** home page allows you to test Philter's configuration by submit
 
 In the **Policies** section, you can:
 
-*   **Create and Edit Policies**: Use the visual policy editor to define PII/PHI filters, specify terms to always or never redact, and configure advanced options.
+*   **Create and Edit Policies**: Edit a policy's JSON directly, or build one in the [policy editor](https://policies.philterd.ai/) and paste the JSON in. Policies are validated on save.
 *   **Managed Policies**: Access a library of pre-configured policies for common use cases (e.g., HIPAA, GDPR). You can clone these to create your own custom versions.
 *   **Global Terms**: Define terms that should always or never be redacted across *all* policies.
 
 ### Metrics and Usage
 
-The **Metrics** section provides visualizations of your redaction activity:
-
-*   **Token Counts**: View the number of sensitive tokens identified over time.
-*   **Redaction Counts**: Monitor the number of redactions performed.
-*   **API Requests**: Track the volume of requests to Philter's API.
-*   **CSV Reports**: Download detailed usage reports for auditing and compliance.
+Philter exposes redaction, token, and API-request metrics in Prometheus format at `/actuator/prometheus`. Collect and visualize them with your own monitoring stack (for example, Prometheus and Grafana). See [Monitoring and Logging](../monitoring_and_logging.md).
 
 ### API Key Management
 

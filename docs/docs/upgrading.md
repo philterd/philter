@@ -2,6 +2,18 @@
 
 We recommend reviewing the [Philter Release Notes](https://www.philterd.ai/philter-release-notes/) prior to upgrading.
 
+## Upgrading to 4.x
+
+Philter 4.x includes several breaking changes. Review the following before upgrading from 3.x:
+
+* **An encryption key is now required.** Set `PHILTER_ENCRYPTION_KEY` to a base64-encoded 32-byte (AES-256) key (generate one with `openssl rand -base64 32`). Philter will not start without a valid key. Existing encrypted data continues to decrypt, because each record stores the key used to encrypt it — but set this consistently going forward. See [Settings](settings.md#encryption).
+* **OpenSearch has been removed.** Usage metrics are no longer stored in OpenSearch and the in-application Metrics dashboard has been removed. Metrics are now exposed in Prometheus format at `/actuator/prometheus`; collect and visualize them with your own monitoring stack. Remove the `OPENSEARCH_*` and `API_REQUESTS_INDEXING_ENABLED` variables. See [Monitoring and Logging](monitoring_and_logging.md).
+* **Valkey is now optional.** If `CACHE_HOSTNAME` is unset, Philter uses an ephemeral in-memory cache. Configure Valkey for a durable, shared cache. See [Settings](settings.md#cache-settings).
+* **PDF redaction is asynchronous by default.** `POST /api/filter` with a PDF now returns `202 Accepted` with a `documentId`; download the result from the [Documents API](api_and_sdks/api/documents_api.md). Append `?async=false` to keep the previous synchronous behavior. Text redaction is unchanged.
+* **Policies are authored as JSON.** The visual policy builder has been replaced by a JSON editor in the dashboard; you can also build policies in the [policy editor](https://policies.philterd.ai/) and paste the JSON in.
+
+## Upgrading from 1.x or 2.x to 3.x
+
 Philter 3.x introduced significant changes to how policies and configuration are managed. Due to these changes, upgrading from Philter 1.x or 2.x to 3.x requires manual migration of your policies and configuration.
 
 ### Policy Storage Changes

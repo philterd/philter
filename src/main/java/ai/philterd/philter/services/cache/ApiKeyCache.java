@@ -19,7 +19,6 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 
 /**
  * An implementation of {@link Cache} for managing context-based token replacements.
@@ -43,46 +42,30 @@ public class ApiKeyCache extends Cache {
     }
 
     public void delete(final String apiKey) {
-
-        try(final Jedis jedis = pool.getResource()) {
-            jedis.del(buildKey(apiKey));
-        }
-
+        backend.del(buildKey(apiKey));
     }
 
     public void insert(final String apiKey, final ApiKeyEntity apiKeyEntity) {
 
         final String json = gson.toJson(apiKeyEntity);
 
-        try(final Jedis jedis = pool.getResource()) {
-
-            // Insert with a TTL of 10 minutes.
-            jedis.setex(buildKey(apiKey), 300, json);
-
-        }
+        // Insert with a TTL of 5 minutes.
+        backend.setex(buildKey(apiKey), 300, json);
 
     }
 
     public ApiKeyEntity get(final String apiKey) {
-
-        try(final Jedis jedis = pool.getResource()) {
-
-            final String json = jedis.get(buildKey(apiKey));
-            return gson.fromJson(json, ApiKeyEntity.class);
-
-        }
-
+        final String json = backend.get(buildKey(apiKey));
+        return gson.fromJson(json, ApiKeyEntity.class);
     }
 
     public boolean containsApiKey(final String apiKey) {
 
-        try(final Jedis jedis = pool.getResource()) {
-            final boolean contains = jedis.exists(buildKey(apiKey));
-            if(contains) {
-               LOGGER.info("API key found in cache.");
-            }
-            return contains;
+        final boolean contains = backend.exists(buildKey(apiKey));
+        if(contains) {
+            LOGGER.info("API key found in cache.");
         }
+        return contains;
 
     }
 

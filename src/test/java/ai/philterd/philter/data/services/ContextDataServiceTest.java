@@ -32,6 +32,7 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -143,5 +144,27 @@ class ContextDataServiceTest {
         assertTrue(response.isSuccessful());
         verify(mongoCollection).deleteOne(any(Document.class));
         verify(contextCache).deleteContext(eq(contextName));
+    }
+
+    @Test
+    void findOneByNameAndUserIdQueriesContextNameField() {
+        ObjectId userId = new ObjectId();
+        String contextName = "my-context";
+
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", userId);
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final ContextEntity context = contextDataService.findOneByNameAndUserId(contextName, userId);
+
+        assertNotNull(context);
+
+        // The query must use the persisted field name `context_name`, not `name`.
+        final ArgumentCaptor<Document> queryCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).find(queryCaptor.capture());
+        final Document query = queryCaptor.getValue();
+        assertEquals(contextName, query.getString("context_name"));
+        assertFalse(query.containsKey("name"));
     }
 }

@@ -18,8 +18,6 @@ package ai.philterd.philter.data;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
-import ai.philterd.philter.services.usage.OpenSearchRedactionsUsageService;
-import ai.philterd.philter.services.usage.apirequests.OpenSearchApiRequestsUsageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -36,20 +34,14 @@ public class DataInitializer {
     private final ContextDataService contextService;
     private final PolicyDataService policyDataService;
     private final UserService userService;
-    private final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService;
-    private final OpenSearchRedactionsUsageService openSearchRedactionsUsageService;
 
     // Inject the beans Spring has already created
     public DataInitializer(final ContextDataService contextService, final PolicyDataService policyDataService,
-                           final UserService userService,
-                           final OpenSearchApiRequestsUsageService openSearchApiRequestsUsageService,
-                           final OpenSearchRedactionsUsageService openSearchRedactionsUsageService) {
+                           final UserService userService) {
 
         this.contextService = contextService;
         this.policyDataService = policyDataService;
         this.userService = userService;
-        this.openSearchApiRequestsUsageService = openSearchApiRequestsUsageService;
-        this.openSearchRedactionsUsageService = openSearchRedactionsUsageService;
 
     }
 
@@ -68,10 +60,6 @@ public class DataInitializer {
 
         // Load managed policies from JSON files
         policyDataService.loadAndSaveManagedPolicies();
-
-        // Create OpenSearch indexes.
-        openSearchApiRequestsUsageService.createIndex();
-        openSearchRedactionsUsageService.createIndex();
 
     }
 

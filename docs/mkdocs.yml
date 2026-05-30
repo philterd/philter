@@ -55,20 +55,34 @@ extra:
       make our documentation better.
 nav:
   - 'Home': index.md
-  - 'Upgrading': upgrading.md
-  - 'System Requirements': system_requirements.md
-  - 'Mistakes': 'mistakes.md'
-  - 'Support': 'support.md'
-  - 'Quick Starts':
-      - 'Philter Quick Start on AWS': 'quick_starts/quick_start_aws.md'
-      - 'Philter Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'
-      - 'Philter Quick Start on Google Cloud': 'quick_starts/quick_start_gcp.md'
-  - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
-  - 'Dashboard': 'dashboard.md'
-  - 'Deidentification': 'deidentification.md'
+  - 'Getting Started':
+      - 'Quick Start on AWS': 'quick_starts/quick_start_aws.md'
+      - 'Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'
+      - 'Quick Start on Google Cloud': 'quick_starts/quick_start_gcp.md'
+      - 'System Requirements': 'system_requirements.md'
+      - 'Upgrading': 'upgrading.md'
+  - 'Using Philter':
+      - 'Dashboard': 'dashboard/dashboard.md'
+      - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
+      - 'Deidentification': 'deidentification.md'
+      - 'Redacting Documents and Text': 'redaction/redacting_documents.md'
+      - 'Redacting Data Sets': 'redaction/redacting_datasets.md'
+      - 'Contexts': 'redaction/contexts.md'
+      - 'Custom Lists': 'redaction/custom_lists.md'
+      - 'Global Terms': 'redaction/global_terms.md'
+      - 'Changesets': 'redaction/changesets.md'
+      - 'Redaction Ledgers': 'redaction/ledgers.md'
+      - 'Redaction Lenses': 'redaction/lenses.md'
+      - 'Disambiguation': 'redaction/disambiguation.md'
+      - 'Best Practices': 'redaction/redaction_best_practices.md'
+      - 'Important to Know': 'redaction/important_to_know.md'
+      - 'Common Mistakes': 'mistakes.md'
   - 'Policies':
+    - 'Redaction Policies': 'redaction/policies.md'
     - 'Sample Policies': 'policies/sample_policies.md'
     - 'Filter Policies': 'policies/filter_policies.md'
+    - 'Policy Syntax (Simplified)': 'redaction/policy_syntax.md'
+    - 'Policy Schema 1.0.0 Reference': 'policies/policy_schema.md'
     - 'Filters': 'policies/filters.md'
     - 'All Filters':
       - 'Common Filters':
@@ -103,6 +117,9 @@ nav:
         - 'Persons Names (NER)': 'policies/filters/persons_names/persons-names-ner.md'
         - 'Physician Names (NER)': 'policies/filters/persons_names/physician-names-ner.md'
         - 'Surnames': 'policies/filters/persons_names/surnames.md'
+      - 'Custom Filters':
+        - 'Custom Dictionary': 'policies/filters/custom_filters/dictionary.md'
+        - 'Custom Identifier': 'policies/filters/custom_filters/identifier.md'
     - 'Filter Strategies': 'policies/filter_strategies.md'
     - 'Document Analysis':
       - 'Document Analysis': 'policies/document_analysis.md'
@@ -111,6 +128,7 @@ nav:
     - 'Ignoring Specific Information': 'policies/ignoring_specific_information.md'
   - 'API and SDKs':
     - 'API Overview': 'api_and_sdks/api.md'
+    - 'API Keys and Authentication': 'account/api_keys.md'
     - 'API Methods':
       - 'Filtering API': 'api_and_sdks/api/filtering_api.md'
       - 'Documents API': 'api_and_sdks/api/documents_api.md'
@@ -119,13 +137,17 @@ nav:
       - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
-  - Developers:
+    - 'Developers':
       - 'Overview': 'developers/developers.md'
       - 'Quick Start': 'developers/developer_quick_start.md'
-  - 'Settings': 'settings.md'
-  - 'Caching': 'caching.md'
-  - 'Monitoring and Logging': 'monitoring_and_logging.md'
-  - 'Advanced Features':
+      - 'Evaluating Performance': 'evaluating-performance.md'
+  - 'Administration':
+    - 'Settings': 'settings.md'
+    - 'Database': 'database.md'
+    - 'Caching': 'caching.md'
+    - 'Monitoring and Logging': 'monitoring_and_logging.md'
+    - 'Auditing': 'auditing.md'
+    - 'Advanced Features':
       - 'Referential Integrity': 'other_features/referential_integrity.md'
       - 'Span Disambiguation': 'other_features/span_disambiguation.md'
-      - 'Dashboard': 'other_features/dashboard.md'
+  - 'Support': 'support.md'

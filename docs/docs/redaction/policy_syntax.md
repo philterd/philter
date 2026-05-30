@@ -6,6 +6,8 @@ Philter uses a powerful and flexible JSON-based syntax for defining redaction po
 
 This reference guide provides a deep dive into the individual components of a policy, the available filters, and the diverse processing strategies at your disposal.
 
+> This page describes the *simplified* policy format used by the dashboard's policy editor. For the complete, authoritative engine format, see the [Policy Schema 1.0.0 Reference](../policies/policy_schema.md).
+
 If you need help creating a policy that meets your needs, please [contact us](../support.md).
 
 ## Core Policy Structure

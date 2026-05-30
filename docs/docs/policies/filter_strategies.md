@@ -250,7 +250,7 @@ The `ZERO_LEADING` filter strategy is only available to zip code filters. An exa
 
 ## Filter Strategy Conditions
 
-A replacement strategy can be applied based on the sensitive information meeting one or more conditions. For example, you can create a condition such that only dates of `11/05/2010` are replaced by using the condition `token == "11/05/2010"`. The conditions that can be applied vary based on the type of sensitive information. For instance, zip codes can have conditions based on their population. Refer to each specific [filter type](filters_README.md) for the conditions available.
+A replacement strategy can be applied based on the sensitive information meeting one or more conditions. For example, you can create a condition such that only dates of `11/05/2010` are replaced by using the condition `token == "11/05/2010"`. The conditions that can be applied vary based on the type of sensitive information. For instance, zip codes can have conditions based on their population. Refer to each specific [filter type](filters.md) for the conditions available.
 
 The following is an example policy for credit cards that contains a condition to only redact credit card numbers that start with the digits `3000`:
 

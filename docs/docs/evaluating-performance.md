@@ -21,7 +21,7 @@ To evaluate Philter's performance you need:
 
 #### Configuring Philter
 
-Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a configuration that defines the types of sensitive information that will be redacted and how it will be redacted. Policies are stored in a database and are managed using Philter's [web dashboard](other_features/dashboard.md) or [API](api_and_sdks/api/policies_api.md).
+Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a configuration that defines the types of sensitive information that will be redacted and how it will be redacted. Policies are stored in a database and are managed using Philter's [web dashboard](dashboard/dashboard.md) or [API](api_and_sdks/api/policies_api.md).
 
 #### Creating a Policy
 

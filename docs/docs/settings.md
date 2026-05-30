@@ -17,7 +17,7 @@ Properties can also be set via environment variables. Environment variables take
 
 ## Database Settings
 
-Philter requires a MongoDB database to store policies and other data.
+Philter requires a MongoDB database to store policies and other data. See [Database](database.md) for what is stored and for connection-string examples (authentication, replica sets, and Atlas).
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|

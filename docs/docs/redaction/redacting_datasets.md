@@ -67,7 +67,7 @@ Once the policies are created, you must create an IAM Role that Philter can assu
 
 ## Initiating a Dataset Redaction Task
 
-With the AWS permissions in place, you can trigger a dataset redaction task through either the [Web Dashboard](../dashboard.md) or the [REST API](../developers/developer_quick_start.md).
+With the AWS permissions in place, you can trigger a dataset redaction task through either the [Web Dashboard](../dashboard/dashboard.md) or the [REST API](../developers/developer_quick_start.md).
 
 1.  **Specify Source**: Provide the S3 URI of the dataset to be processed (e.g., `s3://your-source-bucket-name/folder/dataset.csv`).
 2.  **Define Output**: Provide the S3 URI where the redacted data should be saved.

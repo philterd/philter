@@ -28,7 +28,7 @@ While Philter uses advanced AI and machine learning, automated redaction is not 
 
 ## Start with a Risk Assessment
 
-Before performing redaction, run a [Risk Assessment](../risk_assessments/risk_assessments.md) on your documents. This provides a quantitative overview of the sensitive information present, helping you prioritize which documents need the most attention and which policies might be most effective.
+Before performing redaction, assess the risk in your documents. A quantitative overview of the sensitive information present helps you prioritize which documents need the most attention and which policies might be most effective.
 
 ## Use Custom Lists for Known Terms
 

@@ -13,7 +13,7 @@ predefined sensitive information is described below.
 ## Predefined Types of PII in Philter
 
 The types of sensitive information that Philter will identify is customizable. For example, if you are not interested in
-VIN numbers you can have Philter ignore them. This configuration is performed through [Policies](policies_README.md).
+VIN numbers you can have Philter ignore them. This configuration is performed through [Policies](policies/filter_policies.md).
 
 Because Philter only operates on text, the biometric identifiers and face images outlined in the HIPAA regulations as
 PHI are not applicable to Philter. The types of sensitive information and how Philter identifies each one is listed in

@@ -82,5 +82,5 @@ For developers and organizations with dynamic data protection needs, Philter pro
 *   **Item Management**: Retrieve, add, or update the specific items within any list.
 *   **Automated Lifecycle**: Create and delete lists as part of your automated CI/CD or data governance pipelines.
 
-For detailed information on authenticating these API calls, please refer to the [API](../api/api_overview.md) documentation.
+For detailed information on authenticating these API calls, please refer to the [API](../api_and_sdks/api.md) documentation.
 

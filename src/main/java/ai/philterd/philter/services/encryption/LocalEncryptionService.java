@@ -35,6 +35,14 @@ public class LocalEncryptionService extends EncryptionService {
         super(new LocalKeyProvider());
     }
 
+    /**
+     * Creates a service with the given key provider. Package-private so tests can supply a key
+     * without setting the {@code PHILTER_ENCRYPTION_KEY} environment variable.
+     */
+    LocalEncryptionService(final KeyProvider keyProvider) {
+        super(keyProvider);
+    }
+
     @Override
     public String generateEncryptionKey() {
 

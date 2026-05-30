@@ -51,6 +51,8 @@ curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 9
 
 You can also access the UI at https://localhost:8080. The default credentials are `admin` / `admin`.
 
+Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
+
 ## License
 
 As of Philter 2.6.0, Philter is licensed under the Apache License, version 2.0. Previous versions were under a proprietary license.

@@ -38,8 +38,6 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 import java.util.regex.Pattern;
 
 public class ApiAuthenticationFilter extends GenericFilterBean {
@@ -69,31 +67,14 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
         LOGGER.debug("API path requested: {}", path);
 
-        // Don't authorize requests to health check endpoint.
-        if ("/api/health".equals(path) || "/api/status".equals(path)) {
+        // The status and health endpoints are unauthenticated and served by
+        // StatusApiController, which reports the application version and the
+        // supported redaction policy schema version. Both paths return the same
+        // response.
+        if ("/api/status".equals(path) || "/api/health".equals(path)) {
 
-            LOGGER.trace("Request to health check/status endpoint, allowing: {}", path);
-
-            final Properties props = new Properties();
-            props.load(getClass().getClassLoader().getResourceAsStream("git.properties"));
-
-            // Use the short hash.
-            final String gitHash = props.getProperty("git.commit.id.full").substring(0, 7);
-
-            // Just return HTTP OK here without going to a controller.
-            HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-            httpServletResponse.setContentType("application/json");
-            httpServletResponse.setCharacterEncoding("UTF-8");
-            httpServletResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-            httpServletResponse.setHeader("Pragma", "no-cache");
-            httpServletResponse.setStatus(HttpServletResponse.SC_OK);
-
-            final Map<String, Object> health = Map.of("health", "ok", "git-commit", gitHash);
-
-            final String responseToClient = gson.toJson(health);
-
-            httpServletResponse.getWriter().write(responseToClient);
-            httpServletResponse.getWriter().flush();
+            LOGGER.trace("Request to status/health endpoint, allowing without authorization: {}", path);
+            chain.doFilter(request, response);
 
         } else if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui/")) {
 

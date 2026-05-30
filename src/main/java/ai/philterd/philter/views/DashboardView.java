@@ -132,10 +132,7 @@ public class DashboardView extends AbstractRestrictedView {
 
             try {
 
-                final AbstractFilterResult result = redactionService.filter(
-                        selectedPolicy, userEntity.getId(), "none", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
-
-                final String redactedText = ((TextFilterResult) result).getFilteredText();
+                final String redactedText = redactText(redactionService, selectedPolicy, userEntity.getId(), text);
 
                 redactedTextArea.setValue(redactedText != null ? redactedText : "");
                 redactedTextArea.setVisible(true);
@@ -227,6 +224,21 @@ public class DashboardView extends AbstractRestrictedView {
         pageVerticalLayout.add(pdfPolicyComboBox, upload, filterPdfButton, downloadRow);
 
         return pageVerticalLayout;
+
+    }
+
+    /**
+     * Runs the dashboard's text redaction against the redaction service and returns the redacted
+     * text. Extracted from the button handler so the filtering behavior can be tested without a
+     * browser.
+     */
+    static String redactText(final RedactionService redactionService, final String policyName,
+                             final org.bson.types.ObjectId userId, final String text) throws Exception {
+
+        final AbstractFilterResult result = redactionService.filter(
+                policyName, userId, "none", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+
+        return ((TextFilterResult) result).getFilteredText();
 
     }
 

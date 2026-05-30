@@ -17,19 +17,35 @@ package ai.philterd.philter.model;
 
 public class Constants {
 
-    // TODO: Read these values from environment variables instead.
+    /**
+     * Maximum file size for document uploads via API and UI. Defaults to 10 MB; override with the
+     * {@code MAX_FILE_SIZE_BYTES} environment variable.
+     */
+    public static final int MAX_FILE_SIZE_BYTES = (int) getEnvLong("MAX_FILE_SIZE_BYTES", 10L * 1024 * 1024);
 
     /**
-     * Maximum file size for document uploads via API and UI.
+     * Maximum file size in bytes for all other POST and PUT endpoints. Defaults to 10 KB; override
+     * with the {@code MAX_FILE_SIZE_BYTES_OTHER} environment variable.
      */
-    public static final int MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;  // 10 MB
-
-    /**
-     * Maximum file size in bytes for all other POST and PUT endpoints (10KB).
-     */
-    public static final long MAX_FILE_SIZE_BYTES_OTHER = 10 * 1024;
+    public static final long MAX_FILE_SIZE_BYTES_OTHER = getEnvLong("MAX_FILE_SIZE_BYTES_OTHER", 10L * 1024);
 
     private Constants() {
+
+    }
+
+    private static long getEnvLong(final String name, final long defaultValue) {
+
+        final String value = System.getenv(name);
+
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+
+        try {
+            return Long.parseLong(value.trim());
+        } catch (final NumberFormatException ex) {
+            return defaultValue;
+        }
 
     }
 

@@ -139,4 +139,37 @@ class ChangeSetDataServiceTest {
 
         assertEquals(10, count);
     }
+
+    @Test
+    void getNextVersionUsesHighestExistingVersion() {
+        ObjectId userId = new ObjectId();
+        String documentId = "doc123";
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.limit(1)).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(new Document("version", 5));
+
+        int nextVersion = changeSetDataService.getNextVersion(userId, documentId);
+
+        assertEquals(6, nextVersion);
+        // The next version must come from a sorted, single-result query rather than scanning all docs.
+        verify(findIterable).sort(any());
+        verify(findIterable).limit(1);
+    }
+
+    @Test
+    void getNextVersionWhenDocumentDoesNotExist() {
+        ObjectId userId = new ObjectId();
+        String documentId = "doc123";
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.limit(1)).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+
+        int nextVersion = changeSetDataService.getNextVersion(userId, documentId);
+
+        assertEquals(1, nextVersion);
+    }
 }

@@ -70,12 +70,18 @@ public class ChangeSetDataService extends AbstractEncryptedService<ChangeSetEnti
 
     public int getNextVersion(final ObjectId userId, final String documentId) {
 
-        // TODO: Query the database to get the max(version) value and add 1 instead of this manual lookup.
-        final List<Integer> versions = getChangeSetVersionsForDocument(userId, documentId);
+        // Ask the database for the highest existing version rather than loading every changeset
+        // document and sorting in memory.
+        final Document query = new Document("user_id", userId).append("document_id", documentId);
 
-        if(!versions.isEmpty()) {
+        final Document highest = collection.find(query)
+                .sort(Sorts.descending("version"))
+                .limit(1)
+                .first();
 
-            return versions.get(versions.size() - 1) + 1;
+        if(highest != null && highest.getInteger("version") != null) {
+
+            return highest.getInteger("version") + 1;
 
         } else {
 

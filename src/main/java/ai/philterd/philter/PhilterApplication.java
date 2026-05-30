@@ -21,7 +21,7 @@ import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.audit.NoOpAuditEventPublisher;
+import ai.philterd.philter.audit.MongoDBAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ChangeSetDataService;
@@ -126,8 +126,9 @@ public class PhilterApplication implements AppShellConfigurator {
 
         final Properties properties = new Properties();
 
-        // TODO: Read this from an environment variable.
-        properties.put("incremental.redactions.enabled", "true");  // Required for ledger.
+        // Required for the ledger; defaults to enabled and is overridable via the environment.
+        properties.put("incremental.redactions.enabled",
+                System.getenv().getOrDefault("INCREMENTAL_REDACTIONS_ENABLED", "true"));
 
         return new PhileasConfiguration(properties);
 
@@ -135,7 +136,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public AuditEventPublisher auditEventPublisher() {
-        return new NoOpAuditEventPublisher();
+        return new MongoDBAuditEventPublisher(mongoClient());
     }
 
     @Bean

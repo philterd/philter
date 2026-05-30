@@ -255,9 +255,12 @@ public class RedactionService {
 
         final Random random = new ChaChaRandom();
 
-        // Create the Phileas configuration based on the user's settings.
+        // Create the Phileas configuration based on the user's settings. Incremental redactions are
+        // required for the ledger and default to enabled; the INCREMENTAL_REDACTIONS_ENABLED
+        // environment variable allows overriding it.
         final Properties properties = new Properties();
-        properties.put("incremental.redactions.enabled", "true");  // Required for ledger.
+        properties.put("incremental.redactions.enabled",
+                System.getenv().getOrDefault("INCREMENTAL_REDACTIONS_ENABLED", "true"));
         final PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
 
         final PlainTextFilterService plainTextFilterService = new PlainTextFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
@@ -321,13 +324,7 @@ public class RedactionService {
         LOGGER.debug("Redaction request processed successfully. Tokens: {}, Redactions: {}", tokenCount, filterResult.getExplanation().appliedSpans().size());
 
         // Publish redaction metrics to Micrometer (scraped via /actuator/prometheus).
-        final Map<String, Integer> filterTypeCounts = FilterTypeCounter.countFilterTypes(filterResult.getExplanation().appliedSpans());
-
-        meterRegistry.counter("philter.tokens").increment(tokenCount);
-
-        for (final Map.Entry<String, Integer> filterTypeCount : filterTypeCounts.entrySet()) {
-            meterRegistry.counter("philter.redactions", "filter_type", filterTypeCount.getKey()).increment(filterTypeCount.getValue());
-        }
+        recordRedactionMetrics(filterResult);
 
         // Audit that the document redaction completed. The generated documentId serves as the
         // request correlation id, and the number of redactions is recorded as a detail.
@@ -336,6 +333,23 @@ public class RedactionService {
                 "redactions: " + filterResult.getExplanation().appliedSpans().size());
 
         return filterResult;
+
+    }
+
+    /**
+     * Publishes redaction metrics for a completed filter result to Micrometer: a token counter and a
+     * per-filter-type redaction counter. Exposed at package scope so the counter emission can be
+     * tested with a real {@link MeterRegistry} without standing up the full filtering pipeline.
+     */
+    void recordRedactionMetrics(final AbstractFilterResult filterResult) {
+
+        meterRegistry.counter("philter.tokens").increment(filterResult.getTokens());
+
+        final Map<String, Integer> filterTypeCounts = FilterTypeCounter.countFilterTypes(filterResult.getExplanation().appliedSpans());
+
+        for (final Map.Entry<String, Integer> filterTypeCount : filterTypeCounts.entrySet()) {
+            meterRegistry.counter("philter.redactions", "filter_type", filterTypeCount.getKey()).increment(filterTypeCount.getValue());
+        }
 
     }
 

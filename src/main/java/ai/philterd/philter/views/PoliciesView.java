@@ -515,7 +515,7 @@ public class PoliciesView extends AbstractRestrictedView {
         final Button saveGlobalTermsButton = new Button("Save Terms");
         saveGlobalTermsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveGlobalTermsButton.addClickListener(event -> {
-            globalTermsService.saveOrUpdate(null, termsToAlwaysRedactTextArea.getValue().lines().collect(Collectors.toList()), termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()));
+            globalTermsService.saveOrUpdate(RequestIdGenerator.generate(), userEntity.getId(), termsToAlwaysRedactTextArea.getValue().lines().collect(Collectors.toList()), termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()), Source.WEBUI.getSource());
             showSuccessNotification("Terms saved.");
         });
 

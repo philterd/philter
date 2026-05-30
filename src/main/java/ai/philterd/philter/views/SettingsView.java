@@ -16,6 +16,9 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.Source;
+import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.SettingsEntity;
 import ai.philterd.philter.data.services.SettingsDataService;
@@ -98,6 +101,11 @@ public class SettingsView extends AbstractRestrictedView {
             } else {
                 settingsDataService.update(finalSettingsEntity);
             }
+
+            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.SETTINGS_UPDATED,
+                    userEntity.getId(), userEntity.getId(), Source.WEBUI.getSource(),
+                    "redactionLedgerEnabled: " + redactionLedgerEnabledCheckbox.getValue());
+
             showSuccessNotification("Settings saved.");
         });
         saveMySettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -179,6 +187,11 @@ public class SettingsView extends AbstractRestrictedView {
             userEntity.setWebhookUrl(url);
             userEntity.setWebhookSecret(secret);
             userService.update(userEntity);
+
+            // Audit the webhook configuration, but never record the URL or secret themselves.
+            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.WEBHOOK_CONFIGURED,
+                    userEntity.getId(), userEntity.getId(), Source.WEBUI.getSource(), null);
+
             showSuccessNotification("Webhook saved.");
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -189,6 +202,10 @@ public class SettingsView extends AbstractRestrictedView {
             userEntity.setWebhookUrl(null);
             userEntity.setWebhookSecret(null);
             userService.update(userEntity);
+
+            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.WEBHOOK_REMOVED,
+                    userEntity.getId(), userEntity.getId(), Source.WEBUI.getSource(), null);
+
             showSuccessNotification("Webhook removed.");
         });
         removeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);

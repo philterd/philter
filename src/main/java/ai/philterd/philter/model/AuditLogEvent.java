@@ -53,7 +53,27 @@ public enum AuditLogEvent {
     CHANGESET_APPLIED("changeset_applied"),
 
     API_KEY_CREATED("api_key_created"),
-    API_KEY_DELETED("api_key_deleted");
+    API_KEY_DELETED("api_key_deleted"),
+
+    // Authentication outcomes recorded by the API authentication filter.
+    API_AUTHENTICATION_FAILED("api_authentication_failed"),
+    API_IP_BLOCKED("api_ip_blocked"),
+
+    // User account lifecycle.
+    USER_CREATED("user_created"),
+    USER_PASSWORD_CHANGED("user_password_changed"),
+    USER_ROLE_CHANGED("user_role_changed"),
+    USER_DELETED("user_deleted"),
+
+    // Account and admin configuration changes.
+    WEBHOOK_CONFIGURED("webhook_configured"),
+    WEBHOOK_REMOVED("webhook_removed"),
+    GLOBAL_TERMS_UPDATED("global_terms_updated"),
+    SETTINGS_UPDATED("settings_updated"),
+
+    // Context dictionary mutations.
+    CONTEXT_ENTRY_DELETED("context_entry_deleted"),
+    CONTEXT_ENTRIES_PURGED("context_entries_purged");
 
     private final String auditLogEvent;
 

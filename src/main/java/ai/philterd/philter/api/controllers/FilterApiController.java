@@ -26,6 +26,7 @@ import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
@@ -62,6 +63,7 @@ public class FilterApiController extends AbstractApiController {
     private static final Logger LOGGER = LogManager.getLogger(FilterApiController.class);
 
     private final RedactionService redactionService;
+    private final AuditEventPublisher auditEventPublisher;
     private final PendingDocumentDataService pendingDocumentDataService;
     private final Gson gson;
 
@@ -71,6 +73,7 @@ public class FilterApiController extends AbstractApiController {
                                final PendingDocumentDataService pendingDocumentDataService, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.redactionService = redactionService;
+        this.auditEventPublisher = auditEventPublisher;
         this.pendingDocumentDataService = pendingDocumentDataService;
         this.gson = gson;
     }
@@ -203,6 +206,11 @@ public class FilterApiController extends AbstractApiController {
         entity.setSubmittedAt(new Date());
 
         pendingDocumentDataService.save(entity);
+
+        // Audit that a document was submitted for asynchronous redaction. The documentId is the
+        // correlation id used by the /api/documents endpoints.
+        auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_INITIATED, userId, null, null,
+                "inputMimeType: " + inputMimeType.name() + ", outputMimeType: " + outputMimeType + ", policy: " + policyName);
 
         final String json = gson.toJson(Map.of("documentId", documentId));
 

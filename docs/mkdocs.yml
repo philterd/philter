@@ -123,6 +123,7 @@ nav:
       - 'Overview': 'developers/developers.md'
       - 'Quick Start': 'developers/developer_quick_start.md'
   - 'Settings': 'settings.md'
+  - 'Caching': 'caching.md'
   - 'Monitoring and Logging': 'monitoring_and_logging.md'
   - 'Advanced Features':
       - 'Referential Integrity': 'other_features/referential_integrity.md'

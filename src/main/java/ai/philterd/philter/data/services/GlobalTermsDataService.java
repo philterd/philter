@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
+import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,7 +35,7 @@ public class GlobalTermsDataService extends AbstractService<GlobalTermsEntity> {
         super(mongoClient, "global_terms", auditEventPublisher);
     }
 
-    public void saveOrUpdate(final ObjectId userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact) {
+    public void saveOrUpdate(final String requestId, final ObjectId userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact, final String source) {
 
         final GlobalTermsEntity globalTermsEntity = find(userId);
 
@@ -56,6 +57,11 @@ public class GlobalTermsDataService extends AbstractService<GlobalTermsEntity> {
             update(globalTermsEntity);
 
         }
+
+        // The global always-redact / never-redact lists are security-relevant: they force or suppress
+        // redaction regardless of policy, so changes are audited.
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.GLOBAL_TERMS_UPDATED, userId, userId, source,
+                "alwaysRedact: " + termsToAlwaysRedact.size() + ", neverRedact: " + termsToNeverRedact.size());
 
     }
 

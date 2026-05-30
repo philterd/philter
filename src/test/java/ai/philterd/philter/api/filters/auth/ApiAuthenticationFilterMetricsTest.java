@@ -43,6 +43,7 @@ import java.util.Date;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -129,6 +130,10 @@ class ApiAuthenticationFilterMetricsTest {
         assertEquals(0, meterRegistry.find("philter.api.requests").counters().size());
         // The chain is never invoked for an unauthorized request.
         verify(chain, org.mockito.Mockito.never()).doFilter(any(), any());
+        // The failed authentication is audited.
+        verify(auditEventPublisher).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.API_AUTHENTICATION_FAILED),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(),
+                any(), org.mockito.ArgumentMatchers.contains("malformed"));
     }
 
     @Test

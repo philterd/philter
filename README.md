@@ -40,7 +40,7 @@ docker compose build
 docker compose up
 ```
 
-Keep this key safe and use the same value across restarts and instances —
+Keep this key safe and use the same value across restarts and instances.
 Philter will refuse to start if it is missing or not a valid 32-byte key.
 
 Once the containers are running, you can submit text to Philter's API for redaction (using the default API key `default`):
@@ -52,6 +52,8 @@ curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 9
 You can also access the UI at https://localhost:8080. The default credentials are `admin` / `admin`.
 
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
+
+Philter uses a built-in in-memory cache by default and can be configured to use a shared Valkey/Redis cache for distributed deployments. See [Caching](https://philterd.github.io/philter/caching/) in the user documentation.
 
 ## License
 

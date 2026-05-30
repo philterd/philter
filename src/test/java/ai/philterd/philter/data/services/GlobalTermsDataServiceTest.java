@@ -37,6 +37,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -103,9 +104,11 @@ class GlobalTermsDataServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
 
-        globalTermsDataService.saveOrUpdate(userId, always, never);
+        globalTermsDataService.saveOrUpdate("req", userId, always, never, "source");
 
         verify(mongoCollection).insertOne(any(Document.class));
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.GLOBAL_TERMS_UPDATED),
+                eq(userId), eq(userId), eq("source"), any());
     }
 
     @Test
@@ -119,8 +122,10 @@ class GlobalTermsDataServiceTest {
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
 
-        globalTermsDataService.saveOrUpdate(userId, always, never);
+        globalTermsDataService.saveOrUpdate("req", userId, always, never, "source");
 
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.GLOBAL_TERMS_UPDATED),
+                eq(userId), eq(userId), eq("source"), any());
     }
 }

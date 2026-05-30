@@ -250,8 +250,8 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 Filters.eq("document_id", documentId)
         );
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, userId,null, "documentId: " + documentId, source);
         collection.deleteMany(query);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId, null, source, "documentId: " + documentId);
 
         return ServiceResponse.success();
 

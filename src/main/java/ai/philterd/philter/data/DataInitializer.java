@@ -53,7 +53,7 @@ public class DataInitializer {
         if (userService.findByEmail("admin") == null) {
 
             LOGGER.info("Creating default admin user");
-            userService.createUser("admin", "admin", "admin", contextService, policyDataService);
+            userService.createUser(ai.philterd.philter.services.RequestIdGenerator.generate(), "admin", "admin", "admin", contextService, policyDataService, ai.philterd.philter.model.Source.SYSTEM.getSource());
 
 
         }

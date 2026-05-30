@@ -25,6 +25,8 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.SettingsDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.model.Source;
+import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
@@ -135,7 +137,7 @@ public class AdminView extends AbstractRestrictedView {
 
                 } else {
 
-                    final ServiceResponse serviceResponse = userService.createUser(email, password, role, contextService, policyService);
+                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), email, password, role, contextService, policyService, Source.WEBUI.getSource());
 
                     if (serviceResponse.isSuccessful()) {
                         showSuccessNotification(serviceResponse.getMessage());
@@ -190,7 +192,7 @@ public class AdminView extends AbstractRestrictedView {
 
                     } else {
 
-                        final ServiceResponse serviceResponse = userService.changePassword(user, password);
+                        final ServiceResponse serviceResponse = userService.changePassword(RequestIdGenerator.generate(), user, password, Source.WEBUI.getSource());
 
                         if (serviceResponse.isSuccessful()) {
                             changePasswordDialog.close();
@@ -253,7 +255,7 @@ public class AdminView extends AbstractRestrictedView {
 
                     } else {
 
-                        final ServiceResponse serviceResponse = userService.setUserRole(user, role);
+                        final ServiceResponse serviceResponse = userService.setUserRole(RequestIdGenerator.generate(), user, role, Source.WEBUI.getSource());
 
                         if (serviceResponse.isSuccessful()) {
                             setRoleDialog.close();
@@ -298,7 +300,7 @@ public class AdminView extends AbstractRestrictedView {
                 confirmDialog.add(new Paragraph("This will delete all of the user's data: API keys, contexts, custom lists, policies, and ledger entries."));
 
                 final Button confirmButton = new Button("Delete", e -> {
-                    userService.deleteUser(user);
+                    userService.deleteUser(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
                     userEntityDataProvider.refreshAll();
                     confirmDialog.close();
                     showSuccessNotification("User deleted.");

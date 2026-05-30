@@ -42,6 +42,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -105,11 +106,13 @@ class UserServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(userId));
 
-        ServiceResponse response = userService.createUser(email, "password", "role", contextDataService, policyDataService);
+        ServiceResponse response = userService.createUser("req", email, "password", "role", contextDataService, policyDataService, "source");
 
         assertTrue(response.isSuccessful());
         verify(contextDataService).save(any());
         verify(policyDataService).save(any());
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_CREATED),
+                eq(userId), eq(userId), eq("source"), org.mockito.ArgumentMatchers.contains("role"));
     }
 
     @Test
@@ -153,14 +156,40 @@ class UserServiceTest {
         DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
 
-        userService.deleteUser(user);
+        userService.deleteUser("req", user, "source");
 
         // Verify that the final delete on the 'users' collection happened.
         // In UserService, 'collection' is the 'users' collection from AbstractEncryptedService.
         verify(mongoCollection).deleteOne(any(Bson.class));
-        
+
         // Verify other deletions happened on the other collections
         verify(mockPhilterDatabase, atLeastOnce()).getCollection(anyString());
         verify(mockPhilterdDataServicesDatabase, atLeastOnce()).getCollection(anyString());
+
+        // The deletion is audited with the deleted user's id.
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_DELETED),
+                eq(user.getId()), eq(user.getId()), eq("source"), org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    void changePasswordIsAudited() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+
+        userService.changePassword("req", user, "new-password", "source");
+
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_PASSWORD_CHANGED),
+                eq(user.getId()), eq(user.getId()), eq("source"), org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    void setUserRoleIsAudited() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+
+        userService.setUserRole("req", user, "admin", "source");
+
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_ROLE_CHANGED),
+                eq(user.getId()), eq(user.getId()), eq("source"), org.mockito.ArgumentMatchers.contains("admin"));
     }
 }

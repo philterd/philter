@@ -19,10 +19,12 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GetDocumentsResponse;
 import ai.philterd.philter.api.responses.GetRedactionStatusResponse;
 import ai.philterd.philter.api.responses.PendingRedactedDocuments;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,14 +55,17 @@ public class DocumentsApiController extends AbstractApiController {
     private static final Logger LOGGER = LoggerFactory.getLogger(DocumentsApiController.class);
 
     private final PendingDocumentDataService pendingDocumentDataService;
+    private final AuditEventPublisher auditEventPublisher;
     private final Gson gson;
 
     public DocumentsApiController(final ApiKeyDataService apiKeyDataService,
                                   final ApiKeyCache apiKeyCache,
                                   final PendingDocumentDataService pendingDocumentDataService,
+                                  final AuditEventPublisher auditEventPublisher,
                                   final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.pendingDocumentDataService = pendingDocumentDataService;
+        this.auditEventPublisher = auditEventPublisher;
         this.gson = gson;
     }
 
@@ -154,6 +159,10 @@ public class DocumentsApiController extends AbstractApiController {
                 ? MediaType.parseMediaType(entity.getOutputMimeType())
                 : MediaType.APPLICATION_OCTET_STREAM;
 
+        // Audit access to the redacted output.
+        auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DOWNLOAD, apiKeyEntity.getUserId(), null, null,
+                "documentId: " + documentId);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(mediaType)
                 .body(entity.getOutput());
@@ -176,9 +185,14 @@ public class DocumentsApiController extends AbstractApiController {
         }
 
         final long deleted = pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, apiKeyEntity.getId());
-        return deleted > 0
-                ? new ResponseEntity<>(HttpStatus.OK)
-                : new ResponseEntity<>(HttpStatus.NOT_FOUND);
+
+        if (deleted > 0) {
+            auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DELETED, apiKeyEntity.getUserId(), null, null,
+                    "documentId: " + documentId);
+            return new ResponseEntity<>(HttpStatus.OK);
+        }
+
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
     }
 

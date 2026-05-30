@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
@@ -77,7 +78,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    public ServiceResponse createUser(final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService) {
+    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService, final String source) {
 
         if(findByEmail(email) != null) {
             return ServiceResponse.failure("User already exists.");
@@ -88,6 +89,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         userEntity.setPassword(passwordEncoder.encode(plainPassword));
         userEntity.setRole(role);
         final ObjectId userId = save(userEntity);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED, userId, userId, source, "role: " + role);
 
         // Create the default context.
         LOGGER.info("Inserting default context");
@@ -133,7 +136,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return (int) collection.countDocuments();
     }
 
-    public ServiceResponse changePassword(final UserEntity userEntity, final String newPassword) {
+    public ServiceResponse changePassword(final String requestId, final UserEntity userEntity, final String newPassword, final String source) {
 
         if(userEntity == null) {
 
@@ -143,13 +146,16 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
             userEntity.setPassword(passwordEncoder.encode(newPassword));
             update(userEntity);
+
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_CHANGED, userEntity.getId(), userEntity.getId(), source, null);
+
             return ServiceResponse.success("Password changed.");
 
         }
-        
+
     }
 
-    public ServiceResponse setUserRole(final UserEntity userEntity, final String newRole) {
+    public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source) {
 
         if (userEntity == null) {
             return ServiceResponse.failure("User does not exist.");
@@ -157,12 +163,18 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         } else {
             userEntity.setRole(newRole);
             update(userEntity);
+
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_ROLE_CHANGED, userEntity.getId(), userEntity.getId(), source, "role: " + newRole);
+
             return ServiceResponse.success("User role updated.");
         }
 
     }
 
-    public void deleteUser(final UserEntity userEntity) {
+    public void deleteUser(final String requestId, final UserEntity userEntity, final String source) {
+
+        // Capture identity before deletion for the audit record.
+        final ObjectId deletedUserId = userEntity.getId();
 
         final MongoDatabase philterDatabase = mongoClient.getDatabase("philter");
         final MongoDatabase philterdDataServicesDatabase = mongoClient.getDatabase("philterd_data_services");
@@ -194,6 +206,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         // Delete the user
         collection.deleteOne(Filters.eq("_id", userEntity.getId()));
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DELETED, deletedUserId, deletedUserId, source, null);
 
     }
 

@@ -56,6 +56,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
     protected final VerticalLayout helpWindowVerticalLayout = new VerticalLayout();
     protected final UserService userService;
     protected final UserEntity userEntity;
+    protected final AuditEventPublisher auditEventPublisher;
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
@@ -70,6 +71,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
     public AbstractRestrictedView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final boolean showHelpPanel) {
 
         this.userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
+        this.auditEventPublisher = auditEventPublisher;
         this.userEntity = getCurrentUser();
 
         final Image logoImage = new Image("/public/philter.png", "Philter");

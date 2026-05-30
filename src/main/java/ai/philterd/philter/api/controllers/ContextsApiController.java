@@ -296,7 +296,9 @@ public class ContextsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> emptyEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("name") String name) {
+            final @PathVariable("name") String name,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
@@ -304,6 +306,12 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         final ServiceResponse response = contextService.emptyByName(name, apiKeyEntity.getId());
+
+        if (response.isSuccessful()) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_PURGED, apiKeyEntity.getId(), null,
+                    getClientIpAddress(httpServletRequest), "context: " + name);
+        }
+
         return new ResponseEntity<>(new GenericResponse(response.getMessage()),
                 response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
 
@@ -315,7 +323,9 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> deleteEntry(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
-            final @PathVariable("entryId") String entryId) {
+            final @PathVariable("entryId") String entryId,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
@@ -327,9 +337,14 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), apiKeyEntity.getId());
-        return deleted > 0
-                ? new ResponseEntity<>(new GenericResponse("Entry deleted."), HttpStatus.OK)
-                : new ResponseEntity<>(new GenericResponse("Entry not found."), HttpStatus.NOT_FOUND);
+
+        if (deleted > 0) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getId(), null,
+                    getClientIpAddress(httpServletRequest), "context: " + name + ", entryId: " + entryId);
+            return new ResponseEntity<>(new GenericResponse("Entry deleted."), HttpStatus.OK);
+        }
+
+        return new ResponseEntity<>(new GenericResponse("Entry not found."), HttpStatus.NOT_FOUND);
 
     }
 

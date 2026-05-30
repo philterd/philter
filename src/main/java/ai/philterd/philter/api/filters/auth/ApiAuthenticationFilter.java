@@ -19,6 +19,7 @@ import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.RequestIdGenerator;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
@@ -51,11 +52,13 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             parseIpAllowlist(System.getenv().getOrDefault("API_IP_ALLOWLIST", ""));
 
     private final ApiKeyDataService apiKeyService;
+    private final AuditEventPublisher auditEventPublisher;
     private final MeterRegistry meterRegistry;
     private final Gson gson;
 
     public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson) {
         this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher);
+        this.auditEventPublisher = auditEventPublisher;
         this.meterRegistry = meterRegistry;
         this.gson = gson;
     }
@@ -102,6 +105,9 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                     LOGGER.warn("Unauthorized request");
 
+                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, null, null,
+                            AbstractApiController.getClientIpAddress(httpRequest), "reason: malformed API key");
+
                     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
                     httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json");
@@ -125,6 +131,9 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                     LOGGER.warn("Forbidding request from an IP address not permitted by API_IP_ALLOWLIST.");
 
+                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_IP_BLOCKED, apiKeyEntity.getUserId(), null,
+                            clientIpAddress, "IP address not permitted by API_IP_ALLOWLIST");
+
                     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
                     httpServletResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json");
@@ -136,6 +145,10 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             } else {
 
                 LOGGER.warn("Unauthorized access attempt with header: {}", apiKey);
+
+                auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, null, null,
+                        AbstractApiController.getClientIpAddress(httpRequest),
+                        apiKey == null ? "reason: missing credentials" : "reason: invalid or unknown API key");
 
                 HttpServletResponse httpServletResponse = (HttpServletResponse) response;
                 httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

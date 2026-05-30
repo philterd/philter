@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.views;
 
+import ai.philterd.phileas.policy.PolicySchema;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -62,11 +63,11 @@ public class PoliciesView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
 
-    // URL of the policy editor shown to users. Defaults to the same-origin path served by the
-    // reverse proxy (see proxy/nginx.conf), so it works for any host with no configuration.
-    // Override with POLICY_EDITOR_URL for other deployment topologies.
+    // URL of the hosted policy editor, shown as a link next to the policy JSON for building policies.
+    // The version query parameter is the redaction policy schema version that this build of Phileas
+    // supports, so the editor can target the correct schema.
     private static final String POLICY_EDITOR_URL =
-            System.getenv().getOrDefault("POLICY_EDITOR_URL", "/policy-editor/");
+            "https://policies.philterd.ai/?version=" + PolicySchema.getSupportedSchemaVersion();
 
     @Override
     public String getHelpMarkdownText() {
@@ -288,7 +289,7 @@ public class PoliciesView extends AbstractRestrictedView {
             policyJsonTextArea.setHeight("400px");
             policyJsonTextArea.setLabel("Policy (JSON)");
             policyJsonTextArea.setValue(SimplifiedPolicy.getDefaultPolicy());
-            policyJsonTextArea.setHelperText("Build policies visually at https://policies.philterd.ai/ and paste the JSON here.");
+            policyJsonTextArea.setHelperComponent(CommonWidgets.getLink("Build a policy in the policy editor, then paste the JSON here.", POLICY_EDITOR_URL, true));
 
             final TextField policyDescriptionTextField = new TextField();
             policyDescriptionTextField.setWidthFull();

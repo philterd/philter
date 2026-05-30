@@ -68,19 +68,22 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
-        <commons.io.version>2.20.0</commons.io.version>
+        <bouncycastle.version>1.84</bouncycastle.version>
         <commons.net.version>3.13.0</commons.net.version>
-        <gson.version>2.13.2</gson.version>
-        <httpclient.version>4.5.14</httpclient.version>
-        <json.version>20251224</json.version>
-        <junit.version>4.13.2</junit.version>
-        <mongodb.version>5.6.4</mongodb.version>
+        <mongodb.version>5.8.0</mongodb.version>
         <phileas.version>3.4.0-SNAPSHOT</phileas.version>
-        <spring.boot.version>4.0.5</spring.boot.version>
-        <springdoc.version>3.0.2</springdoc.version>
-        <spring-security.version>7.0.4</spring-security.version>
+        <springdoc.version>3.0.3</springdoc.version>
         <vaadin.version>25.1.0</vaadin.version>
-        <virtin.version>3.3.1</virtin.version>
+        <!-- Build plugin versions -->
+        <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
+        <git-commit-id-maven-plugin.version>9.0.2</git-commit-id-maven-plugin.version>
+        <license-maven-plugin.version>1.19</license-maven-plugin.version>
+        <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
+        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <maven-enforcer-plugin.version>3.6.2</maven-enforcer-plugin.version>
+        <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
     </properties>
     <build>
         <finalName>philter</finalName>
@@ -131,7 +134,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <release>${maven.compiler.source}</release>
                 </configuration>
@@ -139,7 +142,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.4.0</version>
+                <version>${maven-source-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -152,7 +155,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.12.0</version>
+                <version>${maven-javadoc-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
@@ -197,7 +200,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId> <!-- Does what vaadin:clean does. -->
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>${maven-clean-plugin.version}</version>
                 <configuration>
                     <filesets>
                         <fileset>
@@ -225,7 +228,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>1.19</version>
+                <version>${license-maven-plugin.version}</version>
                 <configuration>
                     <includeTransitiveDependencies>true</includeTransitiveDependencies>
                     <excludedArtifacts>phileas</excludedArtifacts>
@@ -238,7 +241,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.6.2</version>
+                <version>${maven-enforcer-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>ban-bad-log4j-versions</id>
@@ -262,7 +265,7 @@
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
                 <artifactId>git-commit-id-maven-plugin</artifactId>
-                <version>9.0.2</version>
+                <version>${git-commit-id-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>get-the-git-infos</id>
@@ -285,7 +288,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>${maven-jar-plugin.version}</version>
                 <configuration>
                     <archive>
                         <manifestEntries>
@@ -361,7 +364,7 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>12.1.9</version>
+                        <version>${dependency-check-maven.version}</version>
                         <configuration>
                             <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
                             <failOnError>false</failOnError>
@@ -412,11 +415,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>${json.version}</version>
-        </dependency>
-        <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
         </dependency>
@@ -463,18 +461,13 @@
             <version>${commons.net.version}</version>
         </dependency>
         <dependency>
-            <groupId>in.virit</groupId>
-            <artifactId>viritin</artifactId>
-            <version>${virtin.version}</version>
-        </dependency>
-        <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.84</version>
+            <version>${bouncycastle.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>

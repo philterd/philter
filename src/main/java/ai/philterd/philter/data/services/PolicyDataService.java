@@ -33,6 +33,7 @@ import com.google.gson.Gson;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
 import org.apache.logging.log4j.LogManager;
@@ -65,6 +66,10 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson) {
         super(mongoClient, "policies", auditEventPublisher);
         this.gson = gson;
+
+        // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
+        ensureIndex(Indexes.ascending("user_id", "name"));
+        ensureIndex(Indexes.ascending("managed", "name"));
     }
 
     /**

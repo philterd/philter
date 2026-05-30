@@ -1,7 +1,7 @@
 # Philter
 
 > [!NOTE]
-> The `main` branch is currently for Philter 4.0.0 development. For 3.x, refer to the tags. The latest of which is `3.3.0`.
+> The `main` branch is currently for Philter 4.0.0 development. For 3.x, refer to the tags. The latest of which is `3.4.0`.
 
 Philter is an API-based application to identify and manipulate (redact, anonymize, and more) PII, PHI, and other sensitive information.
 

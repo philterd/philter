@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.SettingsEntity;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -26,6 +27,9 @@ public class SettingsDataService extends AbstractService<SettingsEntity> {
 
     public SettingsDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "settings", auditEventPublisher);
+
+        // One settings document per user, always looked up by user_id.
+        ensureIndex(Indexes.ascending("user_id"));
     }
 
     public SettingsEntity findByUserId(final ObjectId userId) {

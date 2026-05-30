@@ -23,6 +23,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -40,6 +41,9 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     public CustomListDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "custom_lists", encryptionService, auditEventPublisher);
+
+        // Custom lists are listed by user and looked up by (user_id, name).
+        ensureIndex(Indexes.ascending("user_id", "name"));
     }
 
     public ServiceResponse saveOrUpdate(final String requestId, final ObjectId userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {

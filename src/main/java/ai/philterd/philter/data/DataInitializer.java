@@ -18,6 +18,8 @@ package ai.philterd.philter.data;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Indexes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -31,14 +33,16 @@ public class DataInitializer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataInitializer.class);
 
+    private final MongoClient mongoClient;
     private final ContextDataService contextService;
     private final PolicyDataService policyDataService;
     private final UserService userService;
 
     // Inject the beans Spring has already created
-    public DataInitializer(final ContextDataService contextService, final PolicyDataService policyDataService,
-                           final UserService userService) {
+    public DataInitializer(final MongoClient mongoClient, final ContextDataService contextService,
+                           final PolicyDataService policyDataService, final UserService userService) {
 
+        this.mongoClient = mongoClient;
         this.contextService = contextService;
         this.policyDataService = policyDataService;
         this.userService = userService;
@@ -60,6 +64,26 @@ public class DataInitializer {
 
         // Load managed policies from JSON files
         policyDataService.loadAndSaveManagedPolicies();
+
+        // Ensure indexes for the vectors collection. Unlike the other collections, the vector service
+        // is constructed per request (it is scoped to a user), so its indexes are created here at
+        // startup instead. A follow-up to make the vector service a singleton factory is tracked at
+        // https://github.com/philterd/philterd-website/issues/201.
+        ensureVectorIndexes();
+
+    }
+
+    private void ensureVectorIndexes() {
+
+        try {
+            final var collection = mongoClient.getDatabase("philter").getCollection("vectors");
+            // Vector representation lookups query (user_id, context, filter_type); size/eviction
+            // checks query (user_id, context).
+            collection.createIndex(Indexes.ascending("user_id", "context", "filter_type"));
+            collection.createIndex(Indexes.ascending("user_id", "context"));
+        } catch (final Exception ex) {
+            LOGGER.warn("Unable to create indexes on the vectors collection: {}", ex.getMessage());
+        }
 
     }
 

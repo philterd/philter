@@ -21,6 +21,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -41,6 +42,9 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         super(mongoClient, "contexts", auditEventPublisher);
         this.contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher);
         this.contextCache = contextCache;
+
+        // Contexts are listed by user and looked up by (user_id, context_name).
+        ensureIndex(Indexes.ascending("user_id", "context_name"));
     }
 
     public ServiceResponse create(final String contextName, final ObjectId userId) {

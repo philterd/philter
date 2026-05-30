@@ -19,6 +19,7 @@ import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Indexes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -45,6 +46,15 @@ public class MongoDBAuditEventPublisher implements AuditEventPublisher {
     public MongoDBAuditEventPublisher(final MongoClient mongoClient) {
         final MongoDatabase mongoDatabase = mongoClient.getDatabase(DATABASE);
         this.collection = mongoDatabase.getCollection(COLLECTION);
+
+        // The audit log is reviewed by recency and filtered by event/IP. Index creation is
+        // idempotent and must never prevent auditing (or startup) from working.
+        try {
+            collection.createIndex(Indexes.descending("timestamp"));
+            collection.createIndex(Indexes.ascending("event", "timestamp"));
+        } catch (final Exception ex) {
+            LOGGER.warn("Unable to create indexes on the audit_events collection: {}", ex.getMessage());
+        }
     }
 
     @Override

@@ -22,9 +22,14 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AbstractService<T extends AbstractEntity> {
+
+    private static final Logger ABSTRACT_SERVICE_LOGGER = LoggerFactory.getLogger(AbstractService.class);
 
     private static final String database = "philter";
 
@@ -39,6 +44,23 @@ public class AbstractService<T extends AbstractEntity> {
         this.collection = mongoDatabase.getCollection(collectionName);
         this.auditEventPublisher = auditEventPublisher;
 
+    }
+
+    /**
+     * Creates an index on this service's collection if it does not already exist. Index creation is
+     * idempotent in MongoDB, so this is safe to call on every startup. A failure (for example, a
+     * unique index that conflicts with existing data) is logged but never propagated, so it cannot
+     * prevent the application from starting.
+     *
+     * @param keys The index key specification (see {@code com.mongodb.client.model.Indexes}).
+     */
+    protected void ensureIndex(final Bson keys) {
+        try {
+            collection.createIndex(keys);
+        } catch (final Exception ex) {
+            ABSTRACT_SERVICE_LOGGER.warn("Unable to create index {} on collection '{}': {}",
+                    keys, collection.getNamespace().getCollectionName(), ex.getMessage());
+        }
     }
 
     public ObjectId save(T entity) {

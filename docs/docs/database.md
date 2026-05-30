@@ -57,6 +57,20 @@ MONGODB_CONNECTION_STRING=mongodb+srv://user:pass@cluster0.example.mongodb.net/p
 
 > When Philter is launched from a cloud marketplace image, a local MongoDB is already installed and configured, and no connection string needs to be set. Set `MONGODB_CONNECTION_STRING` only when you want Philter to use a different (for example, external or managed) database.
 
+## Indexes
+
+Philter creates the indexes it needs automatically at startup. Each data service ensures its own indexes when it initializes, and index creation in MongoDB is idempotent, so this is safe on every restart and adds no manual setup. The indexes cover the access patterns Philter uses, for example:
+
+* `api_keys` by `api_key_hash` (the authentication lookup) and by user.
+* `policies`, `contexts`, `custom_lists`, `settings`, and `global_terms` by user (and name where applicable).
+* `context_entries` by `(user_id, context_name, token_hash)` for the redaction hot path.
+* `ledger` by chain head and by document.
+* `pending_documents` by status and by document, with a TTL index that expires finished records (`PENDING_DOCUMENTS_TTL_SECONDS`, default 7 days).
+* `webhook_deliveries` by delivery status, with a TTL index (`WEBHOOK_DELIVERIES_TTL_SECONDS`, default 30 days).
+* `users` by `email`, and `audit_events` by `timestamp` and `event`.
+
+If an index cannot be created (for example, the database user lacks permission), Philter logs a warning and continues to start; queries still work but may be slower.
+
 ## Operational notes
 
 * **Backups.** MongoDB holds your policies, contexts, ledger, and audit log. Back it up like any other production datastore.

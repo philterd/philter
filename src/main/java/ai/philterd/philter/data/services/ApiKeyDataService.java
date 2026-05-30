@@ -22,6 +22,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -42,6 +43,10 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     public ApiKeyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "api_keys", auditEventPublisher);
+
+        // Authentication looks keys up by hash; listing is scoped to a user and sorted by timestamp.
+        ensureIndex(Indexes.ascending("api_key_hash", "deleted"));
+        ensureIndex(Indexes.ascending("user_id", "deleted", "timestamp"));
     }
 
     private String generateApiKey() {

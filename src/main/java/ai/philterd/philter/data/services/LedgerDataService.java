@@ -23,6 +23,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -49,6 +50,11 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
+
+        // Chain-head listing queries (user_id, previous_hash) ordered by timestamp; per-document
+        // chain retrieval and deletion query (user_id, document_id).
+        ensureIndex(Indexes.ascending("user_id", "previous_hash", "timestamp"));
+        ensureIndex(Indexes.ascending("user_id", "document_id", "timestamp"));
     }
 
     public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename) throws Exception {

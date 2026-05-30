@@ -20,6 +20,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Indexes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -33,6 +34,9 @@ public class GlobalTermsDataService extends AbstractService<GlobalTermsEntity> {
 
     public GlobalTermsDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "global_terms", auditEventPublisher);
+
+        // One global-terms document per user, always looked up by user_id.
+        ensureIndex(Indexes.ascending("user_id"));
     }
 
     public void saveOrUpdate(final String requestId, final ObjectId userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact, final String source) {

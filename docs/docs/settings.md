@@ -50,10 +50,4 @@ Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Mon
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `API_IP_ALLOWLIST` | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. A bare address is treated as a single host. IPv4 only. | (empty — allow all) |
-
-## User Interface
-
-| Environment Variable | Description | Default Value |
-|----------------------|-------------|---------------|
-| `POLICY_EDITOR_URL` | Browser-facing URL of the policy editor linked from the Policies view. Defaults to the same-origin path served by the bundled reverse proxy. | `/policy-editor/` |
+| `API_IP_ALLOWLIST` | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. A bare address is treated as a single host. IPv4 only. | (empty, allow all) |

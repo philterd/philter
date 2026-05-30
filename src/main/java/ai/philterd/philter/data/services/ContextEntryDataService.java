@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
@@ -51,6 +52,11 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     public ContextEntryDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "context_entries", auditEventPublisher);
+
+        // Token lookups during redaction hit (user_id, context_name, token_hash); listing/eviction
+        // scans (user_id, context_name) ordered by timestamp/reads.
+        ensureIndex(Indexes.ascending("user_id", "context_name", "token_hash"));
+        ensureIndex(Indexes.ascending("user_id", "context_name", "timestamp"));
     }
 
     public void incrementReads(final ObjectId id) {

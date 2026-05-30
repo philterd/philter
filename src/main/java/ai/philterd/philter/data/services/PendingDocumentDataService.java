@@ -55,6 +55,11 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
                 new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
 
         LOGGER.info("TTL index on pending_documents.completed_at set to expire after {} seconds.", ttlSeconds);
+
+        // Per-document lookup/delete, the worker's claim scan, and per-user/context counts.
+        ensureIndex(Indexes.ascending("user_id", "document_id"));
+        ensureIndex(Indexes.ascending("status", "submitted_at"));
+        ensureIndex(Indexes.ascending("user_id", "context_name", "status"));
     }
 
     public PendingDocumentEntity findOneByDocumentIdAndUserId(final String documentId, final ObjectId userId) {

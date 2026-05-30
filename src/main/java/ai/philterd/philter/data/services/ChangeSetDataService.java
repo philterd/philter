@@ -23,6 +23,7 @@ import ai.philterd.philter.model.ChangeSetType;
 import ai.philterd.philter.model.ContentType;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -48,6 +49,9 @@ public class ChangeSetDataService extends AbstractEncryptedService<ChangeSetEnti
     public ChangeSetDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "change_sets", encryptionService, auditEventPublisher);
         this.encryptionService = encryptionService;
+
+        // Changesets are always scoped to a (user_id, document_id) and frequently sorted by version.
+        ensureIndex(Indexes.ascending("user_id", "document_id", "version"));
     }
 
     public int getCurrentVersion(final ObjectId userId, final String documentId) {

@@ -27,6 +27,7 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -50,6 +51,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
         this.mongoClient = mongoClient;
         this.passwordEncoder = new BCryptPasswordEncoder();
+
+        // Users are looked up by email at login.
+        ensureIndex(Indexes.ascending("email"));
     }
 
     public UserEntity findByEmail(final String email) {

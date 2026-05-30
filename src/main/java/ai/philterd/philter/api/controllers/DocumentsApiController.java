@@ -82,7 +82,7 @@ public class DocumentsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getId();
+        final ObjectId userId = apiKeyEntity.getUserId();
         final List<PendingDocumentEntity> entities = pendingDocumentDataService.findAllByUserId(userId, offset, limit);
 
         final List<PendingRedactedDocuments> documents = new ArrayList<>();
@@ -115,7 +115,7 @@ public class DocumentsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, apiKeyEntity.getId());
+        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, apiKeyEntity.getUserId());
         if (entity == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -142,7 +142,7 @@ public class DocumentsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, apiKeyEntity.getId());
+        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, apiKeyEntity.getUserId());
         if (entity == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -184,7 +184,7 @@ public class DocumentsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final long deleted = pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, apiKeyEntity.getId());
+        final long deleted = pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, apiKeyEntity.getUserId());
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DELETED, apiKeyEntity.getUserId(), null, null,

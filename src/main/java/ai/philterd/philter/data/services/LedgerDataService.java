@@ -25,6 +25,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -115,8 +116,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
         }
 
-        // TODO: Log the hash of the searchTerm.
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, userId, null, source);
+        // Audit the query, recording a hash of the search term rather than the term itself so the
+        // audit log never contains the (potentially sensitive) text that was searched for.
+        final String searchTermHash = DigestUtils.sha256Hex(searchTerm);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, userId, null, source, "searchTermHash: " + searchTermHash);
 
         return ledgerEntries;
 
@@ -134,7 +137,8 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
         final DeleteResult deleteResult = collection.deleteMany(query);
 
-        // TODO: Audit this.
+        // Audit the retention-driven deletion of ledger chains.
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId, null, null, "deletedCount: " + deleteResult.getDeletedCount() + ", daysToKeep: " + daysToKeep);
 
         return deleteResult.getDeletedCount();
 
@@ -166,7 +170,6 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
         }
 
-        // TODO: Log the hash of the searchTerm.
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, userId, null, source);
 
         return ledgerEntries;

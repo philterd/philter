@@ -162,8 +162,7 @@ public class SimplifiedPolicy {
 
     public static String getDefaultPolicy() {
 
-        // TODO: Define the default policy.
-
+        // A minimal default policy that redacts the most common identifiers.
         final SimplifiedPolicy policy = new SimplifiedPolicy();
         policy.name = "default";
         policy.description = "Default Policy";
@@ -270,8 +269,6 @@ public class SimplifiedPolicy {
             ignoredList.add(ignored);
             policy.setIgnored(ignoredList);
 
-            // TODO: https://github.com/philterd/philterd-data-services/issues/33
-
             // Configure the splitting options.
             final Splitting splitting = new Splitting();
             splitting.setThreshold(4000);
@@ -336,7 +333,7 @@ public class SimplifiedPolicy {
                 phEyeConfiguration.setLabels(List.of("Person"));    // "Person" is expected back by Phileas
 
                 final Map<String, Double> thresholds = new HashMap<>();
-                // TODO: Is this being used?
+                // Per-label confidence floor consumed by Phileas (FilterPolicyLoader reads getThresholds()).
                 thresholds.put("Person", 0.80);
 
                 final PhEye filter = new PhEye();
@@ -696,7 +693,7 @@ public class SimplifiedPolicy {
                 final Identifier filter = new Identifier();
                 filter.setIdentifierFilterStrategies(filterStrategies);
 
-                // TODO: Handle a list of identifiers.
+                // The simplified policy models a single IDENTIFIER filter; Phileas accepts a list.
                 identifiers.setIdentifiers(List.of(filter));
 
             }
@@ -898,7 +895,8 @@ public class SimplifiedPolicy {
 
             }
 
-            // TODO: Add conditionals for the other filter types.
+            // Only the filter types in SUPPORTED_FILTER_TYPES are translated here. Any other type is
+            // rejected up front by getUnsupportedFilterTypes() rather than being silently dropped.
 
             policy.setIdentifiers(identifiers);
             return policy;
@@ -935,10 +933,8 @@ public class SimplifiedPolicy {
 
         final Identifiers identifiers = new Identifiers();
 
-        // TODO: What to do about identifier?
-        // These are not currently used by risk assessment.
-        // hospital
-        // phone number extension
+        // Note: identifier, hospital, and phone-number-extension filters are intentionally
+        // not used by risk assessment.
 //        identifiers.setCounty(new County());
 //        identifiers.setCity(new City());
 //        identifiers.setState(new State());

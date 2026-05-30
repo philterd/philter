@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -24,6 +25,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.DeleteResult;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -39,7 +41,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -142,5 +144,39 @@ class LedgerDataServiceTest {
 
         assertNotNull(results);
         assertTrue(results.isEmpty());
+    }
+
+    @Test
+    void deleteChainsByUserIdAndOlderThanIsAudited() {
+        ObjectId userId = new ObjectId();
+        DeleteResult deleteResult = mock(DeleteResult.class);
+        when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+        when(deleteResult.getDeletedCount()).thenReturn(7L);
+
+        long deleted = ledgerDataService.deleteChainsByUserIdAndOlderThan("req", userId, 30);
+
+        assertEquals(7L, deleted);
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.REDACTION_LEDGER_DELETED),
+                eq(userId), isNull(), isNull(), contains("deletedCount: 7"));
+    }
+
+    @Test
+    void searchChainsByUserIdAuditsHashNotSearchTerm() {
+        ObjectId userId = new ObjectId();
+        String searchTerm = "sensitive-patient-name";
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(findIterable.iterator()).thenReturn(cursor);
+        when(cursor.hasNext()).thenReturn(false);
+
+        ledgerDataService.searchChainsByUserId("req", userId, searchTerm, "source");
+
+        String expectedHash = DigestUtils.sha256Hex(searchTerm);
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.REDACTION_LEDGER_QUERY),
+                eq(userId), isNull(), eq("source"), eq("searchTermHash: " + expectedHash));
+        // The raw search term must never appear in the audit details.
+        verify(auditEventPublisher, never()).auditEvent(anyString(), any(), any(), any(), anyString(), contains(searchTerm));
     }
 }

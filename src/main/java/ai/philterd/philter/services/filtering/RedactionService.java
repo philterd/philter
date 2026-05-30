@@ -41,6 +41,7 @@ import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ChangeSetType;
 import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
@@ -328,8 +329,11 @@ public class RedactionService {
             meterRegistry.counter("philter.redactions", "filter_type", filterTypeCount.getKey()).increment(filterTypeCount.getValue());
         }
 
-        // TODO: Audit that document redaction has been completed
-        //auditEventPublisher.auditEvent(requestId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, userEntity.getId(), redactedDocumentEntity.getId(), redactedDocumentEntity.getClientIp());
+        // Audit that the document redaction completed. The generated documentId serves as the
+        // request correlation id, and the number of redactions is recorded as a detail.
+        auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED,
+                userEntity.getId(), null, null,
+                "redactions: " + filterResult.getExplanation().appliedSpans().size());
 
         return filterResult;
 

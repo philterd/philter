@@ -5,7 +5,7 @@ Issues whose identifiers start with `PHI-` were previously tracked in Jira befor
 ## Version 4.0.0 - Not yet released
 
 This is a major release. It rebuilds the Philter UI on Vaadin 25 and upgrades the
-runtime to Spring Boot 4 and Phileas 3.3. It also introduces asynchronous PDF
+runtime to Spring Boot 4 and Phileas 3.4.0. It also introduces asynchronous PDF
 redaction as the default behavior of the filter API.
 
 ### Breaking changes
@@ -35,6 +35,18 @@ redaction as the default behavior of the filter API.
   encrypt it, so previously written data continues to decrypt regardless of the
   configured value. Set the variable to the same value across restarts and
   instances so newly written data stays consistent.
+* **Docker Compose simplified.** The bundled `docker-compose.yml` no longer
+  includes the `proxy` (nginx) and `redaction-policy-editor` services. Philter
+  now publishes its own port directly (`8080:8080`) instead of being reached
+  through the proxy, and the `POLICY_EDITOR_URL` environment variable is gone.
+  The policy editor is now linked from the UI as the hosted editor at
+  `https://policies.philterd.ai`.
+* **The `/api/health` response shape changed.** `/api/health` (and the new
+  `/api/status`) now return the same JSON object:
+  `{"status":"Healthy","applicationVersion":"...","redactionPolicySchemaVersion":"...","gitCommit":"..."}`.
+  The previous `/api/health` body (`{"health":"ok","git-commit":"..."}`) no
+  longer applies. Both endpoints remain unauthenticated. Update any health
+  probes or monitoring that parsed the old shape.
 
 ### New features
 
@@ -96,6 +108,15 @@ redaction as the default behavior of the filter API.
   }
   ```
   Failed deliveries also include an `error` field.
+* **Status endpoint reports the supported redaction policy schema version.**
+  `GET /api/status` (and `/api/health`) return the running Philter version, the
+  git commit, and the redaction policy schema version supported by the bundled
+  Phileas (read from `PolicySchema.getSupportedSchemaVersion()`). The endpoint
+  is served by a controller and appears in the OpenAPI spec and Swagger UI.
+* **Policy editor link from the UI.** The Policies view links to the hosted
+  redaction policy editor at `https://policies.philterd.ai`, opening in a new
+  tab, with the supported schema version passed as a `?version=` query parameter
+  so the editor targets the correct schema.
 
 ### Context feature improvements
 
@@ -131,7 +152,6 @@ redaction as the default behavior of the filter API.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `PHILTER_ENCRYPTION_KEY` | _(none — required)_ | Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest. Philter fails to start if missing or invalid. Generate with `openssl rand -base64 32`. |
-| `POLICY_EDITOR_URL` | `/policy-editor/` | Browser-facing URL of the policy editor linked from the Policies view. Defaults to the same-origin path served by the bundled reverse proxy, so it works for any host without configuration. |
 | `API_IP_ALLOWLIST` | _(empty — allow all)_ | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. Bare addresses are treated as a single host. IPv4 only. |
 | `CACHE_HOSTNAME` | _(empty — in-memory)_ | Valkey/Redis host for the context and API-key caches. When unset or blank, Philter uses an in-memory cache that is ephemeral, not shared across instances, and lost on restart (a warning is printed at startup). Set it for a durable, shared cache. |
 | `PENDING_DOCUMENTS_TTL_SECONDS` | `604800` (7 days) | TTL for completed async redactions |

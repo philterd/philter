@@ -10,7 +10,7 @@ For the full, narrative history of past versions see [RELEASE_NOTES.md](RELEASE_
 ## [4.0.0] - Unreleased
 
 Major release. Rebuilds the UI on Vaadin 25, upgrades the runtime to Spring Boot 4
-and Phileas 3.x, and makes PDF redaction asynchronous by default.
+and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
 
 ### Added
 
@@ -39,6 +39,12 @@ and Phileas 3.x, and makes PDF redaction asynchronous by default.
 - **Prometheus metrics.** Redaction, token, and API-request counters are exposed
   at `/actuator/prometheus` (`philter_redactions_total`, `philter_tokens_total`,
   `philter_api_requests_total`) for scraping by an external observability stack.
+- **`GET /api/status`** reports the Philter version, git commit, and the redaction
+  policy schema version supported by the bundled Phileas. It is served by a
+  controller and appears in the OpenAPI spec and Swagger UI.
+- **Policy editor link.** The Policies view links to the hosted redaction policy
+  editor at `https://policies.philterd.ai` (new tab), passing the supported schema
+  version as a `?version=` query parameter.
 
 ### Changed
 
@@ -54,6 +60,13 @@ and Phileas 3.x, and makes PDF redaction asynchronous by default.
   increment the read count; legacy values are treated as a miss.
 - The context and API-key caches fall back to an in-memory, ephemeral store when
   `CACHE_HOSTNAME` is unset; set it to use Valkey/Redis for a durable, shared cache.
+- **`/api/health` response shape changed** to match `/api/status`:
+  `{"status":"Healthy","applicationVersion":"...","redactionPolicySchemaVersion":"...","gitCommit":"..."}`.
+  The previous `{"health":"ok","git-commit":"..."}` body no longer applies. Both
+  endpoints remain unauthenticated. Update any health probes that parsed the old shape.
+- **Docker Compose simplified.** The bundled `docker-compose.yml` no longer includes
+  the `proxy` (nginx) and `redaction-policy-editor` services; Philter publishes its
+  own port (`8080:8080`) directly, and the `POLICY_EDITOR_URL` variable was removed.
 
 ### Security
 

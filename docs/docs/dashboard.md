@@ -4,7 +4,7 @@ Philter includes a user interface dashboard that can be accessed at `http://your
 
 The dashboard is protected by a login screen. The default username and password for the administrator is `admin` / `admin`. It is recommended to change the administrator password after logging in.
 
-> The Philter UI dashboard is intended for configuration testing and policy management. Use Philter's [API](../api_and_sdks/api.md) for document redaction.
+> The Philter UI dashboard is intended for configuration testing and policy management. Use Philter's [API](api_and_sdks/api.md) for document redaction.
 
 ## Capabilities
 
@@ -24,11 +24,11 @@ In the **Policies** section, you can:
 
 ### Metrics and Usage
 
-Philter exposes redaction, token, and API-request metrics in Prometheus format at `/actuator/prometheus`. Collect and visualize them with your own monitoring stack (for example, Prometheus and Grafana). See [Monitoring and Logging](../monitoring_and_logging.md).
+Philter exposes redaction, token, and API-request metrics in Prometheus format at `/actuator/prometheus`. Collect and visualize them with your own monitoring stack (for example, Prometheus and Grafana). See [Monitoring and Logging](monitoring_and_logging.md).
 
 ### API Key Management
 
-The **API** section allows you to manage the API keys used for authenticating with Philter's [API](../api_and_sdks/api.md). You can also find links to official client SDKs for Java, .NET, and Go.
+The **API** section allows you to manage the API keys used for authenticating with Philter's [API](api_and_sdks/api.md). You can also find links to official client SDKs for Java, .NET, and Go.
 
 ### Custom Lists
 
@@ -43,10 +43,14 @@ The **Contexts** section is used to manage redaction contexts, which enable:
 *   **Disambiguation**: Improves accuracy by resolving entity type ambiguities.
 
 ### User Management
- 
- Admin users can access the **Admin** section to manage users.
- 
- *   **Add Users**: Create new user accounts by providing an email address, password, and role (`admin` or `user`).
- *   **Change Passwords**: Update a user's password.
- *   **Set Roles**: Change a user's role to `admin` or `user`. Note that users cannot change their own role.
- *   **Delete Users**: Remove user accounts. This will also delete all of the user's data, including API keys, contexts, policies, and ledger entries. Users cannot delete their own account.
+
+Admin users can access the **Admin** section to manage users.
+
+*   **Add Users**: Create new user accounts by providing an email address, password, and role (`admin` or `user`).
+*   **Change Passwords**: Update a user's password.
+*   **Set Roles**: Change a user's role to `admin` or `user`. Note that users cannot change their own role.
+*   **Delete Users**: Remove user accounts. This will also delete all of the user's data, including API keys, contexts, policies, and ledger entries. Users cannot delete their own account.
+
+### Settings and Webhooks
+
+The **Settings** section lets each user configure account-level options, including a [webhook](api_and_sdks/api/webhooks.md) URL and secret to receive a signed notification when an asynchronous redaction completes or fails, and (when permitted by an admin) the redaction ledger toggle.

@@ -62,7 +62,7 @@ nav:
       - 'System Requirements': 'system_requirements.md'
       - 'Upgrading': 'upgrading.md'
   - 'Using Philter':
-      - 'Dashboard': 'dashboard/dashboard.md'
+      - 'Dashboard': 'dashboard.md'
       - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
       - 'Deidentification': 'deidentification.md'
       - 'Redacting Documents and Text': 'redaction/redacting_documents.md'

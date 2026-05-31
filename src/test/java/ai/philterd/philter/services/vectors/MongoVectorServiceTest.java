@@ -126,6 +126,29 @@ class MongoVectorServiceTest {
     }
 
     @Test
+    void deleteByContextRemovesVectorsScopedToUserAndContext() {
+        final DeleteResult deleteResult = mock(DeleteResult.class);
+        when(deleteResult.getDeletedCount()).thenReturn(3L);
+        when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        service.deleteByContext("ctx");
+
+        // A single deleteMany scoped to this user and context must be issued.
+        final ArgumentCaptor<Bson> filterCaptor = ArgumentCaptor.forClass(Bson.class);
+        verify(mongoCollection, times(1)).deleteMany(filterCaptor.capture());
+
+        // Render the filter to a document so we can assert it constrains both user_id and context,
+        // never deleting another user's or another context's vectors.
+        final org.bson.BsonDocument rendered = filterCaptor.getValue().toBsonDocument(
+                Document.class, com.mongodb.MongoClientSettings.getDefaultCodecRegistry());
+        final String filterJson = rendered.toJson();
+        org.junit.jupiter.api.Assertions.assertTrue(filterJson.contains("user_id"),
+                "delete filter must be scoped to user_id");
+        org.junit.jupiter.api.Assertions.assertTrue(filterJson.contains("context"),
+                "delete filter must be scoped to context");
+    }
+
+    @Test
     void getVectorRepresentationAggregatesCounts() {
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         final MongoCursor<Document> cursor = mock(MongoCursor.class);

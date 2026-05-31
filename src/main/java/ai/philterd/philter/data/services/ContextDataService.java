@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.vectors.MongoVectorService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
@@ -37,11 +38,13 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     private final ContextEntryDataService contextEntryService;
     private final ContextCache contextCache;
+    private final MongoClient mongoClient;
 
     public ContextDataService(final MongoClient mongoClient, final ContextCache contextCache, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "contexts", auditEventPublisher);
         this.contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher);
         this.contextCache = contextCache;
+        this.mongoClient = mongoClient;
 
         // Contexts are listed by user and looked up by (user_id, context_name).
         ensureIndex(Indexes.ascending("user_id", "context_name"));
@@ -56,6 +59,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     }
 
     public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation) {
+        return create(contextName, userId, coref, disambiguation, false);
+    }
+
+    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation, final boolean ledger) {
 
         if(contextName == null || contextName.isBlank()) {
             return new ServiceResponse("Context name cannot be blank.", false, 400);
@@ -74,6 +81,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         contextEntity.setContextName(contextName);
         contextEntity.setCoref(coref);
         contextEntity.setDisambiguation(disambiguation);
+        contextEntity.setLedger(ledger);
         final ObjectId objectId = save(contextEntity);
 
         return new ServiceResponse("Context created", true, objectId, 201);
@@ -199,6 +207,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     }
 
     public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation) {
+        return updateSettings(contextName, userId, coref, disambiguation, false);
+    }
+
+    public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation, final boolean ledger) {
 
         final ContextEntity existing = findOne(contextName, userId);
         if (existing == null) {
@@ -206,7 +218,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         }
 
         final Bson filter = Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", userId));
-        final Bson update = Updates.combine(Updates.set("coref", coref), Updates.set("disambiguation", disambiguation));
+        final Bson update = Updates.combine(Updates.set("coref", coref), Updates.set("disambiguation", disambiguation), Updates.set("ledger", ledger));
         collection.updateOne(filter, update);
 
         return new ServiceResponse("Context updated.", true);
@@ -224,6 +236,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         // Delete the individual context entries for this context.
         contextEntryService.deleteByContextName(contextName, userId);
+
+        // Delete the span-disambiguation vectors learned for this context so emptying it also
+        // clears the training data, leaving no orphaned vectors in MongoDB.
+        new MongoVectorService(mongoClient, userId, auditEventPublisher).deleteByContext(contextName);
 
         // Remove this context from the cache.
         contextCache.deleteContext(contextName);
@@ -251,6 +267,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         // Delete the individual context entries for this context.
         contextEntryService.deleteByContextName(contextName, userId);
+
+        // Delete the span-disambiguation vectors learned for this context so they do not linger
+        // in MongoDB after the context is gone.
+        new MongoVectorService(mongoClient, userId, auditEventPublisher).deleteByContext(contextName);
 
         // Remove this context from the cache.
         contextCache.deleteContext(contextName);

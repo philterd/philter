@@ -19,18 +19,12 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
-import ai.philterd.philter.data.entities.AdminSettingsEntity;
-import ai.philterd.philter.data.entities.SettingsEntity;
-import ai.philterd.philter.data.services.SettingsDataService;
-import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.component.html.Hr;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -62,63 +56,19 @@ public class SettingsView extends AbstractRestrictedView {
         return """
             ## Settings
 
-            Settings specific to your account. Enable redaction ledgers, and configure a webhook
-            URL and secret to receive a signed HTTP POST when an asynchronous redaction completes
-            or fails.
+            Settings specific to your account. Configure a webhook URL and secret to receive a
+            signed HTTP POST when an asynchronous redaction completes or fails.
             """;
     }
 
-    public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final SettingsDataService settingsDataService, final AdminSettingsDataService adminSettingsDataService) {
+    public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
-
-        final VerticalLayout mySettingsVerticalLayout = new VerticalLayout();
-        mySettingsVerticalLayout.setSizeFull();
-
-        SettingsEntity settingsEntity = settingsDataService.findByUserId(userEntity.getId());
-        if (settingsEntity == null) {
-            settingsEntity = new SettingsEntity();
-            settingsEntity.setUserId(userEntity.getId());
-            settingsEntity.setRedactionLedgerEnabled(true);
-        }
-
-        final Checkbox redactionLedgerEnabledCheckbox = new Checkbox("Enable Redaction Ledgers");
-        redactionLedgerEnabledCheckbox.setValue(settingsEntity.isRedactionLedgerEnabled());
-
-        final AdminSettingsEntity adminSettingsEntity = adminSettingsDataService.findAdminSettings();
-        if (adminSettingsEntity != null) {
-            redactionLedgerEnabledCheckbox.setEnabled(adminSettingsEntity.isRedactionLedgerOptionEnabled());
-            redactionLedgerEnabledCheckbox.setTooltipText("This option is disabled by the admin.");
-            redactionLedgerEnabledCheckbox.setLabel("Enable Redaction Ledgers (disabled by admin)");
-        }
-
-        final SettingsEntity finalSettingsEntity = settingsEntity;
-
-        final Button saveMySettingsButton = new Button("Save", e -> {
-            finalSettingsEntity.setRedactionLedgerEnabled(redactionLedgerEnabledCheckbox.getValue());
-            if (finalSettingsEntity.getId() == null) {
-                settingsDataService.save(finalSettingsEntity);
-            } else {
-                settingsDataService.update(finalSettingsEntity);
-            }
-
-            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.SETTINGS_UPDATED,
-                    userEntity.getId(), userEntity.getId(), Source.WEBUI.getSource(),
-                    "redactionLedgerEnabled: " + redactionLedgerEnabledCheckbox.getValue());
-
-            showSuccessNotification("Settings saved.");
-        });
-        saveMySettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        mySettingsVerticalLayout.add(new Span("These settings are specific to your user account."));
-        mySettingsVerticalLayout.add(redactionLedgerEnabledCheckbox, saveMySettingsButton);
 
         final VerticalLayout webhookVerticalLayout = buildWebhookSection();
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(getTitle("Settings"));
-        pageVerticalLayout.add(mySettingsVerticalLayout);
-        pageVerticalLayout.add(new Hr());
         pageVerticalLayout.add(webhookVerticalLayout);
         pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();

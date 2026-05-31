@@ -149,12 +149,18 @@ public class ContextsView extends AbstractRestrictedView {
             disambiguationCheckbox.setLabel("Enable entity type disambiguation for this context.");
             disambiguationCheckbox.setValue(false);
 
+            final Checkbox ledgerCheckbox = new Checkbox();
+            ledgerCheckbox.setLabel("Enable the redaction ledger for this context.");
+            ledgerCheckbox.setValue(false);
+
             final VerticalLayout contextVerticalLayout = new VerticalLayout();
             contextVerticalLayout.add(contextNameTextField);
             contextVerticalLayout.add(corefCheckbox);
             contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity co-referencing.", "https://docs.philterd.ai/redaction/contexts.html#co-referencing-coref", true));
             contextVerticalLayout.add(disambiguationCheckbox);
             contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "https://docs.philterd.ai/redaction/contexts.html#disambiguation", true));
+            contextVerticalLayout.add(ledgerCheckbox);
+            contextVerticalLayout.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "https://docs.philterd.ai/redaction/ledgers.html", true));
 
             final Dialog confirmDialog = new Dialog();
             confirmDialog.setWidth("500px");
@@ -167,7 +173,8 @@ public class ContextsView extends AbstractRestrictedView {
                 final String contextName = contextNameTextField.getValue();
                 final boolean coref = corefCheckbox.getValue();
                 final boolean disambiguation = disambiguationCheckbox.getValue();
-                final ServiceResponse serviceResponse = contextService.create(contextName, userEntity.getId(), coref, disambiguation);
+                final boolean ledger = ledgerCheckbox.getValue();
+                final ServiceResponse serviceResponse = contextService.create(contextName, userEntity.getId(), coref, disambiguation, ledger);
 
                 if(serviceResponse.isSuccessful()) {
 
@@ -270,12 +277,18 @@ public class ContextsView extends AbstractRestrictedView {
                 disambiguationCheckbox.setLabel("Enable disambiguation for this context.");
                 disambiguationCheckbox.setValue(contextEntity.isDisambiguation());
 
+                final Checkbox ledgerCheckbox = new Checkbox();
+                ledgerCheckbox.setLabel("Enable the redaction ledger for this context.");
+                ledgerCheckbox.setValue(contextEntity.isLedger());
+
                 final VerticalLayout contextVerticalLayout = new VerticalLayout();
                 contextVerticalLayout.add(contextNameTextField);
                 contextVerticalLayout.add(corefCheckbox);
                 contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity co-referencing.", "https://docs.philterd.ai/redaction/contexts.html#co-referencing-coref", true));
                 contextVerticalLayout.add(disambiguationCheckbox);
                 contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "https://docs.philterd.ai/redaction/contexts.html#disambiguation", true));
+                contextVerticalLayout.add(ledgerCheckbox);
+                contextVerticalLayout.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "https://docs.philterd.ai/redaction/ledgers.html", true));
 
                 final Dialog editDialog = new Dialog();
                 editDialog.setWidth("500px");
@@ -287,9 +300,11 @@ public class ContextsView extends AbstractRestrictedView {
 
                     final boolean coref = corefCheckbox.getValue();
                     final boolean disambiguation = disambiguationCheckbox.getValue();
+                    final boolean ledger = ledgerCheckbox.getValue();
 
                     contextEntity.setCoref(coref);
                     contextEntity.setDisambiguation(disambiguation);
+                    contextEntity.setLedger(ledger);
                     contextService.update(contextEntity);
 
                     editDialog.close();

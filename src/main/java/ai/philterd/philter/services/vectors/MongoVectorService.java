@@ -100,6 +100,26 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
 
     }
 
+    /**
+     * Deletes every span-disambiguation vector stored for the given context (scoped to this
+     * service's user). Invoked when a context is deleted so its learned vectors do not linger in
+     * MongoDB after the context that produced them is gone.
+     *
+     * @param context The context name whose vectors should be removed.
+     */
+    public void deleteByContext(final String context) {
+
+        final Bson filter = Filters.and(
+                Filters.eq("user_id", userId),
+                Filters.eq("context", context)
+        );
+
+        final long deleted = collection.deleteMany(filter).getDeletedCount();
+
+        LOGGER.debug("Deleted {} span-disambiguation vector(s) for context {}", deleted, context);
+
+    }
+
     private void evictIfFull(final String context) {
 
         final Bson scope = Filters.and(

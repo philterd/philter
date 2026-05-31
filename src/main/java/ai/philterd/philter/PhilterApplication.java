@@ -23,7 +23,6 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.MongoDBAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
 import ai.philterd.philter.data.services.ApiKeyDataService;
-import ai.philterd.philter.data.services.ChangeSetDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
@@ -31,7 +30,6 @@ import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
-import ai.philterd.philter.data.services.SettingsDataService;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
@@ -111,7 +109,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public RedactionService redactionService(final MeterRegistry meterRegistry) {
-        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), changeSetService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry);
+        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry);
     }
 
     @Bean
@@ -146,11 +144,6 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public ContextDataService contextDataService() {
         return new ContextDataService(mongoClient(), contextCache(), auditEventPublisher());
-    }
-
-    @Bean
-    public ChangeSetDataService changeSetService() {
-        return new ChangeSetDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
@@ -201,11 +194,6 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public CustomListDataService customListDataService() {
         return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public SettingsDataService settingsDataService() {
-        return new SettingsDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean

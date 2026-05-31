@@ -26,7 +26,6 @@ public class UserEntity extends AbstractEncryptedEntity {
     private String password;
     private String role;
     private String fpeKey;
-    private boolean changesetsEnabled;
     private String webhookUrl;
     private String webhookSecret;
     private boolean passwordChangeRequired;
@@ -38,7 +37,6 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setPassword(document.getString("password"));
         userEntity.setRole(document.getString("role"));
         userEntity.setFpeKey(document.getString("fpe_key"));
-        userEntity.setChangesetsEnabled(document.getBoolean("changesets_enabled", false));
         userEntity.setWebhookUrl(document.getString("webhook_url"));
         userEntity.setWebhookSecret(document.getString("webhook_secret"));
         userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
@@ -55,7 +53,6 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("password", password);
         document.put("role", role);
         document.put("fpe_key", fpeKey);
-        document.put("changesets_enabled", changesetsEnabled);
         document.put("webhook_url", webhookUrl);
         document.put("webhook_secret", webhookSecret);
         document.put("password_change_required", passwordChangeRequired);
@@ -101,14 +98,6 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setFpeKey(String fpeKey) {
         this.fpeKey = fpeKey;
-    }
-
-    public boolean isChangesetsEnabled() {
-        return changesetsEnabled;
-    }
-
-    public void setChangesetsEnabled(boolean changesetsEnabled) {
-        this.changesetsEnabled = changesetsEnabled;
     }
 
     public String getWebhookUrl() {

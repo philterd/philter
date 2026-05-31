@@ -22,13 +22,11 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     private ObjectId id;
     private boolean loggingEnabled;
-    private boolean redactionLedgerOptionEnabled;
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
         adminSettingsEntity.setId(document.getObjectId("_id"));
         adminSettingsEntity.setLoggingEnabled(document.getBoolean("logging_enabled", false));
-        adminSettingsEntity.setRedactionLedgerOptionEnabled(document.getBoolean("redaction_ledger_option_enabled", true));
         return adminSettingsEntity;
     }
 
@@ -39,7 +37,6 @@ public class AdminSettingsEntity extends AbstractEntity {
             document.put("_id", id);
         }
         document.put("logging_enabled", loggingEnabled);
-        document.put("redaction_ledger_option_enabled", redactionLedgerOptionEnabled);
         return document;
     }
 
@@ -58,14 +55,6 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setLoggingEnabled(boolean loggingEnabled) {
         this.loggingEnabled = loggingEnabled;
-    }
-
-    public boolean isRedactionLedgerOptionEnabled() {
-        return redactionLedgerOptionEnabled;
-    }
-
-    public void setRedactionLedgerOptionEnabled(boolean redactionLedgerOptionEnabled) {
-        this.redactionLedgerOptionEnabled = redactionLedgerOptionEnabled;
     }
 
 }

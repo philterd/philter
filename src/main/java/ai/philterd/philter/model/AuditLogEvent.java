@@ -50,8 +50,6 @@ public enum AuditLogEvent {
     REDACTION_LEDGER_QUERY("redaction_ledger_query"),
     REDACTION_LEDGER_DELETED("redaction_ledger_deleted"),
 
-    CHANGESET_APPLIED("changeset_applied"),
-
     API_KEY_CREATED("api_key_created"),
     API_KEY_DELETED("api_key_deleted"),
 
@@ -69,7 +67,6 @@ public enum AuditLogEvent {
     WEBHOOK_CONFIGURED("webhook_configured"),
     WEBHOOK_REMOVED("webhook_removed"),
     GLOBAL_TERMS_UPDATED("global_terms_updated"),
-    SETTINGS_UPDATED("settings_updated"),
 
     // Context dictionary mutations.
     CONTEXT_ENTRY_DELETED("context_entry_deleted"),

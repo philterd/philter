@@ -42,14 +42,15 @@ The main table on the Contexts page lists all the contexts you have created. You
 2.  **Assign a Name**: Enter a unique and descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`).
 3.  **Enable Co-referencing (Optional)**: Check the **Enable coref** checkbox if you want to enable co-referencing for this context.
 4.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
-5.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
+5.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
+6.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
 
 ### Editing a Context
 
-You can enable or disable co-referencing and entity type disambiguation for an existing context at any time:
+You can enable or disable co-referencing, entity type disambiguation, and the redaction ledger for an existing context at any time:
 
 1.  Click the **Edit** (pencil) icon for the target context.
-2.  Toggle the **Enable coref** or **Enable entity type disambiguation** checkboxes as desired.
+2.  Toggle the **Enable coref**, **Enable entity type disambiguation**, or **Enable the redaction ledger** checkboxes as desired.
 3.  Click **Save**.
 
 ### Inspecting Context Entries

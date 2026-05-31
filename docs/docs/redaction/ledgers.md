@@ -13,6 +13,14 @@ The Philterd ledger system is built on the principles of cryptographic chaining,
 3.  **Immutability**: Because each entry is linked to the previous one, any attempt to retroactively modify or delete a redaction record would break the cryptographic chain, making the tampering immediately evident.
 4.  **Verifiability**: This architecture allows you to mathematically prove the integrity of your redaction history at any point in time.
 
+## Enabling Redaction Ledgers
+
+Redaction ledgers are controlled on a per-context basis. When creating or editing a [context](contexts.md), use the **Enable the redaction ledger** option to turn the ledger on for that context. The option is unchecked (disabled) by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.
+
+## Retention
+
+By default, ledger entries are kept indefinitely so that the audit trail remains complete. If your retention policy calls for expiring older entries, set the `REDACTION_LEDGER_TTL_SECONDS` environment variable to a positive number of seconds (see [Settings](../settings.md)). MongoDB then automatically removes ledger entries older than that window. Because the ledger is a cryptographic chain, expiring entries removes the oldest links over time; leave the value at its default of `0` if you need to retain the full history.
+
 ## The Redaction Ledgers Dashboard
 
 The **Ledgers** page within your Philterd dashboard serves as the central hub for auditing your document processing activities.

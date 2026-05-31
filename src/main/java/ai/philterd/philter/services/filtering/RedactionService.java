@@ -17,7 +17,6 @@ package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
-import ai.philterd.phileas.model.filtering.Explanation;
 import ai.philterd.phileas.model.filtering.IncrementalRedaction;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Ignored;
@@ -34,7 +33,6 @@ import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
-import ai.philterd.philter.data.services.ChangeSetDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
@@ -42,7 +40,6 @@ import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
-import ai.philterd.philter.model.ChangeSetType;
 import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -68,7 +65,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -90,7 +86,6 @@ public class RedactionService {
     private final GlobalTermsDataService globalTermsService;
     private final ContextDataService contextService;
     private final AuditEventPublisher auditEventPublisher;
-    private final ChangeSetDataService changeSetService;
     private final LedgerDataService ledgerService;
     private final UserService userService;
     private final MeterRegistry meterRegistry;
@@ -132,7 +127,6 @@ public class RedactionService {
                             final CustomListDataService customListService,
                             final GlobalTermsDataService globalTermsService,
                             final ContextDataService contextService,
-                            final ChangeSetDataService changeSetService,
                             final AuditEventPublisher auditEventPublisher,
                             final LedgerDataService ledgerService,
                             final UserService userService,
@@ -144,7 +138,6 @@ public class RedactionService {
         this.globalTermsService = globalTermsService;
         this.contextService = contextService;
         this.auditEventPublisher = auditEventPublisher;
-        this.changeSetService = changeSetService;
         this.ledgerService = ledgerService;
         this.userService = userService;
         this.meterRegistry = meterRegistry;
@@ -309,34 +302,33 @@ public class RedactionService {
 
         }
 
-        final Map<Integer, Explanation> explanations = new HashMap<>();
-        explanations.put(0, filterResult.getExplanation());
+        // Store the ledger from the redaction, but only when the request's context has the
+        // redaction ledger enabled. The flag is per context and defaults to off.
+        if (contextEntity.isLedger()) {
 
-        // Write the changeset.
-        if(userEntity.isChangesetsEnabled()) {
-            changeSetService.saveChangeSet(userEntity.getId(), documentId, explanations, ChangeSetType.NONE);
-        }
+            LOGGER.info("Initializing the ledger");
+            ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), "none-provided");
 
-        // Store the ledger from the redaction.
-        LOGGER.info("Initializing the ledger");
-        ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), "none-provided");
+            LOGGER.info("Persisting ledger entries: " + filterResult.getIncrementalRedactions().size());
+            for (final IncrementalRedaction incrementalRedaction : filterResult.getIncrementalRedactions()) {
 
-        LOGGER.info("Persisting ledger entries: " + filterResult.getIncrementalRedactions().size());
-        for (final IncrementalRedaction incrementalRedaction : filterResult.getIncrementalRedactions()) {
+                final LedgerEntity ledgerEntity = new LedgerEntity();
+                ledgerEntity.setDocumentId(documentId);
+                ledgerEntity.setReplacement(incrementalRedaction.getSpan().getReplacement());
+                ledgerEntity.setToken(incrementalRedaction.getSpan().getText());
+                ledgerEntity.setUserId(userEntity.getId());
+                ledgerEntity.setDocumentHash(incrementalRedaction.getHash());
+                ledgerEntity.setPreviousHash(ledgerService.getLatestTransaction(userEntity.getId(), documentId).getHash());
+                ledgerEntity.setTimestamp(new Date());
+                ledgerEntity.setFilename("none-provided");
+                ledgerEntity.setType(incrementalRedaction.getSpan().getFilterType().getType());
 
-            final LedgerEntity ledgerEntity = new LedgerEntity();
-            ledgerEntity.setDocumentId(documentId);
-            ledgerEntity.setReplacement(incrementalRedaction.getSpan().getReplacement());
-            ledgerEntity.setToken(incrementalRedaction.getSpan().getText());
-            ledgerEntity.setUserId(userEntity.getId());
-            ledgerEntity.setDocumentHash(incrementalRedaction.getHash());
-            ledgerEntity.setPreviousHash(ledgerService.getLatestTransaction(userEntity.getId(), documentId).getHash());
-            ledgerEntity.setTimestamp(new Date());
-            ledgerEntity.setFilename("none-provided");
-            ledgerEntity.setType(incrementalRedaction.getSpan().getFilterType().getType());
+                ledgerService.addTransaction(ledgerEntity);
 
-            ledgerService.addTransaction(ledgerEntity);
+            }
 
+        } else {
+            LOGGER.debug("Redaction ledger disabled for user; skipping ledger write.");
         }
 
         final long tokenCount = filterResult.getTokens();

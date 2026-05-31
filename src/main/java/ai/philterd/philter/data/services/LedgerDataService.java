@@ -20,9 +20,11 @@ import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
@@ -38,6 +40,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
@@ -48,6 +51,12 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public static final String EMPTY_ENTRY = "";
     public static final int MAX_LIMIT = 100;
 
+    // Ledger retention. Unlike pending_documents and webhook_deliveries, ledger entries are a
+    // compliance audit trail, so the default is to keep them indefinitely (0 = no expiry). Set
+    // REDACTION_LEDGER_TTL_SECONDS to a positive number of seconds to have MongoDB expire entries
+    // older than that automatically.
+    private static final long DEFAULT_TTL_SECONDS = 0L;
+
     public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
 
@@ -55,6 +64,24 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         // chain retrieval and deletion query (user_id, document_id).
         ensureIndex(Indexes.ascending("user_id", "previous_hash", "timestamp"));
         ensureIndex(Indexes.ascending("user_id", "document_id", "timestamp"));
+
+        // Optional TTL: when a positive retention is configured, expire ledger entries older than
+        // it. The index is on the entry timestamp. Changing the value after the index exists
+        // requires dropping the existing TTL index first (MongoDB will not silently re-apply a
+        // different expireAfterSeconds), so a conflict is logged rather than fatal at startup.
+        final long ttlSeconds = EnvUtils.getLong("REDACTION_LEDGER_TTL_SECONDS", DEFAULT_TTL_SECONDS);
+        if (ttlSeconds > 0) {
+            try {
+                collection.createIndex(
+                        Indexes.ascending("timestamp"),
+                        new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
+                LOGGER.info("TTL index on ledger.timestamp set to expire after {} seconds.", ttlSeconds);
+            } catch (final Exception ex) {
+                LOGGER.warn("Unable to create TTL index on ledger.timestamp ({} seconds): {}", ttlSeconds, ex.getMessage());
+            }
+        } else {
+            LOGGER.info("Ledger retention is unlimited (REDACTION_LEDGER_TTL_SECONDS not set to a positive value).");
+        }
     }
 
     public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename) throws Exception {

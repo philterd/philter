@@ -20,7 +20,6 @@ import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.services.ChangeSetDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.GlobalTermsDataService;
@@ -55,7 +54,6 @@ class RedactionServiceMetricsTest {
     @Mock private CustomListDataService customListService;
     @Mock private GlobalTermsDataService globalTermsService;
     @Mock private ContextDataService contextService;
-    @Mock private ChangeSetDataService changeSetService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private LedgerDataService ledgerService;
     @Mock private UserService userService;
@@ -67,7 +65,7 @@ class RedactionServiceMetricsTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         redactionService = new RedactionService(mongoClient, policyDataService, customListService,
-                globalTermsService, contextService, changeSetService, auditEventPublisher,
+                globalTermsService, contextService, auditEventPublisher,
                 ledgerService, userService, meterRegistry);
     }
 

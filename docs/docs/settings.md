@@ -60,3 +60,13 @@ These settings control the dashboard login lockout. See [Login Security](login_s
 |----------------------|-------------|---------------|
 | `LOGIN_MAX_ATTEMPTS` | Number of consecutive failed dashboard logins that triggers a temporary lockout. | `5` |
 | `LOGIN_LOCKOUT_SECONDS` | How long a dashboard login lockout lasts, in seconds. | `900` |
+
+## Redaction Ledger
+
+Whether a redaction is recorded in the [redaction ledger](redaction/ledgers.md) is controlled per context by the **Enable the redaction ledger** option set when creating or editing a context. The option is unchecked (disabled) by default, so redactions made in a context are not written to the ledger unless the context has it enabled.
+
+Ledger retention is configured with the environment variable below. Ledger entries are a compliance audit trail, so by default they are kept indefinitely.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `REDACTION_LEDGER_TTL_SECONDS` | How long, in seconds, to keep redaction ledger entries before MongoDB expires them automatically. The default of `0` keeps entries indefinitely (no expiry). Set a positive value to expire entries older than that window. Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index. | `0` (keep indefinitely) |

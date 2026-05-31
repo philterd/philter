@@ -5,7 +5,7 @@ Issues whose identifiers start with `PHI-` were previously tracked in Jira befor
 ## Version 4.0.0 - Not yet released
 
 This is a major release. It rebuilds the Philter UI on Vaadin 25 and upgrades the
-runtime to Spring Boot 4 and Phileas 3.4.0. It also introduces asynchronous PDF
+runtime to Spring Boot 4 and Phileas 4.0.0. It also introduces asynchronous PDF
 redaction as the default behavior of the filter API.
 
 ### Breaking changes
@@ -146,6 +146,10 @@ redaction as the default behavior of the filter API.
   `pending_documents` entry references the context with status `PENDING` or
   `PROCESSING`. This prevents async redaction failures caused by deleting a
   context out from under a queued job.
+* **Deleting a context now removes its span-disambiguation vectors.**
+  `DELETE /api/contexts/{name}` clears the vectors learned for that
+  `(user, context)` pair from MongoDB, so deleted contexts no longer leave
+  orphaned training data behind.
 
 ### Configuration
 

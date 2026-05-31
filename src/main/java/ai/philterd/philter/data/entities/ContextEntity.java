@@ -30,6 +30,7 @@ public class ContextEntity extends AbstractEntity {
     private int maxSize;
     private boolean coref;
     private boolean disambiguation;
+    private boolean ledger;
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
     private ObjectId userId;
@@ -42,6 +43,7 @@ public class ContextEntity extends AbstractEntity {
         contextEntity.maxSize = document.getInteger("max_size", MAX_CONTEXT_SIZE);
         contextEntity.coref = document.getBoolean("coref", false);
         contextEntity.disambiguation = document.getBoolean("disambiguation", false);
+        contextEntity.ledger = document.getBoolean("ledger", false);
         contextEntity.ttlInHours = document.getInteger("ttl_in_hours", DEFAULT_TTL_IN_HOURS);
         contextEntity.timestamp = document.getDate("timestamp");
         return contextEntity;
@@ -58,6 +60,7 @@ public class ContextEntity extends AbstractEntity {
         document.put("max_size", maxSize);
         document.put("coref", coref);
         document.put("disambiguation", disambiguation);
+        document.put("ledger", ledger);
         document.put("ttl_in_hours", ttlInHours);
         document.put("timestamp", timestamp);
         return document;
@@ -101,6 +104,14 @@ public class ContextEntity extends AbstractEntity {
 
     public void setDisambiguation(boolean disambiguation) {
         this.disambiguation = disambiguation;
+    }
+
+    public boolean isLedger() {
+        return ledger;
+    }
+
+    public void setLedger(boolean ledger) {
+        this.ledger = ledger;
     }
 
     public int getTtlInHours() {

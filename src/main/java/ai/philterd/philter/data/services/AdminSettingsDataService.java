@@ -45,10 +45,6 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         updateSetting("logging_enabled", loggingEnabled);
     }
 
-    public void saveRedactionLedgerOptionEnabled(final boolean redactionLedgerOptionEnabled) {
-        updateSetting("redaction_ledger_option_enabled", redactionLedgerOptionEnabled);
-    }
-
     private void updateSetting(final String key, final Object value) {
         final Bson filter = new Document();
         final Bson update = Updates.set(key, value);

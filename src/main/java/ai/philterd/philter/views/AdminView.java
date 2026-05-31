@@ -22,7 +22,6 @@ import ai.philterd.philter.data.providers.UserEntityDataProvider;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
-import ai.philterd.philter.data.services.SettingsDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
@@ -69,7 +68,7 @@ public class AdminView extends AbstractRestrictedView {
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                      final UserService userService, final ContextDataService contextService, final PolicyDataService policyService,
-                     final SettingsDataService settingsDataService, final AdminSettingsDataService adminSettingsDataService) {
+                     final AdminSettingsDataService adminSettingsDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
 
@@ -78,9 +77,7 @@ public class AdminView extends AbstractRestrictedView {
         if (adminSettingsEntity == null) {
             adminSettingsEntity = new AdminSettingsEntity();
             adminSettingsEntity.setLoggingEnabled(false);
-            adminSettingsEntity.setRedactionLedgerOptionEnabled(true);
             adminSettingsDataService.saveLoggingEnabled(false);
-            adminSettingsDataService.saveRedactionLedgerOptionEnabled(true);
         }
 
         final AdminSettingsEntity finalAdminSettingsEntity = adminSettingsEntity;
@@ -330,17 +327,13 @@ public class AdminView extends AbstractRestrictedView {
         final Checkbox loggingEnabledCheckbox = new Checkbox("Enable Logging");
         loggingEnabledCheckbox.setValue(finalAdminSettingsEntity.isLoggingEnabled());
 
-        final Checkbox redactionLedgerOptionEnabledCheckbox = new Checkbox("Allow users to enable/disable ledgers");
-        redactionLedgerOptionEnabledCheckbox.setValue(finalAdminSettingsEntity.isRedactionLedgerOptionEnabled());
-
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
-            adminSettingsDataService.saveRedactionLedgerOptionEnabled(redactionLedgerOptionEnabledCheckbox.getValue());
             showSuccessNotification("Admin settings saved.");
         });
         saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, redactionLedgerOptionEnabledCheckbox, saveLoggingSettingsButton);
+        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Users", usersVerticalLayout);

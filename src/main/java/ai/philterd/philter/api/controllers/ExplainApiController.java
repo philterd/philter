@@ -16,7 +16,6 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
-import ai.philterd.phileas.model.filtering.Explanation;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -25,6 +24,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.filtering.RedactionService;
+import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -45,16 +45,18 @@ import java.nio.charset.StandardCharsets;
 public class ExplainApiController extends AbstractApiController {
 
     private final RedactionService redactionService;
+    private final Gson gson;
 
     @Autowired
     public ExplainApiController(final RedactionService redactionService, final ApiKeyDataService apiKeyDataService,
-                                final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache) {
+                                final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.redactionService = redactionService;
+        this.gson = gson;
     }
 
     @RequestMapping(value = "/api/explain", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
-    public @ResponseBody ResponseEntity<Explanation> explainTextPlainAsApplicationJson(
+    public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam(value = "c", defaultValue = "none") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
@@ -71,8 +73,12 @@ public class ExplainApiController extends AbstractApiController {
         final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
         final TextFilterResult textFilterResult = (TextFilterResult) response;
 
+        // Serialize the full filter result (filteredText, context, explanation, ...) to preserve the
+        // 3.4.0 /api/explain response shape. Returning only the Explanation in 4.0.0 broke clients
+        // (for example PhilterScope) that read filteredText and the nested explanation.
         return ResponseEntity.status(HttpStatus.OK)
-                .body(textFilterResult.getExplanation());
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(gson.toJson(textFilterResult));
 
     }
 

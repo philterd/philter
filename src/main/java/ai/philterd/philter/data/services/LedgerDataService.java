@@ -51,11 +51,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public static final String EMPTY_ENTRY = "";
     public static final int MAX_LIMIT = 100;
 
-    // Ledger retention. Unlike pending_documents and webhook_deliveries, ledger entries are a
-    // compliance audit trail, so the default is to keep them indefinitely (0 = no expiry). Set
-    // REDACTION_LEDGER_TTL_SECONDS to a positive number of seconds to have MongoDB expire entries
-    // older than that automatically.
-    private static final long DEFAULT_TTL_SECONDS = 0L;
+    // Ledger retention. Ledger entries default to a 90 day retention; MongoDB expires entries
+    // older than that automatically. Override with REDACTION_LEDGER_TTL_SECONDS, or set it to 0
+    // to keep ledger entries indefinitely (no expiry).
+    private static final long DEFAULT_TTL_SECONDS = 90L * 24L * 60L * 60L;
 
     public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);

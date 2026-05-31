@@ -19,7 +19,7 @@ Redaction ledgers are controlled on a per-context basis. When creating or editin
 
 ## Retention
 
-By default, ledger entries are kept indefinitely so that the audit trail remains complete. If your retention policy calls for expiring older entries, set the `REDACTION_LEDGER_TTL_SECONDS` environment variable to a positive number of seconds (see [Settings](../settings.md)). MongoDB then automatically removes ledger entries older than that window. Because the ledger is a cryptographic chain, expiring entries removes the oldest links over time; leave the value at its default of `0` if you need to retain the full history.
+By default, ledger entries are kept for 90 days, after which MongoDB automatically removes them. Configure this with the `REDACTION_LEDGER_TTL_SECONDS` environment variable (see [Settings](../settings.md)): set it to a different number of seconds to change the retention window, or to `0` to keep ledger entries indefinitely. Because the ledger is a cryptographic chain, expiring entries removes the oldest links over time, so set the value to `0` if you need to retain the full history.
 
 ## The Redaction Ledgers Dashboard
 
@@ -55,6 +55,6 @@ For organizations processing a high volume of documents, you can quickly locate 
     *   **Plain Text (.txt)** documents.
     *   **Microsoft Word (.docx)** documents.
 *   **PDF Support**: At this time, redaction ledgers are **not** generated for PDF documents. We recommend using the PDF Redaction Summary report for auditing PDF workflows.
-*   **Dashboard Retention**: The main dashboard view focuses on the most recent 50 documents. However, all ledger data is securely archived and remains accessible via the API for comprehensive historical reporting.
+*   **Dashboard Retention**: The main dashboard view focuses on the most recent 50 documents. Ledger data remains accessible via the API for historical reporting, subject to the configured retention window (see the Retention section above).
 *   **Data Privacy**: Access to ledgers is highly restricted and requires appropriate account permissions, as ledgers contain records of the original sensitive information (the "Identified Token").
 

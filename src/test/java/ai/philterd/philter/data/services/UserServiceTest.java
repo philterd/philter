@@ -186,16 +186,14 @@ class UserServiceTest {
         user.setId(new ObjectId());
 
         // We need a mock for the database and collection specifically for this test
-        // as deleteUser calls mongoClient.getDatabase multiple times.
+        // as deleteUser calls mongoClient.getDatabase multiple times. All collections now live
+        // in the single "philter" database.
         MongoDatabase mockPhilterDatabase = mock(MongoDatabase.class);
-        MongoDatabase mockPhilterdDataServicesDatabase = mock(MongoDatabase.class);
         MongoCollection<Document> mockGenericCollection = mock(MongoCollection.class);
 
         when(mongoClient.getDatabase("philter")).thenReturn(mockPhilterDatabase);
-        when(mongoClient.getDatabase("philterd_data_services")).thenReturn(mockPhilterdDataServicesDatabase);
-        
+
         when(mockPhilterDatabase.getCollection(anyString())).thenReturn(mockGenericCollection);
-        when(mockPhilterdDataServicesDatabase.getCollection(anyString())).thenReturn(mockGenericCollection);
 
         DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
@@ -206,9 +204,11 @@ class UserServiceTest {
         // In UserService, 'collection' is the 'users' collection from AbstractEncryptedService.
         verify(mongoCollection).deleteOne(any(Bson.class));
 
-        // Verify other deletions happened on the other collections
+        // Verify other deletions happened on the per-user collections in the philter database.
         verify(mockPhilterDatabase, atLeastOnce()).getCollection(anyString());
-        verify(mockPhilterdDataServicesDatabase, atLeastOnce()).getCollection(anyString());
+
+        // Contexts are shared and must NOT be deleted with the user.
+        verify(mockPhilterDatabase, never()).getCollection("contexts");
 
         // The deletion is audited with the deleted user's id.
         verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_DELETED),

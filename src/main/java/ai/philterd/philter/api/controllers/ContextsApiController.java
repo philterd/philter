@@ -157,7 +157,7 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> createContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam("name") String name,
-            final @RequestParam(value = "disambiguation", required = false, defaultValue = "false") boolean disambiguation,
+            final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
             final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
@@ -227,7 +227,7 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Update a context's settings.", description = "Update the disambiguation and ledger flags on an existing context.")
+    @Operation(summary = "Update a context's settings.", description = "Update the entity_type_disambiguation and ledger flags on an existing context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Context not found.")
@@ -236,7 +236,7 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> updateContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
-            final @RequestParam(value = "disambiguation", required = false, defaultValue = "false") boolean disambiguation,
+            final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
             final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);

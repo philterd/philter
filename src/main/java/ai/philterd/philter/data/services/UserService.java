@@ -196,7 +196,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final ObjectId deletedUserId = userEntity.getId();
 
         final MongoDatabase philterDatabase = mongoClient.getDatabase("philter");
-        final MongoDatabase philterdDataServicesDatabase = mongoClient.getDatabase("philterd_data_services");
 
         // Delete from api_keys (mark as deleted)
         // Note: we'll just set deleted to true for consistency with ApiKeyDataService.deleteByApiKey
@@ -205,23 +204,20 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                 new Document("$set", new Document("deleted", true))
         );
 
-        // Delete from contexts
-        philterDatabase.getCollection("contexts").deleteMany(Filters.eq("user_id", userEntity.getId()));
-
-        // Delete from context_entries
-        philterDatabase.getCollection("context_entries").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        // Contexts are shared across users, so they (along with their context_entries and span
+        // disambiguation vectors) are intentionally NOT deleted when a user is removed.
 
         // Delete from custom_lists
-        philterdDataServicesDatabase.getCollection("custom_lists").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        philterDatabase.getCollection("custom_lists").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
         // Delete from policies
         philterDatabase.getCollection("policies").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
         // Delete from ledger
-        philterdDataServicesDatabase.getCollection("ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        philterDatabase.getCollection("ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
         // Delete from redaction_ledger (if it exists)
-        philterdDataServicesDatabase.getCollection("redaction_ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        philterDatabase.getCollection("redaction_ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
         // Delete the user
         collection.deleteOne(Filters.eq("_id", userEntity.getId()));

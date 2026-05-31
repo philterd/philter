@@ -71,7 +71,7 @@
         <bouncycastle.version>1.84</bouncycastle.version>
         <commons.net.version>3.13.0</commons.net.version>
         <mongodb.version>5.8.0</mongodb.version>
-        <phileas.version>3.4.0-SNAPSHOT</phileas.version>
+        <phileas.version>4.0.0-SNAPSHOT</phileas.version>
         <springdoc.version>3.0.3</springdoc.version>
         <vaadin.version>25.1.0</vaadin.version>
         <!-- Build plugin versions -->

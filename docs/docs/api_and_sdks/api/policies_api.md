@@ -9,13 +9,17 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 
 | Method | Endpoint        | Description                    |
 | ------ |-----------------|--------------------------------| 
-| `GET` | `/api/policies` | Get the names of all policies. |
+| `GET` | `/api/policies` | Get the names of policies (paginated). |
 
+### Query Parameters
+
+* `offset` (optional, default: `0`) - The number of policy names to skip.
+* `limit` (optional, default: `25`) - The maximum number of policy names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
 
 Example request:
 
 ```
-curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/policies
+curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies?offset=0&limit=100"
 ```
 
 ## Get a Policy

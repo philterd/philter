@@ -23,7 +23,7 @@ When you submit a document to Philter for redaction, it undergoes a rigorous mul
 3.  **Policy-Driven Identification**: The engine applies your selected [redaction policy](policies.md). This policy contains the logic and rules used to scan the document's content and identify PII/PHI.
 4.  **Redacted Document Generation**: Based on the identification results, a new version of the document is generated. This version has all sensitive information removed or masked according to your policy's specifications.
 5.  **Generation of Summary Report**: For every processed document, a comprehensive **Redaction Summary** (in PDF format) is generated. This report provides a high-level overview of the operation, including the number of tokens analyzed and the total count of redactions performed.
-6.  **Audit Logging and Ledgering**: If enabled in your account, the redaction events are recorded. For supported formats, entries are made in the [cryptographic ledger](ledgers.md), and a [changeset](policy_syntax.md) is created to provide a detailed audit trail of every modification made to the document.
+6.  **Audit Logging and Ledgering**: If the [redaction ledger](ledgers.md) is enabled for the context, the redaction events are recorded in the cryptographic ledger to provide a detailed audit trail of every modification made to the document.
 
 ## How to Redact a Document via the Dashboard
 
@@ -50,10 +50,6 @@ The generated **Redaction Summary** is a vital tool for compliance and auditing.
 *   **Metadata**: Original filename, unique document ID, and the timestamp of the operation.
 *   **Operational Details**: The specific Context and Policy applied to the document.
 *   **Statistics**: The total token count (volume of data) and the total number of redactions (volume of sensitive info removed).
-
-### Changesets for Deep Auditing
-
-For organizations requiring granular oversight, Philterd can generate **Changesets**. A changeset records the exact original text that was identified for redaction and its precise location within the document. This allows for a comprehensive human-in-the-loop review or forensic audit of the redaction process.
 
 ### Immutable Cryptographic Ledgers
 

@@ -236,28 +236,47 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     }
 
     public ServiceResponse deleteByName(final String contextName, final ObjectId userId) {
+        // A bare delete is treated as a non-admin request: it can only delete the caller's own context.
+        return deleteByName(contextName, userId, false);
+    }
+
+    public ServiceResponse deleteByName(final String contextName, final ObjectId requesterUserId, final boolean requesterIsAdmin) {
 
         // Safeguard to prevent deleting the default context.
         if("default".equalsIgnoreCase(contextName)) {
             return new ServiceResponse("The default context cannot be deleted.", false);
         }
 
-        // Make sure the context exists.
-        final ContextEntity contextEntity = findOne(contextName, userId);
+        // Make sure the context exists. The lookup is scoped to the requester, so a non-admin can
+        // only ever find (and therefore delete) a context they created.
+        final ContextEntity contextEntity = findOne(contextName, requesterUserId);
 
         if(contextEntity == null) {
             return new ServiceResponse("Context does not exist.", false, 400);
         }
 
-        final Document filter = new Document("context_name", contextName).append("user_id", userId);
+        // A context may be deleted only by the user that created it or by an admin. This is the
+        // single authorization gate for deletion; it guards the invariant even if the lookup above
+        // is ever changed to be owner-agnostic.
+        final boolean isCreator = contextEntity.getUserId().equals(requesterUserId);
+        if(!isCreator && !requesterIsAdmin) {
+            return new ServiceResponse("You are not authorized to delete this context.", false, 403);
+        }
+
+        // Scope all deletions to the context's owner. The lookup above is scoped to the requester,
+        // so in the current call paths the owner is the requester; resolving the owner from the
+        // entity keeps the deletions correct if the lookup is ever made owner-agnostic.
+        final ObjectId ownerUserId = contextEntity.getUserId();
+
+        final Document filter = new Document("context_name", contextName).append("user_id", ownerUserId);
         collection.deleteOne(filter);
 
         // Delete the individual context entries for this context.
-        contextEntryService.deleteByContextName(contextName, userId);
+        contextEntryService.deleteByContextName(contextName, ownerUserId);
 
         // Delete the span-disambiguation vectors learned for this context so they do not linger
         // in MongoDB after the context is gone.
-        new MongoVectorService(mongoClient, userId, auditEventPublisher).deleteByContext(contextName);
+        new MongoVectorService(mongoClient, ownerUserId, auditEventPublisher).deleteByContext(contextName);
 
         // Remove this context from the cache.
         contextCache.deleteContext(contextName);

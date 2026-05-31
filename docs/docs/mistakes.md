@@ -61,10 +61,10 @@ Automated redaction should be viewed as a powerful tool to accelerate the protec
 2.  **The document remains readable and useful** (ensuring non-sensitive information was not over-redacted).
 3.  **Contextual nuances are correctly handled** that an algorithm might misunderstand.
 
-Philter provides tools like **Redaction Summaries** and **Changesets** to assist in this review process, allowing you to quickly see what was changed and verify the results.
+Philter provides tools like **Redaction Summaries** and the [redaction ledger](redaction/ledgers.md) to assist in this review process, allowing you to quickly see what was changed and verify the results.
 
 ### Best Practices for Review
 
 *   **Verify High-Risk Entities**: Pay extra attention to names, dates, and locations.
-*   **Use Changesets**: Review the exact text that was removed to ensure the system's logic aligned with your expectations.
+*   **Use the Redaction Ledger**: Review the exact text that was removed to ensure the system's logic aligned with your expectations.
 *   **Iterate on Policies**: If you notice consistent mistakes, refine your [redaction policy](redaction/policies.md), use [Custom Lists](redaction/custom_lists.md), or update your **Always/Never Redact** lists to improve future performance.

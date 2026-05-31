@@ -221,6 +221,54 @@ class ContextDataServiceTest {
     }
 
     @Test
+    void deleteByNameDeniesNonCreatorWhoIsNotAdmin() {
+        final ObjectId requester = new ObjectId();
+        final ObjectId owner = new ObjectId();
+        final String contextName = "shared";
+
+        // The context is owned by a different user than the requester.
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", owner);
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final ServiceResponse response = contextDataService.deleteByName(contextName, requester, false);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(403, response.getStatusCode(), "a non-creator non-admin must be forbidden");
+        // Nothing must be deleted.
+        verify(mongoCollection, never()).deleteOne(any(Document.class));
+    }
+
+    @Test
+    void deleteByNameAllowsAdminAndScopesDeletionToOwner() {
+        final ObjectId requester = new ObjectId(); // an admin, not the owner
+        final ObjectId owner = new ObjectId();
+        final String contextName = "shared";
+
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", owner);
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final DeleteResult deleteResult = mock(DeleteResult.class);
+        when(mongoCollection.deleteOne(any(Document.class))).thenReturn(deleteResult);
+        lenient().when(mongoCollection.deleteMany(any(Document.class))).thenReturn(deleteResult);
+        final MongoCollection<Document> vectorsCollection = mock(MongoCollection.class);
+        when(mongoDatabase.getCollection("vectors")).thenReturn(vectorsCollection);
+        when(vectorsCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        final ServiceResponse response = contextDataService.deleteByName(contextName, requester, true);
+
+        assertTrue(response.isSuccessful());
+        // The context is deleted scoped to its owner, not the admin requester.
+        final ArgumentCaptor<Document> filterCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).deleteOne(filterCaptor.capture());
+        assertEquals(owner, filterCaptor.getValue().get("user_id"),
+                "deletion must be scoped to the context owner");
+    }
+
+    @Test
     void emptyByNameDeletesDisambiguationVectorsForTheContext() {
         final ObjectId userId = new ObjectId();
         final String contextName = "testContext";

@@ -14,11 +14,7 @@ This ensures that your redacted datasets remain analytically useful—you can st
 
 ### Entity Type Disambiguation
 
-Entity type disambiguation can be enabled or disabled for a context. When enabled, Philter uses information from all documents in the context to resolve overlapping or conflicting entity types. This allows the system to make more informed decisions about the type of sensitive information identified.
-
-### Entity Type Disambiguation
-
-Entity type disambiguation helps resolve ambiguity when a piece of text could represent multiple entity types. For example, "Washington" could be a person's name or a location. When enabled for a context, Philterd uses the surrounding context and machine learning models to determine the most likely entity type.
+Entity type disambiguation helps resolve ambiguity when the identical piece of text is identified as more than one entity type. For example, a nine-digit number could be claimed by both the SSN filter and a custom identifier filter. When enabled for a context, Philter compares the words surrounding the text against what it has learned for each candidate type in that context and keeps the most likely one. This uses a vector-based comparison of the surrounding words (not a machine learning model), and it improves as more text is processed in the same context. See [Span Disambiguation](../other_features/span_disambiguation.md) for details.
 
 This feature is optional and can be enabled or disabled on a per-context basis. Enabling disambiguation can improve the accuracy of redaction in complex documents where entity types are frequently ambiguous.
 
@@ -59,7 +55,7 @@ To verify how information is being mapped within a context:
 There may be times when you want to reset the mappings within a context without deleting the context itself (e.g., at the start of a new project phase):
 
 1.  Click the **Clear** (refresh) icon for the target context.
-2.  **Warning**: This action will permanently delete all existing sensitive-to-redacted mappings. Future redactions in this context will generate new, different replacement values.
+2.  **Warning**: This action will permanently delete all existing sensitive-to-redacted mappings and the context's learned disambiguation vectors. Future redactions in this context will generate new, different replacement values.
 3.  Confirm the action by clicking **Clear**.
 
 ### Deleting a Context
@@ -67,8 +63,11 @@ There may be times when you want to reset the mappings within a context without 
 To permanently remove a context and all its associated mappings:
 
 1.  Click the **Delete** (trash) icon.
-2.  **Impact**: Deleting a context removes the organizational unit and its internal mappings. This will **not** affect documents that have already been redacted and downloaded.
+2.  **Impact**: Deleting a context removes the organizational unit, its internal mappings, and its learned disambiguation vectors. This will **not** affect documents that have already been redacted and downloaded.
 3.  **Default Context**: Every account has a **default** context. The default context cannot be deleted.
+4.  **Permissions**: A context can be deleted only by the user that created it or by an admin.
+
+> Contexts are shared and are **not** deleted when a user is removed; their mappings and disambiguation vectors are retained.
 
 ## Capacity and Eviction
 

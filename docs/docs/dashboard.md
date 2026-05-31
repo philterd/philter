@@ -52,4 +52,4 @@ Admin users can access the **Admin** section to manage users.
 
 ### Settings and Webhooks
 
-The **Settings** section lets each user configure account-level options, including a [webhook](api_and_sdks/api/webhooks.md) URL and secret to receive a signed notification when an asynchronous redaction completes or fails, and (when permitted by an admin) the redaction ledger toggle.
+The **Settings** section lets each user configure account-level options, including a [webhook](api_and_sdks/api/webhooks.md) URL and secret to receive a signed notification when an asynchronous redaction completes or fails. The [redaction ledger](redaction/ledgers.md) is enabled per context, not in account settings.

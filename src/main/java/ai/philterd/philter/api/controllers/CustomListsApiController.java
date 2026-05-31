@@ -142,11 +142,11 @@ public class CustomListsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create a list.", description = "Create a list whose contents are the request body.")
+    @Operation(summary = "Create or update a list.", description = "Create a list whose contents are the request body, or overwrite it if a list with the same name already exists.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The list was updated or created."),
+            @ApiResponse(responseCode = "201", description = "The list was created."),
+            @ApiResponse(responseCode = "200", description = "An existing list with the same name was updated."),
             @ApiResponse(responseCode = "400", description = "The list name is empty, the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
-            @ApiResponse(responseCode = "409", description = "A list with the given name already exists."),
             @ApiResponse(responseCode = "412", description = "The maximum number of lists already exists.")
     })
     @RequestMapping(value = "/api/lists/{list}", method = RequestMethod.POST)

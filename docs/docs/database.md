@@ -14,7 +14,9 @@ Philter requires a [MongoDB](https://www.mongodb.com/) database. MongoDB is the 
 | Global terms | Per-account always-redact / never-redact term lists. |
 | Pending documents | Records for asynchronous PDF redactions, including input and redacted output (subject to a TTL). |
 | Webhook deliveries | Delivery records for outbound webhook notifications (subject to a TTL). |
-| Redaction ledger | The cryptographic ledger of redactions, when enabled. See [Redaction Ledgers](redaction/ledgers.md). |
+| Redaction ledger | The cryptographic ledger of redactions, when enabled for a context. See [Redaction Ledgers](redaction/ledgers.md). |
+| Disambiguation vectors | The per-`(user, context)` vectors learned for [span disambiguation](other_features/span_disambiguation.md), bounded by `MAX_VECTORS_PER_CONTEXT`. |
+| Admin settings | Instance-wide administrator settings (for example, whether logging is enabled). |
 | Audit events | The audit log of security-relevant actions. See [Auditing](auditing.md). |
 
 Sensitive fields are encrypted at rest before they are written to MongoDB. See [encryption](settings.md#encryption).
@@ -62,7 +64,7 @@ MONGODB_CONNECTION_STRING=mongodb+srv://user:pass@cluster0.example.mongodb.net/p
 Philter creates the indexes it needs automatically at startup. Each data service ensures its own indexes when it initializes, and index creation in MongoDB is idempotent, so this is safe on every restart and adds no manual setup. The indexes cover the access patterns Philter uses, for example:
 
 * `api_keys` by `api_key_hash` (the authentication lookup) and by user.
-* `policies`, `contexts`, `custom_lists`, `settings`, and `global_terms` by user (and name where applicable).
+* `policies`, `contexts`, `custom_lists`, and `global_terms` by user (and name where applicable).
 * `context_entries` by `(user_id, context_name, token_hash)` for the redaction hot path.
 * `ledger` by chain head and by document.
 * `pending_documents` by status and by document, with a TTL index that expires finished records (`PENDING_DOCUMENTS_TTL_SECONDS`, default 7 days).

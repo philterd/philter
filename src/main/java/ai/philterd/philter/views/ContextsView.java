@@ -362,7 +362,8 @@ public class ContextsView extends AbstractRestrictedView {
 
                     final Button confirmButton = new Button("Delete", e -> {
 
-                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), userEntity.getId());
+                        final boolean isAdmin = "admin".equalsIgnoreCase(userEntity.getRole());
+                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), userEntity.getId(), isAdmin);
 
                         if(serviceResponse.isSuccessful()) {
 

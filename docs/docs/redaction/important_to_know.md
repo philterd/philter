@@ -26,7 +26,7 @@ Philterd uses a combination of techniques to redact text. See [Mistakes](../mist
 
 ## Redaction is One-Way
 
-Philter does not provide a way to reverse redaction. Changesets allow you to see the changes made to documents, but they do not provide a way to undo the changes.
+Philter does not provide a way to reverse redaction. The [redaction ledger](ledgers.md) and redaction summaries let you see the changes made to documents, but they do not provide a way to undo the changes.
 
 ## Regulatory Compliance
 

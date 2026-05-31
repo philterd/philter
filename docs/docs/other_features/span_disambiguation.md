@@ -1,6 +1,6 @@
 # Span Disambiguation
 
-Span disambiguation is an optional feature in Philter that is disabled by default. Refer to Philter' [Settings](../settings.md) to enable and configure span disambiguation.
+Span disambiguation is an optional feature that is enabled per [context](../redaction/contexts.md). It is disabled by default; turn it on with the context's **entity type disambiguation** option when creating or editing a context.
 
 In Philter, a _span_ is a piece of the input text that Philter has identified as sensitive information. A span has a start and end positions, a confidence, a type, and other attributes. Ideally, each piece of identified sensitive information will only have a single span associated with it. In this case, the type of sensitive information is unambiguous. The goal of span disambiguation is to provide more accurate filtering by removing the potential ambiguities in the types of sensitive information for duplicate spans.
 
@@ -26,9 +26,9 @@ When a context is new and has not yet seen any examples, there is no learned sig
 
 Span disambiguation is only invoked for competing spans that cover the identical location (the same start and end positions) but were assigned different types. Confidence is not required to match: competing filters routinely assign different confidences to the same text, and those are exactly the cases disambiguation resolves. Spans that do not share the same location are handled by normal overlap resolution rather than disambiguation.
 
-#### Cache Service
+#### Where Disambiguation Data Is Stored
 
-When multiple application using Philter are deployed alongside each other behind a load balancer, Philter' [cache service](../settings.md) should be configured and enabled. Philter will store the information needed to disambiguate spans in the cache such that the information is available to each instance of Philter. If only a single instance of Philter is running then the cache service is not required, however, the information needed to disambiguate spans will be stored in memory and will be lost when Philter is stopped or restarted. Because of this, we recommend the cache service always be used unless there is a specific reason not to.
+When a context has disambiguation enabled at the **context** scope, the information Philter learns is stored in MongoDB, keyed by user and context. It is therefore durable across restarts and is automatically shared across all Philter instances, so no additional configuration is needed in a load-balanced deployment. Disambiguation at the **document** scope instead uses per-request memory that is not retained after the request completes. Each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`), after which the oldest are evicted.
 
 #### Fine-Tuning the Span Disambiguation
 

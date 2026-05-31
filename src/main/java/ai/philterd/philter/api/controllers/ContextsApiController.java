@@ -29,6 +29,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -64,12 +65,14 @@ public class ContextsApiController extends AbstractApiController {
     private final ContextDataService contextService;
     private final ContextEntryDataService contextEntryService;
     private final PendingDocumentDataService pendingDocumentDataService;
+    private final UserService userService;
     private final AuditEventPublisher auditEventPublisher;
     private final Gson gson;
 
     public ContextsApiController(final ContextDataService contextService,
                                  final ContextEntryDataService contextEntryService,
                                  final PendingDocumentDataService pendingDocumentDataService,
+                                 final UserService userService,
                                  final ApiKeyDataService apiKeyDataService,
                                  final AuditEventPublisher auditEventPublisher,
                                  final ApiKeyCache apiKeyCache, final Gson gson) {
@@ -77,8 +80,18 @@ public class ContextsApiController extends AbstractApiController {
         this.contextService = contextService;
         this.contextEntryService = contextEntryService;
         this.pendingDocumentDataService = pendingDocumentDataService;
+        this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
         this.gson = gson;
+    }
+
+    /**
+     * Whether the user behind the given API key is an admin. A context may be deleted only by its
+     * creator or by an admin.
+     */
+    private boolean isAdmin(final ObjectId userId) {
+        final ai.philterd.philter.data.entities.UserEntity user = userService.findOneById(userId);
+        return user != null && "admin".equalsIgnoreCase(user.getRole());
     }
 
     @Operation(summary = "Get the names of existing contexts.", description = "Get the names of existing contexts.")
@@ -212,12 +225,16 @@ public class ContextsApiController extends AbstractApiController {
                     HttpStatus.CONFLICT);
         }
 
-        final ServiceResponse serviceResponse = contextService.deleteByName(name, userId);
+        final ServiceResponse serviceResponse = contextService.deleteByName(name, userId, isAdmin(userId));
 
         if(serviceResponse.isSuccessful()) {
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_DELETED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
             return new ResponseEntity<>(new GenericResponse("Context deleted."), HttpStatus.OK);
+
+        } else if(serviceResponse.getStatusCode() == 403) {
+
+            return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.FORBIDDEN);
 
         } else {
 

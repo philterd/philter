@@ -53,6 +53,11 @@ Example response:
 
 A JSON array of strings containing the items for the list.
 
+### Responses
+
+* `201 Created` - A new list was created.
+* `200 OK` - An existing list with the same name was overwritten.
+
 Example request:
 
 ```

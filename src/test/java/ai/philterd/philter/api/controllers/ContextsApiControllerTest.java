@@ -61,6 +61,7 @@ class ContextsApiControllerTest {
     @Mock private ContextDataService contextService;
     @Mock private ContextEntryDataService contextEntryService;
     @Mock private PendingDocumentDataService pendingDocumentDataService;
+    @Mock private ai.philterd.philter.data.services.UserService userService;
     @Mock private ApiKeyDataService apiKeyDataService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
@@ -79,7 +80,7 @@ class ContextsApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final ContextsApiController controller = new ContextsApiController(
-                contextService, contextEntryService, pendingDocumentDataService,
+                contextService, contextEntryService, pendingDocumentDataService, userService,
                 apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -115,7 +116,7 @@ class ContextsApiControllerTest {
     @Test
     void deleteScopesToOwningUserId() throws Exception {
         when(pendingDocumentDataService.hasOpenJobsForContext(eq(userId), eq("ctx"))).thenReturn(false);
-        when(contextService.deleteByName(eq("ctx"), eq(userId)))
+        when(contextService.deleteByName(eq("ctx"), eq(userId), anyBoolean()))
                 .thenReturn(ServiceResponse.success("Context deleted."));
 
         mockMvc.perform(request(HttpMethod.DELETE, "/api/contexts/ctx")
@@ -124,7 +125,26 @@ class ContextsApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(pendingDocumentDataService).hasOpenJobsForContext(eq(userId), eq("ctx"));
-        verify(contextService).deleteByName(eq("ctx"), eq(userId));
+        verify(contextService).deleteByName(eq("ctx"), eq(userId), anyBoolean());
+    }
+
+    @Test
+    void deleteForwardsAdminFlagFromUserRole() throws Exception {
+        final ai.philterd.philter.data.entities.UserEntity adminUser = new ai.philterd.philter.data.entities.UserEntity();
+        adminUser.setId(userId);
+        adminUser.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(adminUser);
+        when(pendingDocumentDataService.hasOpenJobsForContext(eq(userId), eq("ctx"))).thenReturn(false);
+        when(contextService.deleteByName(eq("ctx"), eq(userId), eq(true)))
+                .thenReturn(ServiceResponse.success("Context deleted."));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/contexts/ctx")
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-4"))
+                .andExpect(status().isOk());
+
+        // An admin caller must have the admin flag forwarded to the service.
+        verify(contextService).deleteByName(eq("ctx"), eq(userId), eq(true));
     }
 
 }

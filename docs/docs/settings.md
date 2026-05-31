@@ -70,3 +70,30 @@ Ledger retention is configured with the environment variable below.
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `REDACTION_LEDGER_TTL_SECONDS` | How long, in seconds, to keep redaction ledger entries before MongoDB expires them automatically. Defaults to 90 days. Set `0` to keep entries indefinitely (no expiry). Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index. | `7776000` (90 days) |
+
+## Asynchronous Documents and Webhooks
+
+Records for asynchronous (PDF) redactions and outbound webhook deliveries are expired automatically by MongoDB TTL indexes.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep completed asynchronous redaction records (including the input and redacted output bytes) before MongoDB expires them. | `604800` (7 days) |
+| `WEBHOOK_DELIVERIES_TTL_SECONDS` | How long to keep delivered webhook records before MongoDB expires them. | `2592000` (30 days) |
+
+## Contexts and Disambiguation
+
+These bound the per-context storage so it does not grow without limit. See [Contexts](redaction/contexts.md).
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `MAX_CONTEXT_SIZE` | Maximum number of token-to-replacement entries stored per context. When reached, the least-read entry is evicted. | `10000` |
+| `MAX_VECTORS_PER_CONTEXT` | Maximum number of [span disambiguation](other_features/span_disambiguation.md) vectors stored per `(user, context)` pair. When reached, the oldest is evicted (FIFO). | `100000` |
+
+## Redaction Engine
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `INCREMENTAL_REDACTIONS_ENABLED` | Whether Phileas computes incremental redactions. These are required to populate the redaction ledger; leave enabled if any context uses the ledger. | `true` |
+| `MAX_FILE_SIZE_BYTES` | Maximum size, in bytes, of an uploaded document or PDF accepted by the filter API. Requests larger than this are rejected. | `10485760` (10 MB) |
+| `MAX_FILE_SIZE_BYTES_OTHER` | Maximum size, in bytes, accepted for other (non-document) request bodies. | `10240` (10 KB) |
+| `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service used by policies that perform named-entity recognition. | (none) |

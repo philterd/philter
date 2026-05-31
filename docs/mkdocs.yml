@@ -145,6 +145,7 @@ nav:
     - 'Database': 'database.md'
     - 'Caching': 'caching.md'
     - 'Monitoring and Logging': 'monitoring_and_logging.md'
+    - 'PII Drift Monitoring (Phield)': 'phield.md'
     - 'Auditing': 'auditing.md'
     - 'Login Security': 'login_security.md'
     - 'Advanced Features':

@@ -44,6 +44,7 @@ import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
+import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
@@ -89,6 +90,7 @@ public class RedactionService {
     private final LedgerDataService ledgerService;
     private final UserService userService;
     private final MeterRegistry meterRegistry;
+    private final PhieldPublisher phieldPublisher;
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -130,7 +132,8 @@ public class RedactionService {
                             final AuditEventPublisher auditEventPublisher,
                             final LedgerDataService ledgerService,
                             final UserService userService,
-                            final MeterRegistry meterRegistry) {
+                            final MeterRegistry meterRegistry,
+                            final PhieldPublisher phieldPublisher) {
 
         this.mongoClient = mongoClient;;
         this.policyDataService = policyDataService;
@@ -141,6 +144,7 @@ public class RedactionService {
         this.ledgerService = ledgerService;
         this.userService = userService;
         this.meterRegistry = meterRegistry;
+        this.phieldPublisher = phieldPublisher;
 
     }
 
@@ -367,6 +371,10 @@ public class RedactionService {
         for (final Map.Entry<String, Integer> filterTypeCount : filterTypeCounts.entrySet()) {
             meterRegistry.counter("philter.redactions", "filter_type", filterTypeCount.getKey()).increment(filterTypeCount.getValue());
         }
+
+        // Optionally publish the per-type counts (counts only, never any PII) to a Phield drift
+        // monitor. No-op unless PHIELD_URL is configured; fire-and-forget so it cannot affect redaction.
+        phieldPublisher.publish(filterResult.getContext(), filterTypeCounts);
 
     }
 

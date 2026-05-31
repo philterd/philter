@@ -39,6 +39,7 @@ import ai.philterd.philter.services.cache.LoginAttemptCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
+import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.utils.EnvUtils;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -109,7 +110,12 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public RedactionService redactionService(final MeterRegistry meterRegistry) {
-        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry);
+        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher());
+    }
+
+    @Bean
+    public PhieldPublisher phieldPublisher() {
+        return new PhieldPublisher();
     }
 
     @Bean

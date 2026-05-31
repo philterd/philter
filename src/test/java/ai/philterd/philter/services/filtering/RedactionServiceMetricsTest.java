@@ -26,6 +26,7 @@ import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.services.phield.PhieldPublisher;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -64,9 +65,11 @@ class RedactionServiceMetricsTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
+        // A Phield publisher with no URL is disabled, so recordRedactionMetrics never makes a call.
+        final PhieldPublisher phieldPublisher = new PhieldPublisher("", "philter", "philter");
         redactionService = new RedactionService(mongoClient, policyDataService, customListService,
                 globalTermsService, contextService, auditEventPublisher,
-                ledgerService, userService, meterRegistry);
+                ledgerService, userService, meterRegistry, phieldPublisher);
     }
 
     private static Span appliedSpan(final FilterType filterType) {

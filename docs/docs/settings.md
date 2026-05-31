@@ -97,3 +97,15 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `MAX_FILE_SIZE_BYTES` | Maximum size, in bytes, of an uploaded document or PDF accepted by the filter API. Requests larger than this are rejected. | `10485760` (10 MB) |
 | `MAX_FILE_SIZE_BYTES_OTHER` | Maximum size, in bytes, accepted for other (non-document) request bodies. | `10240` (10 KB) |
 | `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service used by policies that perform named-entity recognition. | (none) |
+
+## PII Drift Monitoring (Phield)
+
+Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor, which watches for significant changes in PII volume over time and alerts on drift. Only counts are sent (for example `{"SSN": 6}`) along with the context and source metadata below; **no PII text ever leaves Philter**.
+
+Publishing is disabled unless `PHIELD_URL` is set. It is fire-and-forget: counts are sent asynchronously with a short timeout and any failure is ignored, so a slow or unavailable Phield never affects redaction.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `PHIELD_URL` | Base URL of the Phield service (for example `http://phield:8080`). When set, Philter posts PII type counts to `<PHIELD_URL>/ingest` after each redaction. Leave unset to disable. | (empty; disabled) |
+| `PHIELD_SOURCE_ID` | The `source_id` reported to Phield, identifying this Philter instance. | `philter` |
+| `PHIELD_ORGANIZATION` | The `organization` reported to Phield. | `philter` |

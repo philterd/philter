@@ -59,6 +59,7 @@ class RedactionServiceMetricsTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private LedgerDataService ledgerService;
     @Mock private UserService userService;
+    @Mock private PhieldPublisher phieldPublisher;
     @Mock private PiiCountAggregatePublisher piiCountAggregatePublisher;
 
     private SimpleMeterRegistry meterRegistry;
@@ -67,8 +68,6 @@ class RedactionServiceMetricsTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        // A Phield publisher with no URL is disabled, so recordRedactionMetrics never makes a call.
-        final PhieldPublisher phieldPublisher = new PhieldPublisher("", "philter", "philter");
         redactionService = new RedactionService(mongoClient, policyDataService, customListService,
                 globalTermsService, contextService, auditEventPublisher,
                 ledgerService, userService, meterRegistry, phieldPublisher, piiCountAggregatePublisher);

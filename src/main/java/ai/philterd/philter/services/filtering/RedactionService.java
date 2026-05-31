@@ -377,7 +377,7 @@ public class RedactionService {
         }
 
         // Optionally publish the per-type counts (counts only, never any PII) to a Phield drift
-        // monitor. No-op unless PHIELD_URL is configured; fire-and-forget so it cannot affect redaction.
+        // monitor. No-op unless enabled in the admin settings; fire-and-forget so it cannot affect redaction.
         phieldPublisher.publish(filterResult.getContext(), filterTypeCounts);
 
         // Optionally record document-presence PII type counts for differential-privacy reporting with

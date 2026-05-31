@@ -23,12 +23,20 @@ public class AdminSettingsEntity extends AbstractEntity {
     private ObjectId id;
     private boolean loggingEnabled;
     private boolean diffuseCountsEnabled;
+    private boolean phieldEnabled;
+    private String phieldUrl = "";
+    private String phieldSourceId = "philter";
+    private String phieldOrganization = "philter";
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
         adminSettingsEntity.setId(document.getObjectId("_id"));
         adminSettingsEntity.setLoggingEnabled(document.getBoolean("logging_enabled", false));
         adminSettingsEntity.setDiffuseCountsEnabled(document.getBoolean("diffuse_counts_enabled", false));
+        adminSettingsEntity.setPhieldEnabled(document.getBoolean("phield_enabled", false));
+        adminSettingsEntity.setPhieldUrl(document.getString("phield_url") != null ? document.getString("phield_url") : "");
+        adminSettingsEntity.setPhieldSourceId(document.getString("phield_source_id") != null ? document.getString("phield_source_id") : "philter");
+        adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
         return adminSettingsEntity;
     }
 
@@ -40,6 +48,10 @@ public class AdminSettingsEntity extends AbstractEntity {
         }
         document.put("logging_enabled", loggingEnabled);
         document.put("diffuse_counts_enabled", diffuseCountsEnabled);
+        document.put("phield_enabled", phieldEnabled);
+        document.put("phield_url", phieldUrl);
+        document.put("phield_source_id", phieldSourceId);
+        document.put("phield_organization", phieldOrganization);
         return document;
     }
 
@@ -66,6 +78,38 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setDiffuseCountsEnabled(boolean diffuseCountsEnabled) {
         this.diffuseCountsEnabled = diffuseCountsEnabled;
+    }
+
+    public boolean isPhieldEnabled() {
+        return phieldEnabled;
+    }
+
+    public void setPhieldEnabled(boolean phieldEnabled) {
+        this.phieldEnabled = phieldEnabled;
+    }
+
+    public String getPhieldUrl() {
+        return phieldUrl;
+    }
+
+    public void setPhieldUrl(String phieldUrl) {
+        this.phieldUrl = phieldUrl;
+    }
+
+    public String getPhieldSourceId() {
+        return phieldSourceId;
+    }
+
+    public void setPhieldSourceId(String phieldSourceId) {
+        this.phieldSourceId = phieldSourceId;
+    }
+
+    public String getPhieldOrganization() {
+        return phieldOrganization;
+    }
+
+    public void setPhieldOrganization(String phieldOrganization) {
+        this.phieldOrganization = phieldOrganization;
     }
 
 }

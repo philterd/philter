@@ -32,12 +32,10 @@ Recording is best-effort: any failure is ignored so it can never affect redactio
 
 ## Producing a report
 
-Point Philter Diffuse at the same MongoDB and privatize the recorded counts, for example:
+Point Philter Diffuse at the same MongoDB and privatize the recorded counts with its `--aggregates` option, which reads and sums the `pii_count_aggregates` buckets:
 
 ```bash
-python main.py --mongo-uri "mongodb://localhost:27017/philter" --output privatized_counts.csv
+python main.py --mongo-uri "mongodb://localhost:27017/philter" --aggregates --output privatized_counts.csv
 ```
 
-Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.
-
-> Diffuse reads the per-`(context, day)` aggregates produced here; align its reader/collection configuration with the `pii_count_aggregates` schema above.
+Add `--context <name>` to restrict the report to a single context. Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.

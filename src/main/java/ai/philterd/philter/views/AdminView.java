@@ -32,6 +32,7 @@ import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -330,14 +331,33 @@ public class AdminView extends AbstractRestrictedView {
         final Checkbox diffuseCountsEnabledCheckbox = new Checkbox("Record PII count statistics for differential-privacy reporting");
         diffuseCountsEnabledCheckbox.setValue(finalAdminSettingsEntity.isDiffuseCountsEnabled());
 
+        // Phield (PII drift monitoring): enable + endpoint configuration.
+        final Checkbox phieldEnabledCheckbox = new Checkbox("Publish PII count statistics to Phield for drift monitoring");
+        phieldEnabledCheckbox.setValue(finalAdminSettingsEntity.isPhieldEnabled());
+
+        final TextField phieldUrlField = new TextField("Phield URL");
+        phieldUrlField.setPlaceholder("http://phield:8080");
+        phieldUrlField.setWidth("480px");
+        phieldUrlField.setValue(finalAdminSettingsEntity.getPhieldUrl() != null ? finalAdminSettingsEntity.getPhieldUrl() : "");
+
+        final TextField phieldSourceIdField = new TextField("Phield Source ID");
+        phieldSourceIdField.setValue(finalAdminSettingsEntity.getPhieldSourceId() != null ? finalAdminSettingsEntity.getPhieldSourceId() : "philter");
+
+        final TextField phieldOrganizationField = new TextField("Phield Organization");
+        phieldOrganizationField.setValue(finalAdminSettingsEntity.getPhieldOrganization() != null ? finalAdminSettingsEntity.getPhieldOrganization() : "philter");
+
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
             adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
+            adminSettingsDataService.savePhieldSettings(phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
+                    phieldSourceIdField.getValue(), phieldOrganizationField.getValue());
             showSuccessNotification("Admin settings saved.");
         });
         saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, diffuseCountsEnabledCheckbox, saveLoggingSettingsButton);
+        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, diffuseCountsEnabledCheckbox,
+                phieldEnabledCheckbox, phieldUrlField, phieldSourceIdField, phieldOrganizationField,
+                saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Users", usersVerticalLayout);

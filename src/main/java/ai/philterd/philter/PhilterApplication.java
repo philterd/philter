@@ -116,7 +116,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public PhieldPublisher phieldPublisher() {
-        return new PhieldPublisher();
+        return new PhieldPublisher(adminSettingsDataService());
     }
 
     @Bean

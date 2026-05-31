@@ -23,19 +23,22 @@ The matched text and its replacement are never included, so no sensitive informa
 
 ## How it works
 
-- **Disabled by default.** The integration is inactive unless the `PHIELD_URL` environment variable is set.
+- **Disabled by default.** The integration is inactive unless an administrator enables it (see below).
 - **Fire-and-forget.** Counts are sent asynchronously with a short timeout, and any failure is ignored and logged at debug level. A slow or unavailable Phield never affects redaction latency or availability.
 - **Per-context baselines.** Phield tracks a separate baseline for each `(source, organization, context, PII type)` combination. Because Philter sends the redaction [context](redaction/contexts.md), each context is monitored for drift independently. Redactions made without an explicit context are grouped under the `none` context.
 
 ## Enabling the integration
 
-Set the following environment variables (see [Settings](settings.md#pii-drift-monitoring-phield) for the full reference):
+This is configured by an administrator on the dashboard **Admin** page (it is off by default):
 
-| Environment Variable | Description | Default Value |
-|----------------------|-------------|---------------|
-| `PHIELD_URL` | Base URL of the Phield service (for example `http://phield:8080`). When set, Philter publishes PII type counts to `<PHIELD_URL>/ingest` after each redaction. Leave unset to disable. | (empty; disabled) |
-| `PHIELD_SOURCE_ID` | The `source_id` reported to Phield, identifying this Philter instance. Use a distinct value per instance if you want each baselined separately. | `philter` |
-| `PHIELD_ORGANIZATION` | The `organization` reported to Phield. | `philter` |
+| Option | Description | Default |
+|--------|-------------|---------|
+| **Publish PII count statistics to Phield** | Enables publishing. When off, nothing is sent. | Off |
+| **Phield URL** | Base URL of the Phield service (for example `http://phield:8080`). Counts are posted to `<URL>/ingest` after each redaction. Publishing is inactive while this is blank. | (empty) |
+| **Phield Source ID** | The `source_id` reported to Phield, identifying this Philter instance. Use a distinct value per instance if you want each baselined separately. | `philter` |
+| **Phield Organization** | The `organization` reported to Phield. | `philter` |
+
+Changes take effect within a short interval (the settings are cached briefly to keep the redaction path fast).
 
 Once enabled, view PII flows, baselines, and drift alerts in Phield's own dashboard. See the [Phield documentation](https://philterd.github.io/phield) for installation, alerting channels (such as Slack and PagerDuty), and dashboard details.
 

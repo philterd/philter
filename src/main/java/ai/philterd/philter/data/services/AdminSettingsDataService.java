@@ -45,6 +45,10 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         updateSetting("logging_enabled", loggingEnabled);
     }
 
+    public void saveDiffuseCountsEnabled(final boolean diffuseCountsEnabled) {
+        updateSetting("diffuse_counts_enabled", diffuseCountsEnabled);
+    }
+
     private void updateSetting(final String key, final Object value) {
         final Bson filter = new Document();
         final Bson update = Updates.set(key, value);

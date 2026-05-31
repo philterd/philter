@@ -327,13 +327,17 @@ public class AdminView extends AbstractRestrictedView {
         final Checkbox loggingEnabledCheckbox = new Checkbox("Enable Logging");
         loggingEnabledCheckbox.setValue(finalAdminSettingsEntity.isLoggingEnabled());
 
+        final Checkbox diffuseCountsEnabledCheckbox = new Checkbox("Record PII count statistics for differential-privacy reporting");
+        diffuseCountsEnabledCheckbox.setValue(finalAdminSettingsEntity.isDiffuseCountsEnabled());
+
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
+            adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
             showSuccessNotification("Admin settings saved.");
         });
         saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, saveLoggingSettingsButton);
+        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, diffuseCountsEnabledCheckbox, saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Users", usersVerticalLayout);

@@ -22,11 +22,13 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     private ObjectId id;
     private boolean loggingEnabled;
+    private boolean diffuseCountsEnabled;
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
         adminSettingsEntity.setId(document.getObjectId("_id"));
         adminSettingsEntity.setLoggingEnabled(document.getBoolean("logging_enabled", false));
+        adminSettingsEntity.setDiffuseCountsEnabled(document.getBoolean("diffuse_counts_enabled", false));
         return adminSettingsEntity;
     }
 
@@ -37,6 +39,7 @@ public class AdminSettingsEntity extends AbstractEntity {
             document.put("_id", id);
         }
         document.put("logging_enabled", loggingEnabled);
+        document.put("diffuse_counts_enabled", diffuseCountsEnabled);
         return document;
     }
 
@@ -55,6 +58,14 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setLoggingEnabled(boolean loggingEnabled) {
         this.loggingEnabled = loggingEnabled;
+    }
+
+    public boolean isDiffuseCountsEnabled() {
+        return diffuseCountsEnabled;
+    }
+
+    public void setDiffuseCountsEnabled(boolean diffuseCountsEnabled) {
+        this.diffuseCountsEnabled = diffuseCountsEnabled;
     }
 
 }

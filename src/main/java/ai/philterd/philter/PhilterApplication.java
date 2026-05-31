@@ -38,6 +38,7 @@ import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.LoginAttemptCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
+import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.webhook.WebhookService;
@@ -110,12 +111,17 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public RedactionService redactionService(final MeterRegistry meterRegistry) {
-        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher());
+        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher(), piiCountAggregatePublisher());
     }
 
     @Bean
     public PhieldPublisher phieldPublisher() {
         return new PhieldPublisher();
+    }
+
+    @Bean
+    public PiiCountAggregatePublisher piiCountAggregatePublisher() {
+        return new PiiCountAggregatePublisher(mongoClient(), adminSettingsDataService());
     }
 
     @Bean

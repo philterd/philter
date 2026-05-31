@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Used when redaction is done without a context.
@@ -56,6 +57,11 @@ public class InMemoryContextService implements ContextService {
     @Override
     public void putReplacement(String token, String replacement, String filterType) {
         context.put(token, replacement);
+    }
+
+    @Override
+    public String computeReplacementIfAbsent(final String token, final String filterType, final Supplier<String> replacementSupplier) {
+        return context.computeIfAbsent(token, k -> replacementSupplier.get());
     }
 
 }

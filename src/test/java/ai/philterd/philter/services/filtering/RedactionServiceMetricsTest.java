@@ -26,6 +26,7 @@ import ai.philterd.philter.data.services.GlobalTermsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.phield.PhieldPublisher;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.Counter;
@@ -58,6 +59,7 @@ class RedactionServiceMetricsTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private LedgerDataService ledgerService;
     @Mock private UserService userService;
+    @Mock private PiiCountAggregatePublisher piiCountAggregatePublisher;
 
     private SimpleMeterRegistry meterRegistry;
     private RedactionService redactionService;
@@ -69,7 +71,7 @@ class RedactionServiceMetricsTest {
         final PhieldPublisher phieldPublisher = new PhieldPublisher("", "philter", "philter");
         redactionService = new RedactionService(mongoClient, policyDataService, customListService,
                 globalTermsService, contextService, auditEventPublisher,
-                ledgerService, userService, meterRegistry, phieldPublisher);
+                ledgerService, userService, meterRegistry, phieldPublisher, piiCountAggregatePublisher);
     }
 
     private static Span appliedSpan(final FilterType filterType) {

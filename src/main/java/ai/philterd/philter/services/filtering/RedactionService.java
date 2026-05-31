@@ -44,6 +44,7 @@ import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
+import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import ai.philterd.philter.services.vectors.MongoVectorService;
@@ -91,6 +92,7 @@ public class RedactionService {
     private final UserService userService;
     private final MeterRegistry meterRegistry;
     private final PhieldPublisher phieldPublisher;
+    private final PiiCountAggregatePublisher piiCountAggregatePublisher;
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -133,7 +135,8 @@ public class RedactionService {
                             final LedgerDataService ledgerService,
                             final UserService userService,
                             final MeterRegistry meterRegistry,
-                            final PhieldPublisher phieldPublisher) {
+                            final PhieldPublisher phieldPublisher,
+                            final PiiCountAggregatePublisher piiCountAggregatePublisher) {
 
         this.mongoClient = mongoClient;;
         this.policyDataService = policyDataService;
@@ -145,6 +148,7 @@ public class RedactionService {
         this.userService = userService;
         this.meterRegistry = meterRegistry;
         this.phieldPublisher = phieldPublisher;
+        this.piiCountAggregatePublisher = piiCountAggregatePublisher;
 
     }
 
@@ -375,6 +379,10 @@ public class RedactionService {
         // Optionally publish the per-type counts (counts only, never any PII) to a Phield drift
         // monitor. No-op unless PHIELD_URL is configured; fire-and-forget so it cannot affect redaction.
         phieldPublisher.publish(filterResult.getContext(), filterTypeCounts);
+
+        // Optionally record document-presence PII type counts for differential-privacy reporting with
+        // Philter Diffuse. No-op unless enabled by the admin; best-effort so it cannot affect redaction.
+        piiCountAggregatePublisher.record(filterResult.getContext(), filterTypeCounts.keySet());
 
     }
 

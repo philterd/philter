@@ -19,6 +19,8 @@ import ai.philterd.phileas.services.context.ContextService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Supplier;
+
 public class NoOpContextService implements ContextService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NoOpContextService.class);
@@ -47,6 +49,12 @@ public class NoOpContextService implements ContextService {
     @Override
     public void putReplacement(final String token, final String replacement, final String filterType) {
 
+    }
+
+    @Override
+    public String computeReplacementIfAbsent(final String token, final String filterType, final Supplier<String> replacementSupplier) {
+        // No-op context does not store anything; compute and return without persisting.
+        return replacementSupplier.get();
     }
 
 }

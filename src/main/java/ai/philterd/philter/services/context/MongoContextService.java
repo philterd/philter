@@ -25,6 +25,8 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Supplier;
+
 public class MongoContextService implements ContextService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MongoContextService.class);
@@ -96,6 +98,17 @@ public class MongoContextService implements ContextService {
             contextCache.setTokenReplacement(contextName, token, entry.getId(), entry.getReplacement());
         }
 
+    }
+
+    @Override
+    public String computeReplacementIfAbsent(final String token, final String filterType, final Supplier<String> replacementSupplier) {
+        final String existing = getReplacement(token);
+        if (existing != null) {
+            return existing;
+        }
+        final String replacement = replacementSupplier.get();
+        putReplacement(token, replacement, filterType);
+        return replacement;
     }
 
 }

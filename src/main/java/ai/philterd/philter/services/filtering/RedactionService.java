@@ -274,6 +274,13 @@ public class RedactionService {
         final Properties properties = new Properties();
         properties.put("incremental.redactions.enabled",
                 System.getenv().getOrDefault("INCREMENTAL_REDACTIONS_ENABLED", "true"));
+
+        // Enable the Phileas span-disambiguation engine when (and only when) the context has entity
+        // type disambiguation turned on. This makes the context's disambiguation flag the single
+        // switch for the feature: without this, the engine gate defaults to off and the flag would
+        // silently have no effect.
+        properties.put("span.disambiguation.enabled", Boolean.toString(contextEntity.isDisambiguation()));
+
         final PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
 
         final PlainTextFilterService plainTextFilterService = new PlainTextFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);

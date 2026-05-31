@@ -29,15 +29,15 @@ Philter encrypts sensitive data at rest and requires an encryption key. Philter 
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `PHILTER_ENCRYPTION_KEY` | A base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`. Use the same value across restarts and instances. | (none — required) |
+| `PHILTER_ENCRYPTION_KEY` | A base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`. Use the same value across restarts and instances. | (none; required) |
 
 ## Cache Settings
 
-The cache is used for API key and context caching. Philter supports Valkey/Redis as the backend cache. The cache is **optional**: when `CACHE_HOSTNAME` is unset or blank, Philter uses an in-memory cache instead. The in-memory cache is ephemeral — it is not shared across instances and is lost on restart — and a warning is printed at startup. Configure Valkey for a durable, shared cache.
+The cache is used for API key and context caching. Philter supports Valkey/Redis as the backend cache. The cache is **optional**: when `CACHE_HOSTNAME` is unset or blank, Philter uses an in-memory cache instead. The in-memory cache is ephemeral (it is not shared across instances and is lost on restart) and a warning is printed at startup. Configure Valkey for a durable, shared cache.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `CACHE_HOSTNAME` | The hostname or IP address of the Valkey cache. Leave unset to use an in-memory cache. | (empty — in-memory) |
+| `CACHE_HOSTNAME` | The hostname or IP address of the Valkey cache. Leave unset to use an in-memory cache. | (empty; in-memory) |
 | `CACHE_PORT` | The Valkey port. | `6379` |
 | `CACHE_PASSWORD` | The Valkey password. | (empty) |
 | `CACHE_SSL` | Whether to use SSL for communication with the Valkey cache. | `false` |
@@ -51,3 +51,12 @@ Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Mon
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `API_IP_ALLOWLIST` | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. A bare address is treated as a single host. IPv4 only. | (empty, allow all) |
+
+## Dashboard Login
+
+These settings control the dashboard login lockout. See [Login Security](login_security.md).
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `LOGIN_MAX_ATTEMPTS` | Number of consecutive failed dashboard logins that triggers a temporary lockout. | `5` |
+| `LOGIN_LOCKOUT_SECONDS` | How long a dashboard login lockout lasts, in seconds. | `900` |

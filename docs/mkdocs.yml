@@ -147,6 +147,7 @@ nav:
     - 'Caching': 'caching.md'
     - 'Monitoring and Logging': 'monitoring_and_logging.md'
     - 'Auditing': 'auditing.md'
+    - 'Login Security': 'login_security.md'
     - 'Advanced Features':
       - 'Referential Integrity': 'other_features/referential_integrity.md'
       - 'Span Disambiguation': 'other_features/span_disambiguation.md'

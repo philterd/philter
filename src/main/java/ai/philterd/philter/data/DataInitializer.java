@@ -59,7 +59,8 @@ public class DataInitializer {
         if (userService.findByEmail("admin") == null) {
 
             LOGGER.info("Creating default admin user");
-            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", "admin", contextService, policyDataService, Source.SYSTEM.getSource());
+            // Seed with the default password but require it to be changed on first login.
+            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", "admin", contextService, policyDataService, Source.SYSTEM.getSource(), true);
 
 
         }

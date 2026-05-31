@@ -32,6 +32,7 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -113,6 +114,49 @@ class UserServiceTest {
         verify(policyDataService).save(any());
         verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_CREATED),
                 eq(userId), eq(userId), eq("source"), org.mockito.ArgumentMatchers.contains("role"));
+    }
+
+    @Test
+    void createUserWithPasswordChangeRequiredPersistsFlag() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+
+        final InsertOneResult insertOneResult = mock(InsertOneResult.class);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+
+        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+
+        userService.createUser("req", "admin", "admin", "admin", contextDataService, policyDataService, "system", true);
+
+        verify(mongoCollection).insertOne(docCaptor.capture());
+        assertTrue(docCaptor.getValue().getBoolean("password_change_required"));
+    }
+
+    @Test
+    void changePasswordClearsPasswordChangeRequiredFlag() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setEmail("admin");
+        user.setPasswordChangeRequired(true);
+
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
+
+        userService.changePassword("req", user, "a-new-password", "webui");
+
+        assertFalse(user.isPasswordChangeRequired());
+    }
+
+    @Test
+    void passwordMatches() {
+        final UserEntity user = new UserEntity();
+        user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("correct-horse"));
+
+        assertTrue(userService.passwordMatches(user, "correct-horse"));
+        assertFalse(userService.passwordMatches(user, "wrong"));
+        assertFalse(userService.passwordMatches(null, "x"));
     }
 
     @Test

@@ -83,6 +83,10 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService, final String source) {
+        return createUser(requestId, email, plainPassword, role, contextService, policyService, source, false);
+    }
+
+    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService, final String source, final boolean passwordChangeRequired) {
 
         if(findByEmail(email) != null) {
             return ServiceResponse.failure("User already exists.");
@@ -92,6 +96,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         userEntity.setEmail(email);
         userEntity.setPassword(passwordEncoder.encode(plainPassword));
         userEntity.setRole(role);
+        userEntity.setPasswordChangeRequired(passwordChangeRequired);
         final ObjectId userId = save(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED, userId, userId, source, "role: " + role);
@@ -122,6 +127,14 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
+    /** Returns whether the supplied plaintext password matches the user's stored (hashed) password. */
+    public boolean passwordMatches(final UserEntity userEntity, final String plainPassword) {
+        if (userEntity == null || userEntity.getPassword() == null || plainPassword == null) {
+            return false;
+        }
+        return passwordEncoder.matches(plainPassword, userEntity.getPassword());
+    }
+
     public List<UserEntity> findAll(final int offset, final int limit) {
 
         final FindIterable<Document> documents = collection.find().sort(Sorts.ascending("email")).skip(offset).limit(limit);
@@ -149,6 +162,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         } else {
 
             userEntity.setPassword(passwordEncoder.encode(newPassword));
+            // Changing the password satisfies any forced-reset requirement.
+            userEntity.setPasswordChangeRequired(false);
             update(userEntity);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_CHANGED, userEntity.getId(), userEntity.getId(), source, null);

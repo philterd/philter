@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter;
 
-import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
@@ -38,6 +37,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.cache.LoginAttemptCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
@@ -63,8 +63,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
-import java.io.IOException;
-import java.util.Properties;
 
 @Configuration
 @Theme(value="philter", variant=Lumo.LIGHT)
@@ -123,19 +121,6 @@ public class PhilterApplication implements AppShellConfigurator {
 
 
     @Bean
-    public PhileasConfiguration phileasConfiguration() throws IOException {
-
-        final Properties properties = new Properties();
-
-        // Required for the ledger; defaults to enabled and is overridable via the environment.
-        properties.put("incremental.redactions.enabled",
-                System.getenv().getOrDefault("INCREMENTAL_REDACTIONS_ENABLED", "true"));
-
-        return new PhileasConfiguration(properties);
-
-    }
-
-    @Bean
     public AuditEventPublisher auditEventPublisher() {
         return new MongoDBAuditEventPublisher(mongoClient());
     }
@@ -150,6 +135,12 @@ public class PhilterApplication implements AppShellConfigurator {
     public ApiKeyCache apiKeyCache() {
         LOGGER.info("Initializing API key cache.");
         return new ApiKeyCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
+    }
+
+    @Bean
+    public LoginAttemptCache loginAttemptCache() {
+        LOGGER.info("Initializing login attempt cache.");
+        return new LoginAttemptCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
     }
 
     @Bean
@@ -243,16 +234,20 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(final UserService userService) {
+    public UserDetailsService userDetailsService(final UserService userService, final LoginAttemptCache loginAttemptCache) {
         return email -> {
             final ai.philterd.philter.data.entities.UserEntity user = userService.findByEmail(email);
             if (user == null) {
                 throw new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email);
             }
+            // When the account is locked out (too many recent failed logins), build it as locked so
+            // Spring Security rejects the attempt with a LockedException before checking the password.
+            final boolean locked = loginAttemptCache.isLocked(email);
             return org.springframework.security.core.userdetails.User
                     .withUsername(user.getEmail())
                     .password(user.getPassword())
                     .roles(user.getRole() != null ? user.getRole().toUpperCase() : "USER")
+                    .accountLocked(locked)
                     .build();
         };
     }

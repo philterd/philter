@@ -16,7 +16,7 @@ When enabled for a context, Philter will utilize the context's accumulated knowl
 
 The option between disambiguation at the document level and the context level is called **disambiguation scope** and can be set in your [redaction policy](policy_syntax.md).
 
-When disambiguation is performed on the context level, you can think of Philter as "getting smarter" over time. As more documents are processed under a context, the redaction engine will have more information to utilize in its analysis. This can ultimately lead to more accurate redactions.
+When disambiguation is performed on the context level, you can think of Philter as "getting smarter" over time. Philter learns from unambiguous spans (text that only one filter claimed) by recording the surrounding words as an example of that type, then compares future competing spans against this accumulated knowledge. As more documents are processed under a context, the engine has more examples to draw on, which can lead to more accurate redactions. A brand-new context has no examples yet, so its first decisions fall back to a deterministic default and improve as examples accumulate.
 
 Disambiguation at the document level is generally more efficient and can be used in cases where you have a small number of documents to redact.
 
@@ -28,16 +28,13 @@ For example, in the phrase "Washington State University", a filter might identif
 
 Philterd will apply the redaction for "Washington State University" because it is the longer, more specific span.
 
-## Contextual Disambiguation
+## Contextual Disambiguation (Entity Type Disambiguation)
 
-For spans that are identical or partially overlap, Philterd uses contextual disambiguation. This allows Philter to look at the words surrounding a sensitive term to determine its most likely type.
+When two filters claim the **same** text (identical start and end positions) but assign different types, Philter uses contextual disambiguation to choose between them. It compares the words surrounding the span against the context it has learned for each candidate type and selects the most likely one. This is the vector-based feature described in detail in [Span Disambiguation](../other_features/span_disambiguation.md).
 
-**Examples:**
+For example, if the word "Washington" in "I am visiting Washington next week." is claimed both as a person name and as a location, the surrounding words ("visiting", "next week") favor the location interpretation.
 
-*   "I met with **George Washington** today." (Likely a Person)
-*   "I am visiting **Washington** next week." (Likely a Location)
-
-Philter analyzes the context to assign higher confidence to the most appropriate filter type for that specific instance.
+This applies only to spans covering identical text. Spans that merely overlap (one longer than the other) are resolved by the longest-span and confidence rules described above, not by contextual disambiguation.
 
 ## Confidence Thresholds
 

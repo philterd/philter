@@ -2,7 +2,7 @@
 
 Philter includes a user interface dashboard that can be accessed at `http://your-philter-endpoint:8080`.
 
-The dashboard is protected by a login screen. The default username and password for the administrator is `admin` / `admin`. It is recommended to change the administrator password after logging in.
+The dashboard is protected by a login screen. The default administrator account is `admin` / `admin`. On the first login with the default password, Philter requires you to set a new password before you can use the dashboard. See [Login Security](login_security.md) for details on the forced password change and the failed-login lockout.
 
 > The Philter UI dashboard is intended for configuration testing and policy management. Use Philter's [API](api_and_sdks/api.md) for document redaction.
 

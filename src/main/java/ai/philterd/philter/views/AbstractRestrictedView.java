@@ -61,9 +61,17 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
 
-        if (getCurrentUser() == null) {
+        final UserEntity currentUser = getCurrentUser();
+
+        if (currentUser == null) {
             LOGGER.warn("Redirecting to /login because user is null.");
             event.forwardTo(LoginView.class);
+            return;
+        }
+
+        // Force a password change before any other restricted view is accessible.
+        if (currentUser.isPasswordChangeRequired()) {
+            event.forwardTo(ChangePasswordView.class);
         }
 
     }

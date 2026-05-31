@@ -14,4 +14,9 @@ Enabling referential integrity on the context level requires a cache to store th
 
 **A Valkey cache is required for referential integrity when Philter is deployed in a cluster.** The in-memory fallback is local to a single instance and is not shared across nodes, so a shared Valkey cache must be configured for consistent replacements across all nodes. The in-memory cache is also ephemeral and is lost on restart.
 
+## Limits and behavior to be aware of
+
+* **Context capacity.** Context-level referential integrity holds up to `MAX_CONTEXT_SIZE` distinct values per context (default `10000`; see [Contexts](../redaction/contexts.md)). When a context exceeds that limit, the least-recently-read mapping is evicted to make room. If an evicted value is then seen again in the same context, it is treated as new and receives a different replacement. For consistent replacement across a very large or long-lived context, raise `MAX_CONTEXT_SIZE` so the number of distinct values stays within the limit.
+* **Case sensitivity.** Values are matched exactly, including case. "John Smith" and "john smith" are treated as different values and may receive different replacements within the same context.
+
 The referential integrity cache will contain PHI. It is important that you take the necessary precautions to secure the cache and all communication to and from the cache.

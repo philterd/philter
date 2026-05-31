@@ -29,6 +29,7 @@ public class UserEntity extends AbstractEncryptedEntity {
     private boolean changesetsEnabled;
     private String webhookUrl;
     private String webhookSecret;
+    private boolean passwordChangeRequired;
 
     public static UserEntity fromDocument(final Document document) {
         final UserEntity userEntity = new UserEntity();
@@ -40,6 +41,7 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setChangesetsEnabled(document.getBoolean("changesets_enabled", false));
         userEntity.setWebhookUrl(document.getString("webhook_url"));
         userEntity.setWebhookSecret(document.getString("webhook_secret"));
+        userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
         return userEntity;
     }
 
@@ -56,6 +58,7 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("changesets_enabled", changesetsEnabled);
         document.put("webhook_url", webhookUrl);
         document.put("webhook_secret", webhookSecret);
+        document.put("password_change_required", passwordChangeRequired);
         return document;
     }
 
@@ -122,5 +125,13 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setWebhookSecret(final String webhookSecret) {
         this.webhookSecret = webhookSecret;
+    }
+
+    public boolean isPasswordChangeRequired() {
+        return passwordChangeRequired;
+    }
+
+    public void setPasswordChangeRequired(final boolean passwordChangeRequired) {
+        this.passwordChangeRequired = passwordChangeRequired;
     }
 }

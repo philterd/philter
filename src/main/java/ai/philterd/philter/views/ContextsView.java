@@ -62,28 +62,24 @@ public class ContextsView extends AbstractRestrictedView {
             
             Contexts allow for grouping documents during redaction and provides features such as referential integrity. When a document is redacted, it can be assigned to a context. If that context has been used previously, the same replacements are used for the same sensitive information, ensuring consistency across your documents.
             
-            When the **coref** option is enabled for a context, anonymized PII is co-referenced in the documents. This ensures that names remain consistent even when only parts of the name are used. For example, if "John Smith" is anonymized as "Daniel Jones", then subsequent references to "John" will be consistently anonymized as "Daniel".
-            
             When the **disambiguation** option is enabled for a context, entity types are disambiguated during redaction to provide more precise identification of sensitive information.
-            
+
             ### Create a New Context
-            
+
             To create a new context:
-            
+
             1. Click **New Context**.
             2. Enter a unique **Context** name.
-            3. Optionally, check **Enable coref** to enable co-referencing.
-            4. Optionally, check **Enable disambiguation** to enable entity type disambiguation.
-            5. Click **Save** to create the context.
-            
+            3. Optionally, check **Enable disambiguation** to enable entity type disambiguation.
+            4. Click **Save** to create the context.
+
             ### Edit a Context
-            
+
             To edit a context:
-            
+
             1. Click **Edit** in the row of the context you wish to edit.
-            2. Toggle the **Enable coref** checkbox.
-            3. Toggle the **Enable disambiguation** checkbox.
-            4. Click **Save** to update the context.
+            2. Toggle the **Enable disambiguation** checkbox.
+            3. Click **Save** to update the context.
             
             ### View Context Details
             
@@ -141,10 +137,6 @@ public class ContextsView extends AbstractRestrictedView {
             contextNameTextField.setRequired(true);
             contextNameTextField.setRequiredIndicatorVisible(true);
 
-            final Checkbox corefCheckbox = new Checkbox();
-            corefCheckbox.setLabel("Enable entity co-referencing for this context.");
-            corefCheckbox.setValue(false);
-
             final Checkbox disambiguationCheckbox = new Checkbox();
             disambiguationCheckbox.setLabel("Enable entity type disambiguation for this context.");
             disambiguationCheckbox.setValue(false);
@@ -155,8 +147,6 @@ public class ContextsView extends AbstractRestrictedView {
 
             final VerticalLayout contextVerticalLayout = new VerticalLayout();
             contextVerticalLayout.add(contextNameTextField);
-            contextVerticalLayout.add(corefCheckbox);
-            contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity co-referencing.", "https://docs.philterd.ai/redaction/contexts.html#co-referencing-coref", true));
             contextVerticalLayout.add(disambiguationCheckbox);
             contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "https://docs.philterd.ai/redaction/contexts.html#disambiguation", true));
             contextVerticalLayout.add(ledgerCheckbox);
@@ -171,10 +161,9 @@ public class ContextsView extends AbstractRestrictedView {
             final Button confirmButton = new Button("Save", e -> {
 
                 final String contextName = contextNameTextField.getValue();
-                final boolean coref = corefCheckbox.getValue();
                 final boolean disambiguation = disambiguationCheckbox.getValue();
                 final boolean ledger = ledgerCheckbox.getValue();
-                final ServiceResponse serviceResponse = contextService.create(contextName, userEntity.getId(), coref, disambiguation, ledger);
+                final ServiceResponse serviceResponse = contextService.create(contextName, userEntity.getId(), disambiguation, ledger);
 
                 if(serviceResponse.isSuccessful()) {
 
@@ -269,10 +258,6 @@ public class ContextsView extends AbstractRestrictedView {
                 contextNameTextField.setValue(contextEntity.getContextName());
                 contextNameTextField.setReadOnly(true);
 
-                final Checkbox corefCheckbox = new Checkbox();
-                corefCheckbox.setLabel("Enable co-referencing for this context.");
-                corefCheckbox.setValue(contextEntity.isCoref());
-
                 final Checkbox disambiguationCheckbox = new Checkbox();
                 disambiguationCheckbox.setLabel("Enable disambiguation for this context.");
                 disambiguationCheckbox.setValue(contextEntity.isDisambiguation());
@@ -283,8 +268,6 @@ public class ContextsView extends AbstractRestrictedView {
 
                 final VerticalLayout contextVerticalLayout = new VerticalLayout();
                 contextVerticalLayout.add(contextNameTextField);
-                contextVerticalLayout.add(corefCheckbox);
-                contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity co-referencing.", "https://docs.philterd.ai/redaction/contexts.html#co-referencing-coref", true));
                 contextVerticalLayout.add(disambiguationCheckbox);
                 contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "https://docs.philterd.ai/redaction/contexts.html#disambiguation", true));
                 contextVerticalLayout.add(ledgerCheckbox);
@@ -298,11 +281,9 @@ public class ContextsView extends AbstractRestrictedView {
 
                 final Button saveButton = new Button("Save", e -> {
 
-                    final boolean coref = corefCheckbox.getValue();
                     final boolean disambiguation = disambiguationCheckbox.getValue();
                     final boolean ledger = ledgerCheckbox.getValue();
 
-                    contextEntity.setCoref(coref);
                     contextEntity.setDisambiguation(disambiguation);
                     contextEntity.setLedger(ledger);
                     contextService.update(contextEntity);

@@ -106,7 +106,7 @@ class ContextDataServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
 
-        contextDataService.create(contextName, userId, false, false, true);
+        contextDataService.create(contextName, userId, false, true);
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
         verify(mongoCollection).insertOne(docCaptor.capture());
@@ -128,8 +128,8 @@ class ContextDataServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
 
-        // The four-argument create overload must leave the ledger off by default.
-        contextDataService.create(contextName, userId, false, false);
+        // The name-and-user create overload must leave the ledger off by default.
+        contextDataService.create(contextName, userId);
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
         verify(mongoCollection).insertOne(docCaptor.capture());

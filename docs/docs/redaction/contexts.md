@@ -12,15 +12,9 @@ When you redact a document within a specific context using a strategy like `ANON
 
 This ensures that your redacted datasets remain analytically useful—you can still tell that the same individual is being referenced across multiple documents without ever knowing their actual identity.
 
-### Co-referencing (coref)
-
-When the `coref` option is enabled for a context, anonymized PII is co-referenced in the documents. This ensures that names remain consistent even when only parts of the name are used. For example, if "John Smith" is anonymized as "Daniel Jones", then subsequent references to "John" will be consistently anonymized as "Daniel". This feature helps maintain the narrative flow and clarity of redacted documents.
-
 ### Entity Type Disambiguation
 
 Entity type disambiguation can be enabled or disabled for a context. When enabled, Philter uses information from all documents in the context to resolve overlapping or conflicting entity types. This allows the system to make more informed decisions about the type of sensitive information identified.
-
-Note that co-referencing may not catch all references to the same entity. For example, misspelled names or abbreviations may not be detected, or general ambiguities may result in false positive and false negative matches.
 
 ### Entity Type Disambiguation
 
@@ -40,17 +34,16 @@ The main table on the Contexts page lists all the contexts you have created. You
 
 1.  **Initiate Creation**: Click the **New Context** button at the top of the table.
 2.  **Assign a Name**: Enter a unique and descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`).
-3.  **Enable Co-referencing (Optional)**: Check the **Enable coref** checkbox if you want to enable co-referencing for this context.
-4.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
-5.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
-6.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
+3.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
+4.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
+5.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
 
 ### Editing a Context
 
-You can enable or disable co-referencing, entity type disambiguation, and the redaction ledger for an existing context at any time:
+You can enable or disable entity type disambiguation and the redaction ledger for an existing context at any time:
 
 1.  Click the **Edit** (pencil) icon for the target context.
-2.  Toggle the **Enable coref**, **Enable entity type disambiguation**, or **Enable the redaction ledger** checkboxes as desired.
+2.  Toggle the **Enable entity type disambiguation** or **Enable the redaction ledger** checkboxes as desired.
 3.  Click **Save**.
 
 ### Inspecting Context Entries

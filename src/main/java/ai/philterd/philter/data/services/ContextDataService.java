@@ -54,15 +54,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         return create(contextName, userId, false, false);
     }
 
-    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref) {
-        return create(contextName, userId, coref, false);
-    }
-
-    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation) {
-        return create(contextName, userId, coref, disambiguation, false);
-    }
-
-    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation, final boolean ledger) {
+    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean disambiguation, final boolean ledger) {
 
         if(contextName == null || contextName.isBlank()) {
             return new ServiceResponse("Context name cannot be blank.", false, 400);
@@ -79,7 +71,6 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final ContextEntity contextEntity = new ContextEntity();
         contextEntity.setUserId(userId);
         contextEntity.setContextName(contextName);
-        contextEntity.setCoref(coref);
         contextEntity.setDisambiguation(disambiguation);
         contextEntity.setLedger(ledger);
         final ObjectId objectId = save(contextEntity);
@@ -206,11 +197,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation) {
-        return updateSettings(contextName, userId, coref, disambiguation, false);
-    }
-
-    public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean coref, final boolean disambiguation, final boolean ledger) {
+    public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean disambiguation, final boolean ledger) {
 
         final ContextEntity existing = findOne(contextName, userId);
         if (existing == null) {
@@ -218,7 +205,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         }
 
         final Bson filter = Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", userId));
-        final Bson update = Updates.combine(Updates.set("coref", coref), Updates.set("disambiguation", disambiguation), Updates.set("ledger", ledger));
+        final Bson update = Updates.combine(Updates.set("disambiguation", disambiguation), Updates.set("ledger", ledger));
         collection.updateOne(filter, update);
 
         return new ServiceResponse("Context updated.", true);

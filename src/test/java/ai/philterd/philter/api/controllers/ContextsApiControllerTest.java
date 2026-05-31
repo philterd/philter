@@ -100,7 +100,7 @@ class ContextsApiControllerTest {
 
     @Test
     void createScopesToOwningUserId() throws Exception {
-        when(contextService.create(eq("ctx"), eq(userId), anyBoolean(), anyBoolean(), anyBoolean()))
+        when(contextService.create(eq("ctx"), eq(userId), anyBoolean(), anyBoolean()))
                 .thenReturn(ServiceResponse.success("Context created."));
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
@@ -109,7 +109,7 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-2"))
                 .andExpect(status().isOk());
 
-        verify(contextService).create(eq("ctx"), eq(userId), anyBoolean(), anyBoolean(), anyBoolean());
+        verify(contextService).create(eq("ctx"), eq(userId), anyBoolean(), anyBoolean());
     }
 
     @Test

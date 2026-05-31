@@ -56,31 +56,31 @@ Example response:
 ### Query Parameters
 
 * `name` (required) - The name of the context to create.
-* `coref` (optional, default: `false`) - Whether to enable coreference resolution for this context.
 * `disambiguation` (optional, default: `false`) - Whether to enable disambiguation for this context.
+* `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 
 Example request:
 
 ```bash
-curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/contexts?name=my-context&coref=true"
+curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/contexts?name=my-context&disambiguation=true"
 ```
 
 ## Update a Context
 
 | Method | Endpoint               | Description                                                       |
 |--------|------------------------|-------------------------------------------------------------------|
-| `PUT`  | `/api/contexts/{name}` | Update the `coref` and `disambiguation` flags on a context.       |
+| `PUT`  | `/api/contexts/{name}` | Update the `disambiguation` and `ledger` flags on a context.      |
 
 ### Query Parameters
 
-* `coref` (optional, default: `false`) - Enable coreference resolution.
 * `disambiguation` (optional, default: `false`) - Enable entity-type disambiguation.
+* `ledger` (optional, default: `false`) - Enable the redaction ledger.
 
 Example request:
 
 ```bash
 curl -X PUT -k -H "Authorization: Bearer <token>" \
-  "https://localhost:8080/api/contexts/my-context?coref=true&disambiguation=false"
+  "https://localhost:8080/api/contexts/my-context?disambiguation=false&ledger=true"
 ```
 
 Returns `200 OK` on success, `404 Not Found` if no context with that name exists for the calling user.

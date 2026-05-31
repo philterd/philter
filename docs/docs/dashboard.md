@@ -39,7 +39,6 @@ The **Custom Lists** section allows you to manage reusable lists of terms. These
 The **Contexts** section is used to manage redaction contexts, which enable:
 
 *   **Referential Integrity**: Ensures consistent replacements for the same sensitive information across multiple documents within a context.
-*   **Entity Co-referencing (coref)**: Maintains consistency for entity mentions (e.g., "John Smith" and "John").
 *   **Disambiguation**: Improves accuracy by resolving entity type ambiguities.
 
 ### User Management

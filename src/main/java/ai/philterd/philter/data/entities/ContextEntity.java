@@ -28,7 +28,6 @@ public class ContextEntity extends AbstractEntity {
     private ObjectId id;
     private String contextName;
     private int maxSize;
-    private boolean coref;
     private boolean disambiguation;
     private boolean ledger;
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
@@ -41,7 +40,6 @@ public class ContextEntity extends AbstractEntity {
         contextEntity.userId = document.getObjectId("user_id");
         contextEntity.contextName = document.getString("context_name");
         contextEntity.maxSize = document.getInteger("max_size", MAX_CONTEXT_SIZE);
-        contextEntity.coref = document.getBoolean("coref", false);
         contextEntity.disambiguation = document.getBoolean("disambiguation", false);
         contextEntity.ledger = document.getBoolean("ledger", false);
         contextEntity.ttlInHours = document.getInteger("ttl_in_hours", DEFAULT_TTL_IN_HOURS);
@@ -58,7 +56,6 @@ public class ContextEntity extends AbstractEntity {
         document.put("user_id", userId);
         document.put("context_name", contextName);
         document.put("max_size", maxSize);
-        document.put("coref", coref);
         document.put("disambiguation", disambiguation);
         document.put("ledger", ledger);
         document.put("ttl_in_hours", ttlInHours);
@@ -88,14 +85,6 @@ public class ContextEntity extends AbstractEntity {
 
     public void setMaxSize(int maxSize) {
         this.maxSize = maxSize;
-    }
-
-    public boolean isCoref() {
-        return coref;
-    }
-
-    public void setCoref(boolean coref) {
-        this.coref = coref;
     }
 
     public boolean isDisambiguation() {

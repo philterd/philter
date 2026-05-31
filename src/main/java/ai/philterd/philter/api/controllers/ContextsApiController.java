@@ -157,7 +157,6 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> createContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam("name") String name,
-            final @RequestParam(value = "coref", required = false, defaultValue = "false") boolean coref,
             final @RequestParam(value = "disambiguation", required = false, defaultValue = "false") boolean disambiguation,
             final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
             final @RequestAttribute("requestId") String requestId,
@@ -171,7 +170,7 @@ public class ContextsApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        final ServiceResponse serviceResponse = contextService.create(name, userId, coref, disambiguation, ledger);
+        final ServiceResponse serviceResponse = contextService.create(name, userId, disambiguation, ledger);
 
         if(serviceResponse.isSuccessful()) {
 
@@ -228,7 +227,7 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Update a context's settings.", description = "Update the coref, disambiguation, and ledger flags on an existing context.")
+    @Operation(summary = "Update a context's settings.", description = "Update the disambiguation and ledger flags on an existing context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Context not found.")
@@ -237,7 +236,6 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> updateContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
-            final @RequestParam(value = "coref", required = false, defaultValue = "false") boolean coref,
             final @RequestParam(value = "disambiguation", required = false, defaultValue = "false") boolean disambiguation,
             final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger) {
 
@@ -246,7 +244,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ServiceResponse response = contextService.updateSettings(name, apiKeyEntity.getUserId(), coref, disambiguation, ledger);
+        final ServiceResponse response = contextService.updateSettings(name, apiKeyEntity.getUserId(), disambiguation, ledger);
 
         return new ResponseEntity<>(new GenericResponse(response.getMessage()),
                 response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);

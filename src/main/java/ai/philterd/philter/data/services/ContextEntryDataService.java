@@ -271,13 +271,8 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     public void deleteByContextName(final String contextName, final ObjectId userId) {
 
-        // Safeguard to prevent deleting the default context.
-        if(!"default".equalsIgnoreCase(contextName)) {
-
-            final Document filter = new Document("context_name", contextName).append("user_id", userId);
-            collection.deleteMany(filter);
-
-        }
+        final Document filter = new Document("context_name", contextName).append("user_id", userId);
+        collection.deleteMany(filter);
 
     }
 

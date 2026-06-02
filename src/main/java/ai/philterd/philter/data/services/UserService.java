@@ -16,7 +16,6 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -82,11 +81,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService, final String source) {
-        return createUser(requestId, email, plainPassword, role, contextService, policyService, source, false);
+    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final String source) {
+        return createUser(requestId, email, plainPassword, role, policyService, source, false);
     }
 
-    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final ContextDataService contextService, final PolicyDataService policyService, final String source, final boolean passwordChangeRequired) {
+    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final String source, final boolean passwordChangeRequired) {
 
         if(findByEmail(email) != null) {
             return ServiceResponse.failure("User already exists.");
@@ -100,13 +99,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final ObjectId userId = save(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED, userId, userId, source, "role: " + role);
-
-        // Create the default context.
-        LOGGER.info("Inserting default context");
-        final ContextEntity contextEntity = new ContextEntity();
-        contextEntity.setUserId(userId);
-        contextEntity.setContextName("default");
-        contextService.save(contextEntity);
 
         // Create the default policy.
         LOGGER.info("Inserting the default policy");

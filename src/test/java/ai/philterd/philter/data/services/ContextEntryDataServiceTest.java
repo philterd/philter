@@ -164,13 +164,12 @@ class ContextEntryDataServiceTest {
     }
 
     @Test
-    void deleteByContextNameDefault() {
+    void deleteByContextNameDeletesDefaultLikeAnyOther() {
         ObjectId userId = new ObjectId();
-        String contextName = "default";
+        // The "default" context is no longer special; its entries are deleted like any other context.
+        contextEntryDataService.deleteByContextName("default", userId);
 
-        contextEntryDataService.deleteByContextName(contextName, userId);
-
-        verify(mongoCollection, never()).deleteMany(any(Document.class));
+        verify(mongoCollection).deleteMany(any(Document.class));
     }
 
     @Test

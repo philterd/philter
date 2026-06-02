@@ -104,8 +104,6 @@ public class ContextsView extends AbstractRestrictedView {
             1. Click **Delete** in the row of the context you wish to remove.
             2. Review the confirmation message, noting that this action cannot be undone but will not affect already redacted documents.
             3. Click **Delete** to confirm the removal.
-            
-            Note: The **default** context cannot be deleted.
             """;
 
     }
@@ -348,10 +346,6 @@ public class ContextsView extends AbstractRestrictedView {
 
         grid.addComponentColumn(contextEntity -> {
 
-            if(contextEntity.getContextName().equalsIgnoreCase("default")) {
-                return null;
-            } else {
-
                 final Button deleteContextButton = new Button(VaadinIcon.TRASH.create());
                 deleteContextButton.setTooltipText("Delete context " + contextEntity.getContextName());
                 deleteContextButton.addClickListener(event -> {
@@ -386,8 +380,6 @@ public class ContextsView extends AbstractRestrictedView {
                 });
 
                 return deleteContextButton;
-
-            }
 
         }).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
 

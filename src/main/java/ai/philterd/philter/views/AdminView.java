@@ -20,7 +20,6 @@ import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.UserEntityDataProvider;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
-import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
@@ -68,7 +67,7 @@ public class AdminView extends AbstractRestrictedView {
     }
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
-                     final UserService userService, final ContextDataService contextService, final PolicyDataService policyService,
+                     final UserService userService, final PolicyDataService policyService,
                      final AdminSettingsDataService adminSettingsDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher, true);
@@ -135,7 +134,7 @@ public class AdminView extends AbstractRestrictedView {
 
                 } else {
 
-                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), email, password, role, contextService, policyService, Source.WEBUI.getSource());
+                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), email, password, role, policyService, Source.WEBUI.getSource());
 
                     if (serviceResponse.isSuccessful()) {
                         showSuccessNotification(serviceResponse.getMessage());

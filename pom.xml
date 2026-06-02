@@ -194,6 +194,8 @@
                         <phase>integration-test</phase>
                         <goals>
                             <goal>integration-test</goal>
+                            <!-- 'verify' checks the integration-test results and fails the build on failures. -->
+                            <goal>verify</goal>
                         </goals>
                     </execution>
                 </executions>

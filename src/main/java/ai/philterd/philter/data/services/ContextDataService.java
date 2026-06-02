@@ -272,11 +272,6 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     public ServiceResponse deleteByName(final String contextName, final ObjectId requesterUserId, final boolean requesterIsAdmin) {
 
-        // Safeguard to prevent deleting the default context.
-        if("default".equalsIgnoreCase(contextName)) {
-            return new ServiceResponse("The default context cannot be deleted.", false);
-        }
-
         // Make sure the context exists. The lookup is scoped to the requester, so a non-admin can
         // only ever find (and therefore delete) a context they created.
         final ContextEntity contextEntity = findOne(contextName, requesterUserId);

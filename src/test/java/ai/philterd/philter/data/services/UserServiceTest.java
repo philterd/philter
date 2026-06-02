@@ -107,11 +107,12 @@ class UserServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(userId));
 
-        ServiceResponse response = userService.createUser("req", email, "password", "role", contextDataService, policyDataService, "source");
+        ServiceResponse response = userService.createUser("req", email, "password", "role", policyDataService, "source");
 
         assertTrue(response.isSuccessful());
-        verify(contextDataService).save(any());
+        // A default policy is seeded, but no context is created for the new user.
         verify(policyDataService).save(any());
+        verify(contextDataService, never()).save(any());
         verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_CREATED),
                 eq(userId), eq(userId), eq("source"), org.mockito.ArgumentMatchers.contains("role"));
     }
@@ -128,7 +129,7 @@ class UserServiceTest {
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
 
-        userService.createUser("req", "admin", "admin", "admin", contextDataService, policyDataService, "system", true);
+        userService.createUser("req", "admin", "admin", "admin", policyDataService, "system", true);
 
         verify(mongoCollection).insertOne(docCaptor.capture());
         assertTrue(docCaptor.getValue().getBoolean("password_change_required"));

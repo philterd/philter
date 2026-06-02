@@ -21,17 +21,12 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import de.bwaldvogel.mongo.MongoServer;
-import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
 import org.bson.types.ObjectId;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,30 +50,15 @@ import static org.mockito.Mockito.mock;
  *       replacement — without regenerating it — proving identical pseudonymization is reproduced.</li>
  * </ol>
  */
-class ContextExportImportIntegrationTest {
+class ContextExportImportIT extends AbstractMongoIT {
 
-    private MongoServer server;
-    private MongoClient mongoClient;
     private ContextEntryDataService contextEntryService;
     private AuditEventPublisher auditEventPublisher;
 
     @BeforeEach
-    void setUp() {
-        server = new MongoServer(new MemoryBackend());
-        final InetSocketAddress address = server.bind();
-        mongoClient = MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());
+    void setUpServices() {
         auditEventPublisher = mock(AuditEventPublisher.class);
         contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher);
-    }
-
-    @AfterEach
-    void tearDown() {
-        if (mongoClient != null) {
-            mongoClient.close();
-        }
-        if (server != null) {
-            server.shutdown();
-        }
     }
 
     @Test

@@ -91,8 +91,6 @@ Returns `200 OK` on success, `404 Not Found` if no context with that name exists
 |----------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------| 
 | `DELETE` | `/api/contexts/{name}` | Delete a context, where {name} is the name of the context to delete. |
 
-The `default` context cannot be deleted.
-
 A delete is **rejected with `409 Conflict`** if any asynchronously-submitted document referencing the context is still pending or processing. Either wait for the jobs to finish (poll the [Documents API](documents_api.md)) or delete the pending jobs first.
 
 Example request:

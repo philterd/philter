@@ -64,8 +64,7 @@ To permanently remove a context and all its associated mappings:
 
 1.  Click the **Delete** (trash) icon.
 2.  **Impact**: Deleting a context removes the organizational unit, its internal mappings, and its learned disambiguation vectors. This will **not** affect documents that have already been redacted and downloaded.
-3.  **Default Context**: Every account has a **default** context. The default context cannot be deleted.
-4.  **Permissions**: A context can be deleted only by the user that created it or by an admin.
+3.  **Permissions**: A context can be deleted only by the user that created it or by an admin.
 
 > Contexts are shared and are **not** deleted when a user is removed; their mappings and disambiguation vectors are retained.
 

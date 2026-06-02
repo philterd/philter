@@ -197,7 +197,8 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Create a context.", description = "Create a new context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was created."),
-            @ApiResponse(responseCode = "400", description = "The context could not be created.")
+            @ApiResponse(responseCode = "400", description = "The context could not be created."),
+            @ApiResponse(responseCode = "409", description = "A context with this name already exists.")
     })
     @RequestMapping(value = "/api/contexts", method = RequestMethod.POST)
     public ResponseEntity<GenericResponse> createContext(
@@ -225,7 +226,9 @@ public class ContextsApiController extends AbstractApiController {
 
         } else {
 
-            return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.BAD_REQUEST);
+            // A duplicate (globally non-unique) name is a conflict; other validation failures are 400.
+            final HttpStatus status = serviceResponse.getStatusCode() == 409 ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+            return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), status);
 
         }
 

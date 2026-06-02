@@ -123,6 +123,19 @@ class ContextsApiControllerTest {
     }
 
     @Test
+    void createReturns409ForGloballyDuplicateName() throws Exception {
+        // A globally non-unique name yields a 409 ServiceResponse, which must surface as HTTP 409.
+        when(contextService.create(eq("dup"), eq(userId), anyBoolean(), anyBoolean()))
+                .thenReturn(new ServiceResponse("Context already exists.", false, 409));
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("name", "dup")
+                        .requestAttr("requestId", "req-dup"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void deleteScopesToOwningUserId() throws Exception {
         when(pendingDocumentDataService.hasOpenJobsForContext(eq(userId), eq("ctx"))).thenReturn(false);
         when(contextService.deleteByName(eq("ctx"), eq(userId), anyBoolean()))

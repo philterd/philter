@@ -1,6 +1,6 @@
 # Contexts API
 
-The Contexts API provides endpoints for retrieving, creating, and deleting contexts.
+The Contexts API provides endpoints for retrieving, creating, and deleting contexts, and for listing, exporting, and importing the token-to-replacement mappings within a context.
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
@@ -55,7 +55,7 @@ Example response:
 
 ### Query Parameters
 
-* `name` (required) - The name of the context to create.
+* `name` (required) - The name of the context to create. Context names are **globally unique**: if any user has already created a context with this name the request is rejected with `409 Conflict`.
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 
@@ -162,6 +162,94 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \
   https://localhost:8080/api/contexts/my-context/entries/6a1101d50737f1edfcf70d77
+```
+
+## Export a Context's Mapping Table
+
+| Method | Endpoint                                | Description                                                  |
+|--------|-----------------------------------------|-------------------------------------------------------------|
+| `GET`  | `/api/contexts/{name}/entries/export`   | Export the complete mapping table for a context as JSON.    |
+
+Exports every token-to-replacement mapping in the context in a portable JSON form that can be re-imported into another context, account, or environment (see [Import](#import-a-mapping-table-into-a-context) below) to keep pseudonymization consistent across runs.
+
+**Authorization:** only the user that **created** the context or an **admin** may export it. An admin may export any context (context names are globally unique). Any other caller receives `404 Not Found`, which is also returned when the context does not exist — the endpoint does not reveal the existence of a context you are not allowed to access.
+
+Returns `200 OK` with the export document. The response is sent with a `Content-Disposition` header so it can be saved directly to a file.
+
+> **Security:** the export contains only the SHA-256 **hash** of each original token (never the original value) along with its replacement. Because the hash is what redaction looks up, this is sufficient to reproduce consistent replacements without exposing the underlying sensitive data. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
+
+Example request:
+
+```bash
+curl -k -H "Authorization: Bearer <token>" \
+  "https://localhost:8080/api/contexts/my-context/entries/export" -o my-context-export.json
+```
+
+Example response body:
+
+```json
+{
+  "version": 1,
+  "context": "my-context",
+  "count": 2,
+  "entries": [
+    {
+      "tokenHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "replacement": "David Jones",
+      "filterType": "PERSON",
+      "replacementUuid": false
+    },
+    {
+      "tokenHash": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+      "replacement": "842-436-2042",
+      "filterType": "PHONE_NUMBER",
+      "replacementUuid": false
+    }
+  ]
+}
+```
+
+## Import a Mapping Table into a Context
+
+| Method | Endpoint                                | Description                                              |
+|--------|-----------------------------------------|---------------------------------------------------------|
+| `POST` | `/api/contexts/{name}/entries/import`   | Import token-to-replacement mappings into a context.    |
+
+Accepts a document in the same format produced by the [export](#export-a-contexts-mapping-table) endpoint and inserts its mappings into the named context. The context must already exist (create it first with `POST /api/contexts`).
+
+**Authorization:** only the user that **created** the context or an **admin** may import into it. An admin may import into any context (context names are globally unique). Any other caller receives `404 Not Found`.
+
+### Query Parameters
+
+* `on_conflict` (optional, default: `skip`) - What to do when an incoming token already exists in the target context:
+    * `skip` - leave the existing replacement unchanged (preserves replacements already learned in this context).
+    * `overwrite` - replace the existing replacement with the imported one.
+
+### Behavior and Validation
+
+* The payload is fully validated before anything is written, so a malformed entry cannot leave a partially-imported table. Each entry must have a valid 64-character hex `tokenHash` and a non-empty `replacement`.
+* Imported entries start with a read count of zero. As with normal redaction, imports honor the context's `MAX_CONTEXT_SIZE` and may evict least-read entries when the context is full.
+
+Returns `200 OK` with a summary, `400 Bad Request` for an invalid `on_conflict` value or malformed payload, and `404 Not Found` if the context does not exist or the caller is not authorized to access it.
+
+Example request:
+
+```bash
+curl -X POST -k -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  --data-binary @my-context-export.json \
+  "https://localhost:8080/api/contexts/my-context/entries/import?on_conflict=skip"
+```
+
+Example response:
+
+```json
+{
+  "total": 2,
+  "inserted": 2,
+  "overwritten": 0,
+  "skipped": 0
+}
 ```
 
 ## Capacity

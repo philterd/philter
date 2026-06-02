@@ -93,6 +93,25 @@ class ContextDataServiceTest {
     }
 
     @Test
+    void createRejectsGloballyDuplicateName() {
+        final ObjectId userId = new ObjectId();
+
+        final FindIterable<Document> iterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(iterable);
+        // The caller owns no contexts (per-user maximum check passes)...
+        when(iterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+        // ...but a context with this name already exists for some user, so the global-uniqueness
+        // check must reject it.
+        when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", new ObjectId()));
+
+        final ServiceResponse response = contextDataService.create("dup", userId, false, false);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(409, response.getStatusCode());
+        verify(mongoCollection, never()).insertOne(any(Document.class));
+    }
+
+    @Test
     void createPersistsLedgerFlag() {
         final ObjectId userId = new ObjectId();
         final String contextName = "testContext";

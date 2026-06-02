@@ -17,7 +17,10 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
@@ -38,9 +41,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -57,6 +64,8 @@ class ContextsApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
+    private static final String UNKNOWN_AUTH_HEADER = "Bearer sk_unknownunknownunknownunknown00";
+    private static final String VALID_HASH = "a".repeat(64);
 
     @Mock private ContextDataService contextService;
     @Mock private ContextEntryDataService contextEntryService;
@@ -145,6 +154,313 @@ class ContextsApiControllerTest {
 
         // An admin caller must have the admin flag forwarded to the service.
         verify(contextService).deleteByName(eq("ctx"), eq(userId), eq(true));
+    }
+
+    private static ContextEntity contextOwnedBy(final ObjectId owner) {
+        final ContextEntity context = new ContextEntity();
+        context.setUserId(owner);
+        return context;
+    }
+
+    private void makeUserAdmin() {
+        final ai.philterd.philter.data.entities.UserEntity adminUser = new ai.philterd.philter.data.entities.UserEntity();
+        adminUser.setId(userId);
+        adminUser.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(adminUser);
+    }
+
+    // ----- Export -----
+
+    @Test
+    void exportScopesToOwningUserIdAndReturnsHashesOnly() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        final ContextEntryEntity entry = new ContextEntryEntity();
+        entry.setTokenHash(VALID_HASH);
+        entry.setReplacement("{{{REDACTED-person}}}");
+        entry.setFilterType("PERSON");
+        entry.setReplacementUuid(false);
+        when(contextEntryService.findAllByUserIdAndContext(eq(userId), eq("ctx")))
+                .thenReturn(List.of(entry));
+
+        final String responseBody = mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(responseBody.contains(VALID_HASH));
+        org.junit.jupiter.api.Assertions.assertTrue(responseBody.contains("{{{REDACTED-person}}}"));
+
+        // The export must be scoped to the owning user id, never the API key's own id.
+        verify(contextEntryService).findAllByUserIdAndContext(eq(userId), eq("ctx"));
+    }
+
+    @Test
+    void exportReturns404WhenContextMissing() throws Exception {
+        when(contextService.findOne(eq("missing"), eq(userId))).thenReturn(null);
+
+        mockMvc.perform(get("/api/contexts/missing/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-404"))
+                .andExpect(status().isNotFound());
+
+        verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any());
+    }
+
+    @Test
+    void exportRejectsUnknownApiKey() throws Exception {
+        mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", UNKNOWN_AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-401"))
+                .andExpect(status().isUnauthorized());
+
+        verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any());
+    }
+
+    @Test
+    void exportAllowedForAdminOnAnotherUsersContext() throws Exception {
+        final ObjectId otherOwner = new ObjectId();
+        // The caller does not own the context, but is an admin and may export any context.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        makeUserAdmin();
+        when(contextService.findOneByName(eq("ctx"))).thenReturn(contextOwnedBy(otherOwner));
+        when(contextEntryService.findAllByUserIdAndContext(eq(otherOwner), eq("ctx")))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-admin"))
+                .andExpect(status().isOk());
+
+        // The export operates on the context owner's entries, not the admin caller's id.
+        verify(contextEntryService).findAllByUserIdAndContext(eq(otherOwner), eq("ctx"));
+    }
+
+    @Test
+    void exportForbiddenForNonCreatorNonAdmin() throws Exception {
+        // Caller is neither the creator (owner-scoped lookup misses) nor an admin.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-forbidden"))
+                .andExpect(status().isNotFound());
+
+        // A non-admin must never reach another user's context by name.
+        verify(contextService, never()).findOneByName(any());
+        verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any());
+    }
+
+    // ----- Import -----
+
+    private static final String IMPORT_BODY =
+            "{\"version\":1,\"context\":\"ctx\",\"entries\":[" +
+            "{\"tokenHash\":\"" + VALID_HASH + "\",\"replacement\":\"R\",\"filterType\":\"PERSON\",\"replacementUuid\":false}]}";
+
+    @Test
+    void importScopesToOwningUserIdAndSkipsByDefault() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+        when(contextEntryService.importEntryByHash(eq(userId), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false)))
+                .thenReturn(ContextEntryDataService.ImportOutcome.INSERTED);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import"))
+                .andExpect(status().isOk());
+
+        // Default conflict policy is skip (overwrite = false), scoped to the owning user id.
+        verify(contextEntryService).importEntryByHash(eq(userId), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false));
+    }
+
+    @Test
+    void importOverwriteModeForwardsOverwriteFlag() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+        when(contextEntryService.importEntryByHash(eq(userId), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(true)))
+                .thenReturn(ContextEntryDataService.ImportOutcome.OVERWRITTEN);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("on_conflict", "overwrite")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-ow"))
+                .andExpect(status().isOk());
+
+        verify(contextEntryService).importEntryByHash(eq(userId), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(true));
+    }
+
+    @Test
+    void importRejectsInvalidOnConflictValue() throws Exception {
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("on_conflict", "bogus")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-bad-conflict"))
+                .andExpect(status().isBadRequest());
+
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importRejectsPayloadWithoutEntries() throws Exception {
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"context\":\"ctx\"}")
+                        .requestAttr("requestId", "req-import-no-entries"))
+                .andExpect(status().isBadRequest());
+
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importRejectsInvalidTokenHash() throws Exception {
+        final String badBody = "{\"entries\":[{\"tokenHash\":\"not-a-hash\",\"replacement\":\"R\"}]}";
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(badBody)
+                        .requestAttr("requestId", "req-import-bad-hash"))
+                .andExpect(status().isBadRequest());
+
+        // Validation happens before any write, so nothing is imported.
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importReturns404WhenContextMissing() throws Exception {
+        when(contextService.findOne(eq("missing"), eq(userId))).thenReturn(null);
+
+        final String body =
+                "{\"entries\":[{\"tokenHash\":\"" + VALID_HASH + "\",\"replacement\":\"R\",\"filterType\":\"PERSON\"}]}";
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/missing/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .requestAttr("requestId", "req-import-404"))
+                .andExpect(status().isNotFound());
+
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importRejectsUnknownApiKey() throws Exception {
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", UNKNOWN_AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-401"))
+                .andExpect(status().isUnauthorized());
+
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importAllowedForAdminOnAnotherUsersContext() throws Exception {
+        final ObjectId otherOwner = new ObjectId();
+        // The caller does not own the context, but is an admin and may import into any context.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        makeUserAdmin();
+        when(contextService.findOneByName(eq("ctx"))).thenReturn(contextOwnedBy(otherOwner));
+        when(contextEntryService.importEntryByHash(eq(otherOwner), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false)))
+                .thenReturn(ContextEntryDataService.ImportOutcome.INSERTED);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-admin"))
+                .andExpect(status().isOk());
+
+        // The import writes to the context owner's entries, not the admin caller's id.
+        verify(contextEntryService).importEntryByHash(eq(otherOwner), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false));
+    }
+
+    @Test
+    void importForbiddenForNonCreatorNonAdmin() throws Exception {
+        // Caller is neither the creator (owner-scoped lookup misses) nor an admin.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-forbidden"))
+                .andExpect(status().isNotFound());
+
+        verify(contextService, never()).findOneByName(any());
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    // ----- Auditing -----
+
+    @Test
+    void exportPublishesAuditEventWithDetail() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        final ContextEntryEntity entry = new ContextEntryEntity();
+        entry.setTokenHash(VALID_HASH);
+        entry.setReplacement("R");
+        entry.setFilterType("PERSON");
+        when(contextEntryService.findAllByUserIdAndContext(eq(userId), eq("ctx"))).thenReturn(List.of(entry));
+
+        mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-audit"))
+                .andExpect(status().isOk());
+
+        verify(auditEventPublisher).auditEvent(eq("req-export-audit"), eq(AuditLogEvent.CONTEXT_ENTRIES_EXPORTED),
+                eq(userId), isNull(), any(), eq("context: ctx, owner: " + userId + ", count: 1"));
+    }
+
+    @Test
+    void importPublishesAuditEventWithDetail() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+        when(contextEntryService.importEntryByHash(eq(userId), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false)))
+                .thenReturn(ContextEntryDataService.ImportOutcome.INSERTED);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-audit"))
+                .andExpect(status().isOk());
+
+        verify(auditEventPublisher).auditEvent(eq("req-import-audit"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORTED),
+                eq(userId), isNull(), any(), eq("context: ctx, owner: " + userId + ", inserted: 1, overwritten: 0, skipped: 0"));
+    }
+
+    @Test
+    void exportAuditsDeniedAttempt() throws Exception {
+        // Non-creator, non-admin: the 404 attempt must still be audited.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-denied-audit"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher).auditEvent(eq("req-export-denied-audit"), eq(AuditLogEvent.CONTEXT_ENTRIES_EXPORT_DENIED),
+                eq(userId), isNull(), any(), eq("context: ctx"));
+    }
+
+    @Test
+    void importAuditsDeniedAttempt() throws Exception {
+        // Non-creator, non-admin: the 404 attempt must still be audited.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-denied-audit"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher).auditEvent(eq("req-import-denied-audit"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED),
+                eq(userId), isNull(), any(), eq("context: ctx"));
     }
 
 }

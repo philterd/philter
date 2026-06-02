@@ -64,6 +64,10 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `context_deleted` | A context was deleted. |
 | `context_entry_deleted` | A single context entry was deleted. |
 | `context_entries_purged` | All entries were cleared from a context. |
+| `context_entries_exported` | A context's mapping table was exported. |
+| `context_entries_imported` | A mapping table was imported into a context. |
+| `context_entries_export_denied` | An export was denied because the caller is not the context's creator or an admin (or the context does not exist). |
+| `context_entries_import_denied` | An import was denied because the caller is not the context's creator or an admin (or the context does not exist). |
 | `custom_lists_retrieved` | The list of custom lists was retrieved. |
 | `custom_list_items_retrieved` | The items in a custom list were retrieved. |
 | `custom_list_created` | A custom list was created. |

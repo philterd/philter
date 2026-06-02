@@ -93,6 +93,79 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         return (int) collection.countDocuments(new Document("user_id", userId).append("context_name", contextName));
     }
 
+    /**
+     * Returns every entry in the context for the given user, without the paging cap applied by
+     * {@link #findAllByUserIdAndContext}. Intended for exporting an entire mapping table. A context
+     * is bounded by {@link #MAX_CONTEXT_SIZE}, so the result set is bounded too.
+     */
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName) {
+
+        final Document query = new Document("user_id", userId).append("context_name", contextName);
+
+        final List<ContextEntryEntity> entries = new ArrayList<>();
+        for (final Document document : collection.find(query).sort(Sorts.descending("timestamp"))) {
+            entries.add(ContextEntryEntity.fromDocument(document));
+        }
+
+        return entries;
+
+    }
+
+    /** The outcome of importing a single mapping into a context. */
+    public enum ImportOutcome { INSERTED, OVERWRITTEN, SKIPPED }
+
+    /**
+     * Imports a single token-to-replacement mapping keyed by an already-computed token hash (the
+     * original token is never available on import). If the token hash already exists in the context,
+     * it is left untouched when {@code overwrite} is {@code false} (returning {@link
+     * ImportOutcome#SKIPPED}) or updated when {@code overwrite} is {@code true} (returning {@link
+     * ImportOutcome#OVERWRITTEN}). A new mapping is inserted otherwise, honoring {@link
+     * #MAX_CONTEXT_SIZE} eviction, and returns {@link ImportOutcome#INSERTED}.
+     */
+    public ImportOutcome importEntryByHash(final ObjectId userId, final String contextName, final String tokenHash,
+                                           final String replacement, final String filterType, final boolean replacementUuid,
+                                           final boolean overwrite) {
+
+        final Bson query = Filters.and(
+                Filters.eq("user_id", userId),
+                Filters.eq("context_name", contextName),
+                Filters.eq("token_hash", tokenHash));
+
+        final Document existing = collection.find(query).first();
+
+        if (existing != null) {
+
+            if (!overwrite) {
+                return ImportOutcome.SKIPPED;
+            }
+
+            collection.updateOne(query, Updates.combine(
+                    Updates.set("replacement", replacement),
+                    Updates.set("filter_type", filterType),
+                    Updates.set("replacement_uuid", replacementUuid)));
+
+            return ImportOutcome.OVERWRITTEN;
+
+        }
+
+        evictIfFull(userId, contextName);
+
+        final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
+        contextEntryEntity.setUserId(userId);
+        contextEntryEntity.setContextName(contextName);
+        contextEntryEntity.setTokenHash(tokenHash);
+        contextEntryEntity.setReplacement(replacement);
+        contextEntryEntity.setReads(0L);
+        contextEntryEntity.setTimestamp(new Date());
+        contextEntryEntity.setFilterType(filterType);
+        contextEntryEntity.setReplacementUuid(replacementUuid);
+
+        collection.insertOne(contextEntryEntity.toDocument());
+
+        return ImportOutcome.INSERTED;
+
+    }
+
     public long deleteByIdAndUserId(final ObjectId id, final ObjectId userId) {
         return collection.deleteOne(Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId))).getDeletedCount();
     }

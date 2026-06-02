@@ -21,6 +21,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -57,6 +58,24 @@ public class AbstractService<T extends AbstractEntity> {
     protected void ensureIndex(final Bson keys) {
         try {
             collection.createIndex(keys);
+        } catch (final Exception ex) {
+            ABSTRACT_SERVICE_LOGGER.warn("Unable to create index {} on collection '{}': {}",
+                    keys, collection.getNamespace().getCollectionName(), ex.getMessage());
+        }
+    }
+
+    /**
+     * Creates an index with the given options (for example, a unique index) if it does not already
+     * exist. As with {@link #ensureIndex(Bson)}, a failure is logged but never propagated, so it
+     * cannot prevent the application from starting. Note that a unique index will fail to build if
+     * the collection already contains documents that violate it.
+     *
+     * @param keys    The index key specification (see {@code com.mongodb.client.model.Indexes}).
+     * @param options The index options (see {@code com.mongodb.client.model.IndexOptions}).
+     */
+    protected void ensureIndex(final Bson keys, final IndexOptions options) {
+        try {
+            collection.createIndex(keys, options);
         } catch (final Exception ex) {
             ABSTRACT_SERVICE_LOGGER.warn("Unable to create index {} on collection '{}': {}",
                     keys, collection.getNamespace().getCollectionName(), ex.getMessage());

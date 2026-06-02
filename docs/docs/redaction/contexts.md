@@ -29,7 +29,7 @@ The main table on the Contexts page lists all the contexts you have created. You
 ### Creating a New Context
 
 1.  **Initiate Creation**: Click the **New Context** button at the top of the table.
-2.  **Assign a Name**: Enter a unique and descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`).
+2.  **Assign a Name**: Enter a descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`). Context names are **globally unique**—if another user has already created a context with the same name, creation is rejected.
 3.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
 4.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
 5.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
@@ -82,9 +82,19 @@ In practice this means a long-running context will retain its most actively-refe
 
 If your application uses [asynchronous PDF redaction](../api_and_sdks/api/documents_api.md), Philter blocks deletion of any context that has a document in the `PENDING` or `PROCESSING` state. The API will return `409 Conflict`. Wait for the jobs to finish (or delete them from the Documents API) before deleting the context.
 
+## Exporting and Importing Mappings
+
+A context's mapping table can be exported and imported through the [Contexts API](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table). This lets you reuse the same replacements across separate environments or rebuild a context's mappings after it has been cleared:
+
+*   **Export** returns the context's mappings as a portable JSON document. Only the SHA-256 hash of each original value is exported (never the original value itself), so the same value continues to map to the same replacement wherever the table is imported.
+*   **Import** loads such a document into an existing context. By default an incoming value that already exists is skipped; you can choose to overwrite instead.
+
+Export and import are restricted to the user that **created** the context or to an **admin**. An admin may export or import any context.
+
 ## Integration and Best Practices
 
 *   **Organization**: Use contexts to mirror your internal organizational structure or project list.
 *   **Consistency**: Always use the same context for documents that belong to the same logical dataset to ensure referential integrity.
+*   **Portability**: Use the [export and import endpoints](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table) to carry consistent replacements between environments (for example, from staging to production).
 *   **Automation**: Context names can be passed as a parameter in [API requests](../developers/developer_quick_start.md), allowing for seamless integration into your automated workflows.
 

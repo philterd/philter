@@ -22,6 +22,7 @@ import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
@@ -48,6 +49,12 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         // Contexts are listed by user and looked up by (user_id, context_name).
         ensureIndex(Indexes.ascending("user_id", "context_name"));
+
+        // Context names are globally unique; enforce it at the storage layer in addition to the
+        // application-level check in create(). This index will not build if the collection already
+        // contains documents with duplicate names, in which case the failure is logged and the
+        // application still starts (see AbstractService#ensureIndex).
+        ensureIndex(Indexes.ascending("context_name"), new IndexOptions().unique(true));
     }
 
     public ServiceResponse create(final String contextName, final ObjectId userId) {
@@ -64,7 +71,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             return new ServiceResponse("Maximum number of contexts reached.", false, 412);
         }
 
-        if(findOne(contextName, userId) != null) {
+        // Context names are globally unique, so reject a name already used by any user (not just the
+        // caller). Global uniqueness is what lets a context be addressed unambiguously by name — for
+        // example when an admin exports or imports a context created by another user.
+        if(findOneByName(contextName) != null) {
             return new ServiceResponse("Context already exists.", false, 409);
         }
 
@@ -186,6 +196,26 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     public ContextEntity findOne(final String contextName, final ObjectId userId) {
 
         final Document query = new Document("context_name", contextName).append("user_id", userId);
+
+        final Document document = collection.find(query).first();
+
+        if(document != null) {
+            return ContextEntity.fromDocument(document);
+        } else {
+            return null;
+        }
+
+    }
+
+    /**
+     * Looks up a context by name without scoping to an owner. Context names are globally unique (see
+     * {@link #create}), so at most one context matches. Intended for admin access paths that are
+     * allowed to reach a context created by another user; ordinary access must use the owner-scoped
+     * {@link #findOne(String, ObjectId)}.
+     */
+    public ContextEntity findOneByName(final String contextName) {
+
+        final Document query = new Document("context_name", contextName);
 
         final Document document = collection.find(query).first();
 

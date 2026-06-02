@@ -16,9 +16,12 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.responses.ContextEntriesExport;
+import ai.philterd.philter.api.responses.ContextEntryExport;
 import ai.philterd.philter.api.responses.ContextEntryView;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetContextEntriesResponse;
+import ai.philterd.philter.api.responses.ImportContextEntriesResponse;
 import ai.philterd.philter.api.responses.GetContextResponse;
 import ai.philterd.philter.api.responses.GetContextsResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -48,6 +51,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -55,12 +59,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Tag(name = "Contexts", description = "Operations for creating and managing contexts.")
 @Controller
 public class ContextsApiController extends AbstractApiController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ContextsApiController.class);
+
+    /** Matches a lowercase/uppercase hex-encoded SHA-256 digest (the token hash format). */
+    private static final Pattern SHA256_HEX = Pattern.compile("^[a-fA-F0-9]{64}$");
 
     private final ContextDataService contextService;
     private final ContextEntryDataService contextEntryService;
@@ -92,6 +100,31 @@ public class ContextsApiController extends AbstractApiController {
     private boolean isAdmin(final ObjectId userId) {
         final ai.philterd.philter.data.entities.UserEntity user = userService.findOneById(userId);
         return user != null && "admin".equalsIgnoreCase(user.getRole());
+    }
+
+    /**
+     * Resolves the context that the caller is allowed to export from or import into. Access is
+     * limited to the context's creator or an admin: the creator is matched by an owner-scoped lookup,
+     * and an admin may additionally reach a context created by another user. Returns {@code null}
+     * when the caller is neither the creator nor an admin, or when no such context exists — both
+     * cases are mapped to a 404 by the callers so the endpoints never reveal the existence of a
+     * context the caller is not authorized to access.
+     */
+    private ContextEntity resolveAuthorizedContext(final String name, final ObjectId userId) {
+
+        final ContextEntity owned = contextService.findOne(name, userId);
+        if (owned != null) {
+            // The caller created this context.
+            return owned;
+        }
+
+        if (isAdmin(userId)) {
+            // An admin may export/import a context created by another user.
+            return contextService.findOneByName(name);
+        }
+
+        return null;
+
     }
 
     @Operation(summary = "Get the names of existing contexts.", description = "Get the names of existing contexts.")
@@ -362,6 +395,151 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         return new ResponseEntity<>(new GenericResponse("Entry not found."), HttpStatus.NOT_FOUND);
+
+    }
+
+    @Operation(summary = "Export a context's mapping table.",
+            description = "Returns the complete token-to-replacement mapping table for a context in a portable JSON form "
+                    + "that can be re-imported into another context or environment. Only token hashes (never the original "
+                    + "tokens) and their replacements are returned.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "404", description = "Context not found.")
+    })
+    @RequestMapping(value = "/api/contexts/{name}/entries/export", method = RequestMethod.GET)
+    public ResponseEntity<String> exportEntries(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String name,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ObjectId userId = apiKeyEntity.getUserId();
+
+        // Only the context's creator or an admin may export it.
+        final ContextEntity context = resolveAuthorizedContext(name, userId);
+        if (context == null) {
+            // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
+            // the response does not reveal whether the context exists.
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_EXPORT_DENIED, userId, null,
+                    getClientIpAddress(httpServletRequest), "context: " + name);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        final ObjectId ownerUserId = context.getUserId();
+
+        final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(ownerUserId, name);
+
+        final List<ContextEntryExport> exported = new ArrayList<>(entries.size());
+        for (final ContextEntryEntity entry : entries) {
+            exported.add(new ContextEntryExport(
+                    entry.getTokenHash(),
+                    entry.getReplacement(),
+                    entry.getFilterType(),
+                    entry.isReplacementUuid()));
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_EXPORTED, userId, null,
+                getClientIpAddress(httpServletRequest), "context: " + name + ", owner: " + ownerUserId + ", count: " + exported.size());
+
+        final HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "-context-export.json\"");
+
+        return new ResponseEntity<>(gson.toJson(new ContextEntriesExport(name, exported)), headers, HttpStatus.OK);
+
+    }
+
+    @Operation(summary = "Import a mapping table into a context.",
+            description = "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. "
+                    + "By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite "
+                    + "to replace existing replacements instead.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "400", description = "The payload or on_conflict value is invalid."),
+            @ApiResponse(responseCode = "404", description = "Context not found.")
+    })
+    @RequestMapping(value = "/api/contexts/{name}/entries/import", method = RequestMethod.POST)
+    public ResponseEntity<?> importEntries(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String name,
+            final @RequestParam(value = "on_conflict", required = false, defaultValue = "skip") String onConflict,
+            final @RequestBody String body,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final boolean overwrite;
+        if ("skip".equalsIgnoreCase(onConflict)) {
+            overwrite = false;
+        } else if ("overwrite".equalsIgnoreCase(onConflict)) {
+            overwrite = true;
+        } else {
+            return new ResponseEntity<>(new GenericResponse("on_conflict must be 'skip' or 'overwrite'."), HttpStatus.BAD_REQUEST);
+        }
+
+        final ContextEntriesExport payload;
+        try {
+            payload = gson.fromJson(body, ContextEntriesExport.class);
+        } catch (final Exception ex) {
+            return new ResponseEntity<>(new GenericResponse("Malformed import payload."), HttpStatus.BAD_REQUEST);
+        }
+
+        if (payload == null || payload.getEntries() == null) {
+            return new ResponseEntity<>(new GenericResponse("Import payload must contain an 'entries' array."), HttpStatus.BAD_REQUEST);
+        }
+
+        // Validate the entire payload before writing anything, so a malformed entry cannot leave a
+        // partially-imported mapping table.
+        for (final ContextEntryExport entry : payload.getEntries()) {
+            if (entry == null || entry.getTokenHash() == null || !SHA256_HEX.matcher(entry.getTokenHash()).matches()) {
+                return new ResponseEntity<>(new GenericResponse("Each entry requires a valid SHA-256 token_hash."), HttpStatus.BAD_REQUEST);
+            }
+            if (entry.getReplacement() == null || entry.getReplacement().isEmpty()) {
+                return new ResponseEntity<>(new GenericResponse("Each entry requires a non-empty replacement."), HttpStatus.BAD_REQUEST);
+            }
+        }
+
+        final ObjectId userId = apiKeyEntity.getUserId();
+
+        // Only the context's creator or an admin may import into it.
+        final ContextEntity context = resolveAuthorizedContext(name, userId);
+        if (context == null) {
+            // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
+            // the response does not reveal whether the context exists.
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED, userId, null,
+                    getClientIpAddress(httpServletRequest), "context: " + name);
+            return new ResponseEntity<>(new GenericResponse("Context not found."), HttpStatus.NOT_FOUND);
+        }
+
+        final ObjectId ownerUserId = context.getUserId();
+
+        int inserted = 0, overwritten = 0, skipped = 0;
+        for (final ContextEntryExport entry : payload.getEntries()) {
+            final ContextEntryDataService.ImportOutcome outcome = contextEntryService.importEntryByHash(
+                    ownerUserId, name, entry.getTokenHash(), entry.getReplacement(), entry.getFilterType(),
+                    entry.isReplacementUuid(), overwrite);
+            switch (outcome) {
+                case INSERTED -> inserted++;
+                case OVERWRITTEN -> overwritten++;
+                case SKIPPED -> skipped++;
+            }
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORTED, userId, null,
+                getClientIpAddress(httpServletRequest),
+                "context: " + name + ", owner: " + ownerUserId + ", inserted: " + inserted + ", overwritten: " + overwritten + ", skipped: " + skipped);
+
+        return new ResponseEntity<>(
+                new ImportContextEntriesResponse(payload.getEntries().size(), inserted, overwritten, skipped),
+                HttpStatus.OK);
 
     }
 

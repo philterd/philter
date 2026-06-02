@@ -280,4 +280,113 @@ class ContextEntryDataServiceTest {
         assertEquals("R", entry.getReplacement());
     }
 
+    @Test
+    void findAllByUserIdAndContextUnboundedReturnsAllEntries() {
+        final ObjectId userId = new ObjectId();
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.sort(any(Bson.class))).thenReturn(findIterable);
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(findIterable.iterator()).thenReturn(cursor);
+        when(cursor.hasNext()).thenReturn(true, false);
+        when(cursor.next()).thenReturn(new Document("_id", new ObjectId())
+                .append("token_hash", "abc").append("replacement", "R").append("reads", 0L));
+
+        final List<ContextEntryEntity> results = contextEntryDataService.findAllByUserIdAndContext(userId, "ctx");
+
+        assertEquals(1, results.size());
+        assertEquals("R", results.get(0).getReplacement());
+        // No skip/limit is applied for the unbounded export variant.
+        verify(findIterable, never()).limit(anyInt());
+    }
+
+    @Test
+    void importEntryByHashInsertsWhenAbsent() {
+        final ObjectId userId = new ObjectId();
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(mock(InsertOneResult.class));
+
+        final ContextEntryDataService.ImportOutcome outcome = contextEntryDataService.importEntryByHash(
+                userId, "ctx", "a".repeat(64), "R", "PERSON", false, false);
+
+        assertEquals(ContextEntryDataService.ImportOutcome.INSERTED, outcome);
+        verify(mongoCollection).insertOne(any(Document.class));
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
+    void importEntryByHashSkipsExistingWhenNotOverwriting() {
+        final ObjectId userId = new ObjectId();
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(new Document("_id", new ObjectId()));
+
+        final ContextEntryDataService.ImportOutcome outcome = contextEntryDataService.importEntryByHash(
+                userId, "ctx", "a".repeat(64), "R", "PERSON", false, false);
+
+        assertEquals(ContextEntryDataService.ImportOutcome.SKIPPED, outcome);
+        verify(mongoCollection, never()).insertOne(any(Document.class));
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
+    void exportImportRoundTripPreservesMappingKeyedByTokenHash() {
+        // The original token never leaves Philter; an export carries only its SHA-256 hash. Because
+        // that hash is deterministic, re-importing reproduces a mapping that the same original token
+        // will resolve to in any environment. This test exercises that round trip end to end through
+        // the export DTOs.
+        final ObjectId userId = new ObjectId();
+        final String token = "John Smith";
+        final String tokenHash = ai.philterd.philter.services.encryption.EncryptionService.hashSha256(token);
+
+        // Build an export document the way the export endpoint does, then serialize/deserialize it.
+        final ai.philterd.philter.api.responses.ContextEntriesExport export =
+                new ai.philterd.philter.api.responses.ContextEntriesExport("src",
+                        List.of(new ai.philterd.philter.api.responses.ContextEntryExport(tokenHash, "David Jones", "PERSON", false)));
+        final String json = new com.google.gson.Gson().toJson(export);
+        final ai.philterd.philter.api.responses.ContextEntriesExport reloaded =
+                new com.google.gson.Gson().fromJson(json, ai.philterd.philter.api.responses.ContextEntriesExport.class);
+        final ai.philterd.philter.api.responses.ContextEntryExport entry = reloaded.getEntries().get(0);
+
+        // Import into a fresh (empty) target context.
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(mock(InsertOneResult.class));
+
+        final ContextEntryDataService.ImportOutcome outcome = contextEntryDataService.importEntryByHash(
+                userId, "dst", entry.getTokenHash(), entry.getReplacement(), entry.getFilterType(), entry.isReplacementUuid(), false);
+
+        assertEquals(ContextEntryDataService.ImportOutcome.INSERTED, outcome);
+
+        // The stored mapping is keyed by exactly hash("John Smith"), so a redaction of "John Smith"
+        // in the destination environment will hit it and yield the same replacement.
+        final ArgumentCaptor<Document> inserted = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).insertOne(inserted.capture());
+        assertEquals(tokenHash, inserted.getValue().getString("token_hash"));
+        assertEquals("David Jones", inserted.getValue().getString("replacement"));
+        assertEquals("PERSON", inserted.getValue().getString("filter_type"));
+    }
+
+    @Test
+    void importEntryByHashOverwritesExistingWhenOverwriting() {
+        final ObjectId userId = new ObjectId();
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(new Document("_id", new ObjectId()));
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
+
+        final ContextEntryDataService.ImportOutcome outcome = contextEntryDataService.importEntryByHash(
+                userId, "ctx", "a".repeat(64), "R2", "PERSON", false, true);
+
+        assertEquals(ContextEntryDataService.ImportOutcome.OVERWRITTEN, outcome);
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+        verify(mongoCollection, never()).insertOne(any(Document.class));
+    }
+
 }

@@ -23,17 +23,14 @@ import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -51,9 +48,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRestrictedView.class);
 
-    public abstract String getHelpMarkdownText();
-
-    protected final VerticalLayout helpWindowVerticalLayout = new VerticalLayout();
     protected final UserService userService;
     protected final UserEntity userEntity;
     protected final AuditEventPublisher auditEventPublisher;
@@ -76,7 +70,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
 
     }
 
-    public AbstractRestrictedView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final boolean showHelpPanel) {
+    public AbstractRestrictedView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
 
         this.userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
         this.auditEventPublisher = auditEventPublisher;
@@ -120,30 +114,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         }
 
         addToDrawer(sideNav);
-
-        if (showHelpPanel) {
-
-            // Side panel for the help text.
-            final Markdown helpMarkdown = new Markdown();
-            helpMarkdown.setContent(getHelpMarkdownText());
-            helpMarkdown.getElement().getStyle().set("font-size", "var(--lumo-font-size-s)");
-
-            // Button to dismiss the help panel for the current page.
-            final Button closeHelpButton = new Button(VaadinIcon.CLOSE_SMALL.create(), click -> helpWindowVerticalLayout.setVisible(false));
-            closeHelpButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-            closeHelpButton.setAriaLabel("Close help");
-
-            final HorizontalLayout helpHeader = new HorizontalLayout(closeHelpButton);
-            helpHeader.setWidthFull();
-            helpHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-
-            helpWindowVerticalLayout.setWidth("800px");
-            helpWindowVerticalLayout.getStyle().set("background-color", "#f0f3fa");
-            helpWindowVerticalLayout.add(helpHeader);
-            helpWindowVerticalLayout.add(helpMarkdown);
-            helpWindowVerticalLayout.setVisible(true);
-
-        }
 
     }
 

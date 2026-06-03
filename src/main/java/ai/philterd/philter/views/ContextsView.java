@@ -54,63 +54,10 @@ public class ContextsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(ContextsView.class);
 
-    @Override
-    public String getHelpMarkdownText() {
-
-        return """
-            ## Contexts
-            
-            Contexts allow for grouping documents during redaction and provides features such as referential integrity. When a document is redacted, it can be assigned to a context. If that context has been used previously, the same replacements are used for the same sensitive information, ensuring consistency across your documents.
-            
-            When the **disambiguation** option is enabled for a context, entity types are disambiguated during redaction to provide more precise identification of sensitive information.
-
-            ### Create a New Context
-
-            To create a new context:
-
-            1. Click **New Context**.
-            2. Enter a unique **Context** name.
-            3. Optionally, check **Enable disambiguation** to enable entity type disambiguation.
-            4. Click **Save** to create the context.
-
-            ### Edit a Context
-
-            To edit a context:
-
-            1. Click **Edit** in the row of the context you wish to edit.
-            2. Toggle the **Enable disambiguation** checkbox.
-            3. Click **Save** to update the context.
-            
-            ### View Context Details
-            
-            To view a preview of the entries within a context:
-            
-            1. Click **View Context** in the row of the context you wish to view.
-            2. A dialog will appear showing a preview of up to 20 context entries, including the token hash and its replacement.
-            3. Click **Close** to return to the contexts list.
-            
-            ### Clear a Context
-            
-            To remove all entries from a context while keeping the context itself:
-            
-            1. Click **Clear** in the row of the context you wish to clear.
-            2. Review the confirmation message, noting that this action cannot be undone.
-            3. Click **Clear** to confirm.
-            
-            ### Delete a Context
-            
-            To permanently remove a context and all its entries:
-            
-            1. Click **Delete** in the row of the context you wish to remove.
-            2. Review the confirmation message, noting that this action cannot be undone but will not affect already redacted documents.
-            3. Click **Delete** to confirm the removal.
-            """;
-
-    }
 
     public ContextsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                         final ContextDataService contextService, final ContextEntryDataService contextEntryService) {
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         final UserEntity userEntity = getCurrentUser();
 
@@ -406,7 +353,6 @@ public class ContextsView extends AbstractRestrictedView {
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.add(div);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);

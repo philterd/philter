@@ -56,21 +56,12 @@ public class AdminView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(AdminView.class);
 
-    @Override
-    public String getHelpMarkdownText() {
-        return """
-            ## Administration
-
-            Manage user accounts — create users, reset passwords, and assign roles — and configure
-            system-wide admin settings. Deleting a user also removes all of their data.
-            """;
-    }
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                      final UserService userService, final PolicyDataService policyService,
                      final AdminSettingsDataService adminSettingsDataService) {
 
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         AdminSettingsEntity adminSettingsEntity = adminSettingsDataService.findAdminSettings();
 
@@ -345,6 +336,19 @@ public class AdminView extends AbstractRestrictedView {
         final TextField phieldOrganizationField = new TextField("Phield Organization");
         phieldOrganizationField.setValue(finalAdminSettingsEntity.getPhieldOrganization() != null ? finalAdminSettingsEntity.getPhieldOrganization() : "philter");
 
+        // The Phield endpoint fields are only relevant when publishing to Phield is enabled, so keep
+        // them enabled/disabled in lockstep with the checkbox (initially and as it is toggled).
+        final boolean phieldInitiallyEnabled = phieldEnabledCheckbox.getValue();
+        phieldUrlField.setEnabled(phieldInitiallyEnabled);
+        phieldSourceIdField.setEnabled(phieldInitiallyEnabled);
+        phieldOrganizationField.setEnabled(phieldInitiallyEnabled);
+        phieldEnabledCheckbox.addValueChangeListener(e -> {
+            final boolean enabled = e.getValue();
+            phieldUrlField.setEnabled(enabled);
+            phieldSourceIdField.setEnabled(enabled);
+            phieldOrganizationField.setEnabled(enabled);
+        });
+
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
             adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
@@ -367,7 +371,6 @@ public class AdminView extends AbstractRestrictedView {
         pageVerticalLayout.add(CommonWidgets.getFooter());
 
         pageHorizontalLayout.add(pageVerticalLayout);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
 
         setContent(pageHorizontalLayout);
 

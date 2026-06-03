@@ -24,8 +24,8 @@ import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -51,31 +51,25 @@ public class SettingsView extends AbstractRestrictedView {
     private static final int MIN_SECRET_LENGTH = 16;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    @Override
-    public String getHelpMarkdownText() {
-        return """
-            ## Settings
-
-            Settings specific to your account. Configure a webhook URL and secret to receive a
-            signed HTTP POST when an asynchronous redaction completes or fails.
-            """;
-    }
 
     public SettingsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
 
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         final VerticalLayout webhookVerticalLayout = buildWebhookSection();
 
+        final TabSheet tabSheet = new TabSheet();
+        tabSheet.add("Webhook", webhookVerticalLayout);
+        tabSheet.setSizeFull();
+
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(getTitle("Settings"));
-        pageVerticalLayout.add(webhookVerticalLayout);
+        pageVerticalLayout.add(tabSheet);
         pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.add(pageVerticalLayout);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);
@@ -88,7 +82,6 @@ public class SettingsView extends AbstractRestrictedView {
         layout.setPadding(false);
         layout.setSpacing(true);
 
-        layout.add(new H4("Webhook"));
         layout.add(new Span("Receive an HTTP POST when an asynchronous redaction completes or fails. "
                 + "Requests are signed with HMAC-SHA256 over \"<timestamp>.<body>\" using the secret below. "
                 + "See the release notes for the full receiver contract."));

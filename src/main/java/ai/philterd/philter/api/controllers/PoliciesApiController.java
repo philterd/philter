@@ -18,6 +18,8 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.responses.CompilePolicyResponse;
+import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -26,7 +28,10 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.policies.PhiSqlCompileService;
+import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.types.ObjectId;
@@ -51,12 +56,14 @@ import java.util.List;
 public class PoliciesApiController extends AbstractApiController {
 
     private final PolicyDataService policyDataService;
+    private final PhiSqlCompileService phiSqlCompileService;
     private final Gson gson;
 
     public PoliciesApiController(final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
                                  final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.policyDataService = policyDataService;
+        this.phiSqlCompileService = new PhiSqlCompileService();
         this.gson = gson;
     }
 
@@ -153,6 +160,45 @@ public class PoliciesApiController extends AbstractApiController {
         final String requestId = RequestIdGenerator.generate();
 
         policyDataService.deleteByName(requestId, policyName, userId, Source.API);
+
+    }
+
+    /**
+     * Compiles a policy authored in PhiSQL into the native Phileas policy format. The request body is
+     * PhiSQL source; the response carries the policy name and description from the {@code POLICY}
+     * declaration and the compiled policy JSON. The caller can then save the returned JSON via
+     * {@code POST /api/policies}. A parse/compile error, or a compiled policy that fails validation,
+     * returns a 400 with the error message.
+     */
+    @RequestMapping(value = "/api/policies/compile", method = RequestMethod.POST,
+            consumes = MediaType.TEXT_PLAIN_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<String> compile(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestBody String phiSql) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+
+        if(apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final PhiSqlCompileService.Result result = phiSqlCompileService.compile(phiSql);
+
+        if(!result.isSuccess()) {
+            return ResponseEntity.badRequest().body(gson.toJson(new GenericResponse(result.getError())));
+        }
+
+        // The compiler targets the native Phileas schema, but validate the output before returning it so
+        // the caller never receives a policy that Philter's policy API would reject.
+        final PolicyValidation validation = policyDataService.validatePolicy(result.getPolicyJson());
+        if(!validation.isValid()) {
+            return ResponseEntity.badRequest().body(gson.toJson(new GenericResponse(validation.getMessage())));
+        }
+
+        final CompilePolicyResponse response = new CompilePolicyResponse(
+                result.getName(), result.getDescription(), gson.fromJson(result.getPolicyJson(), JsonElement.class));
+
+        return ResponseEntity.ok(gson.toJson(response));
 
     }
 

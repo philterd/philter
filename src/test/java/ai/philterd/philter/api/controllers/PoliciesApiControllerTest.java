@@ -22,6 +22,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +38,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -102,6 +105,47 @@ class PoliciesApiControllerTest {
 
         verify(policyDataService).deleteByName(anyString(),
                 eq("my-policy"), eq(userId), eq(Source.API));
+    }
+
+    @Test
+    void compileValidPhiSqlReturnsCompiledNativePolicy() throws Exception {
+        // The controller compiles with the real PhiSQL compiler; the compiled JSON is validated via the
+        // (mocked) policy data service, so stub validation to pass.
+        when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+
+        final String phiSql = "POLICY ssn_only;\nREDACT SSN WITH MASK;";
+
+        final String body = mockMvc.perform(post("/api/policies/compile")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content(phiSql))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"name\":\"ssn_only\""), "response should carry the POLICY name");
+        assertTrue(body.contains("ssnFilterStrategies"), "response should carry the native ssn filter");
+        assertTrue(body.contains("MASK"), "response should carry the compiled MASK strategy");
+
+        // The compiled native policy is validated before being returned.
+        verify(policyDataService).validatePolicy(anyString());
+    }
+
+    @Test
+    void compileInvalidPhiSqlReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/policies/compile")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("this is not valid phisql"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void compileRejectsUnknownApiKey() throws Exception {
+        mockMvc.perform(post("/api/policies/compile")
+                        .header("Authorization", "Bearer sk_unknownunknownunknownunknown00")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("POLICY ssn_only;\nREDACT SSN WITH MASK;"))
+                .andExpect(status().isUnauthorized());
     }
 
 }

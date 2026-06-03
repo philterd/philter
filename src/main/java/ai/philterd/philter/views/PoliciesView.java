@@ -69,21 +69,10 @@ public class PoliciesView extends AbstractRestrictedView {
     private static final String POLICY_EDITOR_URL =
             "https://policies.philterd.ai/?version=" + PolicySchema.getSupportedSchemaVersion();
 
-    @Override
-    public String getHelpMarkdownText() {
-        return """
-            ## Policies
-
-            Policies define what Philter redacts and how. Create or edit a policy as JSON, or build
-            one in the policy editor and paste it here. **Managed policies** are read-only starting
-            points you can copy from, and **Global Terms** let you always or never redact specific
-            terms across every policy.
-            """;
-    }
 
     public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService,
                         final GlobalTermsDataService globalTermsService) {
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         final UserEntity userEntity = getCurrentUser();
         final PolicyEntityDataProvider policiesDataProvider = new PolicyEntityDataProvider(userEntity.getId(), policyService);
@@ -546,7 +535,6 @@ public class PoliciesView extends AbstractRestrictedView {
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.add(pageVerticalLayout);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);

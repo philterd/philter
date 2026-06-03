@@ -60,6 +60,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
@@ -67,6 +68,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 @Configuration
 @Theme(value="philter", variant=Lumo.LIGHT)
 @SpringBootApplication
+@PropertySource("classpath:internal.properties")
 @EnableScheduling
 public class PhilterApplication implements AppShellConfigurator {
 

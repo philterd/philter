@@ -34,6 +34,7 @@ import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
@@ -59,21 +60,11 @@ public class DashboardView extends AbstractRestrictedView {
     private final PolicyDataService policyDataService;
     private final RedactionService redactionService;
 
-    @Override
-    public String getHelpMarkdownText() {
-        return """
-            ## Dashboard
-
-            Try out your Philter configuration here. Select a policy, then filter sample text or
-            upload a PDF to see the redacted result. This is for testing policies only and does
-            not change any stored data.
-            """;
-    }
 
     public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService,
                          final AuditEventPublisher auditEventPublisher, final PolicyDataService policyDataService,
                          final RedactionService redactionService) {
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         this.policyDataService = policyDataService;
         this.redactionService = redactionService;
@@ -87,13 +78,16 @@ public class DashboardView extends AbstractRestrictedView {
         filterHorizontalLayout.add(createFilterText());
         filterHorizontalLayout.add(createPdfFilter());
 
-        pageVerticalLayout.add(filterHorizontalLayout);
+        final TabSheet tabSheet = new TabSheet();
+        tabSheet.add("Test Philter Redaction", filterHorizontalLayout);
+        tabSheet.setSizeFull();
+
+        pageVerticalLayout.add(tabSheet);
         pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.add(pageVerticalLayout);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);

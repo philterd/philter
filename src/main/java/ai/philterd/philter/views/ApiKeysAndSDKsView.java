@@ -53,20 +53,10 @@ public class ApiKeysAndSDKsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(ApiKeysAndSDKsView.class);
 
-    @Override
-    public String getHelpMarkdownText() {
-        return """
-            ## API Keys & SDKs
-
-            Create and manage the API keys used to authenticate requests to Philter's API. A new
-            key is shown only once, so save it securely. The Client SDKs tab lists libraries for
-            calling the API.
-            """;
-    }
 
     public ApiKeysAndSDKsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final ApiKeyDataService apiKeyService) {
 
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         final UserEntity userEntity = getCurrentUser();
         final ApiKeyEntityDataProvider apiKeyDataProvider = new ApiKeyEntityDataProvider(userEntity.getId(), apiKeyService);
@@ -179,7 +169,6 @@ public class ApiKeysAndSDKsView extends AbstractRestrictedView {
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.add(pageVerticalLayout);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);

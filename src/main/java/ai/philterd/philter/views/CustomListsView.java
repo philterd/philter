@@ -56,20 +56,10 @@ public class CustomListsView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(CustomListsView.class);
 
-    @Override
-    public String getHelpMarkdownText() {
-        return """
-            ## Custom Lists
-
-            Custom lists are named sets of terms you can reference from a policy (using
-            `list:<name>`) to always or never redact them. Create a list here, then reference
-            it from your policies.
-            """;
-    }
 
     public CustomListsView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                            final CustomListDataService customListService) {
-        super(mongoClient, encryptionService, auditEventPublisher, true);
+        super(mongoClient, encryptionService, auditEventPublisher);
 
         final UserEntity userEntity = getCurrentUser();
         final CustomListEntityDataProvider dataProvider = new CustomListEntityDataProvider(userEntity.getId(), customListService);
@@ -320,7 +310,6 @@ public class CustomListsView extends AbstractRestrictedView {
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.add(div);
-        pageHorizontalLayout.add(helpWindowVerticalLayout);
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);

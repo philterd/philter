@@ -15,13 +15,10 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.services.policies.SimplifiedStrategy;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
@@ -54,11 +51,9 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         service = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson);
     }
 
-    /** Builds a valid policy JSON (a single supported SSN filter), matching the unit-test fixture. */
+    /** Builds a valid native policy JSON (a single SSN filter), matching the unit-test fixture. */
     private String validPolicyJson() {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("REDACT"))));
-        return gson.toJson(policy);
+        return "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
     }
 
     private ServiceResponse create(final ObjectId userId, final String name) {

@@ -26,10 +26,10 @@ import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.services.policies.SimplifiedStrategy;
+import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
+import com.google.gson.Gson;
 import com.privacylogistics.FF3Cipher;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.bson.types.ObjectId;
@@ -37,7 +37,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -110,9 +109,10 @@ class FpeRedactionIT extends AbstractMongoIT {
 
     private TextFilterResult redact(final String text) throws Exception {
 
-        final SimplifiedPolicy simplifiedPolicy = new SimplifiedPolicy();
-        simplifiedPolicy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("FPE"))));
-        final Policy policy = simplifiedPolicy.toPolicy(FPE_KEY, FPE_TWEAK, null, null);
+        // The policy supplies no fpe object, so PolicyResolver injects the managed key+tweak exactly as
+        // RedactionService does in production.
+        final String policyJson = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"FPE_ENCRYPT_REPLACE\"}]}}}";
+        final Policy policy = new PolicyResolver(new Gson(), null).resolve(policyJson, null, FPE_KEY, FPE_TWEAK);
 
         final Properties properties = new Properties();
         properties.put("incremental.redactions.enabled", "true");

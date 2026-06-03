@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CreditCard;
 import ai.philterd.phileas.policy.filters.EmailAddress;
@@ -28,8 +27,9 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.policies.ManagedPolicyLoader;
 import ai.philterd.philter.services.policies.PolicyValidation;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -45,9 +45,7 @@ import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class PolicyDataService extends AbstractService<PolicyEntity> {
 
@@ -241,29 +239,24 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         try {
 
-            final SimplifiedPolicy simplifiedPolicy = gson.fromJson(policyJson, SimplifiedPolicy.class);
+            // Policies are authored and stored in the native Phileas policy format. Parse to a JSON
+            // object first (this also rejects malformed JSON), then confirm the policy actually enables
+            // at least one type of sensitive information to detect.
+            final JsonObject policyObject = gson.fromJson(policyJson, JsonObject.class);
 
-            if(!containsValidChoice(simplifiedPolicy.getDisambiguationScope(), SimplifiedPolicy.DISAMBIGUATION_SCOPES)) {
-                LOGGER.warn("Policy validation failed: Invalid disambiguation scope.");
-                return PolicyValidation.invalid("Disambiguation scope must be one of: " + String.join(", ", SimplifiedPolicy.DISAMBIGUATION_SCOPES));
+            if(policyObject == null) {
+                LOGGER.warn("Policy validation failed: empty policy.");
+                return PolicyValidation.invalid("The policy is empty.");
             }
 
-            // Reject filter types that would be silently ignored during redaction. Without this
-            // check a policy could appear to enable redaction for a type that is never applied.
-            final Set<FilterType> unsupportedFilterTypes = simplifiedPolicy.getUnsupportedFilterTypes();
-            if(!unsupportedFilterTypes.isEmpty()) {
-                final String names = unsupportedFilterTypes.stream().map(Enum::name).collect(Collectors.joining(", "));
-                LOGGER.warn("Policy validation failed: unsupported filter types: {}", names);
-                return PolicyValidation.invalid("The policy uses filter types that are not supported and would not be redacted: " + names);
+            final JsonElement identifiers = policyObject.get("identifiers");
+            if(identifiers == null || !identifiers.isJsonObject() || identifiers.getAsJsonObject().isEmpty()) {
+                LOGGER.warn("Policy validation failed: no identifiers.");
+                return PolicyValidation.invalid("The policy must contain an 'identifiers' object describing the information to redact.");
             }
 
-            // Reject strategies that are missing the parameters they require (e.g. a STATIC_REPLACE with
-            // no replacement value), which would otherwise silently produce empty redactions.
-            final String strategyError = simplifiedPolicy.getStrategyConfigurationError();
-            if(strategyError != null) {
-                LOGGER.warn("Policy validation failed: {}", strategyError);
-                return PolicyValidation.invalid(strategyError);
-            }
+            // Confirm the policy is structurally compatible with the native Phileas policy model.
+            gson.fromJson(policyJson, Policy.class);
 
             LOGGER.info("Policy validation successful.");
             return PolicyValidation.valid("Policy is valid");

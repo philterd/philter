@@ -27,7 +27,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
+import ai.philterd.philter.services.policies.DefaultPolicy;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -288,7 +288,7 @@ public class PoliciesView extends AbstractRestrictedView {
             policyJsonTextArea.setWidthFull();
             policyJsonTextArea.setHeight("400px");
             policyJsonTextArea.setLabel("Policy (JSON)");
-            policyJsonTextArea.setValue(SimplifiedPolicy.getDefaultPolicy());
+            policyJsonTextArea.setValue(DefaultPolicy.json());
             policyJsonTextArea.setHelperComponent(CommonWidgets.getLink("Build a policy in the policy editor, then paste the JSON here.", POLICY_EDITOR_URL, true));
 
             final TextField policyDescriptionTextField = new TextField();

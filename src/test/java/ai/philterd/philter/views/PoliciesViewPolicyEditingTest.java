@@ -15,11 +15,8 @@
  */
 package ai.philterd.philter.views;
 
-import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.services.policies.SimplifiedStrategy;
 import ai.philterd.philter.data.services.PolicyDataService;
 import com.google.gson.Gson;
 import com.mongodb.client.FindIterable;
@@ -81,11 +78,8 @@ class PoliciesViewPolicyEditingTest {
         policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson);
     }
 
-    private String policyJsonWith(final FilterType filterType) {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(filterType, List.of(new SimplifiedStrategy("REDACT"))));
-        return gson.toJson(policy);
-    }
+    private static final String VALID_SSN_POLICY =
+            "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
     @Test
     void savesAValidPolicy() {
@@ -101,26 +95,25 @@ class PoliciesViewPolicyEditingTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
 
         final ServiceResponse response = policyDataService.create("req", userId,
-                policyJsonWith(FilterType.SSN), "desc", "notes", "valid-policy", "ui");
+                VALID_SSN_POLICY, "desc", "notes", "valid-policy", "ui");
 
         assertTrue(response.isSuccessful());
         verify(mongoCollection).insertOne(any(Document.class));
     }
 
     @Test
-    void rejectsPolicyWithUnsupportedFilterTypeAndDoesNotSave() {
+    void rejectsPolicyWithoutIdentifiersAndDoesNotSave() {
         final ObjectId userId = new ObjectId();
 
         final FindIterable<Document> findIterable = org.mockito.Mockito.mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
 
+        // A policy with no identifiers is invalid and must never be persisted.
         final ServiceResponse response = policyDataService.create("req", userId,
-                policyJsonWith(FilterType.MEDICAL_CONDITION), "desc", "notes", "bad-policy", "ui");
+                "{}", "desc", "notes", "bad-policy", "ui");
 
         assertFalse(response.isSuccessful());
-        assertTrue(response.getMessage().contains("MEDICAL_CONDITION"));
-        // An invalid policy must never be persisted.
         verify(mongoCollection, never()).insertOne(any(Document.class));
     }
 

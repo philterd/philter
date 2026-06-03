@@ -29,11 +29,9 @@ import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
-import ai.philterd.philter.services.policies.SimplifiedCondition;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.services.policies.SimplifiedStrategy;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
+import com.google.gson.Gson;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +53,7 @@ import static org.mockito.Mockito.mock;
  * scope (issue #208). Where {@link ai.philterd.philter.services.context.ContextExportImportIT}
  * exercises {@link MongoContextService#computeReplacementIfAbsent} directly, these tests drive the
  * <em>real Phileas filter engine</em> ({@link PlainTextFilterService}) against a real (in-memory)
- * MongoDB, using the production policy conversion ({@link SimplifiedPolicy#toPolicy}).
+ * MongoDB, using native Phileas policies.
  *
  * <p>Each "redaction request" is issued through {@link #redact}, which builds a <em>fresh</em>
  * {@link MongoContextService} and {@link PlainTextFilterService} every call. This mirrors production,
@@ -245,23 +243,34 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     }
 
     /**
-     * Builds a Phileas policy through the production simplified-policy conversion, anonymizing each
-     * supplied filter type with the {@code Anonymize} strategy (RANDOM_REPLACE) at the given replacement
-     * scope. A zero-confidence condition is used so rule-based detections are never gated out.
+     * Builds a native Phileas policy that anonymizes each supplied filter type with the
+     * {@code RANDOM_REPLACE} strategy at the given replacement scope and anonymization method. No
+     * condition is set, so rule-based detections are never gated out.
      */
     private static Policy anonymizePolicy(final String replacementScope,
-                                          final Map<FilterType, AnonymizationMethod> filterTypes) throws Exception {
+                                          final Map<FilterType, AnonymizationMethod> filterTypes) {
 
-        final SimplifiedPolicy simplifiedPolicy = new SimplifiedPolicy();
-
-        final Map<FilterType, List<SimplifiedStrategy>> filters = new java.util.HashMap<>();
+        final StringBuilder identifiers = new StringBuilder();
         for (final Map.Entry<FilterType, AnonymizationMethod> entry : filterTypes.entrySet()) {
-            filters.put(entry.getKey(), List.of(new SimplifiedStrategy(
-                    "Anonymize", new SimplifiedCondition(0), replacementScope, entry.getValue())));
+            final String[] keys = nativeKeys(entry.getKey());
+            if (identifiers.length() > 0) {
+                identifiers.append(",");
+            }
+            identifiers.append("\"").append(keys[0]).append("\":{\"").append(keys[1]).append("\":[")
+                    .append("{\"strategy\":\"RANDOM_REPLACE\",\"replacementScope\":\"").append(replacementScope)
+                    .append("\",\"anonymizationMethod\":\"").append(entry.getValue().name()).append("\"}]}");
         }
-        simplifiedPolicy.setFilters(filters);
 
-        return simplifiedPolicy.toPolicy("0123456789ABCDEF0123456789ABCDEF", "0123456789ABCDEF", null, null);
+        return new Gson().fromJson("{\"identifiers\":{" + identifiers + "}}", Policy.class);
+    }
+
+    /** Maps a filter type to its native identifier key and filter-strategies array key. */
+    private static String[] nativeKeys(final FilterType filterType) {
+        return switch (filterType) {
+            case SSN -> new String[]{"ssn", "ssnFilterStrategies"};
+            case PHONE_NUMBER -> new String[]{"phoneNumber", "phoneNumberFilterStrategies"};
+            default -> throw new IllegalArgumentException("Unsupported filter type in test: " + filterType);
+        };
     }
 
 }

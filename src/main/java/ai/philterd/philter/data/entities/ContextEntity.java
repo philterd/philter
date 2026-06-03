@@ -25,10 +25,16 @@ public class ContextEntity extends AbstractEntity {
     public static final int MAX_CONTEXT_SIZE = 10000;
     public static final int DEFAULT_TTL_IN_HOURS = 48;
 
+    // Disambiguation scopes. "Document" disambiguates within each document (in-memory vectors);
+    // "Context" shares disambiguation vectors across the whole context (persisted in MongoDB).
+    public static final String DISAMBIGUATION_SCOPE_DOCUMENT = "Document";
+    public static final String DISAMBIGUATION_SCOPE_CONTEXT = "Context";
+
     private ObjectId id;
     private String contextName;
     private int maxSize;
     private boolean disambiguation;
+    private String disambiguationScope = DISAMBIGUATION_SCOPE_DOCUMENT;
     private boolean ledger;
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
@@ -41,6 +47,8 @@ public class ContextEntity extends AbstractEntity {
         contextEntity.contextName = document.getString("context_name");
         contextEntity.maxSize = document.getInteger("max_size", MAX_CONTEXT_SIZE);
         contextEntity.disambiguation = document.getBoolean("disambiguation", false);
+        contextEntity.disambiguationScope = document.getString("disambiguation_scope") != null
+                ? document.getString("disambiguation_scope") : DISAMBIGUATION_SCOPE_DOCUMENT;
         contextEntity.ledger = document.getBoolean("ledger", false);
         contextEntity.ttlInHours = document.getInteger("ttl_in_hours", DEFAULT_TTL_IN_HOURS);
         contextEntity.timestamp = document.getDate("timestamp");
@@ -57,6 +65,7 @@ public class ContextEntity extends AbstractEntity {
         document.put("context_name", contextName);
         document.put("max_size", maxSize);
         document.put("disambiguation", disambiguation);
+        document.put("disambiguation_scope", disambiguationScope);
         document.put("ledger", ledger);
         document.put("ttl_in_hours", ttlInHours);
         document.put("timestamp", timestamp);
@@ -93,6 +102,14 @@ public class ContextEntity extends AbstractEntity {
 
     public void setDisambiguation(boolean disambiguation) {
         this.disambiguation = disambiguation;
+    }
+
+    public String getDisambiguationScope() {
+        return disambiguationScope;
+    }
+
+    public void setDisambiguationScope(String disambiguationScope) {
+        this.disambiguationScope = disambiguationScope;
     }
 
     public boolean isLedger() {

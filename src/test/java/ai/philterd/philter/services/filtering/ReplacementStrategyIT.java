@@ -20,16 +20,14 @@ import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
-import ai.philterd.phileas.services.anonymization.AnonymizationMethod;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.services.policies.SimplifiedStrategy;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
+import com.google.gson.Gson;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.bson.types.ObjectId;
@@ -37,7 +35,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,9 +46,8 @@ import static org.mockito.Mockito.mock;
 /**
  * End-to-end tests proving that the newly exposed standard replacement strategies — {@code
  * STATIC_REPLACE} and {@code HASH_SHA256_REPLACE} — actually take effect through the real Phileas
- * filter engine when configured on a {@link SimplifiedPolicy}. The policy is converted with the
- * production {@link SimplifiedPolicy#toPolicy} path, so this covers both the strategy mapping and the
- * parameter plumbing ({@code staticReplacement}, {@code salt}) that {@code toPolicy} now applies.
+ * filter engine when configured in a native Phileas policy. This covers both the strategy names and the
+ * parameter plumbing ({@code staticReplacement}, {@code salt}) the engine reads from the policy.
  *
  * <p>A rule-based filter type (SSN) is used so the engine runs entirely locally with no external model
  * dependency, keeping the tests deterministic and CI-friendly.
@@ -71,8 +67,7 @@ class ReplacementStrategyIT extends AbstractMongoIT {
     @Test
     void staticReplaceSubstitutesTheConfiguredValue() throws Exception {
 
-        final Policy policy = policyWith(FilterType.SSN, "STATIC_REPLACE",
-                Map.of(SimplifiedPolicy.PARAM_STATIC_REPLACEMENT, "REDACTED-SSN"));
+        final Policy policy = ssnPolicy("{\"strategy\":\"STATIC_REPLACE\",\"staticReplacement\":\"REDACTED-SSN\"}");
 
         final TextFilterResult result = redact(policy, TEXT);
 
@@ -85,7 +80,7 @@ class ReplacementStrategyIT extends AbstractMongoIT {
     @Test
     void hashSha256UnsaltedProducesThePlainSha256OfTheToken() throws Exception {
 
-        final Policy policy = policyWith(FilterType.SSN, "HASH_SHA256_REPLACE", Map.of());
+        final Policy policy = ssnPolicy("{\"strategy\":\"HASH_SHA256_REPLACE\"}");
 
         final TextFilterResult result = redact(policy, TEXT);
 
@@ -96,8 +91,7 @@ class ReplacementStrategyIT extends AbstractMongoIT {
     @Test
     void hashSha256SaltedProducesADifferentHash() throws Exception {
 
-        final Policy policy = policyWith(FilterType.SSN, "HASH_SHA256_REPLACE",
-                Map.of(SimplifiedPolicy.PARAM_SALT, "true"));
+        final Policy policy = ssnPolicy("{\"strategy\":\"HASH_SHA256_REPLACE\",\"salt\":true}");
 
         final String salted = replacementOf(redact(policy, TEXT), FilterType.SSN);
 
@@ -107,14 +101,9 @@ class ReplacementStrategyIT extends AbstractMongoIT {
 
     // ---- helpers ---------------------------------------------------------------------------------
 
-    private static Policy policyWith(final FilterType filterType, final String strategy,
-                                     final Map<String, String> parameters) throws Exception {
-
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(filterType, List.of(
-                new SimplifiedStrategy(strategy, parameters, AnonymizationMethod.UUID))));
-
-        return policy.toPolicy("0123456789ABCDEF0123456789ABCDEF", "0123456789ABCDEF", null, null);
+    private static Policy ssnPolicy(final String strategyJson) {
+        final String json = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[" + strategyJson + "]}}}";
+        return new Gson().fromJson(json, Policy.class);
     }
 
     private TextFilterResult redact(final Policy policy, final String text) throws Exception {

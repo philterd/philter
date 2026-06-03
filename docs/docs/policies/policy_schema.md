@@ -91,7 +91,7 @@ Encryption settings used by the `CRYPTO_REPLACE` strategy. Philter encrypts usin
 
 ## `fpe`
 
-Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy. Required when that strategy is used. The encryption is deterministic and reversible for a given key and tweak. Either value may be prefixed with `env:` to read it from an environment variable so the secret is not stored in the policy.
+Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy. Optional: if omitted, Philter applies a stable per-user key it manages automatically, so the strategy works with no configuration. Supply this object to use your own key instead. The encryption is deterministic and reversible for a given key and tweak. Either value may be prefixed with `env:` to read it from an environment variable so the secret is not stored in the policy.
 
 | Property | Type | Description |
 |----------|------|-------------|

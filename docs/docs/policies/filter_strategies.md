@@ -150,9 +150,26 @@ An example policy using the `HASH_SHA256_REPLACE` filter strategy:
 
 The `FPE_ENCRYPT_REPLACE` filter strategy uses format-preserving encryption (FPE) to encrypt the sensitive information. Philter uses the FF3-1 algorithm for format-preserving encryption.
 
-The encryption is deterministic and reversible: for a given key and tweak the same input always encrypts to the same value (referential integrity across documents), and the value can be decrypted with the same key and tweak.
+By default you do not need to supply a key. Philter manages a stable format-preserving-encryption key for each user automatically and applies it at redaction time, so selecting the `FPE_ENCRYPT_REPLACE` strategy is enough:
 
-To use this filter strategy, the policy must provide a top-level `fpe` object with a `key` and a `tweak`:
+```
+{
+   "name": "credit-cards",
+   "identifiers": {
+      "creditCard": {
+         "creditCardFilterStrategies": [
+            {
+               "strategy": "FPE_ENCRYPT_REPLACE"
+            }
+         ]
+      }
+   }
+}
+```
+
+Because the key is stable, the encryption is deterministic and reversible: the same input always encrypts to the same value (referential integrity across documents), and the value can be decrypted with the user's key.
+
+To use your own key instead of the managed one, supply a top-level `fpe` object with a `key` and a `tweak`:
 
 ```
 {

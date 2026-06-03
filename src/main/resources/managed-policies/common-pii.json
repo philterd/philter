@@ -1,52 +1,24 @@
 {
-  "version": "1.0.0",
-  "name": "managed_common_pii",
-  "description": "Common PII including names, emails, phone numbers, and SSNs",
-  "filters": {
-    "email-address": [
-      {
-        "strategy": "Redact",
-        "parameters": {},
-        "simplifiedCondition": {
-          "confidence": 85
-        },
-        "redactionScope": "Context"
-      }
-    ],
-    "ssn": [
-      {
-        "strategy": "Redact",
-        "parameters": {},
-        "simplifiedCondition": {
-          "confidence": 85
-        },
-        "redactionScope": "Context"
-      }
-    ],
-    "phone-number": [
-      {
-        "strategy": "Redact",
-        "parameters": {},
-        "simplifiedCondition": {
-          "confidence": 85
-        },
-        "redactionScope": "Context"
-      }
-    ],
-    "person": [
-      {
-        "strategy": "Redact",
-        "parameters": {},
-        "simplifiedCondition": {
-          "confidence": 85
-        },
-        "redactionScope": "Context"
-      }
-    ]
-  },
-  "termsToIgnore": [],
-  "termsToAlwaysRedact": [],
-  "highlightChangesinWordDocuments": false,
-  "turnOnRevisionsinWordDocuments": false,
-  "disambiguationScope": "Context"
+  "identifiers": {
+    "emailAddress": {
+      "emailAddressFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "ssn": {
+      "ssnFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "phoneNumber": {
+      "phoneNumberFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "person": {
+      "phEyeFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    }
+  }
 }

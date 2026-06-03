@@ -21,7 +21,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
+import ai.philterd.philter.services.policies.DefaultPolicy;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
@@ -108,7 +108,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setUserId(userId);
         policyEntity.setName("default");
-        policyEntity.setPolicy(SimplifiedPolicy.getDefaultPolicy());
+        policyEntity.setPolicy(DefaultPolicy.json());
         policyEntity.setCreatedTimestamp(new Date());
         policyEntity.setLastUpdatedTimestamp(new Date());
         policyEntity.setRevision(0);

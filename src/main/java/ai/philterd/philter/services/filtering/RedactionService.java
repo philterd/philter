@@ -26,7 +26,6 @@ import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
-import ai.philterd.phileas.services.strategies.AbstractFilterStrategy;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -48,7 +47,7 @@ import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
+import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.utils.FilterTypeCounter;
@@ -169,25 +168,17 @@ public class RedactionService {
             throw new Exception("The policy '" + policyName + "' does not exist.");
         }
 
-        // Build the simplified policy.
-        final SimplifiedPolicy simplifiedPolicy = gson.fromJson(policyEntity.getPolicy(), SimplifiedPolicy.class);
-
         // Resolve the user's stable FPE key (generating one if absent) and derive its tweak. FF3-1
         // requires a hex key and hex tweak; a stable key+tweak makes format-preserving encryption
         // deterministic for the user so the FPE_ENCRYPT_REPLACE strategy preserves referential integrity.
+        // The key is injected into the policy as a fallback when the policy supplies no fpe object.
         final String fpeKey = userService.ensureFpeKey(userEntity);
-
-        // A policy that uses format-preserving encryption must have a usable key. ensureFpeKey above
-        // guarantees one, so this is a safety net: fail the request with a clear error rather than let
-        // Phileas silently fall back to redaction (the failure mode that made FPE non-functional before).
-        if (simplifiedPolicy.usesStrategy(AbstractFilterStrategy.FPE_ENCRYPT_REPLACE) && (fpeKey == null || fpeKey.isBlank())) {
-            throw new Exception("This policy uses format-preserving encryption (FPE) but no usable FPE key is available for the user.");
-        }
-
         final String fpeTweak = EncryptionService.deriveFpeTweak(fpeKey);
 
-        // Convert the simplified policy to a Phileas policy.
-        final Policy phileasPolicy = simplifiedPolicy.toPolicy(fpeKey, fpeTweak, customListService, userEntity.getId());
+        // Deserialize the stored native Phileas policy and apply Philter-specific resolution
+        // (custom list references and the managed FPE key fallback).
+        final Policy phileasPolicy = new PolicyResolver(gson, customListService)
+                .resolve(policyEntity.getPolicy(), userEntity.getId(), fpeKey, fpeTweak);
 
         // Get the global terms to always/never redact.
         final GlobalTermsEntity globalTermsEntity = globalTermsService.find(userEntity.getId());
@@ -258,12 +249,12 @@ public class RedactionService {
 
                 // Entity type disambiguation for this context is enabled.
 
-                if (simplifiedPolicy.getDisambiguationScope().equalsIgnoreCase("Document")) {
+                if (contextEntity.getDisambiguationScope().equalsIgnoreCase("Document")) {
                     vectorService = new InMemoryVectorService();
-                } else if (simplifiedPolicy.getDisambiguationScope().equalsIgnoreCase("Context")) {
+                } else if (contextEntity.getDisambiguationScope().equalsIgnoreCase("Context")) {
                     vectorService = new MongoVectorService(mongoClient, userEntity.getId(), auditEventPublisher);
                 } else {
-                    LOGGER.info("Invalid disambiguation scope: {}", simplifiedPolicy.getDisambiguationScope());
+                    LOGGER.info("Invalid disambiguation scope: {}", contextEntity.getDisambiguationScope());
                     vectorService = new InMemoryVectorService();
                 }
 

@@ -15,14 +15,11 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.policies.PolicyValidation;
-import ai.philterd.philter.services.policies.SimplifiedPolicy;
-import ai.philterd.philter.services.policies.SimplifiedStrategy;
 import com.google.gson.Gson;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -100,7 +97,7 @@ class PolicyDataServiceTest {
     @Test
     void create() {
         ObjectId userId = new ObjectId();
-        String policyJson = "{}";
+        String policyJson = validPolicyJson();
         String policyName = "newPolicy";
 
         // Mock uniqueness check
@@ -170,9 +167,7 @@ class PolicyDataServiceTest {
     }
 
     private String validPolicyJson() {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("REDACT"))));
-        return gson.toJson(policy);
+        return "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
     }
 
     private Document existingPolicyDocument(final ObjectId policyId, final ObjectId userId) {
@@ -231,54 +226,28 @@ class PolicyDataServiceTest {
     }
 
     @Test
-    void validatePolicyAcceptsSupportedFilterTypes() {
+    void validatePolicyAcceptsAValidNativePolicy() {
         final PolicyValidation validation = policyDataService.validatePolicy(validPolicyJson());
         assertTrue(validation.isValid());
     }
 
     @Test
-    void validatePolicyRejectsUnsupportedFilterTypes() {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(
-                FilterType.SSN, List.of(new SimplifiedStrategy("REDACT")),
-                FilterType.MEDICAL_CONDITION, List.of(new SimplifiedStrategy("REDACT"))));
-
-        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
-
-        assertFalse(validation.isValid());
-        assertTrue(validation.getMessage().contains("MEDICAL_CONDITION"));
-    }
-
-    @Test
-    void validatePolicyRejectsStaticReplaceWithoutAValue() {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("STATIC_REPLACE"))));
-
-        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
-
-        assertFalse(validation.isValid());
-        assertTrue(validation.getMessage().contains("static-replace"));
-    }
-
-    @Test
     void validatePolicyAcceptsStaticReplaceWithAValue() {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy(
-                "STATIC_REPLACE", Map.of(SimplifiedPolicy.PARAM_STATIC_REPLACEMENT, "REDACTED"),
-                ai.philterd.phileas.services.anonymization.AnonymizationMethod.UUID))));
-
-        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
-
+        final String json = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":"
+                + "[{\"strategy\":\"STATIC_REPLACE\",\"staticReplacement\":\"REDACTED\"}]}}}";
+        final PolicyValidation validation = policyDataService.validatePolicy(json);
         assertTrue(validation.isValid());
     }
 
     @Test
-    void validatePolicyRejectsInvalidDisambiguationScope() {
-        final SimplifiedPolicy policy = new SimplifiedPolicy();
-        policy.setDisambiguationScope("not-a-scope");
+    void validatePolicyRejectsAPolicyWithoutIdentifiers() {
+        final PolicyValidation validation = policyDataService.validatePolicy("{}");
+        assertFalse(validation.isValid());
+    }
 
-        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
-
+    @Test
+    void validatePolicyRejectsInvalidJson() {
+        final PolicyValidation validation = policyDataService.validatePolicy("{not valid json");
         assertFalse(validation.isValid());
     }
 }

@@ -15,30 +15,42 @@
  */
 package ai.philterd.philter.services.policies;
 
+import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import com.google.gson.Gson;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 /**
- * Utility class to load managed policies from JSON files in the resources directory.
+ * Loads the built-in managed policies from native Phileas policy JSON files in the resources
+ * directory. The native policy format does not carry a name or description, so those are defined
+ * here alongside each file.
  */
 public class ManagedPolicyLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ManagedPolicyLoader.class);
     private static final String MANAGED_POLICIES_PATH = "/managed-policies/";
-    private static final List<String> MANAGED_POLICY_FILES = List.of(
-            "common-pii.json",
-            "healthcare-phi.json",
-            "financial-pii.json"
+
+    /**
+     * A built-in managed policy: the resource file holding its native policy JSON plus the name and
+     * description used to present it.
+     */
+    private record ManagedPolicy(String fileName, String name, String description) {}
+
+    private static final List<ManagedPolicy> MANAGED_POLICIES = List.of(
+            new ManagedPolicy("common-pii.json", "managed_common_pii",
+                    "Common PII including names, emails, phone numbers, and SSNs"),
+            new ManagedPolicy("healthcare-phi.json", "managed_healthcare_phi",
+                    "Healthcare PHI including names, dates, addresses, and medical identifiers"),
+            new ManagedPolicy("financial-pii.json", "managed_financial_pii",
+                    "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses")
     );
 
     private final Gson gson;
@@ -55,11 +67,11 @@ public class ManagedPolicyLoader {
 
         final List<PolicyEntity> managedPolicies = new ArrayList<>();
 
-        for (final String fileName : MANAGED_POLICY_FILES) {
+        for (final ManagedPolicy managedPolicy : MANAGED_POLICIES) {
 
             try {
 
-                final String resourcePath = MANAGED_POLICIES_PATH + fileName;
+                final String resourcePath = MANAGED_POLICIES_PATH + managedPolicy.fileName();
                 final InputStream inputStream = getClass().getResourceAsStream(resourcePath);
 
                 if (inputStream == null) {
@@ -67,35 +79,28 @@ public class ManagedPolicyLoader {
                     continue;
                 }
 
-                try (final InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+                final String policyJson = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
 
-                    final SimplifiedPolicy simplifiedPolicy = gson.fromJson(reader, SimplifiedPolicy.class);
+                // Parse to confirm the resource is a valid native Phileas policy; store the raw JSON.
+                gson.fromJson(policyJson, Policy.class);
 
-                    // Convert to JSON string for storage
-                    final String policyJson = gson.toJson(simplifiedPolicy);
+                final PolicyEntity policyEntity = new PolicyEntity();
+                policyEntity.setPolicy(policyJson);
+                policyEntity.setName(managedPolicy.name());
+                policyEntity.setDescription(managedPolicy.description());
+                policyEntity.setManaged(true);
+                policyEntity.setUserId(null); // Managed policies have no owner
+                policyEntity.setCreatedTimestamp(new Date());
+                policyEntity.setLastUpdatedTimestamp(new Date());
+                policyEntity.setRevision(1);
+                policyEntity.setShared(false);
 
-                    // Create PolicyEntity
-                    final PolicyEntity policyEntity = new PolicyEntity();
-                    policyEntity.setPolicy(policyJson);
-                    policyEntity.setName(simplifiedPolicy.getName());
-                    policyEntity.setDescription(simplifiedPolicy.getDescription());
-                    policyEntity.setManaged(true);
-                    policyEntity.setUserId(null); // Managed policies have no owner
-                    policyEntity.setCreatedTimestamp(new Date());
-                    policyEntity.setLastUpdatedTimestamp(new Date());
-                    policyEntity.setRevision(1);
-                    policyEntity.setShared(false);
+                managedPolicies.add(policyEntity);
 
-                    managedPolicies.add(policyEntity);
+                LOGGER.info("Loaded managed policy: {}", managedPolicy.name());
 
-                    LOGGER.info("Loaded managed policy: {}", simplifiedPolicy.getName());
-
-                }
-
-            } catch (final IOException ex) {
-                LOGGER.error("Error loading managed policy from file: {}", fileName, ex);
             } catch (final Exception ex) {
-                LOGGER.error("Error parsing managed policy from file: {}", fileName, ex);
+                LOGGER.error("Error loading managed policy from file: {}", managedPolicy.fileName(), ex);
             }
 
         }

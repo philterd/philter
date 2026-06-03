@@ -13,7 +13,7 @@ This filter has no required parameters.
 | Parameter                   | Description                                                      | Default Value |
 | --------------------------- | ---------------------------------------------------------------- | ------------- |
 | `removePunctuation`         | When set to true, punctuation will be removed prior to analysis. | `false`       |
-| `firstNameFilterStrategies` | A list of filter strategies.                                     | None          |
+| `phEyeFilterStrategies`     | A list of filter strategies.                                     | None          |
 | `enabled`                   | When set to false, the filter will be disabled and not applied   | `true`        |
 | `ignored`                   | A list of terms to be ignored by the filter.                     | None          |
 
@@ -46,8 +46,8 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 {
    "name": "ner-example",
    "identifiers": {
-      "ner": {
-         "nerFilterStrategies": [
+      "person": {
+         "phEyeFilterStrategies": [
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"

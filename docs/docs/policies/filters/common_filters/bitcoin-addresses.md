@@ -12,7 +12,7 @@ This filter has no required parameters.
 
 | Parameter                        | Description                                                    | Default Value |
 | -------------------------------- | -------------------------------------------------------------- | ------------- |
-| `bitcoinAddressFilterStrategies` | A list of filter strategies.                                   | None          |
+| `bitcoinFilterStrategies` | A list of filter strategies.                                   | None          |
 | `enabled`                        | When set to false, the filter will be disabled and not applied | `true`        |
 | `ignored`                        | A list of terms to be ignored by the filter.                   | None          |
 
@@ -46,7 +46,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
    "name": "bitcoin-address-example",
    "identifiers": {
       "bitcoinAddress": {
-         "bitcoinAddressFilterStrategies": [
+         "bitcoinFilterStrategies": [
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"

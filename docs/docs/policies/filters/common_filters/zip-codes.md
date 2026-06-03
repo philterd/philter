@@ -12,7 +12,7 @@ This filter has no required parameters.
 
 | Parameter                 | Description                                                                                                                                                        | Default Value |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
-| `zipCodeFilterStrategies` | A list of filter strategies.                                                                                                                                       | None          |
+| `zipCodeFilterStrategy`   | A list of filter strategies.                                                                                                                                       | None          |
 | `enabled`                 | When set to false, the filter will be disabled and not applied                                                                                                     | `true`        |
 | `ignored`                 | A list of terms to be ignored by the filter.                                                                                                                       | None          |
 | `requireDelimiter`        | When set to false, the filter will not require a dash in 9 digit zip codes, e.g. 12345-6789. Setting to false may increase the number of zip code false positives. | `true`        |
@@ -49,7 +49,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
    "name": "zip-code-example",
    "identifiers": {
       "zipCode": {
-         "zipCodeFilterStrategies": [
+         "zipCodeFilterStrategy": [
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"

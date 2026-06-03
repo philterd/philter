@@ -153,8 +153,8 @@ An example policy using the FPE\_ENCRYPT\_REPLACE filter strategy:
 {
    "name": "credit-cards",
    "identifiers": {
-      "creditCardNumbers": {
-         "creditCardNumbersFilterStrategies": [
+      "creditCard": {
+         "creditCardFilterStrategies": [
             {
                "strategy": "FPE_ENCRYPT_REPLACE",
                "key": "...",
@@ -220,7 +220,7 @@ The TRUNCATE filter strategy is available only to the zip code filter. An exampl
    "name": "zip-codes",
    "identifiers": {
       "zipCode": {
-         "zipCodeFilterStrategies": [
+         "zipCodeFilterStrategy": [
             {
                "strategy": "TRUNCATE",
                "truncateDigits": 3
@@ -241,8 +241,8 @@ The `ZERO_LEADING` filter strategy is only available to zip code filters. An exa
 {
    "name": "zip-codes",
    "identifiers": {
-      "zipCodes": {
-         "zipCodeFilterStrategies": [
+      "zipCode": {
+         "zipCodeFilterStrategy": [
             {
                "strategy": "ZERO_LEADING"
             }

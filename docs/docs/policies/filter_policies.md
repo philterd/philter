@@ -11,7 +11,7 @@ Each policy has a `name` that is used by Philter to apply the appropriate de-ide
 
 A policy:
 
-* Must have a `name` that uniquely identifies it.
+* Is identified by its filename without the `.json` extension. This filename is the policy name you pass to the API, so it must be unique. Philter does not read a `name` field from inside the JSON; the `name` shown in the examples below is for readability only.
 * Must have a list of `identifiers` that are filters for sensitive information.
     * Each `identifier` , or filter, can have zero or more [filter strategies](filter_strategies.md). A filter strategy tells Philter how to manipulate that type of sensitive information when it is identified.
 * Can have an optional list of terms or patterns of information to [ignore](ignoring_specific_information.md).
@@ -47,7 +47,7 @@ The following is an example policy. In the example below you can see the [types 
 
 When an email address is identified by this policy, the email address is replaced with the text `{{{REDACTED-email-address}}}`. The `%t` gets replaced by the type of the filter. Likewise, when a phone number is found it is replaced with the text `{{{REDACTED-phone-number}}}`. You are free to change the redaction formats to whatever fits your use-case. See [Filter Strategies](filter_strategies.md) for all replacement options.
 
-The name of the policy is `email-and-phone-numbers`. Policies can be named anything you like but their names must be unique from all other policies. As a best practice, the policy should be saved as `[name].json`, e.g. `email-and-phone-numbers.json`.
+The name of this policy is `email-and-phone-numbers`, which comes from its filename: the policy must be saved as `email-and-phone-numbers.json`. Filenames must be unique across all policies, since the filename (without the `.json` extension) is the name you pass to Philter when filtering. The `name` field inside the JSON is not read by Philter.
 
 ### Applying a Policy to Text
 

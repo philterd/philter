@@ -37,7 +37,6 @@ Philter uses several methods to identify person's names.
 | [Driver's License Numbers](filters/common_filters/drivers-license-numbers.md)                                                    | Identifies driver's license numbers for all 50 US states                        |
 | [Email Addresses](filters/common_filters/email-addresses.md)                                                                     | Identifies email addresses                                                      |
 | [Hospitals](filters/locations/hospitals.md)                                                                                      | Identifies common hospital names                                                |
-| [Hospital Abreviations](filters/locations/hospital-abbreviations.md)                                                             | Identifies common hospitals by their name abbreviations                         |
 | [IBAN Codes](filters/common_filters/iban-codes.md)                                                                               | Identifies international bank account numbers                                   |
 | [IP Addresses](filters/common_filters/ip-addresses.md)                                                                           | Identifies IPv4 and IPv6 addresses                                              |
 | [MAC Addresses](filters/common_filters/mac-addresses.md)                                                                         | Identifies network MAC addresses                                                |

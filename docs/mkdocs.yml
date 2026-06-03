@@ -108,7 +108,6 @@ nav:
         - 'Cities': 'policies/filters/locations/cities.md'
         - 'Counties': 'policies/filters/locations/counties.md'
         - 'Hospitals': 'policies/filters/locations/hospitals.md'
-        - 'Hospital Abbreviations': 'policies/filters/locations/hospital-abbreviations.md'
         - 'States': 'policies/filters/locations/states.md'
         - 'State Abbreviations': 'policies/filters/locations/state-abbreviations.md'
       - 'Persons Names Filters':

@@ -71,7 +71,7 @@ From the [bitcoin address filter documentation](policies/filters/common_filters/
 
 ```
       "bitcoinAddress": {
-         "bitcoinAddressFilterStrategies": [
+         "bitcoinFilterStrategies": [
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"
@@ -87,7 +87,7 @@ We can copy this configuration and paste it into our policy:
    "name": "evaluation",
    "identifiers": {
       "bitcoinAddress": {
-         "bitcoinAddressFilterStrategies": [
+         "bitcoinFilterStrategies": [
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"

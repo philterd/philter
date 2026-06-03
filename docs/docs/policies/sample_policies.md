@@ -43,8 +43,8 @@ This policy finds persons names and SSNs and redacts them with `{{{REDACTED-enti
 {
   "name": "persons-names-ssn",
   "identifiers": {
-    "ner": {
-      "nerFilterStrategies": [
+    "person": {
+      "phEyeFilterStrategies": [
         {
           "strategy": "REDACT",
           "redactionFormat": "{{{REDACTED-%t}}}"
@@ -110,7 +110,7 @@ This policy finds IP addresses and replaces each identified IP address with the 
       "ipAddressFilterStrategies": [
         {
           "strategy": "STATIC_REPLACE",
-          "redactionFormat": "IP_ADDRESS",
+          "staticReplacement": "IP_ADDRESS",
           "condition": "token != \"127.0.0.1\""
         }
       ]
@@ -127,8 +127,8 @@ This policy finds ZIP codes starting with `90` and truncates the zip code to jus
 {
   "name": "zip-codes",
   "identifiers": {
-    "creditCard": {
-      "creditCardFilterStrategies": [
+    "zipCode": {
+      "zipCodeFilterStrategy": [
         {
           "condition": "token startswith \"90\"",
           "strategy": "TRUNCATE",

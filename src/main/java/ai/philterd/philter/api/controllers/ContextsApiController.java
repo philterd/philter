@@ -479,6 +479,20 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final ObjectId userId = apiKeyEntity.getUserId();
+
+        // Only the context's creator or an admin may import into it. This authorization check runs
+        // before any input validation (on_conflict and the payload) so an unauthorized caller is denied
+        // (and audited) regardless of whether the rest of the request is well-formed.
+        final ContextEntity context = resolveAuthorizedContext(name, userId);
+        if (context == null) {
+            // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
+            // the response does not reveal whether the context exists.
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED, userId, null,
+                    getClientIpAddress(httpServletRequest), "context: " + name);
+            return new ResponseEntity<>(new GenericResponse("Context not found."), HttpStatus.NOT_FOUND);
+        }
+
         final boolean overwrite;
         if ("skip".equalsIgnoreCase(onConflict)) {
             overwrite = false;
@@ -508,18 +522,6 @@ public class ContextsApiController extends AbstractApiController {
             if (entry.getReplacement() == null || entry.getReplacement().isEmpty()) {
                 return new ResponseEntity<>(new GenericResponse("Each entry requires a non-empty replacement."), HttpStatus.BAD_REQUEST);
             }
-        }
-
-        final ObjectId userId = apiKeyEntity.getUserId();
-
-        // Only the context's creator or an admin may import into it.
-        final ContextEntity context = resolveAuthorizedContext(name, userId);
-        if (context == null) {
-            // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
-            // the response does not reveal whether the context exists.
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED, userId, null,
-                    getClientIpAddress(httpServletRequest), "context: " + name);
-            return new ResponseEntity<>(new GenericResponse("Context not found."), HttpStatus.NOT_FOUND);
         }
 
         final ObjectId ownerUserId = context.getUserId();

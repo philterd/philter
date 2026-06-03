@@ -303,6 +303,9 @@ class ContextsApiControllerTest {
 
     @Test
     void importRejectsInvalidOnConflictValue() throws Exception {
+        // Authorized caller, so the request reaches the on_conflict validation.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
                         .param("on_conflict", "bogus")
@@ -316,6 +319,9 @@ class ContextsApiControllerTest {
 
     @Test
     void importRejectsPayloadWithoutEntries() throws Exception {
+        // Authorized caller, so the request reaches payload validation.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
@@ -329,6 +335,9 @@ class ContextsApiControllerTest {
     @Test
     void importRejectsInvalidTokenHash() throws Exception {
         final String badBody = "{\"entries\":[{\"tokenHash\":\"not-a-hash\",\"replacement\":\"R\"}]}";
+
+        // Authorized caller, so the request reaches payload validation.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
@@ -474,6 +483,69 @@ class ContextsApiControllerTest {
 
         verify(auditEventPublisher).auditEvent(eq("req-import-denied-audit"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED),
                 eq(userId), isNull(), any(), eq("context: ctx"));
+    }
+
+    @Test
+    void importAuditsDeniedAttemptEvenWhenPayloadIsMalformed() throws Exception {
+        // Non-creator, non-admin caller sending a malformed payload. Authorization is checked before
+        // payload parsing, so the caller gets a 404 (denied) and the attempt is audited — not a 400 for
+        // the bad payload — and nothing is imported.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{not valid json")
+                        .requestAttr("requestId", "req-import-denied-malformed"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher).auditEvent(eq("req-import-denied-malformed"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED),
+                eq(userId), isNull(), any(), eq("context: ctx"));
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importAuditsDeniedAttemptWhenPayloadHasAnInvalidEntry() throws Exception {
+        // Non-creator, non-admin caller sending well-formed JSON whose entry is invalid (bad token hash).
+        // Authorization runs before per-entry validation, so the caller gets a 404 (denied) and the
+        // attempt is audited — not a 400 for the bad entry — and nothing is imported.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        final String invalidEntryBody = "{\"entries\":[{\"tokenHash\":\"not-a-hash\",\"replacement\":\"R\"}]}";
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(invalidEntryBody)
+                        .requestAttr("requestId", "req-import-denied-invalid-entry"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher).auditEvent(eq("req-import-denied-invalid-entry"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED),
+                eq(userId), isNull(), any(), eq("context: ctx"));
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void importAuditsDeniedAttemptEvenWithInvalidOnConflict() throws Exception {
+        // Non-creator, non-admin caller sending an invalid on_conflict value. Authorization runs before
+        // the on_conflict check too, so the caller gets a 404 (denied) and the attempt is audited —
+        // not a 400 for the bad on_conflict value.
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        when(userService.findOneById(userId)).thenReturn(null);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("on_conflict", "bogus")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-denied-bad-conflict"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher).auditEvent(eq("req-import-denied-bad-conflict"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED),
+                eq(userId), isNull(), any(), eq("context: ctx"));
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
 }

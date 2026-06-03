@@ -72,7 +72,6 @@ nav:
       - 'Custom Lists': 'redaction/custom_lists.md'
       - 'Global Terms': 'redaction/global_terms.md'
       - 'Redaction Ledgers': 'redaction/ledgers.md'
-      - 'Redaction Lenses': 'redaction/lenses.md'
       - 'Disambiguation': 'redaction/disambiguation.md'
       - 'Best Practices': 'redaction/redaction_best_practices.md'
       - 'Important to Know': 'redaction/important_to_know.md'

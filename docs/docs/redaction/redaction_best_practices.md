@@ -10,7 +10,6 @@ Redaction should be viewed as an iterative process. It is common to apply a poli
 2.  **Review**: Carefully examine the redacted output. Look for any "false negatives" (sensitive information that was missed) or "false positives" (information that was redacted but shouldn't have been).
 3.  **Refine**: Adjust your [Redaction Policy](policies.md) based on your findings. This might involve:
     *   Adding [Custom Lists](custom_lists.md) for project-specific terms.
-    *   Applying [Redaction Lenses](lenses.md) to optimize for your specific data domain (e.g., medical or legal).
     *   Adjusting the [policy](../policies/policy_schema.md) to fine-tune identification rules.
 4.  **Repeat**: Run the redaction process again with the refined policy and repeat the review until the results meet your requirements.
 

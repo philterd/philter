@@ -233,7 +233,7 @@ A filter strategy determines the transformation applied to each match. A filter'
 | `id` | string (uuid) | auto | Unique id for this strategy instance. |
 | `strategy` | string (enum) | `REDACT` | The transformation to apply (see below). |
 | `redactionFormat` | string | `{{{REDACTED-%t}}}` | Format for `REDACT`. Placeholders: `%t` filter type, `%v` original value, `%l` label. |
-| `replacementScope` | string | `DOCUMENT` | Consistency scope: `DOCUMENT` (same token, same replacement within a document) or `CONTEXT` (within a context). |
+| `replacementScope` | string | `DOCUMENT` | Consistency scope: `DOCUMENT` (each document pseudonymized independently) or `CONTEXT` (the same value gets the same replacement across documents in a context). See [Consistent Pseudonymization](../redaction/replacement_scope.md). |
 | `staticReplacement` | string | | Replacement text for `STATIC_REPLACE`. |
 | `maskCharacter` | string (1 char) | `*` | Character used by `MASK`. |
 | `maskLength` | string | `SAME` | Mask length; `SAME` preserves the original length, or a fixed number. |

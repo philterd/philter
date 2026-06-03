@@ -8,9 +8,11 @@ By utilizing contexts, you can manage your data protection activities more effec
 
 The most critical technical feature of a context is its ability to maintain referential integrity during redaction.
 
-When you redact a document within a specific context using a strategy like `ANONYMIZE`, the platform remembers the mapping between the original sensitive information and the replacement value it generated. If you subsequently process another document within the same context that contains the same sensitive information (e.g., the same patient name), Philterd will use the exact same replacement value.
+When you redact a document within a specific context using an anonymizing strategy like `RANDOM_REPLACE` configured with `CONTEXT` replacement scope, the platform remembers the mapping between the original sensitive information and the replacement value it generated. If you subsequently process another document within the same context that contains the same sensitive information (e.g., the same patient name), Philter will use the exact same replacement value.
 
 This ensures that your redacted datasets remain analytically useful—you can still tell that the same individual is being referenced across multiple documents without ever knowing their actual identity.
+
+Enabling this is covered in detail, along with the strategy interactions and the mapping-table behavior, under [Consistent Pseudonymization](replacement_scope.md).
 
 ### Entity Type Disambiguation
 

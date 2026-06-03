@@ -208,6 +208,8 @@ For more information on these values and format-preserving encryption, refer to 
 
 Replaces the identified text with a fake value but of the same type. For example, an SSN will be replaced by a random text having the format `###-##-####`, such as 123-45-6789. An email address will be replaced with a randomly generated email address. Available to all filter types.
 
+By default each document is anonymized independently. To make the same value map to the same fake value across every document in a [context](../redaction/contexts.md), set `"replacementScope": "CONTEXT"` on the strategy — see [Consistent Pseudonymization](../redaction/replacement_scope.md).
+
 An example policy using the `RANDOM_REPLACE` filter strategy:
 
 ```

@@ -68,6 +68,7 @@ nav:
       - 'Redacting Documents and Text': 'redaction/redacting_documents.md'
       - 'Redacting Data Sets': 'redaction/redacting_datasets.md'
       - 'Contexts': 'redaction/contexts.md'
+      - 'Consistent Pseudonymization': 'redaction/replacement_scope.md'
       - 'Custom Lists': 'redaction/custom_lists.md'
       - 'Global Terms': 'redaction/global_terms.md'
       - 'Redaction Ledgers': 'redaction/ledgers.md'

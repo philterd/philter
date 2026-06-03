@@ -250,6 +250,29 @@ class PolicyDataServiceTest {
     }
 
     @Test
+    void validatePolicyRejectsStaticReplaceWithoutAValue() {
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("STATIC_REPLACE"))));
+
+        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
+
+        assertFalse(validation.isValid());
+        assertTrue(validation.getMessage().contains("static-replace"));
+    }
+
+    @Test
+    void validatePolicyAcceptsStaticReplaceWithAValue() {
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy(
+                "STATIC_REPLACE", Map.of(SimplifiedPolicy.PARAM_STATIC_REPLACEMENT, "REDACTED"),
+                ai.philterd.phileas.services.anonymization.AnonymizationMethod.UUID))));
+
+        final PolicyValidation validation = policyDataService.validatePolicy(gson.toJson(policy));
+
+        assertTrue(validation.isValid());
+    }
+
+    @Test
     void validatePolicyRejectsInvalidDisambiguationScope() {
         final SimplifiedPolicy policy = new SimplifiedPolicy();
         policy.setDisambiguationScope("not-a-scope");

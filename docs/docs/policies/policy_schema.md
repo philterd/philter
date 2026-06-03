@@ -92,12 +92,17 @@ AES encryption settings used by the `CRYPTO_REPLACE` strategy. Both fields are r
 
 ## `fpe`
 
-Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy. Both fields are required when `fpe` is present. Values may use the `env:` prefix.
+Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy.
+
+> **Philter note:** You do not need to supply this object in Philter. Philter manages a stable
+> format-preserving-encryption key for each account automatically and injects it at redaction time, so
+> selecting the `FPE_ENCRYPT_REPLACE` strategy is sufficient. The fields below describe the underlying
+> engine schema for reference.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `key` | string | FPE encryption key. |
-| `tweak` | string | FPE tweak value. |
+| `key` | string | FPE encryption key (hex, 128/192/256-bit). |
+| `tweak` | string | FPE tweak value (hex, 56 or 64-bit). |
 
 ## `identifiers`
 
@@ -254,7 +259,7 @@ A filter strategy determines the transformation applied to each match. A filter'
 | `RANDOM_REPLACE` | Replace with a generated value (see `anonymizationMethod`). |
 | `STATIC_REPLACE` | Replace with a fixed string (`staticReplacement`). |
 | `CRYPTO_REPLACE` | Replace with the AES-encrypted value (requires top-level `crypto`). |
-| `FPE_ENCRYPT_REPLACE` | Replace with a format-preserving-encrypted value (requires top-level `fpe`). |
+| `FPE_ENCRYPT_REPLACE` | Replace with a format-preserving-encrypted value. In Philter the key is managed per account automatically; see [`fpe`](#fpe). |
 | `HASH_SHA256_REPLACE` | Replace with a SHA-256 hash (optionally salted). |
 | `LAST_4` | Keep only the last four characters. |
 | `MASK` | Replace each character with `maskCharacter`. |

@@ -96,6 +96,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         userEntity.setPassword(passwordEncoder.encode(plainPassword));
         userEntity.setRole(role);
         userEntity.setPasswordChangeRequired(passwordChangeRequired);
+        // A stable per-user key for the FPE_ENCRYPT_REPLACE strategy. It is generated once and never
+        // changes so format-preserving encryption is deterministic for the user.
+        userEntity.setFpeKey(EncryptionService.generateFpeKey());
         final ObjectId userId = save(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED, userId, userId, source, "role: " + role);
@@ -179,6 +182,27 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
             return ServiceResponse.success("User role updated.");
         }
+
+    }
+
+    /**
+     * Returns the user's FPE key, generating and persisting one if it is missing. This lazily backfills
+     * users created before per-user FPE keys existed, guaranteeing the {@code FPE_ENCRYPT_REPLACE}
+     * strategy always has a usable key. The key is assigned once and then stable, so format-preserving
+     * encryption stays deterministic for the user across requests.
+     */
+    public String ensureFpeKey(final UserEntity userEntity) {
+
+        String fpeKey = userEntity.getFpeKey();
+
+        if (fpeKey == null || fpeKey.isBlank()) {
+            fpeKey = EncryptionService.generateFpeKey();
+            userEntity.setFpeKey(fpeKey);
+            update(userEntity);
+            LOGGER.info("Backfilled a missing FPE key for user {}.", userEntity.getId());
+        }
+
+        return fpeKey;
 
     }
 

@@ -107,9 +107,34 @@ A strategy determines the specific transformation applied to a piece of informat
     *   **`redactionScope`** (Text, Optional): The scope of the anonymization. Valid values are `Document` and `Context`. Defaults to `Document`. This value controls whether referential integrity is performed across the entire context or just within the current document.
 *   **`LAST_4`**: Useful for identifiers like SSNs or bank accounts. It replaces all characters except for the final four. For example, "123-456-7890" becomes `*******7890`.
 *   **`MASK`**: Replaces every character in the sensitive string with a specific masking character (typically `*` or `X`). Note that the length of the masking will be the same as the original token. For example, "George" will be masked as "******".
+*   **`STATIC_REPLACE`**: Replaces the identified text with a fixed value that you provide. This is useful when every match of a given type should be collapsed to the same placeholder.
+    *   **`staticReplacement`** (Text, Required): The fixed text to substitute for each match. For example, with `staticReplacement` set to `[redacted-ssn]`, every detected SSN becomes `[redacted-ssn]`. A policy that selects `STATIC_REPLACE` without a non-empty `staticReplacement` is rejected during validation. This value is supplied inside a `parameters` object on the strategy (see the example below).
+*   **`HASH_SHA256_REPLACE`**: Replaces the identified text with its SHA-256 hash (64 hexadecimal characters). The same input always hashes to the same value, which is useful for correlating records without exposing the original data.
+    *   **`salt`** (Boolean, Optional): When `"true"`, a random salt is mixed in before hashing so the result cannot be reversed with a precomputed dictionary. Defaults to `false` (the plain SHA-256 of the token). This value is supplied inside the `parameters` object on the strategy.
+
+    Unlike `anonymizationMethod` and `redactionScope`, which are set directly on the strategy, the `staticReplacement` and `salt` values are nested under a `parameters` object:
+
+    ```json
+    "SSN": [
+      {
+        "strategy": "STATIC_REPLACE",
+        "parameters": {
+          "staticReplacement": "[redacted-ssn]"
+        }
+      }
+    ],
+    "EMAIL_ADDRESS": [
+      {
+        "strategy": "HASH_SHA256_REPLACE",
+        "parameters": {
+          "salt": "true"
+        }
+      }
+    ]
+    ```
 *   **`TRUNCATE_TO_YEAR`**: Specifically for dates. It removes the month and day, preserving only the year. "January 15, 2023" becomes `2023`.
 *   **`SHIFT`**: For dates. It shifts the date forward or backward by a random number of days (useful for maintaining chronological relationships in datasets while protecting specific dates).
-*   **`FPE` (Format-Preserving Encryption)**: Encrypts the sensitive data using a key while ensuring the output has the same format and length as the input. This is ideal for maintaining database schema compatibility.
+*   **`FPE` (Format-Preserving Encryption)**: Encrypts the sensitive data while ensuring the output has the same format and length as the input. This is ideal for maintaining database schema compatibility. No configuration is required: Philter manages a stable encryption key for each account automatically, so the same input always encrypts to the same value for that account (giving referential integrity / join compatibility across documents without needing the `Context` scope). Because the transformation is reversible with the account's key, the original value can be recovered.
 
 ## Confidence Thresholds (AI Filters Only)
 

@@ -18,6 +18,9 @@ package ai.philterd.philter.services.policies;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.policy.Identifiers;
 import ai.philterd.phileas.policy.Policy;
+import ai.philterd.phileas.services.anonymization.AnonymizationMethod;
+import ai.philterd.phileas.services.strategies.AbstractFilterStrategy;
+import ai.philterd.phileas.services.strategies.rules.SsnFilterStrategy;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
@@ -30,6 +33,7 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SimplifiedPolicyTest {
@@ -67,6 +71,92 @@ public class SimplifiedPolicyTest {
     public void supportedSetMatchesContainsCheck() {
         // Sanity: a representative supported type is in the published set.
         assertTrue(SimplifiedPolicy.SUPPORTED_FILTER_TYPES.contains(FilterType.ZIP_CODE));
+    }
+
+    @Test
+    public void toPolicyMapsStaticReplaceWithItsConfiguredValue() throws Exception {
+
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy(
+                "STATIC_REPLACE", Map.of(SimplifiedPolicy.PARAM_STATIC_REPLACEMENT, "REDACTED-SSN"),
+                AnonymizationMethod.UUID))));
+
+        final Policy phileasPolicy = policy.toPolicy("key", "tweak", null, null);
+        final SsnFilterStrategy strategy = phileasPolicy.getIdentifiers().getSsn().getSsnFilterStrategies().get(0);
+
+        assertEquals(AbstractFilterStrategy.STATIC_REPLACE, strategy.getStrategy());
+        assertEquals("REDACTED-SSN", strategy.getStaticReplacement(),
+                "the staticReplacement parameter must be wired onto the Phileas strategy");
+    }
+
+    @Test
+    public void toPolicyMapsHashSha256ReplaceAndItsSaltFlag() throws Exception {
+
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy(
+                "HASH_SHA256_REPLACE", Map.of(SimplifiedPolicy.PARAM_SALT, "true"), AnonymizationMethod.UUID))));
+
+        final Policy phileasPolicy = policy.toPolicy("key", "tweak", null, null);
+        final SsnFilterStrategy strategy = phileasPolicy.getIdentifiers().getSsn().getSsnFilterStrategies().get(0);
+
+        assertEquals(AbstractFilterStrategy.HASH_SHA256_REPLACE, strategy.getStrategy());
+        assertTrue(strategy.isSalt(), "the salt parameter must be wired onto the Phileas strategy");
+    }
+
+    @Test
+    public void toPolicyMapsFpeEncryptReplaceAndCarriesTheFpeKeyAndTweak() throws Exception {
+
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("FPE"))));
+
+        final Policy phileasPolicy = policy.toPolicy("0123456789abcdef0123456789abcdef", "0011223344556677", null, null);
+
+        final SsnFilterStrategy strategy = phileasPolicy.getIdentifiers().getSsn().getSsnFilterStrategies().get(0);
+        assertEquals(AbstractFilterStrategy.FPE_ENCRYPT_REPLACE, strategy.getStrategy());
+
+        // The key/tweak supplied to toPolicy must be carried on the policy for FF3 to use.
+        assertEquals("0123456789abcdef0123456789abcdef", phileasPolicy.getFpe().getKey());
+        assertEquals("0011223344556677", phileasPolicy.getFpe().getTweak());
+    }
+
+    @Test
+    public void usesStrategyDetectsWhetherAPolicyRequiresAGivenStrategy() {
+
+        final SimplifiedPolicy fpePolicy = new SimplifiedPolicy();
+        fpePolicy.setFilters(Map.of(
+                FilterType.SSN, List.of(new SimplifiedStrategy("FPE")),
+                FilterType.EMAIL_ADDRESS, List.of(new SimplifiedStrategy("REDACT"))));
+        assertTrue(fpePolicy.usesStrategy(AbstractFilterStrategy.FPE_ENCRYPT_REPLACE));
+
+        final SimplifiedPolicy noFpePolicy = new SimplifiedPolicy();
+        noFpePolicy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("REDACT"))));
+        assertFalse(noFpePolicy.usesStrategy(AbstractFilterStrategy.FPE_ENCRYPT_REPLACE));
+
+        // An empty policy requires nothing.
+        assertFalse(new SimplifiedPolicy().usesStrategy(AbstractFilterStrategy.FPE_ENCRYPT_REPLACE));
+    }
+
+    @Test
+    public void staticReplaceWithoutAValueIsReportedAsAConfigurationError() {
+
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(FilterType.SSN, List.of(new SimplifiedStrategy("STATIC_REPLACE"))));
+
+        final String error = policy.getStrategyConfigurationError();
+        assertNotNull(error);
+        assertTrue(error.contains("SSN"), "the error should name the offending filter");
+    }
+
+    @Test
+    public void wellConfiguredStrategiesReportNoConfigurationError() {
+
+        final SimplifiedPolicy policy = new SimplifiedPolicy();
+        policy.setFilters(Map.of(
+                FilterType.SSN, List.of(new SimplifiedStrategy(
+                        "STATIC_REPLACE", Map.of(SimplifiedPolicy.PARAM_STATIC_REPLACEMENT, "x"), AnonymizationMethod.UUID)),
+                FilterType.EMAIL_ADDRESS, List.of(new SimplifiedStrategy("REDACT"))));
+
+        assertNull(policy.getStrategyConfigurationError());
     }
 
     @Test

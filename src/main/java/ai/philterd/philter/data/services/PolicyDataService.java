@@ -257,6 +257,14 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
                 return PolicyValidation.invalid("The policy uses filter types that are not supported and would not be redacted: " + names);
             }
 
+            // Reject strategies that are missing the parameters they require (e.g. a STATIC_REPLACE with
+            // no replacement value), which would otherwise silently produce empty redactions.
+            final String strategyError = simplifiedPolicy.getStrategyConfigurationError();
+            if(strategyError != null) {
+                LOGGER.warn("Policy validation failed: {}", strategyError);
+                return PolicyValidation.invalid(strategyError);
+            }
+
             LOGGER.info("Policy validation successful.");
             return PolicyValidation.valid("Policy is valid");
 

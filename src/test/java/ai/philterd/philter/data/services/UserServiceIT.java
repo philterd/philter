@@ -130,6 +130,33 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
+    void createUserAssignsAndPersistsAHexFpeKey() {
+        assertTrue(service.createUser(
+                "req", "fpe@example.com", "pw", "user", policyDataService, "system").isSuccessful());
+
+        final UserEntity user = service.findByEmail("fpe@example.com");
+        assertNotNull(user.getFpeKey());
+        assertTrue(user.getFpeKey().matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
+    }
+
+    @Test
+    void ensureFpeKeyBackfillsAndPersistsForALegacyUserWithoutOne() {
+        // Simulate a user created before per-user FPE keys existed by saving one with no key.
+        final UserEntity legacy = new UserEntity();
+        legacy.setEmail("legacy@example.com");
+        legacy.setRole("user");
+        final ObjectId id = service.save(legacy);
+        assertNull(service.findOneById(id).getFpeKey());
+
+        final String key = service.ensureFpeKey(service.findOneById(id));
+        assertTrue(key.matches("[0-9a-f]{64}"));
+
+        // The backfilled key is persisted and stable on subsequent calls.
+        assertEquals(key, service.findOneById(id).getFpeKey());
+        assertEquals(key, service.ensureFpeKey(service.findOneById(id)));
+    }
+
+    @Test
     void passwordMatchesReflectsStoredHash() {
         assertTrue(service.createUser(
                 "req", "carol@example.com", "correct-horse", "user", policyDataService, "system")

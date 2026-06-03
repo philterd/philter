@@ -106,6 +106,10 @@ public class SimplifiedPolicy {
     private static final String PHEYE_ENDPOINT = System.getenv("PHEYE_ENDPOINT");
     private static final String CUSTOM_LIST_PREFIX = "list:";
 
+    // Keys for strategy-specific parameters carried on a SimplifiedStrategy's parameters map.
+    public static final String PARAM_STATIC_REPLACEMENT = "staticReplacement";
+    public static final String PARAM_SALT = "salt";
+
     // Disambiguation scopes
     public static final String DISAMBIGUATION_SCOPE_DOCUMENT = "Document";
     public static final String DISAMBIGUATION_SCOPE_CONTEXT = "Context";
@@ -319,6 +323,7 @@ public class SimplifiedPolicy {
 
                     final PhEyeFilterStrategy filterStrategy = new PhEyeFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -353,6 +358,7 @@ public class SimplifiedPolicy {
 
                     final FirstNameFilterStrategy filterStrategy = new FirstNameFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setRedactionFormat("[REDACTED-%t]");
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
@@ -376,6 +382,7 @@ public class SimplifiedPolicy {
 
                     final SurnameFilterStrategy filterStrategy = new SurnameFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -398,6 +405,7 @@ public class SimplifiedPolicy {
 
                     final CountyFilterStrategy filterStrategy = new CountyFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -420,6 +428,7 @@ public class SimplifiedPolicy {
 
                     final CityFilterStrategy filterStrategy = new CityFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -442,6 +451,7 @@ public class SimplifiedPolicy {
 
                     final StateFilterStrategy filterStrategy = new StateFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -464,6 +474,7 @@ public class SimplifiedPolicy {
 
                     final AgeFilterStrategy filterStrategy = new AgeFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -486,6 +497,7 @@ public class SimplifiedPolicy {
 
                     final BankRoutingNumberFilterStrategy filterStrategy = new BankRoutingNumberFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -508,6 +520,7 @@ public class SimplifiedPolicy {
 
                     final BitcoinAddressFilterStrategy filterStrategy = new BitcoinAddressFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -530,6 +543,7 @@ public class SimplifiedPolicy {
 
                     final CreditCardFilterStrategy filterStrategy = new CreditCardFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -552,6 +566,7 @@ public class SimplifiedPolicy {
 
                     final CurrencyFilterStrategy filterStrategy = new CurrencyFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -574,6 +589,7 @@ public class SimplifiedPolicy {
 
                     final DateFilterStrategy filterStrategy = new DateFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -596,6 +612,7 @@ public class SimplifiedPolicy {
 
                     final DriversLicenseFilterStrategy filterStrategy = new DriversLicenseFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -618,6 +635,7 @@ public class SimplifiedPolicy {
 
                     final EmailAddressFilterStrategy filterStrategy = new EmailAddressFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategies.add(filterStrategy);
@@ -639,6 +657,7 @@ public class SimplifiedPolicy {
 
                     final IbanCodeFilterStrategy filterStrategy = new IbanCodeFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -661,6 +680,7 @@ public class SimplifiedPolicy {
 
                     final IpAddressFilterStrategy filterStrategy = new IpAddressFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -683,6 +703,7 @@ public class SimplifiedPolicy {
 
                     final IdentifierFilterStrategy filterStrategy = new IdentifierFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -706,6 +727,7 @@ public class SimplifiedPolicy {
 
                     final MacAddressFilterStrategy filterStrategy = new MacAddressFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -728,6 +750,7 @@ public class SimplifiedPolicy {
 
                     final PassportNumberFilterStrategy filterStrategy = new PassportNumberFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -750,6 +773,7 @@ public class SimplifiedPolicy {
 
                     final PhoneNumberFilterStrategy filterStrategy = new PhoneNumberFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -772,6 +796,7 @@ public class SimplifiedPolicy {
 
                     final SsnFilterStrategy filterStrategy = new SsnFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -794,6 +819,7 @@ public class SimplifiedPolicy {
 
                     final StreetAddressFilterStrategy filterStrategy = new StreetAddressFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -816,6 +842,7 @@ public class SimplifiedPolicy {
 
                     final TrackingNumberFilterStrategy filterStrategy = new TrackingNumberFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategies.add(filterStrategy);
@@ -837,6 +864,7 @@ public class SimplifiedPolicy {
 
                     final UrlFilterStrategy filterStrategy = new UrlFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -859,6 +887,7 @@ public class SimplifiedPolicy {
 
                     final VinFilterStrategy filterStrategy = new VinFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -881,6 +910,7 @@ public class SimplifiedPolicy {
 
                     final ZipCodeFilterStrategy filterStrategy = new ZipCodeFilterStrategy();
                     filterStrategy.setStrategy(convertStrategy(simplifiedStrategy));
+                    applyStrategyParameters(filterStrategy, simplifiedStrategy);
                     filterStrategy.setConditions("confidence >= " + simplifiedStrategy.getSimplifiedCondition().getConfidenceAsDouble());
                     filterStrategy.setReplacementScope(simplifiedStrategy.getRedactionScope());
                     filterStrategy.setAnonymizationMethod(AnonymizationMethod.fromString(simplifiedStrategy.getAnonymizationMethod()));
@@ -1119,9 +1149,43 @@ public class SimplifiedPolicy {
             return AbstractFilterStrategy.RANDOM_REPLACE;
         } else if("MASK".equalsIgnoreCase(strategy)) {
             return AbstractFilterStrategy.MASK;
+        } else if("Static".equalsIgnoreCase(strategy) || AbstractFilterStrategy.STATIC_REPLACE.equalsIgnoreCase(strategy)) {
+            return AbstractFilterStrategy.STATIC_REPLACE;
+        } else if("Hash".equalsIgnoreCase(strategy) || AbstractFilterStrategy.HASH_SHA256_REPLACE.equalsIgnoreCase(strategy)) {
+            return AbstractFilterStrategy.HASH_SHA256_REPLACE;
+        } else if("FPE".equalsIgnoreCase(strategy) || AbstractFilterStrategy.FPE_ENCRYPT_REPLACE.equalsIgnoreCase(strategy)) {
+            return AbstractFilterStrategy.FPE_ENCRYPT_REPLACE;
         } else {
             LOGGER.error("Invalid strategy: {} - Defaulting to redact", strategy);
             return AbstractFilterStrategy.REDACT;
+        }
+
+    }
+
+    /**
+     * Applies strategy-specific parameters carried on a {@link SimplifiedStrategy} to its Phileas filter
+     * strategy. A parameter is inert for strategies that do not consume it, so this is safe to call for
+     * every filter: {@code STATIC_REPLACE} uses {@code staticReplacement}, and {@code HASH_SHA256_REPLACE}
+     * uses the boolean {@code salt}. Parameters may be {@code null} for policies that omit them.
+     */
+    private void applyStrategyParameters(final AbstractFilterStrategy filterStrategy, final SimplifiedStrategy simplifiedStrategy) {
+
+        final Map<String, String> parameters = simplifiedStrategy.getParameters();
+        if (parameters == null || parameters.isEmpty()) {
+            return;
+        }
+
+        // STATIC_REPLACE: the fixed text that replaces every matched token.
+        final String staticReplacement = parameters.get(PARAM_STATIC_REPLACEMENT);
+        if (staticReplacement != null) {
+            filterStrategy.setStaticReplacement(staticReplacement);
+        }
+
+        // HASH_SHA256_REPLACE: when true, a random salt is mixed in so the hash is not reversible by a
+        // precomputed dictionary; when false the hash is the plain SHA-256 of the token.
+        final String salt = parameters.get(PARAM_SALT);
+        if (salt != null) {
+            filterStrategy.setSalt(Boolean.parseBoolean(salt));
         }
 
     }
@@ -1169,6 +1233,57 @@ public class SimplifiedPolicy {
         }
 
         return unsupported;
+
+    }
+
+    /**
+     * Returns a human-readable error if any filter strategy is misconfigured for the strategy it
+     * selects, or {@code null} when every strategy is well configured. Currently this guards the
+     * {@code STATIC_REPLACE} strategy, which must carry a non-blank {@code staticReplacement} parameter;
+     * without one it would replace every match with an empty string, silently dropping the redaction.
+     */
+    public String getStrategyConfigurationError() {
+
+        if (filters == null) {
+            return null;
+        }
+
+        for (final Map.Entry<FilterType, List<SimplifiedStrategy>> entry : filters.entrySet()) {
+            for (final SimplifiedStrategy strategy : entry.getValue()) {
+                if (AbstractFilterStrategy.STATIC_REPLACE.equals(convertStrategy(strategy))) {
+                    final Map<String, String> parameters = strategy.getParameters();
+                    final String value = parameters == null ? null : parameters.get(PARAM_STATIC_REPLACEMENT);
+                    if (value == null || value.isBlank()) {
+                        return "The " + entry.getKey().name() + " filter uses the static-replace strategy but is "
+                                + "missing a non-empty '" + PARAM_STATIC_REPLACEMENT + "' parameter.";
+                    }
+                }
+            }
+        }
+
+        return null;
+
+    }
+
+    /**
+     * Returns whether any filter in this policy resolves to the given Phileas strategy constant (see
+     * {@link AbstractFilterStrategy}). Used, for example, to tell whether a policy requires an FPE key.
+     */
+    public boolean usesStrategy(final String strategyConstant) {
+
+        if (filters == null) {
+            return false;
+        }
+
+        for (final List<SimplifiedStrategy> strategies : filters.values()) {
+            for (final SimplifiedStrategy strategy : strategies) {
+                if (strategyConstant.equals(convertStrategy(strategy))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
 
     }
 

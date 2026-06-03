@@ -136,6 +136,50 @@ class UserServiceTest {
     }
 
     @Test
+    void createUserAssignsAStableHexFpeKey() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+
+        final InsertOneResult insertOneResult = mock(InsertOneResult.class);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+
+        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+
+        userService.createUser("req", "fpe@example.com", "pw", "user", policyDataService, "system");
+
+        verify(mongoCollection).insertOne(docCaptor.capture());
+        final String fpeKey = docCaptor.getValue().getString("fpe_key");
+        assertNotNull(fpeKey);
+        assertTrue(fpeKey.matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
+    }
+
+    @Test
+    void ensureFpeKeyReturnsTheExistingKeyWithoutPersisting() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setFpeKey("0123456789abcdef0123456789abcdef");
+
+        final String key = userService.ensureFpeKey(user);
+
+        assertEquals("0123456789abcdef0123456789abcdef", key);
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
+    void ensureFpeKeyGeneratesAndPersistsWhenMissing() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+
+        final String key = userService.ensureFpeKey(user);
+
+        assertTrue(key.matches("[0-9a-f]{64}"), "a generated FPE key must be 256-bit hex");
+        assertEquals(key, user.getFpeKey(), "the generated key must be set on the entity");
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
     void changePasswordClearsPasswordChangeRequiredFlag() {
         final UserEntity user = new UserEntity();
         user.setId(new ObjectId());

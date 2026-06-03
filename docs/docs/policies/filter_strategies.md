@@ -138,7 +138,11 @@ An example policy using the `HASH_SHA256_REPLACE` filter strategy:
 
 ### The FPE\_ENCRYPT\_REPLACE Filter Strategy
 
-The `FPE_ENCRYPT_REPLACE` filter strategy uses format-preserving encryption (FPE) to encrypt the sensitive information. Philter uses the FF3-1 algorithm for format-preserving encryption. The FPE\_ENCRYPT\_REPLACE filter strategy requires a `key` and a `tweak` value. These values control the format-preserving encryption. For more information on these values and format-preserving encryption, refer to the resources below:
+The `FPE_ENCRYPT_REPLACE` filter strategy uses format-preserving encryption (FPE) to encrypt the sensitive information. Philter uses the FF3-1 algorithm for format-preserving encryption.
+
+> **Philter note:** You do not need to supply a `key` or `tweak`. Philter manages a stable format-preserving-encryption key for each account automatically and applies it at redaction time, so the same input always encrypts to the same value for that account (referential integrity) and the value can be reversed with the account's key. Selecting the `FPE_ENCRYPT_REPLACE` strategy is sufficient. The `key`/`tweak` shown below are the underlying engine inputs, included for reference.
+
+The `key` and `tweak` values control the format-preserving encryption. For more information on these values and format-preserving encryption, refer to the resources below:
 
 * [https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf)
 * [https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf)

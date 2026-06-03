@@ -15,9 +15,11 @@
  */
 package ai.philterd.philter.services.encryption;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Base64;
 
@@ -31,9 +33,33 @@ public abstract class EncryptionService {
     protected final String ALGORITHM = "AES/GCM/NoPadding";
     protected final KeyProvider keyProvider;
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     public EncryptionService(final KeyProvider keyProvider) {
         Security.addProvider(new BouncyCastleProvider());
         this.keyProvider = keyProvider;
+    }
+
+    /**
+     * Generates a key for FF3-1 format-preserving encryption (used by the {@code FPE_ENCRYPT_REPLACE}
+     * strategy): 32 random bytes (AES-256) encoded as 64 lowercase hex characters. FF3 requires a
+     * hex-encoded 128/192/256-bit key, so a hex string of this length is mandatory — note this is a
+     * different encoding from {@link #generateEncryptionKey()}, which returns a Base64 AES key.
+     */
+    public static String generateFpeKey() {
+        final byte[] keyBytes = new byte[32];
+        SECURE_RANDOM.nextBytes(keyBytes);
+        return Hex.encodeHexString(keyBytes);
+    }
+
+    /**
+     * Derives the FF3-1 tweak for a user deterministically from their FPE key, so the same input always
+     * encrypts to the same format-preserving output for that user (FPE provides referential integrity
+     * by being deterministic). Returns 16 hex characters — an 8-byte / 64-bit FF3 tweak, which FF3
+     * requires to be hex of 56 or 64 bits.
+     */
+    public static String deriveFpeTweak(final String fpeKey) {
+        return hashSha256(fpeKey).substring(0, 16);
     }
 
     public static String hashSha256(final String data) {

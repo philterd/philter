@@ -27,13 +27,22 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 /**
  * Integration tests for {@link ContextDataService} against a real (in-memory) MongoDB. These cover
@@ -85,6 +94,71 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
         assertThrows(MongoException.class, () ->
                 contexts.insertOne(new Document("context_name", "x").append("user_id", new ObjectId())));
+    }
+
+    @Test
+    void createReturns409WhenTheInsertLosesTheUniqueNameRace() {
+        // Deterministically exercise the insert path the race hits: make the non-atomic pre-check miss
+        // (stub findOneByName to null) while the unique index already holds the name, so the insert
+        // fails with a duplicate-key error. The service must convert that into a graceful 409 rather
+        // than letting the raw MongoWriteException escape (which would surface as a 500).
+        final ContextDataService spied = spy(service);
+        final String name = "already-present";
+        doReturn(null).when(spied).findOneByName(name);
+
+        // Seed the name directly so the unique index trips when the spied create() inserts.
+        mongoClient.getDatabase("philter").getCollection("contexts")
+                .insertOne(new Document("context_name", name).append("user_id", new ObjectId()));
+
+        final ServiceResponse response = spied.create(name, new ObjectId());
+
+        assertFalse(response.isSuccessful());
+        assertEquals(409, response.getStatusCode());
+    }
+
+    @Test
+    void concurrentCreatesOfTheSameNameYieldOneSuccessAndGraceful409s() throws Exception {
+        // Two+ concurrent creates of the same name can both pass the non-atomic findOneByName check and
+        // then race on the insert. The unique index lets only one win; the losers must come back as a
+        // tidy 409 rather than a raw MongoWriteException (which would surface as a 500). Starting every
+        // thread from the same latch makes them collide on the insert path this fix handles.
+        final int threads = 8;
+        final String name = "race";
+
+        final ExecutorService pool = Executors.newFixedThreadPool(threads);
+        final CountDownLatch start = new CountDownLatch(1);
+        final List<Future<ServiceResponse>> futures = new ArrayList<>();
+
+        for(int i = 0; i < threads; i++) {
+            futures.add(pool.submit(() -> {
+                start.await();
+                return service.create(name, new ObjectId());
+            }));
+        }
+
+        start.countDown();
+
+        int successes = 0;
+        int conflicts = 0;
+        for(final Future<ServiceResponse> future : futures) {
+            // future.get() rethrows anything create() threw — e.g. an unhandled duplicate-key write
+            // exception — failing the test, which is exactly the regression being guarded against.
+            final ServiceResponse response = future.get();
+            if(response.isSuccessful()) {
+                successes++;
+            } else {
+                assertEquals(409, response.getStatusCode(), "a racing loser must get a graceful 409");
+                conflicts++;
+            }
+        }
+        pool.shutdown();
+
+        assertEquals(1, successes, "exactly one concurrent create should succeed");
+        assertEquals(threads - 1, conflicts, "every other create should get a graceful 409");
+
+        // The unique index guarantees a single stored context for the name regardless of the race.
+        final MongoCollection<Document> contexts = mongoClient.getDatabase("philter").getCollection("contexts");
+        assertEquals(1, contexts.countDocuments(new Document("context_name", name)));
     }
 
     @Test

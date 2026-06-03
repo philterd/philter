@@ -20,6 +20,9 @@ import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.vectors.MongoVectorService;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteConcernException;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
@@ -83,10 +86,37 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         contextEntity.setContextName(contextName);
         contextEntity.setDisambiguation(disambiguation);
         contextEntity.setLedger(ledger);
-        final ObjectId objectId = save(contextEntity);
+
+        final ObjectId objectId;
+        try {
+            objectId = save(contextEntity);
+        } catch (final MongoWriteException | MongoWriteConcernException ex) {
+            // The findOneByName check above is not atomic with this insert, so two concurrent creates of
+            // the same name can both pass it. The unique index on context_name still prevents a duplicate,
+            // but the losing insert fails with a duplicate-key error (code 11000). Convert it to the same
+            // 409 the non-racing path returns rather than surfacing a raw write exception as a 500.
+            if(isDuplicateKey(ex)) {
+                return new ServiceResponse("Context already exists.", false, 409);
+            }
+            throw ex;
+        }
 
         return new ServiceResponse("Context created", true, objectId, 201);
 
+    }
+
+    /**
+     * Returns true if the given write failure is a duplicate-key error (MongoDB error code 11000),
+     * i.e. the insert lost the race against the unique index on {@code context_name}.
+     */
+    private static boolean isDuplicateKey(final RuntimeException ex) {
+        if(ex instanceof MongoWriteException mongoWriteException) {
+            return mongoWriteException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY;
+        }
+        if(ex instanceof MongoWriteConcernException mongoWriteConcernException) {
+            return mongoWriteConcernException.getCode() == 11000;
+        }
+        return false;
     }
 
     public List<ContextEntity> findAll(final ObjectId userId) {

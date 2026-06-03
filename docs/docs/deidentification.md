@@ -56,5 +56,5 @@ Encryption is a method of de-identification that replaces a sensitive value with
 
 Philter provides two primary methods of encryption:
 
-* **AES Encryption**: Using the `CRYPTO_REPLACE` filter strategy, Philter encrypts the sensitive value using the AES encryption algorithm. This requires a key and an initialization vector (IV) to be defined in the policy.
+* **AES Encryption**: Using the `CRYPTO_REPLACE` filter strategy, Philter encrypts the sensitive value using AES in GCM mode (authenticated encryption). This requires an encryption key to be defined in the policy.
 * **Format Preserving Encryption (FPE)**: Using the `FPE_ENCRYPT_REPLACE` filter strategy, Philter encrypts the sensitive value while preserving its original format (e.g., an encrypted credit card number will still look like a credit card number).

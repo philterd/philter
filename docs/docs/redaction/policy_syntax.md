@@ -134,7 +134,7 @@ A strategy determines the specific transformation applied to a piece of informat
     ```
 *   **`TRUNCATE_TO_YEAR`**: Specifically for dates. It removes the month and day, preserving only the year. "January 15, 2023" becomes `2023`.
 *   **`SHIFT`**: For dates. It shifts the date forward or backward by a random number of days (useful for maintaining chronological relationships in datasets while protecting specific dates).
-*   **`FPE` (Format-Preserving Encryption)**: Encrypts the sensitive data while ensuring the output has the same format and length as the input. This is ideal for maintaining database schema compatibility. No configuration is required: Philter manages a stable encryption key for each account automatically, so the same input always encrypts to the same value for that account (giving referential integrity / join compatibility across documents without needing the `Context` scope). Because the transformation is reversible with the account's key, the original value can be recovered.
+*   **`FPE` (Format-Preserving Encryption)**: Encrypts the sensitive data while ensuring the output has the same format and length as the input. This is ideal for maintaining database schema compatibility. It requires a key and tweak supplied in the policy's top-level `fpe` object. The transformation is deterministic and reversible: for a given key and tweak the same input always encrypts to the same value (referential integrity / join compatibility across documents), and the original value can be recovered with the same key and tweak.
 
 ## Confidence Thresholds (AI Filters Only)
 

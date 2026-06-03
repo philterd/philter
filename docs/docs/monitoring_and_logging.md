@@ -2,8 +2,6 @@
 
 Philter exposes operational metrics in [Prometheus](https://prometheus.io/) format. A monitoring stack (for example, Prometheus for collection and Grafana for visualization) scrapes these metrics and is responsible for storing, retaining, and visualizing them. Philter itself does not store metrics history.
 
-> Prior to Philter 4.0, usage metrics were stored in OpenSearch and shown in an in-application Metrics dashboard. Both have been removed in favor of Prometheus.
-
 ## Metrics Endpoint
 
 Philter publishes metrics at:

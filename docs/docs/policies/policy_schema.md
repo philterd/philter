@@ -83,26 +83,20 @@ Global configuration settings.
 
 ## `crypto`
 
-AES encryption settings used by the `CRYPTO_REPLACE` strategy. Both fields are required when `crypto` is present. Each value may be prefixed with `env:` to read it from an environment variable (for example, `env:CRYPTO_KEY`) so secrets are not stored in the policy.
+Encryption settings used by the `CRYPTO_REPLACE` strategy. Philter encrypts using AES in GCM mode (authenticated encryption) with a random nonce generated per value. Only `key` is required. The `key` may be prefixed with `env:` to read it from an environment variable (for example, `env:CRYPTO_KEY`) so the secret is not stored in the policy.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `key` | string | AES encryption key. |
-| `iv` | string | AES initialization vector. |
+| `key` | string | Hex-encoded AES key (64 hex characters for a 256-bit key, 32 for 128-bit). May be prefixed with `env:` to read it from an environment variable. |
 
 ## `fpe`
 
-Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy.
-
-> **Philter note:** You do not need to supply this object in Philter. Philter manages a stable
-> format-preserving-encryption key for each account automatically and injects it at redaction time, so
-> selecting the `FPE_ENCRYPT_REPLACE` strategy is sufficient. The fields below describe the underlying
-> engine schema for reference.
+Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy. Required when that strategy is used. The encryption is deterministic and reversible for a given key and tweak. Either value may be prefixed with `env:` to read it from an environment variable so the secret is not stored in the policy.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `key` | string | FPE encryption key (hex, 128/192/256-bit). |
-| `tweak` | string | FPE tweak value (hex, 56 or 64-bit). |
+| `key` | string | FPE encryption key (hex, 128/192/256-bit). May be prefixed with `env:`. |
+| `tweak` | string | FPE tweak value (hex, 56- or 64-bit). May be prefixed with `env:`. |
 
 ## `identifiers`
 

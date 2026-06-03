@@ -74,25 +74,36 @@ An example filter using the `REDACT` filter strategy:
 
 ### The `CRYPTO_REPLACE` Filter Strategy
 
-The `CRYPTO_REPLACE` filter strategy replaces each identified piece of sensitive information by encrypting it using the AES encryption algorithm. To use this filter strategy, the policy must include the details of the encryption key as shown below:
+The `CRYPTO_REPLACE` filter strategy replaces each identified piece of sensitive information with its encrypted value. Philter encrypts using AES in GCM mode (authenticated encryption) with a freshly generated random nonce for each value. As a result the same input encrypts to a different value each time (so equal values cannot be matched across the output), and each encrypted value carries an authentication tag that detects tampering. The encryption is reversible: an encrypted value can be decrypted later using the same key.
+
+To use this filter strategy, the policy must provide an encryption `key` in a top-level `crypto` object:
 
 ```
 {
-   "name":"sample-profile",
+   "name": "sample-profile",
    "crypto": {
-     "key": "....",
-     "iv": "...."
+     "key": "...."
    },
    ...
 ```
 
-In the snippet of a policy shown above, a crypto element is defined with a `key` and an initialization vector (`iv`). These two items are required to encrypt the sensitive information. To generate a key, run the following command:
+The `key` is a hex-encoded AES key. Use 64 hex characters for a 256-bit key (recommended), or 32 hex characters for a 128-bit key. Generate one with:
 
 ```
-openssl enc -e -aes-256-cbc -a -salt -P
+openssl rand -hex 32
 ```
 
-You will be prompted to enter an encryption password. Once entered, the values of the `key` and `iv` will be shown. Copy and paste those values into the policy.
+#### Keeping the key out of the policy
+
+Because `CRYPTO_REPLACE` is reversible, the key is a sensitive secret. Rather than writing it directly into the policy file, prefix the value with `env:` to have Philter read it from an environment variable at redaction time:
+
+```
+"crypto": {
+  "key": "env:PHILTER_CRYPTO_KEY"
+}
+```
+
+With the example above, Philter reads the key from the `PHILTER_CRYPTO_KEY` environment variable.
 
 An example policy using the `CRYPTO_REPLACE` filter strategy:
 
@@ -100,8 +111,7 @@ An example policy using the `CRYPTO_REPLACE` filter strategy:
 {
    "name": "email-address",
    "crypto": {
-     "key": "....",
-     "iv": "...."
+     "key": "env:PHILTER_CRYPTO_KEY"
    },
    "identifiers": {
       "emailAddress": {
@@ -140,31 +150,42 @@ An example policy using the `HASH_SHA256_REPLACE` filter strategy:
 
 The `FPE_ENCRYPT_REPLACE` filter strategy uses format-preserving encryption (FPE) to encrypt the sensitive information. Philter uses the FF3-1 algorithm for format-preserving encryption.
 
-> **Philter note:** You do not need to supply a `key` or `tweak`. Philter manages a stable format-preserving-encryption key for each account automatically and applies it at redaction time, so the same input always encrypts to the same value for that account (referential integrity) and the value can be reversed with the account's key. Selecting the `FPE_ENCRYPT_REPLACE` strategy is sufficient. The `key`/`tweak` shown below are the underlying engine inputs, included for reference.
+The encryption is deterministic and reversible: for a given key and tweak the same input always encrypts to the same value (referential integrity across documents), and the value can be decrypted with the same key and tweak.
 
-The `key` and `tweak` values control the format-preserving encryption. For more information on these values and format-preserving encryption, refer to the resources below:
-
-* [https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf)
-* [https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf)
-
-An example policy using the FPE\_ENCRYPT\_REPLACE filter strategy:
+To use this filter strategy, the policy must provide a top-level `fpe` object with a `key` and a `tweak`:
 
 ```
 {
    "name": "credit-cards",
+   "fpe": {
+     "key": "...",
+     "tweak": "..."
+   },
    "identifiers": {
       "creditCard": {
          "creditCardFilterStrategies": [
             {
-               "strategy": "FPE_ENCRYPT_REPLACE",
-               "key": "...",
-               "tweak": "..."
+               "strategy": "FPE_ENCRYPT_REPLACE"
             }
          ]
       }
    }
 }
 ```
+
+The `key` is a hex-encoded AES key (32, 48, or 64 hex characters for a 128-, 192-, or 256-bit key) and the `tweak` is a hex value (14 or 16 hex characters). Generate them with:
+
+```
+openssl rand -hex 32   # key (256-bit)
+openssl rand -hex 7    # tweak (56-bit)
+```
+
+Either value may be prefixed with `env:` to read it from an environment variable (for example, `env:PHILTER_FPE_KEY`) so the secret is not stored in the policy.
+
+For more information on these values and format-preserving encryption, refer to the resources below:
+
+* [https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-38Gr1-draft.pdf)
+* [https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-38g.pdf)
 
 ### The `RANDOM_REPLACE` Filter Strategy
 

@@ -6,7 +6,7 @@ Instead of manually entering these terms into each individual policy, you can de
 
 ## The Role of Custom Lists in Redaction
 
-Custom Lists are typically used in two primary scenarios within a [redaction policy](policy_syntax.md):
+Custom Lists are typically used in two primary scenarios within a [redaction policy](policies.md):
 
 *   **Whitelisting (Ignore Lists)**: Ensuring that specific, non-sensitive terms that might be mistaken for PII (like a company name "John Deere") are never redacted.
 *   **Blacklisting (Target Lists)**: Ensuring that specific sensitive terms (like "Project Phoenix") are always identified and redacted, even if they don't match standard PII patterns.
@@ -28,7 +28,7 @@ To see your current lists, navigate to the **Custom Lists** page from the left m
 To create a new custom list:
 
 1.  **Open the Creation Dialog**: Click the **New Custom List** button located above the lists table.
-2.  **Assign a Unique Name**: Enter a **List Name**. We recommend using clear, descriptive names (e.g., `Employee-Names-2024` or `Project-Codenames`). This name is what you will use in your [policy JSON](policy_syntax.md).
+2.  **Assign a Unique Name**: Enter a **List Name**. We recommend using clear, descriptive names (e.g., `Employee-Names-2024` or `Project-Codenames`). This name is what you will use in your [policy JSON](../policies/policy_schema.md).
 3.  **Add a Description (Optional)**: Enter an optional **Description** (maximum 250 characters) to provide context about the list's purpose or contents.
 4.  **Define Your Terms**: In the **List Items** text area, enter your terms. **Important**: Place each term on its own individual line. Each custom list can contain a maximum of 100 items.
 5.  **Save**: Click the **Save** button. Your list is now active and ready to be integrated into your policies.
@@ -52,22 +52,25 @@ Please note a list's name cannot be changed once it has been created. If you nee
 
 ## Using Custom Lists in Policies
 
-To use a custom list in a policy, you reference it by its name with the `list:` prefix. This can be done in the `termsToIgnore` (for whitelisting) and `termsToAlwaysRedact` (for blacklisting) sections of a [simplified policy](policy_syntax.md).
+To use a custom list in a policy, you reference it by its name with the `list:` prefix. This can be done in a top-level `ignored` list's `terms` (for whitelisting) or in a custom dictionary's `terms` (for blacklisting).
 
 For example, if you have a custom list named `my-custom-list`, you would reference it as `list:my-custom-list` in your policy:
 
 ```json
 {
   "name": "my-policy",
-  "termsToIgnore": [
-    "list:my-custom-list"
+  "ignored": [
+    {
+      "name": "my-ignored-terms",
+      "terms": [ "list:my-custom-list" ]
+    }
   ],
-  "filters": {
-    "PERSON": [
-      {
-        "strategy": "REDACT"
-      }
-    ]
+  "identifiers": {
+    "ssn": {
+      "ssnFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    }
   }
 }
 ```

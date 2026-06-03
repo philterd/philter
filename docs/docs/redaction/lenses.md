@@ -60,6 +60,6 @@ If no `lens` is specified in the policy, Philterd defaults to the `general` lens
 
 ## See Also
 
-*   [Redaction Policy Syntax](policy_syntax.md)
+*   [Policy Schema Reference](../policies/policy_schema.md)
 *   [Redaction Policies](policies.md)
 *   [Disambiguation](disambiguation.md)

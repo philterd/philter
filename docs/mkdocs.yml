@@ -81,7 +81,6 @@ nav:
     - 'Redaction Policies': 'redaction/policies.md'
     - 'Sample Policies': 'policies/sample_policies.md'
     - 'Filter Policies': 'policies/filter_policies.md'
-    - 'Policy Syntax (Simplified)': 'redaction/policy_syntax.md'
     - 'Policy Schema 1.0.0 Reference': 'policies/policy_schema.md'
     - 'Filters': 'policies/filters.md'
     - 'All Filters':

@@ -6,7 +6,7 @@ Philter requires the following:
 
 * 2 vCPU (e.g., m5.large instance type on AWS)
 * 8 GB of RAM (16 GB recommended)
-* Java 21
+* Java 25
 * MongoDB (required; see [Database](database.md))
 * Valkey (optional; if not configured, Philter uses an in-memory cache that is not shared across instances and is lost on restart)
 

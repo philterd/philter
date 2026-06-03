@@ -8,7 +8,7 @@ Through the Policies management view in your dashboard, you can create, refine, 
 
 Every policy in Philter is internally represented as a JSON (JavaScript Object Notation) object. This structured format allows for an incredible degree of granularity and flexibility. You can define specific "filters" for different data types (like social security numbers, names, or dates) and assign unique "strategies" to each (such as masking, encrypting, or replacing with a placeholder).
 
-For a comprehensive guide on the available filters, processing strategies, and advanced configuration options, please refer to our detailed [Redaction Policy Syntax](policy_syntax.md) documentation. You can also learn how Philterd resolves overlapping sensitive terms in our [Disambiguation](disambiguation.md) guide.
+For a comprehensive guide on the available filters, processing strategies, and advanced configuration options, please refer to our detailed [Policy Schema Reference](../policies/policy_schema.md) documentation. You can also learn how Philterd resolves overlapping sensitive terms in our [Disambiguation](disambiguation.md) guide.
 
 ## Managing Your Policies
 

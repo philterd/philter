@@ -10,7 +10,7 @@ Our platform is engineered to handle a variety of common document formats, ensur
 
 Philter provides specialized processing for the following document types:
 
-*   **Microsoft Word (.docx)**: Word documents are processed with high precision. Our engine parses the document paragraph by paragraph, identifying sensitive entities within the text. You have the flexibility to choose how redactions are represented in the output, such as highlighting changes or enabling "Track Changes" (revisions) via your [policy settings](policy_syntax.md).
+*   **Microsoft Word (.docx)**: Word documents are processed with high precision. Our engine parses the document paragraph by paragraph, identifying sensitive entities within the text. You have the flexibility to choose how redactions are represented in the output, such as highlighting changes or enabling "Track Changes" (revisions) via your [policy settings](../policies/policy_schema.md).
 *   **PDF (.pdf)**: PDF files are processed to ensure that sensitive information is visually and data-level obscured. Redactions are typically applied by drawing opaque black boxes over the identified sensitive text, preventing both visual recognition and digital extraction.
 *   **Plain Text (.txt)**: For simple text files, the identified sensitive information is replaced with a placeholder or a masked value as defined in your policy (e.g., replacing a name with `[PERSON]` or a phone number with `[PHONE-NUMBER]`).
 
@@ -60,4 +60,4 @@ To ensure the highest level of integrity and non-repudiation, Philterd maintains
 *   [Understanding Redaction Policies](policies.md) - Learn how to define what gets redacted.
 *   [Managing Contexts](contexts.md) - Organize your redaction workflows effectively.
 *   [Utilizing Cryptographic Ledgers](ledgers.md) - Ensure the integrity of your redaction process.
-*   [Policy Syntax Reference](policy_syntax.md) - A deep dive into the JSON structure of redaction policies.
+*   [Policy Schema Reference](../policies/policy_schema.md) - A deep dive into the JSON structure of redaction policies.

@@ -3,8 +3,6 @@
 This page documents the **Phileas redaction policy schema, version 1.0.0**: the complete JSON structure that defines a redaction policy. The schema is published at `https://www.philterd.ai/schemas/redaction-policy/1.0.0/schema.json` and is the authoritative format consumed by the redaction engine.
 
 > You do not need to know this schema to use Philter. Most users build policies in the dashboard or with the hosted policy editor at [policies.philterd.ai](https://policies.philterd.ai). This reference is for authoring or reviewing policies by hand and for understanding every available option.
->
-> Note: the Philter dashboard's policy editor accepts a *simplified* policy format that Philter translates into this schema. That simplified format is described in [Policy Syntax](../redaction/policy_syntax.md). The schema below is the full engine format.
 
 The version supported by a running Philter instance is reported by the [status endpoint](../api_and_sdks/api/filtering_api.md) in the `redactionPolicySchemaVersion` field.
 
@@ -379,7 +377,6 @@ A small but complete policy that redacts SSNs to their last four digits, replace
 
 ## See also
 
-* [Policy Syntax](../redaction/policy_syntax.md) for the simplified policy format used by the dashboard editor.
 * [Filter Strategies](filter_strategies.md)
 * [Filters](filters.md)
 * [Redaction Policies](../redaction/policies.md)

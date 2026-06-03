@@ -12,19 +12,18 @@ Save the following as `my-policy.json`:
 
 ```json
 {
-  "version": "1.0",
   "name": "my-custom-policy",
-  "filters": {
-    "PERSON": [
-      {
-        "strategy": "REDACT"
-      }
-    ],
-    "EMAIL_ADDRESS": [
-      {
-        "strategy": "MASK"
-      }
-    ]
+  "identifiers": {
+    "ssn": {
+      "ssnFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "emailAddress": {
+      "emailAddressFilterStrategies": [
+        { "strategy": "MASK" }
+      ]
+    }
   }
 }
 ```
@@ -140,5 +139,5 @@ else:
 ## Next Steps
 
 *   Explore the [API Integration](../developers/developer_quick_start.md) guide for more details.
-*   Check out the [Policy Syntax Reference](../redaction/policy_syntax.md) for advanced configurations.
+*   Check out the [Policy Schema Reference](../policies/policy_schema.md) for advanced configurations.
 *   Visit the [Swagger UI](https://your-philter-endpoint:8080/swagger-ui/index.html) for interactive API documentation.

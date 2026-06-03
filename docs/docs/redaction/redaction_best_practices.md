@@ -11,7 +11,7 @@ Redaction should be viewed as an iterative process. It is common to apply a poli
 3.  **Refine**: Adjust your [Redaction Policy](policies.md) based on your findings. This might involve:
     *   Adding [Custom Lists](custom_lists.md) for project-specific terms.
     *   Applying [Redaction Lenses](lenses.md) to optimize for your specific data domain (e.g., medical or legal).
-    *   Adjusting [Policy Syntax](policy_syntax.md) to fine-tune identification rules.
+    *   Adjusting the [policy](../policies/policy_schema.md) to fine-tune identification rules.
 4.  **Repeat**: Run the redaction process again with the refined policy and repeat the review until the results meet your requirements.
 
 ## Documents Require Individual Attention

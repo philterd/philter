@@ -49,27 +49,32 @@ public class ApiKeyCache extends Cache {
         this.gson = new Gson();
     }
 
-    public void delete(final String apiKey) {
-        backend.del(buildKey(apiKey));
+    // Entries are keyed by the API key's SHA-256 hash, not the plaintext key. This lets a key be
+    // evicted on deletion (where only the stored hash is available, never the plaintext) and keeps the
+    // plaintext key out of the cache key space.
+
+    /** Evicts the cached entry for the given API key hash, if present. */
+    public void delete(final String apiKeyHash) {
+        backend.del(buildKey(apiKeyHash));
     }
 
-    public void insert(final String apiKey, final ApiKeyEntity apiKeyEntity) {
+    public void insert(final String apiKeyHash, final ApiKeyEntity apiKeyEntity) {
 
         final String json = gson.toJson(apiKeyEntity);
 
         // Insert with a short TTL so a deleted/rotated key stops working soon (see TTL_SECONDS).
-        backend.setex(buildKey(apiKey), TTL_SECONDS, json);
+        backend.setex(buildKey(apiKeyHash), TTL_SECONDS, json);
 
     }
 
-    public ApiKeyEntity get(final String apiKey) {
-        final String json = backend.get(buildKey(apiKey));
+    public ApiKeyEntity get(final String apiKeyHash) {
+        final String json = backend.get(buildKey(apiKeyHash));
         return gson.fromJson(json, ApiKeyEntity.class);
     }
 
-    public boolean containsApiKey(final String apiKey) {
+    public boolean containsApiKey(final String apiKeyHash) {
 
-        final boolean contains = backend.exists(buildKey(apiKey));
+        final boolean contains = backend.exists(buildKey(apiKeyHash));
         if(contains) {
             LOGGER.info("API key found in cache.");
         }
@@ -77,8 +82,8 @@ public class ApiKeyCache extends Cache {
 
     }
 
-    private String buildKey(final String userId) {
-        return "apikey_" + userId;
+    private String buildKey(final String apiKeyHash) {
+        return "apikey_" + apiKeyHash;
     }
 
 }

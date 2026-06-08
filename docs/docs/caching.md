@@ -35,6 +35,15 @@ Set the following environment variables on each Philter instance. When `CACHE_HO
 | `CACHE_PASSWORD` | No | _(none)_ | Password, if the server requires authentication. |
 | `CACHE_SSL` | No | `false` | Set to `true` to connect over TLS. |
 
+### Cache lifetimes (TTL)
+
+Two caches keep entries for a short, configurable time. Both default to a low value so stale data is short-lived; raise them to trade freshness for fewer database reads.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_KEY_CACHE_TTL_SECONDS` | `60` | How long a resolved API key is cached. Deleting a key through the dashboard or API evicts it from the cache immediately; this TTL bounds how long a key revoked out-of-band (for example, edited directly in the database) keeps working. |
+| `REDACTION_CACHE_TTL_SECONDS` | `60` | How long the filtering endpoints cache a user's policy and always/never redact lists in-process. Also the upper bound on how long an edited or deleted policy / redact list keeps being used. This cache is always in-process and is never written to Valkey/Redis. |
+
 ### Docker Compose example
 
 The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache, add a Valkey service and set `CACHE_HOSTNAME` on the `philter` service to point at it:

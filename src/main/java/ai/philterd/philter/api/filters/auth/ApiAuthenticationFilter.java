@@ -22,6 +22,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -59,7 +60,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     private final Gson gson;
 
     public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache) {
-        this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher);
+        this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
         this.apiKeyCache = apiKeyCache;
         this.auditEventPublisher = auditEventPublisher;
         this.meterRegistry = meterRegistry;
@@ -73,12 +74,14 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
      * the API key cache TTL), which bounds the revocation latency.
      */
     private ApiKeyEntity resolveApiKey(final String apiKey) {
-        if (apiKeyCache.containsApiKey(apiKey)) {
-            return apiKeyCache.get(apiKey);
+        // The cache is keyed by the key's hash so a deleted key can be evicted without the plaintext.
+        final String apiKeyHash = EncryptionService.hashSha256(apiKey);
+        if (apiKeyCache.containsApiKey(apiKeyHash)) {
+            return apiKeyCache.get(apiKeyHash);
         }
         final ApiKeyEntity apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);
         if (apiKeyEntity != null) {
-            apiKeyCache.insert(apiKey, apiKeyEntity);
+            apiKeyCache.insert(apiKeyHash, apiKeyEntity);
         }
         return apiKeyEntity;
     }

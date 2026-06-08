@@ -41,10 +41,28 @@ import static org.mockito.Mockito.mock;
 class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     private ApiKeyDataService service;
+    private ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache;
 
     @BeforeEach
     void setUpService() {
-        service = new ApiKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+        apiKeyCache = new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false);
+        service = new ApiKeyDataService(mongoClient, mock(AuditEventPublisher.class), apiKeyCache);
+    }
+
+    @Test
+    void deleteByApiKeyEvictsFromCache() {
+        final ObjectId user = new ObjectId();
+        final String apiKey = service.createApiKey("req", user, "src").getMessage();
+        final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
+
+        // Simulate the key having been cached during authentication (the cache is keyed by hash).
+        apiKeyCache.insert(entity.getApiKeyHash(), entity);
+        assertTrue(apiKeyCache.containsApiKey(entity.getApiKeyHash()));
+
+        service.deleteByApiKey("req", entity, "src");
+
+        // Deleting the key evicts it from the cache so it stops working immediately, not after the TTL.
+        assertFalse(apiKeyCache.containsApiKey(entity.getApiKeyHash()));
     }
 
     @Test

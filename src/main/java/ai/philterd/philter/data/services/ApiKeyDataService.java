@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -41,8 +42,11 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     private static final int API_KEY_LENGTH = 32;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    public ApiKeyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
+    private final ApiKeyCache apiKeyCache;
+
+    public ApiKeyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache) {
         super(mongoClient, "api_keys", auditEventPublisher);
+        this.apiKeyCache = apiKeyCache;
 
         // Authentication looks keys up by hash; listing is scoped to a user and sorted by timestamp.
         ensureIndex(Indexes.ascending("api_key_hash", "deleted"));
@@ -159,6 +163,10 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setDeleted(true);
         update(apiKeyEntity);
 
+        // Evict the key from the cache so the deletion takes effect immediately rather than after the
+        // cache TTL. The cache is keyed by the key's hash, which the entity carries.
+        apiKeyCache.delete(apiKeyEntity.getApiKeyHash());
+
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, apiKeyEntity.getId(), apiKeyEntity.getId(), source);
 
         return ServiceResponse.success();
@@ -182,8 +190,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // Mark them all deleted in a single bulk update rather than one update per key.
         collection.updateMany(query, new Document("$set", new Document("deleted", true)));
 
-        // Preserve the per-key audit events (one API_KEY_DELETED per key), as before.
+        // Evict each from the cache and preserve the per-key audit events (one API_KEY_DELETED per key).
         for (final ApiKeyEntity apiKeyEntity : affected) {
+            apiKeyCache.delete(apiKeyEntity.getApiKeyHash());
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, apiKeyEntity.getId(), apiKeyEntity.getId(), source);
         }
 

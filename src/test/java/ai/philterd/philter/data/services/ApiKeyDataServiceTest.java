@@ -65,7 +65,8 @@ class ApiKeyDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("api_keys")).thenReturn(mongoCollection);
-        apiKeyDataService = new ApiKeyDataService(mongoClient, auditEventPublisher);
+        apiKeyDataService = new ApiKeyDataService(mongoClient, auditEventPublisher,
+                new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false));
     }
 
     @Test

@@ -23,6 +23,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -68,9 +69,12 @@ public abstract class AbstractApiController {
 
         final String apiKey = authorizationHeader.substring(7);
 
-        if(apiKeyCache.containsApiKey(apiKey)) {
+        // The cache is keyed by the key's hash so a deleted key can be evicted without the plaintext.
+        final String apiKeyHash = EncryptionService.hashSha256(apiKey);
 
-            return apiKeyCache.get(apiKey);
+        if(apiKeyCache.containsApiKey(apiKeyHash)) {
+
+            return apiKeyCache.get(apiKeyHash);
 
         } else {
 
@@ -79,7 +83,7 @@ public abstract class AbstractApiController {
 
             if(apiKeyEntity != null) {
 
-                apiKeyCache.insert(apiKey, apiKeyEntity);
+                apiKeyCache.insert(apiKeyHash, apiKeyEntity);
                 return apiKeyEntity;
 
             } else {

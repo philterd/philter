@@ -213,7 +213,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public ApiKeyDataService apiKeyDataService() {
-        return new ApiKeyDataService(mongoClient(), auditEventPublisher());
+        return new ApiKeyDataService(mongoClient(), auditEventPublisher(), apiKeyCache());
     }
 
     @Bean

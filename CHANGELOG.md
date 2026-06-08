@@ -68,10 +68,10 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
 - **Optional shared caching of contexts and API keys.** Set `CACHE_HOSTNAME` to use a
   Valkey/Redis cache shared across instances; when unset, an in-memory, ephemeral cache is
   used.
-- **My Account, Terms, and SDKs views.** Account settings (email, API keys, webhook) are
-  consolidated under a **My Account** page; global terms move to a dedicated **Terms** page; and
-  SDK references move to an **SDKs** page. The side navigation is grouped into Redaction, Account,
-  and Administration sections.
+- **My Account, Always/Never Redact Lists, and SDKs views.** Account settings (email, API keys,
+  webhook) are consolidated under a **My Account** page; the per-account always-redact / never-redact
+  lists move to a dedicated **Always/Never Redact Lists** page; and SDK references move to an **SDKs**
+  page. The side navigation is grouped into Redaction, Account, and Administration sections.
 
 ### Changed
 

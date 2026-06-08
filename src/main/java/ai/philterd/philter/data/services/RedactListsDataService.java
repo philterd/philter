@@ -17,7 +17,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.entities.GlobalTermsEntity;
+import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Indexes;
@@ -28,54 +28,60 @@ import org.bson.types.ObjectId;
 
 import java.util.List;
 
-public class GlobalTermsDataService extends AbstractService<GlobalTermsEntity> {
+public class RedactListsDataService extends AbstractService<RedactListsEntity> {
 
-    private static final Logger LOGGER = LogManager.getLogger(GlobalTermsDataService.class);
+    private static final Logger LOGGER = LogManager.getLogger(RedactListsDataService.class);
 
-    public GlobalTermsDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "global_terms", auditEventPublisher);
+    /** The maximum number of terms allowed in each list (always-redact and never-redact). */
+    public static final int MAXIMUM_TERMS_PER_LIST = 1000;
 
-        // One global-terms document per user, always looked up by user_id.
+    /** The maximum length, in characters, of a single term. */
+    public static final int MAXIMUM_TERM_LENGTH = 100;
+
+    public RedactListsDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
+        super(mongoClient, "redact_lists", auditEventPublisher);
+
+        // One redact-lists document per user, always looked up by user_id.
         ensureIndex(Indexes.ascending("user_id"));
     }
 
     public void saveOrUpdate(final String requestId, final ObjectId userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact, final String source) {
 
-        final GlobalTermsEntity globalTermsEntity = find(userId);
+        final RedactListsEntity redactListsEntity = find(userId);
 
-        if(globalTermsEntity == null) {
+        if(redactListsEntity == null) {
 
             // Save a new entity.
-            final GlobalTermsEntity newGlobalTermsEntity = new GlobalTermsEntity();
-            newGlobalTermsEntity.setUserId(userId);
-            newGlobalTermsEntity.setTermsToAlwaysRedact(termsToAlwaysRedact);
-            newGlobalTermsEntity.setTermsToNeverRedact(termsToNeverRedact);
+            final RedactListsEntity newRedactListsEntity = new RedactListsEntity();
+            newRedactListsEntity.setUserId(userId);
+            newRedactListsEntity.setTermsToAlwaysRedact(termsToAlwaysRedact);
+            newRedactListsEntity.setTermsToNeverRedact(termsToNeverRedact);
 
-            save(newGlobalTermsEntity);
+            save(newRedactListsEntity);
 
         } else {
 
             // Update the existing lists.
-            globalTermsEntity.setTermsToAlwaysRedact(termsToAlwaysRedact);
-            globalTermsEntity.setTermsToNeverRedact(termsToNeverRedact);
-            update(globalTermsEntity);
+            redactListsEntity.setTermsToAlwaysRedact(termsToAlwaysRedact);
+            redactListsEntity.setTermsToNeverRedact(termsToNeverRedact);
+            update(redactListsEntity);
 
         }
 
-        // The global always-redact / never-redact lists are security-relevant: they force or suppress
+        // The always-redact / never-redact lists are security-relevant: they force or suppress
         // redaction regardless of policy, so changes are audited.
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.GLOBAL_TERMS_UPDATED, userId, userId, source,
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACT_LISTS_UPDATED, userId, userId, source,
                 "alwaysRedact: " + termsToAlwaysRedact.size() + ", neverRedact: " + termsToNeverRedact.size());
 
     }
 
-    public GlobalTermsEntity find(final ObjectId userId) {
+    public RedactListsEntity find(final ObjectId userId) {
 
         final Document query = new Document("user_id", userId);
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return GlobalTermsEntity.fromDocument(document);
+            return RedactListsEntity.fromDocument(document);
         } else {
             return null;
         }

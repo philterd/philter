@@ -41,8 +41,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -209,6 +211,53 @@ class DocumentsApiControllerTest {
         mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com"))
                 .andExpect(status().isNotFound());
+    }
+
+    // ----- Cross-user isolation: a plain request (no owner) can never reach another user's document -----
+    //
+    // The caller (userId) asks for a document that belongs to a different user. Because the lookup is
+    // scoped to the caller's id, it finds nothing and the endpoint returns 404 — the document's
+    // existence is never revealed and the owning user's id is never queried. A regression that scoped
+    // by the API key's _id, or dropped the user_id from the query, would turn these into 200s.
+
+    @Test
+    void getStatusOfAnotherUsersDocumentReturns404() throws Exception {
+        final String documentId = "doc-owned-by-other";
+        // The caller's scoped lookup finds nothing (the document belongs to someone else).
+        when(pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId)).thenReturn(null);
+
+        mockMvc.perform(get("/api/documents/" + documentId + "/status").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isNotFound());
+
+        verify(pendingDocumentDataService).findOneByDocumentIdAndUserId(documentId, userId);
+    }
+
+    @Test
+    void downloadingAnotherUsersDocumentReturns404() throws Exception {
+        final String documentId = "doc-owned-by-other";
+        when(pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId)).thenReturn(null);
+
+        mockMvc.perform(get("/api/documents/" + documentId).header("Authorization", AUTH_HEADER))
+                .andExpect(status().isNotFound());
+
+        // The query is scoped to the caller only; the owning user's bytes are never audited or returned.
+        verify(pendingDocumentDataService).findOneByDocumentIdAndUserId(documentId, userId);
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.REDACTED_FILE_DOWNLOAD),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    void deletingAnotherUsersDocumentReturns404() throws Exception {
+        final String documentId = "doc-owned-by-other";
+        // A caller-scoped delete matches nothing.
+        when(pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, userId)).thenReturn(0L);
+
+        mockMvc.perform(delete("/api/documents/" + documentId).header("Authorization", AUTH_HEADER))
+                .andExpect(status().isNotFound());
+
+        verify(pendingDocumentDataService).deleteByDocumentIdAndUserId(documentId, userId);
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.REDACTED_FILE_DELETED),
+                any(), any(), any(), any());
     }
 
 }

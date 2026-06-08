@@ -49,6 +49,9 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.bson.types.ObjectId;
 
 @Route(value = "lists")
 @PageTitle("Philter - Custom Lists")
@@ -336,10 +339,15 @@ public class CustomListsView extends AbstractRestrictedView {
         grid.addColumn(AllCustomListRow::owner).setHeader("Owner").setResizable(true);
         grid.setSizeFull();
 
-        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar.
+        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar. Owner
+        // emails for the page are resolved in a single batched lookup rather than one query per row.
         grid.setItems(
-                query -> customListService.findAllAcrossUsers(query.getOffset(), query.getLimit()).stream()
-                        .map(this::toAllCustomListRow),
+                query -> {
+                    final List<CustomListEntity> page = customListService.findAllAcrossUsers(query.getOffset(), query.getLimit());
+                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                            page.stream().map(CustomListEntity::getUserId).collect(Collectors.toSet()));
+                    return page.stream().map(list -> toAllCustomListRow(list, ownerEmails));
+                },
                 query -> customListService.countAllAcrossUsers());
 
         final VerticalLayout layout = new VerticalLayout();
@@ -350,11 +358,10 @@ public class CustomListsView extends AbstractRestrictedView {
 
     }
 
-    /** Maps a custom list to an "All Custom Lists" row, resolving the owner's email. */
-    private AllCustomListRow toAllCustomListRow(final CustomListEntity list) {
-        final UserEntity owner = userService.findOneById(list.getUserId());
-        return new AllCustomListRow(list.getName(), list.getDescription(),
-                owner != null ? owner.getEmail() : "(unknown)");
+    /** Maps a custom list to an "All Custom Lists" row, resolving the owner's email from the prefetched map. */
+    private AllCustomListRow toAllCustomListRow(final CustomListEntity list, final Map<ObjectId, String> ownerEmails) {
+        final String email = ownerEmails.getOrDefault(list.getUserId(), "(unknown)");
+        return new AllCustomListRow(list.getName(), list.getDescription(), email);
     }
 
     /** A row in the admin "All Custom Lists" table: name, description, and the owner's email. */

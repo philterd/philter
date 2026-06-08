@@ -54,6 +54,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import org.bson.types.ObjectId;
 
 @Route(value = "policies")
 @PageTitle("Philter - Redaction Policies")
@@ -61,6 +65,9 @@ import java.util.List;
 public class PoliciesView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(PoliciesView.class);
+
+    /** Reusable pretty-printer for policy JSON; Gson is thread-safe, so a single shared instance suffices. */
+    private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
 
     // URL of the hosted policy editor, shown as a link next to the policy JSON for building policies.
     // The version query parameter is the redaction policy schema version that this build of Phileas
@@ -458,7 +465,7 @@ public class PoliciesView extends AbstractRestrictedView {
         managedPoliciesVerticalLayout.add(managedPoliciesGrid);
         managedPoliciesVerticalLayout.setSizeFull();
 
-        // Create the tab sheet and page. (Global Terms now lives on its own Terms page.)
+        // Create the tab sheet and page. (The always/never redact lists now live on their own page.)
 
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("My Policies", policiesVerticalLayout);
@@ -512,10 +519,15 @@ public class PoliciesView extends AbstractRestrictedView {
         grid.setSizeFull();
 
         // Lazy paging: the grid requests one page (offset/limit) at a time and the total count for the
-        // scrollbar, reusing the owner-agnostic service methods.
+        // scrollbar, reusing the owner-agnostic service methods. Owner emails for the page are resolved
+        // in a single batched lookup rather than one query per row.
         grid.setItems(
-                query -> policyService.findAllAcrossUsers(query.getOffset(), query.getLimit()).stream()
-                        .map(this::toAllPolicyRow),
+                query -> {
+                    final List<PolicyEntity> page = policyService.findAllAcrossUsers(query.getOffset(), query.getLimit());
+                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                            page.stream().map(PolicyEntity::getUserId).filter(Objects::nonNull).collect(Collectors.toSet()));
+                    return page.stream().map(policy -> toAllPolicyRow(policy, ownerEmails));
+                },
                 query -> policyService.countAllAcrossUsers());
 
         final VerticalLayout layout = new VerticalLayout();
@@ -525,10 +537,10 @@ public class PoliciesView extends AbstractRestrictedView {
 
     }
 
-    /** Maps a policy to an "All Policies" row, resolving the owner's email. */
-    private AllPolicyRow toAllPolicyRow(final PolicyEntity policy) {
-        final UserEntity owner = policy.getUserId() != null ? userService.findOneById(policy.getUserId()) : null;
-        return new AllPolicyRow(policy.getName(), owner != null ? owner.getEmail() : "(none)", policy.getPolicy());
+    /** Maps a policy to an "All Policies" row, resolving the owner's email from the prefetched map. */
+    private AllPolicyRow toAllPolicyRow(final PolicyEntity policy, final Map<ObjectId, String> ownerEmails) {
+        final String email = policy.getUserId() != null ? ownerEmails.getOrDefault(policy.getUserId(), "(none)") : "(none)";
+        return new AllPolicyRow(policy.getName(), email, policy.getPolicy());
     }
 
     /** A row in the admin "All Policies" table: the policy name, the owner's email, and the policy JSON. */
@@ -540,9 +552,8 @@ public class PoliciesView extends AbstractRestrictedView {
      */
     private void openPolicyJsonDialog(final String name, final String policyJson) {
 
-        final Gson prettyGson = new GsonBuilder().setPrettyPrinting().create();
         final JsonElement jsonElement = JsonParser.parseString(policyJson);
-        final String prettyJson = prettyGson.toJson(jsonElement);
+        final String prettyJson = PRETTY_GSON.toJson(jsonElement);
 
         final TextArea policyTextArea = new TextArea();
         policyTextArea.setLabel(name);
@@ -577,7 +588,7 @@ public class PoliciesView extends AbstractRestrictedView {
     private static String prettyPrintJson(final String json) {
         try {
             final JsonElement jsonElement = JsonParser.parseString(json);
-            return new GsonBuilder().setPrettyPrinting().create().toJson(jsonElement);
+            return PRETTY_GSON.toJson(jsonElement);
         } catch (final Exception ex) {
             return json != null ? json : "";
         }

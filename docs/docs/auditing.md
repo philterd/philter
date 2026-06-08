@@ -91,7 +91,8 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `global_terms_updated` | The account's always-redact / never-redact term lists were changed. |
+| `redact_lists_retrieved` | The account's always-redact / never-redact lists were retrieved. |
+| `redact_lists_updated` | The account's always-redact / never-redact lists were changed. |
 | `webhook_configured` | A webhook URL and secret were configured. |
 | `webhook_removed` | The webhook was removed. |
 | `settings_updated` | Account settings (such as the redaction ledger toggle) were changed. |

@@ -22,32 +22,32 @@ import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GlobalTermsEntity extends AbstractEntity {
+public class RedactListsEntity extends AbstractEntity {
 
     private ObjectId id;
     private List<String> termsToAlwaysRedact;
     private List<String> termsToNeverRedact;
     private ObjectId userId;
 
-    public static GlobalTermsEntity fromDocument(final Document document) {
+    public static RedactListsEntity fromDocument(final Document document) {
 
-        final GlobalTermsEntity globalTermsEntity = new GlobalTermsEntity();
-        globalTermsEntity.setId(document.getObjectId("_id"));
-        globalTermsEntity.setUserId(document.getObjectId("user_id"));
+        final RedactListsEntity redactListsEntity = new RedactListsEntity();
+        redactListsEntity.setId(document.getObjectId("_id"));
+        redactListsEntity.setUserId(document.getObjectId("user_id"));
 
         if(document.getList("terms_to_always_redact", String.class) != null) {
-            globalTermsEntity.setTermsToAlwaysRedact(document.getList("terms_to_always_redact", String.class));
+            redactListsEntity.setTermsToAlwaysRedact(document.getList("terms_to_always_redact", String.class));
         } else {
-            globalTermsEntity.setTermsToAlwaysRedact(new ArrayList<>());
+            redactListsEntity.setTermsToAlwaysRedact(new ArrayList<>());
         }
 
         if(document.getList("terms_to_never_redact", String.class) != null) {
-            globalTermsEntity.setTermsToNeverRedact(document.getList("terms_to_never_redact", String.class));
+            redactListsEntity.setTermsToNeverRedact(document.getList("terms_to_never_redact", String.class));
         } else {
-            globalTermsEntity.setTermsToNeverRedact(new ArrayList<>());
+            redactListsEntity.setTermsToNeverRedact(new ArrayList<>());
         }
 
-        return globalTermsEntity;
+        return redactListsEntity;
     }
 
     public SeparatedTermLists breakAlwaysRedactIntoSeparateLists() {

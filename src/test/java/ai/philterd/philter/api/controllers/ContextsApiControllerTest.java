@@ -651,4 +651,37 @@ class ContextsApiControllerTest {
         verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
+    // ----- Cross-user isolation: a plain request (no owner) can never reach another user's context -----
+    //
+    // Context names are unique per user, so a name owned by a different user is invisible to the caller:
+    // the caller-scoped findOne misses and the endpoint returns 404, never reading that user's entries.
+    // A regression that scoped by the API key's _id, or looked the context up by name alone, would let
+    // one user read another's mapping table here.
+
+    @Test
+    void getContextOwnedByAnotherUserReturns404() throws Exception {
+        // The context exists, but for a different user; the caller-scoped lookup misses.
+        when(contextService.findOne(eq("ctx-owned-by-other"), eq(userId))).thenReturn(null);
+
+        mockMvc.perform(get("/api/contexts/ctx-owned-by-other").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-iso-get"))
+                .andExpect(status().isNotFound());
+
+        verify(contextService).findOne(eq("ctx-owned-by-other"), eq(userId));
+        // The owning user's entries are never read.
+        verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void listEntriesOfAnotherUsersContextReturns404() throws Exception {
+        when(contextService.findOne(eq("ctx-owned-by-other"), eq(userId))).thenReturn(null);
+
+        mockMvc.perform(get("/api/contexts/ctx-owned-by-other/entries").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-iso-entries"))
+                .andExpect(status().isNotFound());
+
+        verify(contextService).findOne(eq("ctx-owned-by-other"), eq(userId));
+        verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
 }

@@ -22,7 +22,7 @@ import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
-import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -54,7 +54,7 @@ class RedactionServiceMetricsTest {
     @Mock private MongoClient mongoClient;
     @Mock private PolicyDataService policyDataService;
     @Mock private CustomListDataService customListService;
-    @Mock private GlobalTermsDataService globalTermsService;
+    @Mock private RedactListsDataService redactListsService;
     @Mock private ContextDataService contextService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private LedgerDataService ledgerService;
@@ -69,8 +69,9 @@ class RedactionServiceMetricsTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         redactionService = new RedactionService(mongoClient, policyDataService, customListService,
-                globalTermsService, contextService, auditEventPublisher,
-                ledgerService, userService, meterRegistry, phieldPublisher, piiCountAggregatePublisher);
+                redactListsService, contextService, auditEventPublisher,
+                ledgerService, userService, meterRegistry, phieldPublisher, piiCountAggregatePublisher,
+                new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     private static Span appliedSpan(final FilterType filterType) {

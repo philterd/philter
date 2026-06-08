@@ -20,7 +20,7 @@ In the **Policies** section, you can:
 
 *   **Create and Edit Policies**: Edit a policy's JSON directly, or build one in the [policy editor](https://policies.philterd.ai/) and paste the JSON in. Policies are validated on save.
 *   **Managed Policies**: Access a library of pre-configured policies for common use cases (e.g., HIPAA, GDPR). You can clone these to create your own custom versions.
-*   **Global Terms**: Define terms that should always or never be redacted across *all* policies.
+*   **Always/Never Redact Lists**: Define terms that should always or never be redacted across *all* of your policies.
 
 ### Metrics and Usage
 

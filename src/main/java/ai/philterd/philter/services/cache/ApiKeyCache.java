@@ -16,6 +16,7 @@
 package ai.philterd.philter.services.cache;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.utils.EnvUtils;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,13 @@ import org.slf4j.LoggerFactory;
 public class ApiKeyCache extends Cache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiKeyCache.class);
+
+    /**
+     * How long (seconds) a resolved API key is cached. Because the authentication filter reads keys
+     * from this cache, this is also the upper bound on how long a deleted or rotated key keeps working,
+     * so it is kept low by default. Override with {@code API_KEY_CACHE_TTL_SECONDS}.
+     */
+    private static final int TTL_SECONDS = EnvUtils.getInt("API_KEY_CACHE_TTL_SECONDS", 60);
 
     private final Gson gson;
 
@@ -49,8 +57,8 @@ public class ApiKeyCache extends Cache {
 
         final String json = gson.toJson(apiKeyEntity);
 
-        // Insert with a TTL of 5 minutes.
-        backend.setex(buildKey(apiKey), 300, json);
+        // Insert with a short TTL so a deleted/rotated key stops working soon (see TTL_SECONDS).
+        backend.setex(buildKey(apiKey), TTL_SECONDS, json);
 
     }
 

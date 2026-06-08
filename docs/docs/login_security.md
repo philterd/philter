@@ -28,7 +28,7 @@ The thresholds are configurable with environment variables:
 
 Failed and blocked logins are visible in the [audit log](auditing.md).
 
-> The lockout counter is stored in Philter's cache. When a [Valkey/Redis cache](caching.md) is configured, the count is shared across all Philter instances, so the lockout is enforced consistently behind a load balancer. With the default in-memory cache, the count is per instance.
+> **The lockout counter is stored in Philter's cache, so a shared cache is required behind a load balancer.** When a [Valkey/Redis cache](caching.md) is configured, the count is shared across all Philter instances and the lockout is enforced consistently. With the default in-memory cache the count is **per instance**, which means in a multi-instance deployment an attacker can evade the lockout entirely by spreading failed logins across instances — each instance only ever sees a fraction of the attempts. Always set `CACHE_HOSTNAME` when running more than one instance.
 
 ## See also
 

@@ -11,7 +11,7 @@ Philter requires a [MongoDB](https://www.mongodb.com/) database. MongoDB is the 
 | Policies | Redaction policies, including the managed policies shipped with Philter. |
 | Contexts and context entries | Contexts and their token-to-replacement mappings used for referential integrity. |
 | Custom lists | Named term lists referenced by policies. |
-| Global terms | Per-account always-redact / never-redact term lists. |
+| Always/never redact lists | Per-account always-redact / never-redact term lists. |
 | Pending documents | Records for asynchronous PDF redactions, including input and redacted output (subject to a TTL). |
 | Webhook deliveries | Delivery records for outbound webhook notifications (subject to a TTL). |
 | Redaction ledger | The cryptographic ledger of redactions, when enabled for a context. See [Redaction Ledgers](redaction/ledgers.md). |
@@ -64,7 +64,7 @@ MONGODB_CONNECTION_STRING=mongodb+srv://user:pass@cluster0.example.mongodb.net/p
 Philter creates the indexes it needs automatically at startup. Each data service ensures its own indexes when it initializes, and index creation in MongoDB is idempotent, so this is safe on every restart and adds no manual setup. The indexes cover the access patterns Philter uses, for example:
 
 * `api_keys` by `api_key_hash` (the authentication lookup) and by user.
-* `policies`, `contexts`, `custom_lists`, and `global_terms` by user (and name where applicable).
+* `policies`, `contexts`, `custom_lists`, and `redact_lists` by user (and name where applicable).
 * `context_entries` by `(user_id, context_name, token_hash)` for the redaction hot path.
 * `ledger` by chain head and by document.
 * `pending_documents` by status and by document, with a TTL index that expires finished records (`PENDING_DOCUMENTS_TTL_SECONDS`, default 7 days).

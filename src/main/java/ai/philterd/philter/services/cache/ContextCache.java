@@ -54,9 +54,15 @@ public class ContextCache extends Cache {
      * Builds the cache key for a context. Context names are unique per user, not globally, so the key
      * is namespaced by the owning user's id. Without this, two users with a same-named context (for
      * example the auto-created {@code default} context) would share a single cache entry.
+     *
+     * <p>A null {@code userId} is rejected: an unnamespaced key would collapse every user's same-named
+     * context into one shared entry, leaking one user's token mappings to another.
      */
     private static String buildKey(final ObjectId userId, final String context) {
-        return (userId != null ? userId.toHexString() : "") + ":" + context;
+        if (userId == null) {
+            throw new IllegalArgumentException("userId must not be null when building a context cache key.");
+        }
+        return userId.toHexString() + ":" + context;
     }
 
     /**

@@ -50,6 +50,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Route(value = "contexts")
 @PageTitle("Philter - Contexts")
@@ -355,10 +356,15 @@ public class ContextsView extends AbstractRestrictedView {
 
         grid.setSizeFull();
 
-        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar.
+        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar. Owner
+        // emails for the page are resolved in a single batched lookup rather than one query per row.
         grid.setItems(
-                query -> contextService.findAllAcrossUsers(query.getOffset(), query.getLimit()).stream()
-                        .map(this::toAllContextRow),
+                query -> {
+                    final List<ContextEntity> page = contextService.findAllAcrossUsers(query.getOffset(), query.getLimit());
+                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                            page.stream().map(ContextEntity::getUserId).collect(Collectors.toSet()));
+                    return page.stream().map(contextEntity -> toAllContextRow(contextEntity, ownerEmails));
+                },
                 query -> contextService.countAllAcrossUsers());
 
         final VerticalLayout layout = new VerticalLayout();
@@ -369,11 +375,10 @@ public class ContextsView extends AbstractRestrictedView {
 
     }
 
-    /** Maps a context to an "All Contexts" row, resolving the owner's email. */
-    private AllContextRow toAllContextRow(final ContextEntity contextEntity) {
-        final UserEntity owner = userService.findOneById(contextEntity.getUserId());
-        return new AllContextRow(contextEntity.getContextName(),
-                owner != null ? owner.getEmail() : "(unknown)", contextEntity.getUserId());
+    /** Maps a context to an "All Contexts" row, resolving the owner's email from the prefetched map. */
+    private AllContextRow toAllContextRow(final ContextEntity contextEntity, final Map<ObjectId, String> ownerEmails) {
+        final String email = ownerEmails.getOrDefault(contextEntity.getUserId(), "(unknown)");
+        return new AllContextRow(contextEntity.getContextName(), email, contextEntity.getUserId());
     }
 
     /**

@@ -16,7 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.entities.GlobalTermsEntity;
+import ai.philterd.philter.data.entities.RedactListsEntity;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -41,7 +41,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class GlobalTermsDataServiceTest {
+class RedactListsDataServiceTest {
 
     @Mock
     private MongoClient mongoClient;
@@ -55,13 +55,13 @@ class GlobalTermsDataServiceTest {
     @Mock
     private AuditEventPublisher auditEventPublisher;
 
-    private GlobalTermsDataService globalTermsDataService;
+    private RedactListsDataService redactListsDataService;
 
     @BeforeEach
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
-        when(mongoDatabase.getCollection("global_terms")).thenReturn(mongoCollection);
-        globalTermsDataService = new GlobalTermsDataService(mongoClient, auditEventPublisher);
+        when(mongoDatabase.getCollection("redact_lists")).thenReturn(mongoCollection);
+        redactListsDataService = new RedactListsDataService(mongoClient, auditEventPublisher);
     }
 
     @Test
@@ -72,7 +72,7 @@ class GlobalTermsDataServiceTest {
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
 
-        GlobalTermsEntity result = globalTermsDataService.find(userId);
+        RedactListsEntity result = redactListsDataService.find(userId);
 
         assertNotNull(result);
         assertEquals(userId, result.getUserId());
@@ -85,7 +85,7 @@ class GlobalTermsDataServiceTest {
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
 
-        GlobalTermsEntity result = globalTermsDataService.find(userId);
+        RedactListsEntity result = redactListsDataService.find(userId);
 
         assertNull(result);
     }
@@ -104,10 +104,10 @@ class GlobalTermsDataServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
 
-        globalTermsDataService.saveOrUpdate("req", userId, always, never, "source");
+        redactListsDataService.saveOrUpdate("req", userId, always, never, "source");
 
         verify(mongoCollection).insertOne(any(Document.class));
-        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.GLOBAL_TERMS_UPDATED),
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.REDACT_LISTS_UPDATED),
                 eq(userId), eq(userId), eq("source"), any());
     }
 
@@ -122,10 +122,10 @@ class GlobalTermsDataServiceTest {
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
 
-        globalTermsDataService.saveOrUpdate("req", userId, always, never, "source");
+        redactListsDataService.saveOrUpdate("req", userId, always, never, "source");
 
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
-        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.GLOBAL_TERMS_UPDATED),
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.REDACT_LISTS_UPDATED),
                 eq(userId), eq(userId), eq("source"), any());
     }
 }

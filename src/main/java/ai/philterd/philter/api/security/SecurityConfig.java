@@ -66,7 +66,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(final HttpSecurity http, final AuditEventPublisher auditEventPublisher,
                                            final MeterRegistry meterRegistry,
-                                           final SizeLimitingFilter sizeLimitingFilter) throws Exception {
+                                           final SizeLimitingFilter sizeLimitingFilter,
+                                           final ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache) throws Exception {
 
         http
                 // CSRF protection is left enabled for the Vaadin UI (Vaadin's security configurer
@@ -80,7 +81,7 @@ public class SecurityConfig {
                 )
 
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, gson), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, gson, apiKeyCache), UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/dashboard", true))
                 .with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
 

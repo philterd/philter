@@ -296,7 +296,7 @@ public class AdminView extends AbstractRestrictedView {
                 final Dialog confirmDialog = new Dialog();
                 confirmDialog.add(new H3("Confirm Deletion"));
                 confirmDialog.add(new Paragraph("Are you sure you want to delete the user " + user.getEmail() + "?"));
-                confirmDialog.add(new Paragraph("This will delete all of the user's data: API keys, contexts, custom lists, policies, and ledger entries."));
+                confirmDialog.add(new Paragraph("This will delete all of the user's data: API keys, contexts, custom lists, policies, always/never redact lists, and ledger entries."));
                 confirmDialog.add(new Paragraph("Use the API to export any needed user data before deleting the user."));
 
                 final Button confirmButton = new Button("Delete", e -> {

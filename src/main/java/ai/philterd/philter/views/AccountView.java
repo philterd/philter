@@ -216,7 +216,13 @@ public class AccountView extends AbstractRestrictedView {
 
         });
 
+        // A convenience link to the interactive API reference (Swagger UI), which lists every endpoint
+        // these keys authorize. Opens in a new tab so it does not navigate away from the account page.
+        final Span apiReference = new Span("Use these keys to authenticate to the Philter REST API. ");
+        apiReference.add(CommonWidgets.getLink("Open the API reference (Swagger UI) ↗", "/swagger-ui/index.html", true));
+
         final VerticalLayout layout = new VerticalLayout();
+        layout.add(apiReference);
         layout.add(createApiKeyButton);
         layout.add(apiKeysGrid);
         layout.setSizeFull();

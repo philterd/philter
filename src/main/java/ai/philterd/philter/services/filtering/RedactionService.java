@@ -29,13 +29,13 @@ import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
-import ai.philterd.philter.data.entities.GlobalTermsEntity;
+import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
-import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -43,6 +43,7 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.context.NoOpContextService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
@@ -86,7 +87,7 @@ public class RedactionService {
     private final MongoClient mongoClient;
     private final PolicyDataService policyDataService;
     private final CustomListDataService customListService;
-    private final GlobalTermsDataService globalTermsService;
+    private final RedactListsDataService redactListsService;
     private final ContextDataService contextService;
     private final AuditEventPublisher auditEventPublisher;
     private final LedgerDataService ledgerService;
@@ -94,6 +95,7 @@ public class RedactionService {
     private final MeterRegistry meterRegistry;
     private final PhieldPublisher phieldPublisher;
     private final PiiCountAggregatePublisher piiCountAggregatePublisher;
+    private final RedactionCache redactionCache;
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -130,19 +132,20 @@ public class RedactionService {
     public RedactionService(final MongoClient mongoClient,
                             final PolicyDataService policyDataService,
                             final CustomListDataService customListService,
-                            final GlobalTermsDataService globalTermsService,
+                            final RedactListsDataService redactListsService,
                             final ContextDataService contextService,
                             final AuditEventPublisher auditEventPublisher,
                             final LedgerDataService ledgerService,
                             final UserService userService,
                             final MeterRegistry meterRegistry,
                             final PhieldPublisher phieldPublisher,
-                            final PiiCountAggregatePublisher piiCountAggregatePublisher) {
+                            final PiiCountAggregatePublisher piiCountAggregatePublisher,
+                            final RedactionCache redactionCache) {
 
         this.mongoClient = mongoClient;;
         this.policyDataService = policyDataService;
         this.customListService = customListService;
-        this.globalTermsService = globalTermsService;
+        this.redactListsService = redactListsService;
         this.contextService = contextService;
         this.auditEventPublisher = auditEventPublisher;
         this.ledgerService = ledgerService;
@@ -150,6 +153,7 @@ public class RedactionService {
         this.meterRegistry = meterRegistry;
         this.phieldPublisher = phieldPublisher;
         this.piiCountAggregatePublisher = piiCountAggregatePublisher;
+        this.redactionCache = redactionCache;
 
     }
 
@@ -162,39 +166,58 @@ public class RedactionService {
             throw new Exception("The user associated with this request no longer exists.");
         }
 
-        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
-
-        // The named policy must exist for this user.
-        if (policyEntity == null) {
-            throw new Exception("The policy '" + policyName + "' does not exist.");
+        // The stored policy JSON, from the in-process cache when warm, else from the database. The JSON
+        // can contain PII in filter-strategy conditions, which is why the cache is in-process only.
+        String policyJson = redactionCache.getPolicyJson(userEntity.getId(), policyName);
+        if (policyJson == null) {
+            final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
+            // The named policy must exist for this user.
+            if (policyEntity == null) {
+                throw new Exception("The policy '" + policyName + "' does not exist.");
+            }
+            policyJson = policyEntity.getPolicy();
+            redactionCache.putPolicyJson(userEntity.getId(), policyName, policyJson);
         }
 
         // Resolve the user's stable FPE key (generating one if absent) and derive its tweak. FF3-1
         // requires a hex key and hex tweak; a stable key+tweak makes format-preserving encryption
         // deterministic for the user so the FPE_ENCRYPT_REPLACE strategy preserves referential integrity.
-        // The key is injected into the policy as a fallback when the policy supplies no fpe object.
+        // The key is injected into the policy as a fallback when the policy supplies no fpe object. It is
+        // resolved fresh per request and never cached, so no key material lives in the cache.
         final String fpeKey = userService.ensureFpeKey(userEntity);
         final String fpeTweak = EncryptionService.deriveFpeTweak(fpeKey);
 
         // Deserialize the stored native Phileas policy and apply Philter-specific resolution
         // (custom list references and the managed FPE key fallback).
         final Policy phileasPolicy = new PolicyResolver(gson, customListService)
-                .resolve(policyEntity.getPolicy(), userEntity.getId(), fpeKey, fpeTweak);
+                .resolve(policyJson, userEntity.getId(), fpeKey, fpeTweak);
 
-        // Get the global terms to always/never redact.
-        final GlobalTermsEntity globalTermsEntity = globalTermsService.find(userEntity.getId());
-
-        // Add in the global terms to ignore.
-        if(globalTermsEntity != null && !globalTermsEntity.getTermsToNeverRedact().isEmpty()) {
-            final Ignored globalIgnored = new Ignored("global-ignore-terms", globalTermsEntity.getTermsToNeverRedact(), Collections.emptyList(), false);
-            phileasPolicy.getIgnored().add(globalIgnored);
+        // Get the always/never redact lists, from the in-process cache when warm, else the database.
+        RedactionCache.CachedRedactLists cachedRedactLists = redactionCache.getRedactLists(userEntity.getId());
+        if (cachedRedactLists == null) {
+            final RedactListsEntity entity = redactListsService.find(userEntity.getId());
+            final List<String> alwaysRedact = entity != null ? entity.getTermsToAlwaysRedact() : List.of();
+            final List<String> neverRedact = entity != null ? entity.getTermsToNeverRedact() : List.of();
+            redactionCache.putRedactLists(userEntity.getId(), alwaysRedact, neverRedact);
+            cachedRedactLists = new RedactionCache.CachedRedactLists(alwaysRedact, neverRedact);
         }
 
-        // Add in the global terms to always redact.
-        if(globalTermsEntity != null && !globalTermsEntity.getTermsToAlwaysRedact().isEmpty()) {
+        // Reconstruct the entity shape the rest of this method expects (never null; lists may be empty).
+        final RedactListsEntity redactListsEntity = new RedactListsEntity();
+        redactListsEntity.setTermsToAlwaysRedact(cachedRedactLists.getAlwaysRedact());
+        redactListsEntity.setTermsToNeverRedact(cachedRedactLists.getNeverRedact());
+
+        // Add in the never-redact (ignore) list.
+        if(redactListsEntity != null && !redactListsEntity.getTermsToNeverRedact().isEmpty()) {
+            final Ignored neverRedactIgnored = new Ignored("never-redact-list", redactListsEntity.getTermsToNeverRedact(), Collections.emptyList(), false);
+            phileasPolicy.getIgnored().add(neverRedactIgnored);
+        }
+
+        // Add in the always-redact list.
+        if(redactListsEntity != null && !redactListsEntity.getTermsToAlwaysRedact().isEmpty()) {
 
             // Break the terms into exact and fuzzy lists.
-            final SeparatedTermLists separatedTermLists = globalTermsEntity.breakAlwaysRedactIntoSeparateLists();
+            final SeparatedTermLists separatedTermLists = redactListsEntity.breakAlwaysRedactIntoSeparateLists();
 
             // Add exact terms.
             final CustomDictionary exactCustomDictionary = new CustomDictionary();

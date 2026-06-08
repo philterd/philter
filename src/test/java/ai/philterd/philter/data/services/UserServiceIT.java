@@ -60,6 +60,7 @@ class UserServiceIT extends AbstractMongoIT {
     private UserService service;
     private ContextDataService contextDataService;
     private PolicyDataService policyDataService;
+    private RedactListsDataService redactListsDataService;
 
     @BeforeEach
     void setUpServices() {
@@ -72,6 +73,7 @@ class UserServiceIT extends AbstractMongoIT {
         service = new UserService(mongoClient, encryptionService, audit);
         contextDataService = new ContextDataService(mongoClient, new ContextCache(null, 0, null, false), audit);
         policyDataService = new PolicyDataService(mongoClient, audit, new Gson());
+        redactListsDataService = new RedactListsDataService(mongoClient, audit);
     }
 
     @Test
@@ -220,6 +222,47 @@ class UserServiceIT extends AbstractMongoIT {
         assertEquals(0, contextDataService.findAll(user.getId()).size());
         assertNull(contextDataService.findOne("default", user.getId()));
         assertNull(contextDataService.findOne("extra", user.getId()));
+    }
+
+    @Test
+    void deleteUserRemovesTheirRedactLists() {
+        assertTrue(service.createUser(
+                "req", "grace@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                .isSuccessful());
+
+        final UserEntity user = service.findByEmail("grace@example.com");
+
+        // The user has global always-redact / never-redact terms (which can hold sensitive values).
+        redactListsDataService.saveOrUpdate("req", user.getId(), List.of("ssn", "secret"), List.of("public"), "webui");
+        assertNotNull(redactListsDataService.find(user.getId()));
+
+        service.deleteUser("req", user, contextDataService, "webui");
+
+        // The user's redact lists must not outlive them.
+        assertNull(redactListsDataService.find(user.getId()));
+    }
+
+    @Test
+    void findEmailsByIdsResolvesManyUsersInOneCall() {
+        assertTrue(service.createUser("req", "h@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+        assertTrue(service.createUser("req", "i@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+
+        final ObjectId h = service.findByEmail("h@example.com").getId();
+        final ObjectId i = service.findByEmail("i@example.com").getId();
+        final ObjectId missing = new ObjectId();
+
+        final var emails = service.findEmailsByIds(List.of(h, i, missing));
+
+        assertEquals("h@example.com", emails.get(h));
+        assertEquals("i@example.com", emails.get(i));
+        // An id with no matching user is simply absent, not an error.
+        assertNull(emails.get(missing));
+        assertEquals(2, emails.size());
+    }
+
+    @Test
+    void findEmailsByIdsReturnsEmptyForEmptyInput() {
+        assertTrue(service.findEmailsByIds(List.of()).isEmpty());
     }
 
     @Test

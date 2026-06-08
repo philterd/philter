@@ -168,16 +168,26 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     public long deleteAllByUserId(final String requestId, final ObjectId userId, final String source) {
 
         final Document query = new Document("user_id", userId).append("deleted", false);
-        final FindIterable<Document> documents = collection.find(query);
 
-        long count = 0;
-
-        for (final Document document : documents) {
-            deleteByApiKey(requestId, ApiKeyEntity.fromDocument(document), source);
-            count++;
+        // Capture the affected keys for the audit trail before the bulk update.
+        final List<ApiKeyEntity> affected = new ArrayList<>();
+        for (final Document document : collection.find(query)) {
+            affected.add(ApiKeyEntity.fromDocument(document));
         }
 
-        return count;
+        if (affected.isEmpty()) {
+            return 0;
+        }
+
+        // Mark them all deleted in a single bulk update rather than one update per key.
+        collection.updateMany(query, new Document("$set", new Document("deleted", true)));
+
+        // Preserve the per-key audit events (one API_KEY_DELETED per key), as before.
+        for (final ApiKeyEntity apiKeyEntity : affected) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, apiKeyEntity.getId(), apiKeyEntity.getId(), source);
+        }
+
+        return affected.size();
 
     }
 

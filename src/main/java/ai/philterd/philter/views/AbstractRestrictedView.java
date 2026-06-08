@@ -115,7 +115,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         final SideNav redactionNav = new SideNav("Redaction");
         redactionNav.addItem(new SideNavItem("Redaction Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
         redactionNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
-        redactionNav.addItem(new SideNavItem("Terms", TermsView.class, VaadinIcon.TAGS.create()));
+        redactionNav.addItem(new SideNavItem("Always/Never Redact Lists", RedactListsView.class, VaadinIcon.TAGS.create()));
         redactionNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.RECORDS.create()));
         redactionNav.addItem(new SideNavItem("Redaction Ledger", LedgerView.class, VaadinIcon.BOOK.create()));
         addToDrawer(redactionNav);

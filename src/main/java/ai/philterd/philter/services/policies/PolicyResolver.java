@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.services.policies;
 
-import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.phileas.policy.FPE;
 import ai.philterd.phileas.policy.Identifiers;
@@ -28,7 +27,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Resolves a stored redaction policy into a ready-to-use Phileas {@link Policy}.
@@ -75,16 +78,33 @@ public class PolicyResolver {
             policy.setIgnored(new ArrayList<>());
         }
 
-        // Expand custom list references in ignored terms.
-        for (final Ignored ignored : policy.getIgnored()) {
-            ignored.setTerms(resolveCustomListReferences(ignored.getTerms(), userId));
-        }
-
-        // Expand custom list references in custom dictionaries.
         final Identifiers identifiers = policy.getIdentifiers();
+
+        // First pass: collect every distinct custom-list name referenced anywhere in the policy so they
+        // can be fetched in a single query instead of one query per reference.
+        final Set<String> referencedListNames = new HashSet<>();
+        for (final Ignored ignored : policy.getIgnored()) {
+            collectListNames(ignored.getTerms(), referencedListNames);
+        }
         if (identifiers != null && identifiers.getCustomDictionaries() != null) {
             for (final CustomDictionary customDictionary : identifiers.getCustomDictionaries()) {
-                customDictionary.setTerms(resolveCustomListReferences(customDictionary.getTerms(), userId));
+                collectListNames(customDictionary.getTerms(), referencedListNames);
+            }
+        }
+
+        // Fetch all referenced lists at once (name -> items).
+        final Map<String, List<String>> listItems =
+                (customListService != null && userId != null && !referencedListNames.isEmpty())
+                        ? customListService.findItemsByNames(userId, referencedListNames)
+                        : Collections.emptyMap();
+
+        // Second pass: expand the references using the prefetched items (no further queries).
+        for (final Ignored ignored : policy.getIgnored()) {
+            ignored.setTerms(expandCustomListReferences(ignored.getTerms(), listItems));
+        }
+        if (identifiers != null && identifiers.getCustomDictionaries() != null) {
+            for (final CustomDictionary customDictionary : identifiers.getCustomDictionaries()) {
+                customDictionary.setTerms(expandCustomListReferences(customDictionary.getTerms(), listItems));
             }
         }
 
@@ -98,17 +118,25 @@ public class PolicyResolver {
 
     }
 
+    /** Adds the names of any {@code list:<name>} references in the given terms to {@code out}. */
+    private static void collectListNames(final List<String> terms, final Set<String> out) {
+        if (terms == null) {
+            return;
+        }
+        for (final String term : terms) {
+            if (term != null && term.startsWith(CUSTOM_LIST_PREFIX)) {
+                out.add(term.substring(CUSTOM_LIST_PREFIX.length()));
+            }
+        }
+    }
+
     /**
-     * Replaces any {@code list:<name>} references in the given terms with the items of the named
-     * custom list, leaving plain terms unchanged. Never returns null.
+     * Replaces any {@code list:<name>} references in the given terms with the items from the prefetched
+     * {@code listItems} map, leaving plain terms unchanged. Never returns null.
      */
-    private List<String> resolveCustomListReferences(final List<String> terms, final ObjectId userId) {
+    private static List<String> expandCustomListReferences(final List<String> terms, final Map<String, List<String>> listItems) {
 
         if (terms == null || terms.isEmpty()) {
-            return terms;
-        }
-
-        if (customListService == null || userId == null) {
             return terms;
         }
 
@@ -117,10 +145,10 @@ public class PolicyResolver {
         for (final String term : terms) {
             if (term != null && term.startsWith(CUSTOM_LIST_PREFIX)) {
                 final String listName = term.substring(CUSTOM_LIST_PREFIX.length());
-                final CustomListEntity customList = customListService.findOneByName(listName, userId);
-                if (customList != null && customList.getItems() != null) {
-                    LOGGER.info("Resolved custom list reference '{}' to {} items", term, customList.getItems().size());
-                    resolvedTerms.addAll(customList.getItems());
+                final List<String> items = listItems.get(listName);
+                if (items != null) {
+                    LOGGER.info("Resolved custom list reference '{}' to {} items", term, items.size());
+                    resolvedTerms.addAll(items);
                 } else {
                     LOGGER.warn("Custom list '{}' not found for user. Reference will be ignored.", listName);
                 }

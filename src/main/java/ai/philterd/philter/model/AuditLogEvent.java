@@ -71,7 +71,8 @@ public enum AuditLogEvent {
     // Account and admin configuration changes.
     WEBHOOK_CONFIGURED("webhook_configured"),
     WEBHOOK_REMOVED("webhook_removed"),
-    GLOBAL_TERMS_UPDATED("global_terms_updated"),
+    REDACT_LISTS_RETRIEVED("redact_lists_retrieved"),
+    REDACT_LISTS_UPDATED("redact_lists_updated"),
 
     // Context dictionary mutations.
     CONTEXT_ENTRY_DELETED("context_entry_deleted"),

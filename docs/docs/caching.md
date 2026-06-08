@@ -1,9 +1,12 @@
 # Caching
 
-Philter caches two things to avoid repeated database lookups on the hot path:
+Philter caches several things to avoid repeated database lookups on the hot path:
 
 * **API keys**, so that authenticating a request does not query MongoDB on every call.
 * **Context entries** (the token to replacement mappings used for consistent redaction within a context), so that repeated redactions in the same context reuse prior replacements quickly.
+* **Login attempt counters**, used to lock an account after too many failed logins (see [Login Security](login_security.md)).
+
+These use the shared cache backend described below. One additional cache — the per-request **policy and redact-list cache** used by the filtering endpoints — is always kept in-process and is never written to Valkey/Redis, because stored policies can contain PII in their filter-strategy conditions and the always/never redact terms are themselves sensitive. Each instance rebuilds it on a short TTL, so it needs no shared backend.
 
 Philter supports two cache backends.
 
@@ -13,12 +16,13 @@ When no cache host is configured, Philter uses a built-in, in-process cache. It 
 
 ## Valkey/Redis cache (distributed deployments)
 
-When you run more than one Philter instance behind a load balancer, the instances must share a cache. Without a shared cache:
+When you run more than one Philter instance behind a load balancer, the instances **must** share a cache — configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, which causes:
 
-* An API key revoked on one instance could remain valid in another instance's cache until that entry expires.
-* Context replacements written by one instance would not be visible to the others, so the same input value could be redacted to different replacements depending on which instance handled the request.
+* **Login lockout is evadable (security).** Failed-login counters are kept per instance, so an attacker who spreads failed logins across instances is never locked out — each instance only sees a fraction of the attempts. A shared cache enforces the lockout across the whole fleet. See [Login Security](login_security.md).
+* **Stale credentials.** An API key revoked on one instance could remain valid in another instance's cache until that entry expires.
+* **Inconsistent replacements.** Context replacements written by one instance would not be visible to the others, so the same input value could be redacted to different replacements depending on which instance handled the request.
 
-Pointing every instance at the same [Valkey](https://valkey.io/) (or Redis) server gives a durable, shared cache that resolves both problems.
+Pointing every instance at the same [Valkey](https://valkey.io/) (or Redis) server gives a durable, shared cache that resolves all three problems.
 
 ### Configuration
 

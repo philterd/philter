@@ -31,7 +31,11 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 public class CustomListDataService extends AbstractEncryptedService<CustomListEntity> {
@@ -131,6 +135,29 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         } else {
             return null;
         }
+
+    }
+
+    /**
+     * Fetches several custom lists for a user in a single query, returning a map of list name to its
+     * items. Used to resolve all {@code list:} references in a policy at once rather than issuing one
+     * query per reference. Names with no matching list are simply absent from the returned map.
+     */
+    public Map<String, List<String>> findItemsByNames(final ObjectId userId, final Collection<String> names) {
+
+        if (userId == null || names == null || names.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        final Bson filter = Filters.and(Filters.eq("user_id", userId), Filters.in("name", names));
+
+        final Map<String, List<String>> itemsByName = new HashMap<>();
+        for (final Document document : collection.find(filter)) {
+            final CustomListEntity entity = CustomListEntity.fromDocument(document, encryptionService);
+            itemsByName.put(entity.getName(), entity.getItems());
+        }
+
+        return itemsByName;
 
     }
 

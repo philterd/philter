@@ -68,6 +68,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
         ensureIndex(Indexes.ascending("user_id", "name"));
         ensureIndex(Indexes.ascending("managed", "name"));
+        // Listing a user's policies also matches shared policies via an OR branch on shared=true, so
+        // index shared so that branch uses an index instead of scanning the collection.
+        ensureIndex(Indexes.ascending("shared", "name"));
     }
 
     /**

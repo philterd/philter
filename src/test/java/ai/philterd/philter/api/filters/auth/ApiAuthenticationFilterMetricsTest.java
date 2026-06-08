@@ -86,7 +86,11 @@ class ApiAuthenticationFilterMetricsTest {
         when(findIterable.first()).thenReturn(apiKeyDocument);
 
         meterRegistry = new SimpleMeterRegistry();
-        filter = new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, new Gson());
+        // No cache host configured, so this uses the in-memory backend; the first lookup misses and
+        // falls through to the mocked database.
+        final ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache =
+                new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false);
+        filter = new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, new Gson(), apiKeyCache);
     }
 
     @Test

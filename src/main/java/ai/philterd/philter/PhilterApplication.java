@@ -28,15 +28,17 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
-import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.cache.LoginAttemptCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
@@ -92,6 +94,15 @@ public class PhilterApplication implements AppShellConfigurator {
         LOGGER.info("Starting Philter...");
         SpringApplication.run(PhilterApplication.class, args);
 
+        if (AdminAccessConfig.isCrossUserAccessEnabled()) {
+            LOGGER.warn("****************************************************************************************");
+            LOGGER.warn("* ADMIN_CROSS_USER_ACCESS_ENABLED is ON: administrators can view and act on OTHER     *");
+            LOGGER.warn("* users' contexts, policies, custom lists, documents, and redaction ledger via the    *");
+            LOGGER.warn("* API 'owner' parameter and the admin 'All ...' UI tabs. Disable this unless you      *");
+            LOGGER.warn("* explicitly require cross-user administration.                                       *");
+            LOGGER.warn("****************************************************************************************");
+        }
+
     }
 
     @Bean
@@ -120,7 +131,15 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public RedactionService redactionService(final MeterRegistry meterRegistry) {
-        return new RedactionService(mongoClient(), policyDataService(), customListService(), globalTermsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher(), piiCountAggregatePublisher());
+        return new RedactionService(mongoClient(), policyDataService(), customListService(), redactListsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher(), piiCountAggregatePublisher(), redactionCache());
+    }
+
+    @Bean
+    public RedactionCache redactionCache() {
+        // Deliberately in-process only (not Valkey): the cached policy JSON can carry PII in
+        // filter-strategy conditions and the redact-list terms are sensitive, so this data is kept
+        // within the JVM rather than written to a shared/persistent cache.
+        return new RedactionCache();
     }
 
     @Bean
@@ -188,8 +207,8 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public GlobalTermsDataService globalTermsService() {
-        return new GlobalTermsDataService(mongoClient(), auditEventPublisher());
+    public RedactListsDataService redactListsService() {
+        return new RedactListsDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean

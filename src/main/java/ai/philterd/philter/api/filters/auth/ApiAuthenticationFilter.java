@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -52,15 +53,34 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             parseIpAllowlist(System.getenv().getOrDefault("API_IP_ALLOWLIST", ""));
 
     private final ApiKeyDataService apiKeyService;
+    private final ApiKeyCache apiKeyCache;
     private final AuditEventPublisher auditEventPublisher;
     private final MeterRegistry meterRegistry;
     private final Gson gson;
 
-    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson) {
+    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache) {
         this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher);
+        this.apiKeyCache = apiKeyCache;
         this.auditEventPublisher = auditEventPublisher;
         this.meterRegistry = meterRegistry;
         this.gson = gson;
+    }
+
+    /**
+     * Resolves an API key to its entity, preferring the cache so the common (authenticated) path does
+     * not hit MongoDB on every request. On a cache miss the key is looked up in the database and, if
+     * found, cached. A deleted or rotated key is therefore honored until its cache entry expires (see
+     * the API key cache TTL), which bounds the revocation latency.
+     */
+    private ApiKeyEntity resolveApiKey(final String apiKey) {
+        if (apiKeyCache.containsApiKey(apiKey)) {
+            return apiKeyCache.get(apiKey);
+        }
+        final ApiKeyEntity apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);
+        if (apiKeyEntity != null) {
+            apiKeyCache.insert(apiKey, apiKeyEntity);
+        }
+        return apiKeyEntity;
     }
 
     @Override
@@ -117,8 +137,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 }
 
-                // Look up the API key in the database.
-                apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);
+                // Resolve the API key, preferring the cache to avoid a database round-trip per request.
+                apiKeyEntity = resolveApiKey(apiKey);
 
             }
 
@@ -141,6 +161,9 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                     return;
 
                 }
+
+                // Hand the resolved key to the downstream controllers so they do not look it up again.
+                httpRequest.setAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE, apiKeyEntity);
 
             } else {
 

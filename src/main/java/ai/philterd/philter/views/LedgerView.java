@@ -55,6 +55,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.bson.types.ObjectId;
 
 @Route(value = "ledger")
 @PageTitle("Philter - Redaction Ledger")
@@ -302,10 +305,15 @@ public class LedgerView extends AbstractRestrictedView {
         allGrid.addColumn(AllLedgerRow::created).setHeader("Created").setResizable(true);
         allGrid.setSizeFull();
 
-        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar.
+        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar. Owner
+        // emails for the page are resolved in a single batched lookup rather than one query per row.
         allGrid.setItems(
-                query -> ledgerService.findAllChainHeadsAcrossUsers(query.getOffset(), query.getLimit()).stream()
-                        .map(this::toAllLedgerRow),
+                query -> {
+                    final List<LedgerEntity> page = ledgerService.findAllChainHeadsAcrossUsers(query.getOffset(), query.getLimit());
+                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                            page.stream().map(LedgerEntity::getUserId).collect(Collectors.toSet()));
+                    return page.stream().map(head -> toAllLedgerRow(head, ownerEmails));
+                },
                 query -> ledgerService.countAllChainHeads());
 
         final VerticalLayout layout = new VerticalLayout();
@@ -315,11 +323,10 @@ public class LedgerView extends AbstractRestrictedView {
 
     }
 
-    /** Maps a chain head to an "All Ledger" row, resolving the owner's email. */
-    private AllLedgerRow toAllLedgerRow(final LedgerEntity head) {
-        final UserEntity owner = userService.findOneById(head.getUserId());
-        return new AllLedgerRow(head.getDocumentId(),
-                owner != null ? owner.getEmail() : "(unknown)", head.getTimestamp());
+    /** Maps a chain head to an "All Ledger" row, resolving the owner's email from the prefetched map. */
+    private AllLedgerRow toAllLedgerRow(final LedgerEntity head, final Map<ObjectId, String> ownerEmails) {
+        final String email = ownerEmails.getOrDefault(head.getUserId(), "(unknown)");
+        return new AllLedgerRow(head.getDocumentId(), email, head.getTimestamp());
     }
 
     /** A row in the admin "All Ledger" table: the document id, the owner's email, and the created time. */

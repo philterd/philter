@@ -16,18 +16,23 @@
 package ai.philterd.philter.services.policies;
 
 import ai.philterd.phileas.policy.Policy;
-import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.data.services.CustomListDataService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PolicyResolverTest {
@@ -74,11 +79,9 @@ class PolicyResolverTest {
     void expandsCustomListReferencesInIgnoredTerms() {
         final ObjectId userId = new ObjectId();
 
-        final CustomListEntity customList = mock(CustomListEntity.class);
-        when(customList.getItems()).thenReturn(List.of("alice", "bob"));
-
         final CustomListDataService customListService = mock(CustomListDataService.class);
-        when(customListService.findOneByName("names", userId)).thenReturn(customList);
+        when(customListService.findItemsByNames(eq(userId), any()))
+                .thenReturn(Map.of("names", List.of("alice", "bob")));
 
         final PolicyResolver resolver = new PolicyResolver(gson, customListService);
         final Policy policy = resolver.resolve(
@@ -91,6 +94,26 @@ class PolicyResolverTest {
         assertTrue(terms.contains("bob"));
         assertTrue(terms.contains("keep-me"));
         assertEquals(3, terms.size(), "the list: reference must be expanded, not kept verbatim");
+    }
+
+    @Test
+    void fetchesAllReferencedCustomListsInASingleQuery() {
+        final ObjectId userId = new ObjectId();
+
+        final CustomListDataService customListService = mock(CustomListDataService.class);
+        when(customListService.findItemsByNames(eq(userId), any()))
+                .thenReturn(Map.of("a", List.of("alice"), "b", List.of("bob")));
+
+        final PolicyResolver resolver = new PolicyResolver(gson, customListService);
+
+        // Two list references across an ignored block and a custom dictionary.
+        resolver.resolve(
+                "{\"identifiers\":{\"customDictionaries\":[{\"terms\":[\"list:b\",\"plain\"]}]},"
+                        + "\"ignored\":[{\"name\":\"x\",\"terms\":[\"list:a\"]}]}",
+                userId, null, null);
+
+        // Both lists must be resolved with exactly one batched query, not one query per reference.
+        verify(customListService, times(1)).findItemsByNames(eq(userId), any());
     }
 
 }

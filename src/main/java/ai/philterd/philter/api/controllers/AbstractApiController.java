@@ -27,10 +27,20 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.types.ObjectId;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 public abstract class AbstractApiController {
 
     private static final Logger LOGGER = LogManager.getLogger(AbstractApiController.class);
+
+    /**
+     * Request attribute under which {@code ApiAuthenticationFilter} stashes the {@link ApiKeyEntity} it
+     * resolved while authenticating the request, so controllers can reuse it instead of looking the API
+     * key up a second time.
+     */
+    public static final String API_KEY_ENTITY_ATTRIBUTE = "apiKeyEntity";
 
     protected final ApiKeyDataService apiKeyService;
     protected final ApiKeyCache apiKeyCache;
@@ -42,6 +52,16 @@ public abstract class AbstractApiController {
 
     public ApiKeyEntity getApiKeyEntity(final String authorizationHeader) {
 
+        // Fast path: the authentication filter already resolved (and cache-backed) this request's API
+        // key and stashed the entity as a request attribute, so reuse it rather than looking it up
+        // again. This is the normal path for every API request.
+        final ApiKeyEntity fromRequest = getAuthenticatedApiKeyFromRequest();
+        if (fromRequest != null) {
+            return fromRequest;
+        }
+
+        // Fallback for callers that did not pass through the filter (for example, unit tests): resolve
+        // from the cache, then the database.
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return null;
         }
@@ -68,6 +88,22 @@ public abstract class AbstractApiController {
 
         }
 
+    }
+
+    /**
+     * Returns the {@link ApiKeyEntity} that {@code ApiAuthenticationFilter} stored on the current
+     * request while authenticating it, or {@code null} if there is no bound request or no such
+     * attribute (for example, in a unit test that exercises the controller without the filter).
+     */
+    private static ApiKeyEntity getAuthenticatedApiKeyFromRequest() {
+        final RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (attributes instanceof ServletRequestAttributes servletAttributes) {
+            final Object attribute = servletAttributes.getRequest().getAttribute(API_KEY_ENTITY_ATTRIBUTE);
+            if (attribute instanceof ApiKeyEntity apiKeyEntity) {
+                return apiKeyEntity;
+            }
+        }
+        return null;
     }
 
     /** Whether the given user is an admin. Admins may act on any user's resources. */

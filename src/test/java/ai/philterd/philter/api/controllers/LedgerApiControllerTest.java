@@ -315,4 +315,40 @@ class LedgerApiControllerTest {
         verify(ledgerService, never()).getChain(eq(otherUser), any());
     }
 
+    // ----- Cross-user isolation: a plain request (no owner) can never reach another user's chain -----
+    //
+    // The caller asks for a document id whose ledger belongs to a different user. The chain lookup is
+    // scoped to the caller's id, so it comes back empty and the endpoint returns 404 — the owning
+    // user's id is never queried. A regression that dropped user_id from the chain query would leak
+    // another user's redaction ledger (which contains the decrypted tokens) here.
+
+    @Test
+    void getChainForAnotherUsersDocumentReturns404() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final String documentId = "doc-owned-by-other";
+        // Scoped to the caller, the chain is empty even though it exists for otherUser.
+        when(ledgerService.getChain(userId, documentId)).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/ledger/" + documentId).header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-iso-chain"))
+                .andExpect(status().isNotFound());
+
+        verify(ledgerService).getChain(userId, documentId);
+        verify(ledgerService, never()).getChain(eq(otherUser), any());
+    }
+
+    @Test
+    void exportingAnotherUsersChainReturns404() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final String documentId = "doc-owned-by-other";
+        when(ledgerService.getChain(userId, documentId)).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/ledger/" + documentId + "/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-iso-export"))
+                .andExpect(status().isNotFound());
+
+        verify(ledgerService).getChain(userId, documentId);
+        verify(ledgerService, never()).getChain(eq(otherUser), any());
+    }
+
 }

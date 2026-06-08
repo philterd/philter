@@ -37,8 +37,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class UserService extends AbstractEncryptedService<UserEntity> {
 
@@ -79,6 +83,27 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             return null;
 
         }
+
+    }
+
+    /**
+     * Resolves several user ids to their email addresses in a single query, returning a map of id to
+     * email. Used by the admin "All ..." views to label each row with its owner without issuing one
+     * lookup per row. Ids with no matching user are simply absent from the returned map.
+     */
+    public Map<ObjectId, String> findEmailsByIds(final Collection<ObjectId> ids) {
+
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        final Map<ObjectId, String> emailsById = new HashMap<>();
+        for (final Document document : collection.find(Filters.in("_id", ids))) {
+            final UserEntity user = UserEntity.fromDocument(document);
+            emailsById.put(user.getId(), user.getEmail());
+        }
+
+        return emailsById;
 
     }
 
@@ -243,6 +268,10 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         // Delete from policies
         philterDatabase.getCollection("policies").deleteMany(Filters.eq("user_id", userEntity.getId()));
+
+        // Delete the user's always-redact / never-redact lists (which can contain sensitive values),
+        // so no owner-less document outlives the user.
+        philterDatabase.getCollection("redact_lists").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
         // Delete the user's entire redaction ledger (every chain for every redacted document). The
         // ledger is normally kept indefinitely, but it is owned by the user and must not outlive them.

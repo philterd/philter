@@ -25,6 +25,10 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -41,6 +45,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.nio.charset.StandardCharsets;
 
+@Tag(name = "Explain", description = "Redact text and return a detailed explanation of what was redacted and why.")
 @Controller
 public class ExplainApiController extends AbstractApiController {
 
@@ -55,6 +60,14 @@ public class ExplainApiController extends AbstractApiController {
         this.gson = gson;
     }
 
+    @Operation(summary = "Redact text and explain the redactions.",
+            description = "Redacts the plain-text request body using the given policy and context, returning the "
+                    + "filtered text together with an explanation of every span that was redacted (type, position, "
+                    + "and applied filter). Use the c query parameter to select a context and p to select a policy.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "401")
+    })
     @RequestMapping(value = "/api/explain", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

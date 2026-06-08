@@ -45,9 +45,12 @@ public abstract class Cache {
         if (host == null || host.isBlank()) {
 
             if (EPHEMERAL_WARNING_PRINTED.compareAndSet(false, true)) {
-                System.out.println("WARNING: No cache host configured (CACHE_HOSTNAME). Using an in-memory cache. "
-                        + "Cached data is ephemeral, is not shared across instances, and will be lost on restart. "
-                        + "Configure a Valkey/Redis server for a durable, shared cache.");
+                System.out.println("WARNING: No cache host configured (CACHE_HOSTNAME). Using an in-process, "
+                        + "in-memory cache. This is only safe for a SINGLE instance. Behind a load balancer or with "
+                        + "multiple instances this is UNSAFE: login lockout is counted per instance, so an attacker "
+                        + "can evade it by spreading failed logins across instances, and the API-key and context "
+                        + "caches are not shared. Set CACHE_HOSTNAME to a Valkey/Redis server for any multi-instance "
+                        + "deployment.");
             }
 
             this.backend = InMemoryCacheBackend.INSTANCE;

@@ -48,7 +48,7 @@ One of the most effective ways to handle consistent mistakes is by using "Always
 
 These lists can be configured at two different levels depending on your needs:
 
-1.  **Global Terms**: These are applied across **all** redaction policies in your account. They are ideal for terms that should be handled consistently regardless of the specific document type or project (e.g., your company's name). See [Global Terms](redaction/global_terms.md) for more information.
+1.  **Always/Never Redact Lists**: These are applied across **all** redaction policies in your account. They are ideal for terms that should be handled consistently regardless of the specific document type or project (e.g., your company's name). See [Always/Never Redact Lists](redaction/redact_lists.md) for more information.
 2.  **Per-Policy Terms**: You can also define "Always Redact" and "Ignore" terms within an individual [redaction policy](redaction/policies.md). This is useful for project-specific terms that only apply to certain types of documents.
 
 ## The Importance of Manual Review

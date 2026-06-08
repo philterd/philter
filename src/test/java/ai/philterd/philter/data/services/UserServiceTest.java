@@ -107,12 +107,12 @@ class UserServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(userId));
 
-        ServiceResponse response = userService.createUser("req", email, "password", "role", policyDataService, "source");
+        ServiceResponse response = userService.createUser("req", email, "password", "role", policyDataService, contextDataService, "source");
 
         assertTrue(response.isSuccessful());
-        // A default policy is seeded, but no context is created for the new user.
+        // A default policy and a default context are seeded for the new user.
         verify(policyDataService).save(any());
-        verify(contextDataService, never()).save(any());
+        verify(contextDataService).create("default", userId);
         verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_CREATED),
                 eq(userId), eq(userId), eq("source"), org.mockito.ArgumentMatchers.contains("role"));
     }
@@ -129,7 +129,7 @@ class UserServiceTest {
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
 
-        userService.createUser("req", "admin", "admin", "admin", policyDataService, "system", true);
+        userService.createUser("req", "admin", "admin", "admin", policyDataService, contextDataService, "system", true);
 
         verify(mongoCollection).insertOne(docCaptor.capture());
         assertTrue(docCaptor.getValue().getBoolean("password_change_required"));
@@ -147,7 +147,7 @@ class UserServiceTest {
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
 
-        userService.createUser("req", "fpe@example.com", "pw", "user", policyDataService, "system");
+        userService.createUser("req", "fpe@example.com", "pw", "user", policyDataService, contextDataService, "system");
 
         verify(mongoCollection).insertOne(docCaptor.capture());
         final String fpeKey = docCaptor.getValue().getString("fpe_key");
@@ -243,7 +243,17 @@ class UserServiceTest {
         DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
 
-        userService.deleteUser("req", user, "source");
+        // The user owns two contexts, both of which must be deleted (cascading their entries, vectors,
+        // and cache via ContextDataService.deleteByName).
+        final ai.philterd.philter.data.entities.ContextEntity ctxA = new ai.philterd.philter.data.entities.ContextEntity();
+        ctxA.setContextName("alpha");
+        ctxA.setUserId(user.getId());
+        final ai.philterd.philter.data.entities.ContextEntity ctxB = new ai.philterd.philter.data.entities.ContextEntity();
+        ctxB.setContextName("beta");
+        ctxB.setUserId(user.getId());
+        when(contextDataService.findAll(user.getId())).thenReturn(List.of(ctxA, ctxB));
+
+        userService.deleteUser("req", user, contextDataService, "source");
 
         // Verify that the final delete on the 'users' collection happened.
         // In UserService, 'collection' is the 'users' collection from AbstractEncryptedService.
@@ -252,7 +262,10 @@ class UserServiceTest {
         // Verify other deletions happened on the per-user collections in the philter database.
         verify(mockPhilterDatabase, atLeastOnce()).getCollection(anyString());
 
-        // Contexts are shared and must NOT be deleted with the user.
+        // The user's contexts are deleted through ContextDataService (which cascades), not by touching
+        // the contexts collection directly here.
+        verify(contextDataService).deleteByName("alpha", user.getId());
+        verify(contextDataService).deleteByName("beta", user.getId());
         verify(mockPhilterDatabase, never()).getCollection("contexts");
 
         // The deletion is audited with the deleted user's id.

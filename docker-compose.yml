@@ -13,6 +13,11 @@ services:
       # appropriate for a single-instance deployment. To run multiple Philter instances behind
       # a load balancer, point them all at a shared Valkey (or Redis) server by setting
       # CACHE_HOSTNAME (and optionally CACHE_PORT, CACHE_PASSWORD, CACHE_SSL). See README.md.
+      # To use a shared Valkey (or Redis) cache, uncomment and configure these.
+      # CACHE_HOSTNAME: valkey
+      # CACHE_PORT: "6379"
+      # CACHE_PASSWORD: ""
+      # CACHE_SSL: "false"
       MONGODB_CONNECTION_STRING: mongodb://mongodb:27017/philter
       # Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest.
       # Required. Generate one with: openssl rand -base64 32

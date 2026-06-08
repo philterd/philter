@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -81,11 +82,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final String source) {
-        return createUser(requestId, email, plainPassword, role, policyService, source, false);
+    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source) {
+        return createUser(requestId, email, plainPassword, role, policyService, contextService, source, false);
     }
 
-    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final String source, final boolean passwordChangeRequired) {
+    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
 
         if(findByEmail(email) != null) {
             return ServiceResponse.failure("User already exists.");
@@ -117,6 +118,16 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         policyEntity.setDescription("Default policy");
         policyEntity.setNotes("Default policy for new users that can be modified or used as an example.");
         policyService.save(policyEntity);
+
+        // Create the default context so the user has a usable context out of the box. Context names are
+        // unique per user, so every new user gets their own "default". Treated as best-effort: a failure
+        // here is logged but does not fail user creation (mirroring the default-policy handling above).
+        LOGGER.info("Creating the default context for the new user");
+        final ServiceResponse contextResponse = contextService.create("default", userId);
+        if (contextResponse == null || !contextResponse.isSuccessful()) {
+            LOGGER.warn("Unable to create the default context for user {}: {}", userId,
+                    contextResponse != null ? contextResponse.getMessage() : "no response");
+        }
 
         return ServiceResponse.success("User created.");
 
@@ -206,7 +217,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    public void deleteUser(final String requestId, final UserEntity userEntity, final String source) {
+    public void deleteUser(final String requestId, final UserEntity userEntity, final ContextDataService contextService, final String source) {
 
         // Capture identity before deletion for the audit record.
         final ObjectId deletedUserId = userEntity.getId();
@@ -220,8 +231,12 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                 new Document("$set", new Document("deleted", true))
         );
 
-        // Contexts are shared across users, so they (along with their context_entries and span
-        // disambiguation vectors) are intentionally NOT deleted when a user is removed.
+        // Delete the user's contexts. deleteByName cascades each context to its context_entries, its
+        // span-disambiguation vectors, and its cache entries (cache keys are namespaced per user), so no
+        // orphaned context data is left behind once the owner is gone.
+        for (final ContextEntity context : contextService.findAll(deletedUserId)) {
+            contextService.deleteByName(context.getContextName(), deletedUserId);
+        }
 
         // Delete from custom_lists
         philterDatabase.getCollection("custom_lists").deleteMany(Filters.eq("user_id", userEntity.getId()));

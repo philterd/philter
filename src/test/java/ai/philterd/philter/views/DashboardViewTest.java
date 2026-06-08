@@ -54,7 +54,7 @@ class DashboardViewTest {
     @Test
     void redactTextCallsRedactionServiceAndReturnsFilteredText() throws Exception {
         final ObjectId userId = new ObjectId();
-        when(redactionService.filter(eq("default"), eq(userId), eq("none"), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
                 .thenReturn(textResult("{{{REDACTED-person}}} was president."));
 
         final String redacted = DashboardView.redactText(redactionService, "default", userId, "George Washington was president.");
@@ -62,7 +62,7 @@ class DashboardViewTest {
         assertEquals("{{{REDACTED-person}}} was president.", redacted);
 
         // The text dashboard redacts as the signed-in user, with no context and the TEXT_PLAIN mime type.
-        verify(redactionService).filter(eq("default"), eq(userId), eq("none"),
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""),
                 eq("George Washington was president.".getBytes(StandardCharsets.UTF_8)), eq(MimeType.TEXT_PLAIN));
     }
 

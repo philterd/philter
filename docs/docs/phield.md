@@ -25,7 +25,7 @@ The matched text and its replacement are never included, so no sensitive informa
 
 - **Disabled by default.** The integration is inactive unless an administrator enables it (see below).
 - **Fire-and-forget.** Counts are sent asynchronously with a short timeout, and any failure is ignored and logged at debug level. A slow or unavailable Phield never affects redaction latency or availability.
-- **Per-context baselines.** Phield tracks a separate baseline for each `(source, organization, context, PII type)` combination. Because Philter sends the redaction [context](redaction/contexts.md), each context is monitored for drift independently. Redactions made without an explicit context are grouped under the `none` context.
+- **Per-context baselines.** Phield tracks a separate baseline for each `(source, organization, context, PII type)` combination. Because Philter sends the redaction [context](redaction/contexts.md), each context is monitored for drift independently. Redactions made without an explicit context are grouped under the empty (blank) context.
 
 ## Enabling the integration
 

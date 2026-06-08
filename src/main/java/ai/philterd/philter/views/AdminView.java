@@ -20,6 +20,7 @@ import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.UserEntityDataProvider;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
+import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
@@ -59,6 +60,7 @@ public class AdminView extends AbstractRestrictedView {
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                      final UserService userService, final PolicyDataService policyService,
+                     final ContextDataService contextService,
                      final AdminSettingsDataService adminSettingsDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher);
@@ -125,7 +127,7 @@ public class AdminView extends AbstractRestrictedView {
 
                 } else {
 
-                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), email, password, role, policyService, Source.WEBUI.getSource());
+                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), email, password, role, policyService, contextService, Source.WEBUI.getSource());
 
                     if (serviceResponse.isSuccessful()) {
                         showSuccessNotification(serviceResponse.getMessage());
@@ -286,9 +288,10 @@ public class AdminView extends AbstractRestrictedView {
                 confirmDialog.add(new H3("Confirm Deletion"));
                 confirmDialog.add(new Paragraph("Are you sure you want to delete the user " + user.getEmail() + "?"));
                 confirmDialog.add(new Paragraph("This will delete all of the user's data: API keys, contexts, custom lists, policies, and ledger entries."));
+                confirmDialog.add(new Paragraph("If you want to "));
 
                 final Button confirmButton = new Button("Delete", e -> {
-                    userService.deleteUser(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
+                    userService.deleteUser(RequestIdGenerator.generate(), user, contextService, Source.WEBUI.getSource());
                     userEntityDataProvider.refreshAll();
                     confirmDialog.close();
                     showSuccessNotification("User deleted.");

@@ -26,12 +26,12 @@ The **Contexts** page provides a centralized interface for managing these organi
 
 ### Viewing Your Context Inventory
 
-The main table on the Contexts page lists all the contexts you have created. You can quickly see the name of each context and perform administrative actions.
+The main table on the Contexts page lists all the contexts you have created. You can quickly see the name of each context and perform administrative actions. Every new user starts with a context named `default`, created automatically; you can use it, edit its settings, or delete it like any other.
 
 ### Creating a New Context
 
 1.  **Initiate Creation**: Click the **New Context** button at the top of the table.
-2.  **Assign a Name**: Enter a descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`). Context names are **globally unique**—if another user has already created a context with the same name, creation is rejected.
+2.  **Assign a Name**: Enter a descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`). Context names are **unique per user**—you cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
 3.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
 4.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
 5.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
@@ -68,7 +68,7 @@ To permanently remove a context and all its associated mappings:
 2.  **Impact**: Deleting a context removes the organizational unit, its internal mappings, and its learned disambiguation vectors. This will **not** affect documents that have already been redacted and downloaded.
 3.  **Permissions**: A context can be deleted only by the user that created it or by an admin.
 
-> Contexts are shared and are **not** deleted when a user is removed; their mappings and disambiguation vectors are retained.
+> Contexts are owned by the user that created them. When that user is deleted, their contexts are deleted too — along with each context's mappings and disambiguation vectors.
 
 ## Capacity and Eviction
 
@@ -90,7 +90,7 @@ A context's mapping table can be exported and imported through the [Contexts API
 *   **Export** returns the context's mappings as a portable JSON document. Only the SHA-256 hash of each original value is exported (never the original value itself), so the same value continues to map to the same replacement wherever the table is imported.
 *   **Import** loads such a document into an existing context. By default an incoming value that already exists is skipped; you can choose to overwrite instead.
 
-Export and import are restricted to the user that **created** the context or to an **admin**. An admin may export or import any context.
+Export and import are restricted to the user that **created** the context or to an **admin**. Because context names are unique only per user, an admin reaching another user's context supplies that user's email via the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.
 
 ## Integration and Best Practices
 

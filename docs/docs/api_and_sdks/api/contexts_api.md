@@ -55,7 +55,7 @@ Example response:
 
 ### Query Parameters
 
-* `name` (required) - The name of the context to create. Context names are **globally unique**: if any user has already created a context with this name the request is rejected with `409 Conflict`.
+* `name` (required) - The name of the context to create. Context names are **unique per user**: if you already have a context with this name the request is rejected with `409 Conflict`. A name you use does not prevent another user from using the same name.
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 
@@ -170,7 +170,11 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 
 Exports every token-to-replacement mapping in the context in a portable JSON form that can be re-imported into another context, account, or environment (see [Import](#import-a-mapping-table-into-a-context) below) to keep pseudonymization consistent across runs.
 
-**Authorization:** only the user that **created** the context or an **admin** may export it. An admin may export any context (context names are globally unique). Any other caller receives `404 Not Found`, which is also returned when the context does not exist — the endpoint does not reveal the existence of a context you are not allowed to access.
+**Authorization:** only the user that **created** the context or an **admin** may export it. Any other caller receives `404 Not Found`, which is also returned when the context does not exist — the endpoint does not reveal the existence of a context you are not allowed to access.
+
+### Query Parameters
+
+* `owner` (optional) - The email address of the context's owner. Because context names are unique only per user, an admin uses this to identify another user's context unambiguously. When omitted, the export applies to the caller's own context with the given name. Supplying an `owner` other than yourself requires admin privileges; a non-admin doing so receives `404 Not Found`.
 
 Returns `200 OK` with the export document. The response is sent with a `Content-Disposition` header so it can be saved directly to a file.
 
@@ -215,13 +219,14 @@ Example response body:
 
 Accepts a document in the same format produced by the [export](#export-a-contexts-mapping-table) endpoint and inserts its mappings into the named context. The context must already exist (create it first with `POST /api/contexts`).
 
-**Authorization:** only the user that **created** the context or an **admin** may import into it. An admin may import into any context (context names are globally unique). Any other caller receives `404 Not Found`.
+**Authorization:** only the user that **created** the context or an **admin** may import into it. Any other caller receives `404 Not Found`.
 
 ### Query Parameters
 
 * `on_conflict` (optional, default: `skip`) - What to do when an incoming token already exists in the target context:
     * `skip` - leave the existing replacement unchanged (preserves replacements already learned in this context).
     * `overwrite` - replace the existing replacement with the imported one.
+* `owner` (optional) - The email address of the context's owner. Because context names are unique only per user, an admin uses this to identify another user's context unambiguously. When omitted, the import applies to the caller's own context with the given name. Supplying an `owner` other than yourself requires admin privileges; a non-admin doing so receives `404 Not Found`.
 
 ### Behavior and Validation
 

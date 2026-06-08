@@ -4,7 +4,7 @@ Philter’s filtering API provides access to Philter’s ability to filter sensi
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
-Each filter request can optionally have a `context`. When not provided, the context defaults to `none`. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
+Each filter request can optionally have a `context`. The context is optional: when it is omitted (or sent as an empty value) the request uses no context features — token replacements are not persisted or shared across requests, and any entity-type disambiguation is limited to the single document being filtered. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
 
 The context for each filter request impacts how sensitive information is replaced when found in the text. [Referential integrity](../../other_features/referential_integrity.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
 
@@ -23,7 +23,7 @@ The types of sensitive information found and how each type is redacted is determ
 ### Query Parameters
 
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
-* `c` - The filtering context. Defaults to `none` if not provided.
+* `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 
 ### Headers
@@ -86,7 +86,7 @@ The types of sensitive information found and how each type is redacted is determ
 ### Query Parameters
 
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
-* `c` - The filtering context. Defaults to `none` if not provided.
+* `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 
 ### Headers
 
@@ -104,7 +104,7 @@ Example explain response:
 ```
 {
   "filteredText": "{{{REDACTED-entity}}} was a patient and his ssn was {{{REDACTED-ssn}}}.",
-  "context": "none",
+  "context": "",
   "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
   "explanation": {
     "appliedSpans": [

@@ -54,7 +54,7 @@ public class MongoContextService implements ContextService {
     @Override
     public boolean containsToken(final String token) {
 
-        if (contextCache.containsToken(contextName, token)) {
+        if (contextCache.containsToken(userId, contextName, token)) {
             return true;
         }
 
@@ -70,7 +70,7 @@ public class MongoContextService implements ContextService {
     @Override
     public String getReplacement(final String token) {
 
-        final ContextCache.CachedReplacement cached = contextCache.getReplacement(contextName, token);
+        final ContextCache.CachedReplacement cached = contextCache.getReplacement(userId, contextName, token);
         if (cached != null) {
             contextEntryService.incrementReads(cached.entryId());
             return cached.replacement();
@@ -82,7 +82,7 @@ public class MongoContextService implements ContextService {
         }
 
         contextEntryService.incrementReads(entry.getId());
-        contextCache.setTokenReplacement(contextName, token, entry.getId(), entry.getReplacement());
+        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement());
 
         return entry.getReplacement();
 
@@ -95,7 +95,7 @@ public class MongoContextService implements ContextService {
 
         final ContextEntryEntity entry = contextEntryService.findOneEntryByToken(userId, contextName, token);
         if (entry != null) {
-            contextCache.setTokenReplacement(contextName, token, entry.getId(), entry.getReplacement());
+            contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement());
         }
 
     }

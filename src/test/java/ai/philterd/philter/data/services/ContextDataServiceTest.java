@@ -93,16 +93,15 @@ class ContextDataServiceTest {
     }
 
     @Test
-    void createRejectsGloballyDuplicateName() {
+    void createRejectsDuplicateNameForSameUser() {
         final ObjectId userId = new ObjectId();
 
         final FindIterable<Document> iterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(iterable);
-        // The caller owns no contexts (per-user maximum check passes)...
+        // The caller is under the per-user maximum...
         when(iterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
-        // ...but a context with this name already exists for some user, so the global-uniqueness
-        // check must reject it.
-        when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", new ObjectId()));
+        // ...but already owns a context with this name, so the per-user uniqueness check must reject it.
+        when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", userId));
 
         final ServiceResponse response = contextDataService.create("dup", userId, false, false);
 
@@ -208,7 +207,7 @@ class ContextDataServiceTest {
 
         assertTrue(response.isSuccessful());
         verify(mongoCollection).deleteOne(any(Document.class));
-        verify(contextCache).deleteContext(eq(contextName));
+        verify(contextCache).deleteContext(eq(userId), eq(contextName));
     }
 
     @Test

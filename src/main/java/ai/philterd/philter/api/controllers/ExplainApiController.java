@@ -58,7 +58,7 @@ public class ExplainApiController extends AbstractApiController {
     @RequestMapping(value = "/api/explain", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            @RequestParam(value = "c", defaultValue = "none") String context,
+            @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestBody String body) throws Exception {
 

@@ -79,7 +79,7 @@ public class DashboardView extends AbstractRestrictedView {
         filterHorizontalLayout.add(createPdfFilter());
 
         final TabSheet tabSheet = new TabSheet();
-        tabSheet.add("Test Philter Redaction", filterHorizontalLayout);
+        tabSheet.add("Redaction Test", filterHorizontalLayout);
         tabSheet.setSizeFull();
 
         pageVerticalLayout.add(tabSheet);
@@ -143,7 +143,7 @@ public class DashboardView extends AbstractRestrictedView {
 
         final VerticalLayout filterTextVerticalLayout = new VerticalLayout();
         filterTextVerticalLayout.setSizeFull();
-        filterTextVerticalLayout.add(new Paragraph("Test Philter's configuration by filtering text."));
+        filterTextVerticalLayout.add(new Paragraph("Test Philter's configuration by redacting text."));
         filterTextVerticalLayout.add(policyComboBox);
         filterTextVerticalLayout.add(textToFilter);
         filterTextVerticalLayout.add(filterButton);
@@ -158,7 +158,7 @@ public class DashboardView extends AbstractRestrictedView {
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.setSizeFull();
 
-        pageVerticalLayout.add(new Paragraph("Select a PDF document to filter."));
+        pageVerticalLayout.add(new Paragraph("Select a PDF document to redact."));
 
         final ComboBox<String> pdfPolicyComboBox = new ComboBox<>("Policy");
         pdfPolicyComboBox.setWidthFull();
@@ -189,8 +189,9 @@ public class DashboardView extends AbstractRestrictedView {
             try {
                 final byte[] body = buffer.getInputStream().readAllBytes();
 
+                // The dashboard redaction test is stateless: it uses no context.
                 final AbstractFilterResult result = redactionService.filter(
-                        selectedPolicy, userEntity.getId(), "none", body, MimeType.APPLICATION_PDF);
+                        selectedPolicy, userEntity.getId(), "", body, MimeType.APPLICATION_PDF);
 
                 final byte[] redactedBytes = ((BinaryDocumentFilterResult) result).getDocument();
 
@@ -229,8 +230,10 @@ public class DashboardView extends AbstractRestrictedView {
     static String redactText(final RedactionService redactionService, final String policyName,
                              final org.bson.types.ObjectId userId, final String text) throws Exception {
 
+        // The dashboard redaction test is stateless: it uses no context, so token replacements are not
+        // persisted and disambiguation (if any) is limited to this document.
         final AbstractFilterResult result = redactionService.filter(
-                policyName, userId, "none", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+                policyName, userId, "", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
 
         return ((TextFilterResult) result).getFilteredText();
 

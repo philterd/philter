@@ -94,7 +94,7 @@ class ExplainApiControllerTest {
                 "{{{REDACTED-person}}} was here", "none", 0,
                 new Explanation(List.of(span), Collections.emptyList()), Collections.emptyList(), 5);
 
-        when(redactionService.filter(eq("default"), any(), eq("none"), any(), any())).thenReturn(result);
+        when(redactionService.filter(eq("default"), any(), eq(""), any(), any())).thenReturn(result);
 
         final String body = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
                         .header("Authorization", AUTH_HEADER)

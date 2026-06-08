@@ -51,10 +51,19 @@ public class ContextCache extends Cache {
     }
 
     /**
+     * Builds the cache key for a context. Context names are unique per user, not globally, so the key
+     * is namespaced by the owning user's id. Without this, two users with a same-named context (for
+     * example the auto-created {@code default} context) would share a single cache entry.
+     */
+    private static String buildKey(final ObjectId userId, final String context) {
+        return (userId != null ? userId.toHexString() : "") + ":" + context;
+    }
+
+    /**
      * Sets a token replacement in the cache, tagged with the entry's id so the caller can later
      * increment the entry's read count on a cache hit.
      */
-    public void setTokenReplacement(final String context, final String token, final ObjectId entryId, final String replacement) {
+    public void setTokenReplacement(final ObjectId userId, final String context, final String token, final ObjectId entryId, final String replacement) {
 
         // The token must be hashed.
         final String tokenHash = EncryptionService.hashSha256(token);
@@ -65,11 +74,12 @@ public class ContextCache extends Cache {
             return;
         }
 
+        final String key = buildKey(userId, context);
         final String encoded = entryId.toHexString() + replacement;
 
-        backend.hset(context, tokenHash, encoded);
+        backend.hset(key, tokenHash, encoded);
         // Set TTL of 60 minutes on the cache entry.
-        backend.expire(context, CONTEXT_CACHE_TTL_SECONDS);
+        backend.expire(key, CONTEXT_CACHE_TTL_SECONDS);
 
     }
 
@@ -79,11 +89,11 @@ public class ContextCache extends Cache {
      * @return The cached entry, or {@code null} if not present or the cached value is in an
      *         unrecognized (legacy) format.
      */
-    public CachedReplacement getReplacement(final String context, final String token) {
+    public CachedReplacement getReplacement(final ObjectId userId, final String context, final String token) {
 
         final String tokenHash = EncryptionService.hashSha256(token);
 
-        final String raw = backend.hget(context, tokenHash);
+        final String raw = backend.hget(buildKey(userId, context), tokenHash);
 
         if (raw == null || raw.length() < ENTRY_ID_HEX_LENGTH) {
             return null;
@@ -107,30 +117,32 @@ public class ContextCache extends Cache {
     /**
      * Checks if the cache contains a replacement for a token.
      *
+     * @param userId  The id of the user that owns the context.
      * @param context The context.
      * @param token   The token.
      * @return <code>true</code> if the cache contains a replacement; otherwise <code>false</code>.
      */
-    public boolean containsToken(final String context, final String token) {
+    public boolean containsToken(final ObjectId userId, final String context, final String token) {
 
         // The token needs to be encrypted.
 
         final String tokenHash = EncryptionService.hashSha256(token);
 
-        return backend.hexists(context, tokenHash);
+        return backend.hexists(buildKey(userId, context), tokenHash);
 
     }
 
     /**
      * Deletes a context from the cache.
      *
+     * @param userId  The id of the user that owns the context.
      * @param context The context to delete.
      */
-    public void deleteContext(final String context) {
+    public void deleteContext(final ObjectId userId, final String context) {
 
-        LOGGER.info("Deleting context {} from cache.", context);
+        LOGGER.info("Deleting context {} for user {} from cache.", context, userId);
 
-        backend.del(context);
+        backend.del(buildKey(userId, context));
 
     }
 

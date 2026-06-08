@@ -118,7 +118,7 @@ class FilterApiControllerTest {
 
     @Test
     void textEndpointReturnsRedactedTextForOwningUser() throws Exception {
-        when(redactionService.filter(eq("default"), eq(userId), eq("none"), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
                 .thenReturn(textResult("My name is {{{REDACTED-person}}}."));
 
         final String body = mockMvc.perform(post("/api/filter")
@@ -132,7 +132,7 @@ class FilterApiControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals("My name is {{{REDACTED-person}}}.", body);
 
         // The redaction must be attributed to the owning user id, not the API key's own id.
-        verify(redactionService).filter(eq("default"), eq(userId), eq("none"), any(byte[].class), eq(MimeType.TEXT_PLAIN));
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN));
     }
 
     @Test
@@ -201,7 +201,7 @@ class FilterApiControllerTest {
     @Test
     void pdfSyncReturnsBytesAndDoesNotEnqueue() throws Exception {
         final byte[] redacted = "redacted-pdf-bytes".getBytes();
-        when(redactionService.filter(eq("default"), eq(userId), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF)))
                 .thenReturn(binaryResult(redacted));
 
         final byte[] responseBytes = mockMvc.perform(post("/api/filter?async=false")
@@ -215,7 +215,7 @@ class FilterApiControllerTest {
         org.junit.jupiter.api.Assertions.assertArrayEquals(redacted, responseBytes);
 
         // Synchronous path must filter directly (using the owning user id) and never enqueue.
-        verify(redactionService).filter(eq("default"), eq(userId), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF));
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF));
         verify(pendingDocumentDataService, never()).save(any());
     }
 

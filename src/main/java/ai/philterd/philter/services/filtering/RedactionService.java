@@ -44,6 +44,7 @@ import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
+import ai.philterd.philter.services.context.NoOpContextService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
@@ -223,27 +224,54 @@ public class RedactionService {
 
         try {
 
-        // The context service will either use Mongo or be a NoOp (when a context is not used).
+        // A context is optional. When the request supplies no context name (null or blank) the request
+        // uses no context features: token replacements are neither persisted nor shared across
+        // documents/requests, and any entity-type disambiguation is limited to the current document.
+        final boolean useContext = contextName != null && !contextName.isBlank();
+
+        // The context service either uses Mongo or is a NoOp (when no context is used).
         final ai.philterd.phileas.services.context.ContextService phileasContextService;
 
-        // Set up the vector service for entity type disambiguation.
+        // The vector service for entity type disambiguation.
         final VectorService vectorService;
 
-        // Find the context by its name.
-        final ContextEntity contextEntity = contextService.findOneByNameAndUserId(contextName, userEntity.getId());
+        // Whether the Phileas span-disambiguation engine is enabled for this request.
+        final boolean disambiguationEnabled;
 
-        if(contextEntity == null) {
+        // Whether the redaction ledger is written for this request (a per-context feature).
+        final boolean ledgerEnabled;
 
-            final String eventId = UUID.randomUUID().toString();
-            final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
+        if (!useContext) {
 
-            throw new Exception(errorMessage);
+            // No context: do not touch the context store. Disambiguation, if it occurs, is scoped to
+            // this single document via in-memory vectors that are discarded when the request completes.
+            // The ledger is a context feature and is therefore off.
+            LOGGER.info("No context specified; using the NoOp context service with document-scoped disambiguation.");
+            phileasContextService = new NoOpContextService();
+            vectorService = new InMemoryVectorService();
+            disambiguationEnabled = true;
+            ledgerEnabled = false;
 
         } else {
+
+            // Find the context by its name.
+            final ContextEntity contextEntity = contextService.findOneByNameAndUserId(contextName, userEntity.getId());
+
+            if(contextEntity == null) {
+
+                final String eventId = UUID.randomUUID().toString();
+                final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
+
+                throw new Exception(errorMessage);
+
+            }
 
             // Create the MongoDB context service.
             LOGGER.info("Using MongoDB context service...");
             phileasContextService = new MongoContextService(mongoClient, contextCache, userEntity.getId(), contextEntity.getContextName(), auditEventPublisher);
+
+            disambiguationEnabled = contextEntity.isDisambiguation();
+            ledgerEnabled = contextEntity.isLedger();
 
             if (contextEntity.isDisambiguation()) {
 
@@ -279,11 +307,11 @@ public class RedactionService {
         properties.put("incremental.redactions.enabled",
                 System.getenv().getOrDefault("INCREMENTAL_REDACTIONS_ENABLED", "true"));
 
-        // Enable the Phileas span-disambiguation engine when (and only when) the context has entity
-        // type disambiguation turned on. This makes the context's disambiguation flag the single
-        // switch for the feature: without this, the engine gate defaults to off and the flag would
-        // silently have no effect.
-        properties.put("span.disambiguation.enabled", Boolean.toString(contextEntity.isDisambiguation()));
+        // Enable the Phileas span-disambiguation engine when entity-type disambiguation is in effect:
+        // for a context, when its disambiguation flag is on; for a no-context request, document-scoped
+        // disambiguation is used. This is the single switch for the feature — without it the engine gate
+        // defaults to off and the setting would silently have no effect.
+        properties.put("span.disambiguation.enabled", Boolean.toString(disambiguationEnabled));
 
         final PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
 
@@ -292,20 +320,23 @@ public class RedactionService {
         LOGGER.info("Processing text with Phileas");
         final AbstractFilterResult filterResult;
 
+        // Pass a non-null context to Phileas; a no-context request uses an empty context name.
+        final String effectiveContextName = useContext ? contextName : "";
+
         if(mimeType == MimeType.TEXT_PLAIN) {
 
             final String plainText = new String(body);
-            filterResult = plainTextFilterService.filter(phileasPolicy, contextName, plainText);
+            filterResult = plainTextFilterService.filter(phileasPolicy, effectiveContextName, plainText);
 
         } else if(mimeType == MimeType.APPLICATION_PDF) {
 
             final PdfFilterService pdfFilterService = new PdfFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
-            filterResult = pdfFilterService.filter(phileasPolicy, contextName, body, MimeType.APPLICATION_PDF);
+            filterResult = pdfFilterService.filter(phileasPolicy, effectiveContextName, body, MimeType.APPLICATION_PDF);
 
         } else if(mimeType == MimeType.IMAGE_JPEG) {
 
             final PdfFilterService pdfFilterService = new PdfFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
-            filterResult = pdfFilterService.filter(phileasPolicy, contextName, body, MimeType.IMAGE_JPEG);
+            filterResult = pdfFilterService.filter(phileasPolicy, effectiveContextName, body, MimeType.IMAGE_JPEG);
 
         } else {
 
@@ -315,7 +346,7 @@ public class RedactionService {
 
         // Store the ledger from the redaction, but only when the request's context has the
         // redaction ledger enabled. The flag is per context and defaults to off.
-        if (contextEntity.isLedger()) {
+        if (ledgerEnabled) {
 
             LOGGER.info("Initializing the ledger");
             ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), "none-provided");

@@ -50,14 +50,24 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         this.contextCache = contextCache;
         this.mongoClient = mongoClient;
 
-        // Contexts are listed by user and looked up by (user_id, context_name).
-        ensureIndex(Indexes.ascending("user_id", "context_name"));
+        // Context names are unique PER USER (not globally). Migrate any installation created under the
+        // previous global-uniqueness scheme by dropping the old indexes before (re)creating the
+        // per-user unique index:
+        //   - "context_name_1": the legacy global-unique index on the name alone. Left in place it would
+        //     keep rejecting two users sharing a name (e.g. the auto-created "default" context).
+        //   - "user_id_1_context_name_1": the previous non-unique compound index, recreated below as
+        //     unique (MongoDB rejects createIndex on the same keys with differing options).
+        dropIndexIfExists("context_name_1");
+        dropIndexIfExists("user_id_1_context_name_1");
 
-        // Context names are globally unique; enforce it at the storage layer in addition to the
-        // application-level check in create(). This index will not build if the collection already
-        // contains documents with duplicate names, in which case the failure is logged and the
-        // application still starts (see AbstractService#ensureIndex).
-        ensureIndex(Indexes.ascending("context_name"), new IndexOptions().unique(true));
+        // Contexts are listed by user and looked up by (user_id, context_name); the name is unique
+        // within a user. This index also backs the per-user uniqueness check in create(). It is given an
+        // explicit name (distinct from the dropped legacy index's default name) so subsequent startups
+        // are idempotent no-ops rather than dropping and rebuilding it each time. It will not build if
+        // existing data violates it, in which case the failure is logged and the application still
+        // starts (see AbstractService#ensureIndex).
+        ensureIndex(Indexes.ascending("user_id", "context_name"),
+                new IndexOptions().unique(true).name("user_id_context_name_unique"));
     }
 
     public ServiceResponse create(final String contextName, final ObjectId userId) {
@@ -74,10 +84,9 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             return new ServiceResponse("Maximum number of contexts reached.", false, 412);
         }
 
-        // Context names are globally unique, so reject a name already used by any user (not just the
-        // caller). Global uniqueness is what lets a context be addressed unambiguously by name — for
-        // example when an admin exports or imports a context created by another user.
-        if(findOneByName(contextName) != null) {
+        // Context names are unique per user, so reject a name the caller already uses. Another user may
+        // hold the same name without conflict.
+        if(findOne(contextName, userId) != null) {
             return new ServiceResponse("Context already exists.", false, 409);
         }
 
@@ -91,10 +100,11 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         try {
             objectId = save(contextEntity);
         } catch (final MongoWriteException | MongoWriteConcernException ex) {
-            // The findOneByName check above is not atomic with this insert, so two concurrent creates of
-            // the same name can both pass it. The unique index on context_name still prevents a duplicate,
-            // but the losing insert fails with a duplicate-key error (code 11000). Convert it to the same
-            // 409 the non-racing path returns rather than surfacing a raw write exception as a 500.
+            // The findOne check above is not atomic with this insert, so two concurrent creates of the
+            // same (user, name) can both pass it. The unique index on (user_id, context_name) still
+            // prevents a duplicate, but the losing insert fails with a duplicate-key error (code 11000).
+            // Convert it to the same 409 the non-racing path returns rather than surfacing a raw write
+            // exception as a 500.
             if(isDuplicateKey(ex)) {
                 return new ServiceResponse("Context already exists.", false, 409);
             }
@@ -237,26 +247,6 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    /**
-     * Looks up a context by name without scoping to an owner. Context names are globally unique (see
-     * {@link #create}), so at most one context matches. Intended for admin access paths that are
-     * allowed to reach a context created by another user; ordinary access must use the owner-scoped
-     * {@link #findOne(String, ObjectId)}.
-     */
-    public ContextEntity findOneByName(final String contextName) {
-
-        final Document query = new Document("context_name", contextName);
-
-        final Document document = collection.find(query).first();
-
-        if(document != null) {
-            return ContextEntity.fromDocument(document);
-        } else {
-            return null;
-        }
-
-    }
-
     public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean disambiguation, final boolean ledger) {
 
         final ContextEntity existing = findOne(contextName, userId);
@@ -288,8 +278,8 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         // clears the training data, leaving no orphaned vectors in MongoDB.
         new MongoVectorService(mongoClient, userId, auditEventPublisher).deleteByContext(contextName);
 
-        // Remove this context from the cache.
-        contextCache.deleteContext(contextName);
+        // Remove this context from the cache (cache entries are namespaced by the owning user).
+        contextCache.deleteContext(userId, contextName);
 
         return new ServiceResponse("Context emptied successfully.", true);
 
@@ -333,8 +323,8 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         // in MongoDB after the context is gone.
         new MongoVectorService(mongoClient, ownerUserId, auditEventPublisher).deleteByContext(contextName);
 
-        // Remove this context from the cache.
-        contextCache.deleteContext(contextName);
+        // Remove this context from the cache (cache entries are namespaced by the owning user).
+        contextCache.deleteContext(ownerUserId, contextName);
 
         return new ServiceResponse("Context deleted successfully.", true);
 

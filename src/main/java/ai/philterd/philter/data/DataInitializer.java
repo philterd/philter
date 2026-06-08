@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data;
 
+import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.Source;
@@ -36,14 +37,17 @@ public class DataInitializer {
 
     private final MongoClient mongoClient;
     private final PolicyDataService policyDataService;
+    private final ContextDataService contextDataService;
     private final UserService userService;
 
     // Inject the beans Spring has already created
     public DataInitializer(final MongoClient mongoClient,
-                           final PolicyDataService policyDataService, final UserService userService) {
+                           final PolicyDataService policyDataService, final ContextDataService contextDataService,
+                           final UserService userService) {
 
         this.mongoClient = mongoClient;
         this.policyDataService = policyDataService;
+        this.contextDataService = contextDataService;
         this.userService = userService;
 
     }
@@ -57,7 +61,7 @@ public class DataInitializer {
 
             LOGGER.info("Creating default admin user");
             // Seed with the default password but require it to be changed on first login.
-            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", "admin", policyDataService, Source.SYSTEM.getSource(), true);
+            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", "admin", policyDataService, contextDataService, Source.SYSTEM.getSource(), true);
 
 
         }

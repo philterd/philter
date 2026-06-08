@@ -82,6 +82,23 @@ public class AbstractService<T extends AbstractEntity> {
         }
     }
 
+    /**
+     * Drops the named index if it exists. Used to migrate away from a superseded index definition (for
+     * example, changing a unique index's key set) before recreating it. A failure — including the index
+     * simply not existing — is logged at debug level and never propagated, so it cannot prevent startup.
+     *
+     * @param indexName The name of the index to drop (the auto-generated name, e.g. {@code context_name_1}).
+     */
+    protected void dropIndexIfExists(final String indexName) {
+        try {
+            collection.dropIndex(indexName);
+            ABSTRACT_SERVICE_LOGGER.info("Dropped legacy index '{}'.", indexName);
+        } catch (final Exception ex) {
+            // The index does not exist (nothing to migrate) or could not be dropped; either way, continue.
+            ABSTRACT_SERVICE_LOGGER.debug("No legacy index '{}' to drop: {}", indexName, ex.getMessage());
+        }
+    }
+
     public ObjectId save(T entity) {
         return collection.insertOne(entity.toDocument()).getInsertedId().asObjectId().getValue();
     }

@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -76,7 +77,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void createUserPersistsAndIsReadableByEmailAndId() {
         final ServiceResponse response = service.createUser(
-                "req", "alice@example.com", "s3cret", "user", policyDataService, "system");
+                "req", "alice@example.com", "s3cret", "user", policyDataService, contextDataService, "system");
         assertTrue(response.isSuccessful());
 
         // The email round-trips through the real encryption service and the real Mongo query path.
@@ -98,10 +99,10 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void createUserRejectsDuplicateEmail() {
         assertTrue(service.createUser(
-                "req", "dup@example.com", "pw", "user", policyDataService, "system").isSuccessful());
+                "req", "dup@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final ServiceResponse second = service.createUser(
-                "req", "dup@example.com", "pw2", "user", policyDataService, "system");
+                "req", "dup@example.com", "pw2", "user", policyDataService, contextDataService, "system");
         assertFalse(second.isSuccessful());
         assertEquals(1, service.count());
     }
@@ -109,7 +110,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void createUserWithPasswordChangeRequiredPersistsFlag() {
         assertTrue(service.createUser(
-                "req", "admin@example.com", "admin", "admin", policyDataService, "system", true)
+                "req", "admin@example.com", "admin", "admin", policyDataService, contextDataService, "system", true)
                 .isSuccessful());
 
         final UserEntity user = service.findByEmail("admin@example.com");
@@ -117,22 +118,24 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void createUserSeedsDefaultPolicyButNotAContext() {
+    void createUserSeedsDefaultPolicyAndDefaultContext() {
         assertTrue(service.createUser(
-                "req", "bob@example.com", "pw", "user", policyDataService, "system").isSuccessful());
+                "req", "bob@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final ObjectId userId = service.findByEmail("bob@example.com").getId();
 
         // A default policy is seeded for the new user...
         assertEquals(1, policyDataService.count(userId));
-        // ...but no context is created (users create their own; context names are globally unique).
-        assertNull(contextDataService.findOne("default", userId));
+        // ...along with a default context owned by that user (names are unique per user).
+        final ContextEntity defaultContext = contextDataService.findOne("default", userId);
+        assertNotNull(defaultContext);
+        assertEquals(userId, defaultContext.getUserId());
     }
 
     @Test
     void createUserAssignsAndPersistsAHexFpeKey() {
         assertTrue(service.createUser(
-                "req", "fpe@example.com", "pw", "user", policyDataService, "system").isSuccessful());
+                "req", "fpe@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final UserEntity user = service.findByEmail("fpe@example.com");
         assertNotNull(user.getFpeKey());
@@ -159,7 +162,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void passwordMatchesReflectsStoredHash() {
         assertTrue(service.createUser(
-                "req", "carol@example.com", "correct-horse", "user", policyDataService, "system")
+                "req", "carol@example.com", "correct-horse", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByEmail("carol@example.com");
@@ -170,7 +173,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void changePasswordUpdatesStoredHash() {
         assertTrue(service.createUser(
-                "req", "dave@example.com", "old-password", "user", policyDataService, "system")
+                "req", "dave@example.com", "old-password", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByEmail("dave@example.com");
@@ -187,7 +190,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void setUserRoleUpdatesPersistedRole() {
         assertTrue(service.createUser(
-                "req", "erin@example.com", "pw", "user", policyDataService, "system")
+                "req", "erin@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByEmail("erin@example.com");
@@ -197,24 +200,33 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void deleteUserRemovesTheUser() {
+    void deleteUserRemovesTheUserAndTheirContexts() {
         assertTrue(service.createUser(
-                "req", "frank@example.com", "pw", "user", policyDataService, "system")
+                "req", "frank@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByEmail("frank@example.com");
-        service.deleteUser("req", user, "webui");
+        // The new user starts with an auto-created "default" context plus one we add here.
+        assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
+        assertEquals(2, contextDataService.findAll(user.getId()).size());
+
+        service.deleteUser("req", user, contextDataService, "webui");
 
         assertNull(service.findByEmail("frank@example.com"));
         assertNull(service.findOneById(user.getId()));
         assertEquals(0, service.count());
+
+        // The user's contexts are deleted along with the user.
+        assertEquals(0, contextDataService.findAll(user.getId()).size());
+        assertNull(contextDataService.findOne("default", user.getId()));
+        assertNull(contextDataService.findOne("extra", user.getId()));
     }
 
     @Test
     void findAllSupportsPagingAndCount() {
-        service.createUser("req", "u1@example.com", "pw", "user", policyDataService, "system");
-        service.createUser("req", "u2@example.com", "pw", "user", policyDataService, "system");
-        service.createUser("req", "u3@example.com", "pw", "user", policyDataService, "system");
+        service.createUser("req", "u1@example.com", "pw", "user", policyDataService, contextDataService, "system");
+        service.createUser("req", "u2@example.com", "pw", "user", policyDataService, contextDataService, "system");
+        service.createUser("req", "u3@example.com", "pw", "user", policyDataService, contextDataService, "system");
 
         assertEquals(3, service.count());
 

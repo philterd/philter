@@ -55,7 +55,7 @@ class MongoContextServiceTest {
         final ObjectId entryId = new ObjectId();
         final ContextCache.CachedReplacement cached = new ContextCache.CachedReplacement(entryId, "REDACTED");
 
-        when(contextCache.getReplacement(contextName, "token")).thenReturn(cached);
+        when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(cached);
 
         final String replacement = service.getReplacement("token");
 
@@ -72,24 +72,25 @@ class MongoContextServiceTest {
         entry.setId(entryId);
         entry.setReplacement("FROM-DB");
 
-        when(contextCache.getReplacement(contextName, "token")).thenReturn(null);
+        when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(null);
         when(contextEntryService.findOneEntryByToken(userId, contextName, "token")).thenReturn(entry);
 
         final String replacement = service.getReplacement("token");
 
         assertEquals("FROM-DB", replacement);
         verify(contextEntryService).incrementReads(entryId);
-        verify(contextCache).setTokenReplacement(contextName, "token", entryId, "FROM-DB");
+        verify(contextCache).setTokenReplacement(userId, contextName, "token", entryId, "FROM-DB");
     }
 
     @Test
     void cacheMissAndDbMissReturnsNull() {
-        when(contextCache.getReplacement(contextName, "token")).thenReturn(null);
+        when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(null);
         when(contextEntryService.findOneEntryByToken(userId, contextName, "token")).thenReturn(null);
 
         assertNull(service.getReplacement("token"));
         verify(contextEntryService, never()).incrementReads(org.mockito.ArgumentMatchers.any());
-        verify(contextCache, never()).setTokenReplacement(org.mockito.ArgumentMatchers.eq(contextName),
+        verify(contextCache, never()).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.eq(contextName),
                 org.mockito.ArgumentMatchers.eq("token"),
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());
@@ -108,19 +109,19 @@ class MongoContextServiceTest {
         service.putReplacement("tok", "R", "PERSON");
 
         verify(contextEntryService).putReplacement(userId, contextName, "tok", "R", "PERSON");
-        verify(contextCache).setTokenReplacement(contextName, "tok", entryId, "R");
+        verify(contextCache).setTokenReplacement(userId, contextName, "tok", entryId, "R");
     }
 
     @Test
     void containsTokenChecksCacheFirst() {
-        when(contextCache.containsToken(contextName, "tok")).thenReturn(true);
+        when(contextCache.containsToken(userId, contextName, "tok")).thenReturn(true);
         org.junit.jupiter.api.Assertions.assertTrue(service.containsToken("tok"));
         verify(contextEntryService, never()).containsToken(userId, contextName, "tok");
     }
 
     @Test
     void containsTokenFallsBackToDb() {
-        when(contextCache.containsToken(contextName, "tok")).thenReturn(false);
+        when(contextCache.containsToken(userId, contextName, "tok")).thenReturn(false);
         when(contextEntryService.containsToken(userId, contextName, "tok")).thenReturn(true);
         org.junit.jupiter.api.Assertions.assertTrue(service.containsToken("tok"));
     }

@@ -123,8 +123,8 @@ class ContextsApiControllerTest {
     }
 
     @Test
-    void createReturns409ForGloballyDuplicateName() throws Exception {
-        // A globally non-unique name yields a 409 ServiceResponse, which must surface as HTTP 409.
+    void createReturns409ForDuplicateName() throws Exception {
+        // A name the caller already uses yields a 409 ServiceResponse, which must surface as HTTP 409.
         when(contextService.create(eq("dup"), eq(userId), anyBoolean(), anyBoolean()))
                 .thenReturn(new ServiceResponse("Context already exists.", false, 409));
 
@@ -182,6 +182,14 @@ class ContextsApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(adminUser);
     }
 
+    /** Stubs userService.findByEmail so the given email resolves to a user with the given id. */
+    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+        final ai.philterd.philter.data.entities.UserEntity owner = new ai.philterd.philter.data.entities.UserEntity();
+        owner.setId(ownerId);
+        owner.setEmail(email);
+        when(userService.findByEmail(email)).thenReturn(owner);
+    }
+
     // ----- Export -----
 
     @Test
@@ -229,35 +237,50 @@ class ContextsApiControllerTest {
     }
 
     @Test
-    void exportAllowedForAdminOnAnotherUsersContext() throws Exception {
+    void exportAllowedForAdminOnAnotherUsersContextViaOwnerParam() throws Exception {
         final ObjectId otherOwner = new ObjectId();
-        // The caller does not own the context, but is an admin and may export any context.
-        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        // The caller does not own the context, but is an admin and names the owner via the owner param.
         makeUserAdmin();
-        when(contextService.findOneByName(eq("ctx"))).thenReturn(contextOwnedBy(otherOwner));
+        makeOwnerLookup("other@example.com", otherOwner);
+        when(contextService.findOne(eq("ctx"), eq(otherOwner))).thenReturn(contextOwnedBy(otherOwner));
         when(contextEntryService.findAllByUserIdAndContext(eq(otherOwner), eq("ctx")))
                 .thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-export-admin"))
                 .andExpect(status().isOk());
 
-        // The export operates on the context owner's entries, not the admin caller's id.
+        // The export operates on the named owner's entries, not the admin caller's id.
         verify(contextEntryService).findAllByUserIdAndContext(eq(otherOwner), eq("ctx"));
     }
 
     @Test
+    void exportForbiddenForNonAdminNamingAnotherOwner() throws Exception {
+        // A non-admin caller naming another user as owner must be denied (404), never reaching that
+        // user's context.
+        final ObjectId otherOwner = new ObjectId();
+        makeOwnerLookup("other@example.com", otherOwner);
+        when(userService.findOneById(userId)).thenReturn(null); // caller is not an admin
+
+        mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-export-forbidden"))
+                .andExpect(status().isNotFound());
+
+        verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any());
+    }
+
+    @Test
     void exportForbiddenForNonCreatorNonAdmin() throws Exception {
-        // Caller is neither the creator (owner-scoped lookup misses) nor an admin.
+        // Caller names no owner and is not the creator (owner-scoped lookup misses).
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
         when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
-                        .requestAttr("requestId", "req-export-forbidden"))
+                        .requestAttr("requestId", "req-export-forbidden-self"))
                 .andExpect(status().isNotFound());
 
-        // A non-admin must never reach another user's context by name.
-        verify(contextService, never()).findOneByName(any());
         verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any());
     }
 
@@ -380,29 +403,48 @@ class ContextsApiControllerTest {
     }
 
     @Test
-    void importAllowedForAdminOnAnotherUsersContext() throws Exception {
+    void importAllowedForAdminOnAnotherUsersContextViaOwnerParam() throws Exception {
         final ObjectId otherOwner = new ObjectId();
-        // The caller does not own the context, but is an admin and may import into any context.
-        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
+        // The caller does not own the context, but is an admin and names the owner via the owner param.
         makeUserAdmin();
-        when(contextService.findOneByName(eq("ctx"))).thenReturn(contextOwnedBy(otherOwner));
+        makeOwnerLookup("other@example.com", otherOwner);
+        when(contextService.findOne(eq("ctx"), eq(otherOwner))).thenReturn(contextOwnedBy(otherOwner));
         when(contextEntryService.importEntryByHash(eq(otherOwner), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false)))
                 .thenReturn(ContextEntryDataService.ImportOutcome.INSERTED);
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content(IMPORT_BODY)
                         .requestAttr("requestId", "req-import-admin"))
                 .andExpect(status().isOk());
 
-        // The import writes to the context owner's entries, not the admin caller's id.
+        // The import writes to the named owner's entries, not the admin caller's id.
         verify(contextEntryService).importEntryByHash(eq(otherOwner), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(false));
     }
 
     @Test
+    void importForbiddenForNonAdminNamingAnotherOwner() throws Exception {
+        // A non-admin caller naming another user as owner must be denied (404) before any write.
+        final ObjectId otherOwner = new ObjectId();
+        makeOwnerLookup("other@example.com", otherOwner);
+        when(userService.findOneById(userId)).thenReturn(null); // caller is not an admin
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY)
+                        .requestAttr("requestId", "req-import-forbidden-owner"))
+                .andExpect(status().isNotFound());
+
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
     void importForbiddenForNonCreatorNonAdmin() throws Exception {
-        // Caller is neither the creator (owner-scoped lookup misses) nor an admin.
+        // Caller names no owner and is not the creator (owner-scoped lookup misses).
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
         when(userService.findOneById(userId)).thenReturn(null);
 
@@ -413,7 +455,6 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-import-forbidden"))
                 .andExpect(status().isNotFound());
 
-        verify(contextService, never()).findOneByName(any());
         verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
     }
 

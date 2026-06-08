@@ -103,27 +103,41 @@ public class ContextsApiController extends AbstractApiController {
     }
 
     /**
-     * Resolves the context that the caller is allowed to export from or import into. Access is
-     * limited to the context's creator or an admin: the creator is matched by an owner-scoped lookup,
-     * and an admin may additionally reach a context created by another user. Returns {@code null}
-     * when the caller is neither the creator nor an admin, or when no such context exists — both
-     * cases are mapped to a 404 by the callers so the endpoints never reveal the existence of a
-     * context the caller is not authorized to access.
+     * Resolves the context that the caller is allowed to export from or import into. Context names are
+     * unique per user, so a bare name identifies the caller's own context. To reach a context owned by
+     * a different user, an admin supplies that user's email via {@code ownerEmail}; this is an
+     * admin-only capability.
+     *
+     * <p>Returns {@code null} when the caller is not authorized (a non-admin naming another user as
+     * owner), when the named owner does not exist, or when no such context exists. The callers map all
+     * of these to a 404 so the endpoints never reveal the existence of a context — or a user — the
+     * caller is not authorized to access.
+     *
+     * @param name       The context name.
+     * @param callerUserId The id of the user making the request.
+     * @param ownerEmail The email of the context's owner, or null/blank for the caller's own context.
      */
-    private ContextEntity resolveAuthorizedContext(final String name, final ObjectId userId) {
+    private ContextEntity resolveAuthorizedContext(final String name, final ObjectId callerUserId, final String ownerEmail) {
 
-        final ContextEntity owned = contextService.findOne(name, userId);
-        if (owned != null) {
-            // The caller created this context.
-            return owned;
+        final ObjectId targetUserId;
+
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            // No owner specified: operate on the caller's own context.
+            targetUserId = callerUserId;
+        } else {
+            final ai.philterd.philter.data.entities.UserEntity owner = userService.findByEmail(ownerEmail);
+            if (owner == null) {
+                return null;
+            }
+            // Reaching another user's context is allowed only for an admin (or trivially when the named
+            // owner is the caller themselves).
+            if (!owner.getId().equals(callerUserId) && !isAdmin(callerUserId)) {
+                return null;
+            }
+            targetUserId = owner.getId();
         }
 
-        if (isAdmin(userId)) {
-            // An admin may export/import a context created by another user.
-            return contextService.findOneByName(name);
-        }
-
-        return null;
+        return contextService.findOne(name, targetUserId);
 
     }
 
@@ -226,7 +240,7 @@ public class ContextsApiController extends AbstractApiController {
 
         } else {
 
-            // A duplicate (globally non-unique) name is a conflict; other validation failures are 400.
+            // A name the caller already uses is a conflict; other validation failures are 400.
             final HttpStatus status = serviceResponse.getStatusCode() == 409 ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
             return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), status);
 
@@ -413,6 +427,7 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<String> exportEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -423,8 +438,8 @@ public class ContextsApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        // Only the context's creator or an admin may export it.
-        final ContextEntity context = resolveAuthorizedContext(name, userId);
+        // The caller's own context by name, or — for an admin supplying owner — another user's context.
+        final ContextEntity context = resolveAuthorizedContext(name, userId, owner);
         if (context == null) {
             // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
             // the response does not reveal whether the context exists.
@@ -470,6 +485,7 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
             final @RequestParam(value = "on_conflict", required = false, defaultValue = "skip") String onConflict,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody String body,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
@@ -481,10 +497,11 @@ public class ContextsApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        // Only the context's creator or an admin may import into it. This authorization check runs
-        // before any input validation (on_conflict and the payload) so an unauthorized caller is denied
-        // (and audited) regardless of whether the rest of the request is well-formed.
-        final ContextEntity context = resolveAuthorizedContext(name, userId);
+        // The caller's own context by name, or — for an admin supplying owner — another user's context.
+        // This authorization check runs before any input validation (on_conflict and the payload) so an
+        // unauthorized caller is denied (and audited) regardless of whether the rest of the request is
+        // well-formed.
+        final ContextEntity context = resolveAuthorizedContext(name, userId, owner);
         if (context == null) {
             // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
             // the response does not reveal whether the context exists.

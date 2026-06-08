@@ -91,7 +91,7 @@ public class FilterApiController extends AbstractApiController {
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = "application/zip", consumes = MediaType.APPLICATION_PDF_VALUE)
     public @ResponseBody ResponseEntity<byte[]> filterApplicationPdfAsApplicationZip(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            @RequestParam(value = "c", defaultValue = "none") String context,
+            @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestBody byte[] body) throws Exception {
@@ -131,7 +131,7 @@ public class FilterApiController extends AbstractApiController {
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = MediaType.APPLICATION_PDF_VALUE, consumes = MediaType.APPLICATION_PDF_VALUE)
     public @ResponseBody ResponseEntity<byte[]> filterApplicationPdfAsApplicationPdf(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            @RequestParam(value = "c", defaultValue = "none") String context,
+            @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestBody byte[] body) throws Exception {
@@ -169,7 +169,7 @@ public class FilterApiController extends AbstractApiController {
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = MediaType.TEXT_PLAIN_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> filterTextPlainAsTextPlain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            @RequestParam(value = "c", defaultValue = "none") String context,
+            @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestBody String body) throws Exception {
 

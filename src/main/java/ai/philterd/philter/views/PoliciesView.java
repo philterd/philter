@@ -27,6 +27,7 @@ import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.DefaultPolicy;
+import ai.philterd.philter.services.policies.PolicyValidation;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -157,10 +158,20 @@ public class PoliciesView extends AbstractRestrictedView {
                     final String policyDescription = policyDescriptionTextField.getValue();
                     final String policyNotes = policyNotesTextArea.getValue();
 
-                    if(!isValidJson(policyJson)) {
+                    final boolean validJson = isValidJson(policyJson);
+                    final PolicyValidation validation = validJson ? policyService.validatePolicy(policyJson) : null;
+
+                    if(!validJson) {
 
                         policyJsonTextArea.setInvalid(true);
                         policyJsonTextArea.setErrorMessage("The policy is not valid JSON.");
+
+                    } else if(!validation.isValid()) {
+
+                        // Structurally-valid JSON that is not a valid redaction policy (for example, no
+                        // identifiers): show the validation reason on the policy JSON field.
+                        policyJsonTextArea.setInvalid(true);
+                        policyJsonTextArea.setErrorMessage(validation.getMessage());
 
                     } else {
 
@@ -336,10 +347,20 @@ public class PoliciesView extends AbstractRestrictedView {
                 final String policyDescription = policyDescriptionTextField.getValue();
                 final String policyNotes = policyNotesTextArea.getValue();
 
-                if(!isValidJson(policyJson)) {
+                final boolean validJson = isValidJson(policyJson);
+                final PolicyValidation validation = validJson ? policyService.validatePolicy(policyJson) : null;
+
+                if(!validJson) {
 
                     policyJsonTextArea.setInvalid(true);
                     policyJsonTextArea.setErrorMessage("The policy is not valid JSON.");
+
+                } else if(!validation.isValid()) {
+
+                    // Structurally-valid JSON that is not a valid redaction policy (for example, no
+                    // identifiers): show the validation reason on the policy JSON field, not the name.
+                    policyJsonTextArea.setInvalid(true);
+                    policyJsonTextArea.setErrorMessage(validation.getMessage());
 
                 } else {
 

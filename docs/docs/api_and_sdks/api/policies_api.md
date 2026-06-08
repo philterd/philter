@@ -68,6 +68,15 @@ Example response:
 
 * `name` - The name of the policy to save.
 
+### Validation
+
+The policy is validated before it is stored. It must be valid JSON in the native Phileas policy format and contain a non-empty `identifiers` object describing the information to redact. A missing name or an invalid policy is rejected with `400 Bad Request` and a message describing the problem, and nothing is saved.
+
+### Responses
+
+* `201 Created` - The policy was saved.
+* `400 Bad Request` - The policy name is missing or the policy is invalid.
+
 Example request:
 
 ```

@@ -22,8 +22,19 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -131,6 +142,53 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
         // No pending jobs remain, so a third claim returns null.
         assertNull(service.claimNextPending("worker-3"));
+    }
+
+    @Test
+    void concurrentClaimsNeverHandTheSameJobToTwoWorkers() throws Exception {
+        // The multi-instance coordination guarantee: many workers polling at once must never both claim
+        // the same job. This exercises the atomic findOneAndUpdate under real parallelism.
+        final ObjectId user = new ObjectId();
+        final int jobCount = 60;
+        final long base = System.currentTimeMillis();
+        for (int i = 0; i < jobCount; i++) {
+            service.save(newPending(user, "doc-" + i, "default", new Date(base + i)));
+        }
+
+        final int workers = 8;
+        final ExecutorService pool = Executors.newFixedThreadPool(workers);
+        final CountDownLatch start = new CountDownLatch(1);
+        final Queue<ObjectId> claimed = new ConcurrentLinkedQueue<>();
+        final List<Future<Integer>> futures = new ArrayList<>();
+
+        for (int w = 0; w < workers; w++) {
+            final String workerId = "worker-" + w;
+            final Callable<Integer> task = () -> {
+                start.await();
+                int count = 0;
+                PendingDocumentEntity job;
+                while ((job = service.claimNextPending(workerId)) != null) {
+                    claimed.add(job.getId());
+                    count++;
+                }
+                return count;
+            };
+            futures.add(pool.submit(task));
+        }
+
+        start.countDown(); // release all workers at once
+        for (final Future<Integer> f : futures) {
+            f.get(30, TimeUnit.SECONDS);
+        }
+        pool.shutdownNow();
+
+        // Every job was claimed exactly once: no job handed to two workers, and none missed.
+        final Set<ObjectId> unique = new HashSet<>(claimed);
+        assertEquals(jobCount, claimed.size(), "no job may be claimed more than once (no double-processing)");
+        assertEquals(jobCount, unique.size(), "claimed job ids must all be distinct");
+
+        // And nothing remains claimable.
+        assertNull(service.claimNextPending("drain"));
     }
 
     @Test

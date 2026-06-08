@@ -151,10 +151,11 @@ public class PoliciesApiController extends AbstractApiController {
 
     @Operation(summary = "Create or update a policy.",
             description = "Saves the policy supplied in the request body under the given name, overwriting any "
-                    + "existing policy of the same name. Admins may save into another user's account by passing that "
-                    + "user's email as owner.")
+                    + "existing policy of the same name. The policy is validated before it is stored. Admins may save "
+                    + "into another user's account by passing that user's email as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The policy was saved."),
+            @ApiResponse(responseCode = "400", description = "The policy name is missing or the policy is invalid."),
             @ApiResponse(responseCode = "401"),
             @ApiResponse(responseCode = "404")
     })
@@ -164,6 +165,10 @@ public class PoliciesApiController extends AbstractApiController {
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
             @RequestBody Policy policy) throws IOException {
+
+        if (StringUtils.isBlank(name)) {
+            throw new BadRequestException("The policy name is missing.");
+        }
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -176,12 +181,20 @@ public class PoliciesApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
+        // Validate the policy before persisting it so an invalid policy is rejected at creation rather
+        // than failing later at redaction time.
+        final String policyJson = gson.toJson(policy);
+        final PolicyValidation validation = policyDataService.validatePolicy(policyJson);
+        if (!validation.isValid()) {
+            throw new BadRequestException(validation.getMessage());
+        }
+
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
                 "create policy '" + name + "'");
 
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setUserId(userId);
-        policyEntity.setPolicy(gson.toJson(policy));
+        policyEntity.setPolicy(policyJson);
         policyEntity.setName(name);
 
         policyDataService.save(policyEntity);

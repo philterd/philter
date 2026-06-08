@@ -126,6 +126,51 @@ class PoliciesApiControllerTest {
                 eq("my-policy"), eq(userId), eq(Source.API));
     }
 
+    private static final String VALID_POLICY_BODY =
+            "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
+
+    @Test
+    void createValidatesAndStoresTheValidPolicy() throws Exception {
+        when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("name", "my-policy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isCreated());
+
+        // The policy is validated before being persisted.
+        verify(policyDataService).validatePolicy(anyString());
+        verify(policyDataService).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createRejectsAnInvalidPolicyWith400AndDoesNotStoreIt() throws Exception {
+        when(policyDataService.validatePolicy(anyString()))
+                .thenReturn(PolicyValidation.invalid("The policy must contain an 'identifiers' object describing the information to redact."));
+
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("name", "my-policy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"identifiers\":{}}"))
+                .andExpect(status().isBadRequest());
+
+        // An invalid policy is never persisted.
+        verify(policyDataService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createRejectsABlankNameWith400BeforeValidating() throws Exception {
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("name", "   ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isBadRequest());
+
+        verify(policyDataService, org.mockito.Mockito.never()).validatePolicy(anyString());
+        verify(policyDataService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
     @Test
     void compileValidPhiSqlReturnsCompiledNativePolicy() throws Exception {
         // The controller compiles with the real PhiSQL compiler; the compiled JSON is validated via the

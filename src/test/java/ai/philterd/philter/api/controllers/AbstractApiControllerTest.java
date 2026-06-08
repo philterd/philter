@@ -15,11 +15,14 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.types.ObjectId;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,11 +30,19 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -131,6 +142,79 @@ class AbstractApiControllerTest {
         when(userService.findByEmail("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "user"));
 
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, "caller@example.com"));
+    }
+
+    // ----- getApiKeyEntity verifies the filter-stashed identity against the request's credential -----
+
+    @AfterEach
+    void clearRequestContext() {
+        RequestContextHolder.resetRequestAttributes();
+    }
+
+    /** Binds a request to the current thread with the given API key entity stashed as the auth attribute. */
+    private void bindRequestWithStashedKey(final ApiKeyEntity stashed) {
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE, stashed);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    }
+
+    private ApiKeyEntity apiKeyEntity(final String apiKey, final ObjectId userId) {
+        final ApiKeyEntity entity = new ApiKeyEntity();
+        entity.setUserId(userId);
+        entity.setApiKeyHash(EncryptionService.hashSha256(apiKey));
+        return entity;
+    }
+
+    @Test
+    void reusesStashedKeyWhenItMatchesTheRequestCredential() {
+        final ApiKeyEntity stashed = apiKeyEntity("sk_match", new ObjectId());
+        bindRequestWithStashedKey(stashed);
+
+        final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
+
+        // The stashed entity matches this request's credential, so it is reused as-is...
+        assertSame(stashed, resolved);
+        // ...without any cache or database lookup.
+        verify(apiKeyCache, never()).containsApiKey(anyString());
+        verify(apiKeyDataService, never()).findOneByApiKey(anyString());
+    }
+
+    @Test
+    void doesNotTrustStashedKeyThatDoesNotMatchTheRequestCredential() {
+        // A stash that belongs to a DIFFERENT credential (e.g. a stale/mis-bound request attribute).
+        final ApiKeyEntity wrongStash = apiKeyEntity("sk_other", new ObjectId());
+        bindRequestWithStashedKey(wrongStash);
+
+        // The credential actually presented on this request resolves (freshly) to a different entity.
+        final ApiKeyEntity correct = apiKeyEntity("sk_match", new ObjectId());
+        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
+        when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(correct);
+
+        final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
+
+        // The mismatched stash must NOT be trusted; the request's own credential is resolved instead.
+        assertSame(correct, resolved);
+        assertFalse(resolved == wrongStash);
+        verify(apiKeyDataService).findOneByApiKey("sk_match");
+    }
+
+    @Test
+    void resolvesFromCacheOrDbWhenNoStashIsPresent() {
+        // No request bound / no stashed attribute (e.g. a caller that bypassed the filter).
+        final ApiKeyEntity correct = apiKeyEntity("sk_match", new ObjectId());
+        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
+        when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(correct);
+
+        final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
+
+        assertSame(correct, resolved);
+    }
+
+    @Test
+    void rejectsMissingOrMalformedAuthorizationHeader() {
+        assertNull(controller.getApiKeyEntity(null));
+        assertNull(controller.getApiKeyEntity("not-bearer"));
+        verify(apiKeyDataService, never()).findOneByApiKey(any());
     }
 
     @Test

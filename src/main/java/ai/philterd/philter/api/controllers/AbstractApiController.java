@@ -53,51 +53,50 @@ public abstract class AbstractApiController {
 
     public ApiKeyEntity getApiKeyEntity(final String authorizationHeader) {
 
-        // Fast path: the authentication filter already resolved (and cache-backed) this request's API
-        // key and stashed the entity as a request attribute, so reuse it rather than looking it up
-        // again. This is the normal path for every API request.
-        final ApiKeyEntity fromRequest = getAuthenticatedApiKeyFromRequest();
-        if (fromRequest != null) {
-            return fromRequest;
-        }
-
-        // Fallback for callers that did not pass through the filter (for example, unit tests): resolve
-        // from the cache, then the database.
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return null;
         }
 
-        final String apiKey = authorizationHeader.substring(7);
-
-        // The cache is keyed by the key's hash so a deleted key can be evicted without the plaintext.
+        // Derive the credential and its hash from THIS request's header. The hash is the ground truth
+        // the rest of this method is checked against — identity always flows from the request's own
+        // credential, never from ambient state.
+        final String apiKey = authorizationHeader.substring(7).trim();
         final String apiKeyHash = EncryptionService.hashSha256(apiKey);
 
-        if(apiKeyCache.containsApiKey(apiKeyHash)) {
-
-            return apiKeyCache.get(apiKeyHash);
-
-        } else {
-
-            // Get it from the database and cache it if not null.
-            final ApiKeyEntity apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);
-
-            if(apiKeyEntity != null) {
-
-                apiKeyCache.insert(apiKeyHash, apiKeyEntity);
-                return apiKeyEntity;
-
-            } else {
-                return null;
-            }
-
+        // Fast path: reuse the entity the authentication filter resolved for this request, but only if
+        // it provably matches the credential presented on this request. Verifying the stashed entity's
+        // hash against the request's own key hash makes identity confusion impossible to act on: if the
+        // request-scoped attribute were ever the wrong one (a stale thread-bound value, async dispatch,
+        // etc.), the hashes would not match and the stash is not trusted — it falls through to a fresh,
+        // request-scoped resolution below (fail closed). A match guarantees the stash belongs to this
+        // exact credential.
+        final ApiKeyEntity fromRequest = getAuthenticatedApiKeyFromRequest();
+        if (fromRequest != null && apiKeyHash.equals(fromRequest.getApiKeyHash())) {
+            return fromRequest;
         }
+
+        // Resolve from the cache (keyed by the hash so a deleted key can be evicted without the
+        // plaintext), then the database. This path also serves callers that did not pass through the
+        // filter, such as unit tests.
+        if (apiKeyCache.containsApiKey(apiKeyHash)) {
+            return apiKeyCache.get(apiKeyHash);
+        }
+
+        final ApiKeyEntity apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);
+        if (apiKeyEntity != null) {
+            apiKeyCache.insert(apiKeyHash, apiKeyEntity);
+            return apiKeyEntity;
+        }
+
+        return null;
 
     }
 
     /**
      * Returns the {@link ApiKeyEntity} that {@code ApiAuthenticationFilter} stored on the current
      * request while authenticating it, or {@code null} if there is no bound request or no such
-     * attribute (for example, in a unit test that exercises the controller without the filter).
+     * attribute (for example, in a unit test that exercises the controller without the filter). The
+     * caller must verify the returned entity matches the request's credential before trusting it.
      */
     private static ApiKeyEntity getAuthenticatedApiKeyFromRequest() {
         final RequestAttributes attributes = RequestContextHolder.getRequestAttributes();

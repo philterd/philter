@@ -24,7 +24,9 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,16 +57,19 @@ public class DocumentsApiController extends AbstractApiController {
     private static final Logger LOGGER = LoggerFactory.getLogger(DocumentsApiController.class);
 
     private final PendingDocumentDataService pendingDocumentDataService;
+    private final UserService userService;
     private final AuditEventPublisher auditEventPublisher;
     private final Gson gson;
 
     public DocumentsApiController(final ApiKeyDataService apiKeyDataService,
                                   final ApiKeyCache apiKeyCache,
                                   final PendingDocumentDataService pendingDocumentDataService,
+                                  final UserService userService,
                                   final AuditEventPublisher auditEventPublisher,
                                   final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.pendingDocumentDataService = pendingDocumentDataService;
+        this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
         this.gson = gson;
     }
@@ -74,6 +79,7 @@ public class DocumentsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/documents", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> listDocuments(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit) {
 
@@ -82,7 +88,10 @@ public class DocumentsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
         final List<PendingDocumentEntity> entities = pendingDocumentDataService.findAllByUserId(userId, offset, limit);
 
         final List<PendingRedactedDocuments> documents = new ArrayList<>();
@@ -108,14 +117,20 @@ public class DocumentsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/documents/{documentId}/status", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getStatus(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("documentId") String documentId) {
+            final @PathVariable("documentId") String documentId,
+            final @RequestParam(value = "owner", required = false) String owner) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, apiKeyEntity.getUserId());
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId);
         if (entity == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -135,14 +150,20 @@ public class DocumentsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/documents/{documentId}", method = RequestMethod.GET)
     public ResponseEntity<byte[]> downloadDocument(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("documentId") String documentId) {
+            final @PathVariable("documentId") String documentId,
+            final @RequestParam(value = "owner", required = false) String owner) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, apiKeyEntity.getUserId());
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId);
         if (entity == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -177,14 +198,23 @@ public class DocumentsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/documents/{documentId}", method = RequestMethod.DELETE)
     public ResponseEntity<Void> deleteDocument(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("documentId") String documentId) {
+            final @PathVariable("documentId") String documentId,
+            final @RequestParam(value = "owner", required = false) String owner) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final long deleted = pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, apiKeyEntity.getUserId());
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+                "delete document " + documentId);
+
+        final long deleted = pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, userId);
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DELETED, apiKeyEntity.getUserId(), null, null,

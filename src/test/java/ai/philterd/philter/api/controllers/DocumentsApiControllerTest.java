@@ -19,12 +19,16 @@ import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
+import ai.philterd.philter.config.AdminAccessConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,6 +73,9 @@ class DocumentsApiControllerTest {
     @Mock
     private AuditEventPublisher auditEventPublisher;
 
+    @Mock
+    private UserService userService;
+
     private ObjectId userId;
     private ObjectId apiKeyId;
     private MockMvc mockMvc;
@@ -86,12 +93,26 @@ class DocumentsApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final DocumentsApiController controller = new DocumentsApiController(
-                apiKeyDataService, apiKeyCache, pendingDocumentDataService, auditEventPublisher, new Gson());
+                apiKeyDataService, apiKeyCache, pendingDocumentDataService, userService, auditEventPublisher, new Gson());
+
+        // Admin cross-user access is opt-in (off by default); enable it for the admin tests here.
+
+        AdminAccessConfig.setOverrideForTesting(true);
+
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
                 .build();
     }
+
+
+        @AfterEach
+
+        void clearAdminAccessOverride() {
+
+            AdminAccessConfig.setOverrideForTesting(null);
+
+        }
 
     @Test
     void listDocumentsQueriesByOwningUserId() throws Exception {
@@ -148,6 +169,46 @@ class DocumentsApiControllerTest {
         verify(pendingDocumentDataService).deleteByDocumentIdAndUserId(documentId, userId);
         verify(auditEventPublisher).auditEvent(eq(documentId), eq(AuditLogEvent.REDACTED_FILE_DELETED),
                 eq(userId), eq(null), eq(null), contains(documentId));
+    }
+
+    // ----- Admin cross-user access via the owner parameter -----
+
+    @Test
+    void adminCanListAnotherUsersDocumentsViaOwner() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final UserEntity admin = new UserEntity();
+        admin.setId(userId);
+        admin.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(admin);
+        final UserEntity owner = new UserEntity();
+        owner.setId(otherUser);
+        owner.setEmail("other@example.com");
+        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        when(pendingDocumentDataService.findAllByUserId(eq(otherUser), eq(0), eq(25)))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com"))
+                .andExpect(status().isOk());
+
+        verify(pendingDocumentDataService).findAllByUserId(eq(otherUser), eq(0), eq(25));
+    }
+
+    @Test
+    void nonAdminNamingAnotherOwnerGets404() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final UserEntity owner = new UserEntity();
+        owner.setId(otherUser);
+        owner.setEmail("other@example.com");
+        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+
+        mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com"))
+                .andExpect(status().isNotFound());
     }
 
 }

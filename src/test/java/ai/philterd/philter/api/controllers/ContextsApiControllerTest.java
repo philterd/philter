@@ -29,6 +29,8 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
+import ai.philterd.philter.config.AdminAccessConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,20 +94,80 @@ class ContextsApiControllerTest {
                 contextService, contextEntryService, pendingDocumentDataService, userService,
                 apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
 
+        // Admin cross-user access is opt-in (off by default); enable it for the admin tests here.
+
+        AdminAccessConfig.setOverrideForTesting(true);
+
+
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
                 .build();
     }
 
+
+        @AfterEach
+
+        void clearAdminAccessOverride() {
+
+            AdminAccessConfig.setOverrideForTesting(null);
+
+        }
+
     @Test
     void listScopesToOwningUserId() throws Exception {
-        when(contextService.findAll(eq(userId))).thenReturn(Collections.emptyList());
+        when(contextService.findAll(eq(userId), eq(0), eq(25))).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-1"))
                 .andExpect(status().isOk());
 
-        verify(contextService).findAll(eq(userId));
+        // Defaults to the first page (offset 0, limit 25), scoped to the owning user id.
+        verify(contextService).findAll(eq(userId), eq(0), eq(25));
+    }
+
+    @Test
+    void listAppliesPagingParameters() throws Exception {
+        when(contextService.findAll(eq(userId), eq(50), eq(10))).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .param("offset", "50")
+                        .param("limit", "10")
+                        .requestAttr("requestId", "req-paging"))
+                .andExpect(status().isOk());
+
+        verify(contextService).findAll(eq(userId), eq(50), eq(10));
+    }
+
+    @Test
+    void listAllowedForAdminOnAnotherUserViaOwnerParam() throws Exception {
+        final ObjectId otherOwner = new ObjectId();
+        makeUserAdmin();
+        makeOwnerLookup("other@example.com", otherOwner);
+        when(contextService.findAll(eq(otherOwner), eq(0), eq(25))).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-list-admin"))
+                .andExpect(status().isOk());
+
+        // The list is scoped to the named owner, not the admin caller, and the cross-user access is audited.
+        verify(contextService).findAll(eq(otherOwner), eq(0), eq(25));
+        verify(auditEventPublisher).auditEvent(eq("req-list-admin"), eq(AuditLogEvent.ADMIN_CROSS_USER_ACCESS),
+                eq(userId), eq(otherOwner), isNull(), eq("action: list contexts"));
+    }
+
+    @Test
+    void listForbiddenForNonAdminNamingAnotherOwner() throws Exception {
+        final ObjectId otherOwner = new ObjectId();
+        makeOwnerLookup("other@example.com", otherOwner);
+        when(userService.findOneById(userId)).thenReturn(null); // caller is not an admin
+
+        mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-list-forbidden"))
+                .andExpect(status().isNotFound());
+
+        verify(contextService, never()).findAll(any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test

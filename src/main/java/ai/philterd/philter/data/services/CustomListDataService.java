@@ -23,6 +23,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
@@ -161,6 +162,43 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
         return document != null;
 
+    }
+
+    /**
+     * Returns every custom list for every user. Intended for admin-only views; ordinary access must use
+     * the owner-scoped {@link #findAll(ObjectId)}.
+     */
+    public List<CustomListEntity> findAllAcrossUsers() {
+
+        final List<CustomListEntity> customListEntities = new ArrayList<>();
+
+        for (final Document document : collection.find()) {
+            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+        }
+
+        return customListEntities;
+
+    }
+
+    /**
+     * Returns one page of custom lists across every user, ordered by name. Intended for admin-only
+     * views; ordinary access must use the owner-scoped {@link #findAll(ObjectId)}.
+     */
+    public List<CustomListEntity> findAllAcrossUsers(final int offset, final int limit) {
+
+        final List<CustomListEntity> customListEntities = new ArrayList<>();
+
+        for (final Document document : collection.find().sort(Sorts.ascending("name")).skip(offset).limit(limit)) {
+            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+        }
+
+        return customListEntities;
+
+    }
+
+    /** Returns the total number of custom lists across every user (for admin paging). */
+    public int countAllAcrossUsers() {
+        return (int) collection.countDocuments();
     }
 
     public List<CustomListEntity> findAll(final ObjectId userId) {

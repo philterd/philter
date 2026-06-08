@@ -36,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -137,5 +138,56 @@ class CustomListDataServiceTest {
 
         assertNotNull(results);
         assertTrue(results.isEmpty());
+    }
+
+    @Test
+    void findAllAcrossUsersReturnsEveryListUnscopedByUser() {
+        final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
+        final Document docB = new Document("_id", new ObjectId()).append("name", "beta").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        // findAllAcrossUsers must use the no-arg find() (no owner filter).
+        when(mongoCollection.find()).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA, docB).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<CustomListEntity> lists = customListDataService.findAllAcrossUsers();
+
+        assertEquals(2, lists.size());
+        assertEquals("alpha", lists.get(0).getName());
+        assertEquals("beta", lists.get(1).getName());
+        verify(mongoCollection).find();
+    }
+
+    @Test
+    void findAllAcrossUsersPagedAppliesSortSkipAndLimit() {
+        final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find()).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<CustomListEntity> page = customListDataService.findAllAcrossUsers(25, 25);
+
+        assertEquals(1, page.size());
+        assertEquals("alpha", page.get(0).getName());
+        verify(findIterable).skip(25);
+        verify(findIterable).limit(25);
+    }
+
+    @Test
+    void countAllAcrossUsersDelegatesToCountDocuments() {
+        when(mongoCollection.countDocuments()).thenReturn(42L);
+        assertEquals(42, customListDataService.countAllAcrossUsers());
     }
 }

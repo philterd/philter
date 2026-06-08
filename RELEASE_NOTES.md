@@ -35,11 +35,10 @@ redaction as the default behavior of the filter API.
   encrypt it, so previously written data continues to decrypt regardless of the
   configured value. Set the variable to the same value across restarts and
   instances so newly written data stays consistent.
-* **Docker Compose simplified.** The bundled `docker-compose.yml` no longer
-  includes the `proxy` (nginx) and `redaction-policy-editor` services. Philter
-  now publishes its own port directly (`8080:8080`) instead of being reached
-  through the proxy, and the `POLICY_EDITOR_URL` environment variable is gone.
-  The policy editor is now linked from the UI as the hosted editor at
+* **Docker Compose simplified.** Philter now serves its own UI, so the separate
+  `philter-ui` container is gone and the `philter` service publishes its port
+  directly (`8080:8080`). The `opensearch` service was also removed (see above).
+  The policy editor is linked from the UI as the hosted editor at
   `https://policies.philterd.ai`.
 * **The `/api/health` response shape changed.** `/api/health` (and the new
   `/api/status`) now return the same JSON object:
@@ -129,11 +128,6 @@ redaction as the default behavior of the filter API.
   FIFO eviction. This also fixes a pre-existing bug where stored vectors did
   not carry `user_id`, so `getVectorRepresentation` could not match what
   `hashAndInsert` wrote.
-* **Cache-hit read counting.** `ContextCache` now stores each entry's
-  ObjectId alongside its replacement (encoded as `<24-char-hex><replacement>`).
-  On a cache hit, `MongoContextService` increments the entry's read count via
-  the stored id — previously cache hits silently skipped this. Legacy
-  (unprefixed) cache values are treated as a miss for safe upgrade.
 * **New context API endpoints.**
   * `PUT /api/contexts/{name}` — update the `coref` and `disambiguation` flags
     on an existing context.

@@ -45,6 +45,33 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
 - **Policy editor link.** The Policies view links to the hosted redaction policy
   editor at `https://policies.philterd.ai` (new tab), passing the supported schema
   version as a `?version=` query parameter.
+- **Redaction Ledger.** The tamper-evident, per-document ledger is now exposed end to end:
+  - REST endpoints under `/api/ledger` — `GET /api/ledger` (paginated chain heads),
+    `GET /api/ledger/{documentId}` (a document's chain), `GET /api/ledger/{documentId}/valid`
+    (verify the hash chain), `GET /api/ledger/{documentId}/export` (export decrypted entries),
+    and `DELETE` for a single document's chain or all of the caller's chains.
+  - A **Redaction Ledger** view in the UI for browsing, searching, exporting, and purging.
+  - Retention via `REDACTION_LEDGER_TTL_SECONDS` — entries are kept **indefinitely by default**
+    (`0`); set a positive value for MongoDB TTL expiry. Ledger entries are also cleaned up when a
+    document chain is deleted, on a manual purge, and on user deletion.
+- **Admin cross-user access.** Administrators may view and act on another user's contexts,
+  policies, custom lists, documents, and redaction ledger by passing an `owner=<email>` query
+  parameter on those API endpoints, and via admin-only "All …" tabs in the UI. Cross-user actions
+  are audited as `admin_cross_user_access`.
+- **Audit log viewer and export.** A new `audit_events` collection records security-relevant
+  actions; the admin UI adds an **Audit Log** tab that exports events to CSV over a chosen date
+  range (max 30-day window, server time zone). New audit events include `admin_cross_user_access`
+  and `redaction_ledger_exported`.
+- **`GET /api/contexts` is now paginated** with `offset`/`limit` query parameters (default `0`/`25`),
+  matching `GET /api/policies`.
+- **A `default` context is created automatically** for each new user.
+- **Optional shared caching of contexts and API keys.** Set `CACHE_HOSTNAME` to use a
+  Valkey/Redis cache shared across instances; when unset, an in-memory, ephemeral cache is
+  used.
+- **My Account, Terms, and SDKs views.** Account settings (email, API keys, webhook) are
+  consolidated under a **My Account** page; global terms move to a dedicated **Terms** page; and
+  SDK references move to an **SDKs** page. The side navigation is grouped into Redaction, Account,
+  and Administration sections.
 
 ### Changed
 
@@ -54,25 +81,34 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
   Append `?async=false` to keep the previous synchronous response.
 - The text endpoint (`text/plain` in / `text/plain` out) is unaffected and remains
   synchronous; the `async` parameter has no effect on text redaction.
-- The UI no longer uses the commercial `vaadin-charts` or `vaadin-dashboard`
-  components.
-- `ContextCache` stores each entry's `ObjectId` with its replacement so cache hits
-  increment the read count; legacy values are treated as a miss.
-- The context and API-key caches fall back to an in-memory, ephemeral store when
-  `CACHE_HOSTNAME` is unset; set it to use Valkey/Redis for a durable, shared cache.
 - **`/api/health` response shape changed** to match `/api/status`:
   `{"status":"Healthy","applicationVersion":"...","redactionPolicySchemaVersion":"...","gitCommit":"..."}`.
   The previous `{"health":"ok","git-commit":"..."}` body no longer applies. Both
   endpoints remain unauthenticated. Update any health probes that parsed the old shape.
-- **Docker Compose simplified.** The bundled `docker-compose.yml` no longer includes
-  the `proxy` (nginx) and `redaction-policy-editor` services; Philter publishes its
-  own port (`8080:8080`) directly, and the `POLICY_EDITOR_URL` variable was removed.
+- **Docker Compose simplified.** Philter now serves its own UI, so the separate
+  `philter-ui` container is gone; the `philter` service publishes its port (`8080:8080`)
+  directly. The `opensearch` service was also removed (see Removed).
+- **Context names are now unique per user** rather than globally, so different users may reuse the
+  same context name. API endpoints that target another user's context accept an `owner` parameter to
+  disambiguate.
+- **Filter and explain requests accept an empty or null context name.** When no context is supplied,
+  no context features are applied and disambiguation is scoped to the submitted document only.
+- **Deleting a user now cascades** to that user's contexts, context entries, cached values, and
+  redaction ledger; deleting a context deletes its context-entry documents.
+- **The build targets Java 25.**
 
 ### Security
 
 - **The at-rest encryption key must be supplied via `PHILTER_ENCRYPTION_KEY`**
   (base64-encoded 32-byte AES-256). The built-in default key was removed and Philter
   refuses to start without a valid key. Existing encrypted data is unaffected.
+- **Admin cross-user access is opt-in and disabled by default.** It is gated by the
+  `ADMIN_CROSS_USER_ACCESS_ENABLED` kill switch (`false` by default); while disabled, an admin sees
+  only their own data like any user. Requests that name another `owner` without authorization return
+  `404 Not Found` (never `403`) so the API does not reveal whether a user or resource exists.
+- **Redaction ledger exports contain decrypted tokens and replacements** and must be treated as
+  sensitive; audit events never include those values, and ledger searches are audited by a hash of the
+  search term rather than the term itself.
 
 ### Removed
 

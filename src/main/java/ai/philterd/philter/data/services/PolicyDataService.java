@@ -303,6 +303,27 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
+    /** Returns one page of managed policies, ordered by name (for paging the Managed Policies grid). */
+    public List<PolicyEntity> findManagedPolicies(final int offset, final int limit) {
+
+        final FindIterable<Document> documents = collection.find(Filters.eq("managed", true))
+                .sort(Sorts.ascending("name")).skip(offset).limit(limit);
+
+        final List<PolicyEntity> policies = new ArrayList<>();
+
+        for (final Document document : documents) {
+            policies.add(PolicyEntity.fromDocument(document));
+        }
+
+        return policies;
+
+    }
+
+    /** Returns the total number of managed policies (for paging). */
+    public int countManagedPolicies() {
+        return (int) collection.countDocuments(Filters.eq("managed", true));
+    }
+
     public List<PolicyEntity> find(final ObjectId userId, final String searchTerm) {
 
         final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
@@ -330,6 +351,43 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         return policies;
 
+    }
+
+    /**
+     * Returns every policy for every user. Intended for admin-only views; ordinary access must use the
+     * owner-scoped {@link #findAll(ObjectId, int, int, boolean)}.
+     */
+    public List<PolicyEntity> findAllAcrossUsers() {
+
+        final List<PolicyEntity> policies = new ArrayList<>();
+
+        for (final Document document : collection.find()) {
+            policies.add(PolicyEntity.fromDocument(document));
+        }
+
+        return policies;
+
+    }
+
+    /**
+     * Returns one page of policies across every user, ordered by name. Intended for admin-only views;
+     * ordinary access must use the owner-scoped {@link #findAll(ObjectId, int, int, boolean)}.
+     */
+    public List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit) {
+
+        final List<PolicyEntity> policies = new ArrayList<>();
+
+        for (final Document document : collection.find().sort(Sorts.ascending("name")).skip(offset).limit(limit)) {
+            policies.add(PolicyEntity.fromDocument(document));
+        }
+
+        return policies;
+
+    }
+
+    /** Returns the total number of policies across every user (for admin paging). */
+    public int countAllAcrossUsers() {
+        return (int) collection.countDocuments();
     }
 
     /**

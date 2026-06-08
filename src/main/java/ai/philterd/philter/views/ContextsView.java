@@ -19,6 +19,8 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.ContextEntityDataProvider;
+import ai.philterd.philter.config.AdminAccessConfig;
+import org.bson.types.ObjectId;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.model.ServiceResponse;
@@ -45,6 +47,8 @@ import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Route(value = "contexts")
@@ -93,9 +97,9 @@ public class ContextsView extends AbstractRestrictedView {
             final VerticalLayout contextVerticalLayout = new VerticalLayout();
             contextVerticalLayout.add(contextNameTextField);
             contextVerticalLayout.add(disambiguationCheckbox);
-            contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "https://docs.philterd.ai/redaction/contexts.html#disambiguation", true));
+            contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "/public/docs/redaction/contexts.html", true));
             contextVerticalLayout.add(ledgerCheckbox);
-            contextVerticalLayout.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "https://docs.philterd.ai/redaction/ledgers.html", true));
+            contextVerticalLayout.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "/public/docs/redaction/ledgers.html", true));
 
             final Dialog confirmDialog = new Dialog();
             confirmDialog.setWidth("500px");
@@ -148,44 +152,8 @@ public class ContextsView extends AbstractRestrictedView {
             final Button viewContextButton = new Button(VaadinIcon.DOCTOR_BRIEFCASE.create());
             viewContextButton.setTooltipText("View context " + contextEntity.getContextName());
             viewContextButton.setText("View");
-            viewContextButton.addClickListener(event -> {
-
-                final Dialog viewContextDialog = new Dialog();
-                viewContextDialog.setWidth("500px");
-                viewContextDialog.setHeight("750px");
-
-                final VerticalLayout verticalLayout = new VerticalLayout();
-                verticalLayout.add(new H3("Context"));
-                verticalLayout.add(new Paragraph("Filter type counts for context: " + contextEntity.getContextName()));
-
-                // Get filter type counts instead of showing grid
-                final Map<String, Long> filterTypeCounts = contextEntryService.getFilterTypeCounts(contextEntity.getContextName(), userEntity.getId());
-
-                if(filterTypeCounts != null && !filterTypeCounts.isEmpty()) {
-
-                    final Grid<Map.Entry<String, Long>> countsGrid = new Grid<>();
-                    countsGrid.setItems(filterTypeCounts.entrySet());
-                    countsGrid.addColumn(Map.Entry::getKey).setHeader("Filter Type").setSortable(true);
-                    countsGrid.addColumn(Map.Entry::getValue).setHeader("Count").setSortable(true);
-                    countsGrid.setHeight("500px");
-
-                    verticalLayout.add(countsGrid);
-
-                } else {
-
-                    verticalLayout.add(new Paragraph("No entries found in this context."));
-
-                }
-
-                viewContextDialog.add(verticalLayout);
-
-                final Button cancelButton = new Button("Close", e -> viewContextDialog.close());
-                cancelButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-                viewContextDialog.getFooter().add(cancelButton);
-                viewContextDialog.open();
-
-            });
+            viewContextButton.addClickListener(event ->
+                    openContextCountsDialog(contextEntryService, contextEntity.getContextName(), userEntity.getId()));
 
             return viewContextButton;
 
@@ -214,9 +182,9 @@ public class ContextsView extends AbstractRestrictedView {
                 final VerticalLayout contextVerticalLayout = new VerticalLayout();
                 contextVerticalLayout.add(contextNameTextField);
                 contextVerticalLayout.add(disambiguationCheckbox);
-                contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "https://docs.philterd.ai/redaction/contexts.html#disambiguation", true));
+                contextVerticalLayout.add(CommonWidgets.getLink("Learn more about entity type disambiguation.", "/public/docs/redaction/contexts.html", true));
                 contextVerticalLayout.add(ledgerCheckbox);
-                contextVerticalLayout.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "https://docs.philterd.ai/redaction/ledgers.html", true));
+                contextVerticalLayout.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "/public/docs/redaction/ledgers.html", true));
 
                 final Dialog editDialog = new Dialog();
                 editDialog.setWidth("500px");
@@ -303,8 +271,7 @@ public class ContextsView extends AbstractRestrictedView {
 
                     final Button confirmButton = new Button("Delete", e -> {
 
-                        final boolean isAdmin = "admin".equalsIgnoreCase(userEntity.getRole());
-                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), userEntity.getId(), isAdmin);
+                        final ServiceResponse serviceResponse = contextService.deleteByName(contextEntity.getContextName(), userEntity.getId(), isAdmin());
 
                         if(serviceResponse.isSuccessful()) {
 
@@ -339,6 +306,12 @@ public class ContextsView extends AbstractRestrictedView {
 
         final TabSheet tabSheet = new  TabSheet();
         tabSheet.add("My Contexts", contextsVerticalLayout);
+
+        // Admins get an additional read-only view of every user's contexts.
+        if (isAdmin() && AdminAccessConfig.isCrossUserAccessEnabled()) {
+            tabSheet.add("All Contexts", buildAllContextsLayout(contextService, contextEntryService));
+        }
+
         tabSheet.setSizeFull();
 
         final HorizontalLayout suffixHorizontalLayout = new HorizontalLayout();
@@ -358,5 +331,94 @@ public class ContextsView extends AbstractRestrictedView {
         setContent(pageHorizontalLayout);
 
     }
+
+    /** The page size for the admin "All Contexts" lazy listing. */
+    private static final int ALL_CONTEXTS_PAGE_SIZE = 25;
+
+    /** Builds the admin-only "All Contexts" tab: every user's contexts with the owner's email, paged. */
+    private VerticalLayout buildAllContextsLayout(final ContextDataService contextService, final ContextEntryDataService contextEntryService) {
+
+        final Grid<AllContextRow> grid = new Grid<>();
+        grid.setPageSize(ALL_CONTEXTS_PAGE_SIZE);
+        grid.addColumn(AllContextRow::name).setHeader("Context").setResizable(true);
+        grid.addColumn(AllContextRow::owner).setHeader("Owner").setResizable(true);
+
+        // A View button identical to the one on the "My Contexts" tab, scoped to the row's owner.
+        grid.addComponentColumn(row -> {
+            final Button viewContextButton = new Button(VaadinIcon.DOCTOR_BRIEFCASE.create());
+            viewContextButton.setTooltipText("View context " + row.name());
+            viewContextButton.setText("View");
+            viewContextButton.addClickListener(event ->
+                    openContextCountsDialog(contextEntryService, row.name(), row.ownerId()));
+            return viewContextButton;
+        }).setHeader("View").setAutoWidth(true).setFlexGrow(0);
+
+        grid.setSizeFull();
+
+        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar.
+        grid.setItems(
+                query -> contextService.findAllAcrossUsers(query.getOffset(), query.getLimit()).stream()
+                        .map(this::toAllContextRow),
+                query -> contextService.countAllAcrossUsers());
+
+        final VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+        layout.add(new Span("All contexts across all users."));
+        layout.add(grid);
+        return layout;
+
+    }
+
+    /** Maps a context to an "All Contexts" row, resolving the owner's email. */
+    private AllContextRow toAllContextRow(final ContextEntity contextEntity) {
+        final UserEntity owner = userService.findOneById(contextEntity.getUserId());
+        return new AllContextRow(contextEntity.getContextName(),
+                owner != null ? owner.getEmail() : "(unknown)", contextEntity.getUserId());
+    }
+
+    /**
+     * Opens the "Filter type counts" dialog for a context. Shared by the "My Contexts" and admin
+     * "All Contexts" tabs so both show the identical dialog; the counts are scoped to {@code ownerId}.
+     */
+    private void openContextCountsDialog(final ContextEntryDataService contextEntryService, final String contextName, final ObjectId ownerId) {
+
+        final Dialog viewContextDialog = new Dialog();
+        viewContextDialog.setWidth("500px");
+        viewContextDialog.setHeight("750px");
+
+        final VerticalLayout verticalLayout = new VerticalLayout();
+        verticalLayout.add(new H3("Context"));
+        verticalLayout.add(new Paragraph("Filter type counts for context: " + contextName));
+
+        final Map<String, Long> filterTypeCounts = contextEntryService.getFilterTypeCounts(contextName, ownerId);
+
+        if (filterTypeCounts != null && !filterTypeCounts.isEmpty()) {
+
+            final Grid<Map.Entry<String, Long>> countsGrid = new Grid<>();
+            countsGrid.setItems(filterTypeCounts.entrySet());
+            countsGrid.addColumn(Map.Entry::getKey).setHeader("Filter Type").setSortable(true);
+            countsGrid.addColumn(Map.Entry::getValue).setHeader("Count").setSortable(true);
+            countsGrid.setHeight("500px");
+
+            verticalLayout.add(countsGrid);
+
+        } else {
+
+            verticalLayout.add(new Paragraph("No entries found in this context."));
+
+        }
+
+        viewContextDialog.add(verticalLayout);
+
+        final Button cancelButton = new Button("Close", e -> viewContextDialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        viewContextDialog.getFooter().add(cancelButton);
+        viewContextDialog.open();
+
+    }
+
+    /** A row in the admin "All Contexts" table: the context name, the owner's email, and the owner's id. */
+    private record AllContextRow(String name, String owner, ObjectId ownerId) {}
 
 }

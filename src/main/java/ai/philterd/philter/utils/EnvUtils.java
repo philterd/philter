@@ -47,6 +47,18 @@ public final class EnvUtils {
     }
 
     /**
+     * Returns the named environment variable parsed as a boolean ({@code true}/{@code false},
+     * case-insensitive), or {@code defaultValue} if it is unset or blank.
+     */
+    public static boolean getBoolean(final String name, final boolean defaultValue) {
+        final String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        return Boolean.parseBoolean(value.trim());
+    }
+
+    /**
      * Returns the named environment variable parsed as a long, or {@code defaultValue} if it is unset,
      * blank, or not a valid long.
      */

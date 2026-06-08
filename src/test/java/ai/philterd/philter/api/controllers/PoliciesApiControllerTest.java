@@ -20,11 +20,15 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
+import ai.philterd.philter.config.AdminAccessConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +66,7 @@ class PoliciesApiControllerTest {
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock private PolicyDataService policyDataService;
+    @Mock private UserService userService;
     @Mock private ApiKeyDataService apiKeyDataService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
@@ -80,12 +85,26 @@ class PoliciesApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final PoliciesApiController controller = new PoliciesApiController(
-                policyDataService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+                policyDataService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+
+        // Admin cross-user access is opt-in (off by default); enable it for the admin tests here.
+
+        AdminAccessConfig.setOverrideForTesting(true);
+
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
                 .build();
     }
+
+
+        @AfterEach
+
+        void clearAdminAccessOverride() {
+
+            AdminAccessConfig.setOverrideForTesting(null);
+
+        }
 
     @Test
     void listScopesToOwningUserId() throws Exception {
@@ -146,6 +165,51 @@ class PoliciesApiControllerTest {
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("POLICY ssn_only;\nREDACT SSN WITH MASK;"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ----- Admin cross-user access via the owner parameter -----
+
+    private void makeCallerAdmin() {
+        final UserEntity admin = new UserEntity();
+        admin.setId(userId);
+        admin.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(admin);
+    }
+
+    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+        final UserEntity owner = new UserEntity();
+        owner.setId(ownerId);
+        owner.setEmail(email);
+        when(userService.findByEmail(email)).thenReturn(owner);
+    }
+
+    @Test
+    void adminCanListAnotherUsersPoliciesViaOwner() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        makeCallerAdmin();
+        makeOwnerLookup("other@example.com", otherUser);
+        when(policyDataService.findAll(eq(otherUser), anyInt(), anyInt(), eq(false)))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com"))
+                .andExpect(status().isOk());
+
+        verify(policyDataService).findAll(eq(otherUser), anyInt(), anyInt(), eq(false));
+    }
+
+    @Test
+    void nonAdminNamingAnotherOwnerGets404() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        makeOwnerLookup("other@example.com", otherUser);
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+
+        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com"))
+                .andExpect(status().isNotFound());
     }
 
 }

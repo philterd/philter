@@ -32,8 +32,10 @@ vaadin-side-nav-item[current]::part(content) {
 /* Philterd red */
 /* A61D1FFF */
 
+/* Section/group labels in the side navigation. The sidebar background is white, so the label must
+   use a dark, readable color (it was previously white-on-white and therefore invisible). */
 vaadin-side-nav > [slot="label"] {
-    color: #FFFFFF;
+    color: var(--lumo-secondary-text-color);
     font-weight: bold;
 }
 

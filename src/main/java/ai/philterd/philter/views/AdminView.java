@@ -16,6 +16,7 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.UserEntityDataProvider;
@@ -32,7 +33,6 @@ import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -40,7 +40,15 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.server.StreamResource;
+
+import java.io.ByteArrayInputStream;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -61,7 +69,8 @@ public class AdminView extends AbstractRestrictedView {
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                      final UserService userService, final PolicyDataService policyService,
                      final ContextDataService contextService,
-                     final AdminSettingsDataService adminSettingsDataService) {
+                     final AdminSettingsDataService adminSettingsDataService,
+                     final AuditLogService auditLogService) {
 
         super(mongoClient, encryptionService, auditEventPublisher);
 
@@ -282,13 +291,13 @@ public class AdminView extends AbstractRestrictedView {
                 deleteButton.setTooltipText("You cannot delete yourself.");
             }
 
-            deleteButton.addClickListener(clickEvent -> {
+            deleteButton.addClickListener(_ -> {
 
                 final Dialog confirmDialog = new Dialog();
                 confirmDialog.add(new H3("Confirm Deletion"));
                 confirmDialog.add(new Paragraph("Are you sure you want to delete the user " + user.getEmail() + "?"));
                 confirmDialog.add(new Paragraph("This will delete all of the user's data: API keys, contexts, custom lists, policies, and ledger entries."));
-                confirmDialog.add(new Paragraph("If you want to "));
+                confirmDialog.add(new Paragraph("Use the API to export any needed user data before deleting the user."));
 
                 final Button confirmButton = new Button("Delete", e -> {
                     userService.deleteUser(RequestIdGenerator.generate(), user, contextService, Source.WEBUI.getSource());
@@ -368,6 +377,7 @@ public class AdminView extends AbstractRestrictedView {
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Users", usersVerticalLayout);
         tabSheet.add("Admin Settings", adminSettingsVerticalLayout);
+        tabSheet.add("Audit Log", buildAuditLogLayout(auditLogService));
         tabSheet.setSizeFull();
 
         pageVerticalLayout.add(tabSheet);
@@ -376,6 +386,84 @@ public class AdminView extends AbstractRestrictedView {
         pageHorizontalLayout.add(pageVerticalLayout);
 
         setContent(pageHorizontalLayout);
+
+    }
+
+    /** Builds the "Audit Log" tab: a from/to date range and a button to download that range as CSV. */
+    private VerticalLayout buildAuditLogLayout(final AuditLogService auditLogService) {
+
+        final VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+
+        layout.add(new Paragraph("Download the audit log of security-relevant actions (redactions, ledger "
+                + "queries and deletions, policy/key/user changes, admin cross-user access, and more) as a CSV file. "
+                + "Choose a date range of up to " + AuditLogService.MAX_EXPORT_WINDOW_DAYS + " days; the export "
+                + "contains up to " + AuditLogService.MAX_EXPORT_ROWS + " events in that range, newest first."));
+
+        final LocalDate today = LocalDate.now();
+
+        final DatePicker fromPicker = new DatePicker("From");
+        fromPicker.setMax(today);
+        fromPicker.setValue(today.minusDays(AuditLogService.MAX_EXPORT_WINDOW_DAYS - 1));
+
+        final DatePicker toPicker = new DatePicker("To");
+        toPicker.setMax(today);
+        toPicker.setValue(today);
+
+        final HorizontalLayout dateRow = new HorizontalLayout(fromPicker, toPicker);
+        dateRow.setAlignItems(HorizontalLayout.Alignment.BASELINE);
+
+        final Span error = new Span();
+        error.getStyle().set("color", "var(--lumo-error-text-color)");
+
+        final Button downloadButton = new Button("Download Audit Log (CSV)", VaadinIcon.DOWNLOAD.create());
+        downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        final Anchor downloadAnchor = new Anchor();
+        downloadAnchor.getElement().setAttribute("download", true);
+        downloadAnchor.add(downloadButton);
+
+        // Re-validate the range and rebuild the download whenever a date changes. The CSV is generated
+        // when the link is requested (StreamResource factory), so it reflects the chosen range and the
+        // log at download time. The download is enabled only for a valid range within the window limit.
+        final Runnable refresh = () -> {
+            final LocalDate from = fromPicker.getValue();
+            final LocalDate to = toPicker.getValue();
+
+            if (from == null || to == null) {
+                error.setText("Select both a From and To date.");
+                downloadButton.setEnabled(false);
+                downloadAnchor.removeHref();
+                return;
+            }
+            if (from.isAfter(to)) {
+                error.setText("\"From\" must be on or before \"To\".");
+                downloadButton.setEnabled(false);
+                downloadAnchor.removeHref();
+                return;
+            }
+            if (ChronoUnit.DAYS.between(from, to) > AuditLogService.MAX_EXPORT_WINDOW_DAYS) {
+                error.setText("The date range cannot exceed " + AuditLogService.MAX_EXPORT_WINDOW_DAYS + " days.");
+                downloadButton.setEnabled(false);
+                downloadAnchor.removeHref();
+                return;
+            }
+
+            error.setText("");
+            downloadButton.setEnabled(true);
+
+            // The service validates the window and converts the dates (server time zone, 'to' day
+            // included in full); this UI check just mirrors it to enable/disable the download.
+            downloadAnchor.setHref(new StreamResource("philter-audit-log.csv",
+                    () -> new ByteArrayInputStream(auditLogService.exportCsv(from, to))));
+        };
+
+        fromPicker.addValueChangeListener(e -> refresh.run());
+        toPicker.addValueChangeListener(e -> refresh.run());
+        refresh.run();
+
+        layout.add(dateRow, error, downloadAnchor);
+        return layout;
 
     }
 

@@ -43,6 +43,7 @@ import org.mockito.quality.Strictness;
 import org.mockito.junit.jupiter.MockitoSettings;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -249,5 +250,87 @@ class PolicyDataServiceTest {
     void validatePolicyRejectsInvalidJson() {
         final PolicyValidation validation = policyDataService.validatePolicy("{not valid json");
         assertFalse(validation.isValid());
+    }
+
+    @Test
+    void findAllAcrossUsersReturnsEveryPolicyUnscopedByUser() {
+        final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
+        final Document docB = new Document("_id", new ObjectId()).append("name", "beta").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        // findAllAcrossUsers must use the no-arg find() (no owner filter).
+        when(mongoCollection.find()).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA, docB).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<PolicyEntity> policies = policyDataService.findAllAcrossUsers();
+
+        assertEquals(2, policies.size());
+        assertEquals("alpha", policies.get(0).getName());
+        assertEquals("beta", policies.get(1).getName());
+        verify(mongoCollection).find();
+    }
+
+    @Test
+    void findAllAcrossUsersPagedAppliesSortSkipAndLimit() {
+        final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find()).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<PolicyEntity> page = policyDataService.findAllAcrossUsers(25, 25);
+
+        assertEquals(1, page.size());
+        assertEquals("alpha", page.get(0).getName());
+        verify(findIterable).sort(any());
+        verify(findIterable).skip(25);
+        verify(findIterable).limit(25);
+    }
+
+    @Test
+    void countAllAcrossUsersDelegatesToCountDocuments() {
+        when(mongoCollection.countDocuments()).thenReturn(42L);
+        assertEquals(42, policyDataService.countAllAcrossUsers());
+    }
+
+    @Test
+    void findManagedPoliciesPagedAppliesFilterSortSkipAndLimit() {
+        final Document doc = new Document("_id", new ObjectId()).append("name", "managed-a")
+                .append("user_id", new ObjectId()).append("managed", true);
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(doc).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<PolicyEntity> page = policyDataService.findManagedPolicies(50, 25);
+
+        assertEquals(1, page.size());
+        assertEquals("managed-a", page.get(0).getName());
+        verify(findIterable).skip(50);
+        verify(findIterable).limit(25);
+    }
+
+    @Test
+    void countManagedPoliciesDelegatesToCountDocuments() {
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(7L);
+        assertEquals(7, policyDataService.countManagedPolicies());
     }
 }

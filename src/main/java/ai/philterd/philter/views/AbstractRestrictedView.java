@@ -87,33 +87,50 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
             logout();
         });
 
+        // An expanding spacer between the logo and Sign Out pushes Sign Out to the far right of the bar
+        // so it isn't crowded next to the logo.
         final Div spacer = new Div();
 
         final HorizontalLayout header = new HorizontalLayout();
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         header.setWidthFull();
         header.addClassNames(LumoUtility.Padding.Vertical.NONE, LumoUtility.Padding.Horizontal.MEDIUM);
-        header.add(logoImage);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setPadding(true);
+        header.add(logoImage, spacer, logoutButton);
         header.expand(spacer);
-        header.add(logoutButton);
+        // Separate the top bar from the navigation below it with a subtle divider.
+        header.getStyle().set("border-bottom", "1px solid var(--lumo-contrast-10pct)");
 
         addToNavbar(header);
 
-        final SideNav sideNav = new SideNav();
-        sideNav.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
-        sideNav.addItem(new SideNavItem("Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
-        sideNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.DOCTOR.create()));
-        sideNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
-        sideNav.addItem(new SideNavItem("API and SDKs", ApiKeysAndSDKsView.class, VaadinIcon.COG.create()));
-        sideNav.addItem(new SideNavItem("Settings", SettingsView.class, VaadinIcon.COG.create()));
+        // Dashboard sits on its own at the top. The top margin gives the navigation breathing room so
+        // the first item isn't jammed up against the logo/top bar.
+        final SideNav mainNav = new SideNav();
+        mainNav.getStyle().set("margin-top", "var(--lumo-space-m)");
+        mainNav.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
+        addToDrawer(mainNav);
 
-        if ("admin".equalsIgnoreCase(userEntity.getRole())) {
-            sideNav.addItem(new SideNavItem("Admin", AdminView.class, VaadinIcon.USER_STAR.create()));
+        // Everything that configures or records a redaction.
+        final SideNav redactionNav = new SideNav("Redaction");
+        redactionNav.addItem(new SideNavItem("Redaction Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
+        redactionNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
+        redactionNav.addItem(new SideNavItem("Terms", TermsView.class, VaadinIcon.TAGS.create()));
+        redactionNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.RECORDS.create()));
+        redactionNav.addItem(new SideNavItem("Redaction Ledger", LedgerView.class, VaadinIcon.BOOK.create()));
+        addToDrawer(redactionNav);
+
+        // Per-user account and integration settings.
+        final SideNav accountNav = new SideNav("Account");
+        accountNav.addItem(new SideNavItem("SDKs", SdksView.class, VaadinIcon.CODE.create()));
+        accountNav.addItem(new SideNavItem("My Account", AccountView.class, VaadinIcon.USER.create()));
+        addToDrawer(accountNav);
+
+        if (isAdmin()) {
+            final SideNav adminNav = new SideNav("Administration");
+            adminNav.addItem(new SideNavItem("Admin", AdminView.class, VaadinIcon.USER_STAR.create()));
+            addToDrawer(adminNav);
         }
-
-        addToDrawer(sideNav);
 
     }
 
@@ -133,6 +150,15 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
 
         return userService.findByEmail(email);
 
+    }
+
+    /**
+     * Whether the signed-in user is an administrator. This is the single source of truth for the
+     * admin role check used to gate admin-only UI (e.g. the "All …" tabs and the Admin menu item),
+     * so the role string is not duplicated across views.
+     */
+    public boolean isAdmin() {
+        return userEntity != null && "admin".equalsIgnoreCase(userEntity.getRole());
     }
 
     public HorizontalLayout getTitle(final String name) {

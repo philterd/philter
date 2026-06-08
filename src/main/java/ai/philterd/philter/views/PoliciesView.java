@@ -17,11 +17,10 @@ package ai.philterd.philter.views;
 
 import ai.philterd.phileas.policy.PolicySchema;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.entities.GlobalTermsEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.PolicyEntityDataProvider;
-import ai.philterd.philter.data.services.GlobalTermsDataService;
+import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
@@ -47,17 +46,17 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.ListDataProvider;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 
 @Route(value = "policies")
-@PageTitle("Philter - Policies")
+@PageTitle("Philter - Redaction Policies")
 @PermitAll
 public class PoliciesView extends AbstractRestrictedView {
 
@@ -70,8 +69,7 @@ public class PoliciesView extends AbstractRestrictedView {
             "https://policies.philterd.ai/?version=" + PolicySchema.getSupportedSchemaVersion();
 
 
-    public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService,
-                        final GlobalTermsDataService globalTermsService) {
+    public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService) {
         super(mongoClient, encryptionService, auditEventPublisher);
 
         final UserEntity userEntity = getCurrentUser();
@@ -379,50 +377,25 @@ public class PoliciesView extends AbstractRestrictedView {
         // Begin Managed Policies
 
         final Grid<PolicyEntity> managedPoliciesGrid = new Grid<>(PolicyEntity.class, false);
-        managedPoliciesGrid.addColumn(PolicyEntity::getName).setHeader("Name").setResizable(true).setSortable(true);
-        managedPoliciesGrid.addColumn(PolicyEntity::getDescription).setHeader("Description").setResizable(true).setSortable(true);
-        managedPoliciesGrid.setDataProvider(new ListDataProvider<>(policyService.findManagedPolicies()));
+        managedPoliciesGrid.addColumn(PolicyEntity::getName).setHeader("Name").setResizable(true);
+        managedPoliciesGrid.addColumn(PolicyEntity::getDescription).setHeader("Description").setResizable(true);
+        managedPoliciesGrid.setPageSize(ALL_POLICIES_PAGE_SIZE);
+        // Lazy paging: fetch one page at a time plus the total count for the scrollbar.
+        managedPoliciesGrid.setItems(
+                query -> policyService.findManagedPolicies(query.getOffset(), query.getLimit()).stream(),
+                query -> policyService.countManagedPolicies());
         managedPoliciesGrid.setWidthFull();
 
         managedPoliciesGrid.addComponentColumn(managedPolicyEntity -> {
-            final Button viewPolicyButton = new Button(VaadinIcon.OPEN_BOOK.create());
+            final Button viewPolicyButton = new Button("View Policy", VaadinIcon.OPEN_BOOK.create());
             viewPolicyButton.setTooltipText("View Policy");
-            viewPolicyButton.addClickListener(event -> {
-
-                final Gson prettyGson = new GsonBuilder().setPrettyPrinting().create();
-                final JsonElement jsonElement = JsonParser.parseString(managedPolicyEntity.getPolicy());
-                final String prettyJson = prettyGson.toJson(jsonElement);
-
-                final TextArea policyTextArea = new TextArea();
-                policyTextArea.setLabel(managedPolicyEntity.getName());
-                policyTextArea.setWidthFull();
-                policyTextArea.setReadOnly(true);
-                policyTextArea.setValue(prettyJson);
-
-                final VerticalLayout viewPolicyVerticalLayout = new VerticalLayout();
-                viewPolicyVerticalLayout.add(policyTextArea);
-
-                final Dialog viewManagedPolicyDialog = new Dialog();
-                viewManagedPolicyDialog.add(viewPolicyVerticalLayout);
-                viewManagedPolicyDialog.setMinWidth("600px");
-                viewManagedPolicyDialog.setMaxWidth("600px");
-                viewManagedPolicyDialog.setMinHeight("800px");
-                viewManagedPolicyDialog.setMaxHeight("800px");
-                viewManagedPolicyDialog.setCloseOnEsc(true);
-                viewManagedPolicyDialog.setCloseOnOutsideClick(true);
-
-                final Button cancelButton = new Button("Close", e -> viewManagedPolicyDialog.close());
-                cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
-                viewManagedPolicyDialog.getFooter().add(cancelButton);
-                viewManagedPolicyDialog.open();
-
-            });
+            viewPolicyButton.addClickListener(event ->
+                    openPolicyJsonDialog(managedPolicyEntity.getName(), managedPolicyEntity.getPolicy()));
             return viewPolicyButton;
         }).setHeader("View Policy").setAutoWidth(true).setFlexGrow(0);
 
         managedPoliciesGrid.addComponentColumn(managedPolicyEntity -> {
-            final Button createPolicyButton = new Button(VaadinIcon.PLUS.create());
+            final Button createPolicyButton = new Button("Create Policy From", VaadinIcon.PLUS.create());
             createPolicyButton.setTooltipText("Create a new policy from " + managedPolicyEntity.getName());
             createPolicyButton.addClickListener(event -> {
 
@@ -485,50 +458,21 @@ public class PoliciesView extends AbstractRestrictedView {
         managedPoliciesVerticalLayout.add(managedPoliciesGrid);
         managedPoliciesVerticalLayout.setSizeFull();
 
-        // Begin Global Terms
-
-        final GlobalTermsEntity globalTermsEntity = globalTermsService.find(null);
-
-        final TextArea termsToAlwaysRedactTextArea = new TextArea();
-        termsToAlwaysRedactTextArea.setSizeFull();
-        if(globalTermsEntity != null) {
-            termsToAlwaysRedactTextArea.setValue(String.join("\n", globalTermsEntity.getTermsToAlwaysRedact()));
-        }
-
-        final TextArea termsToNeverRedactTextArea = new TextArea();
-        termsToNeverRedactTextArea.setSizeFull();
-        if(globalTermsEntity != null) {
-            termsToNeverRedactTextArea.setValue(String.join("\n", globalTermsEntity.getTermsToNeverRedact()));
-        }
-
-        final Button saveGlobalTermsButton = new Button("Save Terms");
-        saveGlobalTermsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        saveGlobalTermsButton.addClickListener(event -> {
-            globalTermsService.saveOrUpdate(RequestIdGenerator.generate(), userEntity.getId(), termsToAlwaysRedactTextArea.getValue().lines().collect(Collectors.toList()), termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()), Source.WEBUI.getSource());
-            showSuccessNotification("Terms saved.");
-        });
-
-        final VerticalLayout termsToAlwaysRedactVerticalLayout = new VerticalLayout();
-        termsToAlwaysRedactVerticalLayout.add(new H3("Terms to Always Redact"));
-        termsToAlwaysRedactVerticalLayout.add(new Span("These terms, one per line, will always be redacted regardless of the selected policy."));
-        termsToAlwaysRedactVerticalLayout.add(termsToAlwaysRedactTextArea);
-        termsToAlwaysRedactVerticalLayout.add(new H3("Terms to Never Redact"));
-        termsToAlwaysRedactVerticalLayout.add(new Span("These terms, one per line, will never be redacted regardless of the selected policy."));
-        termsToAlwaysRedactVerticalLayout.add(termsToNeverRedactTextArea);
-        termsToAlwaysRedactVerticalLayout.add(CommonWidgets.getLink("Learn about the options available for fuzzy-matching and other options.", "https://docs.philterd.ai/redaction/global_terms.html", true));
-        termsToAlwaysRedactVerticalLayout.add(saveGlobalTermsButton);
-        termsToAlwaysRedactVerticalLayout.setSizeFull();
-
-        // Create the tab sheet and page.
+        // Create the tab sheet and page. (Global Terms now lives on its own Terms page.)
 
         final TabSheet tabSheet = new TabSheet();
-        tabSheet.add("Policies", policiesVerticalLayout);
+        tabSheet.add("My Policies", policiesVerticalLayout);
         tabSheet.add("Managed Policies", managedPoliciesVerticalLayout);
-        tabSheet.add("Global Terms", termsToAlwaysRedactVerticalLayout);
+
+        // Admins get an additional read-only view of every user's policies.
+        if (isAdmin() && AdminAccessConfig.isCrossUserAccessEnabled()) {
+            tabSheet.add("All Policies", buildAllPoliciesLayout(policyService));
+        }
+
         tabSheet.setSizeFull();
 
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
-        pageVerticalLayout.add(getTitle(("Policies")));
+        pageVerticalLayout.add(getTitle(("Redaction Policies")));
         pageVerticalLayout.add(tabSheet);
         pageVerticalLayout.add(CommonWidgets.getFooter());
         pageVerticalLayout.setSizeFull();
@@ -538,6 +482,91 @@ public class PoliciesView extends AbstractRestrictedView {
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);
+
+    }
+
+    /** The page size for the admin "All Policies" lazy listing. */
+    private static final int ALL_POLICIES_PAGE_SIZE = 25;
+
+    /**
+     * Builds the admin-only "All Policies" tab: every user's policies with the owner's email. The grid
+     * is bound to a lazy {@link com.vaadin.flow.data.provider.DataProvider} via fetch/count callbacks,
+     * so it loads {@value #ALL_POLICIES_PAGE_SIZE} rows at a time as the user scrolls rather than
+     * loading every policy at once.
+     */
+    private VerticalLayout buildAllPoliciesLayout(final PolicyDataService policyService) {
+
+        final Grid<AllPolicyRow> grid = new Grid<>();
+        grid.setPageSize(ALL_POLICIES_PAGE_SIZE);
+        grid.addColumn(AllPolicyRow::name).setHeader("Policy").setResizable(true);
+        grid.addColumn(AllPolicyRow::owner).setHeader("Owner").setResizable(true);
+
+        // A View Policy button identical to the one on the "Managed Policies" tab.
+        grid.addComponentColumn(row -> {
+            final Button viewPolicyButton = new Button("View Policy", VaadinIcon.OPEN_BOOK.create());
+            viewPolicyButton.setTooltipText("View Policy");
+            viewPolicyButton.addClickListener(event -> openPolicyJsonDialog(row.name(), row.policyJson()));
+            return viewPolicyButton;
+        }).setHeader("View Policy").setAutoWidth(true).setFlexGrow(0);
+
+        grid.setSizeFull();
+
+        // Lazy paging: the grid requests one page (offset/limit) at a time and the total count for the
+        // scrollbar, reusing the owner-agnostic service methods.
+        grid.setItems(
+                query -> policyService.findAllAcrossUsers(query.getOffset(), query.getLimit()).stream()
+                        .map(this::toAllPolicyRow),
+                query -> policyService.countAllAcrossUsers());
+
+        final VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+        layout.add(new Span("All policies across all users."), grid);
+        return layout;
+
+    }
+
+    /** Maps a policy to an "All Policies" row, resolving the owner's email. */
+    private AllPolicyRow toAllPolicyRow(final PolicyEntity policy) {
+        final UserEntity owner = policy.getUserId() != null ? userService.findOneById(policy.getUserId()) : null;
+        return new AllPolicyRow(policy.getName(), owner != null ? owner.getEmail() : "(none)", policy.getPolicy());
+    }
+
+    /** A row in the admin "All Policies" table: the policy name, the owner's email, and the policy JSON. */
+    private record AllPolicyRow(String name, String owner, String policyJson) {}
+
+    /**
+     * Opens a read-only dialog showing a policy's JSON, pretty-printed. Shared by the "Managed Policies"
+     * and admin "All Policies" tabs so both show the identical dialog.
+     */
+    private void openPolicyJsonDialog(final String name, final String policyJson) {
+
+        final Gson prettyGson = new GsonBuilder().setPrettyPrinting().create();
+        final JsonElement jsonElement = JsonParser.parseString(policyJson);
+        final String prettyJson = prettyGson.toJson(jsonElement);
+
+        final TextArea policyTextArea = new TextArea();
+        policyTextArea.setLabel(name);
+        policyTextArea.setWidthFull();
+        policyTextArea.setReadOnly(true);
+        policyTextArea.setValue(prettyJson);
+
+        final VerticalLayout viewPolicyVerticalLayout = new VerticalLayout();
+        viewPolicyVerticalLayout.add(policyTextArea);
+
+        final Dialog viewPolicyDialog = new Dialog();
+        viewPolicyDialog.add(viewPolicyVerticalLayout);
+        viewPolicyDialog.setMinWidth("600px");
+        viewPolicyDialog.setMaxWidth("600px");
+        viewPolicyDialog.setMinHeight("800px");
+        viewPolicyDialog.setMaxHeight("800px");
+        viewPolicyDialog.setCloseOnEsc(true);
+        viewPolicyDialog.setCloseOnOutsideClick(true);
+
+        final Button cancelButton = new Button("Close", e -> viewPolicyDialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        viewPolicyDialog.getFooter().add(cancelButton);
+        viewPolicyDialog.open();
 
     }
 

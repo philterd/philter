@@ -2,7 +2,7 @@
 
 A Redaction Ledger is a core security feature of Philter, providing a cryptographically-verifiable and immutable log of every redaction performed on your documents. In an era where data integrity and transparency are paramount, ledgers offer a definitive way to audit and trust the automated redaction process.
 
-By maintaining a permanent record of what was changed, why it was changed, and how it was changed, Philter empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA.
+By maintaining a verifiable record of what was changed, why it was changed, and how it was changed, Philter empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA. The chain is **tamper-evident** — entries cannot be altered without detection — but, as described under [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted), entries can be removed deliberately for data-minimization or lifecycle reasons.
 
 ## How Redaction Ledgers Work
 
@@ -17,9 +17,40 @@ The Philterd ledger system is built on the principles of cryptographic chaining,
 
 Redaction ledgers are controlled on a per-context basis. When creating or editing a [context](contexts.md), use the **Enable the redaction ledger** option to turn the ledger on for that context. The option is unchecked (disabled) by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.
 
-## Retention
+## How and When Ledger Entries Are Deleted
 
-By default, ledger entries are kept for 90 days, after which MongoDB automatically removes them. Configure this with the `REDACTION_LEDGER_TTL_SECONDS` environment variable (see [Settings](../settings.md)): set it to a different number of seconds to change the retention window, or to `0` to keep ledger entries indefinitely. Because the ledger is a cryptographic chain, expiring entries removes the oldest links over time, so set the value to `0` if you need to retain the full history.
+**By default, ledger entries are kept indefinitely.** Because the ledger is a tamper-evident audit record, Philter never deletes entries on its own unless you opt in. There are four ways entries are removed, summarized below.
+
+Deletion always operates on **whole document chains**, never on individual entries within a chain. This preserves verifiability: a chain that remains is always complete and can still be validated, and a chain that is removed is removed in its entirety.
+
+### 1. Manual purge (on demand)
+
+You can prune old entries yourself at any time. This is the primary way to enforce a retention policy.
+
+* **Dashboard**: on the **Ledger** page, use **Purge old entries** and enter a number of days. Every chain of yours older than that is deleted.
+* **API**: `DELETE /api/ledger?older_than_days={n}` deletes the calling user's chains older than `n` days. See the [Ledger API](../api_and_sdks/api/ledger_api.md#purge-old-ledger-entries).
+
+### 2. Deleting a single document's chain
+
+* **Dashboard**: click the delete (trash) icon next to a document on the **Ledger** page.
+* **API**: `DELETE /api/ledger/{documentId}` removes that document's chain. See the [Ledger API](../api_and_sdks/api/ledger_api.md#delete-a-documents-ledger-chain).
+
+### 3. Automatic expiry (optional, off by default)
+
+If you want time-based expiry without running a manual purge, set the `REDACTION_LEDGER_TTL_SECONDS` environment variable (see [Settings](../settings.md)) to a positive number of seconds. MongoDB then automatically expires entries older than that. It is **unset (no expiry) by default**. If a deployment previously configured a TTL and you remove the variable, Philter drops the existing expiry index on startup so entries stop being auto-deleted.
+
+### 4. User deletion
+
+When a user account is deleted, that user's **entire ledger** (all chains for all of their documents) is deleted along with their other data. The ledger is owned by the user and does not outlive the account.
+
+## Exporting Ledger Entries
+
+A document's full ledger chain can be exported as a portable JSON document so it can be archived externally and later re-verified — each exported entry carries its `hash` and `previousHash`, so the chain's integrity can be checked offline.
+
+* **Dashboard**: open a document's ledger with **View**, then use **Export (JSON)** to download the chain.
+* **API**: `GET /api/ledger/{documentId}/export` returns the chain as a downloadable JSON document. See the [Ledger API](../api_and_sdks/api/ledger_api.md#export-a-documents-ledger-chain).
+
+> **Security:** unlike a context export (which contains only token hashes), a ledger export includes the **decrypted original token and its replacement**, because the ledger's purpose is to record exactly what was redacted to what. Treat an export as sensitive and store and transmit it securely.
 
 ## The Redaction Ledgers Dashboard
 
@@ -27,7 +58,7 @@ The **Ledgers** page within your Philterd dashboard serves as the central hub fo
 
 ### The Recent Documents List
 
-By default, the page displays a list of the 50 most recently processed documents that have ledgering enabled. For each document, the following metadata is provided:
+By default, the page displays the most recently processed documents (up to 100) that have ledgering enabled. For each document, the following metadata is provided:
   
 * **Original File Name**: The name of the document as it was uploaded.
 *   **Unique Document ID**: A system-generated UUID that uniquely identifies this specific redaction task.
@@ -55,6 +86,6 @@ For organizations processing a high volume of documents, you can quickly locate 
     *   **Plain Text (.txt)** documents.
     *   **Microsoft Word (.docx)** documents.
 *   **PDF Support**: At this time, redaction ledgers are **not** generated for PDF documents. We recommend using the PDF Redaction Summary report for auditing PDF workflows.
-*   **Dashboard Retention**: The main dashboard view focuses on the most recent 50 documents. Ledger data remains accessible via the API for historical reporting, subject to the configured retention window (see the Retention section above).
-*   **Data Privacy**: Access to ledgers is highly restricted and requires appropriate account permissions, as ledgers contain records of the original sensitive information (the "Identified Token").
+*   **Dashboard Listing**: The main dashboard view shows the most recent documents (up to 100). All ledger data — including older chains beyond that listing — remains accessible via the [Ledger API](../api_and_sdks/api/ledger_api.md) for historical reporting. Entries are retained until you remove them (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
+*   **Data Privacy**: Access to ledgers is highly restricted and requires appropriate account permissions, as ledgers contain records of the original sensitive information (the "Identified Token"). A regular user can only access their own ledger; an administrator can access any user's ledger through the [Ledger API](../api_and_sdks/api/ledger_api.md) by supplying the owner's email.
 

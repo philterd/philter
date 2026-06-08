@@ -2,18 +2,26 @@
 
 The Contexts API provides endpoints for retrieving, creating, and deleting contexts, and for listing, exporting, and importing the token-to-replacement mappings within a context.
 
+> **Admin cross-user access:** by default each endpoint operates on the calling user's own contexts. Because context names are unique only per user, an **admin** identifies another user's context by adding an `owner=<email>` query parameter. A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
+
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
 ## Get Context Names
 
 | Method | Endpoint        | Description                    |
 | ------ |-----------------|--------------------------------| 
-| `GET` | `/api/contexts` | Get the names of all contexts. |
+| `GET` | `/api/contexts` | Get the names of contexts (paginated). |
+
+### Query Parameters
+
+* `offset` (optional, default: `0`) - The number of context names to skip.
+* `limit` (optional, default: `25`) - The maximum number of context names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
+* `owner` (optional) - The email address of the user whose contexts to list. When omitted, the caller's own contexts are listed. Supplying an `owner` other than yourself requires admin privileges and cross-user access being enabled (`ADMIN_CROSS_USER_ACCESS_ENABLED=true`; disabled by default); otherwise it receives `404 Not Found`.
 
 Example request:
 
 ```bash
-curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/contexts
+curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/contexts?offset=0&limit=100"
 ```
 
 Example response:
@@ -174,7 +182,7 @@ Exports every token-to-replacement mapping in the context in a portable JSON for
 
 ### Query Parameters
 
-* `owner` (optional) - The email address of the context's owner. Because context names are unique only per user, an admin uses this to identify another user's context unambiguously. When omitted, the export applies to the caller's own context with the given name. Supplying an `owner` other than yourself requires admin privileges; a non-admin doing so receives `404 Not Found`.
+* `owner` (optional) - The email address of the context's owner. Because context names are unique only per user, an admin uses this to identify another user's context unambiguously. When omitted, the export applies to the caller's own context with the given name. Supplying an `owner` other than yourself requires admin privileges and cross-user access being enabled (`ADMIN_CROSS_USER_ACCESS_ENABLED=true`; disabled by default); otherwise it receives `404 Not Found`.
 
 Returns `200 OK` with the export document. The response is sent with a `Content-Disposition` header so it can be saved directly to a file.
 
@@ -226,7 +234,7 @@ Accepts a document in the same format produced by the [export](#export-a-context
 * `on_conflict` (optional, default: `skip`) - What to do when an incoming token already exists in the target context:
     * `skip` - leave the existing replacement unchanged (preserves replacements already learned in this context).
     * `overwrite` - replace the existing replacement with the imported one.
-* `owner` (optional) - The email address of the context's owner. Because context names are unique only per user, an admin uses this to identify another user's context unambiguously. When omitted, the import applies to the caller's own context with the given name. Supplying an `owner` other than yourself requires admin privileges; a non-admin doing so receives `404 Not Found`.
+* `owner` (optional) - The email address of the context's owner. Because context names are unique only per user, an admin uses this to identify another user's context unambiguously. When omitted, the import applies to the caller's own context with the given name. Supplying an `owner` other than yourself requires admin privileges and cross-user access being enabled (`ADMIN_CROSS_USER_ACCESS_ENABLED=true`; disabled by default); otherwise it receives `404 Not Found`.
 
 ### Behavior and Validation
 

@@ -63,6 +63,11 @@
     <properties>
         <downloadSources>true</downloadSources>
         <downloadJavadocs>true</downloadJavadocs>
+        <!-- Spring Boot's parent derives maven.compiler.release (used by the javadoc plugin and others)
+             from java.version, which defaults to 17. Set it to 25 so the compiler, javadoc, and every
+             other tool use the same source level; otherwise javadoc runs at -source 17 and rejects
+             Java 22+ syntax such as unnamed variables. -->
+        <java.version>25</java.version>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -49,6 +49,7 @@ public enum AuditLogEvent {
 
     REDACTION_LEDGER_QUERY("redaction_ledger_query"),
     REDACTION_LEDGER_DELETED("redaction_ledger_deleted"),
+    REDACTION_LEDGER_EXPORTED("redaction_ledger_exported"),
 
     API_KEY_CREATED("api_key_created"),
     API_KEY_DELETED("api_key_deleted"),
@@ -56,6 +57,10 @@ public enum AuditLogEvent {
     // Authentication outcomes recorded by the API authentication filter.
     API_AUTHENTICATION_FAILED("api_authentication_failed"),
     API_IP_BLOCKED("api_ip_blocked"),
+
+    // An admin acted on another user's resource (via the owner parameter). Recorded with the acting
+    // admin as the subject and the affected user as the associated object.
+    ADMIN_CROSS_USER_ACCESS("admin_cross_user_access"),
 
     // User account lifecycle.
     USER_CREATED("user_created"),

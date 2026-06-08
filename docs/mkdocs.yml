@@ -133,6 +133,7 @@ nav:
       - 'Policies API': 'api_and_sdks/api/policies_api.md'
       - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'
+      - 'Redaction Ledger API': 'api_and_sdks/api/ledger_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
     - 'Developers':
       - 'Overview': 'developers/developers.md'

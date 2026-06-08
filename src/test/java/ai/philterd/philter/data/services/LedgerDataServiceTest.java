@@ -147,6 +147,34 @@ class LedgerDataServiceTest {
     }
 
     @Test
+    void findAllChainHeadsAcrossUsersIsPaged() {
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(findIterable.iterator()).thenReturn(cursor);
+        when(cursor.hasNext()).thenReturn(false);
+
+        List<LedgerEntity> results = ledgerDataService.findAllChainHeadsAcrossUsers(50, 25);
+
+        assertNotNull(results);
+        assertTrue(results.isEmpty());
+        verify(findIterable).skip(50);
+        verify(findIterable).limit(25);
+    }
+
+    @Test
+    void countAllChainHeads() {
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(42L);
+
+        int count = ledgerDataService.countAllChainHeads();
+
+        assertEquals(42, count);
+    }
+
+    @Test
     void deleteChainsByUserIdAndOlderThanIsAudited() {
         ObjectId userId = new ObjectId();
         DeleteResult deleteResult = mock(DeleteResult.class);

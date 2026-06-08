@@ -51,6 +51,7 @@ Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Mon
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `API_IP_ALLOWLIST` | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. A bare address is treated as a single host. IPv4 only. | (empty, allow all) |
+| `ADMIN_CROSS_USER_ACCESS_ENABLED` | Whether an administrator may view or act on **other** users' resources — their contexts, policies, custom lists, documents, and redaction ledger — via the API `owner` parameter and the admin "All …" dashboard tabs. **Disabled by default**, so an admin sees only their own data, like any user; set to `true` to opt in. Does not affect ordinary admin functions such as user management. | `false` |
 
 ## Dashboard Login
 
@@ -69,7 +70,7 @@ Ledger retention is configured with the environment variable below.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `REDACTION_LEDGER_TTL_SECONDS` | How long, in seconds, to keep redaction ledger entries before MongoDB expires them automatically. Defaults to 90 days. Set `0` to keep entries indefinitely (no expiry). Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index. | `7776000` (90 days) |
+| `REDACTION_LEDGER_TTL_SECONDS` | Optional automatic expiry for redaction ledger entries. When set to a positive number of seconds, MongoDB expires entries older than that. **Unset/`0` by default, so ledger entries are kept indefinitely** and are only removed by a manual purge, per-document deletion, or user deletion (see [Redaction Ledgers](redaction/ledgers.md#how-and-when-ledger-entries-are-deleted)). Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index; setting it back to `0` drops that index on startup. | `0` (no expiry) |
 
 ## Asynchronous Documents and Webhooks
 

@@ -36,7 +36,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.mongodb.client.MongoCursor;
+
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -79,7 +82,7 @@ class ContextDataServiceTest {
         // Mock findAll(userId).size() check and findOne
         FindIterable<Document> findAllIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findAllIterable);
-        when(findAllIterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+        when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
         when(findAllIterable.first()).thenReturn(null);
 
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
@@ -99,7 +102,7 @@ class ContextDataServiceTest {
         final FindIterable<Document> iterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(iterable);
         // The caller is under the per-user maximum...
-        when(iterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+        when(iterable.iterator()).thenReturn(mock(MongoCursor.class));
         // ...but already owns a context with this name, so the per-user uniqueness check must reject it.
         when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", userId));
 
@@ -117,7 +120,7 @@ class ContextDataServiceTest {
 
         final FindIterable<Document> findAllIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findAllIterable);
-        when(findAllIterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+        when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
         when(findAllIterable.first()).thenReturn(null);
 
         final InsertOneResult insertOneResult = mock(InsertOneResult.class);
@@ -139,7 +142,7 @@ class ContextDataServiceTest {
 
         final FindIterable<Document> findAllIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findAllIterable);
-        when(findAllIterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+        when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
         when(findAllIterable.first()).thenReturn(null);
 
         final InsertOneResult insertOneResult = mock(InsertOneResult.class);
@@ -160,7 +163,7 @@ class ContextDataServiceTest {
         ObjectId userId = new ObjectId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
-        when(findIterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+        when(findIterable.iterator()).thenReturn(mock(MongoCursor.class));
 
         List<ContextEntity> contexts = contextDataService.findAll(userId);
 
@@ -332,5 +335,58 @@ class ContextDataServiceTest {
         final Document query = queryCaptor.getValue();
         assertEquals(contextName, query.getString("context_name"));
         assertFalse(query.containsKey("name"));
+    }
+
+    @Test
+    void findAllAcrossUsersReturnsEveryContextUnscopedByUser() {
+        // Two contexts owned by two different users.
+        final Document docA = new Document("_id", new ObjectId()).append("context_name", "alpha").append("user_id", new ObjectId());
+        final Document docB = new Document("_id", new ObjectId()).append("context_name", "beta").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        // findAllAcrossUsers must query with no filter (the no-arg find()), not an owner-scoped query.
+        when(mongoCollection.find()).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA, docB).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<ContextEntity> contexts = contextDataService.findAllAcrossUsers();
+
+        assertEquals(2, contexts.size());
+        assertEquals("alpha", contexts.get(0).getContextName());
+        assertEquals("beta", contexts.get(1).getContextName());
+        // Verify the unfiltered query was used.
+        verify(mongoCollection).find();
+    }
+
+    @Test
+    void findAllAcrossUsersPagedAppliesSortSkipAndLimit() {
+        final Document docA = new Document("_id", new ObjectId()).append("context_name", "alpha").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find()).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<ContextEntity> page = contextDataService.findAllAcrossUsers(25, 25);
+
+        assertEquals(1, page.size());
+        assertEquals("alpha", page.get(0).getContextName());
+        verify(findIterable).skip(25);
+        verify(findIterable).limit(25);
+    }
+
+    @Test
+    void countAllAcrossUsersDelegatesToCountDocuments() {
+        when(mongoCollection.countDocuments()).thenReturn(42L);
+        assertEquals(42, contextDataService.countAllAcrossUsers());
     }
 }

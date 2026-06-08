@@ -15,12 +15,18 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bson.types.ObjectId;
 
 public abstract class AbstractApiController {
 
@@ -62,6 +68,64 @@ public abstract class AbstractApiController {
 
         }
 
+    }
+
+    /** Whether the given user is an admin. Admins may act on any user's resources. */
+    protected boolean isAdmin(final UserService userService, final ObjectId userId) {
+        final UserEntity user = userService.findOneById(userId);
+        return user != null && "admin".equalsIgnoreCase(user.getRole());
+    }
+
+    /**
+     * Resolves the user whose resources a request targets. A bare request operates on the caller's own
+     * resources. To act on another user's resources the caller supplies that user's email via
+     * {@code ownerEmail}; this is allowed only for an admin. Returns {@code null} when the caller is not
+     * authorized (a non-admin naming another user) or the named owner does not exist — callers map both
+     * to a 404 so endpoints never reveal the existence of a user the caller may not access.
+     *
+     * @param userService  Used to resolve the owner and check admin status.
+     * @param callerUserId The id of the authenticated caller.
+     * @param ownerEmail   The email of the owner to target, or null/blank for the caller's own resources.
+     */
+    protected ObjectId resolveTargetUserId(final UserService userService, final ObjectId callerUserId, final String ownerEmail) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            return callerUserId;
+        }
+        final UserEntity owner = userService.findByEmail(ownerEmail);
+        if (owner == null) {
+            return null;
+        }
+        // Reaching another user's resources requires admin rights AND cross-user access being enabled
+        // (the ADMIN_CROSS_USER_ACCESS_ENABLED kill switch). Naming your own email always works.
+        if (!owner.getId().equals(callerUserId)
+                && !(isCrossUserAccessEnabled() && isAdmin(userService, callerUserId))) {
+            return null;
+        }
+        return owner.getId();
+    }
+
+    /**
+     * Whether admins may act on other users' resources via the {@code owner} parameter. Reads the
+     * {@code ADMIN_CROSS_USER_ACCESS_ENABLED} kill switch; overridable for tests.
+     */
+    protected boolean isCrossUserAccessEnabled() {
+        return AdminAccessConfig.isCrossUserAccessEnabled();
+    }
+
+    /**
+     * Records an audit event when an admin acts on <em>another</em> user's resource (resolved via the
+     * {@code owner} parameter), attributing the action to the acting admin (the subject) and naming the
+     * affected user (the associated object). A no-op when the target is the caller's own resource, so it
+     * is safe to call unconditionally after {@link #resolveTargetUserId}.
+     *
+     * @param action A short description of the operation, e.g. {@code "delete policy 'x'"}.
+     */
+    protected void auditAdminCrossUserAccess(final AuditEventPublisher auditEventPublisher, final String requestId,
+                                             final ObjectId callerUserId, final ObjectId targetUserId, final String action) {
+        if (targetUserId != null && !targetUserId.equals(callerUserId)) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.ADMIN_CROSS_USER_ACCESS, callerUserId, targetUserId,
+                    null, "action: " + action);
+        }
     }
 
     public static String getClientIpAddress(final HttpServletRequest httpServletRequest) {

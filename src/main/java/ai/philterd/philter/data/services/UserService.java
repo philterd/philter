@@ -244,10 +244,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         // Delete from policies
         philterDatabase.getCollection("policies").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
-        // Delete from ledger
+        // Delete the user's entire redaction ledger (every chain for every redacted document). The
+        // ledger is normally kept indefinitely, but it is owned by the user and must not outlive them.
         philterDatabase.getCollection("ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
-        // Delete from redaction_ledger (if it exists)
+        // Delete from redaction_ledger (legacy collection name, if it exists).
         philterDatabase.getCollection("redaction_ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
 
         // Delete the user

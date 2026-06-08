@@ -23,6 +23,8 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.MongoDBAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.audit.AuditLogService;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
@@ -46,6 +48,7 @@ import ai.philterd.philter.utils.EnvUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
+import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
@@ -67,6 +70,10 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 
 @Configuration
 @Theme(value="philter", variant=Lumo.LIGHT)
+// Vaadin 25 loads all Lumo modules automatically except the utility classes, which must be
+// requested explicitly. AbstractRestrictedView uses LumoUtility CSS classes, so load the
+// utility stylesheet here (replaces the removed "utility" entry in theme.json's lumoImports).
+@StyleSheet(Lumo.UTILITY_STYLESHEET)
 @SpringBootApplication
 @PropertySource("classpath:internal.properties")
 @EnableScheduling
@@ -135,6 +142,11 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public AuditEventPublisher auditEventPublisher() {
         return new MongoDBAuditEventPublisher(mongoClient());
+    }
+
+    @Bean
+    public AuditLogService auditLogService() {
+        return new AuditLogService(mongoClient());
     }
 
     @Bean
@@ -238,7 +250,7 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public UserDetailsService userDetailsService(final UserService userService, final LoginAttemptCache loginAttemptCache) {
         return email -> {
-            final ai.philterd.philter.data.entities.UserEntity user = userService.findByEmail(email);
+            final UserEntity user = userService.findByEmail(email);
             if (user == null) {
                 throw new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email);
             }

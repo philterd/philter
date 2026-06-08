@@ -25,6 +25,7 @@ import com.mongodb.MongoWriteConcernException;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Updates;
@@ -127,6 +128,43 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             return mongoWriteConcernException.getCode() == 11000;
         }
         return false;
+    }
+
+    /**
+     * Returns every context for every user. Intended for admin-only views; ordinary access must use the
+     * owner-scoped {@link #findAll(ObjectId)}.
+     */
+    public List<ContextEntity> findAllAcrossUsers() {
+
+        final List<ContextEntity> contextEntities = new ArrayList<>();
+
+        for (final Document document : collection.find()) {
+            contextEntities.add(ContextEntity.fromDocument(document));
+        }
+
+        return contextEntities;
+
+    }
+
+    /**
+     * Returns one page of contexts across every user, ordered by name. Intended for admin-only views;
+     * ordinary access must use the owner-scoped {@link #findAll(ObjectId)}.
+     */
+    public List<ContextEntity> findAllAcrossUsers(final int offset, final int limit) {
+
+        final List<ContextEntity> contextEntities = new ArrayList<>();
+
+        for (final Document document : collection.find().sort(Sorts.ascending("context_name")).skip(offset).limit(limit)) {
+            contextEntities.add(ContextEntity.fromDocument(document));
+        }
+
+        return contextEntities;
+
+    }
+
+    /** Returns the total number of contexts across every user (for admin paging). */
+    public int countAllAcrossUsers() {
+        return (int) collection.countDocuments();
     }
 
     public List<ContextEntity> findAll(final ObjectId userId) {

@@ -18,12 +18,16 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.springframework.http.HttpMethod;
+import ai.philterd.philter.config.AdminAccessConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,6 +59,7 @@ class CustomListsApiControllerTest {
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock private CustomListDataService customListService;
+    @Mock private UserService userService;
     @Mock private ApiKeyDataService apiKeyDataService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
@@ -73,12 +78,26 @@ class CustomListsApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final CustomListsApiController controller = new CustomListsApiController(
-                customListService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+                customListService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+
+        // Admin cross-user access is opt-in (off by default); enable it for the admin tests here.
+
+        AdminAccessConfig.setOverrideForTesting(true);
+
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
                 .build();
     }
+
+
+        @AfterEach
+
+        void clearAdminAccessOverride() {
+
+            AdminAccessConfig.setOverrideForTesting(null);
+
+        }
 
     @Test
     void listScopesToOwningUserId() throws Exception {
@@ -103,6 +122,47 @@ class CustomListsApiControllerTest {
 
         // The existence check must be scoped to the owning user.
         verify(customListService).findOneByName(eq("my-list"), eq(userId));
+    }
+
+    // ----- Admin cross-user access via the owner parameter -----
+
+    @Test
+    void adminCanListAnotherUsersListsViaOwner() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final UserEntity admin = new UserEntity();
+        admin.setId(userId);
+        admin.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(admin);
+        final UserEntity owner = new UserEntity();
+        owner.setId(otherUser);
+        owner.setEmail("other@example.com");
+        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        when(customListService.findAll(eq(otherUser))).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-admin"))
+                .andExpect(status().isOk());
+
+        verify(customListService).findAll(eq(otherUser));
+    }
+
+    @Test
+    void nonAdminNamingAnotherOwnerGets404() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final UserEntity owner = new UserEntity();
+        owner.setId(otherUser);
+        owner.setEmail("other@example.com");
+        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+
+        mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-forbidden"))
+                .andExpect(status().isNotFound());
     }
 
 }

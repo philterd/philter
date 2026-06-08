@@ -16,6 +16,7 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
+import org.bson.types.ObjectId;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
@@ -228,7 +229,7 @@ public class DashboardView extends AbstractRestrictedView {
      * browser.
      */
     static String redactText(final RedactionService redactionService, final String policyName,
-                             final org.bson.types.ObjectId userId, final String text) throws Exception {
+                             final ObjectId userId, final String text) throws Exception {
 
         // The dashboard redaction test is stateless: it uses no context, so token replacements are not
         // persisted and disambiguation (if any) is limited to this document.

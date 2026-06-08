@@ -28,6 +28,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
@@ -98,7 +99,7 @@ public class ContextsApiController extends AbstractApiController {
      * creator or by an admin.
      */
     private boolean isAdmin(final ObjectId userId) {
-        final ai.philterd.philter.data.entities.UserEntity user = userService.findOneById(userId);
+        final UserEntity user = userService.findOneById(userId);
         return user != null && "admin".equalsIgnoreCase(user.getRole());
     }
 
@@ -125,13 +126,14 @@ public class ContextsApiController extends AbstractApiController {
             // No owner specified: operate on the caller's own context.
             targetUserId = callerUserId;
         } else {
-            final ai.philterd.philter.data.entities.UserEntity owner = userService.findByEmail(ownerEmail);
+            final UserEntity owner = userService.findByEmail(ownerEmail);
             if (owner == null) {
                 return null;
             }
-            // Reaching another user's context is allowed only for an admin (or trivially when the named
-            // owner is the caller themselves).
-            if (!owner.getId().equals(callerUserId) && !isAdmin(callerUserId)) {
+            // Reaching another user's context requires admin rights AND cross-user access being enabled
+            // (the ADMIN_CROSS_USER_ACCESS_ENABLED kill switch). Naming your own email always works.
+            if (!owner.getId().equals(callerUserId)
+                    && !(isCrossUserAccessEnabled() && isAdmin(callerUserId))) {
                 return null;
             }
             targetUserId = owner.getId();
@@ -148,6 +150,9 @@ public class ContextsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/contexts", method = RequestMethod.GET)
     public ResponseEntity<String> getContexts(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -157,11 +162,19 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId callerUserId = apiKeyEntity.getUserId();
 
-        final List<ContextEntity> contextEntities = contextService.findAll(userId);
+        // The caller's own contexts, or — for an admin supplying owner — another user's. A null result
+        // (non-admin naming another user, or unknown user) maps to 404 so it never reveals the user's existence.
+        final ObjectId userId = resolveTargetUserId(userService, callerUserId, owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
+        final List<ContextEntity> contextEntities = contextService.findAll(userId, offset, limit);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, callerUserId, userId, "list contexts");
 
         final List<String> contexts = new ArrayList<>();
 

@@ -23,6 +23,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -60,14 +61,17 @@ public class CustomListsApiController extends AbstractApiController {
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomListsApiController.class);
 
     private final CustomListDataService customListService;
+    private final UserService userService;
     private final AuditEventPublisher auditEventPublisher;
     private final Gson gson;
 
-    public CustomListsApiController(final CustomListDataService customListService, final ApiKeyDataService apiKeyDataService,
+    public CustomListsApiController(final CustomListDataService customListService, final UserService userService,
+                                    final ApiKeyDataService apiKeyDataService,
                                     final AuditEventPublisher auditEventPublisher,
                                     final ApiKeyCache apiKeyCache, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.customListService = customListService;
+        this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
         this.gson = gson;
     }
@@ -79,6 +83,7 @@ public class CustomListsApiController extends AbstractApiController {
     @RequestMapping(value = "/api/lists", method = RequestMethod.GET)
     public ResponseEntity<String> getLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -88,7 +93,10 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
 
         final List<CustomListEntity> customListEntities = customListService.findAll(userId);
 
@@ -113,6 +121,7 @@ public class CustomListsApiController extends AbstractApiController {
     public ResponseEntity<GetListsResponse> getLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -122,7 +131,10 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
 
         final CustomListEntity customListEntity = customListService.findOneByName(name, userId);
 
@@ -154,6 +166,7 @@ public class CustomListsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("list") String list,
             final @RequestParam(value = "description", defaultValue="", required = false) String description,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody List<String> listItems,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
@@ -164,7 +177,13 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "create/update custom list '" + list + "'");
 
         final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userId, list, description, listItems, true, getClientIpAddress(httpServletRequest));
 
@@ -181,6 +200,7 @@ public class CustomListsApiController extends AbstractApiController {
     public ResponseEntity<String> deleteList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("list") String list,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -190,7 +210,13 @@ public class CustomListsApiController extends AbstractApiController {
              throw new UnauthorizedException("Unauthorized.");
          }
 
-         final ObjectId userId = apiKeyEntity.getUserId();
+         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+         if (userId == null) {
+             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+         }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "delete custom list '" + list + "'");
 
         // See if this list exists.
         final CustomListEntity customListEntity = customListService.findOneByName(list, userId);

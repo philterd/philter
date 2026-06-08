@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.CustomListEntityDataProvider;
+import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
@@ -296,6 +297,12 @@ public class CustomListsView extends AbstractRestrictedView {
 
         final TabSheet tabSheet = new  TabSheet();
         tabSheet.add("My Custom Lists", contextsVerticalLayout);
+
+        // Admins get an additional read-only view of every user's custom lists.
+        if (isAdmin() && AdminAccessConfig.isCrossUserAccessEnabled()) {
+            tabSheet.add("All Custom Lists", buildAllCustomListsLayout(customListService));
+        }
+
         tabSheet.setSizeFull();
 
         final HorizontalLayout suffixHorizontalLayout = new HorizontalLayout();
@@ -315,5 +322,42 @@ public class CustomListsView extends AbstractRestrictedView {
         setContent(pageHorizontalLayout);
 
     }
+
+    /** The page size for the admin "All Custom Lists" lazy listing. */
+    private static final int ALL_CUSTOM_LISTS_PAGE_SIZE = 25;
+
+    /** Builds the admin-only "All Custom Lists" tab: every user's lists with the owner's email, paged. */
+    private VerticalLayout buildAllCustomListsLayout(final CustomListDataService customListService) {
+
+        final Grid<AllCustomListRow> grid = new Grid<>();
+        grid.setPageSize(ALL_CUSTOM_LISTS_PAGE_SIZE);
+        grid.addColumn(AllCustomListRow::name).setHeader("Custom List").setResizable(true);
+        grid.addColumn(AllCustomListRow::description).setHeader("Description").setResizable(true);
+        grid.addColumn(AllCustomListRow::owner).setHeader("Owner").setResizable(true);
+        grid.setSizeFull();
+
+        // Lazy paging: one page (offset/limit) at a time plus the total count for the scrollbar.
+        grid.setItems(
+                query -> customListService.findAllAcrossUsers(query.getOffset(), query.getLimit()).stream()
+                        .map(this::toAllCustomListRow),
+                query -> customListService.countAllAcrossUsers());
+
+        final VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+        layout.add(new Span("All custom lists across all users."));
+        layout.add(grid);
+        return layout;
+
+    }
+
+    /** Maps a custom list to an "All Custom Lists" row, resolving the owner's email. */
+    private AllCustomListRow toAllCustomListRow(final CustomListEntity list) {
+        final UserEntity owner = userService.findOneById(list.getUserId());
+        return new AllCustomListRow(list.getName(), list.getDescription(),
+                owner != null ? owner.getEmail() : "(unknown)");
+    }
+
+    /** A row in the admin "All Custom Lists" table: name, description, and the owner's email. */
+    private record AllCustomListRow(String name, String description, String owner) {}
 
 }

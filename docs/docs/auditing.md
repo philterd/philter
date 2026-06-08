@@ -30,6 +30,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 |-------|---------------------|
 | `api_authentication_failed` | A request was rejected because the API key was missing, malformed, or unknown. |
 | `api_ip_blocked` | A request was rejected because the client IP is not permitted by `API_IP_ALLOWLIST`. |
+| `admin_cross_user_access` | An admin acted on another user's resource via the `owner` parameter (subject = the acting admin, associated object = the affected user). |
 
 ### Users
 
@@ -84,6 +85,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `redacted_file_deleted` | An asynchronous redaction record was deleted. |
 | `redaction_ledger_query` | The redaction ledger was queried or searched. |
 | `redaction_ledger_deleted` | Ledger entries were deleted (by document or by retention). |
+| `redaction_ledger_exported` | A ledger chain was exported. |
 
 ### Account configuration
 
@@ -93,6 +95,15 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `webhook_configured` | A webhook URL and secret were configured. |
 | `webhook_removed` | The webhook was removed. |
 | `settings_updated` | Account settings (such as the redaction ledger toggle) were changed. |
+
+## Exporting the audit log
+
+Administrators can export the audit log as a CSV file from the dashboard: open **Admin → Audit Log**, choose a date range, and click **Download Audit Log (CSV)**. This is an admin-only feature.
+
+* **Date range with a 30-day limit.** Pick a **From** and a **To** date. The range may span at most **30 days**; a wider range (or a From date after the To date) disables the download and shows an error. The default range is the last 30 days.
+* **Server time zone.** The **From** and **To** values are whole calendar days interpreted in the **server's time zone** (the JVM default), not the browser's. The **To** day is included in full — the export covers `From 00:00` up to, but not including, the start of the day after `To`, in server-local time.
+* **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, and `details` (the same fields described above; timestamps are written in ISO-8601). As with the stored events, no sensitive values are included.
+* **Size cap.** An export contains at most 100,000 events within the selected range (newest first). Narrow the range if you need to be sure you have captured everything in a busy period.
 
 ## Reviewing the audit log
 

@@ -51,10 +51,15 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public static final String EMPTY_ENTRY = "";
     public static final int MAX_LIMIT = 100;
 
-    // Ledger retention. Ledger entries default to a 90 day retention; MongoDB expires entries
-    // older than that automatically. Override with REDACTION_LEDGER_TTL_SECONDS, or set it to 0
-    // to keep ledger entries indefinitely (no expiry).
-    private static final long DEFAULT_TTL_SECONDS = 90L * 24L * 60L * 60L;
+    // Ledger retention. By default ledger entries are kept indefinitely (the ledger is a
+    // tamper-evident audit record, so nothing is auto-deleted unless an operator opts in).
+    // Set REDACTION_LEDGER_TTL_SECONDS to a positive value to have MongoDB automatically expire
+    // entries older than that; entries can also be removed explicitly via the manual purge
+    // (deleteChainsByUserIdAndOlderThan) and per-document/user deletions.
+    private static final long DEFAULT_TTL_SECONDS = 0L;
+
+    // The auto-generated name of the optional TTL index on the entry timestamp.
+    private static final String TTL_INDEX_NAME = "timestamp_1";
 
     public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
@@ -79,6 +84,16 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 LOGGER.warn("Unable to create TTL index on ledger.timestamp ({} seconds): {}", ttlSeconds, ex.getMessage());
             }
         } else {
+            // Retention disabled (the default): keep entries indefinitely. Drop any TTL index left by a
+            // previous deployment that configured retention, so the new "keep indefinitely" policy
+            // actually takes effect on upgrade rather than entries continuing to silently expire.
+            try {
+                collection.dropIndex(TTL_INDEX_NAME);
+                LOGGER.info("Dropped existing ledger TTL index '{}'; ledger retention is now unlimited.", TTL_INDEX_NAME);
+            } catch (final Exception ex) {
+                // No TTL index to drop (the common case) — nothing to do.
+                LOGGER.debug("No ledger TTL index '{}' to drop: {}", TTL_INDEX_NAME, ex.getMessage());
+            }
             LOGGER.info("Ledger retention is unlimited (REDACTION_LEDGER_TTL_SECONDS not set to a positive value).");
         }
     }
@@ -206,6 +221,34 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
         return ledgerEntries;
 
+    }
+
+    /**
+     * Returns one page of chain heads (genesis entries) across every user, most recent first. Intended
+     * for admin-only views; ordinary access must use the owner-scoped {@link #findChainsByUserId}.
+     */
+    public List<LedgerEntity> findAllChainHeadsAcrossUsers(final int offset, final int limit) {
+
+        final Bson query = Filters.eq("previous_hash", GENESIS);
+
+        final FindIterable<Document> documents = collection.find(query)
+                .sort(Sorts.descending("timestamp"))
+                .skip(offset)
+                .limit(limit);
+
+        final List<LedgerEntity> ledgerEntries = new ArrayList<>();
+
+        for (final Document document : documents) {
+            ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+        }
+
+        return ledgerEntries;
+
+    }
+
+    /** Returns the total number of chain heads (one per document) across every user (for admin paging). */
+    public int countAllChainHeads() {
+        return (int) collection.countDocuments(Filters.eq("previous_hash", GENESIS));
     }
 
     public int countChainsByUserId(final ObjectId userId) {

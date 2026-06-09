@@ -31,6 +31,13 @@ The types of sensitive information found and how each type is redacted is determ
 * `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
 * `Content-Type` - The value should be set to `text/plain` or `application/pdf`.
 
+### Response Headers
+
+Every `filter` response reports which policy version governed the request, so the applied policy is recorded without a second call:
+
+* `X-Philter-Policy-Name` - The name of the policy that was applied.
+* `X-Philter-Policy-Version` - The revision (version) of that policy that was applied. For an asynchronous PDF request the version is pinned when the request is accepted, and the `202 Accepted` response carries these headers; the deferred redaction is then governed by that pinned version.
+
 ### Plain text
 
 Plain text redaction is always synchronous. The response body is the redacted text.
@@ -101,11 +108,15 @@ curl -k -X POST "https://localhost:8080/api/explain" -d @file.txt -H "Content-Ty
 
 Example explain response:
 
+The response also reports which policy version was applied, in the `policyName` and `policyVersion` fields.
+
 ```
 {
   "filteredText": "{{{REDACTED-entity}}} was a patient and his ssn was {{{REDACTED-ssn}}}.",
   "context": "",
   "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
+  "policyName": "default",
+  "policyVersion": 3,
   "explanation": {
     "appliedSpans": [
       {

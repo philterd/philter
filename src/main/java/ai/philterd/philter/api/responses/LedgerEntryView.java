@@ -34,13 +34,17 @@ public class LedgerEntryView {
     private String previousHash;
     private String hash;
     private Date timestamp;
+    private String policyName;
+    private int policyVersion;
+    private String policyContentHash;
 
     public LedgerEntryView() {
     }
 
     public LedgerEntryView(final String documentId, final String filename, final String type, final String token,
                            final String replacement, final long startPosition, final String documentHash,
-                           final String previousHash, final String hash, final Date timestamp) {
+                           final String previousHash, final String hash, final Date timestamp,
+                           final String policyName, final int policyVersion, final String policyContentHash) {
         this.documentId = documentId;
         this.filename = filename;
         this.type = type;
@@ -51,6 +55,9 @@ public class LedgerEntryView {
         this.previousHash = previousHash;
         this.hash = hash;
         this.timestamp = timestamp;
+        this.policyName = policyName;
+        this.policyVersion = policyVersion;
+        this.policyContentHash = policyContentHash;
     }
 
     public String getDocumentId() {
@@ -91,6 +98,18 @@ public class LedgerEntryView {
 
     public Date getTimestamp() {
         return timestamp;
+    }
+
+    public String getPolicyName() {
+        return policyName;
+    }
+
+    public int getPolicyVersion() {
+        return policyVersion;
+    }
+
+    public String getPolicyContentHash() {
+        return policyContentHash;
     }
 
 }

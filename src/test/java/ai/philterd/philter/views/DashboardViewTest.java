@@ -55,7 +55,9 @@ class DashboardViewTest {
     void redactTextCallsRedactionServiceAndReturnsFilteredText() throws Exception {
         final ObjectId userId = new ObjectId();
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
-                .thenReturn(textResult("{{{REDACTED-person}}} was president."));
+                .thenReturn(new ai.philterd.philter.services.filtering.RedactionOutcome(
+                        textResult("{{{REDACTED-person}}} was president."),
+                        new ai.philterd.philter.services.filtering.AppliedPolicy("default", 0, "hash")));
 
         final String redacted = DashboardView.redactText(redactionService, "default", userId, "George Washington was president.");
 

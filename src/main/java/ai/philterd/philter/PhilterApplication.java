@@ -32,6 +32,7 @@ import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -232,8 +233,13 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public PolicyVersionDataService policyVersionDataService() {
+        return new PolicyVersionDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
     public PolicyDataService policyDataService() {
-        return new PolicyDataService(mongoClient(), auditEventPublisher(), gson());
+        return new PolicyDataService(mongoClient(), auditEventPublisher(), gson(), policyVersionDataService());
     }
 
     @Bean

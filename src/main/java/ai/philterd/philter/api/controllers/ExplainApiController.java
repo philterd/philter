@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -23,8 +22,10 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -83,15 +84,21 @@ public class ExplainApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
-        final TextFilterResult textFilterResult = (TextFilterResult) response;
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+        final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
         // Serialize the full filter result (filteredText, context, explanation, ...) to preserve the
         // 3.4.0 /api/explain response shape. Returning only the Explanation in 4.0.0 broke clients
-        // (for example PhilterScope) that read filteredText and the nested explanation.
+        // (for example PhilterScope) that read filteredText and the nested explanation. The applied
+        // policy name and version are added as top-level fields so callers see which policy governed
+        // the request without a second call.
+        final JsonObject json = gson.toJsonTree(textFilterResult).getAsJsonObject();
+        json.addProperty("policyName", outcome.appliedPolicy().name());
+        json.addProperty("policyVersion", outcome.appliedPolicy().version());
+
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(gson.toJson(textFilterResult));
+                .body(gson.toJson(json));
 
     }
 

@@ -24,6 +24,8 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.filtering.AppliedPolicy;
+import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
@@ -94,7 +96,8 @@ class ExplainApiControllerTest {
                 "{{{REDACTED-person}}} was here", "none", 0,
                 new Explanation(List.of(span), Collections.emptyList()), Collections.emptyList(), 5);
 
-        when(redactionService.filter(eq("default"), any(), eq(""), any(), any())).thenReturn(result);
+        when(redactionService.filter(eq("default"), any(), eq(""), any(), any()))
+                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 9, "policyhash")));
 
         final String body = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
                         .header("Authorization", AUTH_HEADER)
@@ -108,6 +111,10 @@ class ExplainApiControllerTest {
         assertTrue(body.contains("{{{REDACTED-person}}} was here"), "response must include the filtered text value");
         assertTrue(body.contains("\"explanation\""), "spans must be nested under explanation");
         assertTrue(body.contains("\"appliedSpans\""), "response must include appliedSpans");
+
+        // The applied policy name and version are surfaced as top-level fields.
+        assertTrue(body.contains("\"policyName\":\"default\""), "response must include policyName; was: " + body);
+        assertTrue(body.contains("\"policyVersion\":9"), "response must include policyVersion; was: " + body);
     }
 
 }

@@ -72,7 +72,8 @@ class UserServiceIT extends AbstractMongoIT {
 
         service = new UserService(mongoClient, encryptionService, audit);
         contextDataService = new ContextDataService(mongoClient, new ContextCache(null, 0, null, false), audit);
-        policyDataService = new PolicyDataService(mongoClient, audit, new Gson());
+        policyDataService = new PolicyDataService(mongoClient, audit, new Gson(),
+                new PolicyVersionDataService(mongoClient, audit));
         redactListsDataService = new RedactListsDataService(mongoClient, audit);
     }
 
@@ -247,7 +248,7 @@ class UserServiceIT extends AbstractMongoIT {
         // ... and a redaction-ledger chain (governance evidence).
         final LedgerDataService ledgerDataService = new LedgerDataService(
                 mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class));
-        ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt");
+        ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt", "default", 0, "policy-hash");
         assertEquals(1, ledgerDataService.countChainsByUserId(userId));
 
         service.deactivateUser("req", user, "webui");

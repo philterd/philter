@@ -48,7 +48,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson);
+        service = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson,
+                new PolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)));
     }
 
     /** Builds a valid native policy JSON (a single SSN filter), matching the unit-test fixture. */

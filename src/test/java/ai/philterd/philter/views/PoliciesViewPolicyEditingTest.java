@@ -75,7 +75,7 @@ class PoliciesViewPolicyEditingTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("policies")).thenReturn(mongoCollection);
-        policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson);
+        policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson, org.mockito.Mockito.mock(ai.philterd.philter.data.services.PolicyVersionDataService.class));
     }
 
     private static final String VALID_SSN_POLICY =

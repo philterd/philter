@@ -45,14 +45,15 @@ public class RedactionCache {
     private final CacheBackend backend = InMemoryCacheBackend.INSTANCE;
     private final Gson gson = new Gson();
 
-    /** Returns the cached policy JSON for the user and policy name, or null if not cached. */
-    public String getPolicyJson(final ObjectId userId, final String policyName) {
-        return backend.get(policyKey(userId, policyName));
+    /** Returns the cached policy (JSON plus revision) for the user and policy name, or null if absent. */
+    public CachedPolicy getPolicy(final ObjectId userId, final String policyName) {
+        final String json = backend.get(policyKey(userId, policyName));
+        return json == null ? null : gson.fromJson(json, CachedPolicy.class);
     }
 
-    /** Caches the policy JSON for the user and policy name. */
-    public void putPolicyJson(final ObjectId userId, final String policyName, final String policyJson) {
-        backend.setex(policyKey(userId, policyName), TTL_SECONDS, policyJson);
+    /** Caches the policy JSON and its revision for the user and policy name. */
+    public void putPolicy(final ObjectId userId, final String policyName, final String policyJson, final int revision) {
+        backend.setex(policyKey(userId, policyName), TTL_SECONDS, gson.toJson(new CachedPolicy(policyJson, revision)));
     }
 
     /** Returns the cached redact lists for the user, or null if not cached. */
@@ -72,6 +73,27 @@ public class RedactionCache {
 
     private static String redactListsKey(final ObjectId userId) {
         return "redaction_lists_" + userId.toHexString();
+    }
+
+    /** Immutable holder for a cached policy: its JSON body and the revision (version) it was at. */
+    public static final class CachedPolicy {
+
+        private final String policyJson;
+        private final int revision;
+
+        public CachedPolicy(final String policyJson, final int revision) {
+            this.policyJson = policyJson;
+            this.revision = revision;
+        }
+
+        public String getPolicyJson() {
+            return policyJson;
+        }
+
+        public int getRevision() {
+            return revision;
+        }
+
     }
 
     /** Immutable holder for a user's always-redact and never-redact term lists. */

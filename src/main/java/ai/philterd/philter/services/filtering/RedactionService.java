@@ -38,6 +38,7 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.SeparatedTermLists;
@@ -157,7 +158,17 @@ public class RedactionService {
 
     }
 
-    public AbstractFilterResult filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
+    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, null);
+    }
+
+    /**
+     * Redacts the document and stamps the governing policy version onto the evidence. When
+     * {@code pinnedPolicy} is non-null the redaction uses, and stamps, exactly that pinned version
+     * (used by deferred/async redaction so the version in force at request time governs the job);
+     * otherwise the user's current policy named {@code policyName} is resolved and used.
+     */
+    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -166,18 +177,39 @@ public class RedactionService {
             throw new Exception("The user associated with this request no longer exists.");
         }
 
-        // The stored policy JSON, from the in-process cache when warm, else from the database. The JSON
-        // can contain PII in filter-strategy conditions, which is why the cache is in-process only.
-        String policyJson = redactionCache.getPolicyJson(userEntity.getId(), policyName);
-        if (policyJson == null) {
-            final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
-            // The named policy must exist for this user.
-            if (policyEntity == null) {
-                throw new Exception("The policy '" + policyName + "' does not exist.");
+        // Resolve the policy that governs this redaction: its JSON body and version. When a pinned
+        // version is supplied (async), use it verbatim so the job is governed by the version in force
+        // when the request was accepted. Otherwise resolve the current policy, from the in-process
+        // cache when warm, else the database. The JSON can contain PII in filter-strategy conditions,
+        // which is why the cache is in-process only.
+        final String policyJson;
+        final int policyRevision;
+        if (pinnedPolicy != null) {
+            policyJson = pinnedPolicy.policyJson();
+            policyRevision = pinnedPolicy.version();
+        } else {
+            final RedactionCache.CachedPolicy cached = redactionCache.getPolicy(userEntity.getId(), policyName);
+            if (cached != null) {
+                policyJson = cached.getPolicyJson();
+                policyRevision = cached.getRevision();
+            } else {
+                final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
+                // The named policy must exist for this user.
+                if (policyEntity == null) {
+                    throw new Exception("The policy '" + policyName + "' does not exist.");
+                }
+                policyJson = policyEntity.getPolicy();
+                policyRevision = policyEntity.getRevision();
+                redactionCache.putPolicy(userEntity.getId(), policyName, policyJson, policyRevision);
             }
-            policyJson = policyEntity.getPolicy();
-            redactionCache.putPolicyJson(userEntity.getId(), policyName, policyJson);
         }
+
+        // The policy version stamped onto the evidence: name + revision + content fingerprint. The
+        // content hash is derived from the JSON so it is always available, even on a cache hit.
+        final String policyContentHash = pinnedPolicy != null
+                ? pinnedPolicy.contentHash()
+                : PolicyVersionDataService.contentHash(policyJson);
+        final AppliedPolicy appliedPolicy = new AppliedPolicy(policyName, policyRevision, policyContentHash);
 
         // Resolve the user's stable FPE key (generating one if absent) and derive its tweak. FF3-1
         // requires a hex key and hex tweak; a stable key+tweak makes format-preserving encryption
@@ -372,7 +404,10 @@ public class RedactionService {
         if (ledgerEnabled) {
 
             LOGGER.info("Initializing the ledger");
-            ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), "none-provided");
+            // The genesis entry records the governing policy so the whole chain reflects which policy
+            // version applied.
+            ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), "none-provided",
+                    appliedPolicy.name(), appliedPolicy.version(), appliedPolicy.contentHash());
 
             LOGGER.info("Persisting ledger entries: " + filterResult.getIncrementalRedactions().size());
             for (final IncrementalRedaction incrementalRedaction : filterResult.getIncrementalRedactions()) {
@@ -387,6 +422,14 @@ public class RedactionService {
                 ledgerEntity.setTimestamp(new Date());
                 ledgerEntity.setFilename("none-provided");
                 ledgerEntity.setType(incrementalRedaction.getSpan().getFilterType().getType());
+                // Stamp the governing policy version onto the entry as tamper-evident provenance.
+                ledgerEntity.setPolicyName(appliedPolicy.name());
+                ledgerEntity.setPolicyVersion(appliedPolicy.version());
+                ledgerEntity.setPolicyContentHash(appliedPolicy.contentHash());
+
+                // Compute and set this entry's hash so the chain is actually formed (previous -> current)
+                // and validates; previousHash above links it to the prior entry.
+                ledgerEntity.setHash(ledgerEntity.calculateHash());
 
                 ledgerService.addTransaction(ledgerEntity);
 
@@ -407,9 +450,10 @@ public class RedactionService {
         // request correlation id, and the number of redactions is recorded as a detail.
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED,
                 userEntity.getId(), null, null,
-                "redactions: " + filterResult.getExplanation().appliedSpans().size());
+                "redactions: " + filterResult.getExplanation().appliedSpans().size()
+                        + ", policy: " + appliedPolicy.name() + ", policyVersion: " + appliedPolicy.version());
 
-        return filterResult;
+        return new RedactionOutcome(filterResult, appliedPolicy);
 
         } finally {
             // Release the per-request cache (closes the Valkey/Redis pool when one is configured).

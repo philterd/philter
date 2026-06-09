@@ -60,10 +60,12 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public static final int MAX_LIMIT = 100;
 
     private final Gson gson;
+    private final PolicyVersionDataService policyVersionDataService;
 
-    public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson) {
+    public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService) {
         super(mongoClient, "policies", auditEventPublisher);
         this.gson = gson;
+        this.policyVersionDataService = policyVersionDataService;
 
         // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
         ensureIndex(Indexes.ascending("user_id", "name"));
@@ -136,6 +138,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         if(validation.isValid()) {
 
             update(policyEntity);
+
+            // Retain an immutable snapshot of the new version as governance evidence.
+            policyVersionDataService.snapshot(policyEntity);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), source);
 
@@ -217,6 +222,10 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             }
 
             final ObjectId policyId = save(policyEntity);
+
+            // Retain an immutable snapshot of the initial version as governance evidence.
+            policyEntity.setId(policyId);
+            policyVersionDataService.snapshot(policyEntity);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, policyId, source);
 
@@ -599,6 +608,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         final ObjectId objectId = collection.insertOne(policyEntity.toDocument()).getInsertedId().asObjectId().getValue();
 
+        // Retain an immutable snapshot of the duplicated policy as governance evidence (the content is
+        // identical to the source, so this is a no-op when the source was already snapshotted).
+        policyEntity.setId(objectId);
+        policyVersionDataService.snapshot(policyEntity);
+
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, objectId, source);
 
         return new ServiceResponse("The policy was duplicated.", true, objectId, 200);
@@ -676,12 +690,15 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
                 existingPolicy.incrementRevision();
 
                 collection.replaceOne(Filters.eq("_id", existingPolicy.getId()), existingPolicy.toDocument());
+                policyVersionDataService.snapshot(existingPolicy);
                 LOGGER.info("Updated managed policy: {}", managedPolicy.getName());
 
             } else {
 
                 // Insert new managed policy
-                collection.insertOne(managedPolicy.toDocument());
+                final ObjectId managedId = collection.insertOne(managedPolicy.toDocument()).getInsertedId().asObjectId().getValue();
+                managedPolicy.setId(managedId);
+                policyVersionDataService.snapshot(managedPolicy);
                 LOGGER.info("Inserted managed policy: {}", managedPolicy.getName());
 
             }

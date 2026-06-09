@@ -204,6 +204,8 @@ public class LedgerView extends AbstractRestrictedView {
         entriesGrid.addColumn(LedgerEntity::getType).setHeader("Type").setAutoWidth(true);
         entriesGrid.addColumn(LedgerEntity::getReplacement).setHeader("Replacement").setAutoWidth(true);
         entriesGrid.addColumn(LedgerEntity::getStartPosition).setHeader("Position").setAutoWidth(true);
+        entriesGrid.addColumn(LedgerEntity::getPolicyName).setHeader("Policy").setAutoWidth(true);
+        entriesGrid.addColumn(LedgerEntity::getPolicyVersion).setHeader("Version").setAutoWidth(true);
         entriesGrid.addColumn(LedgerEntity::getTimestamp).setHeader("Timestamp").setAutoWidth(true);
         entriesGrid.setItems(chain);
         entriesGrid.setSizeFull();
@@ -226,7 +228,8 @@ public class LedgerView extends AbstractRestrictedView {
         for (final LedgerEntity entry : chain) {
             entries.add(new LedgerEntryView(entry.getDocumentId(), entry.getFilename(), entry.getType(),
                     entry.getToken(), entry.getReplacement(), entry.getStartPosition(), entry.getDocumentHash(),
-                    entry.getPreviousHash(), entry.getHash(), entry.getTimestamp()));
+                    entry.getPreviousHash(), entry.getHash(), entry.getTimestamp(),
+                    entry.getPolicyName(), entry.getPolicyVersion(), entry.getPolicyContentHash()));
         }
         final byte[] json = GSON.toJson(new LedgerExport(documentId, entries)).getBytes(StandardCharsets.UTF_8);
         return new StreamResource("ledger-" + documentId + "-export.json", () -> new ByteArrayInputStream(json));

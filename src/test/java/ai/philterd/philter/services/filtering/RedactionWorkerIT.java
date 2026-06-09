@@ -20,6 +20,7 @@ import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
@@ -62,7 +63,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         userService = mock(UserService.class); // returns null user -> no webhook enqueued
         webhookDeliveryDataService = mock(WebhookDeliveryDataService.class);
         worker = new RedactionWorker(pendingDocumentDataService, redactionService, userService,
-                webhookDeliveryDataService, new Gson());
+                webhookDeliveryDataService, mock(PolicyVersionDataService.class), new Gson());
     }
 
     private PendingDocumentEntity newPending(final ObjectId userId, final String documentId) {
@@ -83,7 +84,8 @@ class RedactionWorkerIT extends AbstractMongoIT {
     private void stubRedactionReturns(final byte[] output) throws Exception {
         final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
         when(result.getDocument()).thenReturn(output);
-        when(redactionService.filter(any(), any(), any(), any(), any())).thenReturn(result);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 0, "hash")));
     }
 
     @Test
@@ -103,7 +105,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
         // The redaction ran with the job's policy/user/context/input.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
-        verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(), eq(MimeType.APPLICATION_PDF));
+        verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(), eq(MimeType.APPLICATION_PDF), any());
         assertArrayEquals(new byte[]{1, 2, 3}, body.getValue());
     }
 
@@ -112,7 +114,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final ObjectId user = new ObjectId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
 
         worker.poll();
 

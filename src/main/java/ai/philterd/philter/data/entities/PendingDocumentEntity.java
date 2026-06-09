@@ -35,6 +35,10 @@ public class PendingDocumentEntity extends AbstractEntity {
     private String inputMimeType;
     private String outputMimeType;
     private String policyName;
+    // The policy version pinned when the request was accepted, so the deferred redaction is governed by
+    // the version in force at request time (-1 when the policy could not be resolved at enqueue).
+    private int policyVersion = -1;
+    private String policyContentHash;
     private String contextName;
     private String status;
     private String errorMessage;
@@ -55,6 +59,8 @@ public class PendingDocumentEntity extends AbstractEntity {
         entity.setInputMimeType(document.getString("input_mime_type"));
         entity.setOutputMimeType(document.getString("output_mime_type"));
         entity.setPolicyName(document.getString("policy_name"));
+        entity.setPolicyVersion(document.getInteger("policy_version", -1));
+        entity.setPolicyContentHash(document.getString("policy_content_hash"));
         entity.setContextName(document.getString("context_name"));
         entity.setStatus(document.getString("status"));
         entity.setErrorMessage(document.getString("error_message"));
@@ -89,6 +95,8 @@ public class PendingDocumentEntity extends AbstractEntity {
         document.put("input_mime_type", inputMimeType);
         document.put("output_mime_type", outputMimeType);
         document.put("policy_name", policyName);
+        document.put("policy_version", policyVersion);
+        document.put("policy_content_hash", policyContentHash);
         document.put("context_name", contextName);
         document.put("status", status);
         document.put("error_message", errorMessage);
@@ -161,6 +169,22 @@ public class PendingDocumentEntity extends AbstractEntity {
 
     public void setPolicyName(final String policyName) {
         this.policyName = policyName;
+    }
+
+    public int getPolicyVersion() {
+        return policyVersion;
+    }
+
+    public void setPolicyVersion(final int policyVersion) {
+        this.policyVersion = policyVersion;
+    }
+
+    public String getPolicyContentHash() {
+        return policyContentHash;
+    }
+
+    public void setPolicyContentHash(final String policyContentHash) {
+        this.policyContentHash = policyContentHash;
     }
 
     public String getContextName() {

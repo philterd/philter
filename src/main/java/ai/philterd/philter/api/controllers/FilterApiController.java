@@ -15,7 +15,10 @@
  */
 package ai.philterd.philter.api.controllers;
 
-import ai.philterd.phileas.model.filtering.AbstractFilterResult;
+import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.services.filtering.AppliedPolicy;
+import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
@@ -62,7 +65,13 @@ public class FilterApiController extends AbstractApiController {
 
     private static final Logger LOGGER = LogManager.getLogger(FilterApiController.class);
 
+    /** Response headers reporting the applied policy name and version on every /api/filter response. */
+    public static final String POLICY_NAME_HEADER = "X-Philter-Policy-Name";
+    public static final String POLICY_VERSION_HEADER = "X-Philter-Policy-Version";
+
     private final RedactionService redactionService;
+    private final PolicyDataService policyDataService;
+    private final PolicyVersionDataService policyVersionDataService;
     private final AuditEventPublisher auditEventPublisher;
     private final PendingDocumentDataService pendingDocumentDataService;
     private final Gson gson;
@@ -70,9 +79,12 @@ public class FilterApiController extends AbstractApiController {
     @Autowired
     public FilterApiController(final RedactionService redactionService, final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
                                final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache,
-                               final PendingDocumentDataService pendingDocumentDataService, final Gson gson) {
+                               final PendingDocumentDataService pendingDocumentDataService, final Gson gson,
+                               final PolicyVersionDataService policyVersionDataService) {
         super(apiKeyDataService, apiKeyCache);
         this.redactionService = redactionService;
+        this.policyDataService = policyDataService;
+        this.policyVersionDataService = policyVersionDataService;
         this.auditEventPublisher = auditEventPublisher;
         this.pendingDocumentDataService = pendingDocumentDataService;
         this.gson = gson;
@@ -110,10 +122,11 @@ public class FilterApiController extends AbstractApiController {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context);
         }
 
-        final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
-        final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) response;
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
+        final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
+                .headers(policyHeaders(outcome.appliedPolicy()))
                 .body(binaryDocumentFilterResult.getDocument());
 
     }
@@ -150,10 +163,11 @@ public class FilterApiController extends AbstractApiController {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context);
         }
 
-        final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
-        final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) response;
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
+        final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
+                .headers(policyHeaders(outcome.appliedPolicy()))
                 .body(binaryDocumentFilterResult.getDocument());
 
     }
@@ -181,10 +195,11 @@ public class FilterApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        final AbstractFilterResult response = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
-        final TextFilterResult textFilterResult = (TextFilterResult) response;
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+        final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
+                .headers(policyHeaders(outcome.appliedPolicy()))
                 .body(textFilterResult.getFilteredText());
 
     }
@@ -205,20 +220,45 @@ public class FilterApiController extends AbstractApiController {
         entity.setInput(body);
         entity.setSubmittedAt(new Date());
 
+        // Pin the policy version in force when the request is accepted, so the deferred redaction is
+        // governed by the version the caller submitted against rather than whatever is current when the
+        // worker later runs. We retain a snapshot of that content so the worker can redact with it.
+        int policyVersion = -1;
+        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
+        if (policyEntity != null) {
+            policyVersion = policyEntity.getRevision();
+            final String contentHash = policyVersionDataService.snapshot(policyEntity);
+            entity.setPolicyVersion(policyVersion);
+            entity.setPolicyContentHash(contentHash);
+        }
+
         pendingDocumentDataService.save(entity);
 
         // Audit that a document was submitted for asynchronous redaction. The documentId is the
         // correlation id used by the /api/documents endpoints.
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_INITIATED, userId, null, null,
-                "inputMimeType: " + inputMimeType.name() + ", outputMimeType: " + outputMimeType + ", policy: " + policyName);
+                "inputMimeType: " + inputMimeType.name() + ", outputMimeType: " + outputMimeType
+                        + ", policy: " + policyName + ", policyVersion: " + policyVersion);
 
         final String json = gson.toJson(Map.of("documentId", documentId));
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
+        final ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.ACCEPTED)
                 .location(URI.create("/api/documents/" + documentId))
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(json.getBytes(StandardCharsets.UTF_8));
+                .header(POLICY_NAME_HEADER, policyName);
+        if (policyVersion >= 0) {
+            builder.header(POLICY_VERSION_HEADER, Integer.toString(policyVersion));
+        }
+        return builder.body(json.getBytes(StandardCharsets.UTF_8));
 
+    }
+
+    /** Builds the response headers that report the applied policy name and version. */
+    private static HttpHeaders policyHeaders(final AppliedPolicy appliedPolicy) {
+        final HttpHeaders headers = new HttpHeaders();
+        headers.add(POLICY_NAME_HEADER, appliedPolicy.name());
+        headers.add(POLICY_VERSION_HEADER, Integer.toString(appliedPolicy.version()));
+        return headers;
     }
 
 }

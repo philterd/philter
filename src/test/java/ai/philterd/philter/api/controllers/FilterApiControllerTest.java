@@ -23,10 +23,14 @@ import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.filtering.AppliedPolicy;
+import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
@@ -79,6 +83,9 @@ class FilterApiControllerTest {
     @Mock
     private PendingDocumentDataService pendingDocumentDataService;
 
+    @Mock
+    private PolicyVersionDataService policyVersionDataService;
+
     private ObjectId userId;
     private ObjectId apiKeyId;
     private MockMvc mockMvc;
@@ -97,7 +104,8 @@ class FilterApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final FilterApiController controller = new FilterApiController(redactionService, policyDataService,
-                apiKeyDataService, auditEventPublisher, apiKeyCache, pendingDocumentDataService, new Gson());
+                apiKeyDataService, auditEventPublisher, apiKeyCache, pendingDocumentDataService, new Gson(),
+                policyVersionDataService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
@@ -116,20 +124,29 @@ class FilterApiControllerTest {
                 Collections.emptyList());
     }
 
+    private static RedactionOutcome outcome(final ai.philterd.phileas.model.filtering.AbstractFilterResult result) {
+        return new RedactionOutcome(result, new AppliedPolicy("default", 4, "abc123hash"));
+    }
+
     @Test
     void textEndpointReturnsRedactedTextForOwningUser() throws Exception {
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
-                .thenReturn(textResult("My name is {{{REDACTED-person}}}."));
+                .thenReturn(outcome(textResult("My name is {{{REDACTED-person}}}.")));
 
-        final String body = mockMvc.perform(post("/api/filter")
+        final var response = mockMvc.perform(post("/api/filter")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.TEXT_PLAIN)
                         .accept(MediaType.TEXT_PLAIN)
                         .content("My name is John Smith."))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse();
 
+        final String body = response.getContentAsString();
         org.junit.jupiter.api.Assertions.assertEquals("My name is {{{REDACTED-person}}}.", body);
+
+        // The applied policy name and version are reported as response headers.
+        org.junit.jupiter.api.Assertions.assertEquals("default", response.getHeader("X-Philter-Policy-Name"));
+        org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
 
         // The redaction must be attributed to the owning user id, not the API key's own id.
         verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN));
@@ -149,21 +166,35 @@ class FilterApiControllerTest {
     }
 
     @Test
-    void pdfToPdfAsyncReturns202WithDocumentIdAndLocation() throws Exception {
-        final String responseBody = mockMvc.perform(post("/api/filter")
+    void pdfToPdfAsyncReturns202WithDocumentIdAndLocationAndPinnedPolicyVersion() throws Exception {
+        // At enqueue the controller resolves and pins the current policy version, retaining a snapshot.
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setName("default");
+        policyEntity.setRevision(7);
+        policyEntity.setPolicy("{\"identifiers\":{}}");
+        when(policyDataService.findOne("default", userId)).thenReturn(policyEntity);
+        when(policyVersionDataService.snapshot(policyEntity)).thenReturn("hash7");
+
+        final var response = mockMvc.perform(post("/api/filter")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
                         .accept(MediaType.APPLICATION_PDF)
                         .content("%PDF-1.7 fake".getBytes()))
                 .andExpect(status().isAccepted())
                 .andExpect(header().exists("Location"))
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse();
+
+        // The 202 reports the pinned policy name and version.
+        org.junit.jupiter.api.Assertions.assertEquals("default", response.getHeader("X-Philter-Policy-Name"));
+        org.junit.jupiter.api.Assertions.assertEquals("7", response.getHeader("X-Philter-Policy-Version"));
 
         // The body is a JSON object carrying the generated documentId.
+        final String responseBody = response.getContentAsString();
         final String documentId = new Gson().fromJson(responseBody, Map.class).get("documentId").toString();
         org.junit.jupiter.api.Assertions.assertFalse(documentId.isBlank());
 
-        // The async path enqueues a pending document scoped to the owning user, with APPLICATION_PDF input.
+        // The async path enqueues a pending document scoped to the owning user, with APPLICATION_PDF input,
+        // and the pinned policy version and content hash.
         final ArgumentCaptor<PendingDocumentEntity> captor = ArgumentCaptor.forClass(PendingDocumentEntity.class);
         verify(pendingDocumentDataService).save(captor.capture());
 
@@ -172,6 +203,8 @@ class FilterApiControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals(documentId, saved.getDocumentId());
         org.junit.jupiter.api.Assertions.assertEquals(MimeType.APPLICATION_PDF.name(), saved.getInputMimeType());
         org.junit.jupiter.api.Assertions.assertEquals(MediaType.APPLICATION_PDF_VALUE, saved.getOutputMimeType());
+        org.junit.jupiter.api.Assertions.assertEquals(7, saved.getPolicyVersion());
+        org.junit.jupiter.api.Assertions.assertEquals("hash7", saved.getPolicyContentHash());
     }
 
     @Test
@@ -202,17 +235,19 @@ class FilterApiControllerTest {
     void pdfSyncReturnsBytesAndDoesNotEnqueue() throws Exception {
         final byte[] redacted = "redacted-pdf-bytes".getBytes();
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF)))
-                .thenReturn(binaryResult(redacted));
+                .thenReturn(outcome(binaryResult(redacted)));
 
-        final byte[] responseBytes = mockMvc.perform(post("/api/filter?async=false")
+        final var response = mockMvc.perform(post("/api/filter?async=false")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
                         .accept(MediaType.APPLICATION_PDF)
                         .content("%PDF-1.7 fake".getBytes()))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsByteArray();
+                .andReturn().getResponse();
 
-        org.junit.jupiter.api.Assertions.assertArrayEquals(redacted, responseBytes);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(redacted, response.getContentAsByteArray());
+        org.junit.jupiter.api.Assertions.assertEquals("default", response.getHeader("X-Philter-Policy-Name"));
+        org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
 
         // Synchronous path must filter directly (using the owning user id) and never enqueue.
         verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF));

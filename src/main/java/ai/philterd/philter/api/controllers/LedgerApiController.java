@@ -88,7 +88,10 @@ public class LedgerApiController extends AbstractApiController {
                 entry.getDocumentHash(),
                 entry.getPreviousHash(),
                 entry.getHash(),
-                entry.getTimestamp());
+                entry.getTimestamp(),
+                entry.getPolicyName(),
+                entry.getPolicyVersion(),
+                entry.getPolicyContentHash());
     }
 
     @Operation(summary = "List redaction-ledger chains.",

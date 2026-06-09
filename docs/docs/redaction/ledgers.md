@@ -13,6 +13,19 @@ The Philterd ledger system is built on the principles of cryptographic chaining,
 3.  **Immutability**: Because each entry is linked to the previous one, any attempt to retroactively modify or delete a redaction record would break the cryptographic chain, making the tampering immediately evident.
 4.  **Verifiability**: This architecture allows you to mathematically prove the integrity of your redaction history at any point in time.
 
+## Which Policy Version Governed a Redaction
+
+Each ledger entry records the **governing policy**: its name, its version (the policy's revision at the time), and a SHA-256 fingerprint of the exact policy content that was applied. These three values are part of the entry's tamper-evident hash, so the stamped policy cannot be altered without breaking the chain.
+
+To make that version stamp resolvable to real content, Philter retains an **immutable, append-only snapshot** of a policy's content every time the policy is saved. Snapshots are content-addressed by their fingerprint, so:
+
+* a deleted-then-recreated policy that reuses a name never collides with prior evidence, and
+* editing or deleting the live policy never removes the retained snapshots. Retained versions are evidence, separate from the live policy lifecycle; removing them is a separate, deliberate, audited action.
+
+This lets an administrator take any redaction in a date range and produce the exact policy version that was in force for it, with no engineering work, and verify the ledger chain is intact. Even if a snapshot is later removed under a retention action, the ledger entry still proves which policy was applied by its name, version, and fingerprint; only the ability to render that policy's content is lost.
+
+The applied policy name and version are also returned at redaction time, on the `X-Philter-Policy-Name` and `X-Philter-Policy-Version` response headers of `/api/filter` and in the `/api/explain` response body. See the [Filtering API](../api_and_sdks/api/filtering_api.md).
+
 ## Enabling Redaction Ledgers
 
 Redaction ledgers are controlled on a per-context basis. When creating or editing a [context](contexts.md), use the **Enable the redaction ledger** option to turn the ledger on for that context. The option is unchecked (disabled) by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.

@@ -98,8 +98,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         }
     }
 
-    public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename) throws Exception {
-        addTransaction(new LedgerEntity(userId, documentId, EMPTY_ENTRY, EMPTY_ENTRY, 0, inputDocumentHash, GENESIS, filename, "", encryptionService));
+    public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename,
+                                 final String policyName, final int policyVersion, final String policyContentHash) throws Exception {
+        addTransaction(new LedgerEntity(userId, documentId, EMPTY_ENTRY, EMPTY_ENTRY, 0, inputDocumentHash, GENESIS, filename, "",
+                policyName, policyVersion, policyContentHash));
     }
 
     public void addTransaction(final LedgerEntity ledgerEntity) {
@@ -269,8 +271,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 Filters.eq("document_id", documentId)
         );
 
-        // Get the oldest items first to show the chain in order.
-        final Bson sortCriteria = Sorts.ascending("timestamp");
+        // Order by insertion order (_id is monotonic per Mongo instance), not timestamp: redaction
+        // entries are written in a tight loop and can share a millisecond, so timestamp ordering is not
+        // deterministic and would break the hash-chain links during validation.
+        final Bson sortCriteria = Sorts.ascending("_id");
 
         final FindIterable<Document> documents = collection.find(query).sort(sortCriteria);
 
@@ -291,7 +295,9 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 Filters.eq("document_id", documentId)
         );
 
-        final Bson sortCriteria = Sorts.descending("timestamp");
+        // The latest entry is the most recently inserted (highest _id), matching getChain's ordering so
+        // the previous-hash links are deterministic even when entries share a timestamp.
+        final Bson sortCriteria = Sorts.descending("_id");
 
         final Document document = collection.find(query).sort(sortCriteria).first();
 

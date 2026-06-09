@@ -28,8 +28,12 @@ import java.util.List;
  */
 public class LedgerExport {
 
-    /** The current export schema version. Bumped only on a breaking format change. */
-    public static final int CURRENT_VERSION = 1;
+    /**
+     * The current export schema version. Bumped only on a breaking format change. Version 2 added the
+     * governing policy stamp ({@code policyName}, {@code policyVersion}, {@code policyContentHash}) to
+     * each entry.
+     */
+    public static final int CURRENT_VERSION = 2;
 
     private final int version;
     private final String documentId;

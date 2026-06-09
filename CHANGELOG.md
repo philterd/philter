@@ -54,6 +54,15 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
   - Retention via `REDACTION_LEDGER_TTL_SECONDS` — entries are kept **indefinitely by default**
     (`0`); set a positive value for MongoDB TTL expiry. Ledger entries are also cleaned up when a
     document chain is deleted, on a manual purge, and on user deletion.
+- **Policy version stamped on redaction evidence.** Each redaction now records which policy version
+  governed it. Policy content is retained as immutable, append-only, content-addressed snapshots (a
+  new `policy_versions` collection) every time a policy is saved, so a stamp resolves to the exact
+  policy that applied. Every ledger entry carries the policy name, version, and content fingerprint
+  (part of the tamper-evident hash); `/api/filter` returns `X-Philter-Policy-Name` and
+  `X-Philter-Policy-Version` response headers (the version is pinned at request time for async PDF
+  jobs); and `/api/explain` includes `policyName` and `policyVersion`. The Redaction Ledger view and
+  the ledger JSON export include the policy stamp (export schema **version 2**). Per-redaction ledger
+  entries are now correctly hash-chained so a chain validates end to end.
 - **Admin cross-user access.** Administrators may view and act on another user's contexts,
   policies, custom lists, documents, and redaction ledger by passing an `owner=<email>` query
   parameter on those API endpoints, and via admin-only "All …" tabs in the UI. Cross-user actions

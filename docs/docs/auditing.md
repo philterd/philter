@@ -89,7 +89,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `redaction_ledger_deleted` | Ledger entries were deleted (by document or by retention). |
 | `redaction_ledger_exported` | A ledger chain was exported. |
 
-For these events the `details` field carries extra context: `document_redaction_initiated` records the name of the policy applied (along with the input and output content types), while `document_redaction_completed` records the number of redactions performed.
+For these events the `details` field carries extra context: `document_redaction_initiated` records the name and pinned version of the policy applied (along with the input and output content types), while `document_redaction_completed` records the number of redactions performed and the name and version of the policy that governed them.
 
 ### Account configuration
 

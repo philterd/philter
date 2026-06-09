@@ -22,6 +22,7 @@ import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import com.google.gson.Gson;
@@ -46,6 +47,7 @@ public class RedactionWorker {
     private final RedactionService redactionService;
     private final UserService userService;
     private final WebhookDeliveryDataService webhookDeliveryDataService;
+    private final PolicyVersionDataService policyVersionDataService;
     private final Gson gson;
     private final String workerId = "philter-worker-" + UUID.randomUUID();
 
@@ -53,11 +55,13 @@ public class RedactionWorker {
                            final RedactionService redactionService,
                            final UserService userService,
                            final WebhookDeliveryDataService webhookDeliveryDataService,
+                           final PolicyVersionDataService policyVersionDataService,
                            final Gson gson) {
         this.pendingDocumentDataService = pendingDocumentDataService;
         this.redactionService = redactionService;
         this.userService = userService;
         this.webhookDeliveryDataService = webhookDeliveryDataService;
+        this.policyVersionDataService = policyVersionDataService;
         this.gson = gson;
     }
 
@@ -91,13 +95,29 @@ public class RedactionWorker {
         try {
             final MimeType inputMimeType = MimeType.valueOf(job.getInputMimeType());
 
+            // Redact with the policy version pinned when the request was accepted, so the deferred job
+            // is governed by the version in force at request time. If the pinned snapshot is somehow
+            // missing, fall back to resolving the policy live by name.
+            PinnedPolicy pinnedPolicy = null;
+            if (job.getPolicyContentHash() != null) {
+                final var snapshot = policyVersionDataService.findByContentHash(job.getPolicyContentHash());
+                if (snapshot != null) {
+                    pinnedPolicy = new PinnedPolicy(job.getPolicyName(), job.getPolicyVersion(),
+                            job.getPolicyContentHash(), snapshot.getPolicy());
+                } else {
+                    LOGGER.warn("Pinned policy snapshot {} for document {} is missing; resolving the policy live.",
+                            job.getPolicyContentHash(), job.getDocumentId());
+                }
+            }
+
             final AbstractFilterResult result = redactionService.filter(
                     job.getPolicyName(),
                     job.getUserId(),
                     job.getContextName(),
                     job.getInput(),
-                    inputMimeType
-            );
+                    inputMimeType,
+                    pinnedPolicy
+            ).result();
 
             final byte[] output;
             if (result instanceof BinaryDocumentFilterResult binaryResult) {

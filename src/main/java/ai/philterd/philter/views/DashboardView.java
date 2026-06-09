@@ -192,7 +192,7 @@ public class DashboardView extends AbstractRestrictedView {
 
                 // The dashboard redaction test is stateless: it uses no context.
                 final AbstractFilterResult result = redactionService.filter(
-                        selectedPolicy, userEntity.getId(), "", body, MimeType.APPLICATION_PDF);
+                        selectedPolicy, userEntity.getId(), "", body, MimeType.APPLICATION_PDF).result();
 
                 final byte[] redactedBytes = ((BinaryDocumentFilterResult) result).getDocument();
 
@@ -234,7 +234,7 @@ public class DashboardView extends AbstractRestrictedView {
         // The dashboard redaction test is stateless: it uses no context, so token replacements are not
         // persisted and disambiguation (if any) is limited to this document.
         final AbstractFilterResult result = redactionService.filter(
-                policyName, userId, "", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+                policyName, userId, "", text.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN).result();
 
         return ((TextFilterResult) result).getFilteredText();
 

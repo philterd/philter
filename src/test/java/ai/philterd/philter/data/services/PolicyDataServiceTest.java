@@ -75,7 +75,7 @@ class PolicyDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("policies")).thenReturn(mongoCollection);
-        policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson);
+        policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson, mock(PolicyVersionDataService.class));
     }
 
     @Test

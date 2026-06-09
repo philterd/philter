@@ -32,19 +32,21 @@ class RedactionCacheTest {
     private final RedactionCache cache = new RedactionCache();
 
     @Test
-    void policyJsonRoundTripsAndIsScopedToUserAndName() {
+    void policyRoundTripsAndIsScopedToUserAndName() {
         final ObjectId user = new ObjectId();
 
         // Nothing cached yet.
-        assertNull(cache.getPolicyJson(user, "default"));
+        assertNull(cache.getPolicy(user, "default"));
 
-        cache.putPolicyJson(user, "default", "{\"identifiers\":{}}");
-        assertEquals("{\"identifiers\":{}}", cache.getPolicyJson(user, "default"));
+        cache.putPolicy(user, "default", "{\"identifiers\":{}}", 3);
+        final RedactionCache.CachedPolicy cached = cache.getPolicy(user, "default");
+        assertEquals("{\"identifiers\":{}}", cached.getPolicyJson());
+        assertEquals(3, cached.getRevision());
 
         // A different policy name for the same user is a separate entry.
-        assertNull(cache.getPolicyJson(user, "other"));
+        assertNull(cache.getPolicy(user, "other"));
         // A different user does not see this user's cached policy.
-        assertNull(cache.getPolicyJson(new ObjectId(), "default"));
+        assertNull(cache.getPolicy(new ObjectId(), "default"));
     }
 
     @Test

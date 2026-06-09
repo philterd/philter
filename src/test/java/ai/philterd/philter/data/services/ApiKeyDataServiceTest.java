@@ -141,7 +141,41 @@ class ApiKeyDataServiceTest {
 
         assertTrue(response.isSuccessful());
         assertTrue(entity.isDeleted());
+        // The deletion is stamped with a time so audit entries can be correlated.
+        assertNotNull(entity.getDeletedAt());
         verify(mongoCollection).updateOne(any(Bson.class), any(Document.class));
         verify(auditEventPublisher).auditEvent(eq("requestId"), eq(AuditLogEvent.API_KEY_DELETED), eq(entity.getId()), eq(entity.getId()), eq("source"));
+    }
+
+    @Test
+    void findAllExcludesDeletedByDefaultButIncludesThemWhenRequested() {
+        final ObjectId userId = new ObjectId();
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        final org.mockito.ArgumentCaptor<Document> queryCaptor = org.mockito.ArgumentCaptor.forClass(Document.class);
+        when(mongoCollection.find(queryCaptor.capture())).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        when(findIterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+
+        apiKeyDataService.findAll(userId, 0, 10);
+        assertEquals(Boolean.FALSE, queryCaptor.getValue().get("deleted"),
+                "by default the query must exclude deleted keys");
+
+        apiKeyDataService.findAll(userId, 0, 10, true);
+        assertFalse(queryCaptor.getValue().containsKey("deleted"),
+                "including deleted keys must not constrain on the deleted flag");
+    }
+
+    @Test
+    void countExcludesDeletedByDefaultButIncludesThemWhenRequested() {
+        final org.mockito.ArgumentCaptor<Document> queryCaptor = org.mockito.ArgumentCaptor.forClass(Document.class);
+        when(mongoCollection.countDocuments(queryCaptor.capture())).thenReturn(3L);
+
+        apiKeyDataService.count(new ObjectId());
+        assertEquals(Boolean.FALSE, queryCaptor.getValue().get("deleted"));
+
+        apiKeyDataService.count(new ObjectId(), true);
+        assertFalse(queryCaptor.getValue().containsKey("deleted"));
     }
 }

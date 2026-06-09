@@ -202,7 +202,7 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void deleteUserRemovesTheUserAndTheirContexts() {
+    void deactivateUserRetainsTheUserAndAllOfTheirData() {
         assertTrue(service.createUser(
                 "req", "frank@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
@@ -212,20 +212,104 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
         assertEquals(2, contextDataService.findAll(user.getId()).size());
 
-        service.deleteUser("req", user, contextDataService, "webui");
+        service.deactivateUser("req", user, "webui");
 
+        // A deactivated user cannot sign in or be looked up by email...
         assertNull(service.findByEmail("frank@example.com"));
-        assertNull(service.findOneById(user.getId()));
-        assertEquals(0, service.count());
+        // ...but the record is retained, marked deactivated, so audit and ledger references resolve.
+        final UserEntity retained = service.findOneById(user.getId());
+        assertNotNull(retained);
+        assertTrue(retained.isDeactivated());
+        assertNotNull(retained.getDeactivatedAt());
+        assertEquals("frank@example.com", retained.getEmail());
 
-        // The user's contexts are deleted along with the user.
-        assertEquals(0, contextDataService.findAll(user.getId()).size());
-        assertNull(contextDataService.findOne("default", user.getId()));
-        assertNull(contextDataService.findOne("extra", user.getId()));
+        // The retained user counts toward the all-users total but not the active-users total.
+        assertEquals(1, service.count());
+        assertEquals(0, service.count(false));
+
+        // Deactivation retains all of the user's data: contexts are untouched.
+        assertEquals(2, contextDataService.findAll(user.getId()).size());
+        assertNotNull(contextDataService.findOne("default", user.getId()));
+        assertNotNull(contextDataService.findOne("extra", user.getId()));
     }
 
     @Test
-    void deleteUserRemovesTheirRedactLists() {
+    void deactivateUserRetainsPoliciesAndLedgerResolvableToTheUser() throws Exception {
+        assertTrue(service.createUser(
+                "req", "evidence@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                .isSuccessful());
+        final UserEntity user = service.findByEmail("evidence@example.com");
+        final ObjectId userId = user.getId();
+
+        // The user owns a policy (the default seeded at creation) ...
+        assertTrue(policyDataService.count(userId) >= 1);
+
+        // ... and a redaction-ledger chain (governance evidence).
+        final LedgerDataService ledgerDataService = new LedgerDataService(
+                mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class));
+        ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt");
+        assertEquals(1, ledgerDataService.countChainsByUserId(userId));
+
+        service.deactivateUser("req", user, "webui");
+
+        // Deactivation must not cascade: the policies and the ledger are retained ...
+        assertTrue(policyDataService.count(userId) >= 1, "policies must survive user deactivation");
+        assertEquals(1, ledgerDataService.countChainsByUserId(userId), "the redaction ledger must survive user deactivation");
+
+        // ... and remain resolvable to the retained (deactivated) owning user.
+        final UserEntity retained = service.findOneById(userId);
+        assertNotNull(retained);
+        assertTrue(retained.isDeactivated());
+        assertEquals("evidence@example.com", retained.getEmail());
+    }
+
+    @Test
+    void reactivateUserRestoresAccessAndData() {
+        assertTrue(service.createUser(
+                "req", "henry@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                .isSuccessful());
+        final UserEntity user = service.findByEmail("henry@example.com");
+        assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
+
+        service.deactivateUser("req", user, "webui");
+        assertNull(service.findByEmail("henry@example.com"));
+
+        service.reactivateUser("req", user, "webui");
+
+        // Sign-in resolves again and the account is active.
+        final UserEntity reactivated = service.findByEmail("henry@example.com");
+        assertNotNull(reactivated);
+        assertFalse(reactivated.isDeactivated());
+        assertNull(reactivated.getDeactivatedAt());
+
+        // The data was never removed, so it is all still there.
+        assertEquals(2, contextDataService.findAll(user.getId()).size());
+        assertEquals(1, service.count(false));
+    }
+
+    @Test
+    void deactivatedEmailStaysReservedAndIsExcludedFromActiveListing() {
+        assertTrue(service.createUser(
+                "req", "reuse@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                .isSuccessful());
+        final UserEntity first = service.findByEmail("reuse@example.com");
+
+        service.deactivateUser("req", first, "webui");
+
+        // The email stays reserved by the deactivated account: a duplicate cannot be created.
+        assertFalse(service.createUser(
+                "req", "reuse@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                .isSuccessful());
+
+        // Only one row exists; it is excluded from the active listing but present in the full one.
+        assertEquals(1, service.count());
+        assertEquals(0, service.count(false));
+        assertEquals(1, service.findAll(0, 100, true).size());
+        assertEquals(0, service.findAll(0, 100, false).size());
+    }
+
+    @Test
+    void deactivateUserRetainsTheirRedactLists() {
         assertTrue(service.createUser(
                 "req", "grace@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
@@ -236,10 +320,11 @@ class UserServiceIT extends AbstractMongoIT {
         redactListsDataService.saveOrUpdate("req", user.getId(), List.of("ssn", "secret"), List.of("public"), "webui");
         assertNotNull(redactListsDataService.find(user.getId()));
 
-        service.deleteUser("req", user, contextDataService, "webui");
+        service.deactivateUser("req", user, "webui");
 
-        // The user's redact lists must not outlive them.
-        assertNull(redactListsDataService.find(user.getId()));
+        // Deactivation retains the user's data, including their redact lists, so they are restored on
+        // reactivation.
+        assertNotNull(redactListsDataService.find(user.getId()));
     }
 
     @Test

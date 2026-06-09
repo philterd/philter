@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.filters.auth;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 import com.mongodb.client.FindIterable;
@@ -65,6 +66,9 @@ class ApiAuthenticationFilterMetricsTest {
     @Mock
     private AuditEventPublisher auditEventPublisher;
 
+    @Mock
+    private UserService userService;
+
     private SimpleMeterRegistry meterRegistry;
     private ApiAuthenticationFilter filter;
 
@@ -85,12 +89,15 @@ class ApiAuthenticationFilterMetricsTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(apiKeyDocument);
 
+        // The owning user is active, so the filter authorizes the request.
+        when(userService.isDeactivated(any())).thenReturn(false);
+
         meterRegistry = new SimpleMeterRegistry();
         // No cache host configured, so this uses the in-memory backend; the first lookup misses and
         // falls through to the mocked database.
         final ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache =
                 new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false);
-        filter = new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, new Gson(), apiKeyCache);
+        filter = new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, new Gson(), apiKeyCache, userService);
     }
 
     @Test
@@ -138,6 +145,31 @@ class ApiAuthenticationFilterMetricsTest {
         verify(auditEventPublisher).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.API_AUTHENTICATION_FAILED),
                 org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(),
                 any(), org.mockito.ArgumentMatchers.contains("malformed"));
+    }
+
+    @Test
+    void requestIsRejectedWhenTheKeysOwningUserIsDeactivated() throws Exception {
+        // The API key resolves, but its owning user has been deactivated.
+        when(userService.isDeactivated(any())).thenReturn(true);
+
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/filter");
+        request.setMethod("POST");
+        request.addHeader("Authorization", "Bearer " + API_KEY);
+
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        final FilterChain chain = org.mockito.Mockito.mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        // The request never reaches the downstream chain, and nothing is metered.
+        verify(chain, org.mockito.Mockito.never()).doFilter(any(), any());
+        assertEquals(0, meterRegistry.find("philter.api.requests").counters().size());
+        // The rejection is audited with a precise reason (the user is deactivated).
+        verify(auditEventPublisher).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.API_AUTHENTICATION_FAILED),
+                any(), org.mockito.ArgumentMatchers.isNull(),
+                any(), org.mockito.ArgumentMatchers.contains("deactivated"));
     }
 
     @Test

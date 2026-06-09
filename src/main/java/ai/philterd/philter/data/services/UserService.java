@@ -16,7 +16,6 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -25,9 +24,9 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.DefaultPolicy;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -49,18 +48,37 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     private static final Logger LOGGER = LoggerFactory.getLogger(UserService.class);
 
     private final PasswordEncoder passwordEncoder;
-    private final MongoClient mongoClient;
 
     public UserService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
-        this.mongoClient = mongoClient;
         this.passwordEncoder = new BCryptPasswordEncoder();
 
         // Users are looked up by email at login.
         ensureIndex(Indexes.ascending("email"));
     }
 
+    /**
+     * Looks up an <strong>active</strong> (not deactivated) user by email. Deactivated users are
+     * excluded so they cannot sign in and cannot be targeted via the cross-user {@code owner}
+     * parameter. Use {@link #findOneById(ObjectId)} or {@link #findEmailsByIds(Collection)} to resolve
+     * a deactivated user for audit and ledger display, and {@link #findAnyByEmail(String)} to detect an
+     * email that is already taken (including by a deactivated account).
+     */
     public UserEntity findByEmail(final String email) {
+        final Document document = collection.find(
+                Filters.and(Filters.eq("email", email), Filters.ne("deactivated", true))).first();
+        if (document != null) {
+            return UserEntity.fromDocument(document);
+        }
+        return null;
+    }
+
+    /**
+     * Looks up a user by email regardless of deactivation state. Used when creating an account to
+     * reject an email that already belongs to any user, active or deactivated: a deactivated account
+     * keeps its email reserved so it can be reactivated rather than duplicated.
+     */
+    public UserEntity findAnyByEmail(final String email) {
         final Document document = collection.find(Filters.eq("email", email)).first();
         if (document != null) {
             return UserEntity.fromDocument(document);
@@ -68,6 +86,22 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return null;
     }
 
+    /**
+     * Returns whether the user with the given id is deactivated, fetching only the deactivation flag.
+     * Used on the API authentication hot path to reject keys whose owning user has been deactivated,
+     * so deactivation and reactivation take effect immediately without touching the user's API keys.
+     * A missing user is treated as deactivated (no active access).
+     */
+    public boolean isDeactivated(final ObjectId userId) {
+        final Document document = collection.find(Filters.eq("_id", userId))
+                .projection(Projections.include("deactivated")).first();
+        return document == null || document.getBoolean("deactivated", false);
+    }
+
+    /**
+     * Looks up a user by id, including deactivated users, so that audit and ledger entries that
+     * reference a deactivated user still resolve to the retained record.
+     */
     public UserEntity findOneById(final ObjectId id) {
 
         final Document query = new Document("_id", id);
@@ -113,7 +147,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
 
-        if(findByEmail(email) != null) {
+        final UserEntity existing = findAnyByEmail(email);
+        if(existing != null) {
+            // An email belonging to a deactivated account stays reserved: reactivate it rather than
+            // creating a duplicate user with the same email.
+            if (existing.isDeactivated()) {
+                return ServiceResponse.failure("A deactivated user already exists with that email. Reactivate that user instead.");
+            }
             return ServiceResponse.failure("User already exists.");
         }
 
@@ -166,9 +206,22 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return passwordEncoder.matches(plainPassword, userEntity.getPassword());
     }
 
+    /** Lists a page of all users, including deactivated ones (so the admin view can show them all). */
     public List<UserEntity> findAll(final int offset, final int limit) {
+        return findAll(offset, limit, true);
+    }
 
-        final FindIterable<Document> documents = collection.find().sort(Sorts.ascending("email")).skip(offset).limit(limit);
+    /**
+     * Lists a page of users sorted by email. When {@code includeDeactivated} is false, deactivated
+     * users are excluded; when true, every user is returned so the admin view can show deactivated
+     * accounts (clearly marked) alongside active ones.
+     */
+    public List<UserEntity> findAll(final int offset, final int limit, final boolean includeDeactivated) {
+
+        final FindIterable<Document> documents = (includeDeactivated
+                ? collection.find()
+                : collection.find(Filters.ne("deactivated", true)))
+                .sort(Sorts.ascending("email")).skip(offset).limit(limit);
 
         final List<UserEntity> userEntities = new ArrayList<>();
 
@@ -180,8 +233,16 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
+    /** Counts all users, including deactivated ones. */
     public int count() {
-        return (int) collection.countDocuments();
+        return count(true);
+    }
+
+    /** Counts users; when {@code includeDeactivated} is false, deactivated users are excluded. */
+    public int count(final boolean includeDeactivated) {
+        return (int) (includeDeactivated
+                ? collection.countDocuments()
+                : collection.countDocuments(Filters.ne("deactivated", true)));
     }
 
     public ServiceResponse changePassword(final String requestId, final UserEntity userEntity, final String newPassword, final String source) {
@@ -242,48 +303,53 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    public void deleteUser(final String requestId, final UserEntity userEntity, final ContextDataService contextService, final String source) {
+    /**
+     * Deactivates a user. The account is marked deactivated (with the time of deactivation) but the
+     * user record and <strong>all</strong> of the user's data (API keys, contexts, custom lists,
+     * policies, redact lists, and redaction ledger) are retained, so the account can be reactivated
+     * later (see {@link #reactivateUser(String, UserEntity, String)}) and so audit and ledger entries
+     * that reference the user id still resolve to a name.
+     *
+     * <p>A deactivated user holds no active access: it is excluded from {@link #findByEmail(String)}
+     * (which the login {@code UserDetailsService} and the cross-user {@code owner} lookup consult), and
+     * the API authentication filter rejects its API keys by checking {@link #isDeactivated(ObjectId)}
+     * live. The keys themselves are left untouched so reactivation restores access immediately without
+     * resurrecting keys the user had separately deleted.
+     *
+     * <p>Crucially, deactivation never cascades to the user's data. Governance evidence in particular
+     * (the user's policies and redaction ledger) is retained and stays resolvable to the retained user
+     * record, so no admin action can silently destroy it. The audit event records that retention.
+     */
+    public void deactivateUser(final String requestId, final UserEntity userEntity, final String source) {
 
-        // Capture identity before deletion for the audit record.
-        final ObjectId deletedUserId = userEntity.getId();
-
-        final MongoDatabase philterDatabase = mongoClient.getDatabase("philter");
-
-        // Delete from api_keys (mark as deleted)
-        // Note: we'll just set deleted to true for consistency with ApiKeyDataService.deleteByApiKey
-        philterDatabase.getCollection("api_keys").updateMany(
-                Filters.eq("user_id", userEntity.getId()),
-                new Document("$set", new Document("deleted", true))
-        );
-
-        // Delete the user's contexts. deleteByName cascades each context to its context_entries, its
-        // span-disambiguation vectors, and its cache entries (cache keys are namespaced per user), so no
-        // orphaned context data is left behind once the owner is gone.
-        for (final ContextEntity context : contextService.findAll(deletedUserId)) {
-            contextService.deleteByName(context.getContextName(), deletedUserId);
+        if (userEntity.isDeactivated()) {
+            return;
         }
 
-        // Delete from custom_lists
-        philterDatabase.getCollection("custom_lists").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        userEntity.setDeactivated(true);
+        userEntity.setDeactivatedAt(new Date());
+        update(userEntity);
 
-        // Delete from policies
-        philterDatabase.getCollection("policies").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DEACTIVATED, userEntity.getId(), userEntity.getId(), source,
+                "account deactivated; user data retained, including policies and redaction ledger (evidence preserved)");
 
-        // Delete the user's always-redact / never-redact lists (which can contain sensitive values),
-        // so no owner-less document outlives the user.
-        philterDatabase.getCollection("redact_lists").deleteMany(Filters.eq("user_id", userEntity.getId()));
+    }
 
-        // Delete the user's entire redaction ledger (every chain for every redacted document). The
-        // ledger is normally kept indefinitely, but it is owned by the user and must not outlive them.
-        philterDatabase.getCollection("ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
+    /**
+     * Reactivates a previously deactivated user, restoring sign-in and API access. The user's data was
+     * never removed on deactivation, so reactivation returns the account to exactly its prior state.
+     */
+    public void reactivateUser(final String requestId, final UserEntity userEntity, final String source) {
 
-        // Delete from redaction_ledger (legacy collection name, if it exists).
-        philterDatabase.getCollection("redaction_ledger").deleteMany(Filters.eq("user_id", userEntity.getId()));
+        if (!userEntity.isDeactivated()) {
+            return;
+        }
 
-        // Delete the user
-        collection.deleteOne(Filters.eq("_id", userEntity.getId()));
+        userEntity.setDeactivated(false);
+        userEntity.setDeactivatedAt(null);
+        update(userEntity);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DELETED, deletedUserId, deletedUserId, source, null);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_REACTIVATED, userEntity.getId(), userEntity.getId(), source, null);
 
     }
 

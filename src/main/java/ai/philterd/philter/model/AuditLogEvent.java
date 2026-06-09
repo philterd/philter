@@ -66,6 +66,9 @@ public enum AuditLogEvent {
     USER_CREATED("user_created"),
     USER_PASSWORD_CHANGED("user_password_changed"),
     USER_ROLE_CHANGED("user_role_changed"),
+    USER_DEACTIVATED("user_deactivated"),
+    USER_REACTIVATED("user_reactivated"),
+    // Retained for historical events: users are deactivated rather than deleted.
     USER_DELETED("user_deleted"),
 
     // Account and admin configuration changes.

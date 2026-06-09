@@ -40,6 +40,7 @@ public class ApiKeyEntityDataProvider extends AbstractBackEndDataProvider<ApiKey
     protected Stream<ApiKeyEntity> fetchFromBackEnd(final Query<ApiKeyEntity, Void> query) {
         final int offset = query.getOffset();
         final int limit = query.getLimit();
+        // Deleted (revoked) keys are excluded; they are retained only for audit resolution.
         return apiKeyService.findAll(userId, offset, limit).stream();
     }
 

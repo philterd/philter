@@ -19,7 +19,7 @@ Redaction ledgers are controlled on a per-context basis. When creating or editin
 
 ## How and When Ledger Entries Are Deleted
 
-**By default, ledger entries are kept indefinitely.** Because the ledger is a tamper-evident audit record, Philter never deletes entries on its own unless you opt in. There are four ways entries are removed, summarized below.
+**By default, ledger entries are kept indefinitely.** Because the ledger is a tamper-evident audit record, Philter never deletes entries on its own unless you opt in. There are three ways entries are removed, summarized below.
 
 Deletion always operates on **whole document chains**, never on individual entries within a chain. This preserves verifiability: a chain that remains is always complete and can still be validated, and a chain that is removed is removed in its entirety.
 
@@ -39,9 +39,9 @@ You can prune old entries yourself at any time. This is the primary way to enfor
 
 If you want time-based expiry without running a manual purge, set the `REDACTION_LEDGER_TTL_SECONDS` environment variable (see [Settings](../settings.md)) to a positive number of seconds. MongoDB then automatically expires entries older than that. It is **unset (no expiry) by default**. If a deployment previously configured a TTL and you remove the variable, Philter drops the existing expiry index on startup so entries stop being auto-deleted.
 
-### 4. User deletion
+### Ledger entries survive user deactivation
 
-When a user account is deleted, that user's **entire ledger** (all chains for all of their documents) is deleted along with their other data. The ledger is owned by the user and does not outlive the account.
+Deactivating a user account does **not** delete that user's ledger. Users are deactivated rather than deleted (see [User Management](../dashboard.md#user-management)), and deactivation never cascades to the ledger: every chain is retained and stays resolvable to the retained (deactivated) owning user, so the redaction evidence is preserved. The only ways ledger entries are removed are the three above (a deliberate manual purge, a single-chain delete, or optional automatic expiry).
 
 ## Exporting Ledger Entries
 

@@ -155,15 +155,18 @@ public class AccountView extends AbstractRestrictedView {
         apiKeysGrid.setDataProvider(apiKeyDataProvider);
         apiKeysGrid.setWidthFull();
 
+        // Deleted keys are revoked and retained in the database for audit resolution, but they are not
+        // shown here: the list shows only usable keys.
         apiKeysGrid.addComponentColumn(apiKeyEntity -> {
             final Button deleteButton = new Button("Delete", VaadinIcon.TRASH.create());
             deleteButton.setTooltipText("Delete this API key");
+
             deleteButton.addClickListener(event -> {
 
                 final Dialog confirmDialog = new Dialog();
                 confirmDialog.setWidth("450px");
                 confirmDialog.add(new H3("Confirm Deletion"));
-                confirmDialog.add(new Paragraph("Are you sure you want to delete the selected API key?"));
+                confirmDialog.add(new Paragraph("Are you sure you want to delete the selected API key? It is revoked immediately and stops working right away. This cannot be undone; the key cannot be reactivated. The key record is retained (marked deleted) so audit entries that reference it still resolve."));
 
                 final Button confirmButton = new Button("Delete", e -> {
                     apiKeyService.deleteByApiKey(RequestIdGenerator.generate(), apiKeyEntity, getClientIpAddress());
@@ -199,7 +202,21 @@ public class AccountView extends AbstractRestrictedView {
                 apiKeyTextField.setReadOnly(true);
                 apiKeyTextField.setWidthFull();
 
-                newApiKeyDialog.add(apiKeyTextField);
+                // Copy the key to the clipboard. The value is passed as a JS parameter (not interpolated)
+                // and never logged. Requires a secure context (HTTPS or localhost) for navigator.clipboard.
+                final Button copyButton = new Button("Copy", VaadinIcon.COPY.create());
+                copyButton.setTooltipText("Copy the API key to the clipboard");
+                copyButton.addClickListener(e -> {
+                    apiKeyTextField.getElement().executeJs("navigator.clipboard.writeText($0)", serviceResponse.getMessage());
+                    showSuccessNotification("API key copied to the clipboard.");
+                });
+
+                final HorizontalLayout keyRow = new HorizontalLayout(apiKeyTextField, copyButton);
+                keyRow.setAlignItems(HorizontalLayout.Alignment.BASELINE);
+                keyRow.setWidthFull();
+                keyRow.setFlexGrow(1, apiKeyTextField);
+
+                newApiKeyDialog.add(keyRow);
 
                 final Button cancelButton = new Button("Close", e -> newApiKeyDialog.close());
                 cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -216,13 +233,7 @@ public class AccountView extends AbstractRestrictedView {
 
         });
 
-        // A convenience link to the interactive API reference (Swagger UI), which lists every endpoint
-        // these keys authorize. Opens in a new tab so it does not navigate away from the account page.
-        final Span apiReference = new Span("Use these keys to authenticate to the Philter REST API. ");
-        apiReference.add(CommonWidgets.getLink("Open the API reference (Swagger UI) ↗", "/swagger-ui/index.html", true));
-
         final VerticalLayout layout = new VerticalLayout();
-        layout.add(apiReference);
         layout.add(createApiKeyButton);
         layout.add(apiKeysGrid);
         layout.setSizeFull();

@@ -23,7 +23,6 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import org.bson.BsonObjectId;
 import org.bson.Document;
@@ -226,51 +225,155 @@ class UserServiceTest {
     }
 
     @Test
-    void deleteUser() {
-        UserEntity user = new UserEntity();
+    void deactivateUser() {
+        final UserEntity user = new UserEntity();
         user.setId(new ObjectId());
 
-        // We need a mock for the database and collection specifically for this test
-        // as deleteUser calls mongoClient.getDatabase multiple times. All collections now live
-        // in the single "philter" database.
-        MongoDatabase mockPhilterDatabase = mock(MongoDatabase.class);
-        MongoCollection<Document> mockGenericCollection = mock(MongoCollection.class);
+        userService.deactivateUser("req", user, "source");
 
-        when(mongoClient.getDatabase("philter")).thenReturn(mockPhilterDatabase);
+        // The user row is retained and updated (marked deactivated), never hard-removed. In
+        // UserService, 'collection' is the 'users' collection.
+        verify(mongoCollection, never()).deleteOne(any(Bson.class));
+        final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);
+        verify(mongoCollection).updateOne(any(Bson.class), updateCaptor.capture());
+        final Document set = ((Document) updateCaptor.getValue()).get("$set", Document.class);
+        assertTrue(set.getBoolean("deactivated"), "the user must be marked deactivated");
+        assertNotNull(set.getDate("deactivated_at"), "the deactivation time must be recorded");
+        // The in-memory entity reflects what was persisted.
+        assertTrue(user.isDeactivated());
+        assertNotNull(user.getDeactivatedAt());
 
-        when(mockPhilterDatabase.getCollection(anyString())).thenReturn(mockGenericCollection);
+        // Deactivation does not touch the user's data: no other collections are deleted from, and no
+        // contexts are removed.
+        verify(contextDataService, never()).deleteByName(anyString(), any());
 
-        DeleteResult deleteResult = mock(DeleteResult.class);
-        when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
+        // The deactivation is audited with the user's id, and the detail records that evidence
+        // (policies and the redaction ledger) was retained rather than cascaded.
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_DEACTIVATED),
+                eq(user.getId()), eq(user.getId()), eq("source"), org.mockito.ArgumentMatchers.contains("retained"));
+    }
 
-        // The user owns two contexts, both of which must be deleted (cascading their entries, vectors,
-        // and cache via ContextDataService.deleteByName).
-        final ai.philterd.philter.data.entities.ContextEntity ctxA = new ai.philterd.philter.data.entities.ContextEntity();
-        ctxA.setContextName("alpha");
-        ctxA.setUserId(user.getId());
-        final ai.philterd.philter.data.entities.ContextEntity ctxB = new ai.philterd.philter.data.entities.ContextEntity();
-        ctxB.setContextName("beta");
-        ctxB.setUserId(user.getId());
-        when(contextDataService.findAll(user.getId())).thenReturn(List.of(ctxA, ctxB));
+    @Test
+    void deactivateUserIsIdempotent() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setDeactivated(true);
 
-        userService.deleteUser("req", user, contextDataService, "source");
+        userService.deactivateUser("req", user, "source");
 
-        // Verify that the final delete on the 'users' collection happened.
-        // In UserService, 'collection' is the 'users' collection from AbstractEncryptedService.
-        verify(mongoCollection).deleteOne(any(Bson.class));
+        // Already deactivated: nothing is written and nothing is audited again.
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.USER_DEACTIVATED),
+                any(), any(), any(), any());
+    }
 
-        // Verify other deletions happened on the per-user collections in the philter database.
-        verify(mockPhilterDatabase, atLeastOnce()).getCollection(anyString());
+    @Test
+    void reactivateUser() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setDeactivated(true);
+        user.setDeactivatedAt(new java.util.Date());
 
-        // The user's contexts are deleted through ContextDataService (which cascades), not by touching
-        // the contexts collection directly here.
-        verify(contextDataService).deleteByName("alpha", user.getId());
-        verify(contextDataService).deleteByName("beta", user.getId());
-        verify(mockPhilterDatabase, never()).getCollection("contexts");
+        userService.reactivateUser("req", user, "source");
 
-        // The deletion is audited with the deleted user's id.
-        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_DELETED),
+        final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);
+        verify(mongoCollection).updateOne(any(Bson.class), updateCaptor.capture());
+        final Document set = ((Document) updateCaptor.getValue()).get("$set", Document.class);
+        assertFalse(set.getBoolean("deactivated"), "the user must be marked active again");
+        assertNull(set.get("deactivated_at"), "the deactivation time must be cleared");
+        assertFalse(user.isDeactivated());
+        assertNull(user.getDeactivatedAt());
+
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_REACTIVATED),
                 eq(user.getId()), eq(user.getId()), eq("source"), org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    void reactivateUserIsIdempotent() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        // Not deactivated.
+
+        userService.reactivateUser("req", user, "source");
+
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.USER_REACTIVATED),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    void findByEmailExcludesDeactivatedUsers() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        final ArgumentCaptor<Bson> filterCaptor = ArgumentCaptor.forClass(Bson.class);
+        when(mongoCollection.find(filterCaptor.capture())).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+
+        userService.findByEmail("gone@example.com");
+
+        // The query must constrain on both the email and the deactivated flag so a deactivated user is
+        // never returned (and therefore cannot sign in or be targeted via the owner parameter).
+        final org.bson.BsonDocument filter = filterCaptor.getValue()
+                .toBsonDocument(Document.class, com.mongodb.MongoClientSettings.getDefaultCodecRegistry());
+        assertTrue(filter.containsKey("$and"), "findByEmail must combine the email and deactivated constraints");
+        assertTrue(filter.toJson().contains("deactivated"), "findByEmail must filter out deactivated users");
+    }
+
+    @Test
+    void isDeactivatedReturnsTrueForADeactivatedUser() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.projection(any())).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(new Document("deactivated", true));
+
+        assertTrue(userService.isDeactivated(new ObjectId()));
+    }
+
+    @Test
+    void isDeactivatedTreatsAMissingUserAsDeactivated() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.projection(any())).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(null);
+
+        assertTrue(userService.isDeactivated(new ObjectId()), "a missing user holds no active access");
+    }
+
+    @Test
+    void createUserRejectsAnEmailReservedByADeactivatedAccount() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(new Document("_id", new ObjectId())
+                .append("email", "taken@example.com").append("deactivated", true));
+
+        final ServiceResponse response = userService.createUser("req", "taken@example.com", "pw", "user",
+                policyDataService, contextDataService, "system");
+
+        assertFalse(response.isSuccessful());
+        verify(mongoCollection, never()).insertOne(any(Document.class));
+    }
+
+    @Test
+    void countExcludesDeactivatedWhenRequested() {
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(7L);
+        assertEquals(7, userService.count(false));
+        verify(mongoCollection).countDocuments(any(Bson.class));
+        verify(mongoCollection, never()).countDocuments();
+    }
+
+    @Test
+    void findAllExcludesDeactivatedWhenRequested() {
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        when(findIterable.iterator()).thenReturn(mock(com.mongodb.client.MongoCursor.class));
+
+        userService.findAll(0, 10, false);
+
+        // Excluding deactivated users issues a filtered find(), not the unfiltered find().
+        verify(mongoCollection).find(any(Bson.class));
+        verify(mongoCollection, never()).find();
     }
 
     @Test

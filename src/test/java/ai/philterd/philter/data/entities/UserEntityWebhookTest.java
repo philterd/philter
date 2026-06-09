@@ -20,8 +20,12 @@ import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.Date;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UserEntityWebhookTest {
 
@@ -46,6 +50,30 @@ class UserEntityWebhookTest {
         final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"));
         assertNull(restored.getWebhookUrl());
         assertNull(restored.getWebhookSecret());
+    }
+
+    @Test
+    void deactivatedFieldsRoundTrip() {
+        final UserEntity user = new UserEntity();
+        user.setEmail("a@b.c");
+        final Date deactivatedAt = new Date();
+        user.setDeactivated(true);
+        user.setDeactivatedAt(deactivatedAt);
+
+        final Document doc = user.toDocument(Mockito.mock(EncryptionService.class));
+        assertTrue(doc.getBoolean("deactivated"));
+        assertEquals(deactivatedAt, doc.getDate("deactivated_at"));
+
+        final UserEntity restored = UserEntity.fromDocument(doc);
+        assertTrue(restored.isDeactivated());
+        assertEquals(deactivatedAt, restored.getDeactivatedAt());
+    }
+
+    @Test
+    void deactivatedFalseByDefault() {
+        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"));
+        assertFalse(restored.isDeactivated());
+        assertNull(restored.getDeactivatedAt());
     }
 
 }

@@ -19,7 +19,6 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
-import ai.philterd.philter.data.providers.UserEntityDataProvider;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -84,14 +83,15 @@ public class AdminView extends AbstractRestrictedView {
 
         final AdminSettingsEntity finalAdminSettingsEntity = adminSettingsEntity;
 
-        final UserEntityDataProvider userEntityDataProvider = new UserEntityDataProvider(userService);
-
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(getTitle(("Admin")));
         pageVerticalLayout.setSizeFull();
 
         final HorizontalLayout pageHorizontalLayout = new HorizontalLayout();
         pageHorizontalLayout.setSizeFull();
+
+        // Declared before the create-user button so its click handler can refresh the grid.
+        final Grid<UserEntity> usersGrid = new Grid<>(UserEntity.class, false);
 
         // Button to create a new API key
         final Button createUserButton = new Button("New User", VaadinIcon.PLUS.create());
@@ -141,7 +141,7 @@ public class AdminView extends AbstractRestrictedView {
                     if (serviceResponse.isSuccessful()) {
                         showSuccessNotification(serviceResponse.getMessage());
                         createUserDialog.close();
-                        userEntityDataProvider.refreshAll();
+                        usersGrid.getDataProvider().refreshAll();
                     } else {
                         showFailureNotification(serviceResponse.getMessage());
                     }
@@ -159,7 +159,6 @@ public class AdminView extends AbstractRestrictedView {
 
         });
 
-        final Grid<UserEntity> usersGrid = new Grid<>(UserEntity.class, false);
         usersGrid.addColumn(UserEntity::getEmail).setHeader("Email Address").setResizable(true).setSortable(true);
         usersGrid.addColumn(UserEntity::getRole).setHeader("Role").setResizable(true).setSortable(true);
 
@@ -167,6 +166,14 @@ public class AdminView extends AbstractRestrictedView {
             final Button changePasswordButton = new Button("Change Password", VaadinIcon.KEY.create());
             changePasswordButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             changePasswordButton.setTooltipText("Change Password");
+
+            // A deactivated user cannot sign in, so changing its password has no effect until it is
+            // reactivated.
+            if (user.isDeactivated()) {
+                changePasswordButton.setEnabled(false);
+                changePasswordButton.setTooltipText("User is deactivated.");
+            }
+
             changePasswordButton.addClickListener(clickEvent -> {
 
                 final Dialog changePasswordDialog = new Dialog();
@@ -228,6 +235,13 @@ public class AdminView extends AbstractRestrictedView {
                 setRoleButton.setTooltipText("You cannot change your own role.");
             }
 
+            // A deactivated user holds no active access, so its role cannot be changed until it is
+            // reactivated.
+            if (user.isDeactivated()) {
+                setRoleButton.setEnabled(false);
+                setRoleButton.setTooltipText("User is deactivated.");
+            }
+
             setRoleButton.addClickListener(clickEvent -> {
 
                 final Dialog setRoleDialog = new Dialog();
@@ -258,7 +272,7 @@ public class AdminView extends AbstractRestrictedView {
 
                         if (serviceResponse.isSuccessful()) {
                             setRoleDialog.close();
-                            userEntityDataProvider.refreshAll();
+                            usersGrid.getDataProvider().refreshAll();
                             showSuccessNotification(serviceResponse.getMessage());
                         } else {
                             showFailureNotification(serviceResponse.getMessage());
@@ -280,30 +294,63 @@ public class AdminView extends AbstractRestrictedView {
         }).setHeader("Set Role").setAutoWidth(true).setFlexGrow(0);
 
         usersGrid.addComponentColumn(user -> {
-            final Button deleteButton = new Button("Delete User", VaadinIcon.TRASH.create());
-            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
-            deleteButton.setTooltipText("Delete User");
 
-            // Don't allow the current user to delete themselves.
             final UserEntity currentUser = getCurrentUser();
-            if (currentUser != null && user.getId().equals(currentUser.getId())) {
-                deleteButton.setEnabled(false);
-                deleteButton.setTooltipText("You cannot delete yourself.");
+            final boolean isSelf = currentUser != null && user.getId().equals(currentUser.getId());
+
+            if (user.isDeactivated()) {
+
+                // Reactivate a deactivated user: restores sign-in and API access; all of the user's
+                // data was retained, so the account returns to its prior state.
+                final Button reactivateButton = new Button("Reactivate User", VaadinIcon.USER_CHECK.create());
+                reactivateButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_TERTIARY);
+                reactivateButton.setTooltipText("Reactivate User");
+
+                reactivateButton.addClickListener(_ -> {
+                    final Dialog confirmDialog = new Dialog();
+                    confirmDialog.add(new H3("Reactivate User"));
+                    confirmDialog.add(new Paragraph("Reactivate the user " + user.getEmail() + "? The account will be able to sign in and its API keys will work again."));
+
+                    final Button confirmButton = new Button("Reactivate", e -> {
+                        userService.reactivateUser(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
+                        usersGrid.getDataProvider().refreshAll();
+                        confirmDialog.close();
+                        showSuccessNotification("User reactivated.");
+                    });
+                    confirmButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
+
+                    final Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
+                    confirmDialog.getFooter().add(cancelButton, confirmButton);
+                    confirmDialog.open();
+                });
+                return reactivateButton;
+
             }
 
-            deleteButton.addClickListener(_ -> {
+            // Deactivate an active user: revokes sign-in and API access while retaining the account and
+            // all of its data so it can be reactivated later.
+            final Button deactivateButton = new Button("Deactivate User", VaadinIcon.BAN.create());
+            deactivateButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            deactivateButton.setTooltipText("Deactivate User");
+
+            // Don't allow the current user to deactivate themselves.
+            if (isSelf) {
+                deactivateButton.setEnabled(false);
+                deactivateButton.setTooltipText("You cannot deactivate yourself.");
+            }
+
+            deactivateButton.addClickListener(_ -> {
 
                 final Dialog confirmDialog = new Dialog();
-                confirmDialog.add(new H3("Confirm Deletion"));
-                confirmDialog.add(new Paragraph("Are you sure you want to delete the user " + user.getEmail() + "?"));
-                confirmDialog.add(new Paragraph("This will delete all of the user's data: API keys, contexts, custom lists, policies, always/never redact lists, and ledger entries."));
-                confirmDialog.add(new Paragraph("Use the API to export any needed user data before deleting the user."));
+                confirmDialog.add(new H3("Deactivate User"));
+                confirmDialog.add(new Paragraph("Are you sure you want to deactivate the user " + user.getEmail() + "?"));
+                confirmDialog.add(new Paragraph("The account can no longer sign in and its API keys stop working. The user record and all of the user's data (API keys, contexts, custom lists, policies, always/never redact lists, and ledger entries) are retained, and you can reactivate the account at any time."));
 
-                final Button confirmButton = new Button("Delete", e -> {
-                    userService.deleteUser(RequestIdGenerator.generate(), user, contextService, Source.WEBUI.getSource());
-                    userEntityDataProvider.refreshAll();
+                final Button confirmButton = new Button("Deactivate", e -> {
+                    userService.deactivateUser(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
+                    usersGrid.getDataProvider().refreshAll();
                     confirmDialog.close();
-                    showSuccessNotification("User deleted.");
+                    showSuccessNotification("User deactivated.");
                 });
                 confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
 
@@ -313,10 +360,14 @@ public class AdminView extends AbstractRestrictedView {
                 confirmDialog.open();
 
             });
-            return deleteButton;
-        }).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
+            return deactivateButton;
+        }).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
 
-        usersGrid.setDataProvider(userEntityDataProvider);
+        // Lazy paging: fetch one page at a time plus the total count for the scrollbar. The grid shows
+        // all users, including deactivated ones (marked by the Reactivate User action).
+        usersGrid.setItems(
+                query -> userService.findAll(query.getOffset(), query.getLimit()).stream(),
+                query -> userService.count());
         usersGrid.setWidthFull();
 
         final VerticalLayout usersVerticalLayout = new VerticalLayout();

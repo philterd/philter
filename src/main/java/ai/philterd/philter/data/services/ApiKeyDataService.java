@@ -124,10 +124,22 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    /** Lists a page of a user's active (non-deleted) API keys. */
     public List<ApiKeyEntity> findAll(final ObjectId userId, final int offset, final int limit) {
+        return findAll(userId, offset, limit, false);
+    }
 
-        final Document query = new Document("deleted", false);
+    /**
+     * Lists a page of a user's API keys sorted by creation time. When {@code includeDeleted} is false,
+     * soft-deleted keys are excluded; when true, deleted keys are included so the account view can show
+     * them clearly marked (a deleted key is revoked and can never authenticate again).
+     */
+    public List<ApiKeyEntity> findAll(final ObjectId userId, final int offset, final int limit, final boolean includeDeleted) {
 
+        final Document query = new Document();
+        if (!includeDeleted) {
+            query.append("deleted", false);
+        }
         if (userId != null) {
             query.append("user_id", userId);
         }
@@ -144,10 +156,18 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    /** Counts a user's active (non-deleted) API keys. */
     public int count(final ObjectId userId) {
+        return count(userId, false);
+    }
 
-        final Document query = new Document("deleted", false);
+    /** Counts a user's API keys; when {@code includeDeleted} is false, soft-deleted keys are excluded. */
+    public int count(final ObjectId userId, final boolean includeDeleted) {
 
+        final Document query = new Document();
+        if (!includeDeleted) {
+            query.append("deleted", false);
+        }
         if (userId != null) {
             query.append("user_id", userId);
         }
@@ -158,9 +178,11 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     public ServiceResponse deleteByApiKey(final String requestId, final ApiKeyEntity apiKeyEntity, final String source) {
 
-        // API keys are never deleted from the database - just marked as deleted.
-        // This is to preserve usage history through audit and request logs.
+        // API keys are never removed from the database - just marked as deleted (revoked) with the time
+        // of deletion. This preserves usage history so audit entries referencing the key id still
+        // resolve to it. A deleted key can never authenticate again and cannot be reactivated.
         apiKeyEntity.setDeleted(true);
+        apiKeyEntity.setDeletedAt(new Date());
         update(apiKeyEntity);
 
         // Evict the key from the cache so the deletion takes effect immediately rather than after the
@@ -187,8 +209,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
             return 0;
         }
 
-        // Mark them all deleted in a single bulk update rather than one update per key.
-        collection.updateMany(query, new Document("$set", new Document("deleted", true)));
+        // Mark them all deleted (revoked) in a single bulk update rather than one update per key,
+        // stamping the same deletion time on each.
+        collection.updateMany(query, new Document("$set", new Document("deleted", true).append("deleted_at", new Date())));
 
         // Evict each from the cache and preserve the per-key audit events (one API_KEY_DELETED per key).
         for (final ApiKeyEntity apiKeyEntity : affected) {

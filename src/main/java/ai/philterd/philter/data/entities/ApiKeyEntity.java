@@ -25,7 +25,11 @@ public class ApiKeyEntity extends AbstractEntity {
     private ObjectId id;
     private String apiKeyHash;
     private String apiKeyPrefix;
+    // API keys are soft-deleted: a deleted key is revoked (it can never authenticate again) but the
+    // row is retained, marked deleted with the time of deletion, so audit entries that reference the
+    // key id still resolve to it. Unlike a deactivated user, a deleted key cannot be reactivated.
     private boolean deleted;
+    private Date deletedAt;
     private Date timestamp;
     private transient String apiKey;
     private ObjectId userId;
@@ -39,7 +43,8 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setApiKeyHash(document.getString("api_key_hash"));
         apiKeyEntity.setApiKeyPrefix(document.getString("api_key_prefix"));
 
-        apiKeyEntity.setDeleted(document.getBoolean("deleted"));
+        apiKeyEntity.setDeleted(document.getBoolean("deleted", false));
+        apiKeyEntity.setDeletedAt(document.getDate("deleted_at"));
         apiKeyEntity.setTimestamp(document.getDate("timestamp"));
         return apiKeyEntity;
     }
@@ -54,6 +59,7 @@ public class ApiKeyEntity extends AbstractEntity {
         document.put("api_key_hash", apiKeyHash);
         document.put("api_key_prefix", apiKeyPrefix);
         document.put("deleted", deleted);
+        document.put("deleted_at", deletedAt);
         document.put("timestamp", timestamp);
         return document;
     }
@@ -88,6 +94,14 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public boolean isDeleted() {
         return deleted;
+    }
+
+    public void setDeletedAt(final Date deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public Date getDeletedAt() {
+        return deletedAt;
     }
 
     public String getApiKeyHash() {

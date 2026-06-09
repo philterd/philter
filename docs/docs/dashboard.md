@@ -56,10 +56,13 @@ When cross-user access is enabled, administrators can additionally review every 
 
 Admin users can access the **Admin** section to manage users.
 
-*   **Add Users**: Create new user accounts by providing an email address, password, and role (`admin` or `user`).
+The Users grid lists **all** users, including deactivated ones. The **Status** column shows a **Deactivate User** action for an active account and a **Reactivate User** action for a deactivated one, so deactivated accounts are clearly identifiable.
+
+*   **Add Users**: Create new user accounts by providing an email address, password, and role (`admin` or `user`). An email that belongs to a deactivated account stays reserved; reactivate that account rather than creating a duplicate.
 *   **Change Passwords**: Update a user's password.
 *   **Set Roles**: Change a user's role to `admin` or `user`. Note that users cannot change their own role.
-*   **Delete Users**: Remove user accounts. This will also delete all of the user's data, including API keys, contexts, policies, and ledger entries. Users cannot delete their own account.
+*   **Deactivate Users**: Rather than being deleted, users are **deactivated**. A deactivated account can no longer sign in and its API keys stop working, but the user record and all of the user's data are retained. Deactivation never deletes the user's data and never cascades. Governance evidence in particular, the user's **policies** and **redaction ledger**, is preserved and stays resolvable to the retained user record, so no admin action can silently destroy redaction evidence. The retention is recorded in the [audit log](auditing.md). Users cannot deactivate their own account, and the change-password and set-role actions are disabled while an account is deactivated.
+*   **Reactivate Users**: Reactivate a deactivated account to restore sign-in and API access. Because no data was removed on deactivation, the account returns to exactly its prior state.
 
 ### Audit Log
 

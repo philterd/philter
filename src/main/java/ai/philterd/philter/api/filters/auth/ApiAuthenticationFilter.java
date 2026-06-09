@@ -19,6 +19,7 @@ import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -55,13 +56,15 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
     private final ApiKeyDataService apiKeyService;
     private final ApiKeyCache apiKeyCache;
+    private final UserService userService;
     private final AuditEventPublisher auditEventPublisher;
     private final MeterRegistry meterRegistry;
     private final Gson gson;
 
-    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache) {
+    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache, final UserService userService) {
         this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
         this.apiKeyCache = apiKeyCache;
+        this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
         this.meterRegistry = meterRegistry;
         this.gson = gson;
@@ -146,6 +149,25 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             }
 
             if(apiKeyEntity != null) {
+
+                // Reject the request if the key's owning user has been deactivated. The key itself is
+                // still valid, but a deactivated user holds no active access. This is checked live (not
+                // by marking the keys) so deactivation and reactivation take effect immediately and so
+                // reactivation does not resurrect keys the user had separately deleted.
+                if (userService.isDeactivated(apiKeyEntity.getUserId())) {
+
+                    LOGGER.warn("Rejecting request: the API key's owning user is deactivated.");
+
+                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, apiKeyEntity.getUserId(), null,
+                            AbstractApiController.getClientIpAddress(httpRequest), "reason: user deactivated");
+
+                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+                    httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Invalid or missing credentials\"}");
+                    return;
+
+                }
 
                 // Enforce IP address restrictions, if an allowlist is configured.
                 final String clientIpAddress = AbstractApiController.getClientIpAddress(httpRequest);

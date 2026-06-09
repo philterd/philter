@@ -19,6 +19,8 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+import java.util.Date;
+
 public class UserEntity extends AbstractEncryptedEntity {
 
     private ObjectId id;
@@ -29,6 +31,11 @@ public class UserEntity extends AbstractEncryptedEntity {
     private String webhookUrl;
     private String webhookSecret;
     private boolean passwordChangeRequired;
+    // Users are deactivated rather than deleted: the record and all of the user's data are retained
+    // (so the account can be reactivated and so audit and ledger entries that reference the user id
+    // still resolve to a name), but a deactivated user cannot sign in and holds no active access.
+    private boolean deactivated;
+    private Date deactivatedAt;
 
     public static UserEntity fromDocument(final Document document) {
         final UserEntity userEntity = new UserEntity();
@@ -40,6 +47,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setWebhookUrl(document.getString("webhook_url"));
         userEntity.setWebhookSecret(document.getString("webhook_secret"));
         userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
+        userEntity.setDeactivated(document.getBoolean("deactivated", false));
+        userEntity.setDeactivatedAt(document.getDate("deactivated_at"));
         return userEntity;
     }
 
@@ -56,6 +65,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("webhook_url", webhookUrl);
         document.put("webhook_secret", webhookSecret);
         document.put("password_change_required", passwordChangeRequired);
+        document.put("deactivated", deactivated);
+        document.put("deactivated_at", deactivatedAt);
         return document;
     }
 
@@ -122,5 +133,21 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setPasswordChangeRequired(final boolean passwordChangeRequired) {
         this.passwordChangeRequired = passwordChangeRequired;
+    }
+
+    public boolean isDeactivated() {
+        return deactivated;
+    }
+
+    public void setDeactivated(final boolean deactivated) {
+        this.deactivated = deactivated;
+    }
+
+    public Date getDeactivatedAt() {
+        return deactivatedAt;
+    }
+
+    public void setDeactivatedAt(final Date deactivatedAt) {
+        this.deactivatedAt = deactivatedAt;
     }
 }

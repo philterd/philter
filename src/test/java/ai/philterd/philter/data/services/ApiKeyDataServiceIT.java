@@ -131,13 +131,56 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final String apiKey = service.createApiKey("req", user, "src").getMessage();
 
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
+        final ObjectId keyId = entity.getId();
         assertTrue(service.deleteByApiKey("req", entity, "src").isSuccessful());
         assertTrue(entity.isDeleted());
+        // The deletion time is stamped.
+        assertNotNull(entity.getDeletedAt());
 
-        // A soft-deleted key is no longer found, counted, or listed.
+        // A soft-deleted key is revoked: no longer found, counted, or listed by default.
         assertNull(service.findOneByApiKey(apiKey));
         assertEquals(0, service.count(user));
         assertTrue(service.findAll(user, 0, 10).isEmpty());
+
+        // ...but the record is retained so audit entries referencing the key id still resolve to it.
+        final List<ApiKeyEntity> includingDeleted = service.findAll(user, 0, 10, true);
+        assertEquals(1, includingDeleted.size());
+        assertEquals(1, service.count(user, true));
+        final ApiKeyEntity retained = includingDeleted.get(0);
+        assertEquals(keyId, retained.getId());
+        assertTrue(retained.isDeleted());
+        assertNotNull(retained.getDeletedAt());
+    }
+
+    @Test
+    void deletedKeyCanNeverAuthenticateAgain() {
+        final ObjectId user = new ObjectId();
+        final String apiKey = service.createApiKey("req", user, "src").getMessage();
+        final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
+
+        service.deleteByApiKey("req", entity, "src");
+
+        // There is no reactivation: the revoked key stays unresolvable for authentication even though
+        // its record is retained.
+        assertNull(service.findOneByApiKey(apiKey));
+    }
+
+    @Test
+    void deleteAllByUserIdStampsDeletedAtAndRetainsRecords() {
+        final ObjectId user = new ObjectId();
+        service.createApiKey("req", user, "src");
+        service.createApiKey("req", user, "src");
+
+        assertEquals(2L, service.deleteAllByUserId("req", user, "src"));
+
+        // Both keys are revoked (hidden by default) but retained and stamped with a deletion time.
+        assertEquals(0, service.count(user));
+        final List<ApiKeyEntity> retained = service.findAll(user, 0, 10, true);
+        assertEquals(2, retained.size());
+        for (final ApiKeyEntity key : retained) {
+            assertTrue(key.isDeleted());
+            assertNotNull(key.getDeletedAt());
+        }
     }
 
     @Test

@@ -39,14 +39,16 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `user_created` | A user account was created. |
 | `user_password_changed` | A user's password was changed. |
 | `user_role_changed` | A user's role was changed. |
-| `user_deleted` | A user account (and its data) was deleted. |
+| `user_deactivated` | A user account was deactivated: sign-in and API access are revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
+| `user_reactivated` | A previously deactivated user account was reactivated, restoring sign-in and API access. |
+| `user_deleted` | A user account was deleted (legacy event; current versions deactivate users rather than deleting them). |
 
 ### API keys
 
 | Event | When it is recorded |
 |-------|---------------------|
 | `api_key_created` | An API key was created. |
-| `api_key_deleted` | An API key was deleted. |
+| `api_key_deleted` | An API key was deleted (soft-deleted): it is revoked and can no longer authenticate, but the key record is retained so audit entries that reference its id still resolve. |
 
 ### Policies
 

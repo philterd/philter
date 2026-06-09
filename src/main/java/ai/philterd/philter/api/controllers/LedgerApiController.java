@@ -28,6 +28,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
@@ -253,7 +254,12 @@ public class LedgerApiController extends AbstractApiController {
     @Operation(summary = "Delete a document's ledger chain.",
             description = "Permanently deletes every ledger entry for the given document. Admins may delete another "
                     + "user's chain by passing that user's email as owner.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "401"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "401"),
+            @ApiResponse(responseCode = "404"),
+            @ApiResponse(responseCode = "423", description = "The chain is protected by an active legal hold. Release the hold before deleting.")
+    })
     @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> deleteChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -275,7 +281,14 @@ public class LedgerApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "delete ledger chain " + documentId);
 
-        ledgerService.deleteByDocumentId(requestId, userId, documentId, getClientIpAddress(httpServletRequest));
+        final ServiceResponse deleteResponse = ledgerService.deleteByDocumentId(
+                requestId, userId, documentId, getClientIpAddress(httpServletRequest));
+
+        if (!deleteResponse.isSuccessful()) {
+            final HttpStatus status = deleteResponse.getStatusCode() == 423
+                    ? HttpStatus.LOCKED : HttpStatus.BAD_REQUEST;
+            return new ResponseEntity<>(new GenericResponse(deleteResponse.getMessage()), status);
+        }
 
         return new ResponseEntity<>(new GenericResponse("Ledger chain deleted."), HttpStatus.OK);
 
@@ -285,7 +298,13 @@ public class LedgerApiController extends AbstractApiController {
             description = "Manually deletes ledger entries older than the given number of days. The ledger is kept "
                     + "indefinitely by default, so this is how stale entries are pruned on demand. Admins may purge "
                     + "another user's entries by passing that user's email as owner.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "400"), @ApiResponse(responseCode = "401"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "400"),
+            @ApiResponse(responseCode = "401"),
+            @ApiResponse(responseCode = "404"),
+            @ApiResponse(responseCode = "423", description = "One or more active legal holds protect entries in this user's ledger. Release all holds before purging.")
+    })
     @RequestMapping(value = "/api/ledger", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> purge(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -310,9 +329,16 @@ public class LedgerApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "purge ledger entries older than " + olderThanDays + " days");
 
-        final long deleted = ledgerService.deleteChainsByUserIdAndOlderThan(requestId, userId, olderThanDays);
+        final ServiceResponse purgeResponse =
+                ledgerService.deleteChainsByUserIdAndOlderThan(requestId, userId, olderThanDays);
 
-        return new ResponseEntity<>(new GenericResponse("Deleted " + deleted + " ledger entries older than " + olderThanDays + " days."), HttpStatus.OK);
+        if (!purgeResponse.isSuccessful()) {
+            final HttpStatus status = purgeResponse.getStatusCode() == 423
+                    ? HttpStatus.LOCKED : HttpStatus.BAD_REQUEST;
+            return new ResponseEntity<>(new GenericResponse(purgeResponse.getMessage()), status);
+        }
+
+        return new ResponseEntity<>(new GenericResponse(purgeResponse.getMessage()), HttpStatus.OK);
 
     }
 

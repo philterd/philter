@@ -51,8 +51,8 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
     (verify the hash chain), `GET /api/ledger/{documentId}/export` (export decrypted entries),
     and `DELETE` for a single document's chain or all of the caller's chains.
   - A **Redaction Ledger** view in the UI for browsing, searching, exporting, and purging.
-  - Retention via `REDACTION_LEDGER_TTL_SECONDS` — entries are kept **indefinitely by default**
-    (`0`); set a positive value for MongoDB TTL expiry. Ledger entries are also cleaned up when a
+  - Retention via `REDACTION_LEDGER_TTL_DAYS` — entries are kept **indefinitely by default**
+    (`0`); set a positive number of days for MongoDB TTL expiry. Ledger entries are also cleaned up when a
     document chain is deleted, on a manual purge, and on user deletion.
 - **Policy version stamped on redaction evidence.** Each redaction now records which policy version
   governed it. Policy content is retained as immutable, append-only, content-addressed snapshots (a

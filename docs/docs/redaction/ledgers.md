@@ -36,6 +36,8 @@ Redaction ledgers are controlled on a per-context basis. When creating or editin
 
 Deletion always operates on **whole document chains**, never on individual entries within a chain. This preserves verifiability: a chain that remains is always complete and can still be validated, and a chain that is removed is removed in its entirety.
 
+**Legal holds block all three deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, every deletion attempt against that evidence is blocked and returns HTTP 423, regardless of which deletion path is used. The hold must be released before any deletion can proceed. See [Legal Holds](legal_holds.md) for the full documentation.
+
 ### 1. Manual purge (on demand)
 
 You can prune old entries yourself at any time. This is the primary way to enforce a retention policy.
@@ -50,7 +52,7 @@ You can prune old entries yourself at any time. This is the primary way to enfor
 
 ### 3. Automatic expiry (optional, off by default)
 
-If you want time-based expiry without running a manual purge, set the `REDACTION_LEDGER_TTL_SECONDS` environment variable (see [Settings](../settings.md)) to a positive number of seconds. MongoDB then automatically expires entries older than that. It is **unset (no expiry) by default**. If a deployment previously configured a TTL and you remove the variable, Philter drops the existing expiry index on startup so entries stop being auto-deleted.
+If you want time-based expiry without running a manual purge, set the `REDACTION_LEDGER_TTL_DAYS` environment variable (see [Settings](../settings.md)) to a positive number of days. MongoDB then automatically expires entries older than that. It is **`0` (no expiry) by default**. If a deployment previously configured a TTL and you set the variable back to `0`, Philter drops the existing expiry index on startup so entries stop being auto-deleted.
 
 ### Ledger entries survive user deactivation
 

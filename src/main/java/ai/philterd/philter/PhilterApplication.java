@@ -30,6 +30,7 @@ import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
@@ -193,8 +194,13 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
+    public LegalHoldDataService legalHoldDataService() {
+        return new LegalHoldDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
     public LedgerDataService ledgerService() {
-        return new LedgerDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new LedgerDataService(mongoClient(), encryptionService(), auditEventPublisher(), legalHoldDataService());
     }
 
     @Bean

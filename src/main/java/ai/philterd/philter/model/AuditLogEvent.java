@@ -91,7 +91,17 @@ public enum AuditLogEvent {
     CONTEXT_ENTRIES_IMPORT_DENIED("context_entries_import_denied"),
 
     // A governed, audited reversal of a cryptographically-redacted value via /api/reidentify.
-    REDACTION_REVERSED("redaction_reversed");
+    REDACTION_REVERSED("redaction_reversed"),
+
+    // Legal hold lifecycle. Holds block deletion and purge of governance evidence until released.
+    // LEGAL_HOLD_BLOCKED_DELETION is recorded every time a delete or purge is prevented by an
+    // active hold so there is an auditable record that the hold was enforced.
+    LEGAL_HOLD_SET("legal_hold_set"),
+    LEGAL_HOLD_RELEASED("legal_hold_released"),
+    LEGAL_HOLD_BLOCKED_DELETION("legal_hold_blocked_deletion"),
+
+    // Settings
+    SETTINGS_UPDATED("settings_updated");
 
     private final String auditLogEvent;
 

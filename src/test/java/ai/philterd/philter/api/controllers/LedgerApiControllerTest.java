@@ -201,6 +201,9 @@ class LedgerApiControllerTest {
 
     @Test
     void deleteChainInvokesService() throws Exception {
+        when(ledgerService.deleteByDocumentId(any(), eq(userId), eq("doc-1"), any()))
+                .thenReturn(new ai.philterd.philter.model.ServiceResponse("Deleted.", true, 200));
+
         mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1")
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-del"))
@@ -211,7 +214,8 @@ class LedgerApiControllerTest {
 
     @Test
     void purgeDeletesOlderThanDays() throws Exception {
-        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(30))).thenReturn(7L);
+        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(30)))
+                .thenReturn(new ai.philterd.philter.model.ServiceResponse("Deleted 7 ledger entries older than 30 days.", true, 200));
 
         final String body = mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
                         .header("Authorization", AUTH_HEADER)
@@ -284,7 +288,8 @@ class LedgerApiControllerTest {
         final ObjectId otherUser = new ObjectId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
-        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(otherUser), eq(30))).thenReturn(3L);
+        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(otherUser), eq(30)))
+                .thenReturn(new ai.philterd.philter.model.ServiceResponse("Deleted 3 ledger entries older than 30 days.", true, 200));
 
         mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
                         .header("Authorization", AUTH_HEADER)

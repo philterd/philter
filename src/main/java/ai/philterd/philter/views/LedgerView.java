@@ -246,11 +246,16 @@ public class LedgerView extends AbstractRestrictedView {
                     + "? This permanently removes its entries and cannot be undone."));
 
             final Button confirmButton = new Button("Delete", ev -> {
-                ledgerService.deleteByDocumentId(RequestIdGenerator.generate(), currentUser.getId(),
+                final ServiceResponse resp = ledgerService.deleteByDocumentId(
+                        RequestIdGenerator.generate(), currentUser.getId(),
                         chainHead.getDocumentId(), Source.WEBUI.getSource());
                 confirmDialog.close();
-                grid.getDataProvider().refreshAll();
-                showSuccessNotification("Ledger chain deleted.");
+                if (resp.isSuccessful()) {
+                    grid.getDataProvider().refreshAll();
+                    showSuccessNotification("Ledger chain deleted.");
+                } else {
+                    showFailureNotification(resp.getMessage());
+                }
             });
             confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
@@ -284,11 +289,15 @@ public class LedgerView extends AbstractRestrictedView {
                 daysField.setErrorMessage("Enter zero or more days.");
                 return;
             }
-            final long deleted = ledgerService.deleteChainsByUserIdAndOlderThan(
+            final ServiceResponse purgeResp = ledgerService.deleteChainsByUserIdAndOlderThan(
                     RequestIdGenerator.generate(), currentUser.getId(), days);
             dialog.close();
-            grid.getDataProvider().refreshAll();
-            showSuccessNotification("Deleted " + deleted + " ledger entries older than " + days + " days.");
+            if (purgeResp.isSuccessful()) {
+                grid.getDataProvider().refreshAll();
+                showSuccessNotification(purgeResp.getMessage());
+            } else {
+                showFailureNotification(purgeResp.getMessage());
+            }
         });
         confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 

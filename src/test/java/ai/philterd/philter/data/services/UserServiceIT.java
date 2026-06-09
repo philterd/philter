@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.encryption.EncryptResult;
@@ -46,6 +47,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 /**
  * Integration tests for {@link UserService} against a real (in-memory) MongoDB. These exercise the
@@ -246,8 +249,14 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(policyDataService.count(userId) >= 1);
 
         // ... and a redaction-ledger chain (governance evidence).
+        final LegalHoldDataService noOpHoldService = mock(LegalHoldDataService.class);
+        when(noOpHoldService.hasAnyHold(any())).thenReturn(false);
+        when(noOpHoldService.isProtectedDocument(any(), any())).thenReturn(false);
+        when(noOpHoldService.findAllHoldsForUser(any())).thenReturn(java.util.Collections.emptyList());
+        when(noOpHoldService.findBlockingHoldsForDocument(any(), any())).thenReturn(java.util.Collections.emptyList());
         final LedgerDataService ledgerDataService = new LedgerDataService(
-                mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class));
+                mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class),
+                noOpHoldService);
         ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt", "default", 0, "policy-hash");
         assertEquals(1, ledgerDataService.countChainsByUserId(userId));
 

@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -53,16 +54,21 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     // Ledger retention. By default ledger entries are kept indefinitely (the ledger is a
     // tamper-evident audit record, so nothing is auto-deleted unless an operator opts in).
-    // Set REDACTION_LEDGER_TTL_SECONDS to a positive value to have MongoDB automatically expire
-    // entries older than that; entries can also be removed explicitly via the manual purge
+    // Set REDACTION_LEDGER_TTL_DAYS to a positive number of days to have MongoDB automatically
+    // expire entries older than that; entries can also be removed explicitly via the manual purge
     // (deleteChainsByUserIdAndOlderThan) and per-document/user deletions.
-    private static final long DEFAULT_TTL_SECONDS = 0L;
+    private static final long DEFAULT_TTL_DAYS = 0L;
 
     // The auto-generated name of the optional TTL index on the entry timestamp.
     private static final String TTL_INDEX_NAME = "timestamp_1";
 
-    public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+    private final LegalHoldDataService legalHoldDataService;
+
+    public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                              final AuditEventPublisher auditEventPublisher,
+                              final LegalHoldDataService legalHoldDataService) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
+        this.legalHoldDataService = legalHoldDataService;
 
         // Chain-head listing queries (user_id, previous_hash) ordered by timestamp; per-document
         // chain retrieval and deletion query (user_id, document_id).
@@ -73,15 +79,16 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         // it. The index is on the entry timestamp. Changing the value after the index exists
         // requires dropping the existing TTL index first (MongoDB will not silently re-apply a
         // different expireAfterSeconds), so a conflict is logged rather than fatal at startup.
-        final long ttlSeconds = EnvUtils.getLong("REDACTION_LEDGER_TTL_SECONDS", DEFAULT_TTL_SECONDS);
-        if (ttlSeconds > 0) {
+        final long ttlDays = EnvUtils.getLong("REDACTION_LEDGER_TTL_DAYS", DEFAULT_TTL_DAYS);
+        if (ttlDays > 0) {
+            final long ttlSeconds = ttlDays * 86400L;
             try {
                 collection.createIndex(
                         Indexes.ascending("timestamp"),
                         new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
-                LOGGER.info("TTL index on ledger.timestamp set to expire after {} seconds.", ttlSeconds);
+                LOGGER.info("TTL index on ledger.timestamp set to expire after {} days ({} seconds).", ttlDays, ttlSeconds);
             } catch (final Exception ex) {
-                LOGGER.warn("Unable to create TTL index on ledger.timestamp ({} seconds): {}", ttlSeconds, ex.getMessage());
+                LOGGER.warn("Unable to create TTL index on ledger.timestamp ({} days): {}", ttlDays, ex.getMessage());
             }
         } else {
             // Retention disabled (the default): keep entries indefinitely. Drop any TTL index left by a
@@ -94,7 +101,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 // No TTL index to drop (the common case) — nothing to do.
                 LOGGER.debug("No ledger TTL index '{}' to drop: {}", TTL_INDEX_NAME, ex.getMessage());
             }
-            LOGGER.info("Ledger retention is unlimited (REDACTION_LEDGER_TTL_SECONDS not set to a positive value).");
+            LOGGER.info("Ledger retention is unlimited (REDACTION_LEDGER_TTL_DAYS not set to a positive value).");
         }
     }
 
@@ -174,23 +181,51 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public long deleteChainsByUserIdAndOlderThan(final String requestId, final ObjectId userId, final int daysToKeep) {
+    /**
+     * Purges ledger entries older than {@code daysToKeep} days for the given user.
+     *
+     * <p><strong>Hold enforcement:</strong> if any active legal hold exists for this user (whether
+     * a {@code user}-scoped hold or any {@code document_chain} hold), the purge is blocked in its
+     * entirety and a 423 {@link ServiceResponse} is returned. Age-based purges cannot selectively
+     * skip protected documents, so the presence of any hold prevents the whole operation. The
+     * blocked attempt is audited as {@code legal_hold_blocked_deletion}.
+     *
+     * @return a {@link ServiceResponse} carrying the deleted count in the message on success, or
+     *         a 423 with the blocking hold references when a hold is in force.
+     */
+    public ServiceResponse deleteChainsByUserIdAndOlderThan(final String requestId,
+                                                             final ObjectId userId,
+                                                             final int daysToKeep) {
 
-        // Subtract the days to keep from the current date.
-        // Ledger entries having a timestamp less than (older than) this timestamp will be returned.
+        if (legalHoldDataService.hasAnyHold(userId)) {
+            final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
+            final String refs = holds.stream().map(LegalHoldEntity::getReference)
+                    .reduce((a, b) -> a + ", " + b).orElse("unknown");
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
+                    userId, null, null,
+                    "operation: purge_by_age, daysToKeep: " + daysToKeep + ", blocking holds: " + refs);
+            return new ServiceResponse(
+                    "Purge blocked by legal hold(s): " + refs + ". Release all holds before purging.",
+                    false, 423);
+        }
+
         final Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_MONTH, -daysToKeep);
         final Date cutoffDate = cal.getTime();
 
-        final Document query = new Document("user_id", userId).append("timestamp", new Document("$lt", cutoffDate));
+        final Document query = new Document("user_id", userId)
+                .append("timestamp", new Document("$lt", cutoffDate));
 
         final DeleteResult deleteResult = collection.deleteMany(query);
 
-        // Audit the retention-driven deletion of ledger chains.
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId, null, null, "deletedCount: " + deleteResult.getDeletedCount() + ", daysToKeep: " + daysToKeep);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
+                null, null,
+                "deletedCount: " + deleteResult.getDeletedCount() + ", daysToKeep: " + daysToKeep);
 
-        return deleteResult.getDeletedCount();
-
+        return new ServiceResponse(
+                "Deleted " + deleteResult.getDeletedCount() + " ledger entries older than "
+                        + daysToKeep + " days.",
+                true, 200);
     }
 
     public List<LedgerEntity> findChainsByUserId(final String requestId, final ObjectId userId, final int offset, final int limit, final String source) {
@@ -324,28 +359,67 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public ServiceResponse deleteByDocumentId(final String requestId, final ObjectId userId, final String documentId, final String source) {
+    /**
+     * Deletes all ledger entries for the given document.
+     *
+     * <p><strong>Hold enforcement:</strong> returns 423 if any {@code document_chain} hold covers
+     * this document ID, or if any {@code user}-scoped hold exists for the owner. The blocked
+     * attempt is audited as {@code legal_hold_blocked_deletion}.
+     */
+    public ServiceResponse deleteByDocumentId(final String requestId, final ObjectId userId,
+                                               final String documentId, final String source) {
+
+        if (legalHoldDataService.isProtectedDocument(userId, documentId)) {
+            final List<LegalHoldEntity> holds =
+                    legalHoldDataService.findBlockingHoldsForDocument(userId, documentId);
+            final String refs = holds.stream().map(LegalHoldEntity::getReference)
+                    .reduce((a, b) -> a + ", " + b).orElse("unknown");
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
+                    userId, null, null,
+                    "operation: delete_document_chain, documentId: " + documentId
+                            + ", blocking holds: " + refs);
+            return new ServiceResponse(
+                    "Deletion blocked by legal hold(s): " + refs
+                            + ". Release the hold(s) before deleting this chain.",
+                    false, 423);
+        }
 
         final Bson query = Filters.and(
                 Filters.eq("user_id", userId),
-                Filters.eq("document_id", documentId)
-        );
+                Filters.eq("document_id", documentId));
 
         collection.deleteMany(query);
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId, null, source, "documentId: " + documentId);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
+                null, source, "documentId: " + documentId);
 
         return ServiceResponse.success();
-
     }
 
-    public long deleteAllByUserId(final ObjectId userId) {
+    /**
+     * Deletes all ledger entries for the given user. Intended for administrative bulk removal.
+     *
+     * <p><strong>Hold enforcement:</strong> returns 423 if any active hold exists for this user.
+     * The blocked attempt is audited as {@code legal_hold_blocked_deletion}.
+     */
+    public ServiceResponse deleteAllByUserId(final String requestId, final ObjectId userId) {
+
+        if (legalHoldDataService.hasAnyHold(userId)) {
+            final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
+            final String refs = holds.stream().map(LegalHoldEntity::getReference)
+                    .reduce((a, b) -> a + ", " + b).orElse("unknown");
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
+                    userId, null, null,
+                    "operation: delete_all_by_user, blocking holds: " + refs);
+            return new ServiceResponse(
+                    "Deletion blocked by legal hold(s): " + refs
+                            + ". Release all holds before deleting user evidence.",
+                    false, 423);
+        }
 
         final Document query = new Document("user_id", userId);
-
         final DeleteResult deleteResult = collection.deleteMany(query);
-
-        return deleteResult.getDeletedCount();
-
+        return new ServiceResponse("Deleted " + deleteResult.getDeletedCount() + " ledger entries.",
+                true, 200);
     }
 
 }

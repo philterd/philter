@@ -17,7 +17,9 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -48,20 +50,12 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class LedgerDataServiceTest {
 
-    @Mock
-    private MongoClient mongoClient;
-
-    @Mock
-    private MongoDatabase mongoDatabase;
-
-    @Mock
-    private MongoCollection<Document> mongoCollection;
-
-    @Mock
-    private EncryptionService encryptionService;
-
-    @Mock
-    private AuditEventPublisher auditEventPublisher;
+    @Mock private MongoClient mongoClient;
+    @Mock private MongoDatabase mongoDatabase;
+    @Mock private MongoCollection<Document> mongoCollection;
+    @Mock private EncryptionService encryptionService;
+    @Mock private AuditEventPublisher auditEventPublisher;
+    @Mock private LegalHoldDataService legalHoldDataService;
 
     private LedgerDataService ledgerDataService;
 
@@ -69,7 +63,13 @@ class LedgerDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("ledger")).thenReturn(mongoCollection);
-        ledgerDataService = new LedgerDataService(mongoClient, encryptionService, auditEventPublisher);
+        // Default: no holds active. Individual tests override as needed.
+        when(legalHoldDataService.hasAnyHold(any())).thenReturn(false);
+        when(legalHoldDataService.isProtectedDocument(any(), any())).thenReturn(false);
+        when(legalHoldDataService.findAllHoldsForUser(any())).thenReturn(Collections.emptyList());
+        when(legalHoldDataService.findBlockingHoldsForDocument(any(), any())).thenReturn(Collections.emptyList());
+        ledgerDataService = new LedgerDataService(mongoClient, encryptionService, auditEventPublisher,
+                legalHoldDataService);
     }
 
     @Test
@@ -106,16 +106,34 @@ class LedgerDataServiceTest {
     }
 
     @Test
-    void deleteAllByUserId() {
-        ObjectId userId = new ObjectId();
-        DeleteResult deleteResult = mock(DeleteResult.class);
+    void deleteAllByUserIdSucceedsWhenNoHoldsActive() {
+        final ObjectId userId = new ObjectId();
+        final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(10L);
 
-        long deleted = ledgerDataService.deleteAllByUserId(userId);
+        final ServiceResponse response = ledgerDataService.deleteAllByUserId("req", userId);
 
-        assertEquals(10L, deleted);
+        assertTrue(response.isSuccessful());
         verify(mongoCollection).deleteMany(any(Bson.class));
+    }
+
+    @Test
+    void deleteAllByUserIdReturns423WhenHoldIsActive() {
+        final ObjectId userId = new ObjectId();
+        final LegalHoldEntity hold = holdEntityUser("REF-1", userId);
+        when(legalHoldDataService.hasAnyHold(userId)).thenReturn(true);
+        when(legalHoldDataService.findAllHoldsForUser(userId)).thenReturn(List.of(hold));
+
+        final ServiceResponse response = ledgerDataService.deleteAllByUserId("req", userId);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(423, response.getStatusCode());
+        assertTrue(response.getMessage().contains("REF-1"));
+        verify(mongoCollection, never()).deleteMany(any());
+        verify(auditEventPublisher).auditEvent(anyString(),
+                eq(AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION), eq(userId),
+                isNull(), isNull(), contains("REF-1"));
     }
 
     @Test
@@ -175,17 +193,117 @@ class LedgerDataServiceTest {
     }
 
     @Test
-    void deleteChainsByUserIdAndOlderThanIsAudited() {
-        ObjectId userId = new ObjectId();
-        DeleteResult deleteResult = mock(DeleteResult.class);
+    void deleteChainsByUserIdAndOlderThanSucceedsWhenNoHoldsActive() {
+        final ObjectId userId = new ObjectId();
+        final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(7L);
 
-        long deleted = ledgerDataService.deleteChainsByUserIdAndOlderThan("req", userId, 30);
+        final ServiceResponse response = ledgerDataService.deleteChainsByUserIdAndOlderThan("req", userId, 30);
 
-        assertEquals(7L, deleted);
+        assertTrue(response.isSuccessful());
+        assertEquals(200, response.getStatusCode());
+        assertTrue(response.getMessage().contains("7"));
         verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.REDACTION_LEDGER_DELETED),
                 eq(userId), isNull(), isNull(), contains("deletedCount: 7"));
+    }
+
+    @Test
+    void deleteChainsByUserIdAndOlderThanReturns423WhenUserScopeHoldActive() {
+        final ObjectId userId = new ObjectId();
+        final LegalHoldEntity hold = holdEntityUser("LIT-001", userId);
+        when(legalHoldDataService.hasAnyHold(userId)).thenReturn(true);
+        when(legalHoldDataService.findAllHoldsForUser(userId)).thenReturn(List.of(hold));
+
+        final ServiceResponse response = ledgerDataService.deleteChainsByUserIdAndOlderThan("req", userId, 30);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(423, response.getStatusCode());
+        assertTrue(response.getMessage().contains("LIT-001"));
+        verify(mongoCollection, never()).deleteMany(any());
+        verify(auditEventPublisher).auditEvent(anyString(),
+                eq(AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION), eq(userId),
+                isNull(), isNull(), contains("LIT-001"));
+    }
+
+    @Test
+    void deleteChainsByUserIdAndOlderThanReturns423WhenDocumentChainHoldActive() {
+        final ObjectId userId = new ObjectId();
+        final LegalHoldEntity hold = holdEntityDocChain("DOC-HOLD", userId, "doc123");
+        when(legalHoldDataService.hasAnyHold(userId)).thenReturn(true);
+        when(legalHoldDataService.findAllHoldsForUser(userId)).thenReturn(List.of(hold));
+
+        final ServiceResponse response = ledgerDataService.deleteChainsByUserIdAndOlderThan("req", userId, 90);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(423, response.getStatusCode());
+        verify(mongoCollection, never()).deleteMany(any());
+    }
+
+    @Test
+    void deleteByDocumentIdSucceedsWhenNoHoldsActive() {
+        final ObjectId userId = new ObjectId();
+        final DeleteResult deleteResult = mock(DeleteResult.class);
+        when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        final ServiceResponse response = ledgerDataService.deleteByDocumentId("req", userId, "doc123", "API");
+
+        assertTrue(response.isSuccessful());
+        verify(mongoCollection).deleteMany(any(Bson.class));
+        verify(auditEventPublisher).auditEvent(anyString(),
+                eq(AuditLogEvent.REDACTION_LEDGER_DELETED), eq(userId),
+                isNull(), eq("API"), contains("doc123"));
+    }
+
+    @Test
+    void deleteByDocumentIdReturns423WhenDocumentChainHoldActive() {
+        final ObjectId userId = new ObjectId();
+        final LegalHoldEntity hold = holdEntityDocChain("LIT-DOC", userId, "doc123");
+        when(legalHoldDataService.isProtectedDocument(userId, "doc123")).thenReturn(true);
+        when(legalHoldDataService.findBlockingHoldsForDocument(userId, "doc123"))
+                .thenReturn(List.of(hold));
+
+        final ServiceResponse response = ledgerDataService.deleteByDocumentId("req", userId, "doc123", "API");
+
+        assertFalse(response.isSuccessful());
+        assertEquals(423, response.getStatusCode());
+        assertTrue(response.getMessage().contains("LIT-DOC"));
+        verify(mongoCollection, never()).deleteMany(any());
+        verify(auditEventPublisher).auditEvent(anyString(),
+                eq(AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION), eq(userId),
+                isNull(), isNull(), contains("LIT-DOC"));
+    }
+
+    @Test
+    void deleteByDocumentIdReturns423WhenUserScopeHoldActive() {
+        final ObjectId userId = new ObjectId();
+        final LegalHoldEntity hold = holdEntityUser("USER-HOLD", userId);
+        when(legalHoldDataService.isProtectedDocument(userId, "doc999")).thenReturn(true);
+        when(legalHoldDataService.findBlockingHoldsForDocument(userId, "doc999"))
+                .thenReturn(List.of(hold));
+
+        final ServiceResponse response = ledgerDataService.deleteByDocumentId("req", userId, "doc999", "UI");
+
+        assertFalse(response.isSuccessful());
+        assertEquals(423, response.getStatusCode());
+        assertTrue(response.getMessage().contains("USER-HOLD"));
+        verify(mongoCollection, never()).deleteMany(any());
+    }
+
+    @Test
+    void deleteByDocumentIdCanBeBlockedByMultipleHolds() {
+        final ObjectId userId = new ObjectId();
+        final LegalHoldEntity h1 = holdEntityDocChain("LIT-A", userId, "docX");
+        final LegalHoldEntity h2 = holdEntityUser("LIT-B", userId);
+        when(legalHoldDataService.isProtectedDocument(userId, "docX")).thenReturn(true);
+        when(legalHoldDataService.findBlockingHoldsForDocument(userId, "docX"))
+                .thenReturn(List.of(h1, h2));
+
+        final ServiceResponse response = ledgerDataService.deleteByDocumentId("req", userId, "docX", "API");
+
+        assertFalse(response.isSuccessful());
+        assertTrue(response.getMessage().contains("LIT-A"));
+        assertTrue(response.getMessage().contains("LIT-B"));
     }
 
     @Test
@@ -206,5 +324,30 @@ class LedgerDataServiceTest {
                 eq(userId), isNull(), eq("source"), eq("searchTermHash: " + expectedHash));
         // The raw search term must never appear in the audit details.
         verify(auditEventPublisher, never()).auditEvent(anyString(), any(), any(), any(), anyString(), contains(searchTerm));
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private LegalHoldEntity holdEntityUser(final String reference, final ObjectId userId) {
+        final LegalHoldEntity e = new LegalHoldEntity();
+        e.setId(new ObjectId());
+        e.setUserId(userId);
+        e.setReference(reference);
+        e.setScopeType(LegalHoldEntity.SCOPE_USER);
+        e.setScopeValue(userId.toHexString());
+        return e;
+    }
+
+    private LegalHoldEntity holdEntityDocChain(final String reference, final ObjectId userId,
+                                                final String documentId) {
+        final LegalHoldEntity e = new LegalHoldEntity();
+        e.setId(new ObjectId());
+        e.setUserId(userId);
+        e.setReference(reference);
+        e.setScopeType(LegalHoldEntity.SCOPE_DOCUMENT_CHAIN);
+        e.setScopeValue(documentId);
+        return e;
     }
 }

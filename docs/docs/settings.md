@@ -70,7 +70,7 @@ Ledger retention is configured with the environment variable below.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `REDACTION_LEDGER_TTL_SECONDS` | Optional automatic expiry for redaction ledger entries. When set to a positive number of seconds, MongoDB expires entries older than that. **Unset/`0` by default, so ledger entries are kept indefinitely** and are only removed by a manual purge, per-document deletion, or user deletion (see [Redaction Ledgers](redaction/ledgers.md#how-and-when-ledger-entries-are-deleted)). Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index; setting it back to `0` drops that index on startup. | `0` (no expiry) |
+| `REDACTION_LEDGER_TTL_DAYS` | Optional automatic expiry for redaction ledger entries. When set to a positive number of days, MongoDB expires entries older than that. **`0` by default, so ledger entries are kept indefinitely** and are only removed by a manual purge, per-document deletion, or user deletion (see [Redaction Ledgers](redaction/ledgers.md#how-and-when-ledger-entries-are-deleted)). Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index; setting it back to `0` drops that index on startup. | `0` (no expiry) |
 
 ## Asynchronous Documents and Webhooks
 

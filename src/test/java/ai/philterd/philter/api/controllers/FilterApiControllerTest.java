@@ -32,6 +32,7 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
+import ai.philterd.philter.services.signing.SigningService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,6 +87,9 @@ class FilterApiControllerTest {
     @Mock
     private PolicyVersionDataService policyVersionDataService;
 
+    @Mock
+    private SigningService signingService;
+
     private ObjectId userId;
     private ObjectId apiKeyId;
     private MockMvc mockMvc;
@@ -105,7 +109,7 @@ class FilterApiControllerTest {
 
         final FilterApiController controller = new FilterApiController(redactionService, policyDataService,
                 apiKeyDataService, auditEventPublisher, apiKeyCache, pendingDocumentDataService, new Gson(),
-                policyVersionDataService);
+                policyVersionDataService, signingService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
@@ -144,9 +148,11 @@ class FilterApiControllerTest {
         final String body = response.getContentAsString();
         org.junit.jupiter.api.Assertions.assertEquals("My name is {{{REDACTED-person}}}.", body);
 
-        // The applied policy name and version are reported as response headers.
+        // The applied policy name, version, and document ID are reported as response headers.
         org.junit.jupiter.api.Assertions.assertEquals("default", response.getHeader("X-Philter-Policy-Name"));
         org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
+        org.junit.jupiter.api.Assertions.assertNotNull(response.getHeader("X-Document-Id"),
+                "every text response must include X-Document-Id");
 
         // The redaction must be attributed to the owning user id, not the API key's own id.
         verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN));
@@ -252,6 +258,78 @@ class FilterApiControllerTest {
         // Synchronous path must filter directly (using the owning user id) and never enqueue.
         verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF));
         verify(pendingDocumentDataService, never()).save(any());
+    }
+
+    @Test
+    void textEndpointIncludesSignatureHeaderWhenSigningEnabled() throws Exception {
+        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn("mock.jwt.token");
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+                .thenReturn(outcome(textResult("Redacted.")));
+
+        final var response = mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        org.junit.jupiter.api.Assertions.assertEquals("mock.jwt.token",
+                response.getHeader("X-Philter-Signature"),
+                "signature header must be present when signing is enabled");
+    }
+
+    @Test
+    void textEndpointDoesNotIncludeSignatureHeaderWhenSigningDisabled() throws Exception {
+        when(signingService.isSigningEnabled()).thenReturn(false);
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+                .thenReturn(outcome(textResult("Redacted.")));
+
+        final var response = mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        org.junit.jupiter.api.Assertions.assertNull(response.getHeader("X-Philter-Signature"),
+                "signature header must be absent when signing is disabled");
+    }
+
+    @Test
+    void textEndpointReturns500WhenSigningFails() throws Exception {
+        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenThrow(new RuntimeException("key unavailable"));
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+                .thenReturn(outcome(textResult("Redacted.")));
+
+        mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void unauthorizedResponseDoesNotIncludeSignatureHeader() throws Exception {
+        when(apiKeyCache.containsApiKey("bad-key")).thenReturn(false);
+        when(apiKeyDataService.findOneByApiKey("bad-key")).thenReturn(null);
+
+        final var response = mockMvc.perform(post("/api/filter")
+                        .header("Authorization", "Bearer bad-key")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("anything"))
+                .andExpect(status().isUnauthorized())
+                .andReturn().getResponse();
+
+        org.junit.jupiter.api.Assertions.assertNull(response.getHeader("X-Philter-Signature"),
+                "signature header must never appear on error responses");
     }
 
 }

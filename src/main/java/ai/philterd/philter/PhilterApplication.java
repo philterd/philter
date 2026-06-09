@@ -36,7 +36,9 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
+import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -256,6 +258,16 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public AdminSettingsDataService adminSettingsDataService() {
         return new AdminSettingsDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public SigningKeyDataService signingKeyDataService() {
+        return new SigningKeyDataService(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public SigningService signingService() {
+        return new SigningService(signingKeyDataService(), adminSettingsDataService());
     }
 
     @Bean

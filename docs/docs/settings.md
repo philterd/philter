@@ -99,6 +99,14 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `MAX_FILE_SIZE_BYTES_OTHER` | Maximum size, in bytes, accepted for other (non-document) request bodies. | `10240` (10 KB) |
 | `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service used by policies that perform named-entity recognition. | (none) |
 
+## Output Signing
+
+Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses with an ES256 JWT in the `X-Philter-Signature` response header. Signing is **disabled by default**; enable it in the dashboard **Admin** → **Admin Settings** page. See [Output Signing](output_signing.md) for full documentation.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `PHILTER_SIGNING_KEY_PATH` | Absolute path to a PKCS8 PEM private key file (`BEGIN PRIVATE KEY` format) to use instead of the auto-generated MongoDB key. When set, the file is read on startup; the MongoDB signing key is not used. The file must be accessible on every node. Leave unset to let Philter generate and manage the key automatically. | (none; auto-generate) |
+
 ## PII Drift Monitoring (Phield)
 
 Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor; only counts are sent, never any PII. This is configured in the dashboard **Admin** settings (enable, Phield URL, source id, organization), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).

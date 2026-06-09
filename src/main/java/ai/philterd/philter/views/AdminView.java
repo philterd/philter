@@ -22,6 +22,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
@@ -69,7 +70,8 @@ public class AdminView extends AbstractRestrictedView {
                      final UserService userService, final PolicyDataService policyService,
                      final ContextDataService contextService,
                      final AdminSettingsDataService adminSettingsDataService,
-                     final AuditLogService auditLogService) {
+                     final AuditLogService auditLogService,
+                     final SigningKeyDataService signingKeyDataService) {
 
         super(mongoClient, encryptionService, auditEventPublisher);
 
@@ -412,17 +414,51 @@ public class AdminView extends AbstractRestrictedView {
             phieldOrganizationField.setEnabled(enabled);
         });
 
+        // Output signing section.
+        final Checkbox signingEnabledCheckbox = new Checkbox("Enable output signing (ES256 JWT on X-Philter-Signature response header)");
+        signingEnabledCheckbox.setValue(finalAdminSettingsEntity.isSigningEnabled());
+
+        final TextField fingerprintField = new TextField("Public Key SHA-256 Fingerprint");
+        fingerprintField.setValue(signingKeyDataService.getPublicKeyFingerprint());
+        fingerprintField.setReadOnly(true);
+        fingerprintField.setWidth("640px");
+
+        final Button regenerateKeyButton = new Button("Regenerate Signing Key", VaadinIcon.REFRESH.create());
+        regenerateKeyButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+        regenerateKeyButton.addClickListener(event -> {
+            final Dialog confirmDialog = new Dialog();
+            confirmDialog.setHeaderTitle("Regenerate Signing Key");
+            confirmDialog.add(new Paragraph(
+                    "This will generate a new ES256 keypair and discard the current one. "
+                            + "Any consumer that cached the old public key will no longer be able to "
+                            + "verify signatures until they fetch the new key from GET /api/signing-key. "
+                            + "Continue?"));
+            final Button confirmButton = new Button("Regenerate", e -> {
+                final ai.philterd.philter.data.entities.UserEntity adminUser = getCurrentUser();
+                signingKeyDataService.regenerate(adminUser != null ? adminUser.getId() : null);
+                fingerprintField.setValue(signingKeyDataService.getPublicKeyFingerprint());
+                confirmDialog.close();
+                showSuccessNotification("Signing key regenerated.");
+            });
+            confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+            final Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
+            confirmDialog.getFooter().add(cancelButton, confirmButton);
+            confirmDialog.open();
+        });
+
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
             adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
             adminSettingsDataService.savePhieldSettings(phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
                     phieldSourceIdField.getValue(), phieldOrganizationField.getValue());
+            adminSettingsDataService.saveSigningEnabled(signingEnabledCheckbox.getValue());
             showSuccessNotification("Admin settings saved.");
         });
         saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         adminSettingsVerticalLayout.add(loggingEnabledCheckbox, diffuseCountsEnabledCheckbox,
                 phieldEnabledCheckbox, phieldUrlField, phieldSourceIdField, phieldOrganizationField,
+                new H3("Output Signing"), signingEnabledCheckbox, fingerprintField, regenerateKeyButton,
                 saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();

@@ -81,6 +81,15 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
   webhook) are consolidated under a **My Account** page; the per-account always-redact / never-redact
   lists move to a dedicated **Always/Never Redact Lists** page; and SDK references move to an **SDKs**
   page. The side navigation is grouped into Redaction, Account, and Administration sections.
+- **Output signing.** `POST /api/filter` (text) and `POST /api/explain` responses can now be
+  digitally signed with an ES256 (ECDSA P-256) JWT returned in the new `X-Philter-Signature`
+  response header. The JWT payload binds the SHA-256 hash of the response body, the applied
+  policy name and version, a per-response UUID, and an issue timestamp, so consumers can
+  verify authenticity and integrity. Signing is opt-in (disabled by default); enable it in
+  the Admin Settings. Philter auto-generates and persists an ES256 keypair in MongoDB on first
+  start; alternatively set `PHILTER_SIGNING_KEY_PATH` to supply your own PKCS8 PEM key. The
+  public key is available from the new `GET /api/signing-key` endpoint. See
+  [Output Signing](output_signing.md) for full documentation.
 
 ### Changed
 

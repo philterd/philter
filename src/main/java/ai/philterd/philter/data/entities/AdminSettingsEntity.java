@@ -27,6 +27,7 @@ public class AdminSettingsEntity extends AbstractEntity {
     private String phieldUrl = "";
     private String phieldSourceId = "philter";
     private String phieldOrganization = "philter";
+    private boolean signingEnabled;
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
@@ -37,6 +38,7 @@ public class AdminSettingsEntity extends AbstractEntity {
         adminSettingsEntity.setPhieldUrl(document.getString("phield_url") != null ? document.getString("phield_url") : "");
         adminSettingsEntity.setPhieldSourceId(document.getString("phield_source_id") != null ? document.getString("phield_source_id") : "philter");
         adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
+        adminSettingsEntity.setSigningEnabled(document.getBoolean("signing_enabled", false));
         return adminSettingsEntity;
     }
 
@@ -52,6 +54,7 @@ public class AdminSettingsEntity extends AbstractEntity {
         document.put("phield_url", phieldUrl);
         document.put("phield_source_id", phieldSourceId);
         document.put("phield_organization", phieldOrganization);
+        document.put("signing_enabled", signingEnabled);
         return document;
     }
 
@@ -110,6 +113,14 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setPhieldOrganization(String phieldOrganization) {
         this.phieldOrganization = phieldOrganization;
+    }
+
+    public boolean isSigningEnabled() {
+        return signingEnabled;
+    }
+
+    public void setSigningEnabled(boolean signingEnabled) {
+        this.signingEnabled = signingEnabled;
     }
 
 }

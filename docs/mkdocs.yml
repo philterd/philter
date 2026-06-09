@@ -73,6 +73,7 @@ nav:
       - 'Always/Never Redact Lists': 'redaction/redact_lists.md'
       - 'Redaction Ledgers': 'redaction/ledgers.md'
       - 'Legal Holds': 'redaction/legal_holds.md'
+      - 'Output Signing': 'output_signing.md'
       - 'Re-identification': 'redaction/re-identification.md'
       - 'Disambiguation': 'redaction/disambiguation.md'
       - 'Best Practices': 'redaction/redaction_best_practices.md'

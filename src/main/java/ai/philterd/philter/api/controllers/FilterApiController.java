@@ -19,6 +19,7 @@ import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
+import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
@@ -65,9 +66,10 @@ public class FilterApiController extends AbstractApiController {
 
     private static final Logger LOGGER = LogManager.getLogger(FilterApiController.class);
 
-    /** Response headers reporting the applied policy name and version on every /api/filter response. */
+    /** Response headers reporting the applied policy name, version, and document ID on every text /api/filter response. */
     public static final String POLICY_NAME_HEADER = "X-Philter-Policy-Name";
     public static final String POLICY_VERSION_HEADER = "X-Philter-Policy-Version";
+    public static final String DOCUMENT_ID_HEADER = "X-Document-Id";
 
     private final RedactionService redactionService;
     private final PolicyDataService policyDataService;
@@ -75,12 +77,14 @@ public class FilterApiController extends AbstractApiController {
     private final AuditEventPublisher auditEventPublisher;
     private final PendingDocumentDataService pendingDocumentDataService;
     private final Gson gson;
+    private final SigningService signingService;
 
     @Autowired
     public FilterApiController(final RedactionService redactionService, final PolicyDataService policyDataService, final ApiKeyDataService apiKeyDataService,
                                final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache,
                                final PendingDocumentDataService pendingDocumentDataService, final Gson gson,
-                               final PolicyVersionDataService policyVersionDataService) {
+                               final PolicyVersionDataService policyVersionDataService,
+                               final SigningService signingService) {
         super(apiKeyDataService, apiKeyCache);
         this.redactionService = redactionService;
         this.policyDataService = policyDataService;
@@ -88,6 +92,7 @@ public class FilterApiController extends AbstractApiController {
         this.auditEventPublisher = auditEventPublisher;
         this.pendingDocumentDataService = pendingDocumentDataService;
         this.gson = gson;
+        this.signingService = signingService;
     }
 
     @Operation(
@@ -174,11 +179,17 @@ public class FilterApiController extends AbstractApiController {
 
     @Operation(
             summary = "Filter plain text and receive redacted plain text inline.",
-            description = "Synchronous. The `async` parameter does not apply to the text endpoint."
+            description = "Synchronous. The `async` parameter does not apply to the text endpoint. "
+                    + "When output signing is enabled in Admin Settings, the response includes an "
+                    + "`X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 "
+                    + "hash of the response body, the applied policy name and version, a per-response "
+                    + "UUID, and an issue timestamp. Verify the signature using the public key from "
+                    + "`GET /api/signing-key`."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Redacted plain text."),
-            @ApiResponse(responseCode = "401", description = "Unauthorized.")
+            @ApiResponse(responseCode = "200", description = "Redacted plain text. Includes `X-Philter-Signature` JWT header when output signing is enabled."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized."),
+            @ApiResponse(responseCode = "500", description = "Signing is enabled but the signing operation failed.")
     })
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = MediaType.TEXT_PLAIN_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> filterTextPlainAsTextPlain(
@@ -198,8 +209,19 @@ public class FilterApiController extends AbstractApiController {
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
+        final String documentId = UUID.randomUUID().toString();
+        final HttpHeaders headers = policyHeaders(outcome.appliedPolicy());
+        headers.set(DOCUMENT_ID_HEADER, documentId);
+        if (signingService.isSigningEnabled()) {
+            headers.set(SigningService.SIGNATURE_HEADER, signingService.sign(
+                    textFilterResult.getFilteredText(),
+                    outcome.appliedPolicy().name(),
+                    outcome.appliedPolicy().version(),
+                    documentId));
+        }
+
         return ResponseEntity.status(HttpStatus.OK)
-                .headers(policyHeaders(outcome.appliedPolicy()))
+                .headers(headers)
                 .body(textFilterResult.getFilteredText());
 
     }

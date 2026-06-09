@@ -38,6 +38,21 @@ Every `filter` response reports which policy version governed the request, so th
 * `X-Philter-Policy-Name` - The name of the policy that was applied.
 * `X-Philter-Policy-Version` - The revision (version) of that policy that was applied. For an asynchronous PDF request the version is pinned when the request is accepted, and the `202 Accepted` response carries these headers; the deferred redaction is then governed by that pinned version.
 
+Every successful plain-text `filter` response (200 OK) also includes:
+
+* `X-Document-Id` - A UUID that uniquely identifies this specific request/response. This value is also bound into the `X-Philter-Signature` JWT payload as `documentId` when output signing is enabled.
+
+When [output signing](../../output_signing.md) is enabled in Admin Settings, successful plain-text `filter` responses additionally include:
+
+* `X-Philter-Signature` - A compact ES256 JWT that cryptographically attests the response body. The JWT payload contains:
+  * `bodyHash` — SHA-256 (lowercase hex) of the response body.
+  * `policyName` — name of the applied policy.
+  * `policyVersion` — revision of the applied policy.
+  * `documentId` — the value from the `X-Document-Id` response header.
+  * `iat` — Unix epoch (seconds) when the JWT was issued.
+
+  Verify the signature using the public key from `GET /api/signing-key`. See [Output Signing](../../output_signing.md) for full documentation and code examples. PDF responses are not signed; if signing is enabled and the signing operation fails, the request returns HTTP 500.
+
 ### Plain text
 
 Plain text redaction is always synchronous. The response body is the redacted text.

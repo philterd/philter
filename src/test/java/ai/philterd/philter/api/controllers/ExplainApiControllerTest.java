@@ -27,6 +27,7 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
+import ai.philterd.philter.services.signing.SigningService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,10 +45,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -68,6 +73,7 @@ class ExplainApiControllerTest {
     @Mock private ApiKeyDataService apiKeyDataService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
+    @Mock private SigningService signingService;
 
     private MockMvc mockMvc;
 
@@ -81,7 +87,7 @@ class ExplainApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final ExplainApiController controller = new ExplainApiController(
-                redactionService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+                redactionService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson(), signingService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
@@ -115,6 +121,81 @@ class ExplainApiControllerTest {
         // The applied policy name and version are surfaced as top-level fields.
         assertTrue(body.contains("\"policyName\":\"default\""), "response must include policyName; was: " + body);
         assertTrue(body.contains("\"policyVersion\":9"), "response must include policyVersion; was: " + body);
+    }
+
+    @Test
+    void explainEndpointIncludesSignatureHeaderWhenSigningEnabled() throws Exception {
+        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.sign(any(), any(), anyInt(), any())).thenReturn("mock.jwt.token");
+
+        final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
+                new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
+        when(redactionService.filter(any(), any(), any(), any(), any()))
+                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
+
+        final var response = mockMvc.perform(post("/api/explain")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        assertEquals("mock.jwt.token", response.getHeader("X-Philter-Signature"),
+                "signature header must be present when signing is enabled");
+    }
+
+    @Test
+    void explainEndpointDoesNotIncludeSignatureHeaderWhenSigningDisabled() throws Exception {
+        when(signingService.isSigningEnabled()).thenReturn(false);
+
+        final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
+                new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
+        when(redactionService.filter(any(), any(), any(), any(), any()))
+                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
+
+        final var response = mockMvc.perform(post("/api/explain")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        assertNull(response.getHeader("X-Philter-Signature"),
+                "signature header must be absent when signing is disabled");
+    }
+
+    @Test
+    void explainEndpointReturns500WhenSigningFails() throws Exception {
+        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.sign(any(), any(), anyInt(), any()))
+                .thenThrow(new RuntimeException("key unavailable"));
+
+        final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
+                new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
+        when(redactionService.filter(any(), any(), any(), any(), any()))
+                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
+
+        mockMvc.perform(post("/api/explain")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void unauthorizedExplainResponseDoesNotIncludeSignatureHeader() throws Exception {
+        when(apiKeyCache.containsApiKey("bad-key")).thenReturn(false);
+        when(apiKeyDataService.findOneByApiKey("bad-key")).thenReturn(null);
+
+        final var response = mockMvc.perform(post("/api/explain")
+                        .header("Authorization", "Bearer bad-key")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("anything"))
+                .andExpect(status().isUnauthorized())
+                .andReturn().getResponse();
+
+        assertNull(response.getHeader("X-Philter-Signature"),
+                "signature header must never appear on unauthorized responses");
     }
 
 }

@@ -118,6 +118,15 @@ This provides a full, auditable history of who un-redacted what, when, and under
 
 See [Legal Holds](redaction/legal_holds.md) for full documentation on the hold lifecycle and how holds block deletions.
 
+### Output signing
+
+| Event | When it is recorded |
+|-------|---------------------|
+| `signing_key_generated` | A new ES256 keypair was auto-generated on first start (no existing key was found in MongoDB). |
+| `signing_key_regenerated` | The signing key was regenerated via the Admin UI. Any consumer that cached the old public key will need to re-fetch the new one from `GET /api/signing-key`. |
+
+See [Output Signing](output_signing.md) for the full documentation on key management and response verification.
+
 ### Account configuration
 
 | Event | When it is recorded |

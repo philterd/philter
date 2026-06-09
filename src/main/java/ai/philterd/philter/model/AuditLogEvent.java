@@ -101,7 +101,11 @@ public enum AuditLogEvent {
     LEGAL_HOLD_BLOCKED_DELETION("legal_hold_blocked_deletion"),
 
     // Settings
-    SETTINGS_UPDATED("settings_updated");
+    SETTINGS_UPDATED("settings_updated"),
+
+    // Output signing key lifecycle.
+    SIGNING_KEY_GENERATED("signing_key_generated"),
+    SIGNING_KEY_REGENERATED("signing_key_regenerated");
 
     private final String auditLogEvent;
 

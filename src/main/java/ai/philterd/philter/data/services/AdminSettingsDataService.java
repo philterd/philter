@@ -49,6 +49,10 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         updateSetting("diffuse_counts_enabled", diffuseCountsEnabled);
     }
 
+    public void saveSigningEnabled(final boolean signingEnabled) {
+        updateSetting("signing_enabled", signingEnabled);
+    }
+
     public void savePhieldSettings(final boolean enabled, final String url, final String sourceId, final String organization) {
         updateSetting("phield_enabled", enabled);
         updateSetting("phield_url", url != null ? url.trim() : "");

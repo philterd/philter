@@ -83,7 +83,10 @@ public enum AuditLogEvent {
     CONTEXT_ENTRIES_EXPORTED("context_entries_exported"),
     CONTEXT_ENTRIES_IMPORTED("context_entries_imported"),
     CONTEXT_ENTRIES_EXPORT_DENIED("context_entries_export_denied"),
-    CONTEXT_ENTRIES_IMPORT_DENIED("context_entries_import_denied");
+    CONTEXT_ENTRIES_IMPORT_DENIED("context_entries_import_denied"),
+
+    // A governed, audited reversal of a cryptographically-redacted value via /api/reidentify.
+    REDACTION_REVERSED("redaction_reversed");
 
     private final String auditLogEvent;
 

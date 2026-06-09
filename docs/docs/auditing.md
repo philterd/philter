@@ -88,8 +88,22 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `redaction_ledger_query` | The redaction ledger was queried or searched. |
 | `redaction_ledger_deleted` | Ledger entries were deleted (by document or by retention). |
 | `redaction_ledger_exported` | A ledger chain was exported. |
+| `redaction_reversed` | A cryptographic redaction was reversed via `/api/reidentify`. See [Re-identification](#re-identification) below. |
 
 For these events the `details` field carries extra context: `document_redaction_initiated` records the name and pinned version of the policy applied (along with the input and output content types), while `document_redaction_completed` records the number of redactions performed and the name and version of the policy that governed them.
+
+### Re-identification
+
+The `redaction_reversed` event is recorded every time `/api/reidentify` is called, regardless of whether individual values succeed or fail. Its `details` field records:
+
+- `strategy` — `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE`.
+- `requested` — the number of values submitted.
+- `succeeded` — the number successfully decrypted.
+- `reason` — the caller's verbatim stated authority for the reversal.
+- `values` — the list of encrypted input values (ciphertexts). These are the replacement tokens, not the decrypted originals; the originals are **never** written to the audit log.
+- `owner` — the target user id, present only when an admin used the `owner` parameter to act on behalf of another user.
+
+This provides a full, auditable history of who un-redacted what, when, and under what stated authority. See [Re-identification](redaction/re-identification.md) for the full endpoint documentation.
 
 ### Account configuration
 

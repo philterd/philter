@@ -26,6 +26,7 @@ import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -154,10 +155,10 @@ public class PoliciesApiController extends AbstractApiController {
                     + "existing policy of the same name. The policy is validated before it is stored. Admins may save "
                     + "into another user's account by passing that user's email as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The policy was saved."),
+            @ApiResponse(responseCode = "201", description = "The policy was saved and is now active. A policy_activated audit event is recorded."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing or the policy is invalid."),
-            @ApiResponse(responseCode = "401"),
-            @ApiResponse(responseCode = "404")
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> save(
@@ -189,7 +190,9 @@ public class PoliciesApiController extends AbstractApiController {
             throw new BadRequestException(validation.getMessage());
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+        final String requestId = RequestIdGenerator.generate();
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "create policy '" + name + "'");
 
         final PolicyEntity policyEntity = new PolicyEntity();
@@ -198,6 +201,11 @@ public class PoliciesApiController extends AbstractApiController {
         policyEntity.setName(name);
 
         policyDataService.save(policyEntity);
+
+        // Policies saved via the API become active immediately. Record the activation so it is
+        // attributable to the specific API key even when no approval step exists.
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
+                apiKeyEntity.getUserId(), null, null, "policy: " + name);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
 

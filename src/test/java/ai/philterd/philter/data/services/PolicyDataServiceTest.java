@@ -17,6 +17,8 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.policies.PolicyValidation;
@@ -48,26 +50,20 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class PolicyDataServiceTest {
 
-    @Mock
-    private MongoClient mongoClient;
+    @Mock private MongoClient mongoClient;
+    @Mock private MongoDatabase mongoDatabase;
+    @Mock private MongoCollection<Document> mongoCollection;
+    @Mock private AuditEventPublisher auditEventPublisher;
+    @Mock private PolicyVersionDataService policyVersionDataService;
 
-    @Mock
-    private MongoDatabase mongoDatabase;
-
-    @Mock
-    private MongoCollection<Document> mongoCollection;
-
-    @Mock
-    private AuditEventPublisher auditEventPublisher;
-
-    private Gson gson = new Gson();
+    private final Gson gson = new Gson();
 
     private PolicyDataService policyDataService;
 
@@ -75,7 +71,7 @@ class PolicyDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("policies")).thenReturn(mongoCollection);
-        policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson, mock(PolicyVersionDataService.class));
+        policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson, policyVersionDataService);
     }
 
     @Test
@@ -332,5 +328,126 @@ class PolicyDataServiceTest {
     void countManagedPoliciesDelegatesToCountDocuments() {
         when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(7L);
         assertEquals(7, policyDataService.countManagedPolicies());
+    }
+
+    // -------------------------------------------------------------------------
+    // rollback
+    // -------------------------------------------------------------------------
+
+    @Test
+    void rollbackReturns404WhenPolicyDoesNotExist() {
+        final FindIterable<Document> fi = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
+        when(fi.first()).thenReturn(null);
+
+        final ServiceResponse response =
+                policyDataService.rollback("req", "missing-policy", new ObjectId(), 1);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(404, response.getStatusCode());
+    }
+
+    @Test
+    void rollbackReturns409WhenPolicyIsManaged() {
+        final ObjectId userId = new ObjectId();
+        final Document managedDoc = new Document("_id", new ObjectId())
+                .append("name", "managed-policy")
+                .append("user_id", userId)
+                .append("managed", true);
+
+        final FindIterable<Document> fi = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
+        when(fi.first()).thenReturn(managedDoc);
+
+        final ServiceResponse response =
+                policyDataService.rollback("req", "managed-policy", userId, 1);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(409, response.getStatusCode());
+    }
+
+    @Test
+    void rollbackReturns404WhenTargetRevisionDoesNotExist() {
+        final ObjectId userId = new ObjectId();
+        final Document policyDoc = livePolicyDocument(userId, "my-policy", 3);
+
+        final FindIterable<Document> fi = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
+        when(fi.first()).thenReturn(policyDoc);
+
+        when(policyVersionDataService.findByNameAndRevision("my-policy", userId, 99))
+                .thenReturn(null);
+
+        final ServiceResponse response =
+                policyDataService.rollback("req", "my-policy", userId, 99);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(404, response.getStatusCode());
+    }
+
+    @Test
+    void rollbackSuccessUpdatesContentIncrementsRevisionAndAudits() {
+        final ObjectId userId = new ObjectId();
+        final Document policyDoc = livePolicyDocument(userId, "my-policy", 3);
+
+        final FindIterable<Document> fi = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
+        when(fi.first()).thenReturn(policyDoc);
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
+
+        final PolicyVersionEntity targetVersion = new PolicyVersionEntity();
+        targetVersion.setRevision(1);
+        targetVersion.setPolicy(validPolicyJson());
+        when(policyVersionDataService.findByNameAndRevision("my-policy", userId, 1))
+                .thenReturn(targetVersion);
+
+        final ServiceResponse response =
+                policyDataService.rollback("req", "my-policy", userId, 1);
+
+        assertTrue(response.isSuccessful());
+        assertEquals(200, response.getStatusCode());
+        // The live policy was written back with incremented revision (3 → 4).
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+        // A new snapshot of the rolled-back content was taken.
+        verify(policyVersionDataService).snapshot(any(PolicyEntity.class));
+        // The rollback was audited.
+        verify(auditEventPublisher).auditEvent(
+                eq("req"), eq(AuditLogEvent.POLICY_ROLLED_BACK),
+                isNull(), isNull(), any(String.class), isNull());
+    }
+
+    @Test
+    void rollbackResponseMessageContainsTargetAndNewRevision() {
+        final ObjectId userId = new ObjectId();
+        final Document policyDoc = livePolicyDocument(userId, "my-policy", 5);
+
+        final FindIterable<Document> fi = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
+        when(fi.first()).thenReturn(policyDoc);
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
+
+        final PolicyVersionEntity targetVersion = new PolicyVersionEntity();
+        targetVersion.setRevision(2);
+        targetVersion.setPolicy(validPolicyJson());
+        when(policyVersionDataService.findByNameAndRevision("my-policy", userId, 2))
+                .thenReturn(targetVersion);
+
+        final ServiceResponse response =
+                policyDataService.rollback("req", "my-policy", userId, 2);
+
+        // Revision 5 increments to 6 after rollback.
+        assertTrue(response.getMessage().contains("2"),  "message should reference target revision 2");
+        assertTrue(response.getMessage().contains("6"),  "message should reference new revision 6");
+    }
+
+    private Document livePolicyDocument(final ObjectId userId, final String name, final int revision) {
+        return new Document("_id", new ObjectId())
+                .append("name", name)
+                .append("user_id", userId)
+                .append("managed", false)
+                .append("revision", revision)
+                .append("policy", validPolicyJson());
     }
 }

@@ -18,10 +18,12 @@ package ai.philterd.philter.views;
 import ai.philterd.phileas.policy.PolicySchema;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.PolicyEntityDataProvider;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
@@ -32,16 +34,19 @@ import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
@@ -52,13 +57,15 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bson.types.ObjectId;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.bson.types.ObjectId;
 
 @Route(value = "policies")
 @PageTitle("Philter - Redaction Policies")
@@ -77,7 +84,9 @@ public class PoliciesView extends AbstractRestrictedView {
             "https://policies.philterd.ai/?version=" + PolicySchema.getSupportedSchemaVersion();
 
 
-    public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService) {
+    public PoliciesView(final MongoClient mongoClient, final EncryptionService encryptionService,
+                        final AuditEventPublisher auditEventPublisher, final PolicyDataService policyService,
+                        final PolicyVersionDataService policyVersionDataService) {
         super(mongoClient, encryptionService, auditEventPublisher);
 
         final UserEntity userEntity = getCurrentUser();
@@ -285,6 +294,17 @@ public class PoliciesView extends AbstractRestrictedView {
             return deletePolicyButton;
 
         }).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
+
+        policyGrid.addComponentColumn(policy -> {
+
+            final Button historyButton = new Button("History", VaadinIcon.CLOCK.create());
+            historyButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_CONTRAST);
+            historyButton.addClickListener(event ->
+                    openVersionHistoryDialog(policy, policyService, policyVersionDataService,
+                            userEntity, policiesDataProvider));
+            return historyButton;
+
+        }).setHeader("History").setAutoWidth(true).setFlexGrow(0);
 
         newPolicyButton.addClickListener(event -> {
 
@@ -630,5 +650,262 @@ public class PoliciesView extends AbstractRestrictedView {
             return false;
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Version History
+    // -------------------------------------------------------------------------
+
+    /**
+     * Opens the Version History dialog for the given policy. Shows a grid of retained revisions
+     * with per-row View and Rollback actions, and a footer button to open the diff dialog.
+     */
+    private void openVersionHistoryDialog(final PolicyEntity policy,
+                                           final PolicyDataService policyService,
+                                           final PolicyVersionDataService policyVersionDataService,
+                                           final UserEntity userEntity,
+                                           final PolicyEntityDataProvider policiesDataProvider) {
+
+        final List<PolicyVersionEntity> versions =
+                policyVersionDataService.findAllByName(policy.getName(), userEntity.getId(), 0, 50);
+
+        final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        final int latestRevision = versions.isEmpty() ? -1 : versions.get(0).getRevision();
+
+        final Grid<PolicyVersionEntity> versionGrid = new Grid<>(PolicyVersionEntity.class, false);
+        versionGrid.setSizeFull();
+        versionGrid.addColumn(PolicyVersionEntity::getRevision).setHeader("Revision").setWidth("100px").setFlexGrow(0);
+        versionGrid.addColumn(v -> v.getCapturedTimestamp() != null
+                        ? dateFormat.format(v.getCapturedTimestamp()) : "")
+                .setHeader("Captured").setAutoWidth(true);
+        versionGrid.addColumn(v -> v.getContentHash() != null
+                        ? v.getContentHash().substring(0, Math.min(8, v.getContentHash().length())) + "…" : "")
+                .setHeader("Hash").setAutoWidth(true);
+        versionGrid.addComponentColumn(v -> {
+            final Button viewBtn = new Button("View", VaadinIcon.EYE.create());
+            viewBtn.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            viewBtn.addClickListener(e ->
+                    openPolicyJsonDialog("Revision " + v.getRevision() + " — " + policy.getName(), v.getPolicy()));
+            return viewBtn;
+        }).setHeader("View").setAutoWidth(true).setFlexGrow(0);
+
+        // Create the dialog before adding the Rollback column so the lambda can capture it.
+        final Dialog historyDialog = new Dialog();
+
+        versionGrid.addComponentColumn(v -> {
+            final Button rollbackBtn = new Button("Rollback", VaadinIcon.BACKWARDS.create());
+            rollbackBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
+            // The current head revision cannot be rolled back to itself.
+            rollbackBtn.setEnabled(v.getRevision() != latestRevision);
+            rollbackBtn.addClickListener(e ->
+                    openRollbackConfirmDialog(policy, v.getRevision(), policyService,
+                            userEntity, policiesDataProvider, historyDialog));
+            return rollbackBtn;
+        }).setHeader("Rollback").setAutoWidth(true).setFlexGrow(0);
+
+        versionGrid.setItems(versions);
+
+        historyDialog.setMinWidth("900px");
+        historyDialog.setMaxWidth("900px");
+        historyDialog.setMinHeight("700px");
+        historyDialog.setMaxHeight("700px");
+        historyDialog.add(new H3("Version History — " + policy.getName()));
+
+        if (versions.isEmpty()) {
+            historyDialog.add(new Paragraph("No retained versions found for this policy."));
+        } else {
+            historyDialog.add(versionGrid);
+        }
+
+        final Button compareButton = new Button("Compare Revisions", VaadinIcon.SPLIT.create());
+        compareButton.setEnabled(versions.size() >= 2);
+        compareButton.addClickListener(e ->
+                openDiffDialog(policy.getName(), versions, userEntity.getId(), policyVersionDataService));
+
+        final Button closeButton = new Button("Close", e -> historyDialog.close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        historyDialog.getFooter().add(compareButton, closeButton);
+        historyDialog.open();
+    }
+
+    /**
+     * Opens a confirmation dialog before rolling back a policy, then performs the rollback and
+     * refreshes the grid on success.
+     */
+    private void openRollbackConfirmDialog(final PolicyEntity policy, final int targetRevision,
+                                            final PolicyDataService policyService,
+                                            final UserEntity userEntity,
+                                            final PolicyEntityDataProvider policiesDataProvider,
+                                            final Dialog parentDialog) {
+
+        final Dialog confirmDialog = new Dialog();
+        confirmDialog.setMinWidth("450px");
+        confirmDialog.add(new H3("Confirm Rollback"));
+        confirmDialog.add(new Paragraph("Roll back \"" + policy.getName() + "\" to revision "
+                + targetRevision + "? A new revision will be created with the prior content. "
+                + "This action is audited and cannot be undone."));
+
+        final Button confirmButton = new Button("Roll Back", e -> {
+            final ServiceResponse response = policyService.rollback(
+                    RequestIdGenerator.generate(), policy.getName(), userEntity.getId(), targetRevision);
+            confirmDialog.close();
+            if (response.isSuccessful()) {
+                policiesDataProvider.refreshAll();
+                parentDialog.close();
+                showSuccessNotification("\"" + policy.getName() + "\" rolled back to revision " + targetRevision + ".");
+            } else {
+                showFailureNotification(response.getMessage());
+            }
+        });
+        confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        final Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        confirmDialog.getFooter().add(cancelButton, confirmButton);
+        confirmDialog.open();
+    }
+
+    /**
+     * Opens the diff dialog for a policy. Pre-selects the two most recent revisions and immediately
+     * computes the diff so the user sees results without an extra click.
+     */
+    private void openDiffDialog(final String policyName, final List<PolicyVersionEntity> versions,
+                                 final ObjectId userId,
+                                 final PolicyVersionDataService policyVersionDataService) {
+
+        final List<Integer> revisionNumbers = versions.stream()
+                .map(PolicyVersionEntity::getRevision)
+                .sorted(Comparator.reverseOrder())
+                .toList();
+
+        final ComboBox<Integer> fromCombo = new ComboBox<>("From Revision");
+        fromCombo.setItems(revisionNumbers);
+        fromCombo.setWidth("160px");
+        if (revisionNumbers.size() >= 2) fromCombo.setValue(revisionNumbers.get(1));
+
+        final ComboBox<Integer> toCombo = new ComboBox<>("To Revision");
+        toCombo.setItems(revisionNumbers);
+        toCombo.setWidth("160px");
+        if (!revisionNumbers.isEmpty()) toCombo.setValue(revisionNumbers.get(0));
+
+        final VerticalLayout diffResultLayout = new VerticalLayout();
+        diffResultLayout.setPadding(false);
+        diffResultLayout.setSpacing(false);
+        diffResultLayout.setSizeFull();
+
+        final Button diffButton = new Button("Diff", VaadinIcon.EXCHANGE.create());
+        diffButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        diffButton.addClickListener(e -> {
+            final Integer fromRev = fromCombo.getValue();
+            final Integer toRev = toCombo.getValue();
+            if (fromRev == null || toRev == null) {
+                showWarningNotification("Select both revisions to compare.");
+                return;
+            }
+            final PolicyVersionEntity fromVersion =
+                    policyVersionDataService.findByNameAndRevision(policyName, userId, fromRev);
+            final PolicyVersionEntity toVersion =
+                    policyVersionDataService.findByNameAndRevision(policyName, userId, toRev);
+            if (fromVersion == null || toVersion == null) {
+                showFailureNotification("One or both revisions could not be found.");
+                return;
+            }
+            renderDiff(diffResultLayout, fromVersion, toVersion);
+        });
+
+        final HorizontalLayout selectionBar = new HorizontalLayout(fromCombo, toCombo, diffButton);
+        selectionBar.setAlignItems(FlexComponent.Alignment.END);
+
+        final Dialog diffDialog = new Dialog();
+        diffDialog.setMinWidth("950px");
+        diffDialog.setMaxWidth("950px");
+        diffDialog.setMinHeight("650px");
+        diffDialog.setMaxHeight("650px");
+        diffDialog.add(new H3("Compare Revisions — " + policyName));
+        diffDialog.add(selectionBar);
+        diffDialog.add(diffResultLayout);
+
+        final Button closeButton = new Button("Close", e -> diffDialog.close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        diffDialog.getFooter().add(closeButton);
+
+        diffDialog.open();
+
+        // Auto-run the diff on the default selection immediately.
+        diffButton.click();
+    }
+
+    /**
+     * Computes the diff between two retained versions and populates {@code container} with either
+     * a change-table grid or a "no differences" message.
+     */
+    private static void renderDiff(final VerticalLayout container,
+                                    final PolicyVersionEntity fromVersion,
+                                    final PolicyVersionEntity toVersion) {
+        container.removeAll();
+
+        final JsonObject fromJson = new Gson().fromJson(fromVersion.getPolicy(), JsonObject.class);
+        final JsonObject toJson = new Gson().fromJson(toVersion.getPolicy(), JsonObject.class);
+
+        final List<DiffRow> rows = new ArrayList<>();
+        collectDiffRows(fromJson, toJson, "", rows);
+
+        if (rows.isEmpty()) {
+            container.add(new Span("Revisions " + fromVersion.getRevision() + " and "
+                    + toVersion.getRevision() + " have identical content."));
+            return;
+        }
+
+        final Grid<DiffRow> diffGrid = new Grid<>();
+        diffGrid.addColumn(DiffRow::operation).setHeader("Operation").setWidth("110px").setFlexGrow(0);
+        diffGrid.addColumn(DiffRow::path).setHeader("Path").setFlexGrow(2);
+        diffGrid.addColumn(DiffRow::before).setHeader("Before").setFlexGrow(1);
+        diffGrid.addColumn(DiffRow::after).setHeader("After").setFlexGrow(1);
+        diffGrid.setItems(rows);
+        diffGrid.setAllRowsVisible(true);
+        diffGrid.setSizeFull();
+        container.add(diffGrid);
+    }
+
+    /**
+     * Recursively walks two JSON objects and appends a {@link DiffRow} for every field that was
+     * added, removed, or changed. Arrays and primitives that differ are reported as a single
+     * replace at their path — consistent with the RFC 6902 patch the API returns.
+     */
+    private static void collectDiffRows(final JsonElement from, final JsonElement to,
+                                         final String path, final List<DiffRow> rows) {
+        if (from.equals(to)) return;
+
+        if (from.isJsonObject() && to.isJsonObject()) {
+            final JsonObject fromObj = from.getAsJsonObject();
+            final JsonObject toObj = to.getAsJsonObject();
+            for (final String key : fromObj.keySet()) {
+                final String childPath = path + "/" + key;
+                if (!toObj.has(key)) {
+                    rows.add(new DiffRow("remove", childPath, jsonValueToString(fromObj.get(key)), ""));
+                } else {
+                    collectDiffRows(fromObj.get(key), toObj.get(key), childPath, rows);
+                }
+            }
+            for (final String key : toObj.keySet()) {
+                if (!fromObj.has(key)) {
+                    rows.add(new DiffRow("add", path + "/" + key, "", jsonValueToString(toObj.get(key))));
+                }
+            }
+        } else {
+            rows.add(new DiffRow("replace", path.isEmpty() ? "/" : path,
+                    jsonValueToString(from), jsonValueToString(to)));
+        }
+    }
+
+    private static String jsonValueToString(final JsonElement el) {
+        if (el == null || el.isJsonNull()) return "";
+        if (el.isJsonPrimitive()) return el.getAsString();
+        return el.toString();
+    }
+
+    /** A single row in the diff table shown inside the Compare Revisions dialog. */
+    private record DiffRow(String operation, String path, String before, String after) {}
 
 }

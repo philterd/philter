@@ -19,15 +19,21 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.Sorts;
 import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Stores immutable, append-only snapshots of policy content ({@link PolicyVersionEntity}) so that the
@@ -118,6 +124,48 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         }
         final Document document = collection.find(Filters.eq("content_hash", contentHash)).first();
         return document != null ? PolicyVersionEntity.fromDocument(document) : null;
+    }
+
+    /**
+     * Returns a page of retained snapshots for the given policy name and owner, ordered by revision
+     * descending (most recent first). The {@code (user_id, name, revision)} compound index covers this
+     * query efficiently.
+     */
+    public List<PolicyVersionEntity> findAllByName(final String name, final ObjectId userId,
+                                                    final int offset, final int limit) {
+        final Bson query = Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name));
+        final FindIterable<Document> documents = collection.find(query)
+                .sort(Sorts.descending("revision"))
+                .skip(offset)
+                .limit(limit);
+        final List<PolicyVersionEntity> versions = new ArrayList<>();
+        for (final Document doc : documents) {
+            versions.add(PolicyVersionEntity.fromDocument(doc));
+        }
+        return versions;
+    }
+
+    /**
+     * Resolves a specific retained snapshot by policy name, owner, and revision number, or
+     * {@code null} if no snapshot for that revision has been retained.
+     */
+    public PolicyVersionEntity findByNameAndRevision(final String name, final ObjectId userId,
+                                                      final int revision) {
+        final Bson query = Filters.and(
+                Filters.eq("user_id", userId),
+                Filters.eq("name", name),
+                Filters.eq("revision", revision));
+        final Document document = collection.find(query).first();
+        return document != null ? PolicyVersionEntity.fromDocument(document) : null;
+    }
+
+    /**
+     * Returns the two most recent retained snapshots for the given policy, ordered by revision
+     * descending. Returns an empty list if there are no snapshots, and a single-element list if only
+     * one snapshot exists.
+     */
+    public List<PolicyVersionEntity> findTwoMostRecent(final String name, final ObjectId userId) {
+        return findAllByName(name, userId, 0, 2);
     }
 
 }

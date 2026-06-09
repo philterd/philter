@@ -32,6 +32,11 @@ public enum AuditLogEvent {
     POLICY_CREATED("policy_created"),
     POLICY_UPDATED("policy_updated"),
     POLICY_DELETED("policy_deleted"),
+    // Emitted when a policy is saved via the API and immediately becomes active. Records the calling
+    // API key so the activation is attributable even when no approval step exists.
+    POLICY_ACTIVATED("policy_activated"),
+    POLICY_VERSION_HISTORY_RETRIEVED("policy_version_history_retrieved"),
+    POLICY_ROLLED_BACK("policy_rolled_back"),
 
     LEDGER_RETRIEVED("ledger_retrieved"),
     LEDGER_DELETED("ledger_deleted"),

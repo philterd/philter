@@ -22,6 +22,7 @@ import ai.philterd.phileas.policy.filters.Ssn;
 import ai.philterd.phileas.policy.filters.ZipCode;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
@@ -617,6 +618,51 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         return new ServiceResponse("The policy was duplicated.", true, objectId, 200);
 
+    }
+
+    /**
+     * Restores a prior revision of a policy as a new revision. History is never rewritten: the target
+     * revision's content becomes the new head revision, and a snapshot of that new head is retained.
+     *
+     * @param requestId      Correlation ID for audit events.
+     * @param policyName     Name of the policy to roll back.
+     * @param userId         Owner of the policy.
+     * @param targetRevision The revision whose content should become the new head.
+     * @return A {@link ServiceResponse} whose {@code object} field carries the new revision number on
+     *         success (HTTP 200), or an error code on failure.
+     */
+    public ServiceResponse rollback(final String requestId, final String policyName,
+                                    final ObjectId userId, final int targetRevision) {
+
+        final PolicyEntity live = findOne(policyName, userId);
+        if (live == null) {
+            return new ServiceResponse("Policy does not exist.", false, 404);
+        }
+
+        if (live.isManaged()) {
+            return new ServiceResponse("Managed policies cannot be rolled back.", false, 409);
+        }
+
+        final PolicyVersionEntity targetVersion =
+                policyVersionDataService.findByNameAndRevision(policyName, userId, targetRevision);
+        if (targetVersion == null) {
+            return new ServiceResponse("Revision " + targetRevision + " does not exist.", false, 404);
+        }
+
+        live.setPolicy(targetVersion.getPolicy());
+        live.incrementRevision();
+        live.setLastUpdatedTimestamp(new Date());
+
+        final int newRevision = live.getRevision();
+        update(live);
+        policyVersionDataService.snapshot(live);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ROLLED_BACK, null, null,
+                "policy: " + policyName + ", rolled back to revision: " + targetRevision
+                        + ", new revision: " + newRevision, null);
+
+        return new ServiceResponse("Policy rolled back to revision " + targetRevision
+                + ". New revision: " + newRevision, true, 200);
     }
 
     public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId, final Source source) {

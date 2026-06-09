@@ -42,10 +42,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 
+import ai.philterd.philter.model.AuditLogEvent;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -142,6 +146,25 @@ class PoliciesApiControllerTest {
         // The policy is validated before being persisted.
         verify(policyDataService).validatePolicy(anyString());
         verify(policyDataService).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createEmitsActivationAuditEvent() throws Exception {
+        when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("name", "my-policy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isCreated());
+
+        verify(auditEventPublisher).auditEvent(
+                anyString(),
+                eq(AuditLogEvent.POLICY_ACTIVATED),
+                eq(userId),
+                isNull(),
+                isNull(),
+                eq("policy: my-policy"));
     }
 
     @Test

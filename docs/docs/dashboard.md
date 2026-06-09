@@ -41,6 +41,17 @@ The **Contexts** section is used to manage redaction contexts, which enable:
 *   **Referential Integrity**: Ensures consistent replacements for the same sensitive information across multiple documents within a context.
 *   **Disambiguation**: Improves accuracy by resolving entity type ambiguities.
 
+### Redaction Ledger
+
+The **Redaction Ledger** section provides a tamper-evident, hash-chained record of the individual redactions performed in any [context](redaction/ledgers.md) that has the ledger enabled. From this view you can:
+
+*   **Browse and search** your ledger chains by document id or filename.
+*   **Verify a chain**: open a document's chain to see each recorded redaction (type, replacement, position, and timestamp), along with a badge confirming whether the cryptographic chain is intact or has been tampered with.
+*   **Export a chain** as a JSON document for evidence or external review.
+*   **Purge entries**: ledger entries are kept indefinitely by default; you can delete an individual document's chain, or purge entries older than a chosen number of days.
+
+When cross-user access is enabled, administrators can additionally review every user's ledger chains from the **All Ledger** tab. Ledgers are enabled per context; see [Redaction Ledgers](redaction/ledgers.md) for the full design.
+
 ### User Management
 
 Admin users can access the **Admin** section to manage users.
@@ -49,6 +60,10 @@ Admin users can access the **Admin** section to manage users.
 *   **Change Passwords**: Update a user's password.
 *   **Set Roles**: Change a user's role to `admin` or `user`. Note that users cannot change their own role.
 *   **Delete Users**: Remove user accounts. This will also delete all of the user's data, including API keys, contexts, policies, and ledger entries. Users cannot delete their own account.
+
+### Audit Log
+
+Administrators can review and export Philter's [audit log](auditing.md) from **Admin → Audit Log**. The audit log records security-relevant actions: authentication failures, user and API-key changes, policy changes, redaction and ledger activity, and account-configuration changes. Choose a **From** and **To** date (a range of up to 30 days) and click **Download Audit Log (CSV)** to export the events for compliance review or incident investigation. Audit events never contain sensitive values. See [Auditing](auditing.md) for the full list of recorded events and the export details.
 
 ### Settings and Webhooks
 

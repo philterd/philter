@@ -16,6 +16,7 @@ Every running Philter instance serves an interactive API reference (Swagger UI) 
 
 * **Swagger UI:** `https://<your-philter-host>:8080/swagger-ui/index.html`
 * **OpenAPI specification (JSON):** `https://<your-philter-host>:8080/v3/api-docs`
+* **OpenAPI specification for this release:** [openapi.json](openapi.json) (published with this documentation, no running instance required)
 
 You can also reach the Swagger UI from the dashboard: open **My Account → API Keys** and use the **Open the API reference (Swagger UI)** link. To authorize a request from Swagger UI, send your API key as a bearer token in the `Authorization` header (see [API Keys and Authentication](../account/api_keys.md)).
 

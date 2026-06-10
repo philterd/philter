@@ -115,6 +115,10 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(headers2 -> headers2.disable()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**", "/styles/**", "/icons/**", "/actuator/**", "/themes/**", "/favicon.ico").permitAll()
+                        // The OpenAPI specification and Swagger UI are public, matching the
+                        // documented behavior (ApiAuthenticationFilter also allows these paths,
+                        // but it only runs on the /api/** chain, so they must be permitted here).
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 )
 
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)

@@ -77,7 +77,7 @@
         <commons.net.version>3.13.0</commons.net.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <mongodb.version>5.8.0</mongodb.version>
-        <phileas.version>4.0.0-SNAPSHOT</phileas.version>
+        <phileas.version>4.0.0</phileas.version>
         <springdoc.version>3.0.3</springdoc.version>
         <vaadin.version>25.1.6</vaadin.version>
         <!-- Build plugin versions -->

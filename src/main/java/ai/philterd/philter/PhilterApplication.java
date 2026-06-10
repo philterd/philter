@@ -54,6 +54,7 @@ import ai.philterd.philter.utils.EnvUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
+import com.vaadin.flow.component.dependency.NpmPackage;
 import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
@@ -80,6 +81,10 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 // requested explicitly. AbstractRestrictedView uses LumoUtility CSS classes, so load the
 // utility stylesheet here (replaces the removed "utility" entry in theme.json's lumoImports).
 @StyleSheet(Lumo.UTILITY_STYLESHEET)
+// Override the react-router version that Vaadin's React integration pulls in transitively. The
+// platform-bundled version (7.13.1 with Vaadin 25.1.x) has open security advisories; pin a patched
+// release. See the Dependabot alerts for react-router (GHSA-8x6r-g9mw-2r78 and related).
+@NpmPackage(value = "react-router", version = "7.17.0")
 @SpringBootApplication
 @PropertySource("classpath:internal.properties")
 @EnableScheduling

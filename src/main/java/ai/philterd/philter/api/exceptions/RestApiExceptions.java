@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -68,6 +69,15 @@ public class RestApiExceptions {
 		}
 		LOGGER.error("A required header is missing: {}", ex.getHeaderName(), ex);
 		return "A required header is missing.";
+	}
+
+	@ResponseBody
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	@ResponseStatus(value = HttpStatus.METHOD_NOT_ALLOWED)
+	public String handleMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+		// A client used an HTTP method this endpoint does not support (for example, a method that was
+		// intentionally removed). This is a client error, so it is reported as 405, not a 500.
+		return "The requested HTTP method is not supported for this endpoint.";
 	}
 
 	@ResponseBody

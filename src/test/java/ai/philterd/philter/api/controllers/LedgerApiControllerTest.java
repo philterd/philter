@@ -200,6 +200,14 @@ class LedgerApiControllerTest {
     }
 
     @Test
+    void removedDeleteEndpointReturnsMethodNotAllowed() throws Exception {
+        // The ledger DELETE/purge endpoints were removed. A DELETE to a path that still serves GET must
+        // report 405 (method not allowed), not 500.
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
     void rejectsUnknownApiKey() throws Exception {
         mockMvc.perform(get("/api/ledger").header("Authorization", UNKNOWN_AUTH_HEADER)
                         .requestAttr("requestId", "req-401"))

@@ -102,7 +102,7 @@ class ExplainApiControllerTest {
                 "{{{REDACTED-person}}} was here", "none", 0,
                 new Explanation(List.of(span), Collections.emptyList()), Collections.emptyList(), 5);
 
-        when(redactionService.filter(eq("default"), any(), eq(""), any(), any()))
+        when(redactionService.filter(eq("default"), any(), eq(""), any(), any(), any()))
                 .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 9, "policyhash")));
 
         final String body = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
@@ -130,7 +130,7 @@ class ExplainApiControllerTest {
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
 
         final var response = mockMvc.perform(post("/api/explain")
@@ -150,7 +150,7 @@ class ExplainApiControllerTest {
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
 
         final var response = mockMvc.perform(post("/api/explain")
@@ -172,7 +172,7 @@ class ExplainApiControllerTest {
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
 
         mockMvc.perform(post("/api/explain")

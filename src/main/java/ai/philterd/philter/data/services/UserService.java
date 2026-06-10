@@ -58,9 +58,18 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         // Migrate legacy accounts: before the username field existed, the login id was stored under
         // "email". Copy it into "username" for any document that lacks one so those accounts can still
-        // be found by username (and can log in).
-        collection.updateMany(Filters.exists("username", false),
-                List.of(new Document("$set", new Document("username", "$email"))));
+        // be found by username (and can log in). Done as a per-document classic update rather than an
+        // aggregation-pipeline update so it works on any MongoDB-compatible server.
+        final FindIterable<Document> legacyAccounts = collection.find(Filters.exists("username", false));
+        if (legacyAccounts != null) {
+            for (final Document legacy : legacyAccounts) {
+                final Object email = legacy.get("email");
+                if (email != null) {
+                    collection.updateOne(Filters.eq("_id", legacy.get("_id")),
+                            new Document("$set", new Document("username", email)));
+                }
+            }
+        }
     }
 
     /**
@@ -378,6 +387,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         userEntity.setMfaSecret(secret);
         userEntity.setMfaEnabled(true);
+        userEntity.setMfaFailedAttempts(0);
+        userEntity.setMfaLocked(false);
         update(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_ENABLED, userEntity.getId(), userEntity.getId(), source, "MFA enabled via authenticator enrollment");
@@ -393,10 +404,60 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         userEntity.setMfaEnabled(false);
         userEntity.setMfaSecret(null);
+        userEntity.setMfaFailedAttempts(0);
+        userEntity.setMfaLocked(false);
         update(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_DISABLED, userEntity.getId(), userEntity.getId(), source, "MFA disabled and enrolled secret cleared");
 
+    }
+
+    /** Maximum consecutive failed MFA code attempts before the account is locked and needs an admin unlock. */
+    public static final int MAX_MFA_ATTEMPTS = 5;
+
+    /**
+     * Records a failed MFA code entry. After {@link #MAX_MFA_ATTEMPTS} consecutive failures the account
+     * is locked and can only be cleared by an administrator. Returns true if this failure locked it.
+     */
+    public boolean recordFailedMfaAttempt(final String requestId, final UserEntity userEntity, final String source) {
+
+        userEntity.setMfaFailedAttempts(userEntity.getMfaFailedAttempts() + 1);
+
+        boolean nowLocked = false;
+        if (userEntity.getMfaFailedAttempts() >= MAX_MFA_ATTEMPTS && !userEntity.isMfaLocked()) {
+            userEntity.setMfaLocked(true);
+            nowLocked = true;
+        }
+
+        update(userEntity);
+
+        if (nowLocked) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_LOCKED, userEntity.getId(), userEntity.getId(), source,
+                    "MFA locked after " + MAX_MFA_ATTEMPTS + " failed code attempts; requires an administrator to unlock");
+        }
+
+        return nowLocked;
+    }
+
+    /** Clears the failed-attempt counter after a successful MFA verification. */
+    public void resetMfaAttempts(final UserEntity userEntity) {
+        if (userEntity.getMfaFailedAttempts() != 0) {
+            userEntity.setMfaFailedAttempts(0);
+            update(userEntity);
+        }
+    }
+
+    /**
+     * Clears an MFA lock and the failed-attempt counter so the user can enter a code again. This is the
+     * administrator action that recovers a locked account; the user's enrollment is unchanged.
+     */
+    public void unlockMfa(final String requestId, final UserEntity userEntity, final String source) {
+
+        userEntity.setMfaLocked(false);
+        userEntity.setMfaFailedAttempts(0);
+        update(userEntity);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_UNLOCKED, userEntity.getId(), userEntity.getId(), source, "MFA lock cleared by administrator");
     }
 
 }

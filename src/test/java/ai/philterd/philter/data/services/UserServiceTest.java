@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -57,8 +58,9 @@ class UserServiceTest {
     @Mock
     private MongoCollection<Document> mongoCollection;
 
-    @Mock
-    private EncryptionService encryptionService;
+    // A real encryption service (not a mock) so toDocument/fromDocument round-trip the now-encrypted
+    // per-user secrets (fpe key, webhook secret, MFA secret).
+    private final EncryptionService encryptionService = new TestEncryptionService();
 
     @Mock
     private AuditEventPublisher auditEventPublisher;
@@ -76,8 +78,10 @@ class UserServiceTest {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("users")).thenReturn(mongoCollection);
         userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
-        // Important: we need to reset since UserService constructor already calls mongoClient.getDatabase and mongoDatabase.getCollection
-        // and we might want different behavior in tests.
+        // The constructor interacts with the mocks (getDatabase/getCollection and a one-time username
+        // backfill that calls find()); clear those interactions so each test's verifies count only the
+        // calls that test makes.
+        clearInvocations(mongoCollection);
     }
 
     @Test
@@ -149,7 +153,8 @@ class UserServiceTest {
         userService.createUser("req", "fpe@example.com", "pw", "user", policyDataService, contextDataService, "system");
 
         verify(mongoCollection).insertOne(docCaptor.capture());
-        final String fpeKey = docCaptor.getValue().getString("fpe_key");
+        // The FPE key is encrypted at rest, so decrypt it back through the entity to assert its form.
+        final String fpeKey = UserEntity.fromDocument(docCaptor.getValue(), encryptionService).getFpeKey();
         assertNotNull(fpeKey);
         assertTrue(fpeKey.matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
     }
@@ -176,6 +181,96 @@ class UserServiceTest {
         assertTrue(key.matches("[0-9a-f]{64}"), "a generated FPE key must be 256-bit hex");
         assertEquals(key, user.getFpeKey(), "the generated key must be set on the entity");
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
+    void enableMfaSetsSecretEnrolledAndResetsLock() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setMfaLocked(true);
+        user.setMfaFailedAttempts(3);
+
+        userService.enableMfa("req", user, "SECRET32", "system");
+
+        assertTrue(user.isMfaEnabled());
+        assertEquals("SECRET32", user.getMfaSecret());
+        assertFalse(user.isMfaLocked());
+        assertEquals(0, user.getMfaFailedAttempts());
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+    }
+
+    @Test
+    void disableMfaClearsEnrollmentAndLock() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setMfaEnabled(true);
+        user.setMfaSecret("SECRET32");
+        user.setMfaLocked(true);
+        user.setMfaFailedAttempts(5);
+
+        userService.disableMfa("req", user, "system");
+
+        assertFalse(user.isMfaEnabled());
+        assertNull(user.getMfaSecret());
+        assertFalse(user.isMfaLocked());
+        assertEquals(0, user.getMfaFailedAttempts());
+    }
+
+    @Test
+    void recordFailedMfaAttemptLocksOnTheLimit() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setMfaEnabled(true);
+
+        boolean locked = false;
+        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
+            assertFalse(user.isMfaLocked(), "must not be locked before the limit");
+            locked = userService.recordFailedMfaAttempt("req", user, "system");
+        }
+
+        assertTrue(locked, "the limit-th failure must lock the account");
+        assertTrue(user.isMfaLocked());
+        assertEquals(UserService.MAX_MFA_ATTEMPTS, user.getMfaFailedAttempts());
+    }
+
+    @Test
+    void recordFailedMfaAttemptBelowLimitDoesNotLock() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+
+        final boolean locked = userService.recordFailedMfaAttempt("req", user, "system");
+
+        assertFalse(locked);
+        assertFalse(user.isMfaLocked());
+        assertEquals(1, user.getMfaFailedAttempts());
+    }
+
+    @Test
+    void unlockMfaClearsLockAndCounterButKeepsEnrollment() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setMfaEnabled(true);
+        user.setMfaSecret("SECRET32");
+        user.setMfaLocked(true);
+        user.setMfaFailedAttempts(UserService.MAX_MFA_ATTEMPTS);
+
+        userService.unlockMfa("req", user, "system");
+
+        assertFalse(user.isMfaLocked());
+        assertEquals(0, user.getMfaFailedAttempts());
+        assertTrue(user.isMfaEnabled(), "unlock must not change enrollment");
+        assertEquals("SECRET32", user.getMfaSecret());
+    }
+
+    @Test
+    void resetMfaAttemptsClearsCounter() {
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setMfaFailedAttempts(3);
+
+        userService.resetMfaAttempts(user);
+
+        assertEquals(0, user.getMfaFailedAttempts());
     }
 
     @Test

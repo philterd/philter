@@ -17,6 +17,8 @@ package ai.philterd.philter.views;
 
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.Source;
+import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.mfa.TotpService;
 import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.UI;
@@ -101,13 +103,27 @@ public class MfaChallengeView extends VerticalLayout implements BeforeEnterObser
             return;
         }
 
-        final String code = codeField.getValue();
-        if (code == null || code.isBlank() || !totpService.verifyCode(user.getMfaSecret(), code)) {
+        // A locked account cannot finish signing in until an administrator unlocks it.
+        if (user.isMfaLocked()) {
             codeField.setInvalid(true);
-            codeField.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
+            codeField.setErrorMessage("Your account is locked after too many failed attempts. Ask an administrator to unlock it.");
             return;
         }
 
+        final String code = codeField.getValue();
+        if (code == null || code.isBlank() || !totpService.verifyCode(user.getMfaSecret(), code)) {
+            final boolean nowLocked = userService.recordFailedMfaAttempt(
+                    RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
+            codeField.setInvalid(true);
+            if (nowLocked) {
+                codeField.setErrorMessage("Too many failed attempts. Your account is locked; ask an administrator to unlock it.");
+            } else {
+                codeField.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
+            }
+            return;
+        }
+
+        userService.resetMfaAttempts(user);
         markSatisfiedAndContinue();
     }
 

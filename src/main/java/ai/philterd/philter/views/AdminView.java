@@ -288,7 +288,41 @@ public class AdminView extends AbstractRestrictedView {
 
         usersGrid.addComponentColumn(user -> {
 
-            final Button disableMfaButton = new Button("Disable MFA", VaadinIcon.UNLOCK.create());
+            // Unlock clears the failed-attempt lock while keeping the user's enrollment. It is the admin
+            // action required to recover a user locked out after too many incorrect MFA codes.
+            final Button unlockMfaButton = new Button("Unlock", VaadinIcon.UNLOCK.create());
+            unlockMfaButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            if (user.isMfaLocked()) {
+                unlockMfaButton.setTooltipText("Unlock MFA for this user (clears the failed-attempt lock)");
+            } else {
+                unlockMfaButton.setEnabled(false);
+                unlockMfaButton.setTooltipText("User is not locked.");
+            }
+
+            unlockMfaButton.addClickListener(clickEvent -> {
+
+                final Dialog confirmDialog = new Dialog();
+                confirmDialog.add(new H3("Unlock MFA"));
+                confirmDialog.add(new Paragraph("Unlock multi-factor authentication for " + user.getUsername()
+                        + "? The failed-attempt lock is cleared and they can enter a code again. Their enrollment "
+                        + "is unchanged."));
+
+                final Button confirmButton = new Button("Unlock", e -> {
+                    userService.unlockMfa(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
+                    usersGrid.getDataProvider().refreshAll();
+                    confirmDialog.close();
+                    showSuccessNotification("MFA unlocked for " + user.getUsername() + ".");
+                });
+                confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
+
+                confirmDialog.getFooter().add(cancelButton, confirmButton);
+                confirmDialog.open();
+
+            });
+
+            final Button disableMfaButton = new Button("Disable MFA", VaadinIcon.BAN.create());
             disableMfaButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             disableMfaButton.setTooltipText("Disable MFA for this user");
 
@@ -321,7 +355,10 @@ public class AdminView extends AbstractRestrictedView {
                 confirmDialog.open();
 
             });
-            return disableMfaButton;
+
+            final HorizontalLayout mfaActions = new HorizontalLayout(unlockMfaButton, disableMfaButton);
+            mfaActions.setSpacing(true);
+            return mfaActions;
         }).setHeader("MFA").setAutoWidth(true).setFlexGrow(0);
 
         usersGrid.addComponentColumn(user -> {

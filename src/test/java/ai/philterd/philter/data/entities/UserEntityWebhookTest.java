@@ -16,7 +16,9 @@
 package ai.philterd.philter.data.entities;
 
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -24,6 +26,7 @@ import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,11 +39,14 @@ class UserEntityWebhookTest {
         user.setWebhookUrl("https://example.com/hook");
         user.setWebhookSecret("the-secret-value");
 
-        final Document doc = user.toDocument(Mockito.mock(EncryptionService.class));
-        assertEquals("https://example.com/hook", doc.getString("webhook_url"));
-        assertEquals("the-secret-value", doc.getString("webhook_secret"));
+        final EncryptionService encryptionService = new TestEncryptionService();
 
-        final UserEntity restored = UserEntity.fromDocument(doc, Mockito.mock(EncryptionService.class));
+        final Document doc = user.toDocument(encryptionService);
+        assertEquals("https://example.com/hook", doc.getString("webhook_url"));
+        // The webhook secret is encrypted at rest, so the stored value is not the plaintext.
+        assertNotEquals("the-secret-value", doc.getString("webhook_secret"));
+
+        final UserEntity restored = UserEntity.fromDocument(doc, encryptionService);
         assertEquals("https://example.com/hook", restored.getWebhookUrl());
         assertEquals("the-secret-value", restored.getWebhookSecret());
     }
@@ -50,6 +56,32 @@ class UserEntityWebhookTest {
         final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
         assertNull(restored.getWebhookUrl());
         assertNull(restored.getWebhookSecret());
+    }
+
+    @Test
+    void mfaFieldsRoundTripWithEncryptedSecret() {
+        final EncryptionService encryptionService = new TestEncryptionService();
+
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setEmail("a@b.c");
+        user.setMfaEnabled(true);
+        user.setMfaSecret("JBSWY3DPEHPK3PXP");
+        user.setMfaFailedAttempts(2);
+        user.setMfaLocked(true);
+
+        final Document doc = user.toDocument(encryptionService);
+        // The secret is encrypted at rest; the flags and counter are stored as-is.
+        assertNotEquals("JBSWY3DPEHPK3PXP", doc.getString("mfa_secret"));
+        assertTrue(doc.getBoolean("mfa_enabled"));
+        assertTrue(doc.getBoolean("mfa_locked"));
+        assertEquals(2, doc.getInteger("mfa_failed_attempts"));
+
+        final UserEntity restored = UserEntity.fromDocument(doc, encryptionService);
+        assertTrue(restored.isMfaEnabled());
+        assertEquals("JBSWY3DPEHPK3PXP", restored.getMfaSecret());
+        assertEquals(2, restored.getMfaFailedAttempts());
+        assertTrue(restored.isMfaLocked());
     }
 
     @Test

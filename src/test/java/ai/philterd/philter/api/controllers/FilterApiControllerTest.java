@@ -134,7 +134,7 @@ class FilterApiControllerTest {
 
     @Test
     void textEndpointReturnsRedactedTextForOwningUser() throws Exception {
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
                 .thenReturn(outcome(textResult("My name is {{{REDACTED-person}}}.")));
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -155,7 +155,7 @@ class FilterApiControllerTest {
                 "every text response must include X-Document-Id");
 
         // The redaction must be attributed to the owning user id, not the API key's own id.
-        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN));
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any());
     }
 
     @Test
@@ -240,7 +240,7 @@ class FilterApiControllerTest {
     @Test
     void pdfSyncReturnsBytesAndDoesNotEnqueue() throws Exception {
         final byte[] redacted = "redacted-pdf-bytes".getBytes();
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any()))
                 .thenReturn(outcome(binaryResult(redacted)));
 
         final var response = mockMvc.perform(post("/api/filter?async=false")
@@ -256,7 +256,7 @@ class FilterApiControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
 
         // Synchronous path must filter directly (using the owning user id) and never enqueue.
-        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF));
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any());
         verify(pendingDocumentDataService, never()).save(any());
     }
 
@@ -265,7 +265,7 @@ class FilterApiControllerTest {
         when(signingService.isSigningEnabled()).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenReturn("mock.jwt.token");
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -284,7 +284,7 @@ class FilterApiControllerTest {
     @Test
     void textEndpointDoesNotIncludeSignatureHeaderWhenSigningDisabled() throws Exception {
         when(signingService.isSigningEnabled()).thenReturn(false);
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -304,7 +304,7 @@ class FilterApiControllerTest {
         when(signingService.isSigningEnabled()).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenThrow(new RuntimeException("key unavailable"));
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN)))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         mockMvc.perform(post("/api/filter")

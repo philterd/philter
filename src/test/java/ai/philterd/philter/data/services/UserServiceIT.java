@@ -86,16 +86,16 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "alice@example.com", "s3cret", "user", policyDataService, contextDataService, "system");
         assertTrue(response.isSuccessful());
 
-        // The email round-trips through the real encryption service and the real Mongo query path.
+        // The username round-trips through the real Mongo query path.
         final UserEntity byEmail = service.findByUsername("alice@example.com");
         assertNotNull(byEmail);
-        assertEquals("alice@example.com", byEmail.getEmail());
+        assertEquals("alice@example.com", byEmail.getUsername());
         assertEquals("user", byEmail.getRole());
 
         final UserEntity byId = service.findOneById(byEmail.getId());
         assertNotNull(byId);
         assertEquals(byEmail.getId(), byId.getId());
-        assertEquals("alice@example.com", byId.getEmail());
+        assertEquals("alice@example.com", byId.getUsername());
 
         // The stored password is hashed, not the plaintext.
         assertNotNull(byEmail.getPassword());
@@ -146,6 +146,70 @@ class UserServiceIT extends AbstractMongoIT {
         final UserEntity user = service.findByUsername("fpe@example.com");
         assertNotNull(user.getFpeKey());
         assertTrue(user.getFpeKey().matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
+    }
+
+    @Test
+    void enableMfaPersistsEnrollmentAndDecryptsSecret() {
+        assertTrue(service.createUser(
+                "req", "mfa@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+
+        service.enableMfa("req", service.findByUsername("mfa@example.com"), "JBSWY3DPEHPK3PXP", "system");
+
+        final UserEntity reread = service.findByUsername("mfa@example.com");
+        assertTrue(reread.isMfaEnabled());
+        // The secret round-trips through the real encryption service and the real Mongo read path.
+        assertEquals("JBSWY3DPEHPK3PXP", reread.getMfaSecret());
+        assertFalse(reread.isMfaLocked());
+        assertEquals(0, reread.getMfaFailedAttempts());
+    }
+
+    @Test
+    void failedMfaAttemptsLockTheAccountAndPersist() {
+        assertTrue(service.createUser(
+                "req", "lock@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+        service.enableMfa("req", service.findByUsername("lock@example.com"), "JBSWY3DPEHPK3PXP", "system");
+
+        boolean locked = false;
+        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
+            locked = service.recordFailedMfaAttempt("req", service.findByUsername("lock@example.com"), "system");
+        }
+        assertTrue(locked);
+
+        final UserEntity reread = service.findByUsername("lock@example.com");
+        assertTrue(reread.isMfaLocked());
+        assertEquals(UserService.MAX_MFA_ATTEMPTS, reread.getMfaFailedAttempts());
+    }
+
+    @Test
+    void unlockMfaClearsThePersistedLockButKeepsEnrollment() {
+        assertTrue(service.createUser(
+                "req", "unlock@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+        service.enableMfa("req", service.findByUsername("unlock@example.com"), "JBSWY3DPEHPK3PXP", "system");
+        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
+            service.recordFailedMfaAttempt("req", service.findByUsername("unlock@example.com"), "system");
+        }
+        assertTrue(service.findByUsername("unlock@example.com").isMfaLocked());
+
+        service.unlockMfa("req", service.findByUsername("unlock@example.com"), "system");
+
+        final UserEntity reread = service.findByUsername("unlock@example.com");
+        assertFalse(reread.isMfaLocked());
+        assertEquals(0, reread.getMfaFailedAttempts());
+        assertTrue(reread.isMfaEnabled());
+        assertEquals("JBSWY3DPEHPK3PXP", reread.getMfaSecret());
+    }
+
+    @Test
+    void disableMfaClearsEnrollmentAndPersistedSecret() {
+        assertTrue(service.createUser(
+                "req", "off@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+        service.enableMfa("req", service.findByUsername("off@example.com"), "JBSWY3DPEHPK3PXP", "system");
+
+        service.disableMfa("req", service.findByUsername("off@example.com"), "system");
+
+        final UserEntity reread = service.findByUsername("off@example.com");
+        assertFalse(reread.isMfaEnabled());
+        assertNull(reread.getMfaSecret());
     }
 
     @Test
@@ -225,7 +289,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertNotNull(retained);
         assertTrue(retained.isDeactivated());
         assertNotNull(retained.getDeactivatedAt());
-        assertEquals("frank@example.com", retained.getEmail());
+        assertEquals("frank@example.com", retained.getUsername());
 
         // The retained user counts toward the all-users total but not the active-users total.
         assertEquals(1, service.count());
@@ -270,7 +334,7 @@ class UserServiceIT extends AbstractMongoIT {
         final UserEntity retained = service.findOneById(userId);
         assertNotNull(retained);
         assertTrue(retained.isDeactivated());
-        assertEquals("evidence@example.com", retained.getEmail());
+        assertEquals("evidence@example.com", retained.getUsername());
     }
 
     @Test
@@ -368,15 +432,15 @@ class UserServiceIT extends AbstractMongoIT {
 
         assertEquals(3, service.count());
 
-        // Results are sorted ascending by email, so paging is deterministic.
+        // Results are sorted ascending by username, so paging is deterministic.
         final List<UserEntity> firstPage = service.findAll(0, 2);
         assertEquals(2, firstPage.size());
-        assertEquals("u1@example.com", firstPage.get(0).getEmail());
-        assertEquals("u2@example.com", firstPage.get(1).getEmail());
+        assertEquals("u1@example.com", firstPage.get(0).getUsername());
+        assertEquals("u2@example.com", firstPage.get(1).getUsername());
 
         final List<UserEntity> secondPage = service.findAll(2, 2);
         assertEquals(1, secondPage.size());
-        assertEquals("u3@example.com", secondPage.get(0).getEmail());
+        assertEquals("u3@example.com", secondPage.get(0).getUsername());
     }
 
     @Test

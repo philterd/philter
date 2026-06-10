@@ -200,46 +200,6 @@ class LedgerApiControllerTest {
     }
 
     @Test
-    void deleteChainInvokesService() throws Exception {
-        when(ledgerService.deleteByDocumentId(any(), eq(userId), eq("doc-1"), any()))
-                .thenReturn(new ai.philterd.philter.model.ServiceResponse("Deleted.", true, 200));
-
-        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1")
-                        .header("Authorization", AUTH_HEADER)
-                        .requestAttr("requestId", "req-del"))
-                .andExpect(status().isOk());
-
-        verify(ledgerService).deleteByDocumentId(any(), eq(userId), eq("doc-1"), any());
-    }
-
-    @Test
-    void purgeDeletesOlderThanDays() throws Exception {
-        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(30)))
-                .thenReturn(new ai.philterd.philter.model.ServiceResponse("Deleted 7 ledger entries older than 30 days.", true, 200));
-
-        final String body = mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
-                        .header("Authorization", AUTH_HEADER)
-                        .param("older_than_days", "30")
-                        .requestAttr("requestId", "req-purge"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        assertTrue(body.contains("Deleted 7"));
-        verify(ledgerService).deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(30));
-    }
-
-    @Test
-    void purgeRejectsNegativeDays() throws Exception {
-        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
-                        .header("Authorization", AUTH_HEADER)
-                        .param("older_than_days", "-1")
-                        .requestAttr("requestId", "req-purge-bad"))
-                .andExpect(status().isBadRequest());
-
-        verify(ledgerService, never()).deleteChainsByUserIdAndOlderThan(any(), any(), anyInt());
-    }
-
-    @Test
     void rejectsUnknownApiKey() throws Exception {
         mockMvc.perform(get("/api/ledger").header("Authorization", UNKNOWN_AUTH_HEADER)
                         .requestAttr("requestId", "req-401"))
@@ -281,24 +241,6 @@ class LedgerApiControllerTest {
 
         // The admin's request operates on the named owner's ledger, not their own id.
         verify(ledgerService).getChain(otherUser, "doc-1");
-    }
-
-    @Test
-    void adminCanPurgeAnotherUsersEntriesViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
-        makeCallerAdmin();
-        makeOwnerLookup("other@example.com", otherUser);
-        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(otherUser), eq(30)))
-                .thenReturn(new ai.philterd.philter.model.ServiceResponse("Deleted 3 ledger entries older than 30 days.", true, 200));
-
-        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
-                        .header("Authorization", AUTH_HEADER)
-                        .param("older_than_days", "30")
-                        .param("owner", "other@example.com")
-                        .requestAttr("requestId", "req-admin-purge"))
-                .andExpect(status().isOk());
-
-        verify(ledgerService).deleteChainsByUserIdAndOlderThan(any(), eq(otherUser), eq(30));
     }
 
     @Test

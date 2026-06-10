@@ -66,6 +66,10 @@ Philter supports time-based one-time-password (TOTP) MFA for the dashboard, comp
 
 **At login.** An enrolled user signs in with their username and password as usual, then enters a code from their authenticator app to finish signing in. A user who is not enrolled signs in with just their password.
 
+**Too many failed codes.** After 5 consecutive incorrect codes, the account is locked and the user cannot finish signing in. The lock does not expire on its own; an administrator must clear it. The lock is recorded in the [audit log](auditing.md) as a `user_mfa_locked` event.
+
+**Unlock a locked account (admin).** An administrator clears the lock with Unlock on the Admin, Users tab. The user's enrollment is unchanged and they can enter a code again. (Disabling MFA for the user also clears the lock.)
+
 **Reset a lost authenticator (admin).** If a user loses their authenticator, an administrator clears their enrollment with Disable MFA on the Admin, Users tab. The user can then enroll again. A user can also disable MFA on their own account from My Account, MFA.
 
 Turning the feature off later does not remove existing enrollments: already-enrolled users keep being prompted until they (or an admin) disable their MFA. Each user's TOTP secret is encrypted at rest. MFA applies to the dashboard only; API key authentication is unaffected. Enabling and disabling MFA for an account is recorded in the [audit log](auditing.md).

@@ -84,7 +84,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     private void stubRedactionReturns(final byte[] output) throws Exception {
         final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
         when(result.getDocument()).thenReturn(output);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 0, "hash")));
     }
 
@@ -105,7 +105,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
         // The redaction ran with the job's policy/user/context/input.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
-        verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(), eq(MimeType.APPLICATION_PDF), any());
+        verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(), eq(MimeType.APPLICATION_PDF), any(), any());
         assertArrayEquals(new byte[]{1, 2, 3}, body.getValue());
     }
 
@@ -114,7 +114,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final ObjectId user = new ObjectId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
 
         worker.poll();
 
@@ -127,7 +127,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     void pollDoesNothingWhenQueueIsEmpty() throws Exception {
         worker.poll();
-        verify(redactionService, never()).filter(any(), any(), any(), any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

@@ -43,6 +43,10 @@ public class UserEntity extends AbstractEncryptedEntity {
     // to reset a user who has lost their authenticator.
     private boolean mfaEnabled;
     private String mfaSecret;
+    // Consecutive failed MFA code entries; when it reaches the limit the account is locked and an
+    // administrator must clear the lock (it does not expire on its own).
+    private int mfaFailedAttempts;
+    private boolean mfaLocked;
 
     public static UserEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final UserEntity userEntity = new UserEntity();
@@ -54,25 +58,34 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setEmail(document.getString("email"));
         userEntity.setPassword(document.getString("password"));
         userEntity.setRole(document.getString("role"));
-        userEntity.setFpeKey(document.getString("fpe_key"));
+        userEntity.setFpeKey(readEncrypted(document, encryptionService, "fpe_key"));
         userEntity.setWebhookUrl(document.getString("webhook_url"));
-        userEntity.setWebhookSecret(document.getString("webhook_secret"));
+        userEntity.setWebhookSecret(readEncrypted(document, encryptionService, "webhook_secret"));
         userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
         userEntity.setDeactivated(document.getBoolean("deactivated", false));
         userEntity.setDeactivatedAt(document.getDate("deactivated_at"));
         userEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
-        // The TOTP secret is encrypted at rest: a ciphertext string plus its mfa_secret_key. A value
-        // present without a key is legacy plaintext (re-written encrypted on the next save).
-        final String mfaSecret = document.getString("mfa_secret");
-        final String mfaSecretKey = document.getString("mfa_secret_key");
-        if (mfaSecret == null || mfaSecret.isEmpty()) {
-            userEntity.setMfaSecret(null);
-        } else if (mfaSecretKey != null && !mfaSecretKey.isEmpty()) {
-            userEntity.setMfaSecret(encryptionService.decrypt(mfaSecret, mfaSecretKey));
-        } else {
-            userEntity.setMfaSecret(mfaSecret);
-        }
+        userEntity.setMfaSecret(readEncrypted(document, encryptionService, "mfa_secret"));
+        userEntity.setMfaFailedAttempts(document.getInteger("mfa_failed_attempts", 0));
+        userEntity.setMfaLocked(document.getBoolean("mfa_locked", false));
         return userEntity;
+    }
+
+    /**
+     * Reads a field encrypted by {@link #putEncrypted}. Returns null when absent or empty. A value
+     * present without its {@code _key} is legacy plaintext (written before the field was encrypted) and
+     * is returned as-is; it is re-written encrypted on the next save.
+     */
+    private static String readEncrypted(final Document document, final EncryptionService encryptionService, final String field) {
+        final String value = document.getString(field);
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        final String key = document.getString(field + "_key");
+        if (key != null && !key.isEmpty()) {
+            return encryptionService.decrypt(value, key);
+        }
+        return value;
     }
 
     @Override
@@ -85,24 +98,34 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("email", email);
         document.put("password", password);
         document.put("role", role);
-        document.put("fpe_key", fpeKey);
+        // Per-user secrets are encrypted at rest (ciphertext plus a <field>_key). The password is a
+        // bcrypt hash, so it is stored as-is; the webhook URL is an endpoint, not a credential.
+        putEncrypted(document, encryptionService, "fpe_key", fpeKey);
         document.put("webhook_url", webhookUrl);
-        document.put("webhook_secret", webhookSecret);
+        putEncrypted(document, encryptionService, "webhook_secret", webhookSecret);
         document.put("password_change_required", passwordChangeRequired);
         document.put("deactivated", deactivated);
         document.put("deactivated_at", deactivatedAt);
         document.put("mfa_enabled", mfaEnabled);
-        // Encrypt the TOTP secret at rest. It is only ever set on an existing user (during enrollment),
-        // so the user id used as the encryption context is present whenever there is a secret.
-        if (mfaSecret == null || mfaSecret.isEmpty()) {
-            document.put("mfa_secret", "");
-            document.put("mfa_secret_key", "");
-        } else {
-            final EncryptResult result = encryptionService.encrypt(mfaSecret, id != null ? id.toHexString() : "");
-            document.put("mfa_secret", result.getEncryptedText());
-            document.put("mfa_secret_key", result.getEncryptionKey());
-        }
+        putEncrypted(document, encryptionService, "mfa_secret", mfaSecret);
+        document.put("mfa_failed_attempts", mfaFailedAttempts);
+        document.put("mfa_locked", mfaLocked);
         return document;
+    }
+
+    /**
+     * Encrypts a sensitive field at rest, storing the ciphertext under {@code field} and its data key
+     * under {@code field + "_key"}. A null or empty value is stored as empty (and read back as null).
+     */
+    private void putEncrypted(final Document document, final EncryptionService encryptionService, final String field, final String value) {
+        if (value == null || value.isEmpty()) {
+            document.put(field, "");
+            document.put(field + "_key", "");
+        } else {
+            final EncryptResult result = encryptionService.encrypt(value, id != null ? id.toHexString() : "");
+            document.put(field, result.getEncryptedText());
+            document.put(field + "_key", result.getEncryptionKey());
+        }
     }
 
     @Override
@@ -208,5 +231,21 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setMfaSecret(final String mfaSecret) {
         this.mfaSecret = mfaSecret;
+    }
+
+    public int getMfaFailedAttempts() {
+        return mfaFailedAttempts;
+    }
+
+    public void setMfaFailedAttempts(final int mfaFailedAttempts) {
+        this.mfaFailedAttempts = mfaFailedAttempts;
+    }
+
+    public boolean isMfaLocked() {
+        return mfaLocked;
+    }
+
+    public void setMfaLocked(final boolean mfaLocked) {
+        this.mfaLocked = mfaLocked;
     }
 }

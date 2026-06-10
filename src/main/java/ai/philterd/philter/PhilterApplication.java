@@ -52,6 +52,8 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.utils.EnvUtils;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.dependency.NpmPackage;
@@ -66,6 +68,7 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -117,6 +120,14 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public Gson gson() {
         return new Gson();
+    }
+
+    // Sets the title and version shown in the generated OpenAPI specification (and Swagger UI),
+    // replacing springdoc's defaults ("OpenAPI definition" / "v0"). The version is the build version
+    // so the published spec is labeled with the Philter release it was generated from.
+    @Bean
+    public OpenAPI philterOpenAPI(@Value("${build.version}") final String version) {
+        return new OpenAPI().info(new Info().title("Philter API").version(version));
     }
 
     @Bean

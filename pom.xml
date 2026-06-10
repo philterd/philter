@@ -209,13 +209,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <!-- Copy the OpenAPI spec that OpenApiExportIT writes to target/openapi.json into the
-                     docs tree so it is published with the documentation. Bound to post-integration-test
-                     (after the IT has run); when the IT is skipped, target/openapi.json is absent and
-                     nothing is copied. -->
+                     docs tree so it is published with the documentation. Bound to the 'verify' phase,
+                     which runs only after the integration tests have passed: failsafe fails the build
+                     in an earlier phase on any IT failure, so a failed build never overwrites the
+                     committed spec. (OpenApiExportIT also writes target/openapi.json only after it has
+                     asserted a 200 response, so a bad spec is never produced in the first place.) When
+                     the IT is skipped, target/openapi.json is absent and nothing is copied. -->
                 <executions>
                     <execution>
                         <id>copy-openapi-spec-to-docs</id>
-                        <phase>post-integration-test</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>copy-resources</goal>
                         </goals>

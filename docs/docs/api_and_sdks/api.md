@@ -25,4 +25,4 @@ Philter's API supports one-way and two-way SSL/TLS authentication. See Philter's
 
 ## SDKs
 
-The Philter [SDKs](sdks.md) provide convenient methods for using Philter's API methods for various programming languages.
+The Philter [Java SDK](sdks.md) provides convenient methods for using Philter's API. For other languages, generate a client from the OpenAPI specification above. See [Client SDKs](sdks.md) for more information.

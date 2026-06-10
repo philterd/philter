@@ -1,7 +1,11 @@
 # Client SDKs
 
-Philter SDKs are available for use in your projects. The SDKs are licensed under the Apache License, version 2.0]. Refer to the GitHub projects below for your language of choice for usage examples.
+The Philter Java SDK is the officially maintained client SDK for the Philter API. It is licensed under the Apache License, version 2.0. Refer to the GitHub project for usage examples.
 
 * [Java](https://github.com/philterd/philter-sdk-java)
-* [.NET](https://github.com/philterd/philter-sdk-net)
-* [Go](https://github.com/philterd/philter-sdk-golang)
+
+## Other Languages
+
+For all other languages, we recommend generating a client from Philter's OpenAPI specification, which is served by a running Philter instance at `https://<your-philter-host>:8080/v3/api-docs`. Tools such as [OpenAPI Generator](https://openapi-generator.tech/) can produce clients for most languages from the specification. See the [API](api.md) page for more details on the specification and the available endpoints.
+
+The previous client SDKs for .NET, Go, and Python have been archived and are no longer maintained.

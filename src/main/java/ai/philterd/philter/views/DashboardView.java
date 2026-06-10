@@ -31,9 +31,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Anchor;
-import com.vaadin.flow.component.html.H5;
 import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -85,7 +83,6 @@ public class DashboardView extends AbstractRestrictedView {
 
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Redaction Test", filterHorizontalLayout);
-        tabSheet.add("Client SDKs", createSdksLayout());
         tabSheet.setSizeFull();
 
         pageVerticalLayout.add(tabSheet);
@@ -232,44 +229,6 @@ public class DashboardView extends AbstractRestrictedView {
 
         return pageVerticalLayout;
 
-    }
-
-    private VerticalLayout createSdksLayout() {
-        final HorizontalLayout sdkRow = new HorizontalLayout();
-        sdkRow.setWidthFull();
-        sdkRow.add(createSdkItem("CLI", "Command Line", "https://github.com/philterd/philter-cli", "Filter text from the command line."));
-        sdkRow.add(createSdkItem("SDK", "Java", "https://github.com/philterd/philter-sdk-java", "Filter text from your Java apps"));
-        sdkRow.add(createSdkItem("SDK", ".NET", "https://github.com/philterd/philter-sdk-net", "Filter text from your .NET apps"));
-        sdkRow.add(createSdkItem("SDK", "Golang", "https://github.com/philterd/philter-sdk-golang", "Filter text from your Golang apps"));
-
-        final VerticalLayout sdksVerticalLayout = new VerticalLayout();
-        sdksVerticalLayout.add(sdkRow);
-        sdksVerticalLayout.setSizeFull();
-        return sdksVerticalLayout;
-    }
-
-    private VerticalLayout createSdkItem(final String type, final String name, final String url, final String description) {
-        final VerticalLayout item = new VerticalLayout();
-        item.setPadding(false);
-        item.setSpacing(false);
-
-        final Span typeSpan = new Span(type);
-        typeSpan.getStyle().set("font-size", "0.7rem");
-        typeSpan.getStyle().set("font-weight", "bold");
-        typeSpan.getStyle().set("color", "#4e73df");
-
-        final H5 nameH5 = new H5(name);
-        nameH5.getStyle().set("margin", "0");
-
-        final Anchor link = new Anchor(url, url);
-        link.setTarget("_blank");
-        link.getStyle().set("font-size", "0.8rem");
-
-        final Paragraph desc = new Paragraph(description);
-        desc.getStyle().set("font-size", "0.8rem");
-
-        item.add(typeSpan, nameH5, link, desc);
-        return item;
     }
 
     /**

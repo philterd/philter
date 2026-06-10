@@ -41,16 +41,16 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
 
     }
 
-    public void saveLoggingEnabled(final boolean loggingEnabled) {
-        updateSetting("logging_enabled", loggingEnabled);
-    }
-
     public void saveDiffuseCountsEnabled(final boolean diffuseCountsEnabled) {
         updateSetting("diffuse_counts_enabled", diffuseCountsEnabled);
     }
 
     public void saveSigningEnabled(final boolean signingEnabled) {
         updateSetting("signing_enabled", signingEnabled);
+    }
+
+    public void saveMfaEnabled(final boolean mfaEnabled) {
+        updateSetting("mfa_enabled", mfaEnabled);
     }
 
     public void savePhieldSettings(final boolean enabled, final String url, final String sourceId, final String organization) {

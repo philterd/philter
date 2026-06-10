@@ -51,18 +51,6 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void saveLoggingEnabledPersists() {
-        service.saveLoggingEnabled(true);
-
-        final AdminSettingsEntity settings = service.findAdminSettings();
-        assertNotNull(settings);
-        assertTrue(settings.isLoggingEnabled());
-
-        service.saveLoggingEnabled(false);
-        assertFalse(service.findAdminSettings().isLoggingEnabled());
-    }
-
-    @Test
     void saveDiffuseCountsEnabledPersists() {
         service.saveDiffuseCountsEnabled(true);
 
@@ -106,10 +94,10 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void settingsDocumentIsASingletonAcrossManySaves() {
-        service.saveLoggingEnabled(true);
+        service.saveSigningEnabled(true);
         service.saveDiffuseCountsEnabled(true);
         service.savePhieldSettings(true, "https://phield.example.com", "src", "org");
-        service.saveLoggingEnabled(false);
+        service.saveSigningEnabled(false);
 
         // Every save targets the same single document; no duplicates are created.
         final MongoCollection<Document> collection =
@@ -118,7 +106,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
 
         // Independent settings written across separate saves all coexist on the one document.
         final AdminSettingsEntity settings = service.findAdminSettings();
-        assertFalse(settings.isLoggingEnabled());
+        assertFalse(settings.isSigningEnabled());
         assertTrue(settings.isDiffuseCountsEnabled());
         assertTrue(settings.isPhieldEnabled());
         assertEquals("https://phield.example.com", settings.getPhieldUrl());

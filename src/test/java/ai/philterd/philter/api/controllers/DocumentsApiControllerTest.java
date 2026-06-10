@@ -185,7 +185,7 @@ class DocumentsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
         when(pendingDocumentDataService.findAllByUserId(eq(otherUser), eq(0), eq(25)))
                 .thenReturn(Collections.emptyList());
 
@@ -202,7 +202,7 @@ class DocumentsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
         caller.setRole("user");

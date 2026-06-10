@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.testutil.AbstractMongoIT;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -43,7 +44,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new RedactListsDataService(mongoClient, mock(AuditEventPublisher.class));
+        service = new RedactListsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
     @Test

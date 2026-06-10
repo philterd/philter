@@ -311,7 +311,7 @@ class RedactListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
 
         mockMvc.perform(post("/api/redact-lists").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
@@ -330,7 +330,7 @@ class RedactListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByEmail("other@example.com")).thenReturn(owner);
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
         caller.setRole("user");

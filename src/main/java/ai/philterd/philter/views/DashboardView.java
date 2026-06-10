@@ -31,24 +31,28 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.H5;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
-import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
+import com.vaadin.flow.server.streams.UploadHandler;
 import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Route(value = "dashboard")
 @RouteAlias(value = "")
@@ -81,6 +85,7 @@ public class DashboardView extends AbstractRestrictedView {
 
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Redaction Test", filterHorizontalLayout);
+        tabSheet.add("Client SDKs", createSdksLayout());
         tabSheet.setSizeFull();
 
         pageVerticalLayout.add(tabSheet);
@@ -168,8 +173,14 @@ public class DashboardView extends AbstractRestrictedView {
         pdfPolicyComboBox.setItems(policyDataService.findAll(userEntity.getId(), 0, 100, false).stream().map(PolicyEntity::getName).toList());
         pdfPolicyComboBox.setValue("default");
 
-        final MemoryBuffer buffer = new MemoryBuffer();
-        Upload upload = new Upload(buffer);
+        // The uploaded file is held in memory and captured here for the redaction submit below.
+        final AtomicReference<byte[]> uploadedBytes = new AtomicReference<>();
+        final AtomicReference<String> uploadedFileName = new AtomicReference<>();
+
+        final Upload upload = new Upload(UploadHandler.inMemory((metadata, data) -> {
+            uploadedBytes.set(data);
+            uploadedFileName.set(metadata.fileName());
+        }));
         upload.setAcceptedFileTypes("application/pdf");
         upload.setWidthFull();
 
@@ -182,13 +193,13 @@ public class DashboardView extends AbstractRestrictedView {
                 Notification.show("Please select a policy.");
                 return;
             }
-            if (buffer.getFileName().isEmpty()) {
+            if (uploadedBytes.get() == null) {
                 Notification.show("Please select a file.");
                 return;
             }
 
             try {
-                final byte[] body = buffer.getInputStream().readAllBytes();
+                final byte[] body = uploadedBytes.get();
 
                 // The dashboard redaction test is stateless: it uses no context.
                 final AbstractFilterResult result = redactionService.filter(
@@ -196,10 +207,10 @@ public class DashboardView extends AbstractRestrictedView {
 
                 final byte[] redactedBytes = ((BinaryDocumentFilterResult) result).getDocument();
 
-                final String fileName = buffer.getFileName();
-                final StreamResource resource = new StreamResource(
-                        "redacted-" + fileName, () -> new ByteArrayInputStream(redactedBytes));
-                resource.setContentType("application/pdf");
+                final String fileName = uploadedFileName.get();
+                final DownloadHandler resource = DownloadHandler.fromInputStream(downloadEvent ->
+                        new DownloadResponse(new ByteArrayInputStream(redactedBytes), "redacted-" + fileName,
+                                "application/pdf", redactedBytes.length));
 
                 final Anchor downloadLink = new Anchor(resource, "Download redacted " + fileName);
                 downloadLink.getElement().setAttribute("download", true);
@@ -221,6 +232,44 @@ public class DashboardView extends AbstractRestrictedView {
 
         return pageVerticalLayout;
 
+    }
+
+    private VerticalLayout createSdksLayout() {
+        final HorizontalLayout sdkRow = new HorizontalLayout();
+        sdkRow.setWidthFull();
+        sdkRow.add(createSdkItem("CLI", "Command Line", "https://github.com/philterd/philter-cli", "Filter text from the command line."));
+        sdkRow.add(createSdkItem("SDK", "Java", "https://github.com/philterd/philter-sdk-java", "Filter text from your Java apps"));
+        sdkRow.add(createSdkItem("SDK", ".NET", "https://github.com/philterd/philter-sdk-net", "Filter text from your .NET apps"));
+        sdkRow.add(createSdkItem("SDK", "Golang", "https://github.com/philterd/philter-sdk-golang", "Filter text from your Golang apps"));
+
+        final VerticalLayout sdksVerticalLayout = new VerticalLayout();
+        sdksVerticalLayout.add(sdkRow);
+        sdksVerticalLayout.setSizeFull();
+        return sdksVerticalLayout;
+    }
+
+    private VerticalLayout createSdkItem(final String type, final String name, final String url, final String description) {
+        final VerticalLayout item = new VerticalLayout();
+        item.setPadding(false);
+        item.setSpacing(false);
+
+        final Span typeSpan = new Span(type);
+        typeSpan.getStyle().set("font-size", "0.7rem");
+        typeSpan.getStyle().set("font-weight", "bold");
+        typeSpan.getStyle().set("color", "#4e73df");
+
+        final H5 nameH5 = new H5(name);
+        nameH5.getStyle().set("margin", "0");
+
+        final Anchor link = new Anchor(url, url);
+        link.setTarget("_blank");
+        link.getStyle().set("font-size", "0.8rem");
+
+        final Paragraph desc = new Paragraph(description);
+        desc.getStyle().set("font-size", "0.8rem");
+
+        item.add(typeSpan, nameH5, link, desc);
+        return item;
     }
 
     /**

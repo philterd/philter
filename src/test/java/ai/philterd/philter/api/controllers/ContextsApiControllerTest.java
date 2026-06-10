@@ -244,12 +244,12 @@ class ContextsApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(adminUser);
     }
 
-    /** Stubs userService.findByEmail so the given email resolves to a user with the given id. */
+    /** Stubs userService.findByUsername so the given email resolves to a user with the given id. */
     private void makeOwnerLookup(final String email, final ObjectId ownerId) {
         final ai.philterd.philter.data.entities.UserEntity owner = new ai.philterd.philter.data.entities.UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
-        when(userService.findByEmail(email)).thenReturn(owner);
+        when(userService.findByUsername(email)).thenReturn(owner);
     }
 
     // ----- Export -----

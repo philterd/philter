@@ -2,7 +2,7 @@
 
 The Documents API exposes the lifecycle of asynchronously-submitted PDF redactions. When a PDF is submitted to `POST /api/filter` without `?async=false`, Philter persists the request, returns `202 Accepted` with a `documentId`, and processes it on a background worker. Use the endpoints below to track and retrieve the result.
 
-> **Admin cross-user access:** by default each endpoint operates on the calling user's own documents. An **admin** may target another user by adding an `owner=<email>` query parameter to any endpoint (list, status, download, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
+> **Admin cross-user access:** by default each endpoint operates on the calling user's own documents. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, status, download, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
 
 > The `curl` examples assume Philter is enabled for SSL with a self-signed certificate. See the [SSL/TLS settings](../../settings.md) for details.
 

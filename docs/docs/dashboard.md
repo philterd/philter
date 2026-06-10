@@ -12,7 +12,7 @@ The Philter dashboard provides a comprehensive interface for managing your redac
 
 ### Testing Philter
 
-The **Dashboard** home page allows you to test Philter's configuration by submitting text or PDF documents. You can select a filter policy and see how Philter redacts the information. This is useful for fine-tuning your policies before deploying them to production.
+The **Dashboard** home page allows you to test Philter's configuration by submitting text or PDF documents. You can select a filter policy and see how Philter redacts the information. This is useful for fine-tuning your policies before deploying them to production. The Dashboard page also has a **Client SDKs** tab with links to the Philter CLI and the official Java, .NET, and Go SDKs.
 
 ### Policy Management
 
@@ -28,7 +28,7 @@ Philter exposes redaction, token, and API-request metrics in Prometheus format a
 
 ### API Key Management
 
-The **API** section allows you to manage the API keys used for authenticating with Philter's [API](api_and_sdks/api.md). You can also find links to official client SDKs for Java, .NET, and Go.
+The **API** section allows you to manage the API keys used for authenticating with Philter's [API](api_and_sdks/api.md). Links to the official client SDKs (Java, .NET, and Go) are on the Dashboard page's **Client SDKs** tab.
 
 ### Custom Lists
 
@@ -58,7 +58,7 @@ Admin users can access the **Admin** section to manage users.
 
 The Users grid lists **all** users, including deactivated ones. The **Status** column shows a **Deactivate User** action for an active account and a **Reactivate User** action for a deactivated one, so deactivated accounts are clearly identifiable.
 
-*   **Add Users**: Create new user accounts by providing an email address, password, and role (`admin` or `user`). An email that belongs to a deactivated account stays reserved; reactivate that account rather than creating a duplicate.
+*   **Add Users**: Create new user accounts by providing a username, an optional email address, a password, and a role (`admin` or `user`). The username is the login identifier; the email is optional and not validated. A username that belongs to a deactivated account stays reserved; reactivate that account rather than creating a duplicate.
 *   **Change Passwords**: Update a user's password.
 *   **Set Roles**: Change a user's role to `admin` or `user`. Note that users cannot change their own role.
 *   **Deactivate Users**: Rather than being deleted, users are **deactivated**. A deactivated account can no longer sign in and its API keys stop working, but the user record and all of the user's data are retained. Deactivation never deletes the user's data and never cascades. Governance evidence in particular, the user's **policies** and **redaction ledger**, is preserved and stays resolvable to the retained user record, so no admin action can silently destroy redaction evidence. The retention is recorded in the [audit log](auditing.md). Users cannot deactivate their own account, and the change-password and set-role actions are disabled while an account is deactivated.

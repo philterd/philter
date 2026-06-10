@@ -44,11 +44,16 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
 
 import java.io.ByteArrayInputStream;
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -65,6 +70,25 @@ public class AdminView extends AbstractRestrictedView {
 
     private static final Logger LOGGER = LogManager.getLogger(AdminView.class);
 
+    /** Minimum password length, matching the rule enforced on the other change-password screens. */
+    private static final int MIN_PASSWORD_LENGTH = 16;
+
+    /** Documentation describing the password requirements, linked from every new-password dialog. */
+    private static final String PASSWORD_DOCS_URL = "/public/docs/login_security.html#password-requirements";
+
+    /** Helper text shown under password fields, describing the requirements. */
+    private static final String PASSWORD_HELPER_TEXT = "At least " + MIN_PASSWORD_LENGTH + " characters. Use a mix of "
+            + "upper and lowercase letters, numbers, and symbols, or a passphrase of 5 to 7 unrelated words.";
+
+    // Character classes for the "Generate" password helper. Ambiguous-looking characters (l, 1, O, 0,
+    // and similar) are omitted so a generated password is easier to read and transcribe.
+    private static final String PW_LOWER = "abcdefghijkmnopqrstuvwxyz";
+    private static final String PW_UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String PW_DIGITS = "23456789";
+    private static final String PW_SYMBOLS = "!@#$%^&*-_=+?";
+    private static final int GENERATED_PASSWORD_LENGTH = 20;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
 
     public AdminView(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher,
                      final UserService userService, final PolicyDataService policyService,
@@ -79,8 +103,6 @@ public class AdminView extends AbstractRestrictedView {
 
         if (adminSettingsEntity == null) {
             adminSettingsEntity = new AdminSettingsEntity();
-            adminSettingsEntity.setLoggingEnabled(false);
-            adminSettingsDataService.saveLoggingEnabled(false);
         }
 
         final AdminSettingsEntity finalAdminSettingsEntity = adminSettingsEntity;
@@ -102,14 +124,34 @@ public class AdminView extends AbstractRestrictedView {
 
             final Dialog createUserDialog = new Dialog();
             createUserDialog.setHeaderTitle("New User");
+            createUserDialog.setWidth("600px");
 
-            final TextField emailTextField = new TextField("Email Address");
+            final TextField usernameTextField = new TextField("Username");
+            usernameTextField.setWidthFull();
+            usernameTextField.setRequired(true);
+
+            // Optional email. Intentionally unvalidated: it is meant to be an email address, but an
+            // operator may put anything here.
+            final TextField emailTextField = new TextField("Email Address (optional)");
             emailTextField.setWidthFull();
-            emailTextField.setRequired(true);
 
             final PasswordField passwordField = new PasswordField("Password");
             passwordField.setWidthFull();
             passwordField.setRequired(true);
+            passwordField.setHelperText(PASSWORD_HELPER_TEXT);
+
+            // Generate a random password that meets the requirements and put it in the field. It is
+            // revealed so the admin can copy it to give to the new user.
+            final Button generatePasswordButton = new Button("Generate", VaadinIcon.MAGIC.create(), ev -> {
+                passwordField.setValue(generateRandomPassword());
+                passwordField.setRevealButtonVisible(true);
+            });
+            generatePasswordButton.setTooltipText("Generate a random password that meets the requirements");
+
+            final HorizontalLayout passwordRow = new HorizontalLayout(passwordField, generatePasswordButton);
+            passwordRow.setWidthFull();
+            passwordRow.setFlexGrow(1, passwordField);
+            passwordRow.setAlignItems(HorizontalLayout.Alignment.BASELINE);
 
             final ComboBox<String> roleComboBox = new ComboBox<>("Role");
             roleComboBox.setItems("admin", "user");
@@ -118,27 +160,32 @@ public class AdminView extends AbstractRestrictedView {
             roleComboBox.setRequired(true);
 
             final VerticalLayout dialogVerticalLayout = new VerticalLayout();
-            dialogVerticalLayout.add(emailTextField, passwordField, roleComboBox);
+            dialogVerticalLayout.add(usernameTextField, emailTextField, passwordRow, roleComboBox,
+                    CommonWidgets.getLink("Password requirements", PASSWORD_DOCS_URL, true));
             createUserDialog.add(dialogVerticalLayout);
 
             final Button saveButton = new Button("Create", e -> {
 
+                final String username = usernameTextField.getValue();
                 final String email = emailTextField.getValue();
                 final String password = passwordField.getValue();
                 final String role = roleComboBox.getValue();
 
-                if (email == null || email.isEmpty()) {
-                    emailTextField.setErrorMessage("Email address is required.");
+                if (username == null || username.isEmpty()) {
+                    usernameTextField.setErrorMessage("Username is required.");
 
                 } else if (password == null || password.isEmpty()) {
                     passwordField.setErrorMessage("Password is required.");
+
+                } else if (password.length() < MIN_PASSWORD_LENGTH) {
+                    passwordField.setErrorMessage("Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
 
                 } else if (role == null || role.isEmpty()) {
                     roleComboBox.setErrorMessage("Role is required.");
 
                 } else {
 
-                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), email, password, role, policyService, contextService, Source.WEBUI.getSource());
+                    final ServiceResponse serviceResponse = userService.createUser(RequestIdGenerator.generate(), username, email, password, role, policyService, contextService, Source.WEBUI.getSource());
 
                     if (serviceResponse.isSuccessful()) {
                         showSuccessNotification(serviceResponse.getMessage());
@@ -161,7 +208,8 @@ public class AdminView extends AbstractRestrictedView {
 
         });
 
-        usersGrid.addColumn(UserEntity::getEmail).setHeader("Email Address").setResizable(true).setSortable(true);
+        usersGrid.addColumn(UserEntity::getUsername).setHeader("Username").setResizable(true).setSortable(true);
+        usersGrid.addColumn(UserEntity::getEmail).setHeader("Email").setResizable(true).setSortable(true);
         usersGrid.addColumn(UserEntity::getRole).setHeader("Role").setResizable(true).setSortable(true);
 
         usersGrid.addComponentColumn(user -> {
@@ -184,31 +232,45 @@ public class AdminView extends AbstractRestrictedView {
                 final PasswordField passwordField = new PasswordField("New Password");
                 passwordField.setWidthFull();
                 passwordField.setRequired(true);
+                passwordField.setHelperText(PASSWORD_HELPER_TEXT);
+
+                final PasswordField confirmPasswordField = new PasswordField("Confirm New Password");
+                confirmPasswordField.setWidthFull();
+                confirmPasswordField.setRequired(true);
 
                 final VerticalLayout dialogVerticalLayout = new VerticalLayout();
-                dialogVerticalLayout.add(new Paragraph("Enter a new password for the user " + user.getEmail()));
-                dialogVerticalLayout.add(passwordField);
+                dialogVerticalLayout.add(new Paragraph("Enter a new password for the user " + user.getUsername()));
+                dialogVerticalLayout.add(passwordField, confirmPasswordField);
+                dialogVerticalLayout.add(CommonWidgets.getLink("Password requirements", PASSWORD_DOCS_URL, true));
                 changePasswordDialog.add(dialogVerticalLayout);
 
                 final Button saveButton = new Button("Submit", e -> {
 
                     final String password = passwordField.getValue();
+                    final String confirm = confirmPasswordField.getValue();
 
-                    if (password == null || password.isEmpty()) {
+                    passwordField.setInvalid(false);
+                    confirmPasswordField.setInvalid(false);
 
-                        passwordField.setErrorMessage("Password is required.");
+                    if (password == null || password.length() < MIN_PASSWORD_LENGTH) {
+                        passwordField.setInvalid(true);
+                        passwordField.setErrorMessage("Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
+                        return;
+                    }
 
+                    if (!password.equals(confirm)) {
+                        confirmPasswordField.setInvalid(true);
+                        confirmPasswordField.setErrorMessage("Passwords do not match.");
+                        return;
+                    }
+
+                    final ServiceResponse serviceResponse = userService.changePassword(RequestIdGenerator.generate(), user, password, Source.WEBUI.getSource());
+
+                    if (serviceResponse.isSuccessful()) {
+                        changePasswordDialog.close();
+                        showSuccessNotification(serviceResponse.getMessage());
                     } else {
-
-                        final ServiceResponse serviceResponse = userService.changePassword(RequestIdGenerator.generate(), user, password, Source.WEBUI.getSource());
-
-                        if (serviceResponse.isSuccessful()) {
-                            changePasswordDialog.close();
-                            showSuccessNotification(serviceResponse.getMessage());
-                        } else {
-                            showFailureNotification(serviceResponse.getMessage());
-                        }
-
+                        showFailureNotification(serviceResponse.getMessage());
                     }
 
                 });
@@ -223,6 +285,44 @@ public class AdminView extends AbstractRestrictedView {
             });
             return changePasswordButton;
         }).setHeader("Change Password").setAutoWidth(true).setFlexGrow(0);
+
+        usersGrid.addComponentColumn(user -> {
+
+            final Button disableMfaButton = new Button("Disable MFA", VaadinIcon.UNLOCK.create());
+            disableMfaButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            disableMfaButton.setTooltipText("Disable MFA for this user");
+
+            // This is the admin reset path for a user who has lost their authenticator, so it is only
+            // meaningful when the user actually has MFA enrolled.
+            if (!user.isMfaEnabled()) {
+                disableMfaButton.setEnabled(false);
+                disableMfaButton.setTooltipText("User has not enabled MFA.");
+            }
+
+            disableMfaButton.addClickListener(clickEvent -> {
+
+                final Dialog confirmDialog = new Dialog();
+                confirmDialog.add(new H3("Disable MFA"));
+                confirmDialog.add(new Paragraph("Disable multi-factor authentication for " + user.getUsername()
+                        + "? Their enrolled authenticator is removed and they can sign in with just their password "
+                        + "until they enroll again. Use this to reset a user who has lost their authenticator."));
+
+                final Button confirmButton = new Button("Disable MFA", e -> {
+                    userService.disableMfa(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
+                    usersGrid.getDataProvider().refreshAll();
+                    confirmDialog.close();
+                    showSuccessNotification("MFA disabled for " + user.getUsername() + ".");
+                });
+                confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
+
+                confirmDialog.getFooter().add(cancelButton, confirmButton);
+                confirmDialog.open();
+
+            });
+            return disableMfaButton;
+        }).setHeader("MFA").setAutoWidth(true).setFlexGrow(0);
 
         usersGrid.addComponentColumn(user -> {
 
@@ -257,7 +357,7 @@ public class AdminView extends AbstractRestrictedView {
                 roleComboBox.setAllowCustomValue(false);
 
                 final VerticalLayout dialogVerticalLayout = new VerticalLayout();
-                dialogVerticalLayout.add(new Paragraph("Select a new role for the user " + user.getEmail()));
+                dialogVerticalLayout.add(new Paragraph("Select a new role for the user " + user.getUsername()));
                 dialogVerticalLayout.add(roleComboBox);
                 setRoleDialog.add(dialogVerticalLayout);
 
@@ -311,7 +411,7 @@ public class AdminView extends AbstractRestrictedView {
                 reactivateButton.addClickListener(_ -> {
                     final Dialog confirmDialog = new Dialog();
                     confirmDialog.add(new H3("Reactivate User"));
-                    confirmDialog.add(new Paragraph("Reactivate the user " + user.getEmail() + "? The account will be able to sign in and its API keys will work again."));
+                    confirmDialog.add(new Paragraph("Reactivate the user " + user.getUsername() + "? The account will be able to sign in and its API keys will work again."));
 
                     final Button confirmButton = new Button("Reactivate", e -> {
                         userService.reactivateUser(RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
@@ -345,7 +445,7 @@ public class AdminView extends AbstractRestrictedView {
 
                 final Dialog confirmDialog = new Dialog();
                 confirmDialog.add(new H3("Deactivate User"));
-                confirmDialog.add(new Paragraph("Are you sure you want to deactivate the user " + user.getEmail() + "?"));
+                confirmDialog.add(new Paragraph("Are you sure you want to deactivate the user " + user.getUsername() + "?"));
                 confirmDialog.add(new Paragraph("The account can no longer sign in and its API keys stop working. The user record and all of the user's data (API keys, contexts, custom lists, policies, always/never redact lists, and ledger entries) are retained, and you can reactivate the account at any time."));
 
                 final Button confirmButton = new Button("Deactivate", e -> {
@@ -380,8 +480,9 @@ public class AdminView extends AbstractRestrictedView {
         final VerticalLayout adminSettingsVerticalLayout = new VerticalLayout();
         adminSettingsVerticalLayout.setSizeFull();
 
-        final Checkbox loggingEnabledCheckbox = new Checkbox("Enable Logging");
-        loggingEnabledCheckbox.setValue(finalAdminSettingsEntity.isLoggingEnabled());
+        final Span auditAlwaysOnNote = new Span(
+                "Audit logging is always on and cannot be disabled. Every security-relevant action is "
+                        + "recorded to the audit log; review and export it from the Audit Log tab.");
 
         final Checkbox diffuseCountsEnabledCheckbox = new Checkbox("Record PII count statistics for differential-privacy reporting");
         diffuseCountsEnabledCheckbox.setValue(finalAdminSettingsEntity.isDiffuseCountsEnabled());
@@ -446,19 +547,31 @@ public class AdminView extends AbstractRestrictedView {
             confirmDialog.open();
         });
 
+        // Multi-factor authentication: when enabled, users can enroll a TOTP authenticator from the MFA
+        // tab of My Account, and enrolled users are prompted for a code at login.
+        final Checkbox mfaEnabledCheckbox = new Checkbox("Enable multi-factor authentication (TOTP) for dashboard logins");
+        mfaEnabledCheckbox.setValue(finalAdminSettingsEntity.isMfaEnabled());
+
+        final Span mfaNote = new Span(
+                "When enabled, MFA is offered to users but not required: each user can optionally enroll an "
+                        + "authenticator app from the MFA tab of My Account, and only enrolled users are prompted "
+                        + "for a code at login. Existing enrollments are unaffected if this is later turned off. To "
+                        + "reset a user who has lost their authenticator, use Disable MFA on the Users tab.");
+
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
-            adminSettingsDataService.saveLoggingEnabled(loggingEnabledCheckbox.getValue());
             adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
             adminSettingsDataService.savePhieldSettings(phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
                     phieldSourceIdField.getValue(), phieldOrganizationField.getValue());
             adminSettingsDataService.saveSigningEnabled(signingEnabledCheckbox.getValue());
+            adminSettingsDataService.saveMfaEnabled(mfaEnabledCheckbox.getValue());
             showSuccessNotification("Admin settings saved.");
         });
         saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        adminSettingsVerticalLayout.add(loggingEnabledCheckbox, diffuseCountsEnabledCheckbox,
+        adminSettingsVerticalLayout.add(auditAlwaysOnNote, diffuseCountsEnabledCheckbox,
                 phieldEnabledCheckbox, phieldUrlField, phieldSourceIdField, phieldOrganizationField,
                 new H3("Output Signing"), signingEnabledCheckbox, fingerprintField, regenerateKeyButton,
+                new H3("Multi-Factor Authentication"), mfaEnabledCheckbox, mfaNote,
                 saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();
@@ -541,8 +654,10 @@ public class AdminView extends AbstractRestrictedView {
 
             // The service validates the window and converts the dates (server time zone, 'to' day
             // included in full); this UI check just mirrors it to enable/disable the download.
-            downloadAnchor.setHref(new StreamResource("philter-audit-log.csv",
-                    () -> new ByteArrayInputStream(auditLogService.exportCsv(from, to))));
+            downloadAnchor.setHref(DownloadHandler.fromInputStream(downloadEvent -> {
+                final byte[] csv = auditLogService.exportCsv(from, to);
+                return new DownloadResponse(new ByteArrayInputStream(csv), "philter-audit-log.csv", "text/csv", csv.length);
+            }));
         };
 
         fromPicker.addValueChangeListener(e -> refresh.run());
@@ -552,6 +667,30 @@ public class AdminView extends AbstractRestrictedView {
         layout.add(dateRow, error, downloadAnchor);
         return layout;
 
+    }
+
+    /**
+     * Generates a random password that satisfies the requirements: {@link #GENERATED_PASSWORD_LENGTH}
+     * characters with at least one lowercase letter, uppercase letter, digit, and symbol.
+     */
+    private static String generateRandomPassword() {
+        final String all = PW_LOWER + PW_UPPER + PW_DIGITS + PW_SYMBOLS;
+        final List<Character> chars = new ArrayList<>(GENERATED_PASSWORD_LENGTH);
+        // Guarantee at least one character from each class.
+        chars.add(PW_LOWER.charAt(SECURE_RANDOM.nextInt(PW_LOWER.length())));
+        chars.add(PW_UPPER.charAt(SECURE_RANDOM.nextInt(PW_UPPER.length())));
+        chars.add(PW_DIGITS.charAt(SECURE_RANDOM.nextInt(PW_DIGITS.length())));
+        chars.add(PW_SYMBOLS.charAt(SECURE_RANDOM.nextInt(PW_SYMBOLS.length())));
+        while (chars.size() < GENERATED_PASSWORD_LENGTH) {
+            chars.add(all.charAt(SECURE_RANDOM.nextInt(all.length())));
+        }
+        // Shuffle so the guaranteed characters are not always in the same leading positions.
+        Collections.shuffle(chars, SECURE_RANDOM);
+        final StringBuilder sb = new StringBuilder(chars.size());
+        for (final char c : chars) {
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
 }

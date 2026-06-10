@@ -94,14 +94,14 @@ class AbstractApiControllerTest {
 
     @Test
     void unknownOwnerResolvesToNull() {
-        when(userService.findByEmail("ghost@example.com")).thenReturn(null);
+        when(userService.findByUsername("ghost@example.com")).thenReturn(null);
         assertNull(controller.resolveTargetUserId(userService, callerId, "ghost@example.com"));
     }
 
     @Test
     void nonAdminNamingAnotherOwnerResolvesToNull() {
         final ObjectId otherId = new ObjectId();
-        when(userService.findByEmail("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
+        when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "caller@example.com", "user"));
 
         assertNull(controller.resolveTargetUserId(userService, callerId, "other@example.com"));
@@ -110,7 +110,7 @@ class AbstractApiControllerTest {
     @Test
     void adminNamingAnotherOwnerResolvesToThatOwner() {
         final ObjectId otherId = new ObjectId();
-        when(userService.findByEmail("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
+        when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "admin@example.com", "admin"));
 
         assertEquals(otherId, controller.resolveTargetUserId(userService, callerId, "other@example.com"));
@@ -121,7 +121,7 @@ class AbstractApiControllerTest {
         // With cross-user access disabled, even an admin naming another user is denied (resolves to null).
         controller.crossUserAccessEnabled = false;
         final ObjectId otherId = new ObjectId();
-        when(userService.findByEmail("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
+        when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "admin@example.com", "admin"));
 
         assertNull(controller.resolveTargetUserId(userService, callerId, "other@example.com"));
@@ -132,14 +132,14 @@ class AbstractApiControllerTest {
         // The kill switch only blocks reaching OTHER users; own resources remain accessible.
         controller.crossUserAccessEnabled = false;
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, null));
-        when(userService.findByEmail("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "admin"));
+        when(userService.findByUsername("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "admin"));
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, "caller@example.com"));
     }
 
     @Test
     void nonAdminNamingThemselvesResolvesToOwnId() {
         // Naming your own email is allowed without admin rights.
-        when(userService.findByEmail("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "user"));
+        when(userService.findByUsername("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "user"));
 
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, "caller@example.com"));
     }

@@ -22,6 +22,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.config.AdminAccessConfig;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -34,6 +35,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
@@ -42,6 +44,10 @@ import jakarta.annotation.security.PermitAll;
 
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.bson.types.ObjectId;
 
 @Route(value = "holds")
 @PageTitle("Philter - Legal Holds")
@@ -53,6 +59,7 @@ public class HoldsView extends AbstractRestrictedView {
     private final LegalHoldDataService legalHoldDataService;
     private final UserEntity currentUser;
     private final Grid<LegalHoldEntity> grid = new Grid<>(LegalHoldEntity.class, false);
+    private Grid<AllHoldRow> allGrid;
 
     public HoldsView(final MongoClient mongoClient,
                      final EncryptionService encryptionService,
@@ -83,22 +90,27 @@ public class HoldsView extends AbstractRestrictedView {
         setHoldButton.addClickListener(e -> openSetHoldDialog());
 
         final HorizontalLayout toolbar = new HorizontalLayout(setHoldButton);
-        toolbar.setWidthFull();
 
         final Span description = new Span(
                 "Legal holds block deletion and purge of governance evidence until released. "
-                        + "Every hold and release is audited. "
-                        + (isAdmin()
-                        ? "As an admin you can see all holds across all users."
-                        : "Holds shown here protect your own evidence."));
+                        + "Every hold and release is audited. Holds shown here protect your own evidence. ");
+        description.add(ai.philterd.philter.views.widgets.CommonWidgets.getLink("Learn more about legal holds.", "/public/docs/redaction/legal_holds.html", true));
 
         final VerticalLayout layout = new VerticalLayout();
         layout.setSizeFull();
-        layout.add(description, toolbar, grid);
+        layout.add(description, grid);
+
+        final TabSheet tabSheet = new TabSheet();
+        tabSheet.add("My Legal Holds", layout);
+        if (isAdmin() && AdminAccessConfig.isCrossUserAccessEnabled()) {
+            tabSheet.add("All Legal Holds", buildAllHoldsLayout());
+        }
+        tabSheet.setSizeFull();
+        tabSheet.setSuffixComponent(toolbar);
 
         final VerticalLayout page = new VerticalLayout();
         page.add(getTitle("Legal Holds"));
-        page.add(layout);
+        page.add(tabSheet);
         page.add(ai.philterd.philter.views.widgets.CommonWidgets.getFooter());
         page.setSizeFull();
 
@@ -108,17 +120,52 @@ public class HoldsView extends AbstractRestrictedView {
     }
 
     private List<LegalHoldEntity> fetchHolds(final int offset, final int limit) {
-        if (isAdmin()) {
-            return legalHoldDataService.findAll(offset, limit);
-        }
         return legalHoldDataService.findAllByUserId(currentUser.getId(), offset, limit);
     }
 
     private int countHolds() {
-        if (isAdmin()) {
-            return legalHoldDataService.countAll();
-        }
         return legalHoldDataService.countByUserId(currentUser.getId());
+    }
+
+    private void refreshGrids() {
+        grid.getDataProvider().refreshAll();
+        if (allGrid != null) {
+            allGrid.getDataProvider().refreshAll();
+        }
+    }
+
+    /** Builds the admin-only "All Legal Holds" tab: every user's holds, with the owner's email. */
+    private VerticalLayout buildAllHoldsLayout() {
+        final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+
+        allGrid = new Grid<>();
+        allGrid.addColumn(r -> r.hold().getReference()).setHeader("Reference").setAutoWidth(true).setResizable(true);
+        allGrid.addColumn(AllHoldRow::ownerEmail).setHeader("User").setAutoWidth(true).setResizable(true);
+        allGrid.addColumn(r -> r.hold().getScopeType()).setHeader("Scope Type").setAutoWidth(true);
+        allGrid.addColumn(r -> r.hold().getScopeValue()).setHeader("Scope Value").setAutoWidth(true).setResizable(true);
+        allGrid.addColumn(r -> r.hold().getReason()).setHeader("Reason").setFlexGrow(1).setResizable(true);
+        allGrid.addColumn(r -> r.hold().getSetAt() != null ? dateFormat.format(r.hold().getSetAt()) : "")
+                .setHeader("Set At").setAutoWidth(true);
+        allGrid.addComponentColumn(r -> createReleaseButton(r.hold()))
+                .setHeader("").setAutoWidth(true).setFlexGrow(0);
+
+        allGrid.setPageSize(PAGE_SIZE);
+        allGrid.setItems(
+                query -> {
+                    final List<LegalHoldEntity> holds = legalHoldDataService.findAll(query.getOffset(), query.getLimit());
+                    final Map<ObjectId, String> emails = userService.findUsernamesByIds(
+                            holds.stream().map(LegalHoldEntity::getUserId).collect(Collectors.toSet()));
+                    return holds.stream().map(h -> new AllHoldRow(h, emails.getOrDefault(h.getUserId(), "(unknown)")));
+                },
+                query -> legalHoldDataService.countAll());
+
+        final Span description = new Span(
+                "All legal holds across all users. Every hold and release is audited.");
+
+        final VerticalLayout layout = new VerticalLayout();
+        layout.setSizeFull();
+        layout.add(description, allGrid);
+        return layout;
     }
 
     private Button createReleaseButton(final LegalHoldEntity hold) {
@@ -142,7 +189,7 @@ public class HoldsView extends AbstractRestrictedView {
                     hold.getUserId());
             dialog.close();
             if (response.isSuccessful()) {
-                grid.getDataProvider().refreshAll();
+                refreshGrids();
                 showSuccessNotification("Hold \"" + hold.getReference() + "\" released.");
             } else {
                 showFailureNotification(response.getMessage());
@@ -192,6 +239,8 @@ public class HoldsView extends AbstractRestrictedView {
         dialog.setMinWidth("520px");
         dialog.add(new H3("Set Legal Hold"));
         dialog.add(new Paragraph("A hold blocks all deletion and purge of the covered evidence until released."));
+        dialog.add(ai.philterd.philter.views.widgets.CommonWidgets.getLink(
+                "Learn more about legal holds.", "/public/docs/redaction/legal_holds.html", true));
         dialog.add(referenceField, scopeTypeCombo, scopeValueField, reasonField);
 
         final Button setBtn = new Button("Set Hold", e -> {
@@ -222,7 +271,7 @@ public class HoldsView extends AbstractRestrictedView {
 
             dialog.close();
             if (response.isSuccessful()) {
-                grid.getDataProvider().refreshAll();
+                refreshGrids();
                 showSuccessNotification("Hold \"" + referenceField.getValue().trim() + "\" set.");
             } else if (response.getStatusCode() == 409) {
                 showWarningNotification("A hold with that reference already exists.");
@@ -238,4 +287,7 @@ public class HoldsView extends AbstractRestrictedView {
         dialog.getFooter().add(cancelBtn, setBtn);
         dialog.open();
     }
+
+    /** A row in the "All Legal Holds" table: the hold plus the owner's email. */
+    private record AllHoldRow(LegalHoldEntity hold, String ownerEmail) {}
 }

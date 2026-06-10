@@ -81,14 +81,14 @@ class UserServiceTest {
     }
 
     @Test
-    void findByEmail() {
+    void findByUsername() {
         String email = "test@example.com";
         Document doc = new Document("_id", new ObjectId()).append("email", email);
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
 
-        UserEntity user = userService.findByEmail(email);
+        UserEntity user = userService.findByUsername(email);
 
         assertNotNull(user);
         assertEquals(email, user.getEmail());
@@ -302,20 +302,20 @@ class UserServiceTest {
     }
 
     @Test
-    void findByEmailExcludesDeactivatedUsers() {
+    void findByUsernameExcludesDeactivatedUsers() {
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         final ArgumentCaptor<Bson> filterCaptor = ArgumentCaptor.forClass(Bson.class);
         when(mongoCollection.find(filterCaptor.capture())).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
 
-        userService.findByEmail("gone@example.com");
+        userService.findByUsername("gone@example.com");
 
         // The query must constrain on both the email and the deactivated flag so a deactivated user is
         // never returned (and therefore cannot sign in or be targeted via the owner parameter).
         final org.bson.BsonDocument filter = filterCaptor.getValue()
                 .toBsonDocument(Document.class, com.mongodb.MongoClientSettings.getDefaultCodecRegistry());
-        assertTrue(filter.containsKey("$and"), "findByEmail must combine the email and deactivated constraints");
-        assertTrue(filter.toJson().contains("deactivated"), "findByEmail must filter out deactivated users");
+        assertTrue(filter.containsKey("$and"), "findByUsername must combine the email and deactivated constraints");
+        assertTrue(filter.toJson().contains("deactivated"), "findByUsername must filter out deactivated users");
     }
 
     @Test

@@ -159,7 +159,11 @@ public class RedactionService {
     }
 
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, null);
+        return filter(policyName, userId, contextName, body, mimeType, null, null);
+    }
+
+    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final String filename) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, null, filename);
     }
 
     /**
@@ -168,7 +172,7 @@ public class RedactionService {
      * (used by deferred/async redaction so the version in force at request time governs the job);
      * otherwise the user's current policy named {@code policyName} is resolved and used.
      */
-    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy) throws Exception {
+    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -420,7 +424,7 @@ public class RedactionService {
                 ledgerEntity.setDocumentHash(incrementalRedaction.getHash());
                 ledgerEntity.setPreviousHash(ledgerService.getLatestTransaction(userEntity.getId(), documentId).getHash());
                 ledgerEntity.setTimestamp(new Date());
-                ledgerEntity.setFilename("none-provided");
+                ledgerEntity.setFilename(filename == null || filename.isBlank() ? "none-provided" : filename);
                 ledgerEntity.setType(incrementalRedaction.getSpan().getFilterType().getType());
                 // Stamp the governing policy version onto the entry as tamper-evident provenance.
                 ledgerEntity.setPolicyName(appliedPolicy.name());

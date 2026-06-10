@@ -57,11 +57,12 @@ public class DataInitializer {
     public void init() throws IOException {
 
         // Check for the admin user.
-        if (userService.findByEmail("admin") == null) {
+        if (userService.findByUsername("admin") == null) {
 
             LOGGER.info("Creating default admin user");
-            // Seed with the default password but require it to be changed on first login.
-            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", "admin", policyDataService, contextDataService, Source.SYSTEM.getSource(), true);
+            // Seed with the default password but require it to be changed on first login. The admin has
+            // no email address by default (username "admin", null email).
+            userService.createUser(RequestIdGenerator.generate(), "admin", null, "admin", "admin", policyDataService, contextDataService, Source.SYSTEM.getSource(), true);
 
 
         }

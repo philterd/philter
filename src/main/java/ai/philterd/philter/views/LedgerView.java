@@ -22,7 +22,6 @@ import ai.philterd.philter.api.responses.LedgerExport;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.LedgerDataService;
-import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -41,11 +40,11 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
-import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
 import jakarta.annotation.security.PermitAll;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,7 +59,7 @@ import java.util.stream.Collectors;
 import org.bson.types.ObjectId;
 
 @Route(value = "ledger")
-@PageTitle("Philter - Redaction Ledger")
+@PageTitle("Philter - Redaction Ledgers")
 @PermitAll
 public class LedgerView extends AbstractRestrictedView {
 
@@ -90,7 +89,6 @@ public class LedgerView extends AbstractRestrictedView {
         grid.setSizeFull();
 
         grid.addComponentColumn(this::createViewButton).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(this::createDeleteButton).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
 
         // Lazy paging: fetch one page (offset/limit) at a time plus the total count, honoring the
         // current search term.
@@ -99,7 +97,8 @@ public class LedgerView extends AbstractRestrictedView {
                 query -> fetchMyLedger(query.getOffset(), query.getLimit()).stream(),
                 query -> countMyLedger());
 
-        // Search by document id or filename. Updating the term re-runs the lazy query.
+        // Search by document id or filename. The Search button (and the field's clear button / Enter)
+        // re-runs the lazy query with the current term.
         final TextField searchField = new TextField();
         searchField.setPlaceholder("Search by document id or filename");
         searchField.setClearButtonVisible(true);
@@ -109,36 +108,35 @@ public class LedgerView extends AbstractRestrictedView {
             grid.getDataProvider().refreshAll();
         });
 
-        // Manual purge: the ledger is kept indefinitely by default, so this is how stale entries are pruned.
-        final Button purgeButton = new Button("Purge old entries", VaadinIcon.TRASH.create());
-        purgeButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        purgeButton.setTooltipText("Delete ledger entries older than a number of days.");
-        purgeButton.addClickListener(e -> openPurgeDialog());
+        final Button searchButton = new Button("Search", VaadinIcon.SEARCH.create());
+        searchButton.addClickListener(e -> {
+            searchTerm = searchField.getValue();
+            grid.getDataProvider().refreshAll();
+        });
 
-        final HorizontalLayout controls = new HorizontalLayout(searchField, purgeButton);
-        controls.setWidthFull();
-        controls.setAlignItems(HorizontalLayout.Alignment.END);
-        controls.expand(searchField);
+        final HorizontalLayout searchRow = new HorizontalLayout(searchField, searchButton);
+        searchRow.setAlignItems(HorizontalLayout.Alignment.END);
 
         final Span label = new Span("The redaction ledger is a tamper-evident, hash-chained record of redactions made in "
-                + "contexts that have the ledger enabled. Entries are kept indefinitely unless you purge them.");
+                + "contexts that have the ledger enabled. Entries are kept indefinitely by default. ");
+        label.add(CommonWidgets.getLink("Learn more about the redaction ledger.", "/public/docs/redaction/ledgers.html", true));
 
         final VerticalLayout ledgerLayout = new VerticalLayout();
         ledgerLayout.setSizeFull();
-        ledgerLayout.add(label, controls, grid);
+        ledgerLayout.add(label, searchRow, grid);
 
         final TabSheet tabSheet = new TabSheet();
-        tabSheet.add("My Ledger", ledgerLayout);
+        tabSheet.add("My Ledgers", ledgerLayout);
 
         // Admins get an additional read-only view of every user's ledger chains.
         if (isAdmin() && AdminAccessConfig.isCrossUserAccessEnabled()) {
-            tabSheet.add("All Ledger", buildAllLedgerLayout());
+            tabSheet.add("All Ledgers", buildAllLedgerLayout());
         }
 
         tabSheet.setSizeFull();
 
         final VerticalLayout div = new VerticalLayout();
-        div.add(getTitle("Redaction Ledger"));
+        div.add(getTitle("Redaction Ledgers"));
         div.add(tabSheet);
         div.add(CommonWidgets.getFooter());
         div.setSizeFull();
@@ -223,7 +221,7 @@ public class LedgerView extends AbstractRestrictedView {
     }
 
     /** Builds a downloadable JSON export ({@link LedgerExport}) of a document's chain. */
-    private StreamResource exportResource(final String documentId, final List<LedgerEntity> chain) {
+    private DownloadHandler exportResource(final String documentId, final List<LedgerEntity> chain) {
         final List<LedgerEntryView> entries = new ArrayList<>(chain.size());
         for (final LedgerEntity entry : chain) {
             entries.add(new LedgerEntryView(entry.getDocumentId(), entry.getFilename(), entry.getType(),
@@ -232,80 +230,12 @@ public class LedgerView extends AbstractRestrictedView {
                     entry.getPolicyName(), entry.getPolicyVersion(), entry.getPolicyContentHash()));
         }
         final byte[] json = GSON.toJson(new LedgerExport(documentId, entries)).getBytes(StandardCharsets.UTF_8);
-        return new StreamResource("ledger-" + documentId + "-export.json", () -> new ByteArrayInputStream(json));
+        return DownloadHandler.fromInputStream(downloadEvent ->
+                new DownloadResponse(new ByteArrayInputStream(json), "ledger-" + documentId + "-export.json",
+                        "application/json", json.length));
     }
 
-    private Button createDeleteButton(final LedgerEntity chainHead) {
-        final Button deleteButton = new Button(VaadinIcon.TRASH.create());
-        deleteButton.setTooltipText("Delete this document's ledger chain.");
-        deleteButton.addClickListener(e -> {
 
-            final Dialog confirmDialog = new Dialog();
-            confirmDialog.add(new H3("Confirm Deletion"));
-            confirmDialog.add(new Paragraph("Delete the ledger chain for document " + chainHead.getDocumentId()
-                    + "? This permanently removes its entries and cannot be undone."));
-
-            final Button confirmButton = new Button("Delete", ev -> {
-                final ServiceResponse resp = ledgerService.deleteByDocumentId(
-                        RequestIdGenerator.generate(), currentUser.getId(),
-                        chainHead.getDocumentId(), Source.WEBUI.getSource());
-                confirmDialog.close();
-                if (resp.isSuccessful()) {
-                    grid.getDataProvider().refreshAll();
-                    showSuccessNotification("Ledger chain deleted.");
-                } else {
-                    showFailureNotification(resp.getMessage());
-                }
-            });
-            confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
-
-            final Button cancelButton = new Button("Cancel", ev -> confirmDialog.close());
-
-            confirmDialog.getFooter().add(cancelButton, confirmButton);
-            confirmDialog.open();
-        });
-        return deleteButton;
-    }
-
-    private void openPurgeDialog() {
-
-        final IntegerField daysField = new IntegerField("Delete entries older than (days)");
-        daysField.setMin(0);
-        daysField.setValue(90);
-        daysField.setStepButtonsVisible(true);
-        daysField.setWidthFull();
-
-        final Dialog dialog = new Dialog();
-        dialog.setWidth("420px");
-        dialog.add(new H3("Purge Old Ledger Entries"));
-        dialog.add(new Paragraph("Permanently delete your ledger entries older than the given number of days. "
-                + "This cannot be undone."));
-        dialog.add(daysField);
-
-        final Button confirmButton = new Button("Purge", e -> {
-            final Integer days = daysField.getValue();
-            if (days == null || days < 0) {
-                daysField.setInvalid(true);
-                daysField.setErrorMessage("Enter zero or more days.");
-                return;
-            }
-            final ServiceResponse purgeResp = ledgerService.deleteChainsByUserIdAndOlderThan(
-                    RequestIdGenerator.generate(), currentUser.getId(), days);
-            dialog.close();
-            if (purgeResp.isSuccessful()) {
-                grid.getDataProvider().refreshAll();
-                showSuccessNotification(purgeResp.getMessage());
-            } else {
-                showFailureNotification(purgeResp.getMessage());
-            }
-        });
-        confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
-
-        final Button cancelButton = new Button("Cancel", e -> dialog.close());
-
-        dialog.getFooter().add(cancelButton, confirmButton);
-        dialog.open();
-    }
 
     /** Builds the admin-only "All Ledger" tab: every user's chains with the owner's email, paged. */
     private VerticalLayout buildAllLedgerLayout() {
@@ -322,7 +252,7 @@ public class LedgerView extends AbstractRestrictedView {
         allGrid.setItems(
                 query -> {
                     final List<LedgerEntity> page = ledgerService.findAllChainHeadsAcrossUsers(query.getOffset(), query.getLimit());
-                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                    final Map<ObjectId, String> ownerEmails = userService.findUsernamesByIds(
                             page.stream().map(LedgerEntity::getUserId).collect(Collectors.toSet()));
                     return page.stream().map(head -> toAllLedgerRow(head, ownerEmails));
                 },

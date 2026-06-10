@@ -21,24 +21,24 @@ import org.bson.types.ObjectId;
 public class AdminSettingsEntity extends AbstractEntity {
 
     private ObjectId id;
-    private boolean loggingEnabled;
     private boolean diffuseCountsEnabled;
     private boolean phieldEnabled;
     private String phieldUrl = "";
     private String phieldSourceId = "philter";
     private String phieldOrganization = "philter";
     private boolean signingEnabled;
+    private boolean mfaEnabled;
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
         adminSettingsEntity.setId(document.getObjectId("_id"));
-        adminSettingsEntity.setLoggingEnabled(document.getBoolean("logging_enabled", false));
         adminSettingsEntity.setDiffuseCountsEnabled(document.getBoolean("diffuse_counts_enabled", false));
         adminSettingsEntity.setPhieldEnabled(document.getBoolean("phield_enabled", false));
         adminSettingsEntity.setPhieldUrl(document.getString("phield_url") != null ? document.getString("phield_url") : "");
         adminSettingsEntity.setPhieldSourceId(document.getString("phield_source_id") != null ? document.getString("phield_source_id") : "philter");
         adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
         adminSettingsEntity.setSigningEnabled(document.getBoolean("signing_enabled", false));
+        adminSettingsEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
         return adminSettingsEntity;
     }
 
@@ -48,13 +48,13 @@ public class AdminSettingsEntity extends AbstractEntity {
         if (id != null) {
             document.put("_id", id);
         }
-        document.put("logging_enabled", loggingEnabled);
         document.put("diffuse_counts_enabled", diffuseCountsEnabled);
         document.put("phield_enabled", phieldEnabled);
         document.put("phield_url", phieldUrl);
         document.put("phield_source_id", phieldSourceId);
         document.put("phield_organization", phieldOrganization);
         document.put("signing_enabled", signingEnabled);
+        document.put("mfa_enabled", mfaEnabled);
         return document;
     }
 
@@ -65,14 +65,6 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setId(ObjectId id) {
         this.id = id;
-    }
-
-    public boolean isLoggingEnabled() {
-        return loggingEnabled;
-    }
-
-    public void setLoggingEnabled(boolean loggingEnabled) {
-        this.loggingEnabled = loggingEnabled;
     }
 
     public boolean isDiffuseCountsEnabled() {
@@ -121,6 +113,14 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setSigningEnabled(boolean signingEnabled) {
         this.signingEnabled = signingEnabled;
+    }
+
+    public boolean isMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
     }
 
 }

@@ -75,7 +75,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 
 
 @Configuration
-@Theme(value="philter", variant=Lumo.LIGHT)
+@Theme("philter")
 // Vaadin 25 loads all Lumo modules automatically except the utility classes, which must be
 // requested explicitly. AbstractRestrictedView uses LumoUtility CSS classes, so load the
 // utility stylesheet here (replaces the removed "utility" entry in theme.json's lumoImports).
@@ -217,7 +217,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public RedactListsDataService redactListsService() {
-        return new RedactListsDataService(mongoClient(), auditEventPublisher());
+        return new RedactListsDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
@@ -293,7 +293,7 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public UserDetailsService userDetailsService(final UserService userService, final LoginAttemptCache loginAttemptCache) {
         return email -> {
-            final UserEntity user = userService.findByEmail(email);
+            final UserEntity user = userService.findByUsername(email);
             if (user == null) {
                 throw new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email);
             }
@@ -301,7 +301,7 @@ public class PhilterApplication implements AppShellConfigurator {
             // Spring Security rejects the attempt with a LockedException before checking the password.
             final boolean locked = loginAttemptCache.isLocked(email);
             return org.springframework.security.core.userdetails.User
-                    .withUsername(user.getEmail())
+                    .withUsername(user.getUsername())
                     .password(user.getPassword())
                     .roles(user.getRole() != null ? user.getRole().toUpperCase() : "USER")
                     .accountLocked(locked)

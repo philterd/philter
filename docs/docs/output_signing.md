@@ -2,7 +2,7 @@
 
 Philter can digitally sign the redacted text it returns so consumers can cryptographically verify that a response came from a specific Philter deployment, is bound to the exact policy that governed it, and has not been tampered with in transit.
 
-Signing is **disabled by default** and opt-in via the Admin settings page. When enabled, every successful `POST /api/filter` (text) and `POST /api/explain` response carries a compact ES256 JWT in the `X-Philter-Signature` response header.
+Signing is **disabled by default** and opt-in via the Admin settings page. When enabled, every successful `POST /api/filter` (text) and `POST /api/explain` response carries a compact ES256 JWT in the `X-Philter-Signature` response header. PDF (binary) `POST /api/filter` responses are **not yet signed**; see [Which responses are signed?](#which-responses-are-signed) below.
 
 ## How It Works
 
@@ -185,4 +185,4 @@ See [Auditing](auditing.md) for the full audit log reference.
 
 - [Settings](settings.md) — `PHILTER_SIGNING_KEY_PATH` environment variable.
 - [Auditing](auditing.md) — audit events for signing key lifecycle.
-- [Filtering API](api_and_sdks/api/filtering_api.md) — `X-Philter-Signature` and `X-Philter-Policy-*` response headers.
+- [Redaction API](api_and_sdks/api/filtering_api.md) — `X-Philter-Signature` and `X-Philter-Policy-*` response headers.

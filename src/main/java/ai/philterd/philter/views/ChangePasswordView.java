@@ -20,6 +20,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -47,7 +48,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @PermitAll
 public class ChangePasswordView extends VerticalLayout implements BeforeEnterObserver {
 
-    private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final int MIN_PASSWORD_LENGTH = 16;
 
     private final UserService userService;
 
@@ -62,6 +63,8 @@ public class ChangePasswordView extends VerticalLayout implements BeforeEnterObs
         final PasswordField newPassword = new PasswordField("New Password");
         newPassword.setWidth("300px");
         newPassword.setRequired(true);
+        newPassword.setHelperText("At least " + MIN_PASSWORD_LENGTH + " characters. Use a mix of upper and lowercase "
+                + "letters, numbers, and symbols, or a passphrase of 5 to 7 unrelated words.");
 
         final PasswordField confirmPassword = new PasswordField("Confirm New Password");
         confirmPassword.setWidth("300px");
@@ -112,7 +115,9 @@ public class ChangePasswordView extends VerticalLayout implements BeforeEnterObs
 
         add(new H2("Set a New Password"),
                 new Paragraph("You must set a new password before continuing."),
-                newPassword, confirmPassword, submit);
+                newPassword, confirmPassword, submit,
+                CommonWidgets.getLink("Password requirements",
+                        "/public/docs/login_security.html#password-requirements", true));
 
     }
 
@@ -138,7 +143,7 @@ public class ChangePasswordView extends VerticalLayout implements BeforeEnterObs
         if (authentication == null || authentication.getName() == null) {
             return null;
         }
-        return userService.findByEmail(authentication.getName());
+        return userService.findByUsername(authentication.getName());
     }
 
 }

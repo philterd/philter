@@ -53,35 +53,41 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
         this.passwordEncoder = new BCryptPasswordEncoder();
 
-        // Users are looked up by email at login.
-        ensureIndex(Indexes.ascending("email"));
+        // Users are looked up by username at login.
+        ensureIndex(Indexes.ascending("username"));
+
+        // Migrate legacy accounts: before the username field existed, the login id was stored under
+        // "email". Copy it into "username" for any document that lacks one so those accounts can still
+        // be found by username (and can log in).
+        collection.updateMany(Filters.exists("username", false),
+                List.of(new Document("$set", new Document("username", "$email"))));
     }
 
     /**
-     * Looks up an <strong>active</strong> (not deactivated) user by email. Deactivated users are
+     * Looks up an <strong>active</strong> (not deactivated) user by username. Deactivated users are
      * excluded so they cannot sign in and cannot be targeted via the cross-user {@code owner}
-     * parameter. Use {@link #findOneById(ObjectId)} or {@link #findEmailsByIds(Collection)} to resolve
-     * a deactivated user for audit and ledger display, and {@link #findAnyByEmail(String)} to detect an
-     * email that is already taken (including by a deactivated account).
+     * parameter. Use {@link #findOneById(ObjectId)} or {@link #findUsernamesByIds(Collection)} to resolve
+     * a deactivated user for audit and ledger display, and {@link #findAnyByUsername(String)} to detect a
+     * username that is already taken (including by a deactivated account).
      */
-    public UserEntity findByEmail(final String email) {
+    public UserEntity findByUsername(final String username) {
         final Document document = collection.find(
-                Filters.and(Filters.eq("email", email), Filters.ne("deactivated", true))).first();
+                Filters.and(Filters.eq("username", username), Filters.ne("deactivated", true))).first();
         if (document != null) {
-            return UserEntity.fromDocument(document);
+            return UserEntity.fromDocument(document, encryptionService);
         }
         return null;
     }
 
     /**
-     * Looks up a user by email regardless of deactivation state. Used when creating an account to
-     * reject an email that already belongs to any user, active or deactivated: a deactivated account
-     * keeps its email reserved so it can be reactivated rather than duplicated.
+     * Looks up a user by username regardless of deactivation state. Used when creating an account to
+     * reject a username that already belongs to any user, active or deactivated: a deactivated account
+     * keeps its username reserved so it can be reactivated rather than duplicated.
      */
-    public UserEntity findAnyByEmail(final String email) {
-        final Document document = collection.find(Filters.eq("email", email)).first();
+    public UserEntity findAnyByUsername(final String username) {
+        final Document document = collection.find(Filters.eq("username", username)).first();
         if (document != null) {
-            return UserEntity.fromDocument(document);
+            return UserEntity.fromDocument(document, encryptionService);
         }
         return null;
     }
@@ -110,7 +116,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         if(document != null) {
 
-            return UserEntity.fromDocument(document);
+            return UserEntity.fromDocument(document, encryptionService);
 
         } else {
 
@@ -121,43 +127,53 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     /**
-     * Resolves several user ids to their email addresses in a single query, returning a map of id to
-     * email. Used by the admin "All ..." views to label each row with its owner without issuing one
+     * Resolves several user ids to their usernames in a single query, returning a map of id to
+     * username. Used by the admin "All ..." views to label each row with its owner without issuing one
      * lookup per row. Ids with no matching user are simply absent from the returned map.
      */
-    public Map<ObjectId, String> findEmailsByIds(final Collection<ObjectId> ids) {
+    public Map<ObjectId, String> findUsernamesByIds(final Collection<ObjectId> ids) {
 
         if (ids == null || ids.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        final Map<ObjectId, String> emailsById = new HashMap<>();
+        final Map<ObjectId, String> usernamesById = new HashMap<>();
         for (final Document document : collection.find(Filters.in("_id", ids))) {
-            final UserEntity user = UserEntity.fromDocument(document);
-            emailsById.put(user.getId(), user.getEmail());
+            final UserEntity user = UserEntity.fromDocument(document, encryptionService);
+            usernamesById.put(user.getId(), user.getUsername());
         }
 
-        return emailsById;
+        return usernamesById;
 
     }
 
-    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source) {
-        return createUser(requestId, email, plainPassword, role, policyService, contextService, source, false);
+    // Backward-compatible overloads without the optional email (email defaults to null).
+    public ServiceResponse createUser(final String requestId, final String username, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source) {
+        return createUser(requestId, username, null, plainPassword, role, policyService, contextService, source, false);
     }
 
-    public ServiceResponse createUser(final String requestId, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
+    public ServiceResponse createUser(final String requestId, final String username, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
+        return createUser(requestId, username, null, plainPassword, role, policyService, contextService, source, passwordChangeRequired);
+    }
 
-        final UserEntity existing = findAnyByEmail(email);
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source) {
+        return createUser(requestId, username, email, plainPassword, role, policyService, contextService, source, false);
+    }
+
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
+
+        final UserEntity existing = findAnyByUsername(username);
         if(existing != null) {
-            // An email belonging to a deactivated account stays reserved: reactivate it rather than
-            // creating a duplicate user with the same email.
+            // A username belonging to a deactivated account stays reserved: reactivate it rather than
+            // creating a duplicate user with the same username.
             if (existing.isDeactivated()) {
-                return ServiceResponse.failure("A deactivated user already exists with that email. Reactivate that user instead.");
+                return ServiceResponse.failure("A deactivated user already exists with that username. Reactivate that user instead.");
             }
             return ServiceResponse.failure("User already exists.");
         }
 
         final UserEntity userEntity = new UserEntity();
+        userEntity.setUsername(username);
         userEntity.setEmail(email);
         userEntity.setPassword(passwordEncoder.encode(plainPassword));
         userEntity.setRole(role);
@@ -221,12 +237,12 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final FindIterable<Document> documents = (includeDeactivated
                 ? collection.find()
                 : collection.find(Filters.ne("deactivated", true)))
-                .sort(Sorts.ascending("email")).skip(offset).limit(limit);
+                .sort(Sorts.ascending("username")).skip(offset).limit(limit);
 
         final List<UserEntity> userEntities = new ArrayList<>();
 
         for (final Document document : documents) {
-            userEntities.add(UserEntity.fromDocument(document));
+            userEntities.add(UserEntity.fromDocument(document, encryptionService));
         }
 
         return userEntities;
@@ -350,6 +366,36 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         update(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_REACTIVATED, userEntity.getId(), userEntity.getId(), source, null);
+
+    }
+
+    /**
+     * Enables multi-factor authentication for a user by storing the verified TOTP secret and marking the
+     * account enrolled. Called from the MFA enrollment flow only after the user has proven they can
+     * generate a valid code from the secret.
+     */
+    public void enableMfa(final String requestId, final UserEntity userEntity, final String secret, final String source) {
+
+        userEntity.setMfaSecret(secret);
+        userEntity.setMfaEnabled(true);
+        update(userEntity);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_ENABLED, userEntity.getId(), userEntity.getId(), source, "MFA enabled via authenticator enrollment");
+
+    }
+
+    /**
+     * Disables multi-factor authentication for a user and clears the enrolled secret. This is both the
+     * admin reset path for a user who has lost their authenticator and the user's own opt-out: in either
+     * case the user can enroll again from scratch. No-op (but still safe to call) when no MFA is enrolled.
+     */
+    public void disableMfa(final String requestId, final UserEntity userEntity, final String source) {
+
+        userEntity.setMfaEnabled(false);
+        userEntity.setMfaSecret(null);
+        update(userEntity);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_DISABLED, userEntity.getId(), userEntity.getId(), source, "MFA disabled and enrolled secret cleared");
 
     }
 

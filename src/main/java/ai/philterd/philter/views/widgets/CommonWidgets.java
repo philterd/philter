@@ -91,6 +91,14 @@ public class CommonWidgets {
         mistakesSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
         footer.add(mistakesSpan);
 
+        final Anchor licenseLink = new Anchor("https://philterd.ai/philter-license-agreement/", "License");
+        licenseLink.setTarget("_blank");
+
+        final Span licenseSpan = new Span(licenseLink);
+        licenseSpan.getStyle().set("font-size", "var(--lumo-font-size-s)");
+        licenseSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        footer.add(licenseSpan);
+
         return footer;
 
     }

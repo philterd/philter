@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -61,7 +62,7 @@ class RedactListsDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("redact_lists")).thenReturn(mongoCollection);
-        redactListsDataService = new RedactListsDataService(mongoClient, auditEventPublisher);
+        redactListsDataService = new RedactListsDataService(mongoClient, new TestEncryptionService(), auditEventPublisher);
     }
 
     @Test

@@ -84,6 +84,7 @@ public class ExplainApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "filename", required = false) String filename,
             @RequestBody String body) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -94,17 +95,18 @@ public class ExplainApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN, filename);
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
         // Serialize the full filter result (filteredText, context, explanation, ...) to preserve the
         // 3.4.0 /api/explain response shape. Returning only the Explanation in 4.0.0 broke clients
         // (for example PhilterScope) that read filteredText and the nested explanation. The applied
-        // policy name and version are added as top-level fields so callers see which policy governed
-        // the request without a second call.
+        // policy name, version, and content hash are added as top-level fields so callers see which
+        // policy governed the request, and can verify the exact policy content, without a second call.
         final JsonObject json = gson.toJsonTree(textFilterResult).getAsJsonObject();
         json.addProperty("policyName", outcome.appliedPolicy().name());
         json.addProperty("policyVersion", outcome.appliedPolicy().version());
+        json.addProperty("policyContentHash", outcome.appliedPolicy().contentHash());
 
         final String documentId = UUID.randomUUID().toString();
         final String responseBody = gson.toJson(json);

@@ -295,6 +295,8 @@ public class CustomListsView extends AbstractRestrictedView {
 
         final VerticalLayout contextsVerticalLayout = new VerticalLayout();
         contextsVerticalLayout.setSizeFull();
+        label.add(" ");
+        label.add(CommonWidgets.getLink("Learn more about custom lists.", "/public/docs/redaction/custom_lists.html", true));
         contextsVerticalLayout.add(label);
         contextsVerticalLayout.add(grid);
 
@@ -344,7 +346,7 @@ public class CustomListsView extends AbstractRestrictedView {
         grid.setItems(
                 query -> {
                     final List<CustomListEntity> page = customListService.findAllAcrossUsers(query.getOffset(), query.getLimit());
-                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                    final Map<ObjectId, String> ownerEmails = userService.findUsernamesByIds(
                             page.stream().map(CustomListEntity::getUserId).collect(Collectors.toSet()));
                     return page.stream().map(list -> toAllCustomListRow(list, ownerEmails));
                 },

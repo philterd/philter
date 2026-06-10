@@ -24,6 +24,12 @@ When you run more than one Philter instance behind a load balancer, the instance
 
 Pointing every instance at the same [Valkey](https://valkey.io/) (or Redis) server gives a durable, shared cache that resolves all three problems.
 
+### Horizontal scaling: the API, not the dashboard
+
+Only the API scales horizontally. API requests (`/api/**`) are stateless: each one is authenticated from its own API key and depends on no server-side session, so any instance can serve any request and you can run as many instances as you need behind a plain load balancer. The shared cache above is what keeps those instances consistent.
+
+The Vaadin dashboard (the web UI) is session-based. Its server-side session cannot be serialized to Valkey/Redis and is not shared between instances, so the dashboard does not scale across instances and runs as a single instance. This is not a bottleneck in practice: the dashboard is a low-traffic admin console, while the redaction workload that needs to scale goes through the stateless API. The dashboard's inactivity timeout is described in [Login Security](login_security.md).
+
 ### Configuration
 
 Set the following environment variables on each Philter instance. When `CACHE_HOSTNAME` is unset or blank, Philter falls back to the in-memory cache.

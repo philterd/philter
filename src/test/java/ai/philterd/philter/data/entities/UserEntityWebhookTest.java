@@ -40,14 +40,14 @@ class UserEntityWebhookTest {
         assertEquals("https://example.com/hook", doc.getString("webhook_url"));
         assertEquals("the-secret-value", doc.getString("webhook_secret"));
 
-        final UserEntity restored = UserEntity.fromDocument(doc);
+        final UserEntity restored = UserEntity.fromDocument(doc, Mockito.mock(EncryptionService.class));
         assertEquals("https://example.com/hook", restored.getWebhookUrl());
         assertEquals("the-secret-value", restored.getWebhookSecret());
     }
 
     @Test
     void webhookFieldsNullByDefault() {
-        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"));
+        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
         assertNull(restored.getWebhookUrl());
         assertNull(restored.getWebhookSecret());
     }
@@ -64,14 +64,14 @@ class UserEntityWebhookTest {
         assertTrue(doc.getBoolean("deactivated"));
         assertEquals(deactivatedAt, doc.getDate("deactivated_at"));
 
-        final UserEntity restored = UserEntity.fromDocument(doc);
+        final UserEntity restored = UserEntity.fromDocument(doc, Mockito.mock(EncryptionService.class));
         assertTrue(restored.isDeactivated());
         assertEquals(deactivatedAt, restored.getDeactivatedAt());
     }
 
     @Test
     void deactivatedFalseByDefault() {
-        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"));
+        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
         assertFalse(restored.isDeactivated());
         assertNull(restored.getDeactivatedAt());
     }

@@ -2,7 +2,7 @@
 
 The Redaction Ledger API lets you list, view, verify, export, and delete the [redaction ledger](../../redaction/ledgers.md) chains recorded for your account. A ledger chain is the tamper-evident, hash-linked record of the redactions made to a single document (in a [context](../../redaction/contexts.md) that has the ledger enabled).
 
-By default every endpoint is scoped to the user that owns the API key — a regular user only ever sees and acts on their own ledger. An **admin** may act on another user's ledger by passing that user's email as the `owner` query parameter (supported on every endpoint below). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found` — the endpoints never reveal the existence of a user or ledger you are not allowed to access. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
+By default every endpoint is scoped to the user that owns the API key — a regular user only ever sees and acts on their own ledger. An **admin** may act on another user's ledger by passing that user's username as the `owner` query parameter (supported on every endpoint below). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found` — the endpoints never reveal the existence of a user or ledger you are not allowed to access. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
 
 Authenticate with a Bearer token as with the rest of the API:
 
@@ -21,7 +21,7 @@ Returns the most recent chains first. Each item is the chain's genesis entry, wh
 ### Query Parameters
 
 * `q` - Optional. Filter to chains whose document id or filename contains this value.
-* `owner` - Optional. Admin only. The email of the user whose ledger to list. Defaults to the caller.
+* `owner` - Optional. Admin only. The username of the user whose ledger to list. Defaults to the caller.
 * `offset` - Optional. Number of chains to skip (default `0`). Ignored when `q` is supplied.
 * `limit` - Optional. Maximum chains to return (default `25`, max `100`). Ignored when `q` is supplied.
 
@@ -98,35 +98,4 @@ The export body has the shape:
 
 > **Security:** unlike a context export (token hashes only), a ledger export contains the **decrypted token and replacement** values. Treat it as sensitive and store and transmit it securely.
 
-## Delete a document's ledger chain
-
-| Method   | Endpoint                   | Description                              |
-|----------|----------------------------|------------------------------------------|
-| `DELETE` | `/api/ledger/{documentId}` | Permanently delete a document's chain.    |
-
-Removes every entry for the document. Returns `200 OK`.
-
-```bash
-curl -X DELETE -k -H "Authorization: Bearer <token>" \
-  "https://localhost:8080/api/ledger/7a906866-4fc9-44d6-9bc3-22728b93a602"
-```
-
-## Purge old ledger entries
-
-| Method   | Endpoint      | Description                                         |
-|----------|---------------|----------------------------------------------------|
-| `DELETE` | `/api/ledger` | Delete your chains older than a number of days.     |
-
-The ledger is kept indefinitely by default (see [How and When Ledger Entries Are Deleted](../../redaction/ledgers.md#how-and-when-ledger-entries-are-deleted)); this endpoint is how you prune stale entries on demand.
-
-### Query Parameters
-
-* `older_than_days` (required) - Delete chains whose entries are older than this many days. Must be zero or greater (`0` deletes everything).
-* `owner` - Optional. Admin only. The email of the user whose entries to purge. Defaults to the caller.
-
-Returns `200 OK` with the number of entries deleted, or `400 Bad Request` if `older_than_days` is negative.
-
-```bash
-curl -X DELETE -k -H "Authorization: Bearer <token>" \
-  "https://localhost:8080/api/ledger?older_than_days=90"
-```
+> **Note:** the ledger is append-only over the API. There is no API endpoint to delete or purge ledger entries; the ledger is governance evidence and is not deletable through the API.

@@ -16,15 +16,18 @@
 package ai.philterd.philter.views;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
+import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.mfa.TotpService;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
@@ -32,6 +35,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -52,7 +56,7 @@ import java.security.SecureRandom;
 @PermitAll
 public class AccountView extends AbstractRestrictedView {
 
-    private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final int MIN_PASSWORD_LENGTH = 16;
 
     private static final String SECRET_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final int GENERATED_SECRET_LENGTH = 48;
@@ -62,13 +66,23 @@ public class AccountView extends AbstractRestrictedView {
     private final UserEntity accountUser;
 
     public AccountView(final MongoClient mongoClient, final EncryptionService encryptionService,
-                       final AuditEventPublisher auditEventPublisher, final ApiKeyDataService apiKeyService) {
+                       final AuditEventPublisher auditEventPublisher, final ApiKeyDataService apiKeyService,
+                       final AdminSettingsDataService adminSettingsDataService, final TotpService totpService) {
         super(mongoClient, encryptionService, auditEventPublisher);
 
         this.accountUser = getCurrentUser();
 
+        final AdminSettingsEntity adminSettings = adminSettingsDataService.findAdminSettings();
+        final boolean mfaFeatureEnabled = adminSettings != null && adminSettings.isMfaEnabled();
+
         final TabSheet tabSheet = new TabSheet();
         tabSheet.add("Account", buildAccountSection());
+        // The MFA tab is shown when the feature is enabled for the instance, or whenever this user is
+        // already enrolled (so an enrolled user can always disable it, even if an admin later turns the
+        // feature off).
+        if (mfaFeatureEnabled || (accountUser != null && accountUser.isMfaEnabled())) {
+            tabSheet.add("MFA", buildMfaSection(mfaFeatureEnabled, totpService));
+        }
         tabSheet.add("API Keys", buildApiKeysSection(apiKeyService));
         tabSheet.add("Webhook", buildWebhookSection());
         tabSheet.setSizeFull();
@@ -87,8 +101,13 @@ public class AccountView extends AbstractRestrictedView {
 
     }
 
-    /** The Account tab: the user's email and a change-password form. */
+    /** The Account tab: the user's username and email, and a change-password form. */
     private VerticalLayout buildAccountSection() {
+
+        final TextField usernameField = new TextField("Username");
+        usernameField.setValue(accountUser != null && accountUser.getUsername() != null ? accountUser.getUsername() : "");
+        usernameField.setReadOnly(true);
+        usernameField.setWidth("480px");
 
         final TextField emailField = new TextField("Email Address");
         emailField.setValue(accountUser != null && accountUser.getEmail() != null ? accountUser.getEmail() : "");
@@ -97,11 +116,24 @@ public class AccountView extends AbstractRestrictedView {
 
         final PasswordField newPassword = new PasswordField("New Password");
         newPassword.setWidth("480px");
+        newPassword.setHelperText("At least " + MIN_PASSWORD_LENGTH + " characters. Use a mix of upper and lowercase "
+                + "letters, numbers, and symbols, or a passphrase of 5 to 7 unrelated words.");
 
         final PasswordField confirmPassword = new PasswordField("Confirm New Password");
         confirmPassword.setWidth("480px");
 
-        final Button changePasswordButton = new Button("Change Password", e -> {
+        // The change-password controls live in a modal dialog opened by a button below.
+        final Dialog changePasswordDialog = new Dialog();
+        changePasswordDialog.setHeaderTitle("Change Password");
+
+        final VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.setPadding(false);
+        dialogLayout.add(newPassword, confirmPassword);
+        dialogLayout.add(CommonWidgets.getLink("Password requirements",
+                "/public/docs/login_security.html#password-requirements", true));
+        changePasswordDialog.add(dialogLayout);
+
+        final Button submitPasswordButton = new Button("Change Password", e -> {
 
             final String password = newPassword.getValue();
             final String confirm = confirmPassword.getValue();
@@ -128,21 +160,138 @@ public class AccountView extends AbstractRestrictedView {
             if (response.isSuccessful()) {
                 newPassword.clear();
                 confirmPassword.clear();
+                changePasswordDialog.close();
                 showSuccessNotification("Password changed.");
             } else {
                 showFailureNotification(response.getMessage());
             }
 
         });
-        changePasswordButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        submitPasswordButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        final Button cancelPasswordButton = new Button("Cancel", e -> changePasswordDialog.close());
+        changePasswordDialog.getFooter().add(cancelPasswordButton, submitPasswordButton);
+
+        final Button openChangePasswordButton = new Button("Change Password", e -> {
+            newPassword.clear();
+            confirmPassword.clear();
+            newPassword.setInvalid(false);
+            confirmPassword.setInvalid(false);
+            changePasswordDialog.open();
+        });
+        openChangePasswordButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         final VerticalLayout layout = new VerticalLayout();
         layout.setSizeFull();
+        layout.add(usernameField);
         layout.add(emailField);
-        layout.add(new H3("Change Password"));
-        layout.add(newPassword, confirmPassword, changePasswordButton);
+        layout.add(openChangePasswordButton);
         return layout;
 
+    }
+
+    /**
+     * The MFA tab: enroll a TOTP authenticator (QR code plus a setup key, confirmed by entering a code),
+     * or disable MFA if already enrolled. The contents are rebuilt in place after enrolling or disabling
+     * so the tab reflects the new state without a page reload.
+     */
+    private VerticalLayout buildMfaSection(final boolean mfaFeatureEnabled, final TotpService totpService) {
+        final VerticalLayout container = new VerticalLayout();
+        container.setSizeFull();
+        renderMfaSection(container, mfaFeatureEnabled, totpService);
+        return container;
+    }
+
+    private void renderMfaSection(final VerticalLayout container, final boolean mfaFeatureEnabled, final TotpService totpService) {
+
+        container.removeAll();
+
+        if (accountUser == null) {
+            container.add(new Span("Unable to load your account."));
+            return;
+        }
+
+        // Already enrolled: show status and a self-service disable.
+        if (accountUser.isMfaEnabled()) {
+
+            container.add(new Span("Multi-factor authentication is enabled on your account. You are asked for "
+                    + "a code from your authenticator app each time you sign in."));
+
+            final Button disableButton = new Button("Disable MFA", e -> {
+                final Dialog confirmDialog = new Dialog();
+                confirmDialog.add(new H3("Disable MFA"));
+                confirmDialog.add(new Paragraph("Disable multi-factor authentication? You will sign in with just "
+                        + "your password until you enroll again."));
+
+                final Button confirmButton = new Button("Disable MFA", ev -> {
+                    userService.disableMfa(RequestIdGenerator.generate(), accountUser, Source.WEBUI.getSource());
+                    confirmDialog.close();
+                    showSuccessNotification("MFA disabled.");
+                    renderMfaSection(container, mfaFeatureEnabled, totpService);
+                });
+                confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+                final Button cancelButton = new Button("Cancel", ev -> confirmDialog.close());
+                confirmDialog.getFooter().add(cancelButton, confirmButton);
+                confirmDialog.open();
+            });
+            disableButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            container.add(disableButton);
+            return;
+        }
+
+        // Not enrolled and the feature is off for this instance: nothing to enroll into.
+        if (!mfaFeatureEnabled) {
+            container.add(new Span("Multi-factor authentication is not currently enabled for this Philter "
+                    + "instance. Contact an administrator to enable it."));
+            return;
+        }
+
+        // Enrollment flow. A fresh secret is generated each time this section renders; it is finalized
+        // only when the user proves possession by entering a valid code below.
+        final String secret = totpService.generateSecret();
+        final String otpauthUri = totpService.otpauthUri(accountUser.getUsername(), secret);
+
+        container.add(new Span("Protect your account with a time-based one-time password (TOTP). Scan the QR "
+                + "code with an authenticator app (Google Authenticator, Authy, 1Password, and similar), then "
+                + "enter a code from the app to confirm and enable MFA."));
+
+        final Image qrImage = new Image(totpService.qrCodeDataUri(otpauthUri), "MFA enrollment QR code");
+        qrImage.setWidth("240px");
+        qrImage.setHeight("240px");
+
+        final TextField setupKeyField = new TextField("Setup key (if you cannot scan the QR code)");
+        setupKeyField.setValue(secret);
+        setupKeyField.setReadOnly(true);
+        setupKeyField.setWidth("480px");
+
+        final TextField codeField = new TextField("Authentication code");
+        codeField.setPlaceholder("123456");
+        codeField.setWidth("240px");
+
+        final Button verifyButton = new Button("Verify and enable", e -> {
+
+            final String code = codeField.getValue();
+
+            if (code == null || code.isBlank()) {
+                codeField.setInvalid(true);
+                codeField.setErrorMessage("Enter the 6-digit code from your authenticator app.");
+                return;
+            }
+
+            if (!totpService.verifyCode(secret, code)) {
+                codeField.setInvalid(true);
+                codeField.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
+                return;
+            }
+
+            userService.enableMfa(RequestIdGenerator.generate(), accountUser, secret, Source.WEBUI.getSource());
+            showSuccessNotification("Multi-factor authentication enabled.");
+            renderMfaSection(container, mfaFeatureEnabled, totpService);
+        });
+        verifyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        container.add(qrImage, setupKeyField, codeField, verifyButton);
     }
 
     /** The API Keys tab: list, create, and delete the user's API keys. */

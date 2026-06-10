@@ -66,9 +66,10 @@ public class FilterApiController extends AbstractApiController {
 
     private static final Logger LOGGER = LogManager.getLogger(FilterApiController.class);
 
-    /** Response headers reporting the applied policy name, version, and document ID on every text /api/filter response. */
+    /** Response headers reporting the applied policy name, version, content hash, and document ID on every text /api/filter response. */
     public static final String POLICY_NAME_HEADER = "X-Philter-Policy-Name";
     public static final String POLICY_VERSION_HEADER = "X-Philter-Policy-Version";
+    public static final String POLICY_HASH_HEADER = "X-Philter-Policy-Hash";
     public static final String DOCUMENT_ID_HEADER = "X-Document-Id";
 
     private final RedactionService redactionService;
@@ -111,6 +112,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as ZIP. async={}", async);
@@ -124,10 +126,10 @@ public class FilterApiController extends AbstractApiController {
         final ObjectId userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context);
+            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context, filename);
         }
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename);
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -152,6 +154,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as PDF. async={}", async);
@@ -165,10 +168,10 @@ public class FilterApiController extends AbstractApiController {
         final ObjectId userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context);
+            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context, filename);
         }
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename);
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -196,6 +199,7 @@ public class FilterApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "filename", required = false) String filename,
             @RequestBody String body) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -206,7 +210,7 @@ public class FilterApiController extends AbstractApiController {
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN, filename);
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
         final String documentId = UUID.randomUUID().toString();
@@ -227,13 +231,15 @@ public class FilterApiController extends AbstractApiController {
     }
 
     private ResponseEntity<byte[]> enqueueBinary(final ObjectId userId, final byte[] body, final MimeType inputMimeType,
-                                                 final String outputMimeType, final String policyName, final String contextName) {
+                                                 final String outputMimeType, final String policyName, final String contextName,
+                                                 final String filename) {
 
         final String documentId = UUID.randomUUID().toString();
 
         final PendingDocumentEntity entity = new PendingDocumentEntity();
         entity.setUserId(userId);
         entity.setDocumentId(documentId);
+        entity.setFileName(filename);
         entity.setInputMimeType(inputMimeType.name());
         entity.setOutputMimeType(outputMimeType);
         entity.setPolicyName(policyName);
@@ -246,12 +252,13 @@ public class FilterApiController extends AbstractApiController {
         // governed by the version the caller submitted against rather than whatever is current when the
         // worker later runs. We retain a snapshot of that content so the worker can redact with it.
         int policyVersion = -1;
+        String policyContentHash = null;
         final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
         if (policyEntity != null) {
             policyVersion = policyEntity.getRevision();
-            final String contentHash = policyVersionDataService.snapshot(policyEntity);
+            policyContentHash = policyVersionDataService.snapshot(policyEntity);
             entity.setPolicyVersion(policyVersion);
-            entity.setPolicyContentHash(contentHash);
+            entity.setPolicyContentHash(policyContentHash);
         }
 
         pendingDocumentDataService.save(entity);
@@ -271,15 +278,21 @@ public class FilterApiController extends AbstractApiController {
         if (policyVersion >= 0) {
             builder.header(POLICY_VERSION_HEADER, Integer.toString(policyVersion));
         }
+        if (policyContentHash != null) {
+            builder.header(POLICY_HASH_HEADER, policyContentHash);
+        }
         return builder.body(json.getBytes(StandardCharsets.UTF_8));
 
     }
 
-    /** Builds the response headers that report the applied policy name and version. */
+    /** Builds the response headers that report the applied policy name, version, and content hash. */
     private static HttpHeaders policyHeaders(final AppliedPolicy appliedPolicy) {
         final HttpHeaders headers = new HttpHeaders();
         headers.add(POLICY_NAME_HEADER, appliedPolicy.name());
         headers.add(POLICY_VERSION_HEADER, Integer.toString(appliedPolicy.version()));
+        if (appliedPolicy.contentHash() != null) {
+            headers.add(POLICY_HASH_HEADER, appliedPolicy.contentHash());
+        }
         return headers;
     }
 

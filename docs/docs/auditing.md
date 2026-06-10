@@ -2,6 +2,8 @@
 
 Philter records security-relevant actions to an audit log so you can review who did what, and when. The audit log is written to MongoDB and is intended to support security review, compliance, and incident investigation.
 
+Audit logging is **always on**: there is no setting to enable or disable it.
+
 ## Where audit events are stored
 
 Audit events are written to the `audit_events` collection in Philter's MongoDB database (see [Database](database.md)). Each event is a document with the following fields:

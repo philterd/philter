@@ -116,7 +116,8 @@ public class RedactionWorker {
                     job.getContextName(),
                     job.getInput(),
                     inputMimeType,
-                    pinnedPolicy
+                    pinnedPolicy,
+                    job.getFileName()
             ).result();
 
             final byte[] output;

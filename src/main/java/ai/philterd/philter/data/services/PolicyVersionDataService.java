@@ -19,6 +19,11 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -32,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -50,6 +56,9 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PolicyVersionDataService.class);
 
+    /** Serializes canonicalized policy JSON compactly for hashing. */
+    private static final Gson CANONICAL_GSON = new Gson();
+
     public PolicyVersionDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "policy_versions", auditEventPublisher);
 
@@ -64,13 +73,53 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
      * Computes the content hash (SHA-256) of a policy's JSON. This is the fingerprint stamped onto
      * ledger entries and used to resolve the retained snapshot.
      *
-     * @return the hex SHA-256 of the policy JSON, or {@code null} if the JSON is null/blank.
+     * <p>The JSON is canonicalized before hashing (object keys sorted recursively, insignificant
+     * whitespace removed) so that two otherwise-identical policies that differ only in key order or
+     * formatting produce the same fingerprint. If the input cannot be parsed as JSON it is hashed
+     * as-is, so a malformed policy still yields a stable hash.
+     *
+     * @return the hex SHA-256 of the canonicalized policy JSON, or {@code null} if the JSON is null/blank.
      */
     public static String contentHash(final String policyJson) {
         if (policyJson == null || policyJson.isBlank()) {
             return null;
         }
-        return EncryptionService.hashSha256(policyJson);
+        return EncryptionService.hashSha256(canonicalizeJson(policyJson));
+    }
+
+    /**
+     * Canonicalizes a JSON string: object keys are sorted recursively and the result is serialized
+     * compactly. Array order is preserved (it is significant). Falls back to the original string if it
+     * cannot be parsed as JSON.
+     */
+    static String canonicalizeJson(final String json) {
+        try {
+            return CANONICAL_GSON.toJson(canonicalize(JsonParser.parseString(json)));
+        } catch (final RuntimeException e) {
+            return json;
+        }
+    }
+
+    private static JsonElement canonicalize(final JsonElement element) {
+        if (element.isJsonObject()) {
+            final JsonObject source = element.getAsJsonObject();
+            final JsonObject sorted = new JsonObject();
+            final List<String> keys = new ArrayList<>(source.keySet());
+            Collections.sort(keys);
+            for (final String key : keys) {
+                sorted.add(key, canonicalize(source.get(key)));
+            }
+            return sorted;
+        }
+        if (element.isJsonArray()) {
+            final JsonArray source = element.getAsJsonArray();
+            final JsonArray result = new JsonArray();
+            for (final JsonElement child : source) {
+                result.add(canonicalize(child));
+            }
+            return result;
+        }
+        return element;
     }
 
     /**

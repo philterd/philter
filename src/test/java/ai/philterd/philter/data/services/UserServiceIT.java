@@ -77,7 +77,7 @@ class UserServiceIT extends AbstractMongoIT {
         contextDataService = new ContextDataService(mongoClient, new ContextCache(null, 0, null, false), audit);
         policyDataService = new PolicyDataService(mongoClient, audit, new Gson(),
                 new PolicyVersionDataService(mongoClient, audit));
-        redactListsDataService = new RedactListsDataService(mongoClient, audit);
+        redactListsDataService = new RedactListsDataService(mongoClient, encryptionService, audit);
     }
 
     @Test
@@ -87,7 +87,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(response.isSuccessful());
 
         // The email round-trips through the real encryption service and the real Mongo query path.
-        final UserEntity byEmail = service.findByEmail("alice@example.com");
+        final UserEntity byEmail = service.findByUsername("alice@example.com");
         assertNotNull(byEmail);
         assertEquals("alice@example.com", byEmail.getEmail());
         assertEquals("user", byEmail.getRole());
@@ -119,7 +119,7 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "admin@example.com", "admin", "admin", policyDataService, contextDataService, "system", true)
                 .isSuccessful());
 
-        final UserEntity user = service.findByEmail("admin@example.com");
+        final UserEntity user = service.findByUsername("admin@example.com");
         assertTrue(user.isPasswordChangeRequired());
     }
 
@@ -128,7 +128,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser(
                 "req", "bob@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
 
-        final ObjectId userId = service.findByEmail("bob@example.com").getId();
+        final ObjectId userId = service.findByUsername("bob@example.com").getId();
 
         // A default policy is seeded for the new user...
         assertEquals(1, policyDataService.count(userId));
@@ -143,7 +143,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser(
                 "req", "fpe@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
 
-        final UserEntity user = service.findByEmail("fpe@example.com");
+        final UserEntity user = service.findByUsername("fpe@example.com");
         assertNotNull(user.getFpeKey());
         assertTrue(user.getFpeKey().matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
     }
@@ -171,7 +171,7 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "carol@example.com", "correct-horse", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
-        final UserEntity user = service.findByEmail("carol@example.com");
+        final UserEntity user = service.findByUsername("carol@example.com");
         assertTrue(service.passwordMatches(user, "correct-horse"));
         assertFalse(service.passwordMatches(user, "wrong"));
     }
@@ -182,13 +182,13 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "dave@example.com", "old-password", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
-        final UserEntity user = service.findByEmail("dave@example.com");
+        final UserEntity user = service.findByUsername("dave@example.com");
         assertTrue(service.passwordMatches(user, "old-password"));
 
         assertTrue(service.changePassword("req", user, "new-password", "webui").isSuccessful());
 
         // Re-read from Mongo: the persisted hash now matches the new password, not the old one.
-        final UserEntity reread = service.findByEmail("dave@example.com");
+        final UserEntity reread = service.findByUsername("dave@example.com");
         assertTrue(service.passwordMatches(reread, "new-password"));
         assertFalse(service.passwordMatches(reread, "old-password"));
     }
@@ -199,10 +199,10 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "erin@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
-        final UserEntity user = service.findByEmail("erin@example.com");
+        final UserEntity user = service.findByUsername("erin@example.com");
         assertTrue(service.setUserRole("req", user, "admin", "webui").isSuccessful());
 
-        assertEquals("admin", service.findByEmail("erin@example.com").getRole());
+        assertEquals("admin", service.findByUsername("erin@example.com").getRole());
     }
 
     @Test
@@ -211,7 +211,7 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "frank@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
-        final UserEntity user = service.findByEmail("frank@example.com");
+        final UserEntity user = service.findByUsername("frank@example.com");
         // The new user starts with an auto-created "default" context plus one we add here.
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
         assertEquals(2, contextDataService.findAll(user.getId()).size());
@@ -219,7 +219,7 @@ class UserServiceIT extends AbstractMongoIT {
         service.deactivateUser("req", user, "webui");
 
         // A deactivated user cannot sign in or be looked up by email...
-        assertNull(service.findByEmail("frank@example.com"));
+        assertNull(service.findByUsername("frank@example.com"));
         // ...but the record is retained, marked deactivated, so audit and ledger references resolve.
         final UserEntity retained = service.findOneById(user.getId());
         assertNotNull(retained);
@@ -242,7 +242,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser(
                 "req", "evidence@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
-        final UserEntity user = service.findByEmail("evidence@example.com");
+        final UserEntity user = service.findByUsername("evidence@example.com");
         final ObjectId userId = user.getId();
 
         // The user owns a policy (the default seeded at creation) ...
@@ -278,16 +278,16 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser(
                 "req", "henry@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
-        final UserEntity user = service.findByEmail("henry@example.com");
+        final UserEntity user = service.findByUsername("henry@example.com");
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
 
         service.deactivateUser("req", user, "webui");
-        assertNull(service.findByEmail("henry@example.com"));
+        assertNull(service.findByUsername("henry@example.com"));
 
         service.reactivateUser("req", user, "webui");
 
         // Sign-in resolves again and the account is active.
-        final UserEntity reactivated = service.findByEmail("henry@example.com");
+        final UserEntity reactivated = service.findByUsername("henry@example.com");
         assertNotNull(reactivated);
         assertFalse(reactivated.isDeactivated());
         assertNull(reactivated.getDeactivatedAt());
@@ -302,7 +302,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser(
                 "req", "reuse@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
-        final UserEntity first = service.findByEmail("reuse@example.com");
+        final UserEntity first = service.findByUsername("reuse@example.com");
 
         service.deactivateUser("req", first, "webui");
 
@@ -324,7 +324,7 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "grace@example.com", "pw", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
-        final UserEntity user = service.findByEmail("grace@example.com");
+        final UserEntity user = service.findByUsername("grace@example.com");
 
         // The user has global always-redact / never-redact terms (which can hold sensitive values).
         redactListsDataService.saveOrUpdate("req", user.getId(), List.of("ssn", "secret"), List.of("public"), "webui");
@@ -338,15 +338,15 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void findEmailsByIdsResolvesManyUsersInOneCall() {
+    void findUsernamesByIdsResolvesManyUsersInOneCall() {
         assertTrue(service.createUser("req", "h@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
         assertTrue(service.createUser("req", "i@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
 
-        final ObjectId h = service.findByEmail("h@example.com").getId();
-        final ObjectId i = service.findByEmail("i@example.com").getId();
+        final ObjectId h = service.findByUsername("h@example.com").getId();
+        final ObjectId i = service.findByUsername("i@example.com").getId();
         final ObjectId missing = new ObjectId();
 
-        final var emails = service.findEmailsByIds(List.of(h, i, missing));
+        final var emails = service.findUsernamesByIds(List.of(h, i, missing));
 
         assertEquals("h@example.com", emails.get(h));
         assertEquals("i@example.com", emails.get(i));
@@ -356,8 +356,8 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void findEmailsByIdsReturnsEmptyForEmptyInput() {
-        assertTrue(service.findEmailsByIds(List.of()).isEmpty());
+    void findUsernamesByIdsReturnsEmptyForEmptyInput() {
+        assertTrue(service.findUsernamesByIds(List.of()).isEmpty());
     }
 
     @Test
@@ -380,8 +380,8 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void findByEmailAndFindOneByIdReturnNullWhenAbsent() {
-        assertNull(service.findByEmail("missing@example.com"));
+    void findByUsernameAndFindOneByIdReturnNullWhenAbsent() {
+        assertNull(service.findByUsername("missing@example.com"));
         assertNull(service.findOneById(new ObjectId()));
     }
 

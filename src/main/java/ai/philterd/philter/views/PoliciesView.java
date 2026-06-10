@@ -102,7 +102,6 @@ public class PoliciesView extends AbstractRestrictedView {
         policyGrid.addComponentColumn(policy -> {
 
             final Button editPolicyButton = new Button("Edit", VaadinIcon.EDIT.create());
-            editPolicyButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
             editPolicyButton.addClickListener(event -> {
 
                 // Pretty-print the stored policy JSON for editing.
@@ -224,7 +223,6 @@ public class PoliciesView extends AbstractRestrictedView {
         policyGrid.addComponentColumn(policy -> {
 
             final Button duplicatePolicyButton = new Button("Duplicate", VaadinIcon.COPY.create());
-            duplicatePolicyButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
             duplicatePolicyButton.addClickListener(event -> {
 
                 final TextField policyNameTextField = new TextField();
@@ -277,7 +275,7 @@ public class PoliciesView extends AbstractRestrictedView {
         policyGrid.addComponentColumn(policy -> {
 
             final Button deletePolicyButton = new Button("Delete", VaadinIcon.TRASH.create());
-            deletePolicyButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
+            deletePolicyButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
             deletePolicyButton.addClickListener(event -> {
 
                 final ServiceResponse serviceResponse = policyService.deleteByName("", policy.getName(), userEntity.getId(), Source.WEBUI);
@@ -298,7 +296,7 @@ public class PoliciesView extends AbstractRestrictedView {
         policyGrid.addComponentColumn(policy -> {
 
             final Button historyButton = new Button("History", VaadinIcon.CLOCK.create());
-            historyButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_CONTRAST);
+            historyButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
             historyButton.addClickListener(event ->
                     openVersionHistoryDialog(policy, policyService, policyVersionDataService,
                             userEntity, policiesDataProvider));
@@ -418,7 +416,9 @@ public class PoliciesView extends AbstractRestrictedView {
         });
 
         final VerticalLayout policiesVerticalLayout = new VerticalLayout();
-        policiesVerticalLayout.add(newPolicyButton);
+        final Span policyLabel = new Span("A redaction policy defines which types of sensitive information Philter detects and how each is redacted. ");
+        policyLabel.add(CommonWidgets.getLink("Learn more about redaction policies.", "/public/docs/policies/filter_policies.html", true));
+        policiesVerticalLayout.add(policyLabel);
         policiesVerticalLayout.add(policyGrid);
         policiesVerticalLayout.setSizeFull();
 
@@ -435,7 +435,7 @@ public class PoliciesView extends AbstractRestrictedView {
         managedPoliciesGrid.setWidthFull();
 
         managedPoliciesGrid.addComponentColumn(managedPolicyEntity -> {
-            final Button viewPolicyButton = new Button("View Policy", VaadinIcon.OPEN_BOOK.create());
+            final Button viewPolicyButton = new Button("View Policy", VaadinIcon.FILE_TEXT.create());
             viewPolicyButton.setTooltipText("View Policy");
             viewPolicyButton.addClickListener(event ->
                     openPolicyJsonDialog(managedPolicyEntity.getName(), managedPolicyEntity.getPolicy()));
@@ -519,6 +519,10 @@ public class PoliciesView extends AbstractRestrictedView {
 
         tabSheet.setSizeFull();
 
+        final HorizontalLayout suffixHorizontalLayout = new HorizontalLayout();
+        suffixHorizontalLayout.add(newPolicyButton);
+        tabSheet.setSuffixComponent(suffixHorizontalLayout);
+
         final VerticalLayout pageVerticalLayout = new VerticalLayout();
         pageVerticalLayout.add(getTitle(("Redaction Policies")));
         pageVerticalLayout.add(tabSheet);
@@ -551,7 +555,7 @@ public class PoliciesView extends AbstractRestrictedView {
 
         // A View Policy button identical to the one on the "Managed Policies" tab.
         grid.addComponentColumn(row -> {
-            final Button viewPolicyButton = new Button("View Policy", VaadinIcon.OPEN_BOOK.create());
+            final Button viewPolicyButton = new Button("View Policy", VaadinIcon.FILE_TEXT.create());
             viewPolicyButton.setTooltipText("View Policy");
             viewPolicyButton.addClickListener(event -> openPolicyJsonDialog(row.name(), row.policyJson()));
             return viewPolicyButton;
@@ -565,7 +569,7 @@ public class PoliciesView extends AbstractRestrictedView {
         grid.setItems(
                 query -> {
                     final List<PolicyEntity> page = policyService.findAllAcrossUsers(query.getOffset(), query.getLimit());
-                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                    final Map<ObjectId, String> ownerEmails = userService.findUsernamesByIds(
                             page.stream().map(PolicyEntity::getUserId).filter(Objects::nonNull).collect(Collectors.toSet()));
                     return page.stream().map(policy -> toAllPolicyRow(policy, ownerEmails));
                 },
@@ -684,7 +688,7 @@ public class PoliciesView extends AbstractRestrictedView {
             final Button viewBtn = new Button("View", VaadinIcon.EYE.create());
             viewBtn.addThemeVariants(ButtonVariant.LUMO_SMALL);
             viewBtn.addClickListener(e ->
-                    openPolicyJsonDialog("Revision " + v.getRevision() + " — " + policy.getName(), v.getPolicy()));
+                    openPolicyJsonDialog("Revision " + v.getRevision() + " - " + policy.getName(), v.getPolicy()));
             return viewBtn;
         }).setHeader("View").setAutoWidth(true).setFlexGrow(0);
 
@@ -708,7 +712,7 @@ public class PoliciesView extends AbstractRestrictedView {
         historyDialog.setMaxWidth("900px");
         historyDialog.setMinHeight("700px");
         historyDialog.setMaxHeight("700px");
-        historyDialog.add(new H3("Version History — " + policy.getName()));
+        historyDialog.add(new H3("Version History - " + policy.getName()));
 
         if (versions.isEmpty()) {
             historyDialog.add(new Paragraph("No retained versions found for this policy."));
@@ -822,7 +826,7 @@ public class PoliciesView extends AbstractRestrictedView {
         diffDialog.setMaxWidth("950px");
         diffDialog.setMinHeight("650px");
         diffDialog.setMaxHeight("650px");
-        diffDialog.add(new H3("Compare Revisions — " + policyName));
+        diffDialog.add(new H3("Compare Revisions - " + policyName));
         diffDialog.add(selectionBar);
         diffDialog.add(diffResultLayout);
 

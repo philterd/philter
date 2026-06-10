@@ -117,13 +117,12 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         redactionNav.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
         redactionNav.addItem(new SideNavItem("Always/Never Redact Lists", RedactListsView.class, VaadinIcon.TAGS.create()));
         redactionNav.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.RECORDS.create()));
-        redactionNav.addItem(new SideNavItem("Redaction Ledger", LedgerView.class, VaadinIcon.BOOK.create()));
-        redactionNav.addItem(new SideNavItem("Holds", HoldsView.class, VaadinIcon.LOCK.create()));
+        redactionNav.addItem(new SideNavItem("Redaction Ledgers", LedgerView.class, VaadinIcon.BOOK.create()));
+        redactionNav.addItem(new SideNavItem("Legal Holds", HoldsView.class, VaadinIcon.LOCK.create()));
         addToDrawer(redactionNav);
 
         // Per-user account and integration settings.
         final SideNav accountNav = new SideNav("Account");
-        accountNav.addItem(new SideNavItem("SDKs", SdksView.class, VaadinIcon.CODE.create()));
         accountNav.addItem(new SideNavItem("My Account", AccountView.class, VaadinIcon.USER.create()));
         addToDrawer(accountNav);
 
@@ -149,7 +148,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         final String email = authentication.getName();
 
-        return userService.findByEmail(email);
+        return userService.findByUsername(email);
 
     }
 

@@ -26,7 +26,6 @@ import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -36,6 +35,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Route(value = "redact-lists")
@@ -49,7 +49,7 @@ public class RedactListsView extends AbstractRestrictedView {
 
         final UserEntity userEntity = getCurrentUser();
 
-        // These lists are per-user: the save below and the redaction-time lookup (RedactionService)
+        // These lists are per-user: the saves below and the redaction-time lookup (RedactionService)
         // both key by the owning user's id, so the displayed lists must be scoped to the signed-in
         // user too. Reading with a null id would show whatever orphan (owner-less) document happens
         // to exist rather than this user's own lists.
@@ -67,36 +67,53 @@ public class RedactListsView extends AbstractRestrictedView {
             termsToNeverRedactTextArea.setValue(String.join("\n", redactListsEntity.getTermsToNeverRedact()));
         }
 
-        final Button saveButton = new Button("Save Lists");
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        saveButton.addClickListener(event -> {
+        // --- Always Redact List tab ---
+        final Button saveAlwaysButton = new Button("Save Always Redact List");
+        saveAlwaysButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveAlwaysButton.addClickListener(event -> {
+            // Save only this list; re-read the current never-redact list so saving here does not clobber it.
+            final RedactListsEntity current = redactListsService.find(userEntity.getId());
+            final List<String> neverTerms = current != null ? current.getTermsToNeverRedact() : List.<String>of();
             redactListsService.saveOrUpdate(RequestIdGenerator.generate(), userEntity.getId(),
                     termsToAlwaysRedactTextArea.getValue().lines().collect(Collectors.toList()),
-                    termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()), Source.WEBUI.getSource());
-            showSuccessNotification("Lists saved.");
+                    neverTerms, Source.WEBUI.getSource());
+            showSuccessNotification("Always-redact list saved.");
         });
 
-        final VerticalLayout redactListsVerticalLayout = new VerticalLayout();
+        final Span alwaysDescription = new Span("These terms, one per line, will always be redacted in your account's redactions, regardless of the selected policy. ");
+        alwaysDescription.add(CommonWidgets.getLink("Learn more about redact lists.", "/public/docs/redaction/redact_lists.html", true));
 
-        // Make the scope explicit: these lists apply across all of your own policies and contexts, but
-        // only within your own account — they are never shared with or applied to other users.
-        final Span scopeNote = new Span("These lists apply only to your own account — across all of your "
-                + "redaction policies and contexts. They do not affect any other user's redactions.");
-        scopeNote.getStyle().set("font-weight", "600");
-        redactListsVerticalLayout.add(scopeNote);
+        final VerticalLayout alwaysLayout = new VerticalLayout();
+        alwaysLayout.add(alwaysDescription);
+        alwaysLayout.add(termsToAlwaysRedactTextArea);
+        alwaysLayout.add(saveAlwaysButton);
+        alwaysLayout.setSizeFull();
 
-        redactListsVerticalLayout.add(new H3("Terms to Always Redact"));
-        redactListsVerticalLayout.add(new Span("These terms, one per line, will always be redacted in your account's redactions, regardless of the selected policy."));
-        redactListsVerticalLayout.add(termsToAlwaysRedactTextArea);
-        redactListsVerticalLayout.add(new H3("Terms to Never Redact"));
-        redactListsVerticalLayout.add(new Span("These terms, one per line, will never be redacted in your account's redactions, regardless of the selected policy."));
-        redactListsVerticalLayout.add(termsToNeverRedactTextArea);
-        redactListsVerticalLayout.add(CommonWidgets.getLink("Learn about the options available for fuzzy-matching and other options.", "/public/docs/redaction/redact_lists.html", true));
-        redactListsVerticalLayout.add(saveButton);
-        redactListsVerticalLayout.setSizeFull();
+        // --- Never Redact List tab ---
+        final Button saveNeverButton = new Button("Save Never Redact List");
+        saveNeverButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveNeverButton.addClickListener(event -> {
+            // Save only this list; re-read the current always-redact list so saving here does not clobber it.
+            final RedactListsEntity current = redactListsService.find(userEntity.getId());
+            final List<String> alwaysTerms = current != null ? current.getTermsToAlwaysRedact() : List.<String>of();
+            redactListsService.saveOrUpdate(RequestIdGenerator.generate(), userEntity.getId(),
+                    alwaysTerms,
+                    termsToNeverRedactTextArea.getValue().lines().collect(Collectors.toList()), Source.WEBUI.getSource());
+            showSuccessNotification("Never-redact list saved.");
+        });
+
+        final Span neverDescription = new Span("These terms, one per line, will never be redacted in your account's redactions, regardless of the selected policy. ");
+        neverDescription.add(CommonWidgets.getLink("Learn more about redact lists.", "/public/docs/redaction/redact_lists.html", true));
+
+        final VerticalLayout neverLayout = new VerticalLayout();
+        neverLayout.add(neverDescription);
+        neverLayout.add(termsToNeverRedactTextArea);
+        neverLayout.add(saveNeverButton);
+        neverLayout.setSizeFull();
 
         final TabSheet tabSheet = new TabSheet();
-        tabSheet.add("Always/Never Redact Lists", redactListsVerticalLayout);
+        tabSheet.add("Always Redact List", alwaysLayout);
+        tabSheet.add("Never Redact List", neverLayout);
         tabSheet.setSizeFull();
 
         final VerticalLayout div = new VerticalLayout();

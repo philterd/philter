@@ -73,6 +73,8 @@ public enum AuditLogEvent {
     USER_ROLE_CHANGED("user_role_changed"),
     USER_DEACTIVATED("user_deactivated"),
     USER_REACTIVATED("user_reactivated"),
+    USER_MFA_ENABLED("user_mfa_enabled"),
+    USER_MFA_DISABLED("user_mfa_disabled"),
     // Retained for historical events: users are deactivated rather than deleted.
     USER_DELETED("user_deleted"),
 

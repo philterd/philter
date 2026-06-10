@@ -19,6 +19,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Indexes;
 import org.apache.logging.log4j.LogManager;
@@ -28,7 +29,7 @@ import org.bson.types.ObjectId;
 
 import java.util.List;
 
-public class RedactListsDataService extends AbstractService<RedactListsEntity> {
+public class RedactListsDataService extends AbstractEncryptedService<RedactListsEntity> {
 
     private static final Logger LOGGER = LogManager.getLogger(RedactListsDataService.class);
 
@@ -38,8 +39,8 @@ public class RedactListsDataService extends AbstractService<RedactListsEntity> {
     /** The maximum length, in characters, of a single term. */
     public static final int MAXIMUM_TERM_LENGTH = 100;
 
-    public RedactListsDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "redact_lists", auditEventPublisher);
+    public RedactListsDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
+        super(mongoClient, "redact_lists", encryptionService, auditEventPublisher);
 
         // One redact-lists document per user, always looked up by user_id.
         ensureIndex(Indexes.ascending("user_id"));
@@ -81,7 +82,7 @@ public class RedactListsDataService extends AbstractService<RedactListsEntity> {
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return RedactListsEntity.fromDocument(document);
+            return RedactListsEntity.fromDocument(document, encryptionService);
         } else {
             return null;
         }

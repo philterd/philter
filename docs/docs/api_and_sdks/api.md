@@ -2,7 +2,7 @@
 
 Philter's API has the following sections:
 
-* [Filtering API](api/filtering_api.md) - Submit text or PDFs for redaction. In Philter 4.0, PDF requests are asynchronous by default; the redacted bytes are downloaded via the Documents API.
+* [Redaction API](api/filtering_api.md) - Submit text or PDFs for redaction. In Philter 4.0, PDF requests are asynchronous by default; the redacted bytes are downloaded via the Documents API.
 * [Documents API](api/documents_api.md) - List, poll, download, and delete asynchronous PDF redactions.
 * [Webhooks](api/webhooks.md) - Receive signed HTTP notifications when an asynchronous redaction completes or fails.
 * [Policies API](api/policies_api.md) - Create, modify, and delete [policies](../policies/filter_policies.md). Policies can also be managed in the dashboard.

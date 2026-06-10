@@ -28,7 +28,6 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
-import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
@@ -251,95 +250,5 @@ public class LedgerApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Delete a document's ledger chain.",
-            description = "Permanently deletes every ledger entry for the given document. Admins may delete another "
-                    + "user's chain by passing that user's email as owner.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
-            @ApiResponse(responseCode = "401"),
-            @ApiResponse(responseCode = "404"),
-            @ApiResponse(responseCode = "423", description = "The chain is protected by an active legal hold. Release the hold before deleting.")
-    })
-    @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.DELETE)
-    public ResponseEntity<GenericResponse> deleteChain(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("documentId") String documentId,
-            final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestAttribute("requestId") String requestId,
-            final HttpServletRequest httpServletRequest) {
-
-        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
-        if (apiKeyEntity == null) {
-            throw new UnauthorizedException("Unauthorized.");
-        }
-
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
-        if (userId == null) {
-            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
-        }
-
-        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
-                "delete ledger chain " + documentId);
-
-        final ServiceResponse deleteResponse = ledgerService.deleteByDocumentId(
-                requestId, userId, documentId, getClientIpAddress(httpServletRequest));
-
-        if (!deleteResponse.isSuccessful()) {
-            final HttpStatus status = deleteResponse.getStatusCode() == 423
-                    ? HttpStatus.LOCKED : HttpStatus.BAD_REQUEST;
-            return new ResponseEntity<>(new GenericResponse(deleteResponse.getMessage()), status);
-        }
-
-        return new ResponseEntity<>(new GenericResponse("Ledger chain deleted."), HttpStatus.OK);
-
-    }
-
-    @Operation(summary = "Purge old ledger entries.",
-            description = "Manually deletes ledger entries older than the given number of days. The ledger is kept "
-                    + "indefinitely by default, so this is how stale entries are pruned on demand. Admins may purge "
-                    + "another user's entries by passing that user's email as owner.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
-            @ApiResponse(responseCode = "400"),
-            @ApiResponse(responseCode = "401"),
-            @ApiResponse(responseCode = "404"),
-            @ApiResponse(responseCode = "423", description = "One or more active legal holds protect entries in this user's ledger. Release all holds before purging.")
-    })
-    @RequestMapping(value = "/api/ledger", method = RequestMethod.DELETE)
-    public ResponseEntity<GenericResponse> purge(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @RequestParam("older_than_days") int olderThanDays,
-            final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestAttribute("requestId") String requestId) {
-
-        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
-        if (apiKeyEntity == null) {
-            throw new UnauthorizedException("Unauthorized.");
-        }
-
-        if (olderThanDays < 0) {
-            return new ResponseEntity<>(new GenericResponse("older_than_days must be zero or greater."), HttpStatus.BAD_REQUEST);
-        }
-
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
-        if (userId == null) {
-            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
-        }
-
-        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
-                "purge ledger entries older than " + olderThanDays + " days");
-
-        final ServiceResponse purgeResponse =
-                ledgerService.deleteChainsByUserIdAndOlderThan(requestId, userId, olderThanDays);
-
-        if (!purgeResponse.isSuccessful()) {
-            final HttpStatus status = purgeResponse.getStatusCode() == 423
-                    ? HttpStatus.LOCKED : HttpStatus.BAD_REQUEST;
-            return new ResponseEntity<>(new GenericResponse(purgeResponse.getMessage()), status);
-        }
-
-        return new ResponseEntity<>(new GenericResponse(purgeResponse.getMessage()), HttpStatus.OK);
-
-    }
 
 }

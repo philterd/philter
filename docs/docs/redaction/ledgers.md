@@ -24,7 +24,7 @@ To make that version stamp resolvable to real content, Philter retains an **immu
 
 This lets an administrator take any redaction in a date range and produce the exact policy version that was in force for it, with no engineering work, and verify the ledger chain is intact. Even if a snapshot is later removed under a retention action, the ledger entry still proves which policy was applied by its name, version, and fingerprint; only the ability to render that policy's content is lost.
 
-The applied policy name and version are also returned at redaction time, on the `X-Philter-Policy-Name` and `X-Philter-Policy-Version` response headers of `/api/filter` and in the `/api/explain` response body. See the [Filtering API](../api_and_sdks/api/filtering_api.md).
+The applied policy name and version are also returned at redaction time, on the `X-Philter-Policy-Name` and `X-Philter-Policy-Version` response headers of `/api/filter` and in the `/api/explain` response body. See the [Redaction API](../api_and_sdks/api/filtering_api.md).
 
 ## Enabling Redaction Ledgers
 

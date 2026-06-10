@@ -258,12 +258,12 @@ class LedgerApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(admin);
     }
 
-    /** Stubs userService.findByEmail so the email resolves to a user with the given id. */
+    /** Stubs userService.findByUsername so the email resolves to a user with the given id. */
     private void makeOwnerLookup(final String email, final ObjectId ownerId) {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
-        when(userService.findByEmail(email)).thenReturn(owner);
+        when(userService.findByUsername(email)).thenReturn(owner);
     }
 
     @Test

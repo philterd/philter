@@ -1,6 +1,6 @@
-# Filtering API
+# Redaction API
 
-Philter’s filtering API provides access to Philter’s ability to filter sensitive information from text and to retrieve the health status of Philter.
+Philter’s Redaction API provides access to Philter’s ability to redact sensitive information from text and to retrieve the health status of Philter. The endpoint path is `/api/filter` (Philter is named for the filter engine that powers redaction).
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
@@ -25,6 +25,7 @@ The types of sensitive information found and how each type is redacted is determ
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
+* `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
 
 ### Headers
 
@@ -109,6 +110,7 @@ The types of sensitive information found and how each type is redacted is determ
 
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
+* `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
 
 ### Headers
 

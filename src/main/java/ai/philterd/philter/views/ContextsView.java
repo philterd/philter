@@ -73,7 +73,7 @@ public class ContextsView extends AbstractRestrictedView {
         grid.setDataProvider(dataProvider);
 
         // Button to create a new context.
-        final Button createContextButton = new Button("New Context", VaadinIcon.DOCTOR_BRIEFCASE.create());
+        final Button createContextButton = new Button("New Context", VaadinIcon.RECORDS.create());
         createContextButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createContextButton.getStyle().set("margin-left", "auto");
         createContextButton.setTooltipText("Create a new redaction context.");
@@ -302,6 +302,8 @@ public class ContextsView extends AbstractRestrictedView {
 
         final VerticalLayout contextsVerticalLayout = new VerticalLayout();
         contextsVerticalLayout.setSizeFull();
+        label.add(" ");
+        label.add(CommonWidgets.getLink("Learn more about contexts.", "/public/docs/redaction/contexts.html", true));
         contextsVerticalLayout.add(label);
         contextsVerticalLayout.add(grid);
 
@@ -361,7 +363,7 @@ public class ContextsView extends AbstractRestrictedView {
         grid.setItems(
                 query -> {
                     final List<ContextEntity> page = contextService.findAllAcrossUsers(query.getOffset(), query.getLimit());
-                    final Map<ObjectId, String> ownerEmails = userService.findEmailsByIds(
+                    final Map<ObjectId, String> ownerEmails = userService.findUsernamesByIds(
                             page.stream().map(ContextEntity::getUserId).collect(Collectors.toSet()));
                     return page.stream().map(contextEntity -> toAllContextRow(contextEntity, ownerEmails));
                 },

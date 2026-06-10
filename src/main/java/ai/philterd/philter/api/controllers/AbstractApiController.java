@@ -117,25 +117,25 @@ public abstract class AbstractApiController {
 
     /**
      * Resolves the user whose resources a request targets. A bare request operates on the caller's own
-     * resources. To act on another user's resources the caller supplies that user's email via
-     * {@code ownerEmail}; this is allowed only for an admin. Returns {@code null} when the caller is not
+     * resources. To act on another user's resources the caller supplies that user's username via
+     * {@code ownerUsername}; this is allowed only for an admin. Returns {@code null} when the caller is not
      * authorized (a non-admin naming another user) or the named owner does not exist — callers map both
      * to a 404 so endpoints never reveal the existence of a user the caller may not access.
      *
-     * @param userService  Used to resolve the owner and check admin status.
-     * @param callerUserId The id of the authenticated caller.
-     * @param ownerEmail   The email of the owner to target, or null/blank for the caller's own resources.
+     * @param userService   Used to resolve the owner and check admin status.
+     * @param callerUserId  The id of the authenticated caller.
+     * @param ownerUsername The username of the owner to target, or null/blank for the caller's own resources.
      */
-    protected ObjectId resolveTargetUserId(final UserService userService, final ObjectId callerUserId, final String ownerEmail) {
-        if (ownerEmail == null || ownerEmail.isBlank()) {
+    protected ObjectId resolveTargetUserId(final UserService userService, final ObjectId callerUserId, final String ownerUsername) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
             return callerUserId;
         }
-        final UserEntity owner = userService.findByEmail(ownerEmail);
+        final UserEntity owner = userService.findByUsername(ownerUsername);
         if (owner == null) {
             return null;
         }
         // Reaching another user's resources requires admin rights AND cross-user access being enabled
-        // (the ADMIN_CROSS_USER_ACCESS_ENABLED kill switch). Naming your own email always works.
+        // (the ADMIN_CROSS_USER_ACCESS_ENABLED kill switch). Naming your own username always works.
         if (!owner.getId().equals(callerUserId)
                 && !(isCrossUserAccessEnabled() && isAdmin(userService, callerUserId))) {
             return null;

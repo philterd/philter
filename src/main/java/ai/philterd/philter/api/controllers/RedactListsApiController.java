@@ -124,7 +124,7 @@ public class RedactListsApiController extends AbstractApiController {
     }
 
     @Operation(summary = "Replace the always-redact and never-redact lists.",
-            description = "Replaces both lists in full with the supplied contents — this is not a merge. Each field "
+            description = "Replaces both lists in full with the supplied contents - this is not a merge. Each field "
                     + "is the complete desired contents of that list; a list that is omitted or sent as an empty array "
                     + "is cleared. Terms are trimmed and blank entries are dropped. Each list may contain up to "
                     + MAXIMUM_TERMS_PER_LIST + " terms, and each term may be up to " + MAXIMUM_TERM_LENGTH + " characters. "
@@ -194,7 +194,7 @@ public class RedactListsApiController extends AbstractApiController {
     }
 
     @Operation(summary = "Append to the always-redact and never-redact lists.",
-            description = "Appends the supplied terms to the existing lists rather than replacing them — use POST to "
+            description = "Appends the supplied terms to the existing lists rather than replacing them - use POST to "
                     + "replace. Each field's terms are added to the current contents of that list; a list that is "
                     + "omitted or sent as an empty array is left unchanged. Terms are trimmed, blank entries are dropped, "
                     + "and terms already present are not added again. The resulting list may contain up to "

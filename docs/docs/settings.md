@@ -55,12 +55,15 @@ Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Mon
 
 ## Dashboard Login
 
-These settings control the dashboard login lockout. See [Login Security](login_security.md).
+These settings control the dashboard login lockout and session timeout. See [Login Security](login_security.md).
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `LOGIN_MAX_ATTEMPTS` | Number of consecutive failed dashboard logins that triggers a temporary lockout. | `5` |
 | `LOGIN_LOCKOUT_SECONDS` | How long a dashboard login lockout lasts, in seconds. | `900` |
+| `SESSION_TIMEOUT_MINUTES` | Minutes of inactivity before the dashboard session ends and the user is returned to the login page. | `15` |
+
+Optional multi-factor authentication (TOTP) for the dashboard is enabled in the dashboard **Admin** → **Admin Settings** page, not via an environment variable, and is opt-in per user. See [Multi-factor authentication](login_security.md#multi-factor-authentication-mfa).
 
 ## Redaction Ledger
 

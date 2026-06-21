@@ -383,10 +383,70 @@ public class AccountView extends AbstractRestrictedView {
         });
 
         final VerticalLayout layout = new VerticalLayout();
+
+        // If a startup-seeded bootstrap key is still active for this account, surface it so the admin
+        // knows it is in use and can replace it with one of their own.
+        final ApiKeyEntity bootstrapKey = apiKeyService.findActiveBootstrapKey(accountUser.getId());
+        if (bootstrapKey != null) {
+            layout.add(buildBootstrapKeyBanner(bootstrapKey));
+        }
+
         layout.add(createApiKeyButton);
         layout.add(apiKeysGrid);
         layout.setSizeFull();
         return layout;
+
+    }
+
+    /** A warning banner shown on the API Keys tab while a bootstrap (seed) API key is in use. */
+    private VerticalLayout buildBootstrapKeyBanner(final ApiKeyEntity bootstrapKey) {
+
+        final VerticalLayout banner = new VerticalLayout();
+        banner.setPadding(true);
+        banner.setSpacing(true);
+        banner.setWidthFull();
+        banner.getStyle()
+                .set("border", "1px solid var(--lumo-warning-color)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("background-color", "var(--lumo-warning-color-10pct)");
+
+        banner.add(new H3("Bootstrap API key in use"));
+        banner.add(new Paragraph("A bootstrap API key seeded at startup from the "
+                + ApiKeyDataService.BOOTSTRAP_API_KEY_ENV + " environment variable is currently active for "
+                + "this account. It is intended for initial automation only. Create your own API key below "
+                + "and then delete this one."));
+
+        // The bootstrap key value is not stored (only its hash is), but it is available from the
+        // environment of this running instance, so it can be shown here.
+        final String envValue = System.getenv(ApiKeyDataService.BOOTSTRAP_API_KEY_ENV);
+
+        if (envValue != null && !envValue.isBlank()) {
+
+            final TextField keyField = new TextField("Bootstrap API key");
+            keyField.setValue(envValue);
+            keyField.setReadOnly(true);
+            keyField.setWidthFull();
+
+            final Button copyButton = new Button("Copy", VaadinIcon.COPY.create());
+            copyButton.setTooltipText("Copy the bootstrap API key to the clipboard");
+            copyButton.addClickListener(e -> {
+                keyField.getElement().executeJs("navigator.clipboard.writeText($0)", envValue);
+                showSuccessNotification("Bootstrap API key copied to the clipboard.");
+            });
+
+            final HorizontalLayout keyRow = new HorizontalLayout(keyField, copyButton);
+            keyRow.setAlignItems(HorizontalLayout.Alignment.BASELINE);
+            keyRow.setWidthFull();
+            keyRow.setFlexGrow(1, keyField);
+            banner.add(keyRow);
+
+        } else {
+            banner.add(new Paragraph("Key: " + bootstrapKey.getApiKeyPrefix() + " (the full value is not "
+                    + "available because " + ApiKeyDataService.BOOTSTRAP_API_KEY_ENV + " is not set in this "
+                    + "running instance)."));
+        }
+
+        return banner;
 
     }
 

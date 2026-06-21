@@ -39,6 +39,13 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
 - **Prometheus metrics.** Redaction, token, and API-request counters are exposed
   at `/actuator/prometheus` (`philter_redactions_total`, `philter_tokens_total`,
   `philter_api_requests_total`) for scraping by an external observability stack.
+- **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds a caller-supplied API key
+  (`sk_` plus 32 alphanumerics) for the `admin` user at startup, so automation and
+  turnkey deployments get a credential without the dashboard. Authentication stays on.
+  It is seeded only when the admin has no API keys at all (active or archived), so it is
+  created once on a fresh install and never resurrected after you make or revoke your own
+  key. While it is in use, the dashboard warns on login and the API Keys page shows the
+  bootstrap key with a prompt to replace it.
 - **`GET /api/status`** reports the Philter version, git commit, and the redaction
   policy schema version supported by the bundled Phileas. It is served by a
   controller and appears in the OpenAPI spec and Swagger UI.

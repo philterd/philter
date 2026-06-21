@@ -22,6 +22,7 @@ import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
@@ -33,6 +34,7 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
@@ -66,7 +68,7 @@ public class DashboardView extends AbstractRestrictedView {
 
     public DashboardView(final MongoClient mongoClient, final EncryptionService encryptionService,
                          final AuditEventPublisher auditEventPublisher, final PolicyDataService policyDataService,
-                         final RedactionService redactionService) {
+                         final RedactionService redactionService, final ApiKeyDataService apiKeyDataService) {
         super(mongoClient, encryptionService, auditEventPublisher);
 
         this.policyDataService = policyDataService;
@@ -94,6 +96,18 @@ public class DashboardView extends AbstractRestrictedView {
         pageHorizontalLayout.setSizeFull();
 
         setContent(pageHorizontalLayout);
+
+        // Nudge the admin while a startup-seeded bootstrap API key is still active, so it gets
+        // replaced with a key of their own.
+        if (isAdmin() && userEntity != null
+                && apiKeyDataService.findActiveBootstrapKey(userEntity.getId()) != null) {
+            final Notification notification = new Notification(
+                    "A bootstrap API key (from " + ApiKeyDataService.BOOTSTRAP_API_KEY_ENV + ") is active. "
+                            + "Create your own API key on the My Account page and delete the bootstrap key.",
+                    8000, Notification.Position.TOP_CENTER);
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
+            notification.open();
+        }
 
     }
 

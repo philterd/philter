@@ -33,6 +33,9 @@ public class ApiKeyEntity extends AbstractEntity {
     private Date timestamp;
     private transient String apiKey;
     private ObjectId userId;
+    // True for a key seeded at startup from PHILTER_BOOTSTRAP_API_KEY, so the UI can flag that the
+    // bootstrap key is still in use and nudge the admin to replace it with one of their own.
+    private boolean bootstrap;
 
     public static ApiKeyEntity fromDocument(final Document document) {
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
@@ -46,6 +49,7 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setDeleted(document.getBoolean("deleted", false));
         apiKeyEntity.setDeletedAt(document.getDate("deleted_at"));
         apiKeyEntity.setTimestamp(document.getDate("timestamp"));
+        apiKeyEntity.setBootstrap(document.getBoolean("bootstrap", false));
         return apiKeyEntity;
     }
 
@@ -61,6 +65,7 @@ public class ApiKeyEntity extends AbstractEntity {
         document.put("deleted", deleted);
         document.put("deleted_at", deletedAt);
         document.put("timestamp", timestamp);
+        document.put("bootstrap", bootstrap);
         return document;
     }
 
@@ -126,6 +131,14 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public ObjectId getUserId() {
         return userId;
+    }
+
+    public boolean isBootstrap() {
+        return bootstrap;
+    }
+
+    public void setBootstrap(final boolean bootstrap) {
+        this.bootstrap = bootstrap;
     }
 
 }

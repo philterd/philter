@@ -44,6 +44,16 @@ API keys can also be managed programmatically; an API key's creation and deletio
 
 A deactivated user's API keys are also rejected for as long as the account is deactivated, even though the keys themselves are not deleted; reactivating the user restores them. See [User Management](../dashboard.md#user-management).
 
+## Bootstrapping an API key for automation
+
+Creating a key in the dashboard is the normal path, but turnkey deployments (cloud marketplace images, Terraform, Docker Compose) often need a key without an interactive step. Set the `PHILTER_BOOTSTRAP_API_KEY` environment variable to a value of the form `sk_` followed by 32 alphanumeric characters, and Philter assigns that key to the `admin` user at startup.
+
+The key is only seeded when the `admin` user has no API keys at all, counting both active and archived (deleted) keys. So it is created once on a fresh install, and once you have created a key of your own (or revoked the bootstrap key), it is never seeded again on a later restart.
+
+While the bootstrap key is in use, Philter makes it visible so it does not become a forgotten, long-lived credential: the admin sees a warning on login, and the **API Keys** page shows a banner identifying the bootstrap key (including its value, read from the environment of the running instance) with a prompt to create your own key and delete it.
+
+Authentication stays fully enabled; the bootstrap key is your own secret, provisioned the same way you supply other secrets. Treat it like any credential and rotate or revoke it in the dashboard once it is no longer needed. See [Settings](../settings.md#api-access).
+
 ## Restricting access by IP address
 
 You can optionally restrict which client IP addresses may call the API with the `API_IP_ALLOWLIST` environment variable (see [Settings](../settings.md#api-access)). When set, an otherwise-authenticated request from an address that is not on the allowlist is rejected with `403 Forbidden` and the denial is recorded in the [audit log](../auditing.md).

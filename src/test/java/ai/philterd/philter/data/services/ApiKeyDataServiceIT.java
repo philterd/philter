@@ -198,4 +198,69 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(1, service.count(userB));
     }
 
+    @Test
+    void ensureApiKeyCreatesAndIsFindable() {
+        final ObjectId user = new ObjectId();
+        final String key = "sk_" + "a".repeat(32);
+
+        assertTrue(service.ensureApiKey("req", user, key, "src"), "first call creates the key");
+
+        final ApiKeyEntity entity = service.findOneByApiKey(key);
+        assertNotNull(entity);
+        assertEquals(user, entity.getUserId());
+        assertEquals(1, service.count(user));
+    }
+
+    @Test
+    void ensureApiKeyIsIdempotent() {
+        final ObjectId user = new ObjectId();
+        final String key = "sk_" + "b".repeat(32);
+
+        assertTrue(service.ensureApiKey("req", user, key, "src"));
+        assertFalse(service.ensureApiKey("req", user, key, "src"), "second call is a no-op");
+
+        assertEquals(1, service.count(user), "the key is not duplicated");
+    }
+
+    @Test
+    void ensureApiKeyDoesNotResurrectADeletedKey() {
+        final ObjectId user = new ObjectId();
+        final String key = "sk_" + "c".repeat(32);
+
+        service.ensureApiKey("req", user, key, "src");
+        service.deleteByApiKey("req", service.findOneByApiKey(key), "src");
+
+        // A revoked bootstrap key must stay revoked across restarts.
+        assertFalse(service.ensureApiKey("req", user, key, "src"));
+        assertNull(service.findOneByApiKey(key));
+    }
+
+    @Test
+    void ensureApiKeyMarksTheKeyAsBootstrapAndIsFindable() {
+        final ObjectId user = new ObjectId();
+        final String key = "sk_" + "d".repeat(32);
+
+        service.ensureApiKey("req", user, key, "src");
+
+        final ApiKeyEntity bootstrap = service.findActiveBootstrapKey(user);
+        assertNotNull(bootstrap);
+        assertTrue(bootstrap.isBootstrap());
+
+        // A regular key is not reported as the bootstrap key.
+        final ObjectId other = new ObjectId();
+        service.createApiKey("req", other, "src");
+        assertNull(service.findActiveBootstrapKey(other));
+    }
+
+    @Test
+    void findActiveBootstrapKeyIgnoresADeletedBootstrapKey() {
+        final ObjectId user = new ObjectId();
+        final String key = "sk_" + "e".repeat(32);
+
+        service.ensureApiKey("req", user, key, "src");
+        service.deleteByApiKey("req", service.findOneByApiKey(key), "src");
+
+        assertNull(service.findActiveBootstrapKey(user));
+    }
+
 }

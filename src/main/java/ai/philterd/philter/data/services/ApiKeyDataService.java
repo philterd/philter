@@ -42,6 +42,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     private static final int API_KEY_LENGTH = 32;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    /** Environment variable holding an API key to seed at startup. See {@link #ensureApiKey}. */
+    public static final String BOOTSTRAP_API_KEY_ENV = "PHILTER_BOOTSTRAP_API_KEY";
+
     private final ApiKeyCache apiKeyCache;
 
     public ApiKeyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache) {
@@ -106,6 +109,55 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, source);
 
         return new ServiceResponse(apiKey, true, 200);
+
+    }
+
+    /**
+     * Idempotently persists a caller-supplied API key for the given user. Used to bootstrap a
+     * known key at startup (the {@code PHILTER_BOOTSTRAP_API_KEY} environment variable) so that
+     * automation and turnkey deployments have a credential without the interactive UI flow.
+     *
+     * <p>No-op if a key with the same value already exists (including a previously deleted one,
+     * so a revoked bootstrap key is not resurrected on restart). The caller is responsible for
+     * validating the key format.
+     *
+     * @return {@code true} if a new key was created, {@code false} if it already existed
+     */
+    public boolean ensureApiKey(final String requestId, final ObjectId userId, final String apiKey, final String source) {
+
+        if (doesApiKeyExist(apiKey)) {
+            return false;
+        }
+
+        final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
+        apiKeyEntity.setUserId(userId);
+        apiKeyEntity.setApiKey(apiKey);
+        apiKeyEntity.setApiKeyHash(EncryptionService.hashSha256(apiKey));
+        apiKeyEntity.setApiKeyPrefix(apiKey.substring(0, 12) + "...");
+        apiKeyEntity.setDeleted(false);
+        apiKeyEntity.setTimestamp(new Date());
+        apiKeyEntity.setBootstrap(true);
+        final ObjectId apiKeyId = save(apiKeyEntity);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, source);
+
+        return true;
+
+    }
+
+    /**
+     * Returns the user's active (non-deleted) bootstrap key, or {@code null} if none. Used by the UI
+     * to flag that a key seeded from {@link #BOOTSTRAP_API_KEY_ENV} is still in use.
+     */
+    public ApiKeyEntity findActiveBootstrapKey(final ObjectId userId) {
+
+        final Document query = new Document("user_id", userId)
+                .append("bootstrap", true)
+                .append("deleted", false);
+
+        final Document document = collection.find(query).first();
+
+        return document != null ? ApiKeyEntity.fromDocument(document) : null;
 
     }
 

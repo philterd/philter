@@ -6796,6 +6796,9 @@
             "type": "integer",
             "format": "int32"
           },
+          "validator": {
+            "$ref": "#/components/schemas/Validator"
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -7804,6 +7807,9 @@
           "maxIdleConnections": {
             "type": "integer",
             "format": "int32"
+          },
+          "modelPath": {
+            "type": "string"
           },
           "timeout": {
             "type": "integer",
@@ -9700,6 +9706,18 @@
           "truncateLeaveCharacters": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "Validator": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {}
           }
         }
       },

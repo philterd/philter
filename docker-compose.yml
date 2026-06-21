@@ -29,7 +29,7 @@ services:
       - philter
 
   ph-eye:
-    image: philterd/ph-eye:1.2.1
+    image: philterd/ph-eye:1.3.0
     ports:
       - "18080:5000"
     networks:
@@ -39,7 +39,7 @@ services:
     #   - NVIDIA_VISIBLE_DEVICES=all
 
   mongodb:
-    image: mongo:latest
+    image: mongo:8.0.26
     ports:
       - "27017:27017"
     environment:

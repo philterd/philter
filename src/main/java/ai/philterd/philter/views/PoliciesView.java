@@ -276,6 +276,14 @@ public class PoliciesView extends AbstractRestrictedView {
 
             final Button deletePolicyButton = new Button("Delete", VaadinIcon.TRASH.create());
             deletePolicyButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+
+            // The default policy cannot be deleted (the data layer rejects it), so disable the
+            // button for that row rather than letting the user click it and get an error.
+            if ("default".equalsIgnoreCase(policy.getName())) {
+                deletePolicyButton.setEnabled(false);
+                deletePolicyButton.setTooltipText("The default policy cannot be deleted.");
+            }
+
             deletePolicyButton.addClickListener(event -> {
 
                 final ServiceResponse serviceResponse = policyService.deleteByName("", policy.getName(), userEntity.getId(), Source.WEBUI);
@@ -284,7 +292,7 @@ public class PoliciesView extends AbstractRestrictedView {
                     policiesDataProvider.refreshAll();
                     showSuccessNotification(serviceResponse.getMessage());
                 } else {
-                    showSuccessNotification(serviceResponse.getMessage());
+                    showFailureNotification(serviceResponse.getMessage());
                 }
 
             });

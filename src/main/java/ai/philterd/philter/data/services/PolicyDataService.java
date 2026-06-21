@@ -16,10 +16,6 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.phileas.policy.Policy;
-import ai.philterd.phileas.policy.filters.CreditCard;
-import ai.philterd.phileas.policy.filters.EmailAddress;
-import ai.philterd.phileas.policy.filters.Ssn;
-import ai.philterd.phileas.policy.filters.ZipCode;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
@@ -281,21 +277,6 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return PolicyValidation.invalid("Policy contains syntax errors.");
 
         }
-
-    }
-
-    public void insertDefaultPolicies(final ObjectId userId) {
-
-        final Policy policy = new Policy();
-        policy.getIdentifiers().setEmailAddress(new EmailAddress());
-        policy.getIdentifiers().setCreditCard(new CreditCard());
-        policy.getIdentifiers().setSsn(new Ssn());
-        policy.getIdentifiers().setZipCode(new ZipCode());
-
-        final PolicyEntity defaultPolicy = new PolicyEntity();
-        defaultPolicy.setName("Default Policy");
-        defaultPolicy.setUserId(userId);
-        collection.insertOne(defaultPolicy.toDocument());
 
     }
 

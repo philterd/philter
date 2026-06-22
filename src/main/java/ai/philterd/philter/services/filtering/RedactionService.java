@@ -71,7 +71,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -102,10 +101,11 @@ public class RedactionService {
     private final PhileasConfigurationCache phileasConfigurationCache = new PhileasConfigurationCache();
 
     // A single thread-safe RNG shared by the warm filter services. The warm instances are shared
-    // across concurrent requests, so the RNG must be thread-safe; SecureRandom is. The previous
-    // per-request ChaChaRandom was not thread-safe and is not needed here: replacement consistency
-    // within a context comes from the context service, not the RNG.
-    private static final Random ANONYMIZATION_RANDOM = new SecureRandom();
+    // across concurrent requests, so the RNG must be thread-safe, which SecureRandom is. A per-request
+    // RNG is not needed: replacement consistency within a context comes from the context service, not
+    // the RNG. (If this shared RNG ever becomes a contention point under load, switch to a
+    // ThreadLocal<SecureRandom> rather than a per-request instance.)
+    private static final SecureRandom ANONYMIZATION_RANDOM = new SecureRandom();
 
     // Warm filter services, built once per span-disambiguation variant and reused across requests so
     // their per-policy filter caches stay populated instead of being rebuilt every request. Each

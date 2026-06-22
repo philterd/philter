@@ -66,7 +66,6 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -99,13 +98,6 @@ public class RedactionService {
 
     // Built once per span-disambiguation variant and reused, rather than rebuilt every request.
     private final PhileasConfigurationCache phileasConfigurationCache = new PhileasConfigurationCache();
-
-    // A single thread-safe RNG shared by the warm filter services. The warm instances are shared
-    // across concurrent requests, so the RNG must be thread-safe, which SecureRandom is. A per-request
-    // RNG is not needed: replacement consistency within a context comes from the context service, not
-    // the RNG. (If this shared RNG ever becomes a contention point under load, switch to a
-    // ThreadLocal<SecureRandom> rather than a per-request instance.)
-    private static final SecureRandom ANONYMIZATION_RANDOM = new SecureRandom();
 
     // Warm filter services, built once per span-disambiguation variant and reused across requests so
     // their per-policy filter caches stay populated instead of being rebuilt every request. Each
@@ -178,14 +170,14 @@ public class RedactionService {
     // across requests with its per-policy filter cache populated.
     private PlainTextFilterService plainTextFilterService(final boolean disambiguationEnabled) {
         return plainTextFilterServices.computeIfAbsent(disambiguationEnabled,
-                flag -> new PlainTextFilterService(phileasConfigurationCache.get(flag), ANONYMIZATION_RANDOM, httpClient));
+                flag -> new PlainTextFilterService(phileasConfigurationCache.get(flag), httpClient));
     }
 
     // Returns the warm PdfFilterService for the given span-disambiguation setting, building it on first
     // use. As above, the context and vector services are supplied per call.
     private PdfFilterService pdfFilterService(final boolean disambiguationEnabled) {
         return pdfFilterServices.computeIfAbsent(disambiguationEnabled,
-                flag -> new PdfFilterService(phileasConfigurationCache.get(flag), ANONYMIZATION_RANDOM, httpClient));
+                flag -> new PdfFilterService(phileasConfigurationCache.get(flag), httpClient));
     }
 
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {

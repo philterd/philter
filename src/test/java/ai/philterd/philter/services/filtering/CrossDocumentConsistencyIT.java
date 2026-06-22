@@ -26,7 +26,6 @@ import ai.philterd.phileas.services.strategies.AbstractFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ContextEntryDataService;
-import java.security.SecureRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
@@ -228,7 +227,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
                 mongoClient, new ContextCache(null, 0, null, false), userId, context, auditEventPublisher);
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
-                configuration, contextService, new NoOpVectorService(), new SecureRandom(), mock(HttpClient.class));
+                configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));
 
         return filterService.filter(policy, context, text);
     }

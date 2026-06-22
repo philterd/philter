@@ -22,7 +22,6 @@ import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import java.security.SecureRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -123,7 +122,7 @@ class FpeRedactionIT extends AbstractMongoIT {
                 mongoClient, new ContextCache(null, 0, null, false), new ObjectId(), "ctx", auditEventPublisher);
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
-                configuration, contextService, new NoOpVectorService(), new SecureRandom(), mock(HttpClient.class));
+                configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));
 
         return filterService.filter(policy, "ctx", text);
     }

@@ -72,7 +72,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 
@@ -97,6 +96,9 @@ public class RedactionService {
     private final PhieldPublisher phieldPublisher;
     private final PiiCountAggregatePublisher piiCountAggregatePublisher;
     private final RedactionCache redactionCache;
+
+    // Built once per span-disambiguation variant and reused, rather than rebuilt every request.
+    private final PhileasConfigurationCache phileasConfigurationCache = new PhileasConfigurationCache();
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -359,20 +361,9 @@ public class RedactionService {
 
         final Random random = new ChaChaRandom();
 
-        // Create the Phileas configuration based on the user's settings. Incremental redactions are
-        // required for the ledger and default to enabled; the INCREMENTAL_REDACTIONS_ENABLED
-        // environment variable allows overriding it.
-        final Properties properties = new Properties();
-        properties.put("incremental.redactions.enabled",
-                System.getenv().getOrDefault("INCREMENTAL_REDACTIONS_ENABLED", "true"));
-
-        // Enable the Phileas span-disambiguation engine when entity-type disambiguation is in effect:
-        // for a context, when its disambiguation flag is on; for a no-context request, document-scoped
-        // disambiguation is used. This is the single switch for the feature — without it the engine gate
-        // defaults to off and the setting would silently have no effect.
-        properties.put("span.disambiguation.enabled", Boolean.toString(disambiguationEnabled));
-
-        final PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
+        // The disambiguation flag is the single switch for the span-disambiguation engine and the only
+        // per-request config input, so configurations are cached per flag and reused.
+        final PhileasConfiguration phileasConfiguration = phileasConfigurationCache.get(disambiguationEnabled);
 
         final PlainTextFilterService plainTextFilterService = new PlainTextFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
 

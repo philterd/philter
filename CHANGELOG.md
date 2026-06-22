@@ -10,7 +10,7 @@ For the full, narrative history of past versions see [RELEASE_NOTES.md](RELEASE_
 ## [4.0.0] - Unreleased
 
 Major release. Rebuilds the UI on Vaadin 25, upgrades the runtime to Spring Boot 4
-and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
+and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
 
 ### Added
 
@@ -121,6 +121,11 @@ and Phileas 3.4.0, and makes PDF redaction asynchronous by default.
 - **Deleting a user now cascades** to that user's contexts, context entries, cached values, and
   redaction ledger; deleting a context deletes its context-entry documents.
 - **The build targets Java 25.**
+- **Redaction reuses warm Phileas filter services across requests.** Instead of
+  building a new filter service per request, Philter now keeps one warm instance per
+  span-disambiguation setting and passes each request's context and vector services to
+  it per call, so the per-policy filter caches (compiled patterns, dictionaries) stay
+  populated rather than being rebuilt every request. Redaction output is unchanged.
 
 ### Security
 

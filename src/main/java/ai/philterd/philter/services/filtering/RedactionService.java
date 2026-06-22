@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.services.filtering;
 
-import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.IncrementalRedaction;
 import ai.philterd.phileas.model.filtering.MimeType;
@@ -42,7 +41,6 @@ import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.SeparatedTermLists;
-import ai.philterd.philter.security.ChaChaRandom;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.context.MongoContextService;
@@ -68,12 +66,15 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class RedactionService {
 
@@ -99,6 +100,18 @@ public class RedactionService {
 
     // Built once per span-disambiguation variant and reused, rather than rebuilt every request.
     private final PhileasConfigurationCache phileasConfigurationCache = new PhileasConfigurationCache();
+
+    // A single thread-safe RNG shared by the warm filter services. The warm instances are shared
+    // across concurrent requests, so the RNG must be thread-safe; SecureRandom is. The previous
+    // per-request ChaChaRandom was not thread-safe and is not needed here: replacement consistency
+    // within a context comes from the context service, not the RNG.
+    private static final Random ANONYMIZATION_RANDOM = new SecureRandom();
+
+    // Warm filter services, built once per span-disambiguation variant and reused across requests so
+    // their per-policy filter caches stay populated instead of being rebuilt every request. Each
+    // request passes its own context and vector service to filter(...). See philterd-website#413.
+    private final ConcurrentMap<Boolean, PlainTextFilterService> plainTextFilterServices = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Boolean, PdfFilterService> pdfFilterServices = new ConcurrentHashMap<>();
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -158,6 +171,21 @@ public class RedactionService {
         this.piiCountAggregatePublisher = piiCountAggregatePublisher;
         this.redactionCache = redactionCache;
 
+    }
+
+    // Returns the warm PlainTextFilterService for the given span-disambiguation setting, building it on
+    // first use. The context and vector services are supplied per call, so a single instance is reused
+    // across requests with its per-policy filter cache populated.
+    private PlainTextFilterService plainTextFilterService(final boolean disambiguationEnabled) {
+        return plainTextFilterServices.computeIfAbsent(disambiguationEnabled,
+                flag -> new PlainTextFilterService(phileasConfigurationCache.get(flag), ANONYMIZATION_RANDOM, httpClient));
+    }
+
+    // Returns the warm PdfFilterService for the given span-disambiguation setting, building it on first
+    // use. As above, the context and vector services are supplied per call.
+    private PdfFilterService pdfFilterService(final boolean disambiguationEnabled) {
+        return pdfFilterServices.computeIfAbsent(disambiguationEnabled,
+                flag -> new PdfFilterService(phileasConfigurationCache.get(flag), ANONYMIZATION_RANDOM, httpClient));
     }
 
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
@@ -359,13 +387,11 @@ public class RedactionService {
         // Create a document ID.
         final String documentId = UUID.randomUUID().toString();
 
-        final Random random = new ChaChaRandom();
-
         // The disambiguation flag is the single switch for the span-disambiguation engine and the only
-        // per-request config input, so configurations are cached per flag and reused.
-        final PhileasConfiguration phileasConfiguration = phileasConfigurationCache.get(disambiguationEnabled);
-
-        final PlainTextFilterService plainTextFilterService = new PlainTextFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
+        // per-request config input, so the warm filter services (with their populated per-policy filter
+        // caches) are kept per flag and reused. This request's context and vector services are passed
+        // per call rather than baked into the service. See philterd-website#413.
+        final PlainTextFilterService plainTextFilterService = plainTextFilterService(disambiguationEnabled);
 
         LOGGER.info("Processing text with Phileas");
         final AbstractFilterResult filterResult;
@@ -376,17 +402,17 @@ public class RedactionService {
         if(mimeType == MimeType.TEXT_PLAIN) {
 
             final String plainText = new String(body);
-            filterResult = plainTextFilterService.filter(phileasPolicy, effectiveContextName, plainText);
+            filterResult = plainTextFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, plainText);
 
         } else if(mimeType == MimeType.APPLICATION_PDF) {
 
-            final PdfFilterService pdfFilterService = new PdfFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
-            filterResult = pdfFilterService.filter(phileasPolicy, effectiveContextName, body, MimeType.APPLICATION_PDF);
+            final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
+            filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.APPLICATION_PDF);
 
         } else if(mimeType == MimeType.IMAGE_JPEG) {
 
-            final PdfFilterService pdfFilterService = new PdfFilterService(phileasConfiguration, phileasContextService, vectorService, random, httpClient);
-            filterResult = pdfFilterService.filter(phileasPolicy, effectiveContextName, body, MimeType.IMAGE_JPEG);
+            final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
+            filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG);
 
         } else {
 

@@ -4570,14 +4570,7 @@
           }
         }
       },
-      "AnonymizationService": {
-        "type": "object",
-        "properties": {
-          "contextService": {
-            "$ref": "#/components/schemas/ContextService"
-          }
-        }
-      },
+      "AnonymizationService": {},
       "BankRoutingNumber": {
         "type": "object",
         "properties": {
@@ -5111,7 +5104,6 @@
           }
         }
       },
-      "ContextService": {},
       "County": {
         "type": "object",
         "properties": {

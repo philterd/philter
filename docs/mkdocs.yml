@@ -53,6 +53,12 @@ extra:
       as to measure the effectiveness of our documentation and whether users
       find what they're searching for. With your consent, you're helping us to
       make our documentation better.
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 nav:
   - 'Home': index.md
   - 'Getting Started':
@@ -147,6 +153,7 @@ nav:
     - 'Settings': 'settings.md'
     - 'Database': 'database.md'
     - 'Caching': 'caching.md'
+    - 'High Availability and Clustering': 'high_availability.md'
     - 'Monitoring and Logging': 'monitoring_and_logging.md'
     - 'PII Drift Monitoring (Phield)': 'phield.md'
     - 'Differential-Privacy Reporting (Diffuse)': 'diffuse.md'

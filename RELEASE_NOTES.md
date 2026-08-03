@@ -31,10 +31,8 @@ redaction as the default behavior of the filter API.
   longer a built-in default; Philter reads it from the `PHILTER_ENCRYPTION_KEY`
   environment variable and refuses to start if it is missing or not a valid
   base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`.
-  Existing encrypted data is unaffected — each record stores the key used to
-  encrypt it, so previously written data continues to decrypt regardless of the
-  configured value. Set the variable to the same value across restarts and
-  instances so newly written data stays consistent.
+  Each record gets its own random data key, stored wrapped under this key, so the key
+  is required to read any encrypted data. Set it consistently and back it up.
 * **Docker Compose simplified.** Philter now serves its own UI, so the separate
   `philter-ui` container is gone and the `philter` service publishes its port
   directly (`8080:8080`). The `opensearch` service was also removed (see above).

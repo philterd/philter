@@ -29,7 +29,7 @@ Philter encrypts sensitive data at rest and requires an encryption key. Philter 
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `PHILTER_ENCRYPTION_KEY` | A base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`. Use the same value across restarts and instances. | (none; required) |
+| `PHILTER_ENCRYPTION_KEY` | A base64-encoded 32-byte (AES-256) key. Generate one with `openssl rand -base64 32`. Each record is encrypted with its own random data key, stored wrapped under this key, so this value is required to read any encrypted data. Use the same value across restarts and instances, and back it up: if it is lost or changed, existing encrypted data cannot be recovered and Philter will not start. | (none; required) |
 
 ## Cache Settings
 

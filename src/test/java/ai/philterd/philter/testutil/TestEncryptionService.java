@@ -51,6 +51,12 @@ public final class TestEncryptionService extends EncryptionService {
             public KeyResponse getKey(final String userId) {
                 return new KeyResponse(key, key);
             }
+
+            // This double does not wrap, so the stored key is already the data key.
+            @Override
+            public String decryptKey(final String storedKey) {
+                return storedKey;
+            }
         };
     }
 

@@ -15,11 +15,15 @@
  */
 package ai.philterd.philter.services.encryption;
 
+import ai.philterd.philter.data.entities.LedgerEntity;
+import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +39,12 @@ class LocalEncryptionServiceTest {
             @Override
             public KeyResponse getKey(final String userId) {
                 return new KeyResponse(base64Key, base64Key);
+            }
+
+            // No wrapping in this double, so the stored key is already the data key.
+            @Override
+            public String decryptKey(final String storedKey) {
+                return storedKey;
             }
         });
     }
@@ -125,6 +135,68 @@ class LocalEncryptionServiceTest {
 
         final String shortKey = Base64.getEncoder().encodeToString(new byte[16]);
         assertThrows(IllegalArgumentException.class, () -> service.decrypt(result.getEncryptedText(), shortKey));
+    }
+
+    @Test
+    void realProviderRoundTripsThroughTheWrappedKey() {
+        final LocalEncryptionService service =
+                new LocalEncryptionService(new LocalKeyProvider(Base64.getEncoder().encodeToString(new byte[32])));
+
+        final String plaintext = "SSN 123-45-6789";
+        final EncryptResult result = service.encrypt(plaintext, "user-1");
+
+        assertEquals(plaintext, service.decrypt(result.getEncryptedText(), result.getEncryptionKey()));
+    }
+
+    @Test
+    void whatIsPersistedCannotDecryptTheRecordWithoutTheMasterKey() {
+        final LocalEncryptionService service =
+                new LocalEncryptionService(new LocalKeyProvider(Base64.getEncoder().encodeToString(new byte[32])));
+
+        final EncryptResult result = service.encrypt("SSN 123-45-6789", "user-1");
+
+        // These two values are exactly what a record holds, and are all an attacker with read access to
+        // the database has. Neither the stored key nor the ciphertext is usable without the master key.
+        assertThrows(RuntimeException.class,
+                () -> serviceWithKey(OTHER_KEY).decrypt(result.getEncryptedText(), result.getEncryptionKey()));
+        assertThrows(IllegalArgumentException.class, () -> Base64.getDecoder().decode(result.getEncryptionKey()));
+    }
+
+    @Test
+    void persistedDocumentHoldsNothingThatDecryptsItWithoutTheMasterKey() throws Exception {
+        final String master = Base64.getEncoder().encodeToString(new byte[32]);
+        final LocalEncryptionService service = new LocalEncryptionService(new LocalKeyProvider(master));
+
+        // The document written to MongoDB, produced the same way the data layer produces it.
+        final LedgerEntity entity = new LedgerEntity(new ObjectId(), "doc-1", "123-45-6789",
+                "{{{REDACTED-ssn}}}", 0L, "dochash", "prevhash", "f.txt", "ssn", "policy", 1, "confighash");
+        final Document document = entity.toDocument(service);
+
+        // No field of the persisted document contains the master key.
+        for (final String field : document.keySet()) {
+            final Object value = document.get(field);
+            if (value instanceof String s) {
+                assertFalse(s.contains(master), "field " + field + " leaks the master key");
+            }
+        }
+
+        // The stored token is real ciphertext, and the key stored beside it cannot open it on its own.
+        assertNotEquals("123-45-6789", document.getString("token"));
+        assertThrows(RuntimeException.class, () -> serviceWithKey(OTHER_KEY)
+                .decrypt(document.getString("token"), document.getString("token_encrypted_key")));
+
+        // The master key does open it.
+        assertEquals("123-45-6789",
+                service.decrypt(document.getString("token"), document.getString("token_encrypted_key")));
+    }
+
+    @Test
+    void encryptResultDoesNotExposeKeyMaterial() {
+        final LocalEncryptionService service = service();
+        final EncryptResult result = service.encrypt("data", "user-1");
+
+        // toString reaches logs and exception messages.
+        assertFalse(result.toString().contains(result.getEncryptionKey()));
     }
 
     @Test

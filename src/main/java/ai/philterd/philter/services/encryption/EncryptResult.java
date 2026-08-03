@@ -27,7 +27,8 @@ public class EncryptResult {
 
     @Override
     public String toString() {
-        return "encryptedText: " + encryptedText + ", encryptionKey: " + encryptionKey;
+        // Never include key material: this could otherwise reach a log or an exception message.
+        return "encryptedText: " + encryptedText;
     }
 
     public String getEncryptedText() {

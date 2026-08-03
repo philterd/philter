@@ -88,7 +88,8 @@ public class LocalEncryptionService extends EncryptionService {
             System.arraycopy(encryptedBytes, 0, combined, iv.getIV().length, encryptedBytes.length);
             final String encryptedText = Base64.getEncoder().encodeToString(combined);
 
-            return new EncryptResult(encryptedText, keyResponse.getPlainKey());
+            // Persist the wrapped data key, never the plaintext one.
+            return new EncryptResult(encryptedText, keyResponse.getEncryptedKey());
 
         } catch (Exception ex) {
             LOGGER.error("Error encrypting data: {}", ex.getMessage(), ex);
@@ -100,7 +101,7 @@ public class LocalEncryptionService extends EncryptionService {
     @Override
     public String decrypt(final String encryptedText, final String encryptionKey) {
 
-        final byte[] key = EncryptionService.base64Decode(encryptionKey);
+        final byte[] key = EncryptionService.base64Decode(keyProvider.decryptKey(encryptionKey));
 
         // Validate the key length. For AES-256, the key must be 32 bytes.
         if(key.length != KEY_LENGTH_BITS / 8) {

@@ -133,7 +133,8 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
 
 - **The at-rest encryption key must be supplied via `PHILTER_ENCRYPTION_KEY`**
   (base64-encoded 32-byte AES-256). The built-in default key was removed and Philter
-  refuses to start without a valid key. Existing encrypted data is unaffected.
+  refuses to start without a valid key. Each record gets its own random data key,
+  stored wrapped under the master key rather than beside the data in the clear.
 - **Admin cross-user access is opt-in and disabled by default.** It is gated by the
   `ADMIN_CROSS_USER_ACCESS_ENABLED` kill switch (`false` by default); while disabled, an admin sees
   only their own data like any user. Requests that name another `owner` without authorization return

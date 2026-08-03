@@ -19,4 +19,11 @@ public abstract class KeyProvider {
 
     public abstract KeyResponse getKey(final String userId);
 
+    /**
+     * Recovers the plaintext data key from the value stored alongside a record, which is the
+     * {@link KeyResponse#getEncryptedKey()} written at encryption time. Only the provider can do this,
+     * since only it holds the master key.
+     */
+    public abstract String decryptKey(final String storedKey);
+
 }

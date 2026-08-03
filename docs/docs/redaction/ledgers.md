@@ -32,17 +32,17 @@ Redaction ledgers are controlled on a per-context basis. When creating or editin
 
 ## How and When Ledger Entries Are Deleted
 
-**By default, ledger entries are kept indefinitely.** Because the ledger is a tamper-evident audit record, Philter never deletes entries on its own unless you opt in. There are three ways entries are removed, summarized below.
+**Ledger entries never expire on their own.** Because the ledger is a tamper-evident audit record, nothing removes an entry except a deliberate deletion by an administrator. There are two, described below.
 
 Deletion always operates on **whole document chains**, never on individual entries within a chain. This preserves verifiability: a chain that remains is always complete and can still be validated, and a chain that is removed is removed in its entirety.
 
-**Legal holds block the deliberate deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, a purge or a single-chain delete against that evidence is blocked and returns HTTP 423. The hold must be released before either can proceed. Automatic expiry (path 3) is performed by MongoDB rather than by Philter and is **not** hold-aware, so do not enable it on a deployment where holds are relied upon. See [Legal Holds](legal_holds.md) for the full documentation.
+**Legal holds block both deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, a purge or a single-chain delete against that evidence is blocked and returns HTTP 423. The hold must be released before either can proceed. Because these are the only ways entries are removed, a hold is an absolute guarantee that the evidence it covers is preserved. See [Legal Holds](legal_holds.md) for the full documentation.
 
-> **Deletion is restricted.** Paths 1 and 2 below require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is **`false` by default**. A deployment that has not opted in cannot delete ledger evidence through Philter at all, and the deletion controls do not appear in the dashboard. See [Settings](../settings.md).
+> **Deletion is restricted.** Both paths require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is **`false` by default**. A deployment that has not opted in cannot delete ledger evidence through Philter at all, and the deletion controls do not appear in the dashboard. See [Settings](../settings.md).
 
-### 1. Manual purge (on demand)
+### 1. Purge by age (on demand or scheduled)
 
-An administrator can prune old entries at any time. This is the primary way to enforce a retention policy.
+An administrator can prune old entries at any time. This is how you enforce a retention policy: schedule this call and you get time-based retention that is still admin-only, hold-aware, and audited.
 
 * **Dashboard**: on the **Redaction Ledgers** page, use **Purge old entries** and enter a number of days. Every chain of yours older than that is deleted.
 * **API**: `DELETE /api/ledger?older_than_days={n}` deletes the calling user's chains older than `n` days. See the [Ledger API](../api_and_sdks/api/ledger_api.md#purge-old-ledger-entries).
@@ -52,13 +52,13 @@ An administrator can prune old entries at any time. This is the primary way to e
 * **Dashboard**: click the delete (trash) icon next to a document on the **Redaction Ledgers** page.
 * **API**: `DELETE /api/ledger/{documentId}` removes that document's chain. See the [Ledger API](../api_and_sdks/api/ledger_api.md#delete-a-documents-ledger-chain).
 
-### 3. Automatic expiry (optional, off by default)
+### There is no automatic expiry
 
-If you want time-based expiry without running a manual purge, set the `REDACTION_LEDGER_TTL_DAYS` environment variable (see [Settings](../settings.md)) to a positive number of days. MongoDB then automatically expires entries older than that. It is **`0` (no expiry) by default**. If a deployment previously configured a TTL and you set the variable back to `0`, Philter drops the existing expiry index on startup so entries stop being auto-deleted.
+Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that had MongoDB expire old entries. It was removed. Because MongoDB performs that deletion itself, it could not check legal holds and left no audit record, which is the opposite of what evidence retention requires. Schedule the purge above instead. If a deployment set the variable, Philter drops the leftover index at startup and logs that it has done so.
 
 ### Ledger entries survive user deactivation
 
-Deactivating a user account does **not** delete that user's ledger. Users are deactivated rather than deleted (see [User Management](../dashboard.md#user-management)), and deactivation never cascades to the ledger: every chain is retained and stays resolvable to the retained (deactivated) owning user, so the redaction evidence is preserved. The only ways ledger entries are removed are the three above (a deliberate manual purge, a single-chain delete, or optional automatic expiry).
+Deactivating a user account does **not** delete that user's ledger. Users are deactivated rather than deleted (see [User Management](../dashboard.md#user-management)), and deactivation never cascades to the ledger: every chain is retained and stays resolvable to the retained (deactivated) owning user, so the redaction evidence is preserved. The only ways ledger entries are removed are the two above.
 
 ## Exporting Ledger Entries
 

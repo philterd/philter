@@ -2,7 +2,7 @@
 
 A **legal hold** is a named, audited instruction to Philter to never delete the redaction evidence for a specific scope of data. Legal holds are the primary mechanism for preserving governance evidence during litigation, regulatory investigation, or any situation where data must not be destroyed.
 
-When a legal hold is active on a user's data, every deletion Philter performs (per-document delete and bulk purge) is blocked. A blocked operation returns an **HTTP 423 Locked** response and the attempt is written to the audit log. The hold must be explicitly released before any deletion proceeds. Optional age-based expiry is the one exception, because MongoDB performs it directly; see [How Holds Block Deletions](#how-holds-block-deletions).
+When a legal hold is active on a user's data, every deletion path in Philter is blocked. A blocked operation returns an **HTTP 423 Locked** response and the attempt is written to the audit log. The hold must be explicitly released before any deletion proceeds.
 
 ## Why Legal Holds Exist
 
@@ -106,9 +106,8 @@ The hold check runs on every deletion Philter performs. There is no way to bypas
 | `DELETE /api/ledger/{documentId}` (delete a specific document's chain) | `isProtectedDocument`: blocks if a `document_chain` hold covers that document, or if a `user` hold covers the owning user. |
 | `DELETE /api/ledger?older_than_days=N` (bulk age-based purge) | `hasAnyHold`: blocks the entire purge if the user has **any** active hold. Because a bulk purge cannot selectively skip held documents, the entire operation is blocked while any hold remains. |
 | Internal bulk delete during user removal | `hasAnyHold`: same as bulk purge above. |
-| Automatic expiry via `REDACTION_LEDGER_TTL_DAYS` | **None.** Expiry is performed by MongoDB, not by Philter, so no hold check runs. See the warning below. |
 
-> **Automatic expiry is not hold-aware.** `REDACTION_LEDGER_TTL_DAYS` creates a MongoDB TTL index, and MongoDB expires those entries itself with no application code in the path. Entries under an active legal hold will be deleted anyway. It is `0` (off) by default; leave it off on any deployment where legal holds are relied upon.
+Philter has no automatic ledger expiry, so this table is exhaustive: there is no path by which held evidence is removed without a hold check.
 
 When a deletion is blocked:
 

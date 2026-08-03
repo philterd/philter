@@ -71,11 +71,17 @@ Optional multi-factor authentication (TOTP) for the dashboard is enabled in the 
 
 Whether a redaction is recorded in the [redaction ledger](redaction/ledgers.md) is controlled per context by the **Enable the redaction ledger** option set when creating or editing a context. The option is unchecked (disabled) by default, so redactions made in a context are not written to the ledger unless the context has it enabled.
 
-Ledger retention is configured with the environment variable below.
+**Ledger entries never expire on their own.** They are governance evidence, so they are removed only by a deliberate deletion: an administrator calling `DELETE /api/ledger` or `DELETE /api/ledger/{documentId}`, or using the equivalent controls in the Redaction Ledgers dashboard. Both require `LEDGER_DELETION_ENABLED=true` (see [API Access](#api-access) above), are refused while a [legal hold](redaction/legal_holds.md) covers the evidence, and are recorded in the [audit log](auditing.md).
 
-| Environment Variable | Description | Default Value |
-|----------------------|-------------|---------------|
-| `REDACTION_LEDGER_TTL_DAYS` | Optional automatic expiry for redaction ledger entries. When set to a positive number of days, MongoDB expires entries older than that. **`0` by default, so ledger entries are kept indefinitely** and are only removed by a manual purge, per-document deletion, or user deletion (see [Redaction Ledgers](redaction/ledgers.md#how-and-when-ledger-entries-are-deleted)). Changing the value after entries already exist requires dropping the existing `timestamp` TTL index on the `ledger` collection first, because MongoDB does not re-apply a different expiry to an existing index; setting it back to `0` drops that index on startup. | `0` (no expiry) |
+To enforce a retention period, schedule the purge endpoint. This gives you time-based retention that is still admin-only, hold-aware, and audited:
+
+```bash
+# Daily: delete this account's ledger chains older than 90 days.
+curl -X DELETE -H "Authorization: Bearer <token>" \
+  "http://localhost:8080/api/ledger?older_than_days=90"
+```
+
+Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that created a MongoDB TTL index. It was removed: MongoDB expires documents itself, so that path could not check legal holds and produced no audit record. If a deployment set it, Philter drops the leftover index at startup and logs that it has done so.
 
 ## Asynchronous Documents and Webhooks
 

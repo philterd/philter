@@ -21,11 +21,9 @@ import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
@@ -41,7 +39,6 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
@@ -52,15 +49,11 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public static final String EMPTY_ENTRY = "";
     public static final int MAX_LIMIT = 100;
 
-    // Ledger retention. By default ledger entries are kept indefinitely (the ledger is a
-    // tamper-evident audit record, so nothing is auto-deleted unless an operator opts in).
-    // Set REDACTION_LEDGER_TTL_DAYS to a positive number of days to have MongoDB automatically
-    // expire entries older than that; entries can also be removed explicitly via the manual purge
-    // (deleteChainsByUserIdAndOlderThan) and per-document/user deletions.
-    private static final long DEFAULT_TTL_DAYS = 0L;
-
-    // The auto-generated name of the optional TTL index on the entry timestamp.
-    private static final String TTL_INDEX_NAME = "timestamp_1";
+    // The ledger is never expired automatically: it is governance evidence, so every deletion is a
+    // deliberate, admin-only, hold-checked, audited act. Retention is enforced by scheduling the
+    // purge endpoint, which has all of those properties; a MongoDB TTL index has none of them.
+    // This is the name of the TTL index earlier builds created, dropped at startup below.
+    private static final String LEGACY_TTL_INDEX_NAME = "timestamp_1";
 
     private final LegalHoldDataService legalHoldDataService;
 
@@ -75,33 +68,16 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         ensureIndex(Indexes.ascending("user_id", "previous_hash", "timestamp"));
         ensureIndex(Indexes.ascending("user_id", "document_id", "timestamp"));
 
-        // Optional TTL: when a positive retention is configured, expire ledger entries older than
-        // it. The index is on the entry timestamp. Changing the value after the index exists
-        // requires dropping the existing TTL index first (MongoDB will not silently re-apply a
-        // different expireAfterSeconds), so a conflict is logged rather than fatal at startup.
-        final long ttlDays = EnvUtils.getLong("REDACTION_LEDGER_TTL_DAYS", DEFAULT_TTL_DAYS);
-        if (ttlDays > 0) {
-            final long ttlSeconds = ttlDays * 86400L;
-            try {
-                collection.createIndex(
-                        Indexes.ascending("timestamp"),
-                        new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
-                LOGGER.info("TTL index on ledger.timestamp set to expire after {} days ({} seconds).", ttlDays, ttlSeconds);
-            } catch (final Exception ex) {
-                LOGGER.warn("Unable to create TTL index on ledger.timestamp ({} days): {}", ttlDays, ex.getMessage());
-            }
-        } else {
-            // Retention disabled (the default): keep entries indefinitely. Drop any TTL index left by a
-            // previous deployment that configured retention, so the new "keep indefinitely" policy
-            // actually takes effect on upgrade rather than entries continuing to silently expire.
-            try {
-                collection.dropIndex(TTL_INDEX_NAME);
-                LOGGER.info("Dropped existing ledger TTL index '{}'; ledger retention is now unlimited.", TTL_INDEX_NAME);
-            } catch (final Exception ex) {
-                // No TTL index to drop (the common case) — nothing to do.
-                LOGGER.debug("No ledger TTL index '{}' to drop: {}", TTL_INDEX_NAME, ex.getMessage());
-            }
-            LOGGER.info("Ledger retention is unlimited (REDACTION_LEDGER_TTL_DAYS not set to a positive value).");
+        // Drop the TTL index earlier builds created from REDACTION_LEDGER_TTL_DAYS, so a deployment
+        // that configured expiry stops silently deleting evidence after upgrading.
+        try {
+            collection.dropIndex(LEGACY_TTL_INDEX_NAME);
+            LOGGER.warn("Dropped the ledger TTL index '{}' left by an earlier build. Ledger entries no "
+                    + "longer expire automatically; schedule DELETE /api/ledger to enforce retention.",
+                    LEGACY_TTL_INDEX_NAME);
+        } catch (final Exception ex) {
+            // No such index (the common case).
+            LOGGER.debug("No legacy ledger TTL index '{}' to drop: {}", LEGACY_TTL_INDEX_NAME, ex.getMessage());
         }
     }
 

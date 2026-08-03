@@ -68,9 +68,8 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
   - A **Redaction Ledgers** view in the UI for browsing, searching, exporting, and purging.
   - Deletion (API and dashboard) is administrator-only and requires `LEDGER_DELETION_ENABLED=true`,
     which is `false` by default. Legal holds still return `423`, and deletions are audited.
-  - Retention via `REDACTION_LEDGER_TTL_DAYS` — entries are kept **indefinitely by default**
-    (`0`); set a positive number of days for MongoDB TTL expiry. Entries are otherwise removed only
-    by a deliberate chain delete or purge; deactivating a user never removes them.
+  - Entries never expire automatically; a deliberate chain delete or purge is the only way they are
+    removed. Schedule the purge endpoint to enforce a retention period.
 - **Policy version stamped on redaction evidence.** Each redaction now records which policy version
   governed it. Policy content is retained as immutable, append-only, content-addressed snapshots (a
   new `policy_versions` collection) every time a policy is saved, so a stamp resolves to the exact

@@ -10,174 +10,62 @@ This file is the source of truth for 4.0.0 and later: record every release entry
 
 ## [4.0.0] - Unreleased
 
-Major release. Rebuilds the UI on Vaadin 25, upgrades the runtime to Spring Boot 4
-and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
+Major release, the first since 3.4.0. The UI is rebuilt on Vaadin 25 and served by Philter itself,
+the runtime moves to Java 25, Spring Boot 4, and Phileas 4.2.0, and redaction gains an evidence
+trail: a tamper-evident ledger, policy versioning, output signing, and an audit log.
+
+See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Added
 
-- **HTTPS by default.** The Docker image generates a self-signed certificate on first start and
-  serves TLS on port 8080. Supply your own keystore with `SSL_KEYSTORE`, or set `SSL_ENABLED=false`
-  to serve plain HTTP when a load balancer terminates TLS.
-- **Asynchronous PDF redaction.** Submitted PDFs are queued in a new
-  `pending_documents` collection and processed by an in-process worker, with
-  multi-instance coordination and automatic crash recovery.
-- **`/api/documents` endpoints** for managing asynchronous redactions:
-  - `GET /api/documents` — list submissions for the calling API key.
-  - `GET /api/documents/{documentId}/status` — status only.
-  - `GET /api/documents/{documentId}` — download the redacted bytes (`200`),
-    `409 Conflict` if still processing, `410 Gone` if redaction failed.
-  - `DELETE /api/documents/{documentId}` — remove a record.
-- **TTL on pending documents.** A MongoDB TTL index on `completed_at` deletes
-  finished records after a configurable interval (default 7 days, override with
-  `PENDING_DOCUMENTS_TTL_SECONDS`).
-- **Dashboard PDF redaction**, run synchronously with an immediate browser download.
-- **Webhook delivery for async redactions.** A signed (HMAC-SHA256) HTTP POST is
-  sent when an async redaction completes or fails, with retries. Configured per user
-  via `webhook_url` and `webhook_secret`.
-- **New context API endpoints:** `PUT /api/contexts/{name}` (update `coref` and
-  `disambiguation`), `GET /api/contexts/{name}/entries` (paginated), and
-  `DELETE` variants for emptying entries or removing a single entry.
-- **Bounded context and vector storage.** `MAX_CONTEXT_SIZE` (default 10,000)
-  enforces least-read eviction of context entries; `MAX_VECTORS_PER_CONTEXT`
-  (default 100,000) enforces FIFO eviction of vectors.
-- **API IP allowlist.** `API_IP_ALLOWLIST` restricts the API to a comma-separated list of IPv4
-  addresses or CIDR ranges. Empty by default.
-- **`DELETE /api/contexts/{name}` returns `409 Conflict`** while an async redaction still
-  references the context.
-- **Webhook delivery records expire** after `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days).
-  Both workers poll on `philter.worker.poll-interval-ms` / `philter.webhook.poll-interval-ms`
-  (default 5000).
-- **Prometheus metrics.** Redaction, token, and API-request counters are exposed
-  at `/actuator/prometheus` (`philter_redactions_total`, `philter_tokens_total`,
-  `philter_api_requests_total`) for scraping by an external observability stack.
-- **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds a caller-supplied API key
-  (`sk_` plus 32 alphanumerics) for the `admin` user at startup, so automation and
-  turnkey deployments get a credential without the dashboard. Authentication stays on.
-  It is seeded only when the admin has no API keys at all (active or archived), so it is
-  created once on a fresh install and never resurrected after you make or revoke your own
-  key. While it is in use, the dashboard warns on login and the API Keys page shows the
-  bootstrap key with a prompt to replace it.
-- **`GET /api/status`** reports the Philter version, git commit, and the redaction
-  policy schema version supported by the bundled Phileas. It is served by a
-  controller and appears in the OpenAPI spec and Swagger UI.
-- **Policy editor link.** The Policies view links to the hosted redaction policy
-  editor at `https://policies.philterd.ai` (new tab), passing the supported schema
-  version as a `?version=` query parameter.
-- **Redaction Ledger.** The tamper-evident, per-document ledger is now exposed end to end:
-  - REST endpoints under `/api/ledger` — `GET /api/ledger` (paginated chain heads),
-    `GET /api/ledger/{documentId}` (a document's chain), `GET /api/ledger/{documentId}/valid`
-    (verify the hash chain), `GET /api/ledger/{documentId}/export` (export decrypted entries),
-    and `DELETE` for a single document's chain or entries older than a given age.
-  - A **Redaction Ledgers** view in the UI for browsing, searching, exporting, and purging.
-  - Deletion (API and dashboard) is administrator-only and requires `LEDGER_DELETION_ENABLED=true`,
-    which is `false` by default. Legal holds still return `423`, and deletions are audited.
-  - Entries never expire automatically; a deliberate chain delete or purge is the only way they are
-    removed. Schedule the purge endpoint to enforce a retention period.
-- **Policy version stamped on redaction evidence.** Each redaction now records which policy version
-  governed it. Policy content is retained as immutable, append-only, content-addressed snapshots (a
-  new `policy_versions` collection) every time a policy is saved, so a stamp resolves to the exact
-  policy that applied. Every ledger entry carries the policy name, version, and content fingerprint
-  (part of the tamper-evident hash); `/api/filter` returns `X-Philter-Policy-Name` and
-  `X-Philter-Policy-Version` response headers (the version is pinned at request time for async PDF
-  jobs); and `/api/explain` includes `policyName` and `policyVersion`. The Redaction Ledger view and
-  the ledger JSON export include the policy stamp (export schema **version 2**). Per-redaction ledger
-  entries are now correctly hash-chained so a chain validates end to end.
-- **Admin cross-user access.** Administrators may view and act on another user's contexts,
-  policies, custom lists, documents, and redaction ledger by passing an `owner=<email>` query
-  parameter on those API endpoints, and via admin-only "All …" tabs in the UI. Cross-user actions
-  are audited as `admin_cross_user_access`.
-- **Audit log viewer and export.** A new `audit_events` collection records security-relevant
-  actions; the admin UI adds an **Audit Log** tab that exports events to CSV over a chosen date
-  range (max 30-day window, server time zone). New audit events include `admin_cross_user_access`
-  and `redaction_ledger_exported`.
-- **`GET /api/contexts` is now paginated** with `offset`/`limit` query parameters (default `0`/`25`),
-  matching `GET /api/policies`.
-- **A `default` context is created automatically** for each new user.
-- **Optional shared caching of contexts and API keys.** Set `CACHE_HOSTNAME` to use a
-  Valkey/Redis cache shared across instances; when unset, an in-memory, ephemeral cache is
-  used.
-- **My Account, Always/Never Redact Lists, and SDKs views.** Account settings (email, API keys,
-  webhook) are consolidated under a **My Account** page; the per-account always-redact / never-redact
-  lists move to a dedicated **Always/Never Redact Lists** page; and SDK references move to an **SDKs**
-  page. The side navigation is grouped into Redaction, Account, and Administration sections.
-- **Output signing.** `POST /api/filter` (text) and `POST /api/explain` responses can now be
-  digitally signed with an ES256 (ECDSA P-256) JWT returned in the new `X-Philter-Signature`
-  response header. The JWT payload binds the SHA-256 hash of the response body, the applied
-  policy name and version, a per-response UUID, and an issue timestamp, so consumers can
-  verify authenticity and integrity. Signing is opt-in (disabled by default); enable it in
-  the Admin Settings. Philter auto-generates and persists an ES256 keypair in MongoDB on first
-  start; alternatively set `PHILTER_SIGNING_KEY_PATH` to supply your own PKCS8 PEM key. The
-  public key is available from the new `GET /api/signing-key` endpoint. See
-  [Output Signing](docs/docs/output_signing.md) for full documentation.
+- **Redaction ledger.** A tamper-evident, hash-chained record of every redaction made in a
+  ledger-enabled context, with endpoints under `/api/ledger`, a dashboard view, legal holds, and
+  JSON export. Deletion is administrator-only and off unless `LEDGER_DELETION_ENABLED=true`.
+- **Policy versioning.** Every policy save is retained as an immutable, content-addressed snapshot,
+  and each redaction is stamped with the policy name, version, and content hash in the ledger, the
+  `/api/filter` response headers, and `/api/explain`.
+- **Output signing.** Text filter and explain responses can be signed with an ES256 JWT returned in
+  `X-Philter-Signature`, binding the response hash and the applied policy. Opt-in.
+- **Audit log.** Security-relevant actions are recorded to a new `audit_events` collection, with an
+  admin viewer and CSV export.
+- **Asynchronous PDF redaction** and the `/api/documents` endpoints for listing, polling,
+  downloading, and deleting jobs, with signed webhook delivery on completion or failure.
+- **Admin cross-user access.** Administrators can act on another user's resources with an `owner`
+  parameter and admin dashboard tabs.
+- **Prometheus metrics** at `/actuator/prometheus`, replacing the in-application metrics dashboard.
+- **HTTPS by default.** The Docker image generates a self-signed certificate on first start.
+- **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds a credential for automation and turnkey
+  deployments without using the dashboard.
+- Optional shared Valkey/Redis caching, an API IP allowlist, bounded context and vector storage,
+  paginated contexts, and `GET /api/status`.
 
 ### Changed
 
-- **PDF redaction is asynchronous by default.** `POST /api/filter` with
-  `application/pdf` now responds with `202 Accepted` and a JSON body of the form
-  `{"documentId": "..."}` plus a `Location: /api/documents/{documentId}` header.
-  Append `?async=false` to keep the previous synchronous response.
-- The text endpoint (`text/plain` in / `text/plain` out) is unaffected and remains
-  synchronous; the `async` parameter has no effect on text redaction.
-- **`/api/health` response shape changed** to match `/api/status`:
-  `{"status":"Healthy","applicationVersion":"...","redactionPolicySchemaVersion":"...","gitCommit":"..."}`.
-  The previous `{"health":"ok","git-commit":"..."}` body no longer applies. Both
-  endpoints remain unauthenticated. Update any health probes that parsed the old shape.
-- **Docker Compose simplified.** Philter now serves its own UI, so the separate
-  `philter-ui` container is gone; the `philter` service publishes its port (`8080:8080`)
-  directly. The `opensearch` service was also removed (see Removed).
-- **Context names are now unique per user** rather than globally, so different users may reuse the
-  same context name. API endpoints that target another user's context accept an `owner` parameter to
-  disambiguate.
-- **Filter and explain requests accept an empty or null context name.** When no context is supplied,
-  no context features are applied and disambiguation is scoped to the submitted document only.
-- **Users are deactivated rather than deleted.** A deactivated account cannot sign in and its API
-  keys stop working, but all of its data is retained, including policies and the redaction ledger,
-  which stay resolvable to the retained user so evidence is preserved.
-- **Deleting a context cascades** to its context entries, its span-disambiguation vectors, and its
-  cached values.
-- **The build targets Java 25.**
-- **Redaction reuses warm Phileas filter services across requests.** Instead of
-  building a new filter service per request, Philter now keeps one warm instance per
-  span-disambiguation setting and passes each request's context and vector services to
-  it per call, so the per-policy filter caches (compiled patterns, dictionaries) stay
-  populated rather than being rebuilt every request. Redaction output is unchanged.
-
-### Security
-
-- **The at-rest encryption key must be supplied via `PHILTER_ENCRYPTION_KEY`**
-  (base64-encoded 32-byte AES-256). The built-in default key was removed and Philter
-  refuses to start without a valid key. Each record gets its own random data key,
-  stored wrapped under the master key rather than beside the data in the clear.
-- **Admin cross-user access is opt-in and disabled by default.** It is gated by the
-  `ADMIN_CROSS_USER_ACCESS_ENABLED` kill switch (`false` by default); while disabled, an admin sees
-  only their own data like any user. Requests that name another `owner` without authorization return
-  `404 Not Found` (never `403`) so the API does not reveal whether a user or resource exists.
-- **Redaction ledger exports contain decrypted tokens and replacements** and must be treated as
-  sensitive; audit events never include those values, and ledger searches are audited by a hash of the
-  search term rather than the term itself.
+- **Java 25 is required.**
+- **PDF redaction is asynchronous by default.** `POST /api/filter` with `application/pdf` returns
+  `202 Accepted` and `{"documentId": "..."}`; append `?async=false` for the previous behavior. Text
+  redaction is unchanged and remains synchronous.
+- **`/api/health` returns a new response shape**, matching `/api/status`. Update health probes.
+- **Philter serves its own UI**, so the separate `philter-ui` container is gone.
+- **Context names are unique per user** rather than globally.
+- **Users are deactivated rather than deleted**, so their policies and ledger evidence are preserved.
 
 ### Removed
 
-- **OpenSearch** is no longer a dependency; usage metrics moved to Prometheus (see
-  Added). The `opensearch` service and the `OPENSEARCH_*` /
+- **OpenSearch** is no longer a dependency. The `opensearch` service and the `OPENSEARCH_*` and
   `API_REQUESTS_INDEXING_ENABLED` variables were removed.
-- **The in-application Metrics dashboard** was removed in favor of Prometheus metrics.
 
-### Fixed
+### Security
 
-- Context lookups by name (`ContextDataService.findOneByNameAndUserId`) queried the
-  wrong field (`name` instead of `context_name`) and never matched, causing
-  context-based redaction to fail.
-- The PDF redaction endpoints attributed work to the API key's id instead of the
-  owning user's id, breaking user scoping and webhook delivery.
-- The PDF-to-ZIP endpoint passed the wrong input MIME type (`IMAGE_JPEG` instead of
-  `APPLICATION_PDF`).
-- `MongoVectorService.hashAndInsert` now stores `user_id`, so
-  `getVectorRepresentation` matches what was written.
-- `docker-compose.yml` pinned `mongo:8.0.26`, which cannot start on Linux kernel 6.19 or newer.
-- `docker-compose.yml` pinned `philterd/ph-eye:1.3.0`, which was never published.
-- A missing or malformed required query parameter returned `500 An unknown error has occurred.`
-  instead of `400`. Affected `POST /api/policies`, `POST /api/contexts`, `DELETE /api/ledger`,
-  and `POST /api/policies/{policyName}/rollback`. The response now names the parameter.
+- **`PHILTER_ENCRYPTION_KEY` is now required.** The built-in default key was removed and Philter
+  refuses to start without a valid base64-encoded 32-byte key. Each record is encrypted with its own
+  data key, stored wrapped under the master key rather than beside the data in the clear. Back the
+  key up: data encrypted with it cannot be recovered if it is lost or changed.
+- **Admin cross-user access is opt-in**, gated by `ADMIN_CROSS_USER_ACCESS_ENABLED` (`false` by
+  default). Requests naming another `owner` without authorization return `404`, never `403`, so the
+  API does not reveal whether a user or resource exists.
+- **Ledger exports contain decrypted tokens and replacements** and must be treated as sensitive.
+  Audit events never include those values, and ledger searches are audited by a hash of the search
+  term rather than the term itself.
 
 [4.0.0]: https://github.com/philterd/philter/releases/tag/4.0.0

@@ -113,7 +113,7 @@ public class SizeLimitingInputStream extends ServletInputStream {
         if (bytesRead > maxSizeBytes) {
 
             LOGGER.warn("Size limit exceeded: {} bytes read, max allowed: {}", bytesRead, maxSizeBytes);
-            throw new PayloadTooLargeException("Security Alert: Data stream exceeded allowed limit of " + maxSizeBytes + " bytes.");
+            throw new PayloadTooLargeException("The request body exceeds the maximum allowed size of " + maxSizeBytes + " bytes.");
 
         }
 

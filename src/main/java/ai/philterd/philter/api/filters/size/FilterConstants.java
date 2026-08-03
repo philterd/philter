@@ -15,20 +15,18 @@
  */
 package ai.philterd.philter.api.filters.size;
 
+import java.util.Set;
+
 /**
  * Constants for filter configuration.
  */
 public final class FilterConstants {
 
     /**
-     * Document redaction upload endpoint.
+     * Endpoints that accept document content, and so take {@code MAX_FILE_SIZE_BYTES} rather than the
+     * smaller limit applied to configuration bodies.
      */
-    public static final String DOCUMENT_REDACTION_ENDPOINT = "/api/redact/documents";
-
-    /**
-     * Risk assessment upload endpoint.
-     */
-    public static final String RISK_ASSESSMENT_ENDPOINT = "/api/risk";
+    public static final Set<String> DOCUMENT_ENDPOINTS = Set.of("/api/filter", "/api/explain");
 
     private FilterConstants() {
         // Private constructor to prevent instantiation

@@ -32,6 +32,10 @@ The types of sensitive information found and how each type is redacted is determ
 * `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
 * `Content-Type` - The value should be set to `text/plain` or `application/pdf`.
 
+### Request Size
+
+The request body may be up to `MAX_FILE_SIZE_BYTES` (10 MB by default; see [Settings](../../settings.md#redaction-engine)). A larger body is rejected with `413 Payload Too Large` and a message stating the limit.
+
 ### Response Headers
 
 Every `filter` response reports which policy version governed the request, so the applied policy is recorded without a second call:

@@ -137,8 +137,8 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `INCREMENTAL_REDACTIONS_ENABLED` | Whether Phileas computes incremental redactions. These are required to populate the redaction ledger; leave enabled if any context uses the ledger. | `true` |
-| `MAX_FILE_SIZE_BYTES` | Maximum size, in bytes, of an uploaded document or PDF accepted by the filter API. Requests larger than this are rejected. | `10485760` (10 MB) |
-| `MAX_FILE_SIZE_BYTES_OTHER` | Maximum size, in bytes, accepted for other (non-document) request bodies. | `10240` (10 KB) |
+| `MAX_FILE_SIZE_BYTES` | Maximum request body size, in bytes, for the endpoints that accept a document to redact: `POST /api/filter` and `POST /api/explain`. | `10485760` (10 MB) |
+| `MAX_FILE_SIZE_BYTES_OTHER` | Maximum request body size, in bytes, for every other `POST` and `PUT`. These carry configuration (policies, contexts, lists), not documents. | `10240` (10 KB) |
 | `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service used by policies that perform named-entity recognition. | (none) |
 
 ## Output Signing

@@ -47,6 +47,15 @@ public class RestApiExceptions {
 	}
 
 	@ResponseBody
+	@ExceptionHandler(PayloadTooLargeException.class)
+	@ResponseStatus(value = HttpStatus.PAYLOAD_TOO_LARGE)
+	public String handlePayloadTooLargeException(final PayloadTooLargeException ex) {
+		// The caller sent too much data, which is a client error. Without this it reached the
+		// catch-all below and came back as a 500 that named nothing.
+		return ex.getMessage();
+	}
+
+	@ResponseBody
 	@ExceptionHandler(MissingServletRequestParameterException.class)
 	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
 	public String handleMissingRequestParameterException(final MissingServletRequestParameterException ex) {

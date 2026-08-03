@@ -31,8 +31,8 @@ import java.io.IOException;
 /**
  * A filter that wraps incoming requests with a SizeLimitingRequestWrapper
  * to enforce file size limits on API endpoints.
- * - Document redaction and risk assessment uploads: 10MB limit
- * - All other POST and PUT endpoints: 10KB limit
+ * Document endpoints take {@code MAX_FILE_SIZE_BYTES}; all other POST and PUT bodies take
+ * {@code MAX_FILE_SIZE_BYTES_OTHER}.
  * 
  * This filter uses HandlerExceptionResolver to forward exceptions to the
  * GlobalSaasExceptionHandler for consistent error handling.
@@ -62,18 +62,20 @@ public class SizeLimitingFilter extends OncePerRequestFilter {
         // Determine the appropriate size limit based on endpoint and method
         long sizeLimit = -1;
 
-        if ("POST".equalsIgnoreCase(method) && (path.equals(FilterConstants.DOCUMENT_REDACTION_ENDPOINT) || path.equals(FilterConstants.RISK_ASSESSMENT_ENDPOINT))) {
+        if ("POST".equalsIgnoreCase(method) && FilterConstants.DOCUMENT_ENDPOINTS.contains(path)) {
 
-            // Document redaction and risk assessment uploads
+            // Endpoints that accept a document to redact.
             sizeLimit = Constants.MAX_FILE_SIZE_BYTES;
-            LOGGER.debug("Applying 10MB size limit to request: {} {}", method, path);
 
         } else if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)) {
 
-            // All other POST and PUT endpoints
+            // Everything else carries configuration, not documents.
             sizeLimit = Constants.MAX_FILE_SIZE_BYTES_OTHER;
-            LOGGER.debug("Applying 10KB size limit to request: {} {}", method, path);
 
+        }
+
+        if (sizeLimit > 0) {
+            LOGGER.debug("Applying a {} byte size limit to {} {}", sizeLimit, method, path);
         }
 
         if (sizeLimit > 0) {

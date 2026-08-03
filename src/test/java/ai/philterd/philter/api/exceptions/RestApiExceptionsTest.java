@@ -84,6 +84,12 @@ class RestApiExceptionsTest {
                 final @RequestHeader("X-Custom-Header") String custom) {
             return "ok";
         }
+
+        /** Stands in for SizeLimitingInputStream, which throws this once a body exceeds its limit. */
+        @GetMapping("/stub/toolarge")
+        public String tooLarge() {
+            throw new PayloadTooLargeException("The request body exceeds the maximum allowed size of 10240 bytes.");
+        }
     }
 
     private MockMvc buildMockMvc() {
@@ -99,6 +105,17 @@ class RestApiExceptionsTest {
                 .andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
         assertEquals("Unauthorized.", body);
+    }
+
+    @Test
+    void oversizedPayloadYields413AndNamesTheLimit() throws Exception {
+        // Without a handler this fell through to the Exception catch-all and returned
+        // 500 "An unknown error has occurred.", telling the caller nothing.
+        final String body = buildMockMvc()
+                .perform(get("/stub/toolarge"))
+                .andExpect(status().isPayloadTooLarge())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("The request body exceeds the maximum allowed size of 10240 bytes.", body);
     }
 
     @Test

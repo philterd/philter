@@ -2,6 +2,10 @@
 
 Philter requires a [MongoDB](https://www.mongodb.com/) database. MongoDB is the system of record for everything Philter persists; Philter does not start without a reachable database.
 
+## Supported versions
+
+Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.yml` pins.
+
 ## What Philter stores in MongoDB
 
 | Data | Description |

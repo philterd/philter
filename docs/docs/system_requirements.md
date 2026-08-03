@@ -7,7 +7,7 @@ Philter requires the following:
 * 2 vCPU (e.g., m5.large instance type on AWS)
 * 8 GB of RAM (16 GB recommended)
 * Java 25
-* MongoDB (required; see [Database](database.md))
+* MongoDB (required; see [Database](database.md#supported-versions) for the version to use)
 * Valkey (optional; if not configured, Philter uses an in-memory cache that is not shared across instances and is lost on restart)
 
 Philter also requires an encryption key to be configured via the `PHILTER_ENCRYPTION_KEY` environment variable; see [Settings](settings.md#encryption). Metrics are exposed for [Prometheus](monitoring_and_logging.md) and require no additional dependency.

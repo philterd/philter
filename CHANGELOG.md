@@ -5,7 +5,8 @@ All notable changes to Philter are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-For the full, narrative history of past versions see [RELEASE_NOTES.md](RELEASE_NOTES.md).
+This file is the source of truth for 4.0.0 and later: record every release entry here.
+[RELEASE_NOTES.md](RELEASE_NOTES.md) holds the narrative history of 3.x and earlier.
 
 ## [4.0.0] - Unreleased
 
@@ -36,6 +37,13 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
 - **Bounded context and vector storage.** `MAX_CONTEXT_SIZE` (default 10,000)
   enforces least-read eviction of context entries; `MAX_VECTORS_PER_CONTEXT`
   (default 100,000) enforces FIFO eviction of vectors.
+- **API IP allowlist.** `API_IP_ALLOWLIST` restricts the API to a comma-separated list of IPv4
+  addresses or CIDR ranges. Empty by default.
+- **`DELETE /api/contexts/{name}` returns `409 Conflict`** while an async redaction still
+  references the context.
+- **Webhook delivery records expire** after `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days).
+  Both workers poll on `philter.worker.poll-interval-ms` / `philter.webhook.poll-interval-ms`
+  (default 5000).
 - **Prometheus metrics.** Redaction, token, and API-request counters are exposed
   at `/actuator/prometheus` (`philter_redactions_total`, `philter_tokens_total`,
   `philter_api_requests_total`) for scraping by an external observability stack.
@@ -98,7 +106,7 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
   the Admin Settings. Philter auto-generates and persists an ES256 keypair in MongoDB on first
   start; alternatively set `PHILTER_SIGNING_KEY_PATH` to supply your own PKCS8 PEM key. The
   public key is available from the new `GET /api/signing-key` endpoint. See
-  [Output Signing](output_signing.md) for full documentation.
+  [Output Signing](docs/docs/output_signing.md) for full documentation.
 
 ### Changed
 

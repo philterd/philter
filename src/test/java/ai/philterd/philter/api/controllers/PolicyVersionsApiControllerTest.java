@@ -444,6 +444,18 @@ class PolicyVersionsApiControllerTest {
     }
 
     @Test
+    void rollbackWithoutARevisionReturns400NamingTheParameter() throws Exception {
+        final String body = mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
+                        .header("Authorization", AUTH_HEADER))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("revision"), "the response should name the missing parameter: " + body);
+
+        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt());
+    }
+
+    @Test
     void rollbackReturns404WhenPolicyDoesNotExist() throws Exception {
         when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1)))
                 .thenReturn(new ServiceResponse("Policy does not exist.", false, 404));

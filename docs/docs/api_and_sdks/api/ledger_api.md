@@ -124,7 +124,7 @@ The ledger is kept indefinitely by default (see [How and When Ledger Entries Are
 * `older_than_days` (required) - Delete chains whose entries are older than this many days. Must be zero or greater (`0` deletes everything).
 * `owner` - Optional. Admin only. The username of the user whose entries to purge. Defaults to the caller.
 
-Returns `200 OK` with the number of entries deleted, or `400 Bad Request` if `older_than_days` is negative.
+Returns `200 OK` with the number of entries deleted, or `400 Bad Request` if `older_than_days` is missing, is not a number, or is negative.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \

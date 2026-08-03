@@ -66,7 +66,7 @@ Example response:
 
 ### Query Parameters
 
-* `name` - The name of the policy to save.
+* `name` (required) - The name of the policy to save.
 
 ### Validation
 
@@ -212,6 +212,7 @@ Rollback restores the content of the specified revision as a **new** revision â€
 #### Responses
 
 * `201 Created` - Rollback succeeded. Body contains the new revision number.
+* `400 Bad Request` - The `revision` parameter is missing or is not a number.
 * `404 Not Found` - The policy or the target revision does not exist.
 * `409 Conflict` - Managed policies cannot be rolled back.
 

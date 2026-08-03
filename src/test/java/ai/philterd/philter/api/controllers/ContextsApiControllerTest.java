@@ -45,14 +45,17 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -112,6 +115,18 @@ class ContextsApiControllerTest {
             AdminAccessConfig.setOverrideForTesting(null);
 
         }
+
+    @Test
+    void createWithoutANameReturns400NamingTheParameterAndCreatesNothing() throws Exception {
+        final String body = mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-create-missing-name"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("name"), "the response should name the missing parameter: " + body);
+
+        verify(contextService, never()).create(anyString(), any(), anyBoolean(), anyBoolean());
+    }
 
     @Test
     void listScopesToOwningUserId() throws Exception {

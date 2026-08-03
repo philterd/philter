@@ -67,6 +67,12 @@ Example response:
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 
+### Responses
+
+* `200 OK` - The context was created.
+* `400 Bad Request` - The `name` parameter is missing, or the context could not be created.
+* `409 Conflict` - You already have a context with this name.
+
 Example request:
 
 ```bash

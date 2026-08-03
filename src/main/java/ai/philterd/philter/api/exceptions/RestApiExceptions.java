@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -38,10 +40,28 @@ public class RestApiExceptions {
 	@ResponseBody
 	@ExceptionHandler({BadRequestException.class, FileNotFoundException.class, HttpMessageNotReadableException.class})
 	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-	public String handleMissingParameterException(Exception ex) {
+	public String handleBadRequestException(Exception ex) {
 		final String message = "A required parameter is missing or contains an invalid value.";
 		LOGGER.error(message, ex);
 		return message;
+	}
+
+	@ResponseBody
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
+	public String handleMissingRequestParameterException(final MissingServletRequestParameterException ex) {
+		// Spring throws this before the handler method runs, so nothing has been read or written.
+		// It is a client error, so it is reported as 400 naming the parameter rather than falling
+		// through to the catch-all below, which would report a 500 and say nothing useful.
+		return "The required parameter '" + ex.getParameterName() + "' is missing.";
+	}
+
+	@ResponseBody
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
+	public String handleParameterTypeMismatchException(final MethodArgumentTypeMismatchException ex) {
+		// The parameter name is declared in the controller; the submitted value is not echoed back.
+		return "The parameter '" + ex.getName() + "' has an invalid value.";
 	}
 
 	@ResponseBody

@@ -195,6 +195,20 @@ class PoliciesApiControllerTest {
     }
 
     @Test
+    void createWithoutANameReturns400NamingTheParameterAndSavesNothing() throws Exception {
+        final String body = mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("name"), "the response should name the missing parameter: " + body);
+
+        verify(policyDataService, org.mockito.Mockito.never()).validatePolicy(anyString());
+        verify(policyDataService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void compileValidPhiSqlReturnsCompiledNativePolicy() throws Exception {
         // The controller compiles with the real PhiSQL compiler; the compiled JSON is validated via the
         // (mocked) policy data service, so stub validation to pass.

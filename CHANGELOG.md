@@ -174,5 +174,10 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
   `APPLICATION_PDF`).
 - `MongoVectorService.hashAndInsert` now stores `user_id`, so
   `getVectorRepresentation` matches what was written.
+- `docker-compose.yml` pinned `mongo:8.0.26`, which cannot start on Linux kernel 6.19 or newer.
+- `docker-compose.yml` pinned `philterd/ph-eye:1.3.0`, which was never published.
+- A missing or malformed required query parameter returned `500 An unknown error has occurred.`
+  instead of `400`. Affected `POST /api/policies`, `POST /api/contexts`, `DELETE /api/ledger`,
+  and `POST /api/policies/{policyName}/rollback`. The response now names the parameter.
 
 [4.0.0]: https://github.com/philterd/philter/releases/tag/4.0.0

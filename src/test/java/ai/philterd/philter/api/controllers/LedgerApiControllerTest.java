@@ -293,6 +293,41 @@ class LedgerApiControllerTest {
     }
 
     @Test
+    void purgeWithoutOlderThanDaysReturns400NamingTheParameter() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+
+        final String body = mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-purge-missing-days"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("older_than_days"),
+                "the response should name the missing parameter: " + body);
+
+        verify(ledgerService, never()).deleteChainsByUserIdAndOlderThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void purgeWithANonNumericOlderThanDaysReturns400() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+
+        final String body = mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "ninety")
+                        .requestAttr("requestId", "req-purge-bad-days"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("older_than_days"),
+                "the response should name the invalid parameter: " + body);
+
+        verify(ledgerService, never()).deleteChainsByUserIdAndOlderThan(any(), any(), anyInt());
+    }
+
+    @Test
     void legalHoldBlocksDeleteWith423() throws Exception {
         makeCallerAdmin();
         LedgerDeletionConfig.setOverrideForTesting(true);

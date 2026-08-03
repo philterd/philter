@@ -2,7 +2,7 @@
 
 This page lists some sample policies. You can use these policies either as-is or as starting points for customizing them to meet your specific de-identification needs.
 
-<!--To use a policy, download the policy to Philter' `policies` directory, which by default is `/opt/philter/policies`. Then restart Philter with `sudo systemctl restart Philter`. The new policy will now be available for use when submitting filter API requests to Philter. (Specify the policy's name in the request. See the [API](filtering_api.md) for examples.)-->
+<!--To use a policy, download the policy to Philter' `policies` directory, which by default is `/opt/philter/policies`. Then restart Philter with `sudo systemctl restart Philter`. The new policy will now be available for use when submitting filter API requests to Philter. (Specify the policy's name in the request. See the [API](../api_and_sdks/api/filtering_api.md) for examples.)-->
 
 > These policies are examples and not an exhaustive list of all the sensitive information Philter can identify. Items from each of these policies can be combined to make policies to meet your use-cases.
 

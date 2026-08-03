@@ -92,7 +92,7 @@ Verification is the consumer's responsibility. Philter does not expose a server-
 
 ### Steps to verify
 
-1. Fetch the public key from `GET /api/signing-key` (see [API Reference](#get-apisiging-key) below).
+1. Fetch the public key from `GET /api/signing-key` (see [Getting the Public Key](#getting-the-public-key) below).
 2. Decode the JWT from the `X-Philter-Signature` header (split on `.`, base64url-decode each part).
 3. Verify the JWT signature using the public key and ES256.
 4. Check that the `bodyHash` in the payload matches `SHA-256(response_body)`.

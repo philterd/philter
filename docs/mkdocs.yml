@@ -6,6 +6,13 @@ copyright: Copyright 2026 Philterd, LLC
 site_author: philterd
 site_description: User guide for Philter, the open source PII/PHI redaction engine.
 use_directory_urls: false
+# Warnings, promoted to errors by strict, so `mkdocs serve` stays usable while builds fail.
+strict: true
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
 plugins:
   - markdownextradata:
       jinja_options:

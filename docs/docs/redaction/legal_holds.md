@@ -2,7 +2,7 @@
 
 A **legal hold** is a named, audited instruction to Philter to never delete the redaction evidence for a specific scope of data. Legal holds are the primary mechanism for preserving governance evidence during litigation, regulatory investigation, or any situation where data must not be destroyed.
 
-When a legal hold is active on a user's data, every deletion path in Philter — per-document delete, bulk purge, and age-based expiry — is blocked. A blocked operation returns an **HTTP 423 Locked** response and the attempt is written to the audit log. The hold must be explicitly released before any deletion proceeds.
+When a legal hold is active on a user's data, every deletion Philter performs (per-document delete and bulk purge) is blocked. A blocked operation returns an **HTTP 423 Locked** response and the attempt is written to the audit log. The hold must be explicitly released before any deletion proceeds. Optional age-based expiry is the one exception, because MongoDB performs it directly; see [How Holds Block Deletions](#how-holds-block-deletions).
 
 ## Why Legal Holds Exist
 
@@ -99,13 +99,16 @@ A successful release returns **HTTP 200 OK**. If the hold does not exist, **HTTP
 
 ## How Holds Block Deletions
 
-The hold check runs on every deletion path. There is no way to bypass a hold through the API or the dashboard.
+The hold check runs on every deletion Philter performs. There is no way to bypass a hold through the API or the dashboard.
 
 | Deletion operation | Hold check applied |
 |--------------------|--------------------|
-| `DELETE /api/ledger/{documentId}` — delete a specific document's chain | `isProtectedDocument`: blocks if a `document_chain` hold covers that document, or if a `user` hold covers the owning user. |
-| `DELETE /api/ledger?older_than_days=N` — bulk age-based purge | `hasAnyHold`: blocks the entire purge if the user has **any** active hold. Because a bulk purge cannot selectively skip held documents, the entire operation is blocked while any hold remains. |
+| `DELETE /api/ledger/{documentId}` (delete a specific document's chain) | `isProtectedDocument`: blocks if a `document_chain` hold covers that document, or if a `user` hold covers the owning user. |
+| `DELETE /api/ledger?older_than_days=N` (bulk age-based purge) | `hasAnyHold`: blocks the entire purge if the user has **any** active hold. Because a bulk purge cannot selectively skip held documents, the entire operation is blocked while any hold remains. |
 | Internal bulk delete during user removal | `hasAnyHold`: same as bulk purge above. |
+| Automatic expiry via `REDACTION_LEDGER_TTL_DAYS` | **None.** Expiry is performed by MongoDB, not by Philter, so no hold check runs. See the warning below. |
+
+> **Automatic expiry is not hold-aware.** `REDACTION_LEDGER_TTL_DAYS` creates a MongoDB TTL index, and MongoDB expires those entries itself with no application code in the path. Entries under an active legal hold will be deleted anyway. It is `0` (off) by default; leave it off on any deployment where legal holds are relied upon.
 
 When a deletion is blocked:
 
@@ -209,7 +212,7 @@ These two obligations can appear to conflict: you may need to preserve ledger ev
 
 **The general rule:** a legal obligation to preserve evidence takes precedence over a data subject's right to erasure. GDPR Art. 17(3)(b) explicitly carves out retention "for the establishment, exercise or defence of legal claims." When a legal hold is active, the evidence must be preserved regardless of an erasure request, and that preserved status should be communicated to the data subject together with the legal basis.
 
-**When no hold is active:** ledger entries are removable via the standard purge or delete paths. Fulfilling a GDPR erasure request is straightforward: delete the relevant document chains or purge the user's entire ledger.
+**When no hold is active:** ledger entries are removable via the standard purge or delete paths, so an erasure request is fulfilled by deleting the relevant document chains or purging the user's entire ledger. Both require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is `false` by default. Confirm your deployment has deletion enabled before committing to an erasure timeline, because a deployment that has not opted in has no way to erase ledger entries through Philter.
 
 **When a hold is active:** a deletion or purge attempt returns HTTP 423, which is the signal that evidence is preserved under hold. Your process should:
 1. Inform the data subject that erasure is temporarily deferred under a legal hold.

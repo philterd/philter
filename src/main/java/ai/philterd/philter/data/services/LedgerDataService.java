@@ -418,6 +418,11 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
         final Document query = new Document("user_id", userId);
         final DeleteResult deleteResult = collection.deleteMany(query);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
+                null, null,
+                "operation: delete_all_by_user, deletedCount: " + deleteResult.getDeletedCount());
+
         return new ServiceResponse("Deleted " + deleteResult.getDeletedCount() + " ledger entries.",
                 true, 200);
     }

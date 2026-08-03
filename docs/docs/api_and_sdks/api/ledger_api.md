@@ -98,4 +98,47 @@ The export body has the shape:
 
 > **Security:** unlike a context export (token hashes only), a ledger export contains the **decrypted token and replacement** values. Treat it as sensitive and store and transmit it securely.
 
-> **Note:** the ledger is append-only over the API. There is no API endpoint to delete or purge ledger entries; the ledger is governance evidence and is not deletable through the API.
+## Delete a document's ledger chain
+
+| Method   | Endpoint                   | Description                            |
+|----------|----------------------------|----------------------------------------|
+| `DELETE` | `/api/ledger/{documentId}` | Permanently delete a document's chain. |
+
+Removes every entry for the document. Returns `200 OK`.
+
+```bash
+curl -X DELETE -k -H "Authorization: Bearer <token>" \
+  "https://localhost:8080/api/ledger/7a906866-4fc9-44d6-9bc3-22728b93a602"
+```
+
+## Purge old ledger entries
+
+| Method   | Endpoint      | Description                                     |
+|----------|---------------|-------------------------------------------------|
+| `DELETE` | `/api/ledger` | Delete your chains older than a number of days. |
+
+The ledger is kept indefinitely by default (see [How and When Ledger Entries Are Deleted](../../redaction/ledgers.md#how-and-when-ledger-entries-are-deleted)); this endpoint is how you prune stale entries on demand.
+
+### Query Parameters
+
+* `older_than_days` (required) - Delete chains whose entries are older than this many days. Must be zero or greater (`0` deletes everything).
+* `owner` - Optional. Admin only. The username of the user whose entries to purge. Defaults to the caller.
+
+Returns `200 OK` with the number of entries deleted, or `400 Bad Request` if `older_than_days` is negative.
+
+```bash
+curl -X DELETE -k -H "Authorization: Bearer <token>" \
+  "https://localhost:8080/api/ledger?older_than_days=90"
+```
+
+### Requirements for both deletion endpoints
+
+Deletion is the only destructive operation in this API, and it is gated more tightly than the rest of it.
+
+* **Administrator only.** A valid API key belonging to a non-admin receives `403 Forbidden`, even for its own ledger. This differs from the `404 Not Found` used elsewhere in this API: that code exists to avoid revealing whether another user or resource exists, and there is nothing to conceal about your own ledger.
+* **`LEDGER_DELETION_ENABLED=true` is required.** It is `false` by default, so a deployment that has not opted in cannot delete ledger evidence at all and both endpoints return `403 Forbidden`. See [Settings](../../settings.md).
+* **Deleting another user's ledger needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` as well**, in addition to the above, via the `owner` parameter.
+* **Legal holds still apply.** If an active [legal hold](../../redaction/legal_holds.md) covers the evidence, the request returns `423 Locked` with the blocking hold references and nothing is deleted. A purge is blocked in its entirety if the user has any active hold, because an age-based purge cannot selectively skip held documents.
+* **Every deletion is audited** as `redaction_ledger_deleted`, and every hold-blocked attempt as `legal_hold_blocked_deletion`. Deletion removes ledger entries; it never removes the audit record that the deletion happened.
+
+Deletion always operates on whole document chains, never on individual entries within a chain, so a chain that remains is always complete and still verifies.

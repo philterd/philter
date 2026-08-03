@@ -36,18 +36,20 @@ Redaction ledgers are controlled on a per-context basis. When creating or editin
 
 Deletion always operates on **whole document chains**, never on individual entries within a chain. This preserves verifiability: a chain that remains is always complete and can still be validated, and a chain that is removed is removed in its entirety.
 
-**Legal holds block all three deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, every deletion attempt against that evidence is blocked and returns HTTP 423, regardless of which deletion path is used. The hold must be released before any deletion can proceed. See [Legal Holds](legal_holds.md) for the full documentation.
+**Legal holds block the deliberate deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, a purge or a single-chain delete against that evidence is blocked and returns HTTP 423. The hold must be released before either can proceed. Automatic expiry (path 3) is performed by MongoDB rather than by Philter and is **not** hold-aware, so do not enable it on a deployment where holds are relied upon. See [Legal Holds](legal_holds.md) for the full documentation.
+
+> **Deletion is restricted.** Paths 1 and 2 below require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is **`false` by default**. A deployment that has not opted in cannot delete ledger evidence through Philter at all, and the deletion controls do not appear in the dashboard. See [Settings](../settings.md).
 
 ### 1. Manual purge (on demand)
 
-You can prune old entries yourself at any time. This is the primary way to enforce a retention policy.
+An administrator can prune old entries at any time. This is the primary way to enforce a retention policy.
 
-* **Dashboard**: on the **Ledger** page, use **Purge old entries** and enter a number of days. Every chain of yours older than that is deleted.
+* **Dashboard**: on the **Redaction Ledgers** page, use **Purge old entries** and enter a number of days. Every chain of yours older than that is deleted.
 * **API**: `DELETE /api/ledger?older_than_days={n}` deletes the calling user's chains older than `n` days. See the [Ledger API](../api_and_sdks/api/ledger_api.md#purge-old-ledger-entries).
 
 ### 2. Deleting a single document's chain
 
-* **Dashboard**: click the delete (trash) icon next to a document on the **Ledger** page.
+* **Dashboard**: click the delete (trash) icon next to a document on the **Redaction Ledgers** page.
 * **API**: `DELETE /api/ledger/{documentId}` removes that document's chain. See the [Ledger API](../api_and_sdks/api/ledger_api.md#delete-a-documents-ledger-chain).
 
 ### 3. Automatic expiry (optional, off by default)

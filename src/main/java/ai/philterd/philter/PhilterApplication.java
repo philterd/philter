@@ -35,6 +35,7 @@ import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -112,6 +113,15 @@ public class PhilterApplication implements AppShellConfigurator {
             LOGGER.warn("* users' contexts, policies, custom lists, documents, and redaction ledger via the    *");
             LOGGER.warn("* API 'owner' parameter and the admin 'All ...' UI tabs. Disable this unless you      *");
             LOGGER.warn("* explicitly require cross-user administration.                                       *");
+            LOGGER.warn("****************************************************************************************");
+        }
+
+        if (LedgerDeletionConfig.isLedgerDeletionEnabled()) {
+            LOGGER.warn("****************************************************************************************");
+            LOGGER.warn("* LEDGER_DELETION_ENABLED is ON: administrators can permanently delete redaction      *");
+            LOGGER.warn("* ledger evidence via DELETE /api/ledger and the Redaction Ledgers dashboard. Legal   *");
+            LOGGER.warn("* holds still block deletion and every deletion is audited. Disable this unless you   *");
+            LOGGER.warn("* explicitly require ledger deletion.                                                 *");
             LOGGER.warn("****************************************************************************************");
         }
 

@@ -48,7 +48,7 @@ The **Redaction Ledger** section provides a tamper-evident, hash-chained record 
 *   **Browse and search** your ledger chains by document id or filename.
 *   **Verify a chain**: open a document's chain to see each recorded redaction (type, replacement, position, and timestamp), along with a badge confirming whether the cryptographic chain is intact or has been tampered with.
 *   **Export a chain** as a JSON document for evidence or external review.
-*   **Purge entries**: ledger entries are kept indefinitely by default; you can delete an individual document's chain, or purge entries older than a chosen number of days.
+*   **Purge entries**: ledger entries are kept indefinitely by default. An administrator can delete an individual document's chain, or purge entries older than a chosen number of days. These controls appear only for administrators and only when `LEDGER_DELETION_ENABLED=true`, which is `false` by default; an active [legal hold](redaction/legal_holds.md) blocks the deletion and reports the blocking hold. See [Settings](settings.md).
 
 When cross-user access is enabled, administrators can additionally review every user's ledger chains from the **All Ledger** tab. Ledgers are enabled per context; see [Redaction Ledgers](redaction/ledgers.md) for the full design.
 

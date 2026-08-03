@@ -116,6 +116,10 @@ class LedgerDataServiceTest {
 
         assertTrue(response.isSuccessful());
         verify(mongoCollection).deleteMany(any(Bson.class));
+
+        // Evidence destruction must always leave a trace, on this path as on the others.
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.REDACTION_LEDGER_DELETED),
+                eq(userId), isNull(), isNull(), contains("deletedCount: 10"));
     }
 
     @Test

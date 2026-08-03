@@ -56,8 +56,10 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
   - REST endpoints under `/api/ledger` — `GET /api/ledger` (paginated chain heads),
     `GET /api/ledger/{documentId}` (a document's chain), `GET /api/ledger/{documentId}/valid`
     (verify the hash chain), `GET /api/ledger/{documentId}/export` (export decrypted entries),
-    and `DELETE` for a single document's chain or all of the caller's chains.
-  - A **Redaction Ledger** view in the UI for browsing, searching, exporting, and purging.
+    and `DELETE` for a single document's chain or entries older than a given age.
+  - A **Redaction Ledgers** view in the UI for browsing, searching, exporting, and purging.
+  - Deletion (API and dashboard) is administrator-only and requires `LEDGER_DELETION_ENABLED=true`,
+    which is `false` by default. Legal holds still return `423`, and deletions are audited.
   - Retention via `REDACTION_LEDGER_TTL_DAYS` — entries are kept **indefinitely by default**
     (`0`); set a positive number of days for MongoDB TTL expiry. Ledger entries are also cleaned up when a
     document chain is deleted, on a manual purge, and on user deletion.

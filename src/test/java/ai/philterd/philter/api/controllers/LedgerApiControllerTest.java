@@ -23,10 +23,13 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.config.LedgerDeletionConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +49,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -100,6 +105,7 @@ class LedgerApiControllerTest {
         void clearAdminAccessOverride() {
 
             AdminAccessConfig.setOverrideForTesting(null);
+            LedgerDeletionConfig.setOverrideForTesting(null);
 
         }
 
@@ -199,12 +205,146 @@ class LedgerApiControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    // ----- Deletion: admin-only and gated by LEDGER_DELETION_ENABLED -----
+
     @Test
-    void removedDeleteEndpointReturnsMethodNotAllowed() throws Exception {
-        // The ledger DELETE/purge endpoints were removed. A DELETE to a path that still serves GET must
-        // report 405 (method not allowed), not 500.
-        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger"))
-                .andExpect(status().isMethodNotAllowed());
+    void nonAdminCannotDeleteChain() throws Exception {
+        makeCallerNonAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-nonadmin"))
+                .andExpect(status().isForbidden());
+
+        verify(ledgerService, never()).deleteByDocumentId(any(), any(), any(), any());
+    }
+
+    @Test
+    void nonAdminCannotPurge() throws Exception {
+        makeCallerNonAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "90")
+                        .requestAttr("requestId", "req-purge-nonadmin"))
+                .andExpect(status().isForbidden());
+
+        verify(ledgerService, never()).deleteChainsByUserIdAndOlderThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void adminCannotDeleteWhenDeletionDisabled() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(false);
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-disabled"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "90")
+                        .requestAttr("requestId", "req-purge-disabled"))
+                .andExpect(status().isForbidden());
+
+        verify(ledgerService, never()).deleteByDocumentId(any(), any(), any(), any());
+        verify(ledgerService, never()).deleteChainsByUserIdAndOlderThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void adminDeletesChainWhenEnabled() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteByDocumentId(any(), eq(userId), eq("doc-1"), any()))
+                .thenReturn(ServiceResponse.success());
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-ok"))
+                .andExpect(status().isOk());
+
+        verify(ledgerService).deleteByDocumentId(any(), eq(userId), eq("doc-1"), any());
+    }
+
+    @Test
+    void adminPurgesWhenEnabled() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(90)))
+                .thenReturn(new ServiceResponse("Deleted 3 ledger entries older than 90 days.", true, 200));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "90")
+                        .requestAttr("requestId", "req-purge-ok"))
+                .andExpect(status().isOk());
+
+        verify(ledgerService).deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(90));
+    }
+
+    @Test
+    void purgeRejectsNegativeDays() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "-1")
+                        .requestAttr("requestId", "req-purge-negative"))
+                .andExpect(status().isBadRequest());
+
+        verify(ledgerService, never()).deleteChainsByUserIdAndOlderThan(any(), any(), anyInt());
+    }
+
+    @Test
+    void legalHoldBlocksDeleteWith423() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteByDocumentId(any(), eq(userId), eq("doc-1"), any()))
+                .thenReturn(new ServiceResponse("Deletion blocked by legal hold(s): LIT-1.", false, 423));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-held"))
+                .andExpect(status().isLocked());
+    }
+
+    @Test
+    void legalHoldBlocksPurgeWith423() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(30)))
+                .thenReturn(new ServiceResponse("Purge blocked by legal hold(s): LIT-1.", false, 423));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "30")
+                        .requestAttr("requestId", "req-purge-held"))
+                .andExpect(status().isLocked());
+    }
+
+    @Test
+    void deletingAnotherUsersChainRequiresCrossUserAccess() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        makeCallerAdmin();
+        makeOwnerLookup("other@example.com", otherUser);
+        LedgerDeletionConfig.setOverrideForTesting(true);
+
+        // Cross-user access off: an admin naming another owner gets 404, and nothing is deleted.
+        AdminAccessConfig.setOverrideForTesting(false);
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-del-xuser-off"))
+                .andExpect(status().isNotFound());
+        verify(ledgerService, never()).deleteByDocumentId(any(), eq(otherUser), any(), any());
+
+        // Cross-user access on: the deletion targets the named owner, not the calling admin.
+        AdminAccessConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteByDocumentId(any(), eq(otherUser), eq("doc-1"), any()))
+                .thenReturn(ServiceResponse.success());
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-del-xuser-on"))
+                .andExpect(status().isOk());
+        verify(ledgerService).deleteByDocumentId(any(), eq(otherUser), eq("doc-1"), any());
+
+        // An admin reaching into another user's ledger is itself an audited event.
+        verify(auditEventPublisher).auditEvent(eq("req-del-xuser-on"), eq(AuditLogEvent.ADMIN_CROSS_USER_ACCESS),
+                eq(userId), eq(otherUser), isNull(), contains("delete ledger chain doc-1"));
     }
 
     @Test
@@ -224,6 +364,14 @@ class LedgerApiControllerTest {
         admin.setId(userId);
         admin.setRole("admin");
         when(userService.findOneById(userId)).thenReturn(admin);
+    }
+
+    /** Makes the calling user a non-admin. */
+    private void makeCallerNonAdmin() {
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
     }
 
     /** Stubs userService.findByUsername so the email resolves to a user with the given id. */

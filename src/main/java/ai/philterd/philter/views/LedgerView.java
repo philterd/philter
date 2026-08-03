@@ -18,10 +18,12 @@ package ai.philterd.philter.views;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.api.responses.LedgerEntryView;
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.api.responses.LedgerExport;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -40,6 +42,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
+import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -90,6 +93,10 @@ public class LedgerView extends AbstractRestrictedView {
 
         grid.addComponentColumn(this::createViewButton).setHeader("View").setAutoWidth(true).setFlexGrow(0);
 
+        if (canDeleteLedger()) {
+            grid.addComponentColumn(this::createDeleteButton).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
+        }
+
         // Lazy paging: fetch one page (offset/limit) at a time plus the total count, honoring the
         // current search term.
         grid.setPageSize(PAGE_SIZE);
@@ -116,6 +123,14 @@ public class LedgerView extends AbstractRestrictedView {
 
         final HorizontalLayout searchRow = new HorizontalLayout(searchField, searchButton);
         searchRow.setAlignItems(HorizontalLayout.Alignment.END);
+
+        if (canDeleteLedger()) {
+            final Button purgeButton = new Button("Purge old entries", VaadinIcon.TRASH.create());
+            purgeButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            purgeButton.setTooltipText("Delete ledger entries older than a number of days.");
+            purgeButton.addClickListener(e -> openPurgeDialog());
+            searchRow.add(purgeButton);
+        }
 
         final Span label = new Span("The redaction ledger is a tamper-evident, hash-chained record of redactions made in "
                 + "contexts that have the ledger enabled. Entries are kept indefinitely by default. ");
@@ -174,6 +189,83 @@ public class LedgerView extends AbstractRestrictedView {
         viewButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         viewButton.addClickListener(e -> openChainDialog(chainHead.getDocumentId()));
         return viewButton;
+    }
+
+    /** Deletion is admin-only and off unless the deployment opts in with LEDGER_DELETION_ENABLED. */
+    private boolean canDeleteLedger() {
+        return isAdmin() && LedgerDeletionConfig.isLedgerDeletionEnabled();
+    }
+
+    private Button createDeleteButton(final LedgerEntity chainHead) {
+        final Button deleteButton = new Button(VaadinIcon.TRASH.create());
+        deleteButton.setTooltipText("Delete this document's ledger chain.");
+        deleteButton.addClickListener(e -> {
+
+            final Dialog confirmDialog = new Dialog();
+            confirmDialog.add(new H3("Confirm Deletion"));
+            confirmDialog.add(new Paragraph("Delete the ledger chain for document " + chainHead.getDocumentId()
+                    + "? This permanently removes its entries and cannot be undone."));
+
+            final Button confirmButton = new Button("Delete", ev -> {
+                final ServiceResponse resp = ledgerService.deleteByDocumentId(
+                        RequestIdGenerator.generate(), currentUser.getId(),
+                        chainHead.getDocumentId(), Source.WEBUI.getSource());
+                confirmDialog.close();
+                if (resp.isSuccessful()) {
+                    grid.getDataProvider().refreshAll();
+                    showSuccessNotification("Ledger chain deleted.");
+                } else {
+                    showFailureNotification(resp.getMessage());
+                }
+            });
+            confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+
+            final Button cancelButton = new Button("Cancel", ev -> confirmDialog.close());
+
+            confirmDialog.getFooter().add(cancelButton, confirmButton);
+            confirmDialog.open();
+        });
+        return deleteButton;
+    }
+
+    private void openPurgeDialog() {
+
+        final IntegerField daysField = new IntegerField("Delete entries older than (days)");
+        daysField.setMin(0);
+        daysField.setValue(90);
+        daysField.setStepButtonsVisible(true);
+        daysField.setWidthFull();
+
+        final Dialog dialog = new Dialog();
+        dialog.setWidth("420px");
+        dialog.add(new H3("Purge Old Ledger Entries"));
+        dialog.add(new Paragraph("Permanently delete your ledger entries older than the given number of days. "
+                + "This cannot be undone."));
+        dialog.add(daysField);
+
+        final Button confirmButton = new Button("Purge", e -> {
+            final Integer days = daysField.getValue();
+            if (days == null || days < 0) {
+                daysField.setInvalid(true);
+                daysField.setErrorMessage("Enter zero or more days.");
+                return;
+            }
+            final ServiceResponse purgeResp = ledgerService.deleteChainsByUserIdAndOlderThan(
+                    RequestIdGenerator.generate(), currentUser.getId(), days);
+            dialog.close();
+            if (purgeResp.isSuccessful()) {
+                grid.getDataProvider().refreshAll();
+                showSuccessNotification(purgeResp.getMessage());
+            } else {
+                showFailureNotification(purgeResp.getMessage());
+            }
+        });
+        confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+
+        final Button cancelButton = new Button("Cancel", e -> dialog.close());
+
+        dialog.getFooter().add(cancelButton, confirmButton);
+        dialog.open();
     }
 
     private void openChainDialog(final String documentId) {

@@ -15,8 +15,10 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -28,6 +30,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.types.ObjectId;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -149,6 +153,36 @@ public abstract class AbstractApiController {
      */
     protected boolean isCrossUserAccessEnabled() {
         return AdminAccessConfig.isCrossUserAccessEnabled();
+    }
+
+    /**
+     * Whether redaction-ledger deletion is permitted at all in this deployment. Reads the
+     * {@code LEDGER_DELETION_ENABLED} kill switch; overridable for tests.
+     */
+    protected boolean isLedgerDeletionEnabled() {
+        return LedgerDeletionConfig.isLedgerDeletionEnabled();
+    }
+
+    /**
+     * Authorizes an admin-only operation, returning the refusal to send or {@code null} when allowed.
+     *
+     * <p>Returns 403, not the 404 {@link #resolveTargetUserId} uses: the caller is acting on their own
+     * data, so there is nothing to conceal. The admin check runs first so a non-admin never learns the
+     * deployment's configuration from the error message.
+     */
+    protected ResponseEntity<GenericResponse> authorizeAdminOnly(final UserService userService,
+                                                                 final ObjectId callerUserId,
+                                                                 final boolean featureEnabled,
+                                                                 final String operation,
+                                                                 final String disabledMessage) {
+        if (!isAdmin(userService, callerUserId)) {
+            return new ResponseEntity<>(
+                    new GenericResponse(operation + " requires an administrator."), HttpStatus.FORBIDDEN);
+        }
+        if (!featureEnabled) {
+            return new ResponseEntity<>(new GenericResponse(disabledMessage), HttpStatus.FORBIDDEN);
+        }
+        return null;
     }
 
     /**

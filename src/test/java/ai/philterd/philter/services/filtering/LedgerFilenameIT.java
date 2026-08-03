@@ -161,10 +161,41 @@ class LedgerFilenameIT extends AbstractMongoIT {
         // Search only ever looks at chain heads, so this matched nothing while the head held the
         // placeholder.
         final List<LedgerEntity> hits = ledgerDataService.searchChainsByUserId(
-                "req-search", userId, "invoice-42", Source.API.getSource());
+                "req-search", userId, "invoice-42", 0, 25, Source.API.getSource());
 
         assertFalse(hits.isEmpty(), "searching by filename should find the chain");
         assertEquals("invoice-42.txt", hits.getFirst().getFilename());
+
+    }
+
+    @Test
+    void searchIsPagedAndCountedOverTheSameMatchingSet() throws Exception {
+
+        for (int i = 0; i < 3; i++) {
+            redactionService.filter(POLICY_NAME, userId, CONTEXT, TEXT.getBytes(),
+                    MimeType.TEXT_PLAIN, "invoice-4" + i + ".txt");
+        }
+        redactionService.filter(POLICY_NAME, userId, CONTEXT, TEXT.getBytes(),
+                MimeType.TEXT_PLAIN, "statement-99.txt");
+
+        assertEquals(4, ledgerDataService.countChainsByUserId(userId), "the user owns four chains");
+
+        // The count must describe the matches, not the user's whole ledger.
+        assertEquals(3, ledgerDataService.countChainsByUserIdMatching(userId, "invoice"));
+
+        // ...and the page must be drawn from that same set.
+        final List<LedgerEntity> firstPage = ledgerDataService.searchChainsByUserId(
+                "req-page-1", userId, "invoice", 0, 2, Source.API.getSource());
+        assertEquals(2, firstPage.size(), "a limit of 2 should return 2 of the 3 matches");
+
+        final List<LedgerEntity> secondPage = ledgerDataService.searchChainsByUserId(
+                "req-page-2", userId, "invoice", 2, 2, Source.API.getSource());
+        assertEquals(1, secondPage.size(), "the second page should hold the remaining match");
+
+        for (final LedgerEntity e : firstPage) {
+            assertTrue(e.getFilename().startsWith("invoice-"), "non-matching chain leaked into the page");
+        }
+        assertTrue(secondPage.getFirst().getFilename().startsWith("invoice-"));
 
     }
 

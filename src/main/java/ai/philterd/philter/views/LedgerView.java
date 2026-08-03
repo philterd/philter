@@ -170,9 +170,8 @@ public class LedgerView extends AbstractRestrictedView {
         if (searchTerm == null || searchTerm.isBlank()) {
             return ledgerService.findChainsByUserId(requestId, currentUser.getId(), offset, limit, Source.WEBUI.getSource());
         }
-        // Search is not paged in the data layer, so page the matches in memory.
-        return ledgerService.searchChainsByUserId(requestId, currentUser.getId(), searchTerm, Source.WEBUI.getSource())
-                .stream().skip(offset).limit(limit).toList();
+        return ledgerService.searchChainsByUserId(requestId, currentUser.getId(), searchTerm,
+                offset, limit, Source.WEBUI.getSource());
     }
 
     /** Counts the caller's chain heads (matching the current search term, if any). */
@@ -180,8 +179,7 @@ public class LedgerView extends AbstractRestrictedView {
         if (searchTerm == null || searchTerm.isBlank()) {
             return ledgerService.countChainsByUserId(currentUser.getId());
         }
-        return ledgerService.searchChainsByUserId(RequestIdGenerator.generate(), currentUser.getId(),
-                searchTerm, Source.WEBUI.getSource()).size();
+        return ledgerService.countChainsByUserIdMatching(currentUser.getId(), searchTerm);
     }
 
     private Button createViewButton(final LedgerEntity chainHead) {

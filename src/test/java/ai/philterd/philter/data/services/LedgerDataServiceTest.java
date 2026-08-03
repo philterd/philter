@@ -317,11 +317,13 @@ class LedgerDataServiceTest {
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
         MongoCursor<Document> cursor = mock(MongoCursor.class);
         when(findIterable.iterator()).thenReturn(cursor);
         when(cursor.hasNext()).thenReturn(false);
 
-        ledgerDataService.searchChainsByUserId("req", userId, searchTerm, "source");
+        ledgerDataService.searchChainsByUserId("req", userId, searchTerm, 0, 25, "source");
 
         String expectedHash = DigestUtils.sha256Hex(searchTerm);
         verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.REDACTION_LEDGER_QUERY),

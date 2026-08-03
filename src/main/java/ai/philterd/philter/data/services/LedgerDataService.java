@@ -127,11 +127,12 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public List<LedgerEntity> searchChainsByUserId(final String requestId, final ObjectId userId, final String searchTerm, final String source) {
+    /** Built in one place so a search and its count cannot describe different result sets. */
+    private Bson searchQuery(final ObjectId userId, final String searchTerm) {
 
         final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
 
-        final Bson query = Filters.and(
+        return Filters.and(
                 Filters.eq("user_id", userId),
                 Filters.eq("previous_hash", GENESIS),
                 Filters.or(
@@ -140,7 +141,22 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 )
         );
 
-        final FindIterable<Document> documents = collection.find(query).sort(Sorts.descending("timestamp"));
+    }
+
+    /** Counts the chain heads a search matches. Does not audit; the search it accompanies does. */
+    public int countChainsByUserIdMatching(final ObjectId userId, final String searchTerm) {
+        return (int) collection.countDocuments(searchQuery(userId, searchTerm));
+    }
+
+    public List<LedgerEntity> searchChainsByUserId(final String requestId, final ObjectId userId,
+            final String searchTerm, final int offset, final int limit, final String source) {
+
+        final int effectiveLimit = Math.min(limit, MAX_LIMIT);
+
+        final FindIterable<Document> documents = collection.find(searchQuery(userId, searchTerm))
+                .sort(Sorts.descending("timestamp"))
+                .skip(offset)
+                .limit(effectiveLimit);
 
         final List<LedgerEntity> ledgerEntries = new ArrayList<>();
 

@@ -20,12 +20,12 @@ Returns the most recent chains first. Each item is the chain's genesis entry, wh
 
 ### Query Parameters
 
-* `q` - Optional. Filter to chains whose document id or filename contains this value.
+* `q` - Optional. Filter to chains whose document id or filename contains this value. Case-insensitive.
 * `owner` - Optional. Admin only. The username of the user whose ledger to list. Defaults to the caller.
-* `offset` - Optional. Number of chains to skip (default `0`). Ignored when `q` is supplied.
-* `limit` - Optional. Maximum chains to return (default `25`, max `100`). Ignored when `q` is supplied.
+* `offset` - Optional. Number of chains to skip (default `0`).
+* `limit` - Optional. Maximum chains to return (default `25`, max `100`).
 
-Returns `200 OK` with `{ "chains": [ ... ], "total": <count> }`, where `total` is the number of chains you have.
+Returns `200 OK` with `{ "chains": [ ... ], "total": <count> }`. `total` is the number of chains the request matched: your whole ledger when `q` is absent, or the number of chains matching `q` when it is present. Paging with `offset` and `limit` applies either way, so `total` always describes the set the returned chains were drawn from.
 
 ```bash
 curl -k -H "Authorization: Bearer <token>" \

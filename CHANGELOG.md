@@ -26,8 +26,14 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `/api/filter` response headers, and `/api/explain`.
 - **Output signing.** Text filter and explain responses can be signed with an ES256 JWT returned in
   `X-Philter-Signature`, binding the response hash and the applied policy. Opt-in.
+- **Legal holds.** Named, audited holds that block deletion of redaction evidence until released,
+  scoped to one document chain or to all of a user's evidence, with `/api/holds` and a dashboard view.
+- **Multi-factor authentication.** Optional TOTP on dashboard login, with enrollment, lockout after
+  repeated failures, and admin unlock.
 - **Audit log.** Security-relevant actions are recorded to a new `audit_events` collection, with an
   admin viewer and CSV export.
+- **Phield and Diffuse integrations.** Optional publishing of PII type counts for drift monitoring
+  and of differential-privacy aggregates. Both are configured in the dashboard and off by default.
 - **Asynchronous PDF redaction** and the `/api/documents` endpoints for listing, polling,
   downloading, and deleting jobs, with signed webhook delivery on completion or failure.
 - **Admin cross-user access.** Administrators can act on another user's resources with an `owner`
@@ -36,8 +42,12 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **HTTPS by default.** The Docker image generates a self-signed certificate on first start.
 - **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds a credential for automation and turnkey
   deployments without using the dashboard.
-- Optional shared Valkey/Redis caching, an API IP allowlist, bounded context and vector storage,
-  paginated contexts, and `GET /api/status`.
+- **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
+  custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
+  or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;
+  `POST /api/policies/compile` to compile PhiSQL into a native policy; the policy version endpoints
+  (`versions`, `versions/{revision}`, `diff`, `rollback`); and `GET /api/signing-key`.
+- Optional shared Valkey/Redis caching, an API IP allowlist, and bounded context and vector storage.
 
 ### Changed
 

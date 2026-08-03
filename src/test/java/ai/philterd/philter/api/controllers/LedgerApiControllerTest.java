@@ -137,7 +137,7 @@ class LedgerApiControllerTest {
 
     @Test
     void listWithQueryUsesSearch() throws Exception {
-        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), any()))
+        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any()))
                 .thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
@@ -145,8 +145,58 @@ class LedgerApiControllerTest {
                         .requestAttr("requestId", "req-search"))
                 .andExpect(status().isOk());
 
-        verify(ledgerService).searchChainsByUserId(any(), eq(userId), eq("invoice"), any());
+        verify(ledgerService).searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any());
         verify(ledgerService, never()).findChainsByUserId(any(), any(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void searchReportsTheMatchingTotalNotTheUserTotal() throws Exception {
+        final LedgerEntity match = new LedgerEntity();
+        match.setDocumentId("doc-1");
+        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any()))
+                .thenReturn(List.of(match));
+        // The caller owns 7 chains; only 1 matches. `total` must describe the matches.
+        when(ledgerService.countChainsByUserIdMatching(eq(userId), eq("invoice"))).thenReturn(1);
+        when(ledgerService.countChainsByUserId(eq(userId))).thenReturn(7);
+
+        final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("q", "invoice")
+                        .requestAttr("requestId", "req-search-total"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"total\":1"), "total should count the matches, was: " + body);
+        verify(ledgerService, never()).countChainsByUserId(any());
+    }
+
+    @Test
+    void searchPassesOffsetAndLimitThrough() throws Exception {
+        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), eq(50), eq(10), any()))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("q", "invoice")
+                        .param("offset", "50")
+                        .param("limit", "10")
+                        .requestAttr("requestId", "req-search-paged"))
+                .andExpect(status().isOk());
+
+        verify(ledgerService).searchChainsByUserId(any(), eq(userId), eq("invoice"), eq(50), eq(10), any());
+    }
+
+    @Test
+    void unfilteredListStillReportsTheUserTotal() throws Exception {
+        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
+                .thenReturn(Collections.emptyList());
+        when(ledgerService.countChainsByUserId(eq(userId))).thenReturn(7);
+
+        final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-list-total"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"total\":7"), "total should count the user's chains, was: " + body);
+        verify(ledgerService, never()).countChainsByUserIdMatching(any(), any());
     }
 
     @Test

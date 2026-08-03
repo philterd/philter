@@ -119,19 +119,22 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<LedgerEntity> chains;
-        if (query != null && !query.isBlank()) {
-            chains = ledgerService.searchChainsByUserId(requestId, userId, query, Source.API.getSource());
-        } else {
-            chains = ledgerService.findChainsByUserId(requestId, userId, offset, limit, Source.API.getSource());
-        }
+        // A search is paged and counted the same way an unfiltered listing is, so `total` always
+        // describes the set the returned chains were taken from.
+        final boolean searching = query != null && !query.isBlank();
+
+        final List<LedgerEntity> chains = searching
+                ? ledgerService.searchChainsByUserId(requestId, userId, query, offset, limit, Source.API.getSource())
+                : ledgerService.findChainsByUserId(requestId, userId, offset, limit, Source.API.getSource());
 
         final List<LedgerEntryView> views = new ArrayList<>(chains.size());
         for (final LedgerEntity chain : chains) {
             views.add(toView(chain));
         }
 
-        final int total = ledgerService.countChainsByUserId(userId);
+        final int total = searching
+                ? ledgerService.countChainsByUserIdMatching(userId, query)
+                : ledgerService.countChainsByUserId(userId);
 
         return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, total)), HttpStatus.OK);
 

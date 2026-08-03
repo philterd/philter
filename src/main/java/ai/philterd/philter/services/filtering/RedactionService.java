@@ -78,6 +78,9 @@ public class RedactionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedactionService.class);
 
+    /** Recorded in the ledger when the caller sent no filename. */
+    static final String NO_FILENAME = "none-provided";
+
     private static final String CACHE_HOSTNAME = System.getenv("CACHE_HOSTNAME");
     private static final String CACHE_PASSWORD = System.getenv("CACHE_PASSWORD");
     private static final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv("CACHE_SSL"));
@@ -416,10 +419,13 @@ public class RedactionService {
         // redaction ledger enabled. The flag is per context and defaults to off.
         if (ledgerEnabled) {
 
+            // Normalized once so the genesis entry and the per-redaction entries cannot disagree.
+            final String ledgerFilename = (filename == null || filename.isBlank()) ? NO_FILENAME : filename;
+
             LOGGER.info("Initializing the ledger");
             // The genesis entry records the governing policy so the whole chain reflects which policy
             // version applied.
-            ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), "none-provided",
+            ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), ledgerFilename,
                     appliedPolicy.name(), appliedPolicy.version(), appliedPolicy.contentHash());
 
             LOGGER.info("Persisting ledger entries: " + filterResult.getIncrementalRedactions().size());
@@ -433,7 +439,7 @@ public class RedactionService {
                 ledgerEntity.setDocumentHash(incrementalRedaction.getHash());
                 ledgerEntity.setPreviousHash(ledgerService.getLatestTransaction(userEntity.getId(), documentId).getHash());
                 ledgerEntity.setTimestamp(new Date());
-                ledgerEntity.setFilename(filename == null || filename.isBlank() ? "none-provided" : filename);
+                ledgerEntity.setFilename(ledgerFilename);
                 ledgerEntity.setType(incrementalRedaction.getSpan().getFilterType().getType());
                 // Stamp the governing policy version onto the entry as tamper-evident provenance.
                 ledgerEntity.setPolicyName(appliedPolicy.name());

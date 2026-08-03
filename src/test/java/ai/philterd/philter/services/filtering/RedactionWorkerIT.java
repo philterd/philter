@@ -76,6 +76,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         entity.setOutputMimeType(MimeType.APPLICATION_PDF.name());
         entity.setStatus(PendingDocumentEntity.STATUS_PENDING);
         entity.setInput(new byte[]{1, 2, 3});
+        entity.setFileName("invoice-42.pdf");
         entity.setSubmittedAt(new Date());
         return entity;
     }
@@ -103,9 +104,11 @@ class RedactionWorkerIT extends AbstractMongoIT {
         assertArrayEquals(redacted, completed.getOutput());
         assertNull(completed.getInput(), "input must be cleared once complete");
 
-        // The redaction ran with the job's policy/user/context/input.
+        // The redaction ran with the job's policy/user/context/input, and the job's filename reaches
+        // the service so the async chain head records it rather than the placeholder.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
-        verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(), eq(MimeType.APPLICATION_PDF), any(), any());
+        verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(),
+                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"));
         assertArrayEquals(new byte[]{1, 2, 3}, body.getValue());
     }
 

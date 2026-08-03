@@ -99,10 +99,8 @@ For organizations processing a high volume of documents, you can quickly locate 
 
 ## Important Considerations and Limitations
 
-*   **Supported File Formats**: To maintain high performance and accuracy, cryptographic ledgers are currently supported for:
-    *   **Plain Text (.txt)** documents.
-    *   **Microsoft Word (.docx)** documents.
-*   **PDF Support**: At this time, redaction ledgers are **not** generated for PDF documents. We recommend using the PDF Redaction Summary report for auditing PDF workflows.
-*   **Dashboard Listing**: The main dashboard view shows the most recent documents (up to 100). All ledger data — including older chains beyond that listing — remains accessible via the [Ledger API](../api_and_sdks/api/ledger_api.md) for historical reporting. Entries are retained until you remove them (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
+*   **Plain text**: individual redactions are recorded as chain entries, so the ledger holds the full detail of what was redacted.
+*   **PDF**: a chain is created and appears in the ledger listing, stamped with the filename and the governing policy version, but the individual redactions within the PDF are **not** recorded as entries. The chain validates, but it holds no per-redaction detail.
+*   **Dashboard Listing**: The main dashboard view shows the most recent documents (up to 100). All ledger data, including older chains beyond that listing, remains accessible via the [Ledger API](../api_and_sdks/api/ledger_api.md) for historical reporting. Entries are retained until you remove them (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
 *   **Data Privacy**: Access to ledgers is highly restricted and requires appropriate account permissions, as ledgers contain records of the original sensitive information (the "Identified Token"). A regular user can only access their own ledger; an administrator can access any user's ledger through the [Ledger API](../api_and_sdks/api/ledger_api.md) by supplying the owner's email.
 

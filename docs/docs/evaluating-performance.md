@@ -25,7 +25,7 @@ Before we can begin our evaluation we need to create a policy. A [policy](polici
 
 #### Creating a Policy
 
-Log into the Philter dashboard and navigate to the Policies page. You can create a new policy by clicking the "New Policy" button, or you can clone the default policy and modify it for your needs.
+Log into the Philter dashboard and navigate to the **Redaction Policies** page. You can create a new policy by clicking the "New Policy" button, or you can clone the default policy and modify it for your needs.
 
 When creating a new policy, the configuration will be similar to what's shown below:
 

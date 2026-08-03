@@ -1,6 +1,6 @@
 # Webhooks
 
-When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, either through the **Settings → Webhook** section of the dashboard or by updating the user document directly.
+When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, either through the **My Account** → **Webhook** tab of the dashboard or by updating the user document directly.
 
 > Webhooks only fire from the [asynchronous filter path](filtering_api.md#pdf-documents). Synchronous redactions return the result on the request itself and never produce a webhook.
 
@@ -11,7 +11,7 @@ When Philter completes or fails an asynchronous PDF redaction, it can notify you
 | `webhookUrl`     | Absolute `https://` (or `http://`) URL to which Philter will POST the event.             |
 | `webhookSecret`  | Shared secret used to HMAC-sign each request body. Minimum 16 characters; 48 recommended. |
 
-The dashboard's **Settings → Webhook** section provides a "Generate" button that creates a 48-character secret using `SecureRandom`. The secret can be revealed with the password field's eye icon. Saving with no URL or secret has no effect; use **Remove Webhook** to disable delivery.
+The dashboard's **My Account** → **Webhook** tab provides a "Generate" button that creates a 48-character secret. The secret can be revealed with the password field's eye icon. Saving with no URL or secret has no effect; use **Remove Webhook** to disable delivery.
 
 ## Events
 

@@ -33,7 +33,7 @@ A request with a missing, malformed, or unknown key is rejected with `401 Unauth
 
 ## Managing API keys
 
-API keys are created and removed in the dashboard, under **API Keys**:
+API keys are created and removed in the dashboard, under **My Account** → **API Keys**:
 
 * **Create a key.** Philter generates the key and shows it once. Use the **Copy** button to copy it to your clipboard, then store it securely; it cannot be retrieved again afterward.
 * **Delete a key.** Deleting a key immediately revokes it: subsequent requests using that key are rejected with `401 Unauthorized`. Deletion is permanent and a key cannot be reactivated. The key record itself is retained (marked deleted) so that audit entries which reference the key id still resolve to it; deleted keys are not shown in the list. Generate a new key if you need access again.

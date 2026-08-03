@@ -1,6 +1,6 @@
 # Dashboard
 
-Philter includes a user interface dashboard that can be accessed at `http://your-philter-endpoint:8080`.
+Philter includes a user interface dashboard that can be accessed at `https://your-philter-endpoint:8080`.
 
 The dashboard is protected by a login screen. The default administrator account is `admin` / `admin`. On the first login with the default password, Philter requires you to set a new password before you can use the dashboard. See [Login Security](login_security.md) for details on the forced password change and the failed-login lockout.
 
@@ -12,15 +12,15 @@ The Philter dashboard provides a comprehensive interface for managing your redac
 
 ### Testing Philter
 
-The **Dashboard** home page allows you to test Philter's configuration by submitting text or PDF documents. You can select a filter policy and see how Philter redacts the information. This is useful for fine-tuning your policies before deploying them to production. The Dashboard page also has a **Client SDKs** tab with links to the Philter CLI and the official Java, .NET, and Go SDKs.
+The **Dashboard** home page allows you to test Philter's configuration by submitting text or PDF documents. You can select a filter policy and see how Philter redacts the information. This is useful for fine-tuning your policies before deploying them to production.
 
 ### Policy Management
 
-In the **Policies** section, you can:
+In the **Redaction Policies** section, you can:
 
 *   **Create and Edit Policies**: Edit a policy's JSON directly, or build one in the [policy editor](https://policies.philterd.ai/) and paste the JSON in. Policies are validated on save.
 *   **Managed Policies**: Access a library of pre-configured policies for common use cases (e.g., HIPAA, GDPR). You can clone these to create your own custom versions.
-*   **Always/Never Redact Lists**: Define terms that should always or never be redacted across *all* of your policies.
+*   **Always/Never Redact Lists**: Define terms that should always or never be redacted across *all* of your policies. These have their own **Always/Never Redact Lists** page.
 
 ### Metrics and Usage
 
@@ -28,7 +28,7 @@ Philter exposes redaction, token, and API-request metrics in Prometheus format a
 
 ### API Key Management
 
-The **API** section allows you to manage the API keys used for authenticating with Philter's [API](api_and_sdks/api.md). Links to the official client SDKs (Java, .NET, and Go) are on the Dashboard page's **Client SDKs** tab.
+The **My Account** page has an **API Keys** tab for managing the keys used to authenticate with Philter's [API](api_and_sdks/api.md). See [Client SDKs](api_and_sdks/sdks.md) for the maintained SDK.
 
 ### Custom Lists
 
@@ -41,16 +41,20 @@ The **Contexts** section is used to manage redaction contexts, which enable:
 *   **Referential Integrity**: Ensures consistent replacements for the same sensitive information across multiple documents within a context.
 *   **Disambiguation**: Improves accuracy by resolving entity type ambiguities.
 
-### Redaction Ledger
+### Redaction Ledgers
 
-The **Redaction Ledger** section provides a tamper-evident, hash-chained record of the individual redactions performed in any [context](redaction/ledgers.md) that has the ledger enabled. From this view you can:
+The **Redaction Ledgers** page provides a tamper-evident, hash-chained record of the individual redactions performed in any [context](redaction/ledgers.md) that has the ledger enabled. From this view you can:
 
 *   **Browse and search** your ledger chains by document id or filename.
 *   **Verify a chain**: open a document's chain to see each recorded redaction (type, replacement, position, and timestamp), along with a badge confirming whether the cryptographic chain is intact or has been tampered with.
 *   **Export a chain** as a JSON document for evidence or external review.
 *   **Purge entries**: ledger entries are kept indefinitely by default. An administrator can delete an individual document's chain, or purge entries older than a chosen number of days. These controls appear only for administrators and only when `LEDGER_DELETION_ENABLED=true`, which is `false` by default; an active [legal hold](redaction/legal_holds.md) blocks the deletion and reports the blocking hold. See [Settings](settings.md).
 
-When cross-user access is enabled, administrators can additionally review every user's ledger chains from the **All Ledger** tab. Ledgers are enabled per context; see [Redaction Ledgers](redaction/ledgers.md) for the full design.
+When cross-user access is enabled, administrators can additionally review every user's ledger chains from the **All Ledgers** tab. Ledgers are enabled per context; see [Redaction Ledgers](redaction/ledgers.md) for the full design.
+
+### Legal Holds
+
+The **Legal Holds** page sets and releases [legal holds](redaction/legal_holds.md): named, audited instructions that block deletion of redaction evidence until released. Administrators see holds across all users. A blocked deletion returns `423 Locked` and names the holds responsible.
 
 ### User Management
 
@@ -68,6 +72,6 @@ The Users grid lists **all** users, including deactivated ones. The **Status** c
 
 Administrators can review and export Philter's [audit log](auditing.md) from **Admin → Audit Log**. The audit log records security-relevant actions: authentication failures, user and API-key changes, policy changes, redaction and ledger activity, and account-configuration changes. Choose a **From** and **To** date (a range of up to 30 days) and click **Download Audit Log (CSV)** to export the events for compliance review or incident investigation. Audit events never contain sensitive values. See [Auditing](auditing.md) for the full list of recorded events and the export details.
 
-### Settings and Webhooks
+### Account Settings and Webhooks
 
-The **Settings** section lets each user configure account-level options, including a [webhook](api_and_sdks/api/webhooks.md) URL and secret to receive a signed notification when an asynchronous redaction completes or fails. The [redaction ledger](redaction/ledgers.md) is enabled per context, not in account settings.
+The **My Account** page lets each user configure account-level options, including a [webhook](api_and_sdks/api/webhooks.md) URL and secret to receive a signed notification when an asynchronous redaction completes or fails. The [redaction ledger](redaction/ledgers.md) is enabled per context, not in account settings.

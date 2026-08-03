@@ -151,6 +151,7 @@ nav:
       - 'Always/Never Redact Lists API': 'api_and_sdks/api/redact_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'
       - 'Redaction Ledger API': 'api_and_sdks/api/ledger_api.md'
+      - 'Legal Holds API': 'api_and_sdks/api/legal_holds_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
     - 'Developers':
       - 'Overview': 'developers/developers.md'

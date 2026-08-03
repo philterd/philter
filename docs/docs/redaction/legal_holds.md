@@ -6,7 +6,7 @@ When a legal hold is active on a user's data, every deletion path in Philter is 
 
 ## Why Legal Holds Exist
 
-Redaction ledgers record a tamper-evident history of every redaction performed on every document. This history is normally deletable: users can purge old entries on demand, delete individual document chains, or configure automatic time-based expiry. For most purposes that is fine — but when evidence is needed for a legal or regulatory matter, accidental or routine deletion would destroy it.
+Redaction ledgers record a tamper-evident history of every redaction performed on every document. This history is normally deletable: an administrator can purge old entries on demand or delete individual document chains. For most purposes that is fine, but when evidence is needed for a legal or regulatory matter, accidental or routine deletion would destroy it.
 
 Legal holds provide a hard, enforceable guarantee that no deletion can occur while the hold is active. The hold is named (so it can be referenced in legal correspondence), scoped (so it only protects what it should), audited (so the hold lifecycle is part of the permanent record), and independently releasable (so removing one hold does not unblock evidence still covered by another).
 
@@ -41,7 +41,7 @@ This matters in practice: if `LIT-A` and `LIT-B` both cover the same document an
 
 Creating a hold requires: a **reference**, a **scope type**, a **scope value** (the document ID or user email), and an optional **reason**.
 
-From the dashboard: navigate to **Holds** in the left-hand navigation, then click **Set Hold**. Fill in the form and save.
+From the dashboard: navigate to **Legal Holds** in the left-hand navigation, then click **Set Hold**. Fill in the form and save.
 
 From the API:
 
@@ -64,7 +64,7 @@ A successful response returns **HTTP 201 Created** with the hold details. If the
 
 Users can view all of their own holds. Administrators can view holds for all users.
 
-From the dashboard: the **Holds** page shows a table of all active holds scoped to the logged-in user. Administrators see a global view across all users.
+From the dashboard: the **Legal Holds** page shows a table of all active holds scoped to the logged-in user. Administrators see a global view across all users.
 
 From the API:
 
@@ -86,7 +86,7 @@ Authorization: Bearer <api-key>
 
 Once a matter is resolved, the hold must be explicitly released. Releasing a hold is audited.
 
-From the dashboard: on the **Holds** page, click the **Release** button next to the hold. Confirm the dialog to release.
+From the dashboard: on the **Legal Holds** page, click the **Release** button next to the hold. Confirm the dialog to release.
 
 From the API:
 
@@ -119,7 +119,7 @@ No partial deletion occurs. Either the entire requested deletion succeeds or it 
 
 ## Admin Access
 
-Administrators can manage holds on behalf of any user via the `?owner=<email>` parameter on all API endpoints. They can view all holds from the **Holds** dashboard page, which shows a global table rather than a per-user view. Every time an admin acts on another user's hold, an `admin_cross_user_access` audit event is recorded.
+Administrators can manage holds on behalf of any user via the `?owner=<email>` parameter on all API endpoints. They can view all holds from the **Legal Holds** dashboard page, which shows a global table rather than a per-user view. Every time an admin acts on another user's hold, an `admin_cross_user_access` audit event is recorded.
 
 Non-admin users cannot specify an `owner` parameter that differs from themselves. Attempting to do so returns **HTTP 404 Not Found**.
 
@@ -135,61 +135,7 @@ Every hold lifecycle action is recorded in the audit log. See [Auditing](../audi
 
 ## API Reference
 
-The following API endpoints manage legal holds. All endpoints require authentication via a Bearer token (API key). See [API Keys](../account/api_keys.md).
-
-### Set a hold
-
-```
-POST /api/holds
-```
-
-**Request body (JSON):**
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `reference` | Yes | Unique hold identifier for the calling user (e.g. `LIT-2026-001`). |
-| `scopeType` | Yes | `document_chain` or `user`. |
-| `scopeValue` | Yes | The document ID (for `document_chain`) or the target user's ID (for `user`). |
-| `reason` | No | Free-text description of why the hold was set. |
-
-**Responses:**
-
-| Status | Meaning |
-|--------|---------|
-| 201 Created | Hold was set. Response body contains the hold details. |
-| 400 Bad Request | A required field is missing or `scopeType` is not a recognized value. |
-| 401 Unauthorized | Missing or invalid API key. |
-| 409 Conflict | A hold with this reference already exists for the calling user. |
-
-### List holds
-
-```
-GET /api/holds[?owner=<email>][&offset=<n>][&limit=<n>]
-```
-
-Returns a JSON array of hold objects for the calling user (or the named owner if the caller is an admin). Default pagination: `offset=0`, `limit=25`.
-
-**Responses:** 200 OK (array), 401 Unauthorized, 404 Not Found (non-admin `owner` specified).
-
-### Get a specific hold
-
-```
-GET /api/holds/{reference}[?owner=<email>]
-```
-
-Returns the hold with the given reference.
-
-**Responses:** 200 OK, 401 Unauthorized, 404 Not Found.
-
-### Release a hold
-
-```
-DELETE /api/holds/{reference}[?owner=<email>]
-```
-
-Releases (deletes) the hold with the given reference.
-
-**Responses:** 200 OK, 401 Unauthorized, 404 Not Found.
+The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md) page: `POST /api/holds`, `GET /api/holds`, `GET /api/holds/{reference}`, and `DELETE /api/holds/{reference}`, including the admin `owner` parameter.
 
 ## Evidence Types and Retention
 

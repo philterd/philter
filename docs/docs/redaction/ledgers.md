@@ -71,7 +71,7 @@ A document's full ledger chain can be exported as a portable JSON document so it
 
 ## The Redaction Ledgers Dashboard
 
-The **Ledgers** page within your Philterd dashboard serves as the central hub for auditing your document processing activities.
+The **Redaction Ledgers** page within your Philterd dashboard serves as the central hub for auditing your document processing activities.
 
 ### The Recent Documents List
 

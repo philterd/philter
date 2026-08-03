@@ -27,19 +27,22 @@ When you submit a document to Philter for redaction, it undergoes a rigorous mul
 
 ## How to Redact a Document via the Dashboard
 
-The Philter dashboard provides an intuitive interface for managing your redaction tasks. To redact a document, follow these steps:
+The dashboard redacts a document directly, for testing a policy before you use the API. It is not a
+document management surface: nothing is queued and nothing is stored.
 
-1.  **Access the Documents Section**: Log in to your Philterd dashboard and navigate to the **Redaction** menu on the sidebar, then select **Documents**.
-2.  **Initiate Upload**: Click the **Upload Document** button located at the top of the page.
-3.  **Select Your File**: In the upload dialog, choose the document you wish to process from your local computer.
-4.  **Assign a Context**: Select an appropriate [context](contexts.md) from the dropdown menu. Contexts allow you to group related documents together for improved organization (e.g., by project, department, or client).
-5.  **Select a Redaction Policy**: Choose the [redaction policy](policies.md) that defines the rules for this specific task.
-6.  **Submit for Processing**: Click the **Submit** button. Your document will now be queued for processing.
-7.  **Monitor Status**: You can track the progress of your document in the document list. The status will transition from `PENDING` to `PROCESSING`, and finally to `COMPLETED`.
-8.  **Retrieve Your Results**: Once the status is `COMPLETED`, several actions become available:
-    *   **Download Redacted File**: Click the **Download** icon to retrieve the protected version of your document.
-    *   **View Summary Report**: Click the **Summary** icon to download the PDF report detailing the redaction statistics.
-    *   **Audit via Ledger**: If applicable, you can view the [ledger](ledgers.md) entries to see a granular log of the redactions.
+1.  **Open the Dashboard.** Log in and select **Dashboard** in the left-hand navigation. The
+    **Redaction Test** tab is where redaction runs.
+2.  **Select a redaction policy** from the policy list for PDF redaction.
+3.  **Upload the PDF** with the upload control.
+4.  **Click Submit PDF.** The document is redacted immediately.
+5.  **Download the result** with the **Download redacted &lt;filename&gt;** link that appears.
+
+To redact plain text instead, paste it into the text area, choose a policy, and click **Submit
+Text**; the redacted text is shown in place.
+
+For anything beyond testing, including batches, contexts, and asynchronous processing, use the
+[Filtering API](../api_and_sdks/api/filtering_api.md) and the
+[Documents API](../api_and_sdks/api/documents_api.md).
 
 ## Advanced Redaction Features
 

@@ -61,8 +61,8 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
   - Deletion (API and dashboard) is administrator-only and requires `LEDGER_DELETION_ENABLED=true`,
     which is `false` by default. Legal holds still return `423`, and deletions are audited.
   - Retention via `REDACTION_LEDGER_TTL_DAYS` — entries are kept **indefinitely by default**
-    (`0`); set a positive number of days for MongoDB TTL expiry. Ledger entries are also cleaned up when a
-    document chain is deleted, on a manual purge, and on user deletion.
+    (`0`); set a positive number of days for MongoDB TTL expiry. Entries are otherwise removed only
+    by a deliberate chain delete or purge; deactivating a user never removes them.
 - **Policy version stamped on redaction evidence.** Each redaction now records which policy version
   governed it. Policy content is retained as immutable, append-only, content-addressed snapshots (a
   new `policy_versions` collection) every time a policy is saved, so a stamp resolves to the exact
@@ -120,8 +120,11 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
   disambiguate.
 - **Filter and explain requests accept an empty or null context name.** When no context is supplied,
   no context features are applied and disambiguation is scoped to the submitted document only.
-- **Deleting a user now cascades** to that user's contexts, context entries, cached values, and
-  redaction ledger; deleting a context deletes its context-entry documents.
+- **Users are deactivated rather than deleted.** A deactivated account cannot sign in and its API
+  keys stop working, but all of its data is retained, including policies and the redaction ledger,
+  which stay resolvable to the retained user so evidence is preserved.
+- **Deleting a context cascades** to its context entries, its span-disambiguation vectors, and its
+  cached values.
 - **The build targets Java 25.**
 - **Redaction reuses warm Phileas filter services across requests.** Instead of
   building a new filter service per request, Philter now keeps one warm instance per

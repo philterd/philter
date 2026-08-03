@@ -58,6 +58,8 @@ GET /api/status
 
 The [status endpoint](api_and_sdks/api/filtering_api.md#status) is intended for exactly this: monitoring tools and load-balancer health checks. Route a node out of service when it stops returning a healthy status. If you also expose the dashboard through the load balancer, send it to the single dashboard instance rather than the API pool, since it is session-based.
 
+Nodes serve HTTPS with a self-signed certificate by default, which a load balancer will not trust. Hold the real certificate at the load balancer and set `SSL_ENABLED=false` on every node so they serve plain HTTP behind it, over a private network. See [TLS](settings.md#tls).
+
 ## Horizontal scaling
 
 - **Add a node.** Deploy another identical Philter instance with the same `CACHE_HOSTNAME`, database, and configuration, and register it with the load balancer. No data migration or rebalancing is needed, because the node holds no durable state of its own.

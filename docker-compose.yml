@@ -23,6 +23,12 @@ services:
       # Required. Generate one with: openssl rand -base64 32
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?set PHILTER_ENCRYPTION_KEY (e.g. export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32))}
       ADMIN_CROSS_USER_ACCESS_ENABLED: true
+      # Philter serves HTTPS on 8080 with a self-signed certificate generated on first start, so
+      # curl needs -k. To use your own certificate, mount a PKCS12 keystore and set SSL_KEYSTORE
+      # (and SSL_KEYSTORE_PASSWORD). Set SSL_ENABLED=false to serve plain HTTP when a load
+      # balancer terminates TLS in front of Philter. See docs/docs/settings.md.
+      # SSL_KEYSTORE: /opt/philter/ssl/philter-cert.p12
+      # SSL_KEYSTORE_PASSWORD: ""
     ports:
       - "8080:8080"
     networks:

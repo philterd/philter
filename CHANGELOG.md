@@ -15,6 +15,9 @@ and Phileas 4.2.0, and makes PDF redaction asynchronous by default.
 
 ### Added
 
+- **HTTPS by default.** The Docker image generates a self-signed certificate on first start and
+  serves TLS on port 8080. Supply your own keystore with `SSL_KEYSTORE`, or set `SSL_ENABLED=false`
+  to serve plain HTTP when a load balancer terminates TLS.
 - **Asynchronous PDF redaction.** Submitted PDFs are queued in a new
   `pending_documents` collection and processed by an in-process worker, with
   multi-instance coordination and automatic crash recovery.

@@ -25,7 +25,7 @@ Philter requires a MongoDB database to store policies and other data. See [Datab
 
 ## Encryption
 
-Philter encrypts sensitive data at rest and requires an encryption key. Philter will not start if the key is missing or invalid.
+Philter encrypts sensitive data at rest and requires an encryption key. Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
@@ -45,6 +45,37 @@ The cache is used for API key and context caching. Philter supports Valkey/Redis
 ## Metrics
 
 Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Monitoring and Logging](monitoring_and_logging.md). There are no metrics-storage settings to configure.
+
+## TLS
+
+Philter serves HTTPS on port 8080. The Docker image generates a self-signed certificate the first time it starts and writes it to `/opt/philter/ssl/philter.p12`. That certificate is not signed by a certificate authority, so clients must skip verification (`curl -k`) and browsers warn before showing the dashboard. It encrypts the connection but does not prove Philter's identity, which is why every example in this documentation passes `-k`.
+
+Replace it for anything beyond evaluation. There are two ways to do that:
+
+**Supply your own certificate.** Put it in a PKCS12 keystore, mount the keystore into the container, and point `SSL_KEYSTORE` at it. Nothing is generated when a keystore already exists at that path.
+
+```yaml
+services:
+  philter:
+    environment:
+      SSL_KEYSTORE: /opt/philter/ssl/philter-cert.p12
+      SSL_KEYSTORE_PASSWORD: <keystore password>
+    volumes:
+      - ./philter-cert.p12:/opt/philter/ssl/philter-cert.p12:ro
+```
+
+**Terminate TLS in front of Philter**, at a load balancer or ingress, and set `SSL_ENABLED=false` so Philter serves plain HTTP on the same port. This is the usual arrangement for a [multi-node deployment](high_availability.md), where the load balancer already holds the certificate. Keep the network between the load balancer and Philter private: the redaction API carries the sensitive text you are redacting.
+
+Running the JAR directly serves plain HTTP unless you set `SSL_ENABLED=true`, since no certificate is generated outside the container.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `SSL_ENABLED` | Whether Philter serves HTTPS. Set to `false` when TLS is terminated in front of Philter. The port is 8080 either way. | `true` in the Docker image, `false` when running the JAR |
+| `SSL_KEYSTORE` | Path to the keystore holding the certificate and private key. When the container starts and no file exists at this path, a self-signed certificate is generated there. | `/opt/philter/ssl/philter.p12` |
+| `SSL_KEYSTORE_PASSWORD` | The keystore password. | `philter` |
+| `SSL_KEYSTORE_TYPE` | The keystore format, `PKCS12` or `JKS`. | `PKCS12` |
+| `SSL_KEY_ALIAS` | The alias of the key to use within the keystore. | `philter` |
+| `SSL_CERTIFICATE_HOSTNAME` | The hostname recorded in the generated certificate's subject and subject alternative name. Used only when generating one. | `localhost` |
 
 ## API Access
 
@@ -77,8 +108,8 @@ To enforce a retention period, schedule the purge endpoint. This gives you time-
 
 ```bash
 # Daily: delete this account's ledger chains older than 90 days.
-curl -X DELETE -H "Authorization: Bearer <token>" \
-  "http://localhost:8080/api/ledger?older_than_days=90"
+curl -k -X DELETE -H "Authorization: Bearer <token>" \
+  "https://localhost:8080/api/ledger?older_than_days=90"
 ```
 
 Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that created a MongoDB TTL index. It was removed: MongoDB expires documents itself, so that path could not check legal holds and produced no audit record. If a deployment set it, Philter drops the leftover index at startup and logs that it has done so.

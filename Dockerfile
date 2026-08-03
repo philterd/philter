@@ -25,6 +25,15 @@ RUN mkdir -p /opt/philter/ssl && mkdir -p /opt/philter/policies
 COPY ./README.md /opt/philter/
 COPY ./LICENSE.txt /opt/philter/
 
+# The container serves HTTPS. The entrypoint generates a self-signed certificate into
+# /opt/philter/ssl on first start unless a keystore is already there, so mounting your own over
+# that path (or pointing SSL_KEYSTORE elsewhere) replaces it. Set SSL_ENABLED=false to serve plain
+# HTTP instead, which is what you want when a load balancer or ingress terminates TLS.
+ENV SSL_ENABLED=true
+
+COPY ./docker-entrypoint.sh /opt/philter/
+RUN chmod +x /opt/philter/docker-entrypoint.sh
+
 ADD ./target/philter.jar /opt/philter/
 
 RUN chmod +x /opt/philter/philter.jar
@@ -36,4 +45,5 @@ COPY --from=docs /site/ /opt/philter/public/docs/
 EXPOSE 8080
 
 WORKDIR /opt/philter
+ENTRYPOINT ["/opt/philter/docker-entrypoint.sh"]
 CMD ["java", "-jar", "/opt/philter/philter.jar"]

@@ -30,18 +30,21 @@ mvn clean install
 
 To run Philter:
 
-Philter encrypts sensitive data at rest and requires a base64-encoded 32-byte
-(AES-256) key supplied via the `PHILTER_ENCRYPTION_KEY` environment variable.
-Generate one and export it before starting the containers:
-
 ```
-export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
-docker compose build
-docker compose up
+./compose.sh
+./compose.sh up
 ```
 
-Keep this key safe and use the same value across restarts and instances.
-Philter will refuse to start if it is missing or not a valid 32-byte key.
+`compose.sh` passes its arguments through to `docker compose`, defaulting to `build`.
+
+Philter encrypts sensitive data at rest with a base64-encoded 32-byte (AES-256) key,
+supplied as `PHILTER_ENCRYPTION_KEY`. The script generates one into `.env` the first
+time it runs and reuses it afterwards. Keep that key safe and use the same value across
+restarts and instances: Philter refuses to start without it, and data encrypted with it
+cannot be recovered if the key is lost or changed.
+
+To manage the key yourself, put it in `.env` or export `PHILTER_ENCRYPTION_KEY`, and run
+`docker compose` directly.
 
 Once the containers are running, you can submit text to Philter's API for redaction (using the default API key `default`):
 
@@ -52,6 +55,8 @@ curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 9
 You can also access the UI at https://localhost:8080. The default credentials are `admin` / `admin`.
 
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
+
+Philter serves HTTPS using a self-signed certificate that it generates the first time it starts, so `curl` needs `-k` and your browser will warn before showing the UI. See [TLS](https://philterd.github.io/philter/settings/#tls) for how to install your own certificate, or how to serve plain HTTP when a load balancer terminates TLS in front of Philter.
 
 Philter uses a built-in in-memory cache by default and can be configured to use a shared Valkey/Redis cache for distributed deployments. See [Caching](https://philterd.github.io/philter/caching/) in the user documentation.
 

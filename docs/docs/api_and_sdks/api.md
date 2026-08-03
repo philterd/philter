@@ -30,7 +30,7 @@ You can also reach the Swagger UI from the dashboard: open **My Account → API 
 
 ## Securing Philter's API
 
-Philter's API supports one-way and two-way SSL/TLS authentication. See Philter's [Settings](../settings.md) for more information.
+Philter serves its API over HTTPS, using a self-signed certificate generated on first start unless you supply your own. See [TLS](../settings.md#tls) for how to replace the certificate or terminate TLS in front of Philter.
 
 ## SDKs
 

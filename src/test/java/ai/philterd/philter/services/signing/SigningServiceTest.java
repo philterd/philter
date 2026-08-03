@@ -28,6 +28,9 @@ import org.mockito.quality.Strictness;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
+import java.security.spec.X509EncodedKeySpec;
+import java.security.PublicKey;
+import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
@@ -44,6 +47,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class SigningServiceTest {
+
+    /** Consumes the raw r||s signature a JWT carries, so the tests build no ASN.1 of their own. */
+    private static final String P1363 = "SHA256withECDSAinP1363Format";
+
 
     @Mock
     private SigningKeyDataService signingKeyDataService;
@@ -104,12 +111,10 @@ class SigningServiceTest {
         final String signingInput = parts[0] + "." + parts[1];
         final byte[] p1363Sig = Base64.getUrlDecoder().decode(parts[2]);
 
-        final byte[] derSig = p1363ToDer(p1363Sig);
-
-        final Signature verifier = Signature.getInstance("SHA256withECDSA");
+        final Signature verifier = Signature.getInstance(P1363);
         verifier.initVerify(keyPair.getPublic());
         verifier.update(signingInput.getBytes(StandardCharsets.UTF_8));
-        assertTrue(verifier.verify(derSig), "signature must verify with the public key");
+        assertTrue(verifier.verify(p1363Sig), "signature must verify with the public key");
     }
 
     @Test
@@ -160,7 +165,6 @@ class SigningServiceTest {
         final String[] parts = jwt.split("\\.");
         final String signingInput = parts[0] + "." + parts[1];
         final byte[] p1363Sig = Base64.getUrlDecoder().decode(parts[2]);
-        final byte[] derSig = p1363ToDer(p1363Sig);
 
         // Verify against a *different* body — the signing input covers the original hash,
         // so the signature must not validate when applied to a different payload.
@@ -168,10 +172,10 @@ class SigningServiceTest {
         final String[] tamperedParts = signingService.sign(tampered, "default", 1, UUID.randomUUID().toString()).split("\\.");
         final String tamperedSigningInput = tamperedParts[0] + "." + tamperedParts[1];
 
-        final Signature verifier = Signature.getInstance("SHA256withECDSA");
+        final Signature verifier = Signature.getInstance(P1363);
         verifier.initVerify(keyPair.getPublic());
         verifier.update(tamperedSigningInput.getBytes(StandardCharsets.UTF_8));
-        assertFalse(verifier.verify(derSig), "original signature must not verify against a different body");
+        assertFalse(verifier.verify(p1363Sig), "original signature must not verify against a different body");
     }
 
     @Test
@@ -181,16 +185,15 @@ class SigningServiceTest {
         final String[] parts = jwt.split("\\.");
         final String signingInput = parts[0] + "." + parts[1];
         final byte[] p1363Sig = Base64.getUrlDecoder().decode(parts[2]);
-        final byte[] derSig = p1363ToDer(p1363Sig);
 
         final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
         kpg.initialize(new ECGenParameterSpec("secp256r1"));
         final java.security.PublicKey wrongPublicKey = kpg.generateKeyPair().getPublic();
 
-        final Signature verifier = Signature.getInstance("SHA256withECDSA");
+        final Signature verifier = Signature.getInstance(P1363);
         verifier.initVerify(wrongPublicKey);
         verifier.update(signingInput.getBytes(StandardCharsets.UTF_8));
-        assertFalse(verifier.verify(derSig), "signature must not verify against a different public key");
+        assertFalse(verifier.verify(p1363Sig), "signature must not verify against a different public key");
     }
 
     @Test
@@ -215,39 +218,53 @@ class SigningServiceTest {
         assertTrue(signingService.isSigningEnabled());
     }
 
+    @Test
+    void derToP1363LeftPadsAnRAndSShorterThan32Bytes() {
+        // DER encodes integers minimally, so a value whose leading byte is zero arrives shorter than
+        // 32 bytes. P1363 is fixed-width, so those bytes must be restored as leading zeros.
+        final byte[] shortR = new byte[31];
+        shortR[30] = 0x2A;
+        final byte[] shortS = new byte[30];
+        shortS[29] = 0x7F;
+
+        final byte[] p1363 = SigningService.derToP1363(buildDer(shortR, shortS));
+
+        assertEquals(64, p1363.length, "P1363 must always be 64 bytes");
+        assertEquals(0x00, p1363[0], "R must be left-padded");
+        assertEquals(0x2A, p1363[31], "R's value must land at the end of its half");
+        assertEquals(0x00, p1363[32], "S must be left-padded");
+        assertEquals(0x00, p1363[33], "S is two bytes short, so two pad bytes");
+        assertEquals(0x7F, p1363[63], "S's value must land at the end of its half");
+    }
+
+    @Test
+    void verificationHandlesASignatureWhoseRAndSBothStartWithAZeroByte() throws Exception {
+        // A committed vector rather than a fresh signature: the leading-zero case arises in roughly
+        // 1 signature in 128, so relying on randomness is what made this class flaky in the first
+        // place. Both halves of this P1363 signature begin with 0x00.
+        final byte[] publicKeyBytes = Base64.getDecoder().decode(
+                "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcwkXtxvdXDcmEBDlF5MXFdKq+YQuq6DRL821XhVNM0cv"
+                        + "lkyfLoh7TqD7KhsObX6ei6TzGZzLwMfxljabOA7IsQ==");
+        final byte[] signature = Base64.getDecoder().decode(
+                "AGbPxsYifjg2X8TkT4d9RPR6bCcCKLxNPnmOfKPOFnQAoP8LRH6BqcLilI1EFyRer/x+3nKsyJuGueQr"
+                        + "XHdhNg==");
+
+        assertEquals(0, signature[0], "vector must exercise a leading-zero R");
+        assertEquals(0, signature[32], "vector must exercise a leading-zero S");
+
+        final PublicKey publicKey = KeyFactory.getInstance("EC")
+                .generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+
+        final Signature verifier = Signature.getInstance(P1363);
+        verifier.initVerify(publicKey);
+        verifier.update("philter-leading-zero-vector".getBytes(StandardCharsets.UTF_8));
+
+        assertTrue(verifier.verify(signature), "a leading-zero signature must still verify");
+    }
+
     // --- helpers ---
 
     private static byte[] buildDer(final byte[] r, final byte[] s) {
-        final int totalLen = 2 + r.length + 2 + s.length;
-        final byte[] der = new byte[2 + totalLen];
-        int i = 0;
-        der[i++] = 0x30;
-        der[i++] = (byte) totalLen;
-        der[i++] = 0x02;
-        der[i++] = (byte) r.length;
-        System.arraycopy(r, 0, der, i, r.length);
-        i += r.length;
-        der[i++] = 0x02;
-        der[i++] = (byte) s.length;
-        System.arraycopy(s, 0, der, i, s.length);
-        return der;
-    }
-
-    private static byte[] p1363ToDer(final byte[] p1363) {
-        byte[] r = Arrays.copyOfRange(p1363, 0, 32);
-        byte[] s = Arrays.copyOfRange(p1363, 32, 64);
-
-        if ((r[0] & 0x80) != 0) {
-            final byte[] padded = new byte[33];
-            System.arraycopy(r, 0, padded, 1, 32);
-            r = padded;
-        }
-        if ((s[0] & 0x80) != 0) {
-            final byte[] padded = new byte[33];
-            System.arraycopy(s, 0, padded, 1, 32);
-            s = padded;
-        }
-
         final int totalLen = 2 + r.length + 2 + s.length;
         final byte[] der = new byte[2 + totalLen];
         int i = 0;

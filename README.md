@@ -22,7 +22,7 @@ Philter is available on the cloud marketplaces as a turnkey redaction solution. 
 
 ## Building and Running Philter
 
-Philter is built with Maven (requiring >= Java 17):
+Philter is built and run with Java 25. It is built with Maven:
 
 ```
 mvn clean install
@@ -37,28 +37,43 @@ To run Philter:
 
 `compose.sh` passes its arguments through to `docker compose`, defaulting to `build`.
 
-Philter encrypts sensitive data at rest with a base64-encoded 32-byte (AES-256) key,
-supplied as `PHILTER_ENCRYPTION_KEY`. The script generates one into `.env` the first
-time it runs and reuses it afterwards. Keep that key safe and use the same value across
-restarts and instances: Philter refuses to start without it, and data encrypted with it
-cannot be recovered if the key is lost or changed.
+On its first run the script generates two secrets into `.env` and reuses them afterwards:
 
-To manage the key yourself, put it in `.env` or export `PHILTER_ENCRYPTION_KEY`, and run
-`docker compose` directly.
+* `PHILTER_ENCRYPTION_KEY` encrypts sensitive data at rest. Keep it safe and use the same
+  value across restarts and instances: Philter refuses to start without it, and data
+  encrypted with it cannot be recovered if the key is lost or changed.
+* `PHILTER_BOOTSTRAP_API_KEY` is seeded onto the `admin` user at first start so the API
+  works without visiting the dashboard. Revoke it in the dashboard when you no longer
+  need it.
 
-Once the containers are running, you can submit text to Philter's API for redaction (using the default API key `default`):
+To supply either yourself, put it in `.env` before the first run and the script keeps it.
+
+Once the containers are running, submit text to Philter's API for redaction:
 
 ```
-curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer default"
+API_KEY=$(grep PHILTER_BOOTSTRAP_API_KEY .env | cut -d= -f2)
+
+curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
-You can also access the UI at https://localhost:8080. The default credentials are `admin` / `admin`.
+You can also access the UI at https://localhost:8080. Sign in as `admin` / `admin`; you are
+required to set a new password before you can use the dashboard.
 
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
 
 Philter serves HTTPS using a self-signed certificate that it generates the first time it starts, so `curl` needs `-k` and your browser will warn before showing the UI. See [TLS](https://philterd.github.io/philter/settings/#tls) for how to install your own certificate, or how to serve plain HTTP when a load balancer terminates TLS in front of Philter.
 
 Philter uses a built-in in-memory cache by default and can be configured to use a shared Valkey/Redis cache for distributed deployments. See [Caching](https://philterd.github.io/philter/caching/) in the user documentation.
+
+### Docker Images
+
+Released versions are published to Docker Hub as [`philterd/philter`](https://hub.docker.com/r/philterd/philter/tags), tagged by version. There is no `latest` tag, so name the version you want:
+
+```
+docker pull philterd/philter:3.4.0
+```
+
+The `docker-compose.yml` in this repository builds the image from source instead, so it runs the code on your current branch.
 
 ## License
 

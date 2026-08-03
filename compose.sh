@@ -28,37 +28,35 @@ cd "$(dirname "$0")"
 ENV_FILE=".env"
 JAR="target/philter.jar"
 
-# The encryption key must be the SAME on every run. It wraps the per-record data keys, so a key
-# that changes leaves existing ledger entries, contexts, and API keys undecryptable. Generating it
-# once into .env, which docker compose reads automatically, keeps it stable; `export
-# PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32)` produces a new one in every shell.
+# Generated once into .env, which docker compose reads automatically. The encryption key must not
+# change: it wraps the per-record data keys, so a new one orphans all existing encrypted data.
 if [ ! -f "${ENV_FILE}" ]; then
-
-    if ! command -v openssl > /dev/null 2>&1; then
-        echo "openssl is needed to generate PHILTER_ENCRYPTION_KEY but was not found." >&2
-        echo "Install it, or write the key yourself: ${ENV_FILE} needs a line" >&2
-        echo "  PHILTER_ENCRYPTION_KEY=<base64-encoded 32 bytes>" >&2
-        exit 1
-    fi
-
-    KEY="$(openssl rand -base64 32)"
-
-    # Written before the file is populated so the key is never briefly world-readable.
+    # Created empty and locked down first, so no secret is ever briefly world-readable.
     touch "${ENV_FILE}"
     chmod 600 "${ENV_FILE}"
-    printf 'PHILTER_ENCRYPTION_KEY=%s\n' "${KEY}" > "${ENV_FILE}"
+fi
 
-    echo "Generated ${ENV_FILE} with a new PHILTER_ENCRYPTION_KEY."
-    echo "Back it up and keep it out of version control: data encrypted with this key cannot be"
-    echo "recovered without it, and Philter will not start if it changes."
+if ! grep -q '^PHILTER_ENCRYPTION_KEY=.' "${ENV_FILE}" \
+        || ! grep -q '^PHILTER_BOOTSTRAP_API_KEY=.' "${ENV_FILE}"; then
+    if ! command -v openssl > /dev/null 2>&1; then
+        echo "openssl is needed to generate the keys in ${ENV_FILE} but was not found." >&2
+        echo "Install it, or add these lines yourself:" >&2
+        echo "  PHILTER_ENCRYPTION_KEY=<base64-encoded 32 bytes>" >&2
+        echo "  PHILTER_BOOTSTRAP_API_KEY=sk_<32 alphanumeric characters>" >&2
+        exit 1
+    fi
+fi
 
-elif ! grep -q '^PHILTER_ENCRYPTION_KEY=.' "${ENV_FILE}"; then
+if ! grep -q '^PHILTER_ENCRYPTION_KEY=.' "${ENV_FILE}"; then
+    printf 'PHILTER_ENCRYPTION_KEY=%s\n' "$(openssl rand -base64 32)" >> "${ENV_FILE}"
+    echo "Generated PHILTER_ENCRYPTION_KEY in ${ENV_FILE}. Back it up: data encrypted with it"
+    echo "cannot be recovered without it, and Philter will not start if it changes."
+fi
 
-    echo "${ENV_FILE} exists but does not set PHILTER_ENCRYPTION_KEY." >&2
-    echo "Add one, or delete ${ENV_FILE} and re-run this script to generate it:" >&2
-    echo "  echo \"PHILTER_ENCRYPTION_KEY=\$(openssl rand -base64 32)\" >> ${ENV_FILE}" >&2
-    exit 1
-
+# openssl rand -hex 16 gives the 32 alphanumeric characters Philter requires after "sk_".
+if ! grep -q '^PHILTER_BOOTSTRAP_API_KEY=.' "${ENV_FILE}"; then
+    printf 'PHILTER_BOOTSTRAP_API_KEY=sk_%s\n' "$(openssl rand -hex 16)" >> "${ENV_FILE}"
+    echo "Generated PHILTER_BOOTSTRAP_API_KEY in ${ENV_FILE}."
 fi
 
 # The image copies the jar rather than building it, so Maven has to have run first. Checking here

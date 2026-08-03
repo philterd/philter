@@ -23,6 +23,8 @@ services:
       # Required. Generate one with: openssl rand -base64 32
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?set PHILTER_ENCRYPTION_KEY (e.g. export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32))}
       ADMIN_CROSS_USER_ACCESS_ENABLED: true
+      # Seeded onto the admin user at first start, and only when that user has no API keys.
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-}
       # Philter serves HTTPS on 8080 with a self-signed certificate generated on first start, so
       # curl needs -k. To use your own certificate, mount a PKCS12 keystore and set SSL_KEYSTORE
       # (and SSL_KEYSTORE_PASSWORD). Set SSL_ENABLED=false to serve plain HTTP when a load

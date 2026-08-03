@@ -92,7 +92,7 @@ public class DocumentsApiController extends AbstractApiController {
         if (userId == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        final List<PendingDocumentEntity> entities = pendingDocumentDataService.findAllByUserId(userId, offset, limit);
+        final List<PendingDocumentEntity> entities = pendingDocumentDataService.findAllByUserId(userId, normalizeOffset(offset), normalizeLimit(limit));
 
         final List<PendingRedactedDocuments> documents = new ArrayList<>();
         for (final PendingDocumentEntity entity : entities) {

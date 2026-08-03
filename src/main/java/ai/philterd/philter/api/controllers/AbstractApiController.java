@@ -163,6 +163,29 @@ public abstract class AbstractApiController {
         return LedgerDeletionConfig.isLedgerDeletionEnabled();
     }
 
+    /** Page size used when a caller supplies none, or a value that is not positive. */
+    protected static final int DEFAULT_LIMIT = 25;
+
+    /** Largest page any endpoint returns, matching the cap the data services already apply. */
+    protected static final int MAX_LIMIT = 100;
+
+    /**
+     * Clamps a caller-supplied offset to zero or greater, so the API defines its own paging rather
+     * than passing the value through to MongoDB.
+     */
+    protected int normalizeOffset(final int offset) {
+        return Math.max(0, offset);
+    }
+
+    /**
+     * Clamps a caller-supplied limit to 1..{@link #MAX_LIMIT}, defaulting when it is not positive.
+     * Without this a negative limit reaches MongoDB, where it means "return |n| and close the
+     * cursor" and silently yields a short page.
+     */
+    protected int normalizeLimit(final int limit) {
+        return limit <= 0 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
+    }
+
     /**
      * Authorizes an admin-only operation, returning the refusal to send or {@code null} when allowed.
      *

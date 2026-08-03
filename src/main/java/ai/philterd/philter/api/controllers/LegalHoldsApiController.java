@@ -160,7 +160,7 @@ public class LegalHoldsApiController extends AbstractApiController {
                 apiKeyEntity.getUserId(), userId, "list legal holds");
 
         final List<LegalHoldEntity> holds = legalHoldDataService.findAllByUserId(
-                userId, offset, Math.min(limit, 100));
+                userId, normalizeOffset(offset), normalizeLimit(limit));
 
         return ResponseEntity.ok(holds.stream().map(LegalHoldsApiController::toResponse).toList());
     }

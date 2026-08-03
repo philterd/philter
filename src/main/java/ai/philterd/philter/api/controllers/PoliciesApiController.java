@@ -101,7 +101,7 @@ public class PoliciesApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        final List<PolicyEntity> policies = policyDataService.findAll(userId, offset, limit, false);
+        final List<PolicyEntity> policies = policyDataService.findAll(userId, normalizeOffset(offset), normalizeLimit(limit), false);
         final List<String> policyNames = policies.stream().map(PolicyEntity::getName).toList();
 
         return ResponseEntity.status(HttpStatus.OK)

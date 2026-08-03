@@ -118,7 +118,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
                 apiKeyEntity.getUserId(), userId, "list versions of policy '" + policyName + "'");
 
         final List<PolicyVersionEntity> versions =
-                policyVersionDataService.findAllByName(policyName, userId, offset, Math.min(limit, 100));
+                policyVersionDataService.findAllByName(policyName, userId, normalizeOffset(offset), normalizeLimit(limit));
 
         final List<PolicyVersionSummary> summaries = versions.stream()
                 .map(v -> new PolicyVersionSummary(v.getRevision(), v.getCapturedTimestamp(), v.getContentHash()))

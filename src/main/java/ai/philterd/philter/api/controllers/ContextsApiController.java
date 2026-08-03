@@ -171,7 +171,7 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<ContextEntity> contextEntities = contextService.findAll(userId, offset, limit);
+        final List<ContextEntity> contextEntities = contextService.findAll(userId, normalizeOffset(offset), normalizeLimit(limit));
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
         auditAdminCrossUserAccess(auditEventPublisher, requestId, callerUserId, userId, "list contexts");
@@ -354,7 +354,7 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(userId, name, offset, limit);
+        final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(userId, name, normalizeOffset(offset), normalizeLimit(limit));
         final int total = contextEntryService.countByUserIdAndContext(userId, name);
 
         final List<ContextEntryView> views = new ArrayList<>(entries.size());

@@ -535,6 +535,21 @@ class UserServiceIT extends AbstractMongoIT {
             }
         }
 
+    
+    @Override
+    public ai.philterd.philter.services.encryption.EncryptedBytes encryptBytes(final byte[] data, final String userId) {
+        final ai.philterd.philter.services.encryption.EncryptResult result =
+                encrypt(java.util.Base64.getEncoder().encodeToString(data), userId);
+        return new ai.philterd.philter.services.encryption.EncryptedBytes(
+                result.getEncryptedText().getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                result.getEncryptionKey());
     }
+
+    @Override
+    public byte[] decryptBytes(final byte[] encrypted, final String encryptionKey) {
+        return java.util.Base64.getDecoder().decode(
+                decrypt(new String(encrypted, java.nio.charset.StandardCharsets.UTF_8), encryptionKey));
+    }
+}
 
 }

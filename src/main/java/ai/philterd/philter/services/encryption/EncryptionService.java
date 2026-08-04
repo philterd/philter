@@ -29,6 +29,18 @@ public abstract class EncryptionService {
     public abstract EncryptResult encrypt(final String data, final String userId);
     public abstract String decrypt(final String encryptedText, final String encryptedDataKey);
 
+    /**
+     * Encrypts raw bytes, returning ciphertext as bytes rather than base64.
+     *
+     * <p>Document payloads must not go through {@link #encrypt(String, String)}: that base64-encodes
+     * on the way in and again on the way out, expanding a 10 MB PDF to roughly 17.8 MB and exceeding
+     * MongoDB's 16 MB document limit. This path costs the IV and tag only.
+     */
+    public abstract EncryptedBytes encryptBytes(final byte[] data, final String userId);
+
+    /** Reverses {@link #encryptBytes}. */
+    public abstract byte[] decryptBytes(final byte[] encrypted, final String encryptedDataKey);
+
     protected final int KEY_LENGTH_BITS = 256;
     protected final String ALGORITHM = "AES/GCM/NoPadding";
     protected final KeyProvider keyProvider;

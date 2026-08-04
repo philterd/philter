@@ -99,6 +99,67 @@ public class LocalEncryptionService extends EncryptionService {
     }
 
     @Override
+    public EncryptedBytes encryptBytes(final byte[] data, final String userId) {
+
+        final KeyResponse keyResponse = keyProvider.getKey(userId);
+        final byte[] encryptionKey = EncryptionService.base64Decode(keyResponse.getPlainKey());
+
+        if (encryptionKey.length != KEY_LENGTH_BITS / 8) {
+            throw new IllegalArgumentException("Invalid key length. Must be 32 bytes for AES-256.");
+        }
+
+        try {
+
+            final SecretKeySpec secretKey = new SecretKeySpec(encryptionKey, "AES");
+            final IvParameterSpec iv = generateIv();
+            final Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+
+            final byte[] encryptedBytes = cipher.doFinal(data);
+
+            // IV first, then ciphertext and tag, so the result is self-describing on decrypt.
+            final byte[] combined = new byte[iv.getIV().length + encryptedBytes.length];
+            System.arraycopy(iv.getIV(), 0, combined, 0, iv.getIV().length);
+            System.arraycopy(encryptedBytes, 0, combined, iv.getIV().length, encryptedBytes.length);
+
+            return new EncryptedBytes(combined, keyResponse.getEncryptedKey());
+
+        } catch (final Exception ex) {
+            LOGGER.error("Error encrypting bytes: {}", ex.getMessage(), ex);
+            throw new RuntimeException(ex);
+        }
+
+    }
+
+    @Override
+    public byte[] decryptBytes(final byte[] encrypted, final String encryptionKey) {
+
+        final byte[] key = EncryptionService.base64Decode(keyProvider.decryptKey(encryptionKey));
+
+        if (key.length != KEY_LENGTH_BITS / 8) {
+            throw new IllegalArgumentException("Invalid key length. Must be 32 bytes for AES-256.");
+        }
+
+        final SecretKeySpec secretKey = new SecretKeySpec(key, "AES");
+
+        final byte[] ivBytes = new byte[16];
+        System.arraycopy(encrypted, 0, ivBytes, 0, 16);
+
+        final byte[] cipherBytes = new byte[encrypted.length - 16];
+        System.arraycopy(encrypted, 16, cipherBytes, 0, cipherBytes.length);
+
+        try {
+            final Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
+            return cipher.doFinal(cipherBytes);
+        } catch (final Exception ex) {
+            LOGGER.error("Error decrypting bytes: {}", ex.getMessage(), ex);
+            throw new RuntimeException(ex);
+        }
+
+    }
+
+    @Override
     public String decrypt(final String encryptedText, final String encryptionKey) {
 
         final byte[] key = EncryptionService.base64Decode(keyProvider.decryptKey(encryptionKey));

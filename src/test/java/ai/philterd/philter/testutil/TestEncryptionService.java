@@ -115,4 +115,43 @@ public final class TestEncryptionService extends EncryptionService {
         }
     }
 
+
+    @Override
+    public ai.philterd.philter.services.encryption.EncryptedBytes encryptBytes(final byte[] data, final String userId) {
+        // Byte-oriented, like LocalEncryptionService. If this base64'd instead, a size regression in
+        // production would pass here unnoticed.
+        final KeyResponse keyResponse = keyProvider.getKey(userId);
+        final byte[] keyBytes = EncryptionService.base64Decode(keyResponse.getPlainKey());
+        try {
+            final SecretKeySpec secretKey = new SecretKeySpec(keyBytes, "AES");
+            final byte[] ivBytes = new byte[16];
+            new SecureRandom().nextBytes(ivBytes);
+            final Cipher cipher = Cipher.getInstance(ALG, "BC");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
+            final byte[] encrypted = cipher.doFinal(data);
+            final byte[] combined = new byte[ivBytes.length + encrypted.length];
+            System.arraycopy(ivBytes, 0, combined, 0, ivBytes.length);
+            System.arraycopy(encrypted, 0, combined, ivBytes.length, encrypted.length);
+            return new ai.philterd.philter.services.encryption.EncryptedBytes(combined, keyResponse.getPlainKey());
+        } catch (final Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public byte[] decryptBytes(final byte[] encrypted, final String encryptionKey) {
+        final byte[] keyBytes = EncryptionService.base64Decode(encryptionKey);
+        final byte[] ivBytes = new byte[16];
+        System.arraycopy(encrypted, 0, ivBytes, 0, 16);
+        final byte[] cipherBytes = new byte[encrypted.length - 16];
+        System.arraycopy(encrypted, 16, cipherBytes, 0, cipherBytes.length);
+        try {
+            final Cipher cipher = Cipher.getInstance(ALG, "BC");
+            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new IvParameterSpec(ivBytes));
+            return cipher.doFinal(cipherBytes);
+        } catch (final Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
 }

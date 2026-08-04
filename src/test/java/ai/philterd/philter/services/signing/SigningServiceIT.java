@@ -132,42 +132,13 @@ class SigningServiceIT extends AbstractMongoIT {
         final String[] parts = jwt.split("\\.");
         final String signingInput = parts[0] + "." + parts[1];
         final byte[] p1363Sig = Base64.getUrlDecoder().decode(parts[2]);
-        final byte[] derSig = p1363ToDer(p1363Sig);
 
-        final Signature verifier = Signature.getInstance("SHA256withECDSA");
+        // The JDK verifies the raw r||s form a JWT carries, so no DER is built here. A hand-rolled
+        // converter previously emitted non-minimal INTEGERs and failed about 1 run in 128.
+        final Signature verifier = Signature.getInstance("SHA256withECDSAinP1363Format");
         verifier.initVerify(publicKey);
         verifier.update(signingInput.getBytes(StandardCharsets.UTF_8));
-        return verifier.verify(derSig);
-    }
-
-    private static byte[] p1363ToDer(final byte[] p1363) {
-        byte[] r = Arrays.copyOfRange(p1363, 0, 32);
-        byte[] s = Arrays.copyOfRange(p1363, 32, 64);
-
-        if ((r[0] & 0x80) != 0) {
-            final byte[] padded = new byte[33];
-            System.arraycopy(r, 0, padded, 1, 32);
-            r = padded;
-        }
-        if ((s[0] & 0x80) != 0) {
-            final byte[] padded = new byte[33];
-            System.arraycopy(s, 0, padded, 1, 32);
-            s = padded;
-        }
-
-        final int totalLen = 2 + r.length + 2 + s.length;
-        final byte[] der = new byte[2 + totalLen];
-        int i = 0;
-        der[i++] = 0x30;
-        der[i++] = (byte) totalLen;
-        der[i++] = 0x02;
-        der[i++] = (byte) r.length;
-        System.arraycopy(r, 0, der, i, r.length);
-        i += r.length;
-        der[i++] = 0x02;
-        der[i++] = (byte) s.length;
-        System.arraycopy(s, 0, der, i, s.length);
-        return der;
+        return verifier.verify(p1363Sig);
     }
 
 }

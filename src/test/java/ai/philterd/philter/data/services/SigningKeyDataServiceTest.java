@@ -61,6 +61,40 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class SigningKeyDataServiceTest {
 
+    /** An empty cursor, so iterating the mocked collection is a no-op rather than a null. */
+    private static final class EmptyCursor implements com.mongodb.client.MongoCursor<Document> {
+        EmptyCursor(final java.util.List<Document> ignored) {
+        }
+
+        @Override public void close() {
+        }
+
+        @Override public boolean hasNext() {
+            return false;
+        }
+
+        @Override public Document next() {
+            throw new java.util.NoSuchElementException();
+        }
+
+        @Override public int available() {
+            return 0;
+        }
+
+        @Override public Document tryNext() {
+            return null;
+        }
+
+        @Override public com.mongodb.ServerCursor getServerCursor() {
+            return null;
+        }
+
+        @Override public com.mongodb.ServerAddress getServerAddress() {
+            return new com.mongodb.ServerAddress();
+        }
+    }
+
+
     @Mock private MongoClient mongoClient;
     @Mock private MongoDatabase mongoDatabase;
     @Mock private MongoCollection<Document> mongoCollection;
@@ -77,6 +111,11 @@ class SigningKeyDataServiceTest {
         when(mongoCollection.find()).thenReturn(findIterable);
         // The service now looks for the active key first, then falls back to any key.
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        // The service iterates this when migrating plaintext keys; an unstubbed mock yields a null
+        // iterator and logs a migration error during otherwise-passing tests.
+        when(findIterable.iterator()).thenReturn(new java.util.ArrayList<Document>().stream()
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toList(), EmptyCursor::new)));
         when(mongoCollection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
         when(mongoCollection.deleteMany(any())).thenReturn(mock(DeleteResult.class));
         when(mongoCollection.updateMany(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
@@ -87,7 +126,7 @@ class SigningKeyDataServiceTest {
     void autoGeneratesKeyAndEmitsAuditEventWhenMongoIsEmpty() {
         when(findIterable.first()).thenReturn(null);
 
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
 
         assertNotNull(service.getPrivateKey(), "private key must be populated after auto-generation");
         assertNotNull(service.getPublicKey(), "public key must be populated after auto-generation");
@@ -109,7 +148,7 @@ class SigningKeyDataServiceTest {
 
         when(findIterable.first()).thenReturn(doc);
 
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
 
         assertArrayEquals(existing.getPublic().getEncoded(), service.getPublicKey().getEncoded(),
                 "public key loaded from MongoDB must match the persisted key — same keypair across restarts");
@@ -120,7 +159,7 @@ class SigningKeyDataServiceTest {
     @Test
     void regenerateRetainsTheOldKeyAndEmitsAuditEventWithCorrectActingUser() {
         when(findIterable.first()).thenReturn(null);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
 
         final ObjectId actingUserId = new ObjectId();
         service.regenerate(actingUserId);
@@ -136,7 +175,7 @@ class SigningKeyDataServiceTest {
     @Test
     void everyGeneratedKeyGetsAStableIdDerivedFromItsPublicKey() {
         when(findIterable.first()).thenReturn(null);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
 
         assertNotNull(service.getActiveKeyId(), "a key must be identifiable so entries can name it");
         // A third party can recompute the id from the public key alone.
@@ -146,7 +185,7 @@ class SigningKeyDataServiceTest {
     @Test
     void loadFromPemFileDerivesPublicKeyMatchingOriginal() throws Exception {
         when(findIterable.first()).thenReturn(null);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
 
         final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
         kpg.initialize(new ECGenParameterSpec("secp256r1"));

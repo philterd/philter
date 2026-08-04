@@ -27,6 +27,10 @@ Philter uses an ES256 (ECDSA P-256 / SHA-256) keypair. The key belongs to the **
 
 On first start, if no signing key exists in the database and `PHILTER_SIGNING_KEY_PATH` is not set, Philter generates a new ES256 keypair and persists it in the `signing_keys` MongoDB collection. The key is reused across restarts and shared across all instances in a cluster (they all read from the same MongoDB collection).
 
+The **private** key is encrypted at rest under `PHILTER_ENCRYPTION_KEY`, so a database dump on its own does not yield the ability to forge signatures: an attacker would need both the database and the deployment's master key. The **public** key is stored in the clear, because it is not a secret and `GET /api/signing-key` serves it without authentication so signatures can be verified.
+
+A key persisted in plaintext by an earlier build is encrypted automatically the first time Philter loads it. Signatures made before that keep verifying, since the key itself does not change.
+
 ### User-supplied key (optional)
 
 Set `PHILTER_SIGNING_KEY_PATH` to the absolute path of a PKCS8 PEM file containing your private key to have Philter use it instead of the auto-generated one. The file should be in `BEGIN PRIVATE KEY` (PKCS8) format:
@@ -36,6 +40,8 @@ openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out my_signing_k
 ```
 
 When this environment variable is set, the key is loaded from the file on startup and the auto-generated MongoDB key (if any) is ignored. The file must remain accessible on every node; it is not imported into MongoDB.
+
+This is the strongest configuration: the signing key never enters the database at all, so no amount of database access yields it. Restrict who can read the file. Use it where the signature has to withstand compromise of the database itself, for example when the [redaction ledger](redaction/ledgers.md) is relied on as evidence.
 
 ### Regenerating the key
 

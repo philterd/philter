@@ -55,14 +55,15 @@ class LedgerSigningIT extends AbstractMongoIT {
     private SigningKeyDataService signingKeyDataService;
     private SigningService signingService;
     private LedgerDataService ledgerDataService;
+    private AdminSettingsDataService adminSettings;
 
     @BeforeEach
     void setUp() {
-        signingKeyDataService = new SigningKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+        signingKeyDataService = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
 
         final AdminSettingsEntity settings = new AdminSettingsEntity();
         settings.setSigningEnabled(false);
-        final AdminSettingsDataService adminSettings = mock(AdminSettingsDataService.class);
+        adminSettings = mock(AdminSettingsDataService.class);
         when(adminSettings.findAdminSettings()).thenReturn(settings);
 
         signingService = new SigningService(signingKeyDataService, adminSettings);
@@ -189,6 +190,34 @@ class LedgerSigningIT extends AbstractMongoIT {
         assertNotNull(pem, "the key an entry names must remain retrievable after rotation");
         assertTrue(pem.startsWith("-----BEGIN PUBLIC KEY-----"));
         assertNotEquals(keyIdUsed, signingKeyDataService.getActiveKeyId());
+    }
+
+    @Test
+    void entriesSignedBeforeTheKeyWasEncryptedStillVerify() throws Exception {
+        // The upgrade path: a chain signed while the private key was stored in plaintext must still
+        // verify once that key has been encrypted at rest, since it is the same key.
+        writeChain();
+        assertTrue(ledgerDataService.isChainValid(USER, DOC));
+
+        // Strip the wrapping, as a pre-encryption deployment's record would look.
+        final Document stored = mongoClient.getDatabase("philter").getCollection("signing_keys").find().first();
+        final byte[] plaintextPrivate = signingKeyDataService.getPrivateKey().getEncoded();
+        mongoClient.getDatabase("philter").getCollection("signing_keys").updateOne(
+                Filters.eq("_id", stored.getObjectId("_id")),
+                Updates.combine(
+                        Updates.set("private_key", new org.bson.types.Binary(plaintextPrivate)),
+                        Updates.unset("private_key_encrypted_key")));
+
+        // A restart loads it, re-wraps it, and the existing chain still verifies.
+        final SigningKeyDataService reloaded = new SigningKeyDataService(mongoClient,
+                new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
+        final SigningService reloadedSigning = new SigningService(reloaded, adminSettings);
+        final LedgerDataService reloadedLedger = new LedgerDataService(mongoClient,
+                new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class),
+                mock(LegalHoldDataService.class), reloadedSigning);
+
+        assertTrue(reloadedLedger.isChainValid(USER, DOC),
+                "entries signed before the key was encrypted must still verify");
     }
 
     @Test

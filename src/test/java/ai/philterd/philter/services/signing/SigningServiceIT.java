@@ -48,7 +48,7 @@ class SigningServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUp() {
-        keyService = new SigningKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+        keyService = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         signingService = new SigningService(keyService, mock(AdminSettingsDataService.class));
     }
 
@@ -84,7 +84,7 @@ class SigningServiceIT extends AbstractMongoIT {
 
         // Simulate restart: new service instance backed by the same MongoDB
         final SigningKeyDataService reloadedKeyService =
-                new SigningKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+                new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
 
         assertTrue(verifyJwt(jwt, reloadedKeyService.getPublicKey()),
                 "JWT signed before restart must verify with the reloaded public key — same key persists across restarts");

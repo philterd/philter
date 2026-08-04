@@ -15,13 +15,18 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.services.encryption.EncryptedBytes;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 
 import java.util.Date;
 
-public class SigningKeyEntity extends AbstractEntity {
+public class SigningKeyEntity extends AbstractEncryptedEntity {
+
+    /** The signing key belongs to the instance, not a user; the key provider ignores this value. */
+    private static final String SYSTEM_OWNER = "system";
 
     private ObjectId id;
     private String keyId;
@@ -32,11 +37,36 @@ public class SigningKeyEntity extends AbstractEntity {
     private boolean active = true;
     private Date supersededAt;
 
-    public static SigningKeyEntity fromDocument(final Document doc) {
+    /** Reads the record without touching the private key, for callers that only need the public half. */
+    public static SigningKeyEntity publicPartFromDocument(final Document doc) {
         final SigningKeyEntity e = new SigningKeyEntity();
         e.setId(doc.getObjectId("_id"));
         e.setKeyId(doc.getString("key_id"));
-        e.setPrivateKeyEncoded(doc.get("private_key", Binary.class).getData());
+        e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
+        e.setCreatedAt(doc.getDate("created_at"));
+        e.setActive(doc.getBoolean("active", true));
+        e.setSupersededAt(doc.getDate("superseded_at"));
+        return e;
+    }
+
+    /** True when the record predates private-key encryption and still holds the key in the clear. */
+    public static boolean isLegacyPlaintext(final Document doc) {
+        return doc.getString("private_key_encrypted_key") == null;
+    }
+
+    public static SigningKeyEntity fromDocument(final Document doc, final EncryptionService encryptionService) {
+        final SigningKeyEntity e = new SigningKeyEntity();
+        e.setId(doc.getObjectId("_id"));
+        e.setKeyId(doc.getString("key_id"));
+
+        // The public key stays in the clear: GET /api/signing-key serves it unauthenticated so a
+        // third party can verify signatures, and it is not a secret. Only the private half is
+        // encrypted, so a database dump alone no longer yields the ability to forge signatures.
+        final byte[] storedPrivate = doc.get("private_key", Binary.class).getData();
+        final String wrappedKey = doc.getString("private_key_encrypted_key");
+        e.setPrivateKeyEncoded(wrappedKey == null
+                ? storedPrivate
+                : encryptionService.decryptBytes(storedPrivate, wrappedKey));
         e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
         e.setCreatedAt(doc.getDate("created_at"));
         // Keys written before rotation history existed carry no flag and are the active key.
@@ -46,13 +76,17 @@ public class SigningKeyEntity extends AbstractEntity {
     }
 
     @Override
-    public Document toDocument() {
+    public Document toDocument(final EncryptionService encryptionService) {
         final Document doc = new Document();
         if (id != null) {
             doc.put("_id", id);
         }
         doc.put("key_id", keyId);
-        doc.put("private_key", privateKeyEncoded);
+
+        final EncryptedBytes encrypted = encryptionService.encryptBytes(privateKeyEncoded, SYSTEM_OWNER);
+        doc.put("private_key", new Binary(encrypted.ciphertext()));
+        doc.put("private_key_encrypted_key", encrypted.encryptionKey());
+
         doc.put("public_key", publicKeyEncoded);
         doc.put("created_at", createdAt);
         doc.put("active", active);

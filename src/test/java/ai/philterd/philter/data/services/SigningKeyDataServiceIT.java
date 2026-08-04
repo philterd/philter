@@ -42,7 +42,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     @Test
     void firstStartGeneratesAndPersistsKeyToMongo() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, publisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
 
         assertNotNull(service.getPublicKey());
         assertNotNull(service.getPrivateKey());
@@ -57,11 +57,11 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     void subsequentStartLoadsPersistedKeyWithoutGeneratingANew() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
 
-        final SigningKeyDataService service1 = new SigningKeyDataService(mongoClient, publisher);
+        final SigningKeyDataService service1 = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         final String fingerprint1 = service1.getPublicKeyFingerprint();
 
         // Simulate a restart — new instance, same underlying MongoDB
-        final SigningKeyDataService service2 = new SigningKeyDataService(mongoClient, publisher);
+        final SigningKeyDataService service2 = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         final String fingerprint2 = service2.getPublicKeyFingerprint();
 
         assertEquals(fingerprint1, fingerprint2,
@@ -78,7 +78,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     @Test
     void regenerateProducesNewKeypairAndUpdatesMongoDocument() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, publisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         final String fingerprintBefore = service.getPublicKeyFingerprint();
 
         final ObjectId actingUser = new ObjectId();
@@ -101,19 +101,19 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     @Test
     void newInstanceAfterRegenerationLoadsRegeneratedKey() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, publisher);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         service.regenerate(new ObjectId());
         final String fingerprintAfterRegenerate = service.getPublicKeyFingerprint();
 
         // New instance (simulating restart after regeneration) must load the regenerated key
-        final SigningKeyDataService service2 = new SigningKeyDataService(mongoClient, publisher);
+        final SigningKeyDataService service2 = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         assertEquals(fingerprintAfterRegenerate, service2.getPublicKeyFingerprint(),
                 "new instance started after regeneration must load the regenerated key from MongoDB");
     }
 
     @Test
     void publicKeyJwkContainsRequiredRfc7518Fields() {
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         final String jwk = service.getPublicKeyJwk();
 
         assertTrue(jwk.contains("\"kty\":\"EC\""), "JWK must have kty=EC");
@@ -124,7 +124,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void publicKeyPemHasExpectedBoundaries() {
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         final String pem = service.getPublicKeyPem();
 
         assertTrue(pem.startsWith("-----BEGIN PUBLIC KEY-----"), "PEM must start with BEGIN PUBLIC KEY header");
@@ -133,7 +133,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void publicKeyFingerprintIsColonSeparatedSha256Hex() {
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, mock(AuditEventPublisher.class));
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         final String fingerprint = service.getPublicKeyFingerprint();
 
         // SHA-256 = 32 bytes = "xx:xx:...:xx" = 32*2 hex chars + 31 colons = 95 characters

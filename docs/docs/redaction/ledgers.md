@@ -28,12 +28,13 @@ rewritten in the database cannot be re-signed without that key. Signing is alway
 to the [output signing](../output_signing.md) setting.
 
 **How strong that is depends on where the key lives.** By default Philter generates the signing key
-and stores it in MongoDB, in the same database as the ledger. Someone with full database access can
-therefore read the key and re-sign a rewritten chain, so in that configuration the signature defends
-against tampering through Philter or by anyone with write access to the `ledger` collection alone,
-not against a full database compromise. To get the stronger property, supply the key from outside the
-database with `PHILTER_SIGNING_KEY_PATH` (see [Output Signing](../output_signing.md)) and restrict who
-can read that file.
+and stores it in MongoDB, encrypted under `PHILTER_ENCRYPTION_KEY`. Database access alone is therefore
+not enough to forge a chain: an attacker would need the database and the deployment's master key,
+which is supplied from the environment rather than stored in MongoDB.
+
+For the strongest property, supply the signing key from outside the database entirely with
+`PHILTER_SIGNING_KEY_PATH` (see [Output Signing](../output_signing.md)) and restrict who can read that
+file. The key then never enters the database, so no amount of database access yields it.
 
 The validity response reports both, plus how many entries carry a signature:
 

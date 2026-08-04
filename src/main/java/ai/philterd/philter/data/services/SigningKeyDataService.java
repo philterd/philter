@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.data.entities.SigningKeyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
@@ -50,15 +51,16 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
 
-public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
+public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEntity> {
 
     private static final Logger LOGGER = LogManager.getLogger(SigningKeyDataService.class);
 
     private volatile KeyPair keyPair;
     private volatile String activeKeyId;
 
-    public SigningKeyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "signing_keys", auditEventPublisher);
+    public SigningKeyDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                                 final AuditEventPublisher auditEventPublisher) {
+        super(mongoClient, "signing_keys", encryptionService, auditEventPublisher);
         this.keyPair = loadOrGenerate();
     }
 
@@ -82,8 +84,12 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
         }
         if (doc != null) {
             LOGGER.info("Loaded existing signing key from MongoDB.");
-            final SigningKeyEntity entity = SigningKeyEntity.fromDocument(doc);
+            final SigningKeyEntity entity = SigningKeyEntity.fromDocument(doc, encryptionService);
             final KeyPair loaded = fromEntity(entity);
+            if (SigningKeyEntity.isLegacyPlaintext(doc)) {
+                rewrapLegacyKey(entity);
+            }
+            rewrapLegacySupersededKeys();
             this.activeKeyId = entity.getKeyId() != null
                     ? entity.getKeyId()
                     : backfillKeyId(entity, loaded);
@@ -129,6 +135,38 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
         return keyId;
     }
 
+    /**
+     * Encrypts a key that was persisted before the private half was protected. Done on load so an
+     * existing deployment is migrated on its next start without an operator step.
+     */
+    private void rewrapLegacyKey(final SigningKeyEntity entity) {
+        try {
+            final Document rewrapped = entity.toDocument(encryptionService);
+            collection.updateOne(Filters.eq("_id", entity.getId()), Updates.combine(
+                    Updates.set("private_key", rewrapped.get("private_key")),
+                    Updates.set("private_key_encrypted_key", rewrapped.getString("private_key_encrypted_key"))));
+            LOGGER.info("Encrypted a signing key that was stored in plaintext by an earlier build.");
+        } catch (final Exception e) {
+            // Not fatal: the key still works, it is simply still in the clear.
+            LOGGER.error("Unable to encrypt the stored signing key; it remains in plaintext.", e);
+        }
+    }
+
+    /**
+     * Encrypts any superseded key still held in plaintext. A superseded key is retained so entries it
+     * signed stay verifiable, which also means it can still forge signatures for those entries, so it
+     * needs the same protection as the active one.
+     */
+    private void rewrapLegacySupersededKeys() {
+        try {
+            for (final Document doc : collection.find(Filters.exists("private_key_encrypted_key", false))) {
+                rewrapLegacyKey(SigningKeyEntity.fromDocument(doc, encryptionService));
+            }
+        } catch (final Exception e) {
+            LOGGER.error("Unable to encrypt one or more superseded signing keys.", e);
+        }
+    }
+
     /** The id of the key new signatures are made with. */
     public String getActiveKeyId() {
         return activeKeyId;
@@ -151,7 +189,7 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
         }
         try {
             return KeyFactory.getInstance("EC").generatePublic(
-                    new X509EncodedKeySpec(SigningKeyEntity.fromDocument(doc).getPublicKeyEncoded()));
+                    new X509EncodedKeySpec(SigningKeyEntity.publicPartFromDocument(doc).getPublicKeyEncoded()));
         } catch (final Exception e) {
             LOGGER.warn("Stored signing key {} could not be read.", keyId, e);
             return null;
@@ -172,7 +210,7 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
             entity.setActive(true);
             this.activeKeyId = entity.getKeyId();
 
-            collection.insertOne(entity.toDocument());
+            collection.insertOne(entity.toDocument(encryptionService));
 
             final AuditLogEvent event = isFirstGeneration
                     ? AuditLogEvent.SIGNING_KEY_GENERATED

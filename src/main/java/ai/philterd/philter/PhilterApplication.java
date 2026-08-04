@@ -289,7 +289,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public SigningKeyDataService signingKeyDataService() {
-        return new SigningKeyDataService(mongoClient(), auditEventPublisher());
+        return new SigningKeyDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean

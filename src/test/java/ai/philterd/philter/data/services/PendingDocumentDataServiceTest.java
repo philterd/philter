@@ -63,7 +63,7 @@ class PendingDocumentDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("pending_documents")).thenReturn(mongoCollection);
-        service = new PendingDocumentDataService(mongoClient, auditEventPublisher);
+        service = new PendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
     }
 
     @Test
@@ -108,7 +108,7 @@ class PendingDocumentDataServiceTest {
         when(updateResult.getModifiedCount()).thenReturn(3L);
         when(mongoCollection.updateMany(any(Bson.class), any(Bson.class))).thenReturn(updateResult);
 
-        final long count = service.reclaimStuckJobs(new Date());
+        final long count = service.reclaimStuckJobs(new Date(), 3);
 
         assertEquals(3L, count);
     }
@@ -119,7 +119,7 @@ class PendingDocumentDataServiceTest {
         final byte[] output = new byte[]{1, 2, 3};
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
-        service.markComplete(id, output);
+        service.markComplete(id, new ObjectId(), output);
 
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
     }

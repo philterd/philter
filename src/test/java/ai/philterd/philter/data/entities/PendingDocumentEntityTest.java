@@ -29,6 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class PendingDocumentEntityTest {
 
+    private static final ai.philterd.philter.services.encryption.EncryptionService ENCRYPTION =
+            new ai.philterd.philter.testutil.TestEncryptionService();
+
+
     @Test
     void roundTripPreservesAllFields() {
         final ObjectId id = new ObjectId();
@@ -59,14 +63,14 @@ class PendingDocumentEntityTest {
         original.setClaimedBy("philter-worker-x");
         original.setClaimedAt(claimed);
 
-        final Document doc = original.toDocument();
+        final Document doc = original.toDocument(ENCRYPTION);
 
         assertEquals(id, doc.get("_id"));
         assertEquals(userId, doc.get("user_id"));
         assertInstanceOf(Binary.class, doc.get("input"));
         assertInstanceOf(Binary.class, doc.get("output"));
 
-        final PendingDocumentEntity restored = PendingDocumentEntity.fromDocument(doc);
+        final PendingDocumentEntity restored = PendingDocumentEntity.fromDocument(doc, ENCRYPTION);
 
         assertEquals(id, restored.getId());
         assertEquals(userId, restored.getUserId());
@@ -94,7 +98,7 @@ class PendingDocumentEntityTest {
         entity.setInput(null);
         entity.setOutput(null);
 
-        final Document doc = entity.toDocument();
+        final Document doc = entity.toDocument(ENCRYPTION);
 
         assertNull(doc.get("input"));
         assertNull(doc.get("output"));
@@ -105,7 +109,7 @@ class PendingDocumentEntityTest {
         final PendingDocumentEntity entity = new PendingDocumentEntity();
         entity.setStatus(PendingDocumentEntity.STATUS_PENDING);
 
-        final Document doc = entity.toDocument();
+        final Document doc = entity.toDocument(ENCRYPTION);
 
         assertNull(doc.get("_id"));
     }

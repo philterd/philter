@@ -65,12 +65,15 @@ public class RedactionWorker {
         this.gson = gson;
     }
 
+    /** Attempts before a job that never completes is failed, so its input cannot be retained forever. */
+    private static final int MAX_RECLAIMS = 3;
+
     @Scheduled(fixedDelayString = "${philter.worker.poll-interval-ms:5000}", initialDelay = 5000)
     public void poll() {
 
         try {
             final Date stuckCutoff = new Date(System.currentTimeMillis() - STUCK_JOB_THRESHOLD_MS);
-            final long reclaimed = pendingDocumentDataService.reclaimStuckJobs(stuckCutoff);
+            final long reclaimed = pendingDocumentDataService.reclaimStuckJobs(stuckCutoff, MAX_RECLAIMS);
             if (reclaimed > 0) {
                 LOGGER.warn("Reclaimed {} stuck job(s) older than {}", reclaimed, stuckCutoff);
             }
@@ -127,7 +130,7 @@ public class RedactionWorker {
                 throw new IllegalStateException("Async worker received non-binary filter result for document " + job.getDocumentId());
             }
 
-            pendingDocumentDataService.markComplete(job.getId(), output);
+            pendingDocumentDataService.markComplete(job.getId(), job.getUserId(), output);
             LOGGER.info("Completed pending document {}", job.getDocumentId());
 
             enqueueWebhook(job, WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE, null);

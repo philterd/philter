@@ -16,6 +16,8 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.services.encryption.EncryptedBytes;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.FindIterable;
@@ -40,14 +42,15 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class PendingDocumentDataService extends AbstractService<PendingDocumentEntity> {
+public class PendingDocumentDataService extends AbstractEncryptedService<PendingDocumentEntity> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PendingDocumentDataService.class);
 
     private static final long DEFAULT_TTL_SECONDS = 7L * 24L * 60L * 60L;
 
-    public PendingDocumentDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "pending_documents", auditEventPublisher);
+    public PendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                                      final AuditEventPublisher auditEventPublisher) {
+        super(mongoClient, "pending_documents", encryptionService, auditEventPublisher);
 
         final long ttlSeconds = EnvUtils.getLong("PENDING_DOCUMENTS_TTL_SECONDS", DEFAULT_TTL_SECONDS);
 
@@ -71,7 +74,7 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
         );
 
         final Document document = collection.find(query).first();
-        return document != null ? PendingDocumentEntity.fromDocument(document) : null;
+        return document != null ? PendingDocumentEntity.fromDocument(document, encryptionService) : null;
 
     }
 
@@ -86,7 +89,7 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
 
         final List<PendingDocumentEntity> entities = new ArrayList<>();
         for (final Document document : documents) {
-            entities.add(PendingDocumentEntity.fromDocument(document));
+            entities.add(PendingDocumentEntity.fromDocument(document, encryptionService));
         }
         return entities;
 
@@ -109,36 +112,69 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
                 .returnDocument(ReturnDocument.AFTER);
 
         final Document claimed = collection.findOneAndUpdate(query, update, options);
-        return claimed != null ? PendingDocumentEntity.fromDocument(claimed) : null;
+        return claimed != null ? PendingDocumentEntity.fromDocument(claimed, encryptionService) : null;
 
     }
 
-    public long reclaimStuckJobs(final Date olderThan) {
+    /**
+     * Returns jobs abandoned by a dead worker to the pending queue, up to {@code maxReclaims} times.
+     *
+     * <p>Bounded on purpose. A document that reliably kills the worker (an out-of-memory on a large
+     * PDF, a malformed file that crashes the parser) would otherwise cycle pending, processing,
+     * reclaimed forever, never reaching a terminal state. Its {@code completed_at} would never be
+     * set, so the TTL would never fire and the submitted document would be retained indefinitely.
+     *
+     * @return the number of jobs returned to the queue
+     */
+    public long reclaimStuckJobs(final Date olderThan, final int maxReclaims) {
 
-        final Bson query = Filters.and(
+        final Bson stuck = Filters.and(
                 Filters.eq("status", PendingDocumentEntity.STATUS_PROCESSING),
                 Filters.lt("claimed_at", olderThan)
         );
 
-        final Bson update = Updates.combine(
+        // Past the cap the job is failed, which sets completed_at and lets the TTL collect it.
+        final Bson exhausted = Filters.and(stuck, Filters.gte("reclaim_count", maxReclaims));
+        final long failed = collection.updateMany(exhausted, Updates.combine(
+                Updates.set("status", PendingDocumentEntity.STATUS_FAILED),
+                Updates.set("error_message", "Abandoned after " + maxReclaims
+                        + " attempts; the worker did not complete this document."),
+                Updates.set("completed_at", new Date()),
+                Updates.unset("input"),
+                Updates.unset("input_encrypted_key"),
+                Updates.unset("claimed_by"),
+                Updates.unset("claimed_at")
+        )).getModifiedCount();
+
+        if (failed > 0) {
+            LOGGER.warn("Failed {} job(s) that could not be completed after {} attempts.", failed, maxReclaims);
+        }
+
+        final Bson retryable = Filters.and(stuck, Filters.lt("reclaim_count", maxReclaims));
+        return collection.updateMany(retryable, Updates.combine(
                 Updates.set("status", PendingDocumentEntity.STATUS_PENDING),
+                Updates.inc("reclaim_count", 1),
                 Updates.unset("claimed_by"),
                 Updates.unset("claimed_at"),
                 Updates.unset("started_at")
-        );
-
-        return collection.updateMany(query, update).getModifiedCount();
+        )).getModifiedCount();
 
     }
 
-    public void markComplete(final ObjectId id, final byte[] output) {
+    public void markComplete(final ObjectId id, final ObjectId userId, final byte[] output) {
+
+        // Encrypted here as well as in the entity: this is a partial update, so it never passes
+        // through toDocument and would otherwise write the redacted document in the clear.
+        final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId.toHexString());
 
         final Bson query = Filters.eq("_id", id);
         final Bson update = Updates.combine(
                 Updates.set("status", PendingDocumentEntity.STATUS_COMPLETE),
-                Updates.set("output", new Binary(output)),
+                Updates.set("output", new Binary(encrypted.ciphertext())),
+                Updates.set("output_encrypted_key", encrypted.encryptionKey()),
                 Updates.set("completed_at", new Date()),
-                Updates.unset("input")
+                Updates.unset("input"),
+                Updates.unset("input_encrypted_key")
         );
 
         collection.updateOne(query, update);
@@ -152,7 +188,8 @@ public class PendingDocumentDataService extends AbstractService<PendingDocumentE
                 Updates.set("status", PendingDocumentEntity.STATUS_FAILED),
                 Updates.set("error_message", errorMessage),
                 Updates.set("completed_at", new Date()),
-                Updates.unset("input")
+                Updates.unset("input"),
+                Updates.unset("input_encrypted_key")
         );
 
         collection.updateOne(query, update);

@@ -254,7 +254,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public PendingDocumentDataService pendingDocumentDataService() {
-        return new PendingDocumentDataService(mongoClient(), auditEventPublisher());
+        return new PendingDocumentDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean

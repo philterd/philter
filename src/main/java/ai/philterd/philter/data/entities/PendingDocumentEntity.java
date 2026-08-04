@@ -15,13 +15,15 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.services.encryption.EncryptedBytes;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 
 import java.util.Date;
 
-public class PendingDocumentEntity extends AbstractEntity {
+public class PendingDocumentEntity extends AbstractEncryptedEntity {
 
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_PROCESSING = "PROCESSING";
@@ -49,8 +51,10 @@ public class PendingDocumentEntity extends AbstractEntity {
     private Date completedAt;
     private String claimedBy;
     private Date claimedAt;
+    /** How many times this job has been reclaimed after a worker failed to finish it. */
+    private int reclaimCount;
 
-    public static PendingDocumentEntity fromDocument(final Document document) {
+    public static PendingDocumentEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final PendingDocumentEntity entity = new PendingDocumentEntity();
         entity.setId(document.getObjectId("_id"));
         entity.setUserId(document.getObjectId("user_id"));
@@ -65,14 +69,19 @@ public class PendingDocumentEntity extends AbstractEntity {
         entity.setStatus(document.getString("status"));
         entity.setErrorMessage(document.getString("error_message"));
 
+        // The submitted document is the most sensitive thing Philter holds, so it is encrypted at
+        // rest like every other sensitive collection. Bytes are encrypted as bytes: routing them
+        // through the String path would base64 twice and push a 10 MB PDF past MongoDB's 16 MB limit.
         final Object inputBinary = document.get("input");
         if (inputBinary instanceof Binary) {
-            entity.setInput(((Binary) inputBinary).getData());
+            entity.setInput(encryptionService.decryptBytes(((Binary) inputBinary).getData(),
+                    document.getString("input_encrypted_key")));
         }
 
         final Object outputBinary = document.get("output");
         if (outputBinary instanceof Binary) {
-            entity.setOutput(((Binary) outputBinary).getData());
+            entity.setOutput(encryptionService.decryptBytes(((Binary) outputBinary).getData(),
+                    document.getString("output_encrypted_key")));
         }
 
         entity.setSubmittedAt(document.getDate("submitted_at"));
@@ -80,11 +89,12 @@ public class PendingDocumentEntity extends AbstractEntity {
         entity.setCompletedAt(document.getDate("completed_at"));
         entity.setClaimedBy(document.getString("claimed_by"));
         entity.setClaimedAt(document.getDate("claimed_at"));
+        entity.setReclaimCount(document.getInteger("reclaim_count", 0));
         return entity;
     }
 
     @Override
-    public Document toDocument() {
+    public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if (id != null) {
             document.put("_id", id);
@@ -101,16 +111,21 @@ public class PendingDocumentEntity extends AbstractEntity {
         document.put("status", status);
         document.put("error_message", errorMessage);
         if (input != null) {
-            document.put("input", new Binary(input));
+            final EncryptedBytes encrypted = encryptionService.encryptBytes(input, userId.toHexString());
+            document.put("input", new Binary(encrypted.ciphertext()));
+            document.put("input_encrypted_key", encrypted.encryptionKey());
         }
         if (output != null) {
-            document.put("output", new Binary(output));
+            final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId.toHexString());
+            document.put("output", new Binary(encrypted.ciphertext()));
+            document.put("output_encrypted_key", encrypted.encryptionKey());
         }
         document.put("submitted_at", submittedAt);
         document.put("started_at", startedAt);
         document.put("completed_at", completedAt);
         document.put("claimed_by", claimedBy);
         document.put("claimed_at", claimedAt);
+        document.put("reclaim_count", reclaimCount);
         return document;
     }
 
@@ -257,6 +272,14 @@ public class PendingDocumentEntity extends AbstractEntity {
 
     public void setClaimedBy(final String claimedBy) {
         this.claimedBy = claimedBy;
+    }
+
+    public int getReclaimCount() {
+        return reclaimCount;
+    }
+
+    public void setReclaimCount(final int reclaimCount) {
+        this.reclaimCount = reclaimCount;
     }
 
     public Date getClaimedAt() {

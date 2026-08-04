@@ -59,7 +59,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new PendingDocumentDataService(mongoClient, mock(AuditEventPublisher.class));
+        service = new PendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
     private PendingDocumentEntity newPending(final ObjectId userId, final String documentId) {
@@ -205,13 +205,13 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
         // A cutoff before any claim time reclaims nothing (the "not yet stuck" branch).
         final Date beforeAnyClaim = new Date(stuck.getClaimedAt().getTime() - 60_000);
-        assertEquals(0L, service.reclaimStuckJobs(beforeAnyClaim));
+        assertEquals(0L, service.reclaimStuckJobs(beforeAnyClaim, 3));
         assertEquals(PendingDocumentEntity.STATUS_PROCESSING,
                 service.findOneByDocumentIdAndUserId("stuck", user).getStatus());
 
         // A cutoff in the future reclaims every PROCESSING job (the "stuck" branch).
         final Date future = new Date(System.currentTimeMillis() + 60_000);
-        assertEquals(2L, service.reclaimStuckJobs(future));
+        assertEquals(2L, service.reclaimStuckJobs(future, 3));
 
         final PendingDocumentEntity reclaimed = service.findOneByDocumentIdAndUserId("stuck", user);
         assertEquals(PendingDocumentEntity.STATUS_PENDING, reclaimed.getStatus());
@@ -231,7 +231,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         assertNotNull(claimed.getInput());
 
         final byte[] output = new byte[]{9, 8, 7};
-        service.markComplete(claimed.getId(), output);
+        service.markComplete(claimed.getId(), claimed.getUserId(), output);
 
         final PendingDocumentEntity completed = service.findOneByDocumentIdAndUserId("doc-1", user);
         assertEquals(PendingDocumentEntity.STATUS_COMPLETE, completed.getStatus());
@@ -292,7 +292,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
         // Move one to PROCESSING and one to COMPLETE.
         final PendingDocumentEntity processing = service.claimNextPending("w");
-        service.markComplete(service.claimNextPending("w").getId(), new byte[]{1});
+        final PendingDocumentEntity c = service.claimNextPending("w");
+        service.markComplete(c.getId(), c.getUserId(), new byte[]{1});
         assertNotNull(processing);
 
         // One PENDING + one PROCESSING are counted; the COMPLETE one is not.
@@ -315,7 +316,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         assertTrue(service.hasOpenJobsForContext(user, "ctx"));
 
         // Once terminal (COMPLETE), the context has no open jobs.
-        service.markComplete(claimed.getId(), new byte[]{1});
+        service.markComplete(claimed.getId(), claimed.getUserId(), new byte[]{1});
         assertFalse(service.hasOpenJobsForContext(user, "ctx"));
     }
 

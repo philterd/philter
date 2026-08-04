@@ -58,7 +58,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUp() {
-        pendingDocumentDataService = new PendingDocumentDataService(mongoClient, mock(AuditEventPublisher.class));
+        pendingDocumentDataService = new PendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         redactionService = mock(RedactionService.class);
         userService = mock(UserService.class); // returns null user -> no webhook enqueued
         webhookDeliveryDataService = mock(WebhookDeliveryDataService.class);

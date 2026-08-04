@@ -41,6 +41,7 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -87,13 +88,13 @@ class RedactionWorkerTest {
 
     @Test
     void noPendingJobDoesNothing() throws Exception {
-        when(pendingDocumentDataService.reclaimStuckJobs(any())).thenReturn(0L);
+        when(pendingDocumentDataService.reclaimStuckJobs(any(), anyInt())).thenReturn(0L);
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(null);
 
         worker.poll();
 
         verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any());
-        verify(pendingDocumentDataService, never()).markComplete(any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any());
         verify(pendingDocumentDataService, never()).markFailed(any(), any());
     }
 
@@ -110,7 +111,7 @@ class RedactionWorkerTest {
         worker.poll();
 
         final ArgumentCaptor<byte[]> outputCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(pendingDocumentDataService).markComplete(eq(job.getId()), outputCaptor.capture());
+        verify(pendingDocumentDataService).markComplete(eq(job.getId()), any(), outputCaptor.capture());
         assertEquals("redacted-pdf", new String(outputCaptor.getValue()));
         verify(pendingDocumentDataService, never()).markFailed(any(), any());
     }
@@ -127,7 +128,7 @@ class RedactionWorkerTest {
         worker.poll();
 
         verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq("boom"));
-        verify(pendingDocumentDataService, never()).markComplete(any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any());
     }
 
     @Test
@@ -145,7 +146,7 @@ class RedactionWorkerTest {
         worker.poll();
 
         verify(pendingDocumentDataService).markFailed(eq(job.getId()), any());
-        verify(pendingDocumentDataService, never()).markComplete(any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any());
     }
 
     @Test
@@ -191,18 +192,18 @@ class RedactionWorkerTest {
 
     @Test
     void stuckJobsAreReclaimedEachPoll() {
-        when(pendingDocumentDataService.reclaimStuckJobs(any())).thenReturn(2L);
+        when(pendingDocumentDataService.reclaimStuckJobs(any(), anyInt())).thenReturn(2L);
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(null);
 
         worker.poll();
 
-        verify(pendingDocumentDataService).reclaimStuckJobs(any());
+        verify(pendingDocumentDataService).reclaimStuckJobs(any(), anyInt());
     }
 
     @Test
     void claimFailureDoesNotPropagate() {
         // A failure while claiming must be swallowed so the scheduled poller keeps running.
-        when(pendingDocumentDataService.reclaimStuckJobs(any())).thenReturn(0L);
+        when(pendingDocumentDataService.reclaimStuckJobs(any(), anyInt())).thenReturn(0L);
         when(pendingDocumentDataService.claimNextPending(any())).thenThrow(new RuntimeException("mongo down"));
 
         worker.poll(); // must not throw

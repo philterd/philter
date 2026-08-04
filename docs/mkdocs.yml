@@ -79,7 +79,6 @@ nav:
       - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
       - 'Deidentification': 'deidentification.md'
       - 'Redacting Documents and Text': 'redaction/redacting_documents.md'
-      - 'Redacting Data Sets': 'redaction/redacting_datasets.md'
       - 'Contexts': 'redaction/contexts.md'
       - 'Consistent Pseudonymization': 'redaction/replacement_scope.md'
       - 'Custom Lists': 'redaction/custom_lists.md'

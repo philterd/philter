@@ -12,9 +12,8 @@ Philter redacts the following content types, selected by the request's `Content-
 
 *   **Plain Text (`text/plain`)**: Identified information is replaced according to the [filter strategy](../policies/filter_strategies.md) in your policy, for example redaction, masking, or encryption.
 *   **PDF (`application/pdf`)**: Sensitive text is obscured with opaque boxes so it can be neither read nor extracted. PDF redaction is [asynchronous by default](../api_and_sdks/api/documents_api.md).
-*   **JPEG images (`image/jpeg`)**: Text is recognized in the image and redacted in place.
 
-Philter does not redact Microsoft Word (`.docx`) or other Office formats.
+Philter does not redact Microsoft Word (`.docx`), other Office formats, or images.
 
 ## The Comprehensive Redaction Workflow
 

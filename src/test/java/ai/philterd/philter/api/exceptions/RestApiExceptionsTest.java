@@ -90,6 +90,12 @@ class RestApiExceptionsTest {
         public String tooLarge() {
             throw new PayloadTooLargeException("The request body exceeds the maximum allowed size of 10240 bytes.");
         }
+
+        /** Stands in for ContentTypeVerifyingFilter, which throws this on a mislabelled body. */
+        @GetMapping("/stub/wrongtype")
+        public String wrongType() {
+            throw new UnsupportedMediaTypeException("The request declares text/plain but the body is PDF.");
+        }
     }
 
     private MockMvc buildMockMvc() {
@@ -105,6 +111,17 @@ class RestApiExceptionsTest {
                 .andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
         assertEquals("Unauthorized.", body);
+    }
+
+    @Test
+    void aMislabelledBodyYields415AndNamesBothTypes() throws Exception {
+        // Without a handler this fell to the catch-all as a 500, which tells the caller nothing
+        // about why a document they believe is fine was refused.
+        final String body = buildMockMvc()
+                .perform(get("/stub/wrongtype"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("The request declares text/plain but the body is PDF.", body);
     }
 
     @Test

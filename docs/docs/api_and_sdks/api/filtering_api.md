@@ -36,6 +36,20 @@ The types of sensitive information found and how each type is redacted is determ
 
 The request body may be up to `MAX_FILE_SIZE_BYTES` (10 MB by default; see [Settings](../../settings.md#redaction-engine)). A larger body is rejected with `413 Payload Too Large` and a message stating the limit.
 
+### Content Type Verification
+
+The body is checked against the declared `Content-Type` before redaction begins. A body that
+contradicts it is rejected with `415 Unsupported Media Type`, naming both what was declared and what
+was found.
+
+This exists because the alternative fails silently. A PDF submitted as `text/plain` would otherwise
+run through the text pipeline, match almost nothing in the compressed bytes, and return `200` with
+output that looks redacted. Refusing the request is safer than returning a document Philter never
+parsed.
+
+Philter accepts `text/plain` and `application/pdf`. A body recognized as any other format, such as a
+`.docx`, a legacy Office file, or an image, is rejected rather than treated as text.
+
 ### Response Headers
 
 Every `filter` response reports which policy version governed the request, so the applied policy is recorded without a second call:

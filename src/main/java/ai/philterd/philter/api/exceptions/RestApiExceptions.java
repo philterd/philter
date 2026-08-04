@@ -47,6 +47,15 @@ public class RestApiExceptions {
 	}
 
 	@ResponseBody
+	@ExceptionHandler(UnsupportedMediaTypeException.class)
+	@ResponseStatus(value = HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+	public String handleUnsupportedMediaTypeException(final UnsupportedMediaTypeException ex) {
+		// The body contradicts the declared type. Refusing beats redacting a document that was
+		// never parsed and returning a clean-looking response.
+		return ex.getMessage();
+	}
+
+	@ResponseBody
 	@ExceptionHandler(PayloadTooLargeException.class)
 	@ResponseStatus(value = HttpStatus.PAYLOAD_TOO_LARGE)
 	public String handlePayloadTooLargeException(final PayloadTooLargeException ex) {

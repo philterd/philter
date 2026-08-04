@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.security;
 
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
+import ai.philterd.philter.api.filters.content.ContentTypeVerifyingFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.views.LoginView;
@@ -48,6 +49,12 @@ public class SecurityConfig {
     public SecurityConfig(final MongoClient mongoClient, final Gson gson) {
         this.mongoClient = mongoClient;
         this.gson = gson;
+    }
+
+    @Bean
+    public ContentTypeVerifyingFilter contentTypeVerifyingFilter(
+            @Qualifier("handlerExceptionResolver") final HandlerExceptionResolver resolver) {
+        return new ContentTypeVerifyingFilter(resolver);
     }
 
     @Bean

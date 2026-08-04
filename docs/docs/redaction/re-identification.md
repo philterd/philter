@@ -13,7 +13,7 @@ Not all redaction strategies support reversal. Re-identification works only when
 | `CRYPTO_REPLACE` | The original value is encrypted with AES-256-GCM using a key stored in the policy. The replacement is a Base64-encoded ciphertext. |
 | `FPE_ENCRYPT_REPLACE` | The original value is encrypted using FF3-1 format-preserving encryption. The replacement looks like the original (digits stay digits, letters stay letters). |
 
-Strategies that produce random or static replacements — such as `REDACT`, `RANDOM_REPLACE`, or `HASH_REPLACE` — cannot be reversed through this endpoint. If you need to recover those originals, consult the [Redaction Ledger](ledgers.md), which stores the original token alongside its replacement for every redaction in a ledger-enabled context.
+Strategies that produce random or static replacements (such as `REDACT`, `RANDOM_REPLACE`, or `HASH_REPLACE`) cannot be reversed through this endpoint. If you need to recover those originals, consult the [Redaction Ledger](ledgers.md), which stores the original token alongside its replacement for every redaction in a ledger-enabled context.
 
 ## Making a re-identification request
 
@@ -24,7 +24,7 @@ Send a `POST` request to `/api/reidentify` with a JSON body:
   "values": ["<encrypted-value-1>", "<encrypted-value-2>"],
   "strategy": "CRYPTO_REPLACE",
   "policyName": "my-policy",
-  "reason": "Patient care — authorized by Dr. Smith"
+  "reason": "Patient care, authorized by Dr. Smith"
 }
 ```
 
@@ -45,7 +45,7 @@ curl -s -X POST https://philter:8080/api/reidentify \
     "values": ["k7Xv2...base64ciphertext...=="],
     "strategy": "CRYPTO_REPLACE",
     "policyName": "my-policy",
-    "reason": "Patient care — authorized by Dr. Smith"
+    "reason": "Patient care, authorized by Dr. Smith"
   }'
 ```
 
@@ -130,7 +130,7 @@ A successful reversal has `decrypted` set and no `error` field. A failed reversa
 
 ## Audit trail
 
-Every call to `/api/reidentify` — whether or not all values succeed — produces an audit event of type `redaction_reversed`. The event records:
+Every call to `/api/reidentify` produces an audit event of type `redaction_reversed`, whether or not all values succeed. The event records:
 
 - **Who**: the API key (and therefore the user) that made the call.
 - **What**: the list of encrypted input values (ciphertexts), the strategy used, and how many reversals succeeded.
@@ -147,6 +147,6 @@ If an admin used the `owner` parameter, the affected user's id is also recorded.
 
 ## See also
 
-- [Redaction Policies](policies.md) — how `CRYPTO_REPLACE` and `FPE_ENCRYPT_REPLACE` are configured in a policy.
-- [Redaction Ledgers](ledgers.md) — for recovering originals from non-cryptographic redaction strategies.
-- [Auditing](../auditing.md) — the full list of audit events.
+- [Redaction Policies](policies.md): how `CRYPTO_REPLACE` and `FPE_ENCRYPT_REPLACE` are configured in a policy.
+- [Redaction Ledgers](ledgers.md): for recovering originals from non-cryptographic redaction strategies.
+- [Auditing](../auditing.md): the full list of audit events.

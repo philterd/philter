@@ -14,7 +14,7 @@ Legal holds provide a hard, enforceable guarantee that no deletion can occur whi
 
 ### Reference
 
-Every hold has a **reference** — a short, human-readable identifier such as a case number, matter number, or ticket reference (for example `LIT-2026-001` or `GDPR-REQUEST-42`). The reference is unique per user and can be used to look up or release a specific hold.
+Every hold has a **reference**. This is a short, human-readable identifier such as a case number, matter number, or ticket reference (for example `LIT-2026-001` or `GDPR-REQUEST-42`). The reference is unique per user and can be used to look up or release a specific hold.
 
 The reference is arbitrary text: Philter does not interpret it. Choose a value that means something to the people who need to manage the hold.
 
@@ -33,7 +33,7 @@ Choose `document_chain` when a single document is at issue (a disputed redaction
 
 Multiple holds may coexist on the same data. Releasing one hold does **not** unblock a document or user still covered by another. All active holds must be released before any deletion can proceed.
 
-This matters in practice: if `LIT-A` and `LIT-B` both cover the same document and `LIT-A` is resolved, the document stays protected under `LIT-B` until that hold is also released. Philter enforces this automatically — there is no way to accidentally bypass a remaining hold.
+This matters in practice: if `LIT-A` and `LIT-B` both cover the same document and `LIT-A` is resolved, the document stays protected under `LIT-B` until that hold is also released. Philter enforces this automatically. There is no way to accidentally bypass a remaining hold.
 
 ## Hold Lifecycle
 
@@ -54,11 +54,11 @@ Authorization: Bearer <api-key>
   "reference": "LIT-2026-001",
   "scopeType": "document_chain",
   "scopeValue": "doc-abc123",
-  "reason": "Document disputed in Smith v. Acme — preserve pending resolution"
+  "reason": "Document disputed in Smith v. Acme. Preserve pending resolution."
 }
 ```
 
-A successful response returns **HTTP 201 Created** with the hold details. If the reference already exists for the calling user, **HTTP 409 Conflict** is returned — choose a different reference or release the existing one first.
+A successful response returns **HTTP 201 Created** with the hold details. If the reference already exists for the calling user, **HTTP 409 Conflict** is returned. Choose a different reference or release the existing one first.
 
 ### 2. View active holds
 
@@ -143,7 +143,7 @@ Philter produces two distinct categories of governance evidence, and they have d
 
 ### Retained policy versions
 
-Retained policy versions are snapshots of redaction *rules* — which filter types to apply, what replacement strategies to use, and so on. They contain no personal data: no original tokens, no document content, no user identifiers beyond the policy owner. Because they are pure configuration records, no data-minimization or erasure obligation applies to them under GDPR or similar frameworks.
+Retained policy versions are snapshots of redaction *rules*: which filter types to apply, what replacement strategies to use, and so on. They contain no personal data: no original tokens, no document content, no user identifiers beyond the policy owner. Because they are pure configuration records, no data-minimization or erasure obligation applies to them under GDPR or similar frameworks.
 
 Policy version snapshots are **append-only and cannot be deleted**. The `PolicyVersionDataService` intentionally exposes no delete method. This means a legal hold has no effect on policy versions (there is nothing to block), and a GDPR erasure request does not apply to them.
 
@@ -199,6 +199,6 @@ No. Releasing a hold only removes the hold itself. All ledger entries that were 
 
 ## See Also
 
-- [Redaction Ledgers](ledgers.md) — the evidence that legal holds protect.
-- [Auditing](../auditing.md) — the audit log that records all hold lifecycle events.
-- [User Management](../dashboard.md#user-management) — users are deactivated rather than deleted; holds survive deactivation.
+- [Redaction Ledgers](ledgers.md): the evidence that legal holds protect.
+- [Auditing](../auditing.md): the audit log that records all hold lifecycle events.
+- [User Management](../dashboard.md#user-management): users are deactivated rather than deleted, so holds survive deactivation.

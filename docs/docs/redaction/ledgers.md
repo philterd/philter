@@ -114,7 +114,7 @@ Deactivating a user account does **not** delete that user's ledger. Users are de
 
 ## Exporting Ledger Entries
 
-A document's full ledger chain can be exported as a portable JSON document so it can be archived externally and later re-verified — each exported entry carries its `hash` and `previousHash`, so the chain's integrity can be checked offline.
+A document's full ledger chain can be exported as a portable JSON document so it can be archived externally and later re-verified. Each exported entry carries its `hash` and `previousHash`, so the chain's integrity can be checked offline.
 
 * **Dashboard**: open a document's ledger with **View**, then use **Export (JSON)** to download the chain.
 * **API**: `GET /api/ledger/{documentId}/export` returns the chain as a downloadable JSON document. See the [Ledger API](../api_and_sdks/api/ledger_api.md#export-a-documents-ledger-chain).

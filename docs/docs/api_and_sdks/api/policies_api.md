@@ -202,7 +202,7 @@ curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies/
 |---------|--------------------------------------------|-------------------------------------------------------------|
 | `POST`  | `/api/policies/{policyName}/rollback`      | Restore a prior revision as the new active policy content.  |
 
-Rollback restores the content of the specified revision as a **new** revision — history is never rewritten. The live policy's revision counter is incremented and the restored content is snapshotted. Every rollback is audited as `policy_rolled_back`.
+Rollback restores the content of the specified revision as a **new** revision. History is never rewritten. The live policy's revision counter is incremented and the restored content is snapshotted. Every rollback is audited as `policy_rolled_back`.
 
 #### Query Parameters
 

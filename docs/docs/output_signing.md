@@ -125,7 +125,7 @@ token = response.headers["X-Philter-Signature"]
 claims = jwt.decode(token, pubkey, algorithms=["ES256"])
 
 body_hash = hashlib.sha256(response.content).hexdigest()
-assert claims["bodyHash"] == body_hash, "body hash mismatch — response was tampered"
+assert claims["bodyHash"] == body_hash, "body hash mismatch, response was tampered"
 ```
 
 ## Enabling Output Signing
@@ -185,10 +185,10 @@ See [Auditing](auditing.md) for the full audit log reference.
 - The private key is stored in the `signing_keys` MongoDB collection. Restrict database access accordingly.
 - Consumers must trust the channel through which they receive the public key. Serve `GET /api/signing-key` over HTTPS.
 - The key fingerprint on the Admin Settings page allows quick visual confirmation that the public key has not changed unexpectedly.
-- Output signing attests that the response came from a deployment holding the private key and was not modified in transit. It does not prove that the policy correctly classified all PII — that is the role of the [Redaction Ledger](redaction/ledgers.md).
+- Output signing attests that the response came from a deployment holding the private key and was not modified in transit. It does not prove that the policy correctly classified all PII. That is the role of the [Redaction Ledger](redaction/ledgers.md).
 
 ## See Also
 
-- [Settings](settings.md) — `PHILTER_SIGNING_KEY_PATH` environment variable.
-- [Auditing](auditing.md) — audit events for signing key lifecycle.
-- [Redaction API](api_and_sdks/api/filtering_api.md) — `X-Philter-Signature` and `X-Philter-Policy-*` response headers.
+- [Settings](settings.md): the `PHILTER_SIGNING_KEY_PATH` environment variable.
+- [Auditing](auditing.md): audit events for signing key lifecycle.
+- [Redaction API](api_and_sdks/api/filtering_api.md): the `X-Philter-Signature` and `X-Philter-Policy-*` response headers.

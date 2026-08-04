@@ -10,7 +10,7 @@ The most critical technical feature of a context is its ability to maintain refe
 
 When you redact a document within a specific context using an anonymizing strategy like `RANDOM_REPLACE` configured with `CONTEXT` replacement scope, the platform remembers the mapping between the original sensitive information and the replacement value it generated. If you subsequently process another document within the same context that contains the same sensitive information (e.g., the same patient name), Philter will use the exact same replacement value.
 
-This ensures that your redacted datasets remain analytically useful—you can still tell that the same individual is being referenced across multiple documents without ever knowing their actual identity.
+This ensures that your redacted datasets remain analytically useful. You can still tell that the same individual is being referenced across multiple documents without ever knowing their actual identity.
 
 Enabling this is covered in detail, along with the strategy interactions and the mapping-table behavior, under [Consistent Pseudonymization](replacement_scope.md).
 
@@ -31,7 +31,7 @@ The main table on the Contexts page lists all the contexts you have created. You
 ### Creating a New Context
 
 1.  **Initiate Creation**: Click the **New Context** button at the top of the table.
-2.  **Assign a Name**: Enter a descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`). Context names are **unique per user**—you cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
+2.  **Assign a Name**: Enter a descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`). Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
 3.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
 4.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
 5.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
@@ -68,14 +68,14 @@ To permanently remove a context and all its associated mappings:
 2.  **Impact**: Deleting a context removes the organizational unit, its internal mappings, and its learned disambiguation vectors. This will **not** affect documents that have already been redacted and downloaded.
 3.  **Permissions**: A context can be deleted only by the user that created it or by an admin.
 
-> Contexts are owned by the user that created them. When that user is deleted, their contexts are deleted too — along with each context's mappings and disambiguation vectors.
+> Contexts are owned by the user that created them. When that user is deleted, their contexts are deleted too, along with each context's mappings and disambiguation vectors.
 
 ## Capacity and Eviction
 
 Each context is bounded so that referential-integrity storage does not grow without limit:
 
-*   **Token mappings** — Each context stores up to `MAX_CONTEXT_SIZE` entries (default `10000`, overridable via the `MAX_CONTEXT_SIZE` environment variable). When the limit is reached, the **least-read** entry is evicted before the new one is inserted (ties broken by oldest entry first). Read counts are updated on every lookup, including cache hits.
-*   **Disambiguation vectors** — When entity-type disambiguation is enabled, each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`). Eviction here is FIFO by insertion order.
+*   **Token mappings**. Each context stores up to `MAX_CONTEXT_SIZE` entries (default `10000`, overridable via the `MAX_CONTEXT_SIZE` environment variable). When the limit is reached, the **least-read** entry is evicted before the new one is inserted (ties broken by oldest entry first). Read counts are updated on every lookup, including cache hits.
+*   **Disambiguation vectors**. When entity-type disambiguation is enabled, each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`). Eviction here is FIFO by insertion order.
 
 In practice this means a long-running context will retain its most actively-referenced mappings indefinitely while quietly discarding entries that no incoming document has touched in a long time.
 

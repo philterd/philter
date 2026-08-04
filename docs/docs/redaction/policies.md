@@ -117,7 +117,7 @@ If the two revisions have identical content, `changes` is an empty array.
 
 ### Rolling back to a prior revision
 
-Rollback restores the content of a prior revision as a **new** revision — history is never rewritten. The live policy is updated with the prior content and its revision counter is incremented. Every rollback is audited.
+Rollback restores the content of a prior revision as a **new** revision. History is never rewritten. The live policy is updated with the prior content and its revision counter is incremented. Every rollback is audited.
 
 ```bash
 curl -s -X POST "https://philter:8080/api/policies/my-policy/rollback?revision=1" \

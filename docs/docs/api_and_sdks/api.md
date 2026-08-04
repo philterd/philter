@@ -14,9 +14,9 @@ Philter's API has the following sections:
 
 Philter's API is described by an OpenAPI specification generated from the application's source. It is regenerated on every build, so it always matches the code. You can always find it in any of these places:
 
-* **In this documentation:** [openapi.json](openapi.json) — matches this released version of Philter; no running instance required.
-* **In the GitHub repository:** [`docs/docs/api_and_sdks/openapi.json`](https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.json) — the committed copy, reflecting the latest code on `main`.
-* **From a running Philter instance:** `https://<your-philter-host>:8080/v3/api-docs` — the live specification served by that instance, reflecting its version and configuration.
+* **In this documentation:** [openapi.json](openapi.json). This matches the released version of Philter and needs no running instance.
+* **In the GitHub repository:** [`docs/docs/api_and_sdks/openapi.json`](https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.json). This is the committed copy, reflecting the latest code on `main`.
+* **From a running Philter instance:** `https://<your-philter-host>:8080/v3/api-docs`. This is the live specification served by that instance, reflecting its version and configuration.
 
 Use the specification to generate an API client for your language (for example with [OpenAPI Generator](https://openapi-generator.tech/)). See [Client SDKs](sdks.md) for more.
 

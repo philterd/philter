@@ -107,12 +107,12 @@ For these events the `details` field carries extra context: `document_redaction_
 
 The `redaction_reversed` event is recorded every time `/api/reidentify` is called, regardless of whether individual values succeed or fail. Its `details` field records:
 
-- `strategy` — `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE`.
-- `requested` — the number of values submitted.
-- `succeeded` — the number successfully decrypted.
-- `reason` — the caller's verbatim stated authority for the reversal.
-- `values` — the list of encrypted input values (ciphertexts). These are the replacement tokens, not the decrypted originals; the originals are **never** written to the audit log.
-- `owner` — the target user id, present only when an admin used the `owner` parameter to act on behalf of another user.
+- `strategy`: `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE`.
+- `requested`: the number of values submitted.
+- `succeeded`: the number successfully decrypted.
+- `reason`: the caller's verbatim stated authority for the reversal.
+- `values`: the list of encrypted input values (ciphertexts). These are the replacement tokens, not the decrypted originals. The originals are **never** written to the audit log.
+- `owner`: the target user id, present only when an admin used the `owner` parameter to act on behalf of another user.
 
 This provides a full, auditable history of who un-redacted what, when, and under what stated authority. See [Re-identification](redaction/re-identification.md) for the full endpoint documentation.
 
@@ -150,7 +150,7 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 Administrators can export the audit log as a CSV file from the dashboard: open **Admin → Audit Log**, choose a date range, and click **Download Audit Log (CSV)**. This is an admin-only feature.
 
 * **Date range with a 30-day limit.** Pick a **From** and a **To** date. The range may span at most **30 days**; a wider range (or a From date after the To date) disables the download and shows an error. The default range is the last 30 days.
-* **Server time zone.** The **From** and **To** values are whole calendar days interpreted in the **server's time zone** (the JVM default), not the browser's. The **To** day is included in full — the export covers `From 00:00` up to, but not including, the start of the day after `To`, in server-local time.
+* **Server time zone.** The **From** and **To** values are whole calendar days interpreted in the **server's time zone** (the JVM default), not the browser's. The **To** day is included in full, so the export covers `From 00:00` up to, but not including, the start of the day after `To`, in server-local time.
 * **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, and `details` (the same fields described above; timestamps are written in ISO-8601). As with the stored events, no sensitive values are included.
 * **Size cap.** An export contains at most 100,000 events within the selected range (newest first). Narrow the range if you need to be sure you have captured everything in a busy period.
 

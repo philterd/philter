@@ -4,7 +4,7 @@ Philter’s Redaction API provides access to Philter’s ability to redact sensi
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
-Each filter request can optionally have a `context`. The context is optional: when it is omitted (or sent as an empty value) the request uses no context features — token replacements are not persisted or shared across requests, and any entity-type disambiguation is limited to the single document being filtered. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
+Each filter request can optionally have a `context`. The context is optional: when it is omitted (or sent as an empty value) the request uses no context features. Token replacements are not persisted or shared across requests, and any entity-type disambiguation is limited to the single document being filtered. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
 
 The context for each filter request impacts how sensitive information is replaced when found in the text. [Referential integrity](../../other_features/referential_integrity.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
 
@@ -50,11 +50,11 @@ Every successful plain-text `filter` response (200 OK) also includes:
 When [output signing](../../output_signing.md) is enabled in Admin Settings, successful plain-text `filter` responses additionally include:
 
 * `X-Philter-Signature` - A compact ES256 JWT that cryptographically attests the response body. The JWT payload contains:
-  * `bodyHash` — SHA-256 (lowercase hex) of the response body.
-  * `policyName` — name of the applied policy.
-  * `policyVersion` — revision of the applied policy.
-  * `documentId` — the value from the `X-Document-Id` response header.
-  * `iat` — Unix epoch (seconds) when the JWT was issued.
+  * `bodyHash`: SHA-256 (lowercase hex) of the response body.
+  * `policyName`: name of the applied policy.
+  * `policyVersion`: revision of the applied policy.
+  * `documentId`: the value from the `X-Document-Id` response header.
+  * `iat`: Unix epoch (seconds) when the JWT was issued.
 
   Verify the signature using the public key from `GET /api/signing-key`. See [Output Signing](../../output_signing.md) for full documentation and code examples. PDF responses are not signed; if signing is enabled and the signing operation fails, the request returns HTTP 500.
 

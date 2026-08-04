@@ -2,7 +2,7 @@
 
 The always-redact and never-redact lists are lists of terms that are applied across all redaction policies for your account. They are useful for ensuring that specific terms are always redacted or never redacted, regardless of the individual policy settings.
 
-> **Scoped to your own account.** These lists apply across *all of your* redaction policies and contexts — but only within your own account. They are **not** shared with, or applied to, other users. Each user has their own independent always-redact and never-redact lists, and one user's lists never affect another user's redactions. When a user is deleted, their lists are deleted along with the rest of their data.
+> **Scoped to your own account.** These lists apply across *all of your* redaction policies and contexts, but only within your own account. They are **not** shared with, or applied to, other users. Each user has their own independent always-redact and never-redact lists, and one user's lists never affect another user's redactions. When a user is deleted, their lists are deleted along with the rest of their data.
 
 The always-redact and never-redact lists can be managed in the Philterd Dashboard under the **Always/Never Redact Lists** page, or through the [Always/Never Redact Lists API](../api_and_sdks/api/redact_lists_api.md).
 

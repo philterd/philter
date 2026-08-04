@@ -2,7 +2,7 @@
 
 The Always/Never Redact Lists API provides endpoints for retrieving and replacing an account's always-redact and never-redact lists. These are the terms that are unconditionally redacted, or unconditionally preserved, across all of your redaction policies and contexts. See [Always/Never Redact Lists](../../redaction/redact_lists.md) for an overview of the feature.
 
-The lists are a per-account singleton resource: there is always exactly one (possibly empty) pair of lists per account, so there is no create or delete — only get and replace.
+The lists are a per-account singleton resource: there is always exactly one (possibly empty) pair of lists per account, so there is no create or delete, only get and replace.
 
 > **Scoped to your own account.** These lists apply only to your own account's redactions and are never shared with or applied to other users.
 
@@ -44,7 +44,7 @@ Example response:
 | ------ |---------------------|----------------------------------------------|
 | `POST` | `/api/redact-lists` | Replace both lists with the supplied contents. |
 
-A `POST` **replaces both lists in full** — it is not a merge. Each field is the complete desired contents of that list. A list that is omitted or sent as an empty array is **cleared**.
+A `POST` **replaces both lists in full**. It is not a merge. Each field is the complete desired contents of that list. A list that is omitted or sent as an empty array is **cleared**.
 
 > **`POST` replaces, `PUT` appends.** Use `POST` to set a list to an exact set of terms (clearing anything not included). Use [`PUT`](#append-to-the-lists) to add terms to whatever is already there without removing the existing ones.
 
@@ -84,12 +84,12 @@ Example response:
 
 A `PUT` **appends** to the current lists rather than replacing them. Each field's terms are added to whatever the list already contains; the existing terms are kept. This is the difference between the two write methods:
 
-* `POST` — sets each list to *exactly* the terms you send. Terms not included are removed; an omitted or empty list is **cleared**.
-* `PUT` — *adds* the terms you send to the current list. Existing terms are kept; an omitted or empty list is **left unchanged**.
+* `POST` sets each list to *exactly* the terms you send. Terms not included are removed; an omitted or empty list is **cleared**.
+* `PUT` *adds* the terms you send to the current list. Existing terms are kept; an omitted or empty list is **left unchanged**.
 
 ### Request Body
 
-The same shape as the replace request — a JSON object with two optional string-array fields:
+The same shape as the replace request, a JSON object with two optional string-array fields:
 
 * `alwaysRedact` - Terms to add to the always-redact list.
 * `neverRedact` - Terms to add to the never-redact list.

@@ -184,7 +184,7 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 
 Exports every token-to-replacement mapping in the context in a portable JSON form that can be re-imported into another context, account, or environment (see [Import](#import-a-mapping-table-into-a-context) below) to keep pseudonymization consistent across runs.
 
-**Authorization:** only the user that **created** the context or an **admin** may export it. Any other caller receives `404 Not Found`, which is also returned when the context does not exist — the endpoint does not reveal the existence of a context you are not allowed to access.
+**Authorization:** only the user that **created** the context or an **admin** may export it. Any other caller receives `404 Not Found`, which is also returned when the context does not exist. The endpoint does not reveal the existence of a context you are not allowed to access.
 
 ### Query Parameters
 

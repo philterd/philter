@@ -48,7 +48,7 @@ For `DOCUMENT_REDACTION_FAILED` deliveries, the payload additionally carries an 
 
 | Header                    | Description                                                                                  |
 |---------------------------|----------------------------------------------------------------------------------------------|
-| `X-Philter-Event`         | The event type — see the table above.                                                        |
+| `X-Philter-Event`         | The event type. See the table above.                                                        |
 | `X-Philter-Delivery-Id`   | The id of the delivery attempt. Stable across retries of the same delivery.                  |
 | `X-Philter-Timestamp`     | Unix timestamp (seconds) of signing. Refreshed on every retry.                               |
 | `X-Philter-Signature`     | `sha256=<hex>` HMAC-SHA256 of `<timestamp>.<body>` using the shared secret.                  |
@@ -123,4 +123,4 @@ After the 8th failure, the delivery is marked `FAILED` and no further attempts a
 
 * Webhooks fire from the same Philter instance that processes the async job. Multiple Philter instances coordinate via MongoDB; only one instance will deliver a given attempt.
 * The worker poll interval is configurable via `philter.webhook.poll-interval-ms` (default 5,000ms).
-* The redacted document bytes are *not* included in the payload — fetch them via [`GET /api/documents/{documentId}`](documents_api.md#download) once you see a `COMPLETE` event.
+* The redacted document bytes are *not* included in the payload. Fetch them via [`GET /api/documents/{documentId}`](documents_api.md#download) once you see a `COMPLETE` event.

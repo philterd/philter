@@ -12,6 +12,8 @@ Philter publishes metrics at:
 
 Point your Prometheus scraper at this endpoint (for example, `http://your-philter-endpoint:8080/actuator/prometheus`).
 
+The actuator endpoints are served **without authentication**, so a scraper needs no API key. Only `health` and `prometheus` are exposed, and the metrics carry low-cardinality labels only (`filter_type`, `method`, `status`), never a user, context, policy name, or any redacted value. They do reveal redaction volume, so restrict `/actuator/**` to your monitoring network at the firewall or ingress if that is sensitive in your deployment.
+
 ## Captured Metrics
 
 Philter exposes the following counters, in addition to the standard JVM and HTTP server metrics provided by the runtime:

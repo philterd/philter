@@ -59,6 +59,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -487,6 +488,35 @@ class ApiFilterChainIT {
                 .build());
 
         assertEquals(200, response.statusCode());
+
+    }
+
+    @Test
+    @DisplayName("A path that resolves to a protected endpoint cannot borrow an unauthenticated prefix")
+    void unauthenticatedPrefixesCannotBeUsedToReachProtectedEndpoints() throws Exception {
+
+        // The interceptor skips the scope check for the unauthenticated paths by matching the request
+        // URI. If a crafted URI could match one of those prefixes while still routing to a protected
+        // handler, it would bypass the scope check entirely. Each of these resolves toward
+        // /api/policies, which a scopeless key must never be able to read.
+        final String noScopes = scopedKey();
+
+        for (final String attempt : new String[]{
+                "/api/signing-key/../policies",
+                "/api/status/../policies",
+                "/api/policies;jsessionid=x"}) {
+
+            final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + attempt))
+                    .header("Authorization", "Bearer " + noScopes)
+                    .GET()
+                    .build());
+
+            assertNotEquals(200, response.statusCode(),
+                    attempt + " must not reach a protected handler; got " + response.statusCode());
+            assertFalse(response.body().contains("ssn-only"),
+                    attempt + " must not return policy data: " + response.body());
+
+        }
 
     }
 

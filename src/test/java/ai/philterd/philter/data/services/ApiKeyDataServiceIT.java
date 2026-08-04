@@ -356,4 +356,42 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(AuditLogEvent.Category.SECURITY, AuditLogEvent.API_KEY_SCOPES_CHANGED.getCategory());
     }
 
+    @Test
+    void theBootstrapKeyIsUsableBecauseItCarriesEveryScope() {
+        final ObjectId user = new ObjectId();
+        final String bootstrapKey = "sk_abcdefghijklmnopqrstuvwxyz012345";
+
+        assertTrue(service.ensureApiKey("req", user, bootstrapKey, "system"));
+
+        // A bootstrap key exists to provision automation before anyone has chosen scopes. Seeding it
+        // without any would leave every turnkey deployment with a credential that can call nothing.
+        final ApiKeyEntity found = service.findOneByApiKey(bootstrapKey);
+        assertNotNull(found);
+        assertEquals(ApiKeyScope.all(), found.getScopes(), "the bootstrap key must carry every scope");
+        for (final ApiKeyScope scope : ApiKeyScope.values()) {
+            assertTrue(found.hasScope(scope), scope + " must be granted to the bootstrap key");
+        }
+    }
+
+    @Test
+    void scopesSurviveTheApiKeyCacheRoundTrip() {
+        final ObjectId user = new ObjectId();
+        final Set<String> scopes = Set.of(ApiKeyScope.REDACT.getScope(), ApiKeyScope.LEDGER_READ.getScope());
+        final ServiceResponse created = service.createApiKey("req", user, "src", scopes);
+        final String apiKey = created.getMessage();
+
+        // First lookup populates the cache from MongoDB; the second is served from it. The cache
+        // serializes the entity, so a serialization slip here would silently change what a key may do
+        // for the whole cache TTL.
+        final ApiKeyEntity fromDatabase = service.findOneByApiKey(apiKey);
+        final ApiKeyEntity fromCache = service.findOneByApiKey(apiKey);
+
+        assertNotNull(fromCache);
+        assertEquals(fromDatabase.getScopes(), fromCache.getScopes(),
+                "the cached key must carry the same scopes as the stored one");
+        assertTrue(fromCache.hasScope(ApiKeyScope.REDACT));
+        assertFalse(fromCache.hasScope(ApiKeyScope.LEDGER_EXPORT),
+                "the cache must not widen a key's scopes");
+    }
+
 }

@@ -166,7 +166,9 @@ public class ApiKeyEntity extends AbstractEntity {
 
     /** Whether this key carries the given scope. */
     public boolean hasScope(final ApiKeyScope scope) {
-        return scope != null && scopes.contains(scope.getScope());
+        // Null-safe on both sides: a key deserialized from the cache with no scopes field must deny,
+        // not throw. An exception here would surface as a 500 rather than a clean refusal.
+        return scope != null && scopes != null && scopes.contains(scope.getScope());
     }
 
 }

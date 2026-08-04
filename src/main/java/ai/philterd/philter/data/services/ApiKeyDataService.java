@@ -154,6 +154,11 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setDeleted(false);
         apiKeyEntity.setTimestamp(new Date());
         apiKeyEntity.setBootstrap(true);
+
+        // Every scope: the bootstrap key provisions a deployment before anyone has decided what it
+        // should be limited to, and a key with no scopes could call nothing at all.
+        apiKeyEntity.setScopes(ApiKeyScope.all());
+
         final ObjectId apiKeyId = save(apiKeyEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, source);

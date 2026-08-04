@@ -2,6 +2,12 @@
 
 Philter records security-relevant actions to an audit log so you can review who did what, and when. The audit log is written to MongoDB and is intended to support security review, compliance, and incident investigation.
 
+
+Audit events are either **security** events or **redaction-activity** events. Security events are
+always recorded. The two per-redaction events (`document_redaction_initiated` and
+`document_redaction_completed`) can be switched off with `AUDIT_REDACTION_EVENTS_ENABLED=false`; see
+[Settings](settings.md#auditing).
+
 Audit logging is **always on**: there is no setting to enable or disable it.
 
 ## Where audit events are stored

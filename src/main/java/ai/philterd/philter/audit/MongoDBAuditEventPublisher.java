@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.config.AuditConfig;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -93,6 +94,13 @@ public class MongoDBAuditEventPublisher implements AuditEventPublisher {
 
     @Override
     public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final ObjectId apiKeyId, final ObjectId associatedObject, final String clientIpAddress, final String details) {
+
+        // Enforced here, at the single write path, so no caller can bypass it and no future caller
+        // has to remember the rule. Security events are never suppressed.
+        if (auditLogEvent != null && auditLogEvent.isRedactionActivity()
+                && !AuditConfig.isRedactionAuditingEnabled()) {
+            return;
+        }
 
         final Document document = new Document()
                 .append("request_id", requestId)

@@ -17,6 +17,7 @@ package ai.philterd.philter.model;
 
 public enum AuditLogEvent {
 
+
     CUSTOM_LISTS_RETRIEVED("custom_lists_retrieved"),
     CUSTOM_LIST_ITEMS_RETRIEVED("custom_list_items_retrieved"),
     CUSTOM_LIST_CREATED("custom_list_created"),
@@ -47,8 +48,8 @@ public enum AuditLogEvent {
     REDACTED_FILE_RETRIEVED("redacted_file_retrieved"),
 
     REDACTED_FILE_UPLOAD("redacted_file_upload"),
-    DOCUMENT_REDACTION_INITIATED("document_redaction_initiated"),
-    DOCUMENT_REDACTION_COMPLETED("document_redaction_completed"),
+    DOCUMENT_REDACTION_INITIATED("document_redaction_initiated", Category.REDACTION_ACTIVITY),
+    DOCUMENT_REDACTION_COMPLETED("document_redaction_completed", Category.REDACTION_ACTIVITY),
     REDACTED_FILE_DELETED("redacted_file_deleted"),
     REDACTED_DATA_SET_DELETED("redacted_data_set_deleted"),
 
@@ -111,10 +112,42 @@ public enum AuditLogEvent {
     SIGNING_KEY_GENERATED("signing_key_generated"),
     SIGNING_KEY_REGENERATED("signing_key_regenerated");
 
+
+    /**
+     * What an event records, which decides whether it can be switched off.
+     *
+     * <p>{@link #SECURITY} events are rare and are what an auditor asks for: authentication,
+     * account and key changes, policy changes, evidence access, and legal holds. They are always
+     * recorded.
+     *
+     * <p>{@link #REDACTION_ACTIVITY} events are emitted per redaction and are all of the volume.
+     * A deployment running Philter as a plain redaction engine can switch them off; see
+     * {@code AUDIT_REDACTION_EVENTS_ENABLED}.
+     */
+    public enum Category {
+        SECURITY,
+        REDACTION_ACTIVITY
+    }
+
     private final String auditLogEvent;
+    private final Category category;
 
     AuditLogEvent(final String auditLogEvent) {
+        this(auditLogEvent, Category.SECURITY);
+    }
+
+    AuditLogEvent(final String auditLogEvent, final Category category) {
         this.auditLogEvent = auditLogEvent;
+        this.category = category;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    /** Whether this event may be switched off. Security events never can be. */
+    public boolean isRedactionActivity() {
+        return category == Category.REDACTION_ACTIVITY;
     }
 
     public String getAuditLogEvent() {

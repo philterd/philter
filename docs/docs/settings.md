@@ -86,6 +86,26 @@ Running the JAR directly serves plain HTTP unless you set `SSL_ENABLED=true`, si
 | `ADMIN_CROSS_USER_ACCESS_ENABLED` | Whether an administrator may view or act on **other** users' resources — their contexts, policies, custom lists, documents, and redaction ledger — via the API `owner` parameter and the admin "All …" dashboard tabs. **Disabled by default**, so an admin sees only their own data, like any user; set to `true` to opt in. Does not affect ordinary admin functions such as user management. | `false` |
 | `LEDGER_DELETION_ENABLED` | Whether [redaction ledger](redaction/ledgers.md) entries may be deleted at all, through `DELETE /api/ledger` or the Redaction Ledgers dashboard. **Disabled by default**: when unset, no ledger evidence can be deleted through Philter and the dashboard controls are hidden. Deletion is additionally restricted to administrators, and [legal holds](redaction/legal_holds.md) still block it. Deleting another user's ledger requires `ADMIN_CROSS_USER_ACCESS_ENABLED` as well. | `false` |
 
+## Auditing
+
+Philter records security-relevant actions to an [audit log](auditing.md). Audit events fall into two
+groups, and only one of them can be switched off.
+
+**Security events are always recorded** and cannot be disabled: authentication failures, API key and
+user account changes, policy changes, ledger access, export and deletion, admin cross-user actions,
+legal holds, and signing key lifecycle. Disabling the audit trail is a compliance decision rather
+than a tuning setting, so Philter does not offer it.
+
+**Redaction-activity events are optional.** Two are recorded per redaction
+(`document_redaction_initiated` and `document_redaction_completed`). They are the only audit events
+on the redaction path and the only unbounded source of growth in the audit log, so a deployment
+running Philter as a plain redaction engine can turn them off. Doing so does not reduce what a
+security review can see; it removes the per-redaction volume.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `AUDIT_REDACTION_EVENTS_ENABLED` | Whether the two per-redaction audit events are recorded. Set to `false` for a lean, high-volume deployment. Security events are unaffected. | `true` |
+
 ## Dashboard Login
 
 These settings control the dashboard login lockout and session timeout. See [Login Security](login_security.md).

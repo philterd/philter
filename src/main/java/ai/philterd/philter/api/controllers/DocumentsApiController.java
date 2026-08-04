@@ -192,7 +192,7 @@ public class DocumentsApiController extends AbstractApiController {
 
     @Operation(summary = "Delete an async redaction record.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "200", description = "The record and any stored redacted bytes were deleted."),
             @ApiResponse(responseCode = "404", description = "Unknown document id.")
     })
     @RequestMapping(value = "/api/documents/{documentId}", method = RequestMethod.DELETE)

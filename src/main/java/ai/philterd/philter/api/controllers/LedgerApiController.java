@@ -112,7 +112,11 @@ public class LedgerApiController extends AbstractApiController {
             description = "Returns the head (genesis entry) of each redacted document's ledger chain, most recent "
                     + "first. Pass q to filter by document id or filename. Admins may list another user's chains by "
                     + "passing that user's email as owner.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "401"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The matching ledger chains."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+    })
     @RequestMapping(value = "/api/ledger", method = RequestMethod.GET)
     public ResponseEntity<String> getLedger(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -294,10 +298,10 @@ public class LedgerApiController extends AbstractApiController {
                     + "and LEDGER_DELETION_ENABLED=true. Admins may delete another user's chain by passing that "
                     + "user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
-            @ApiResponse(responseCode = "401"),
+            @ApiResponse(responseCode = "200", description = "The document's ledger chain was deleted."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The caller is not an administrator, or ledger deletion is disabled for this deployment."),
-            @ApiResponse(responseCode = "404"),
+            @ApiResponse(responseCode = "404", description = "No ledger chain for that document exists for this user."),
             @ApiResponse(responseCode = "423", description = "The chain is protected by an active legal hold. Release the hold before deleting.")
     })
     @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.DELETE)
@@ -347,9 +351,9 @@ public class LedgerApiController extends AbstractApiController {
                     + "passing that user's username as owner, which additionally requires "
                     + "ADMIN_CROSS_USER_ACCESS_ENABLED=true.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
-            @ApiResponse(responseCode = "400"),
-            @ApiResponse(responseCode = "401"),
+            @ApiResponse(responseCode = "200", description = "The matching entries were purged."),
+            @ApiResponse(responseCode = "400", description = "older_than_days is missing or negative."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The caller is not an administrator, or ledger deletion is disabled for this deployment."),
             @ApiResponse(responseCode = "404"),
             @ApiResponse(responseCode = "423", description = "One or more active legal holds protect entries in this user's ledger. Release all holds before purging.")

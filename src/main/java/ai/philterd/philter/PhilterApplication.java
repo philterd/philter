@@ -53,8 +53,11 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.utils.EnvUtils;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.dependency.NpmPackage;
@@ -96,6 +99,9 @@ public class PhilterApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
 
+    // Name of the OpenAPI security scheme covering the API key bearer token.
+    private static final String API_KEY_SECURITY_SCHEME = "apiKey";
+
     // When unset/blank, the caches fall back to an in-memory (ephemeral) implementation.
     private final String CACHE_HOSTNAME = System.getenv().getOrDefault("CACHE_HOSTNAME", "");
     private final int CACHE_PORT = EnvUtils.getInt("CACHE_PORT", 6379);
@@ -135,9 +141,24 @@ public class PhilterApplication implements AppShellConfigurator {
     // Sets the title and version shown in the generated OpenAPI specification (and Swagger UI),
     // replacing springdoc's defaults ("OpenAPI definition" / "v0"). The version is the build version
     // so the published spec is labeled with the Philter release it was generated from.
+    //
+    // The bearer security scheme is declared here and applied to the whole document, because every
+    // API endpoint authenticates with an API key sent as a bearer token. Without it, clients
+    // generated from the specification have no way to authenticate.
     @Bean
     public OpenAPI philterOpenAPI(@Value("${build.version}") final String version) {
-        return new OpenAPI().info(new Info().title("Philter API").version(version));
+
+        final SecurityScheme apiKeyScheme = new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .description("A Philter API key, sent as `Authorization: Bearer <api key>`. "
+                        + "Create one on the API Keys page of the dashboard.");
+
+        return new OpenAPI()
+                .info(new Info().title("Philter API").version(version))
+                .components(new Components().addSecuritySchemes(API_KEY_SECURITY_SCHEME, apiKeyScheme))
+                .addSecurityItem(new SecurityRequirement().addList(API_KEY_SECURITY_SCHEME));
+
     }
 
     @Bean

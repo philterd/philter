@@ -309,7 +309,7 @@ public class ContextsApiController extends AbstractApiController {
 
     @Operation(summary = "Update a context's settings.", description = "Update the entity_type_disambiguation and ledger flags on an existing context.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "200", description = "The context was updated."),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.PUT)

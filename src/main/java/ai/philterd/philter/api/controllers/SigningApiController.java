@@ -22,6 +22,7 @@ import ai.philterd.philter.services.signing.SigningService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -56,6 +57,8 @@ public class SigningApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Public signing key details.")
     })
+    // Overrides the document-wide bearer requirement: verifiers fetch the public key without credentials.
+    @SecurityRequirements
     @RequestMapping(value = "/api/signing-key", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<String> getSigningKey() {
 
@@ -81,6 +84,8 @@ public class SigningApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The public key with the given id."),
             @ApiResponse(responseCode = "404", description = "No key with that id is retained.")
     })
+    // Overrides the document-wide bearer requirement: verifiers fetch the public key without credentials.
+    @SecurityRequirements
     @RequestMapping(value = "/api/signing-key/{keyId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<String> getSigningKeyById(@PathVariable("keyId") final String keyId) {
 

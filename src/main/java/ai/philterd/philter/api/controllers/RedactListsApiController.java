@@ -90,7 +90,11 @@ public class RedactListsApiController extends AbstractApiController {
             description = "Returns the account's always-redact and never-redact lists. Both lists are always "
                     + "present; an account with no saved terms returns empty arrays. Admins may read another user's "
                     + "lists by passing that user's email as owner.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "401"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The always-redact and never-redact lists."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+    })
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getRedactLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -132,8 +136,8 @@ public class RedactListsApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The lists were replaced."),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, a list has too many terms, or a term is too long."),
-            @ApiResponse(responseCode = "401"),
-            @ApiResponse(responseCode = "404")
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> replaceRedactLists(
@@ -204,8 +208,8 @@ public class RedactListsApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The terms were appended."),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, the resulting list has too many terms, or a term is too long."),
-            @ApiResponse(responseCode = "401"),
-            @ApiResponse(responseCode = "404")
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.PUT, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> appendRedactLists(

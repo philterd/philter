@@ -20,6 +20,7 @@ import ai.philterd.philter.api.responses.StatusResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,6 +54,8 @@ public class StatusApiController {
             description = "Unauthenticated endpoint returning health, the application version, the supported redaction "
                     + "policy schema version, and the build's git commit. Both /api/status and /api/health return the same response.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200")})
+    // Overrides the document-wide bearer requirement: this endpoint is served without authentication.
+    @SecurityRequirements
     @RequestMapping(value = {"/api/status", "/api/health"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<StatusResponse> status() {
 

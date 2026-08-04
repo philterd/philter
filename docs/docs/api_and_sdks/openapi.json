@@ -519,7 +519,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The context was updated.",
             "content": {
               "*/*": {
                 "schema": {
@@ -1363,7 +1363,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "The record and any stored redacted bytes were deleted."
           },
           "400": {
             "description": "Bad Request",
@@ -1991,6 +1991,7 @@
     },
     "/api/health": {
       "get": {
+        "security": [],
         "tags": [
           "Status"
         ],
@@ -2592,7 +2593,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The matching entries were purged.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2602,7 +2603,7 @@
             }
           },
           "400": {
-            "description": "",
+            "description": "older_than_days is missing or negative.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2612,7 +2613,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2748,7 +2749,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The matching ledger chains.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2768,7 +2769,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2778,7 +2779,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "The owner does not exist, or the caller is not an admin.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2866,7 +2867,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The document's ledger chain was deleted.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2886,7 +2887,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2906,7 +2907,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "No ledger chain for that document exists for this user.",
             "content": {
               "*/*": {
                 "schema": {
@@ -3872,7 +3873,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The names of the policies.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3895,7 +3896,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -3905,7 +3906,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "The owner does not exist, or the caller is not an admin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4122,7 +4123,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4223,7 +4224,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4233,7 +4234,7 @@
             }
           },
           "404": {
-            "description": "Not Found"
+            "description": "The owner does not exist, or the caller is not an admin."
           },
           "413": {
             "description": "Content Too Large",
@@ -4312,7 +4313,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The policy JSON.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4332,7 +4333,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4966,7 +4967,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "The always-redact and never-redact lists.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4986,7 +4987,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4996,7 +4997,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "The owner does not exist, or the caller is not an admin.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5103,7 +5104,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5113,7 +5114,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "The owner does not exist, or the caller is not an admin.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5220,7 +5221,7 @@
             }
           },
           "401": {
-            "description": "",
+            "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5230,7 +5231,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "The owner does not exist, or the caller is not an admin.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5404,6 +5405,7 @@
     },
     "/api/signing-key": {
       "get": {
+        "security": [],
         "tags": [
           "Signing"
         ],
@@ -5486,6 +5488,7 @@
     },
     "/api/signing-key/{keyId}": {
       "get": {
+        "security": [],
         "tags": [
           "Signing"
         ],
@@ -5588,6 +5591,7 @@
     },
     "/api/status": {
       "get": {
+        "security": [],
         "tags": [
           "Status"
         ],
@@ -11274,8 +11278,20 @@
           }
         }
       }
+    },
+    "securitySchemes": {
+      "apiKey": {
+        "description": "A Philter API key, sent as `Authorization: Bearer <api key>`. Create one on the API Keys page of the dashboard.",
+        "type": "http",
+        "scheme": "bearer"
+      }
     }
   },
+  "security": [
+    {
+      "apiKey": []
+    }
+  ],
   "tags": [
     {
       "description": "Operations for setting, listing, retrieving, and releasing legal holds. An active hold blocks all deletion and purge of the evidence it covers until the hold is released. Every hold lifecycle event is audited.",

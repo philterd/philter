@@ -81,7 +81,11 @@ public class PoliciesApiController extends AbstractApiController {
     @Operation(summary = "Get the names of existing policies.",
             description = "Returns the names of the caller's policies, paged. Admins may list another user's "
                     + "policies by passing that user's email as owner.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "401"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The names of the policies."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+    })
     @RequestMapping(value = "/api/policies", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<List<String>> getPolicyNames(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -113,9 +117,9 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Returns the full policy with the given name. Admins may retrieve another user's policy "
                     + "by passing that user's email as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "200", description = "The policy JSON."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
-            @ApiResponse(responseCode = "401"),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "A policy with the given name does not exist.")
     })
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET)
@@ -217,8 +221,8 @@ public class PoliciesApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy was deleted."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
-            @ApiResponse(responseCode = "401"),
-            @ApiResponse(responseCode = "404")
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.DELETE)
     public ResponseEntity<Void> delete(
@@ -267,7 +271,7 @@ public class PoliciesApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy compiled successfully."),
             @ApiResponse(responseCode = "400", description = "The PhiSQL failed to parse/compile, or the compiled policy failed validation."),
-            @ApiResponse(responseCode = "401")
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized.")
     })
     @RequestMapping(value = "/api/policies/compile", method = RequestMethod.POST,
             consumes = MediaType.TEXT_PLAIN_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

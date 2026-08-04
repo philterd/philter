@@ -34,6 +34,7 @@ import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -197,6 +198,7 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<String> getContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -206,7 +208,13 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "get context '" + name + "'");
 
         final ContextEntity contextEntity = contextService.findOne(name, userId);
 
@@ -233,6 +241,7 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestParam("name") String name,
             final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
             final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -242,7 +251,13 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "create context '" + name + "'");
 
         final ServiceResponse serviceResponse = contextService.create(name, userId, disambiguation, ledger);
 
@@ -271,6 +286,7 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> deleteContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -280,7 +296,13 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "delete context '" + name + "'");
 
         if (pendingDocumentDataService.hasOpenJobsForContext(userId, name)) {
             return new ResponseEntity<>(
@@ -288,7 +310,10 @@ public class ContextsApiController extends AbstractApiController {
                     HttpStatus.CONFLICT);
         }
 
-        final ServiceResponse serviceResponse = contextService.deleteByName(name, userId, isAdmin(userId));
+        // The admin flag describes the *caller*, not the context's owner: it is the service's own
+        // authorization gate, and passing the target's role would make it always true.
+        final ServiceResponse serviceResponse =
+                contextService.deleteByName(name, userId, isAdmin(apiKeyEntity.getUserId()));
 
         if(serviceResponse.isSuccessful()) {
 
@@ -317,14 +342,23 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
             final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
-            final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger) {
+            final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
+            final @RequestParam(value = "owner", required = false) String owner) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ServiceResponse response = contextService.updateSettings(name, apiKeyEntity.getUserId(), disambiguation, ledger);
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+                "update context '" + name + "'");
+
+        final ServiceResponse response = contextService.updateSettings(name, userId, disambiguation, ledger);
 
         return new ResponseEntity<>(new GenericResponse(response.getMessage()),
                 response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
@@ -341,14 +375,21 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
-            final @RequestParam(value = "limit", defaultValue = "25") int limit) {
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
+            final @RequestParam(value = "owner", required = false) String owner) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+                "list entries in context '" + name + "'");
 
         if (contextService.findOne(name, userId) == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -377,6 +418,7 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> emptyEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -385,7 +427,15 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ServiceResponse response = contextService.emptyByName(name, apiKeyEntity.getUserId());
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "empty entries in context '" + name + "'");
+
+        final ServiceResponse response = contextService.emptyByName(name, userId);
 
         if (response.isSuccessful()) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_PURGED, apiKeyEntity.getUserId(), null,
@@ -404,6 +454,7 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
             final @PathVariable("entryId") String entryId,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -412,11 +463,19 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
+        }
+
         if (!ObjectId.isValid(entryId)) {
             return new ResponseEntity<>(new GenericResponse("Invalid entry id."), HttpStatus.BAD_REQUEST);
         }
 
-        final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), apiKeyEntity.getUserId());
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "delete entry " + entryId + " in context '" + name + "'");
+
+        final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), userId);
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getUserId(), null,

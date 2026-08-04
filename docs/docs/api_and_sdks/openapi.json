@@ -171,6 +171,14 @@
               "type": "boolean",
               "default": false
             }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -281,6 +289,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -386,6 +402,14 @@
             "name": "name",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -515,6 +539,14 @@
               "type": "boolean",
               "default": false
             }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -621,6 +653,14 @@
             "name": "name",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -750,6 +790,14 @@
               "type": "integer",
               "format": "int32",
               "default": 25
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -1120,6 +1168,14 @@
             "name": "entryId",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -801,6 +802,158 @@ class ContextsApiControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(contextEntryService, never()).deleteByIdAndUserId(any(), any());
+    }
+
+    // ----- Admin cross-user access via the owner parameter on the context-scoped endpoints -----
+
+    /** Makes the caller an admin and registers another user that owner= can resolve to. */
+    private ObjectId makeAdminWithOtherUser(final String email) {
+        final UserEntity admin = new UserEntity();
+        admin.setId(userId);
+        admin.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(admin);
+        final ObjectId otherUserId = new ObjectId();
+        final UserEntity owner = new UserEntity();
+        owner.setId(otherUserId);
+        owner.setEmail(email);
+        when(userService.findByUsername(email)).thenReturn(owner);
+        return otherUserId;
+    }
+
+    /** Registers another user but leaves the caller a plain user. */
+    private void makeNonAdminWithOtherUser(final String email) {
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+        final UserEntity owner = new UserEntity();
+        owner.setId(new ObjectId());
+        owner.setEmail(email);
+        when(userService.findByUsername(email)).thenReturn(owner);
+    }
+
+    @Test
+    void adminCanDeleteAnotherUsersContextViaOwner() throws Exception {
+        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        when(pendingDocumentDataService.hasOpenJobsForContext(eq(otherUserId), eq("ctx"))).thenReturn(false);
+        when(contextService.deleteByName(eq("ctx"), eq(otherUserId), eq(true)))
+                .thenReturn(ServiceResponse.success("Context deleted."));
+
+        mockMvc.perform(delete("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-delete"))
+                .andExpect(status().isOk());
+
+        // The delete must target the owner, not the calling admin. Before owner= was accepted here,
+        // this silently deleted the admin's own context of the same name.
+        verify(contextService).deleteByName(eq("ctx"), eq(otherUserId), eq(true));
+        verify(contextService, never()).deleteByName(eq("ctx"), eq(userId), anyBoolean());
+    }
+
+    @Test
+    void nonAdminNamingAnotherOwnerCannotDeleteAndGets404() throws Exception {
+        makeNonAdminWithOtherUser("other@example.com");
+
+        mockMvc.perform(delete("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-forbidden"))
+                .andExpect(status().isNotFound());
+
+        // 404 rather than 403, and nothing is deleted for the caller either.
+        verify(contextService, never()).deleteByName(anyString(), any(), anyBoolean());
+    }
+
+    @Test
+    void adminCanUpdateAnotherUsersContextViaOwner() throws Exception {
+        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        when(contextService.updateSettings(eq("ctx"), eq(otherUserId), eq(true), eq(false)))
+                .thenReturn(ServiceResponse.success("Context updated."));
+
+        mockMvc.perform(put("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .param("entity_type_disambiguation", "true"))
+                .andExpect(status().isOk());
+
+        verify(contextService).updateSettings("ctx", otherUserId, true, false);
+        verify(contextService, never()).updateSettings(anyString(), eq(userId), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void adminCanEmptyAnotherUsersContextEntriesViaOwner() throws Exception {
+        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        when(contextService.emptyByName(eq("ctx"), eq(otherUserId)))
+                .thenReturn(ServiceResponse.success("Entries removed."));
+
+        mockMvc.perform(delete("/api/contexts/ctx/entries").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-empty"))
+                .andExpect(status().isOk());
+
+        verify(contextService).emptyByName("ctx", otherUserId);
+        verify(contextService, never()).emptyByName(anyString(), eq(userId));
+    }
+
+    @Test
+    void adminCanDeleteAnEntryFromAnotherUsersContextViaOwner() throws Exception {
+        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final ObjectId entryId = new ObjectId();
+        when(contextEntryService.deleteByIdAndUserId(eq(entryId), eq(otherUserId))).thenReturn(1L);
+
+        mockMvc.perform(delete("/api/contexts/ctx/entries/" + entryId.toHexString())
+                        .header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-entry"))
+                .andExpect(status().isOk());
+
+        verify(contextEntryService).deleteByIdAndUserId(entryId, otherUserId);
+        verify(contextEntryService, never()).deleteByIdAndUserId(any(), eq(userId));
+    }
+
+    @Test
+    void adminCanCreateAContextForAnotherUserViaOwner() throws Exception {
+        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        when(contextService.create(eq("ctx"), eq(otherUserId), anyBoolean(), anyBoolean()))
+                .thenReturn(ServiceResponse.success("Context created."));
+
+        mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .param("name", "ctx")
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-create"))
+                .andExpect(status().isOk());
+
+        verify(contextService).create(eq("ctx"), eq(otherUserId), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void adminCanReadAnotherUsersContextAndEntriesViaOwner() throws Exception {
+        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final ContextEntity ctx = new ContextEntity();
+        ctx.setUserId(otherUserId);
+        ctx.setContextName("ctx");
+        when(contextService.findOne(eq("ctx"), eq(otherUserId))).thenReturn(ctx);
+        when(contextEntryService.findAllByUserIdAndContext(eq(otherUserId), eq("ctx"), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(java.util.Collections.emptyList());
+
+        mockMvc.perform(get("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-get"))
+                .andExpect(status().isOk());
+
+        verify(contextService).findOne("ctx", otherUserId);
+    }
+
+    @Test
+    void crossUserAccessDisabledBlocksTheOwnerParameterOnContexts() throws Exception {
+        AdminAccessConfig.setOverrideForTesting(false);
+        makeAdminWithOtherUser("other@example.com");
+
+        // Even for an admin, the kill switch must close this path.
+        mockMvc.perform(delete("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .requestAttr("requestId", "req-x-killswitch"))
+                .andExpect(status().isNotFound());
+
+        verify(contextService, never()).deleteByName(anyString(), any(), anyBoolean());
     }
 
 }

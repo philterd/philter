@@ -41,6 +41,10 @@ Example response:
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
 | `GET` | `/api/contexts/{name}` | Get the details of a context, where {name} is the name of the context to get. |
 
+### Query Parameters
+
+* `owner` (optional, admin only) - Username of another user whose context to get. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
+
 Example request:
 
 ```bash
@@ -66,6 +70,7 @@ Example response:
 * `name` (required) - The name of the context to create. Context names are **unique per user**: if you already have a context with this name the request is rejected with `409 Conflict`. A name you use does not prevent another user from using the same name.
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
+* `owner` (optional, admin only) - Username of another user whose context to create the context for. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 ### Responses
 
@@ -89,6 +94,7 @@ curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/c
 
 * `entity_type_disambiguation` (optional, default: `false`) - Enable entity type disambiguation.
 * `ledger` (optional, default: `false`) - Enable the redaction ledger.
+* `owner` (optional, admin only) - Username of another user whose context to update. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 Example request:
 
@@ -104,6 +110,10 @@ Returns `200 OK` on success, `404 Not Found` if no context with that name exists
 | Method   | Endpoint                     | Description                                                                                                                                 |
 |----------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------| 
 | `DELETE` | `/api/contexts/{name}` | Delete a context, where {name} is the name of the context to delete. |
+
+### Query Parameters
+
+* `owner` (optional, admin only) - Username of another user whose context to delete. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 A delete is **rejected with `409 Conflict`** if any asynchronously-submitted document referencing the context is still pending or processing. Either wait for the jobs to finish (poll the [Documents API](documents_api.md)) or delete the pending jobs first.
 
@@ -123,6 +133,7 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/
 
 * `offset` (optional, default: `0`)
 * `limit` (optional, default: `25`, max: `100`)
+* `owner` (optional, admin only) - Username of another user whose context to list entries from. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 Example request:
 
@@ -156,6 +167,10 @@ The original token is never returned by this endpoint; only its SHA-256 hash is 
 |----------|-----------------------------------|--------------------------------------------|
 | `DELETE` | `/api/contexts/{name}/entries`    | Remove all entries from a context.         |
 
+### Query Parameters
+
+* `owner` (optional, admin only) - Username of another user whose context to empty. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
+
 Removes every token-to-replacement mapping in the context but leaves the context itself in place. Returns `200 OK` on success, `404 Not Found` if the context does not exist.
 
 ```bash
@@ -168,6 +183,10 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 | Method   | Endpoint                                       | Description                            |
 |----------|------------------------------------------------|----------------------------------------|
 | `DELETE` | `/api/contexts/{name}/entries/{entryId}`       | Remove one entry by its id.            |
+
+### Query Parameters
+
+* `owner` (optional, admin only) - Username of another user whose context to delete the entry from. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 `entryId` is the `id` returned in the `entries` listing. Returns `200 OK` if deleted, `404 Not Found` if no such entry exists for the calling user, `400 Bad Request` if `entryId` is not a valid id.
 

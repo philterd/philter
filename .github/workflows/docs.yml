@@ -3,6 +3,15 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+  # Lets this workflow be exercised without cutting a release. It otherwise only runs on a version
+  # tag, so a change to it (an action upgrade, say) would first be tested during a release, which is
+  # the worst time to find out it is broken.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Docs version to publish. Defaults to "test" so a manual run cannot change what readers see. Remove it afterwards with: mike delete --push <version>'
+        required: false
+        default: test
 permissions:
   contents: write
 jobs:
@@ -33,5 +42,13 @@ jobs:
       - name: Deploy versioned docs
         working-directory: ./docs
         run: |
-          mike deploy --push --update-aliases "${GITHUB_REF_NAME}" latest
-          mike set-default --push latest
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # A manual run publishes only under its own version name. It deliberately does not touch
+            # the 'latest' alias or the default version, so exercising this workflow cannot change the
+            # documentation readers land on. It still performs a real credentialed push to gh-pages,
+            # which is the part worth testing.
+            mike deploy --push "${{ inputs.version }}"
+          else
+            mike deploy --push --update-aliases "${GITHUB_REF_NAME}" latest
+            mike set-default --push latest
+          fi

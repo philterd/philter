@@ -5,11 +5,11 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.5</version>
+        <version>4.0.7</version>
     </parent>
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
-    <version>4.0.0</version>
+    <version>4.0.0-SNAPSHOT</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>
@@ -101,21 +101,21 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.85</bouncycastle.version>
         <commons.net.version>3.13.0</commons.net.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
-        <mongodb.version>5.8.0</mongodb.version>
+        <mongodb.version>5.9.1</mongodb.version>
         <phileas.version>4.2.0</phileas.version>
-        <springdoc.version>3.0.3</springdoc.version>
+        <springdoc.version>3.1.0</springdoc.version>
         <vaadin.version>25.2.5</vaadin.version>
         <!-- Build plugin versions -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
         <git-commit-id-maven-plugin.version>9.0.2</git-commit-id-maven-plugin.version>
-        <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <license-maven-plugin.version>1.19</license-maven-plugin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
-        <maven-enforcer-plugin.version>3.6.2</maven-enforcer-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>

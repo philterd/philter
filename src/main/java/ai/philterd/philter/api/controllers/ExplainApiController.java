@@ -18,6 +18,8 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -79,6 +81,7 @@ public class ExplainApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "Unauthorized."),
             @ApiResponse(responseCode = "500", description = "Signing is enabled but the signing operation failed.")
     })
+    @RequiresScope(ApiKeyScope.REDACT)
     @RequestMapping(value = "/api/explain", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> explainTextPlainAsApplicationJson(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

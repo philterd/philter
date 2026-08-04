@@ -28,7 +28,7 @@ Philter exposes redaction, token, and API-request metrics in Prometheus format a
 
 ### API Key Management
 
-The **My Account** page has an **API Keys** tab for managing the keys used to authenticate with Philter's [API](api_and_sdks/api.md). See [Client SDKs](api_and_sdks/sdks.md) for the maintained SDK.
+The **My Account** page has an **API Keys** tab for managing the keys used to authenticate with Philter's [API](api_and_sdks/api.md). Each key carries [scopes](account/api_keys.md#scopes) naming what it may do; choose them when creating a key and change them later with **Edit scopes**. See [Client SDKs](api_and_sdks/sdks.md) for the maintained SDK.
 
 ### Custom Lists
 

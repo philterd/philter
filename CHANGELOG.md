@@ -47,6 +47,13 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;
   `POST /api/policies/compile` to compile PhiSQL into a native policy; the policy version endpoints
   (`versions`, `versions/{revision}`, `diff`, `rollback`); and `GET /api/signing-key`.
+- **API key scopes.** Every API key carries a set of scopes naming what it may do, chosen when the key
+  is created and changeable afterwards without replacing the key. A request to an endpoint whose scope
+  the key does not hold is refused with `403 Forbidden` naming the missing scope. `ledger:export` and
+  `reidentify` are separate scopes from the resources they belong to, because they are the two
+  capabilities that return original values in the clear, so a key can read a ledger without being able
+  to export its plaintext. Scopes only narrow a key: admin-only operations and cross-user access still
+  require the role and `ADMIN_CROSS_USER_ACCESS_ENABLED` on top. Scope changes are audited.
 - Optional shared Valkey/Redis caching, an API IP allowlist, and bounded context and vector storage.
 
 ### Changed

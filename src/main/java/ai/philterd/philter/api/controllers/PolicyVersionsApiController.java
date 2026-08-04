@@ -19,6 +19,8 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.PolicyRollbackResponse;
 import ai.philterd.philter.api.responses.PolicyVersionSummary;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -91,6 +93,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The named policy does not exist, or a non-admin caller named another user as owner.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies/{policyName}/versions", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<List<PolicyVersionSummary>> listVersions(
@@ -141,6 +144,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The policy or the requested revision does not exist.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies/{policyName}/versions/{revision}", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<String> getVersion(
@@ -190,6 +194,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The policy or a requested revision does not exist.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies/{policyName}/diff", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<String> diff(
@@ -267,6 +272,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "The policy or the target revision does not exist."),
             @ApiResponse(responseCode = "409", description = "Managed policies cannot be rolled back.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}/rollback", method = RequestMethod.POST,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<PolicyRollbackResponse> rollback(

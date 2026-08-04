@@ -57,6 +57,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 |-------|---------------------|
 | `api_key_created` | An API key was created. |
 | `api_key_deleted` | An API key was deleted (soft-deleted): it is revoked and can no longer authenticate, but the key record is retained so audit entries that reference its id still resolve. |
+| `api_key_scopes_changed` | An API key's [scopes](account/api_keys.md#scopes) were changed. The entry records the scopes the key held before and after, so it shows whether the key was widened or narrowed. |
 
 ### Policies
 

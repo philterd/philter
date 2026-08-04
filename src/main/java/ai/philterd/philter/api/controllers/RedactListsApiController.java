@@ -19,6 +19,8 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.RedactListsRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.RedactListsResponse;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.RedactListsEntity;
@@ -95,6 +97,7 @@ public class RedactListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.LISTS_READ)
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getRedactLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -139,6 +142,7 @@ public class RedactListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.LISTS_WRITE)
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> replaceRedactLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -211,6 +215,7 @@ public class RedactListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.LISTS_WRITE)
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.PUT, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> appendRedactLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

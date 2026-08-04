@@ -20,6 +20,8 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -86,6 +88,7 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<List<String>> getPolicyNames(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -122,6 +125,7 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "A policy with the given name does not exist.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET)
     public @ResponseBody ResponseEntity<Policy> get(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -164,6 +168,7 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> save(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -224,6 +229,7 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.DELETE)
     public ResponseEntity<Void> delete(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -273,6 +279,9 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "The PhiSQL failed to parse/compile, or the compiled policy failed validation."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized.")
     })
+    // Compiling persists nothing, so it needs only read access: a pipeline that validates PhiSQL
+    // should not need permission to save policies.
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies/compile", method = RequestMethod.POST,
             consumes = MediaType.TEXT_PLAIN_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<String> compile(

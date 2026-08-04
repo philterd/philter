@@ -19,6 +19,8 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.LegalHoldRequest;
 import ai.philterd.philter.api.responses.LegalHoldResponse;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
@@ -83,6 +85,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin."),
             @ApiResponse(responseCode = "409", description = "A hold with the given reference already exists for this user.")
     })
+    @RequiresScope(ApiKeyScope.HOLDS_WRITE)
     @RequestMapping(value = "/api/holds", method = RequestMethod.POST,
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<LegalHoldResponse> setHold(
@@ -138,6 +141,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.HOLDS_READ)
     @RequestMapping(value = "/api/holds", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<List<LegalHoldResponse>> listHolds(
@@ -172,6 +176,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user.")
     })
+    @RequiresScope(ApiKeyScope.HOLDS_READ)
     @RequestMapping(value = "/api/holds/{reference}", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<LegalHoldResponse> getHold(
@@ -209,6 +214,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user.")
     })
+    @RequiresScope(ApiKeyScope.HOLDS_WRITE)
     @RequestMapping(value = "/api/holds/{reference}", method = RequestMethod.DELETE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<Void> releaseHold(

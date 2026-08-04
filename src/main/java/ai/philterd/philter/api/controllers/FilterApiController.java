@@ -24,6 +24,8 @@ import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
@@ -106,6 +108,7 @@ public class FilterApiController extends AbstractApiController {
             @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
             @ApiResponse(responseCode = "401", description = "Unauthorized.")
     })
+    @RequiresScope(ApiKeyScope.REDACT)
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = "application/zip", consumes = MediaType.APPLICATION_PDF_VALUE)
     public @ResponseBody ResponseEntity<byte[]> filterApplicationPdfAsApplicationZip(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -148,6 +151,7 @@ public class FilterApiController extends AbstractApiController {
             @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
             @ApiResponse(responseCode = "401", description = "Unauthorized.")
     })
+    @RequiresScope(ApiKeyScope.REDACT)
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = MediaType.APPLICATION_PDF_VALUE, consumes = MediaType.APPLICATION_PDF_VALUE)
     public @ResponseBody ResponseEntity<byte[]> filterApplicationPdfAsApplicationPdf(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -194,6 +198,7 @@ public class FilterApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "Unauthorized."),
             @ApiResponse(responseCode = "500", description = "Signing is enabled but the signing operation failed.")
     })
+    @RequiresScope(ApiKeyScope.REDACT)
     @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = MediaType.TEXT_PLAIN_VALUE, consumes = MediaType.TEXT_PLAIN_VALUE)
     public @ResponseBody ResponseEntity<String> filterTextPlainAsTextPlain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

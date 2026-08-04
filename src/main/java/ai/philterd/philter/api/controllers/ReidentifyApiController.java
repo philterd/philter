@@ -23,6 +23,8 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.ReidentifyRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.ReidentifyResponse;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -101,6 +103,7 @@ public class ReidentifyApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "Missing or invalid API key."),
             @ApiResponse(responseCode = "404", description = "Named policy not found, or owner not found.")
     })
+    @RequiresScope(ApiKeyScope.REIDENTIFY)
     @RequestMapping(value = "/api/reidentify", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> reidentify(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

@@ -16,9 +16,14 @@
 package ai.philterd.philter.data.entities;
 
 import org.bson.Document;
+import ai.philterd.philter.model.ApiKeyScope;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 public class ApiKeyEntity extends AbstractEntity {
 
@@ -37,6 +42,9 @@ public class ApiKeyEntity extends AbstractEntity {
     // bootstrap key is still in use and nudge the admin to replace it with one of their own.
     private boolean bootstrap;
 
+    /** The scopes this key carries. Empty means the key can call nothing. */
+    private Set<String> scopes = new LinkedHashSet<>();
+
     public static ApiKeyEntity fromDocument(final Document document) {
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setId(document.getObjectId("_id"));
@@ -50,6 +58,12 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setDeletedAt(document.getDate("deleted_at"));
         apiKeyEntity.setTimestamp(document.getDate("timestamp"));
         apiKeyEntity.setBootstrap(document.getBoolean("bootstrap", false));
+
+        // A key with no scopes recorded can call nothing: scopes are always written at
+        // creation, so their absence is a malformed key rather than a legacy one.
+        final List<String> scopes = document.getList("scopes", String.class);
+        apiKeyEntity.setScopes(scopes == null ? new LinkedHashSet<>() : new LinkedHashSet<>(scopes));
+
         return apiKeyEntity;
     }
 
@@ -66,6 +80,7 @@ public class ApiKeyEntity extends AbstractEntity {
         document.put("deleted_at", deletedAt);
         document.put("timestamp", timestamp);
         document.put("bootstrap", bootstrap);
+        document.put("scopes", new ArrayList<>(scopes));
         return document;
     }
 
@@ -139,6 +154,19 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public void setBootstrap(final boolean bootstrap) {
         this.bootstrap = bootstrap;
+    }
+
+    public Set<String> getScopes() {
+        return scopes;
+    }
+
+    public void setScopes(final Set<String> scopes) {
+        this.scopes = scopes == null ? new LinkedHashSet<>() : new LinkedHashSet<>(scopes);
+    }
+
+    /** Whether this key carries the given scope. */
+    public boolean hasScope(final ApiKeyScope scope) {
+        return scope != null && scopes.contains(scope.getScope());
     }
 
 }

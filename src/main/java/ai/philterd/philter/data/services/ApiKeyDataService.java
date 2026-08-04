@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.List;
 
 public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
@@ -87,7 +90,20 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    /**
+     * Creates a key carrying every scope. Retained for callers that provision a fully-privileged
+     * credential, such as the bootstrap key.
+     */
     public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source) {
+        return createApiKey(requestId, userId, source, ApiKeyScope.all());
+    }
+
+    /**
+     * Creates a key limited to the given scopes. A key with no scopes can call nothing, which is the
+     * safe reading of "no permissions were granted"; the dashboard requires at least one.
+     */
+    public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source,
+                                        final Set<String> scopes) {
 
         // Generate an API key.
         final String apiKey = generateApiKey();
@@ -104,6 +120,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setApiKeyPrefix(apiKey.substring(0, 12) + "...");
         apiKeyEntity.setDeleted(false);
         apiKeyEntity.setTimestamp(new Date());
+        apiKeyEntity.setScopes(scopes);
         final ObjectId apiKeyId = save(apiKeyEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, source);
@@ -225,6 +242,32 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         }
 
         return (int) collection.countDocuments(query);
+
+    }
+
+    /**
+     * Replaces the scopes on an existing key. The key itself is unchanged, so integrations keep working
+     * with the same credential and only what it may call changes.
+     */
+    public ServiceResponse updateScopes(final String requestId, final ApiKeyEntity apiKeyEntity,
+                                        final Set<String> scopes, final String source) {
+
+        // Capture what the key held before the change: an audit entry saying only that the scopes
+        // changed does not tell an auditor whether the key was widened or narrowed.
+        final Set<String> previousScopes = new LinkedHashSet<>(apiKeyEntity.getScopes());
+
+        apiKeyEntity.setScopes(scopes);
+        update(apiKeyEntity);
+
+        // Evict so the new scopes apply to the next request rather than after the cache TTL, matching
+        // how revocation is handled. The cached entity carries the old scopes until it is dropped.
+        apiKeyCache.delete(apiKeyEntity.getApiKeyHash());
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_SCOPES_CHANGED, apiKeyEntity.getId(),
+                apiKeyEntity.getId(), source,
+                "from: [" + String.join(", ", previousScopes) + "], to: [" + String.join(", ", apiKeyEntity.getScopes()) + "]");
+
+        return ServiceResponse.success();
 
     }
 

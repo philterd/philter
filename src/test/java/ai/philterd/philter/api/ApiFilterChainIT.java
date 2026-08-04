@@ -21,6 +21,9 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.ApiKeyScope;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import ai.philterd.philter.model.Constants;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -96,6 +99,7 @@ class ApiFilterChainIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String apiKey;
+    private String username;
     private String otherUsername;
 
     /**
@@ -131,7 +135,7 @@ class ApiFilterChainIT {
         baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
 
         // Each test gets its own user so state cannot leak between tests through the shared context.
-        final String username = "filter-chain-" + UUID.randomUUID() + "@example.com";
+        username = "filter-chain-" + UUID.randomUUID() + "@example.com";
         final ServiceResponse created = userService.createUser("req", username, "password", "user",
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
@@ -355,6 +359,18 @@ class ApiFilterChainIT {
 
     }
 
+    /** Mints an additional key for the same user carrying only the given scopes. */
+    private String scopedKey(final ApiKeyScope... scopes) {
+        final ObjectId userId = userService.findByUsername(username).getId();
+        final Set<String> granted = new LinkedHashSet<>();
+        for (final ApiKeyScope scope : scopes) {
+            granted.add(scope.getScope());
+        }
+        final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", granted);
+        assertTrue(response.isSuccessful(), "the scoped key must be created");
+        return response.getMessage();
+    }
+
     private HttpRequest.Builder authenticated(final String url) {
         return HttpRequest.newBuilder(URI.create(url)).header("Authorization", "Bearer " + apiKey);
     }
@@ -384,6 +400,93 @@ class ApiFilterChainIT {
             return out.toByteArray();
 
         }
+
+    }
+
+    @Test
+    @DisplayName("A key without the endpoint's scope is refused with 403")
+    void aKeyMissingTheScopeIsForbidden() throws Exception {
+
+        final String redactOnly = scopedKey(ApiKeyScope.REDACT);
+
+        // In scope: the key may redact.
+        final HttpResponse<String> allowed = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/filter?p=ssn-only"))
+                .header("Authorization", "Bearer " + redactOnly)
+                .header("Content-Type", "text/plain")
+                .POST(HttpRequest.BodyPublishers.ofString("His SSN was 123-45-6789."))
+                .build());
+
+        assertEquals(200, allowed.statusCode());
+
+        // Out of scope: the same key may not read policies.
+        final HttpResponse<String> refused = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies"))
+                .header("Authorization", "Bearer " + redactOnly)
+                .GET()
+                .build());
+
+        // 403, not 404: the caller holds a valid credential for their own data, so there is nothing to
+        // conceal, and naming the missing scope is actionable.
+        assertEquals(403, refused.statusCode());
+        assertTrue(refused.body().contains("policies:read"),
+                "the refusal must name the missing scope: " + refused.body());
+
+    }
+
+    @Test
+    @DisplayName("Ledger export is a separate scope from ledger read")
+    void ledgerExportIsSeparateFromLedgerRead() throws Exception {
+
+        final String readOnly = scopedKey(ApiKeyScope.LEDGER_READ);
+
+        // Listing chains is permitted.
+        final HttpResponse<String> list = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/ledger"))
+                .header("Authorization", "Bearer " + readOnly)
+                .GET()
+                .build());
+
+        assertEquals(200, list.statusCode());
+
+        // Exporting one, which would return the original tokens in the clear, is not. This is the
+        // separation that motivated splitting ledger:export out of ledger:read.
+        final HttpResponse<String> export = send(HttpRequest.newBuilder(
+                URI.create(baseUrl + "/api/ledger/any-document-id/export"))
+                .header("Authorization", "Bearer " + readOnly)
+                .GET()
+                .build());
+
+        assertEquals(403, export.statusCode());
+        assertTrue(export.body().contains("ledger:export"),
+                "the refusal must name the missing scope: " + export.body());
+
+    }
+
+    @Test
+    @DisplayName("A key with no scopes can call nothing")
+    void aKeyWithNoScopesCanCallNothing() throws Exception {
+
+        final String noScopes = scopedKey();
+
+        final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies"))
+                .header("Authorization", "Bearer " + noScopes)
+                .GET()
+                .build());
+
+        assertEquals(403, response.statusCode());
+
+    }
+
+    @Test
+    @DisplayName("Scopes do not bypass the unauthenticated endpoints")
+    void scopelessKeyStillReachesUnauthenticatedEndpoints() throws Exception {
+
+        // /api/status carries no scope requirement because it takes no credential at all. A key with
+        // no scopes must not be blocked from it, or the interceptor is over-reaching.
+        final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/status"))
+                .header("Authorization", "Bearer " + scopedKey())
+                .GET()
+                .build());
+
+        assertEquals(200, response.statusCode());
 
     }
 

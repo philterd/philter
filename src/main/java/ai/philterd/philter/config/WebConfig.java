@@ -17,6 +17,8 @@ package ai.philterd.philter.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import ai.philterd.philter.api.security.ApiKeyScopeInterceptor;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -39,6 +41,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(final ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/public/docs/**").addResourceLocations(docsLocation);
+    }
+
+    /**
+     * Enforces API key scopes on every {@code /api/} endpoint. Registered here rather than as a filter
+     * so it can read the {@link ai.philterd.philter.api.security.RequiresScope} annotation from the
+     * resolved handler method.
+     */
+    @Override
+    public void addInterceptors(final InterceptorRegistry registry) {
+        registry.addInterceptor(new ApiKeyScopeInterceptor()).addPathPatterns("/api/**");
     }
 
 }

@@ -16,6 +16,10 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.model.ApiKeyScope;
+import java.util.Set;
+import ai.philterd.philter.model.AuditLogEvent;
+import org.mockito.ArgumentCaptor;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.AbstractMongoIT;
@@ -30,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -42,11 +48,14 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     private ApiKeyDataService service;
     private ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache;
+    private AuditEventPublisher auditEventPublisher;
 
     @BeforeEach
     void setUpService() {
         apiKeyCache = new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false);
-        service = new ApiKeyDataService(mongoClient, mock(AuditEventPublisher.class), apiKeyCache);
+        // Held in a field rather than inlined so the audit events it receives can be verified.
+        auditEventPublisher = mock(AuditEventPublisher.class);
+        service = new ApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
     }
 
     @Test
@@ -261,6 +270,90 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         service.deleteByApiKey("req", service.findOneByApiKey(key), "src");
 
         assertNull(service.findActiveBootstrapKey(user));
+    }
+
+    @Test
+    void createdKeyPersistsItsScopesAndRoundTrips() {
+        final ObjectId user = new ObjectId();
+        final Set<String> scopes = Set.of(ApiKeyScope.REDACT.getScope(), ApiKeyScope.LEDGER_READ.getScope());
+
+        final ServiceResponse response = service.createApiKey("req", user, "src", scopes);
+        assertTrue(response.isSuccessful());
+
+        final ApiKeyEntity found = service.findOneByApiKey(response.getMessage());
+        assertNotNull(found);
+        assertEquals(scopes, found.getScopes(), "scopes must survive the round-trip through MongoDB");
+        assertTrue(found.hasScope(ApiKeyScope.REDACT));
+        assertTrue(found.hasScope(ApiKeyScope.LEDGER_READ));
+        assertFalse(found.hasScope(ApiKeyScope.LEDGER_EXPORT), "an unlisted scope must not be granted");
+    }
+
+    @Test
+    void createWithoutScopesGrantsThemAll() {
+        final ObjectId user = new ObjectId();
+
+        final ServiceResponse response = service.createApiKey("req", user, "src");
+
+        final ApiKeyEntity found = service.findOneByApiKey(response.getMessage());
+        assertEquals(ApiKeyScope.all(), found.getScopes(),
+                "the convenience overload provisions a fully-privileged key");
+    }
+
+    @Test
+    void updateScopesReplacesThemAndKeepsTheKeyUsable() {
+        final ObjectId user = new ObjectId();
+        final ServiceResponse created = service.createApiKey("req", user, "src",
+                Set.of(ApiKeyScope.REDACT.getScope()));
+        final String apiKey = created.getMessage();
+        final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
+
+        service.updateScopes("req", entity, Set.of(ApiKeyScope.POLICIES_READ.getScope()), "src");
+
+        // The credential is unchanged, so integrations keep working; only the scopes differ.
+        final ApiKeyEntity reloaded = service.findOneByApiKey(apiKey);
+        assertNotNull(reloaded, "the key itself must still resolve after a scope change");
+        assertEquals(Set.of(ApiKeyScope.POLICIES_READ.getScope()), reloaded.getScopes());
+        assertFalse(reloaded.hasScope(ApiKeyScope.REDACT), "the previous scope must be gone");
+    }
+
+    @Test
+    void aKeyWithNoScopesGrantsNothing() {
+        final ObjectId user = new ObjectId();
+        final ServiceResponse created = service.createApiKey("req", user, "src", Set.of());
+
+        final ApiKeyEntity found = service.findOneByApiKey(created.getMessage());
+        assertTrue(found.getScopes().isEmpty());
+        for (final ApiKeyScope scope : ApiKeyScope.values()) {
+            assertFalse(found.hasScope(scope), scope + " must not be granted by an empty scope set");
+        }
+    }
+
+    @Test
+    void changingScopesRecordsASecurityAuditEventNamingTheChange() {
+        final ObjectId user = new ObjectId();
+        final ServiceResponse created = service.createApiKey("req", user, "src",
+                Set.of(ApiKeyScope.REDACT.getScope()));
+        final ApiKeyEntity entity = service.findOneByApiKey(created.getMessage());
+
+        service.updateScopes("req-scope-change", entity,
+                Set.of(ApiKeyScope.POLICIES_READ.getScope()), "webui");
+
+        final ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);
+        verify(auditEventPublisher).auditEvent(eq("req-scope-change"),
+                eq(AuditLogEvent.API_KEY_SCOPES_CHANGED), eq(entity.getId()), eq(entity.getId()),
+                eq("webui"), details.capture());
+
+        // The entry must say what the key held before and after, so an auditor can tell whether the
+        // key was widened or narrowed rather than only that something changed.
+        assertTrue(details.getValue().contains("redact"), "must record the previous scopes: " + details.getValue());
+        assertTrue(details.getValue().contains("policies:read"), "must record the new scopes: " + details.getValue());
+    }
+
+    @Test
+    void theScopeChangeEventIsASecurityEventAndCannotBeSwitchedOff() {
+        // Security events are always recorded; only REDACTION_ACTIVITY events honour
+        // AUDIT_REDACTION_EVENTS_ENABLED. A key's permissions changing is exactly what an auditor asks for.
+        assertEquals(AuditLogEvent.Category.SECURITY, AuditLogEvent.API_KEY_SCOPES_CHANGED.getCategory());
     }
 
 }

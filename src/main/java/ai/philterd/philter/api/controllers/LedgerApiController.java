@@ -21,6 +21,8 @@ import ai.philterd.philter.api.responses.GetLedgerResponse;
 import ai.philterd.philter.api.responses.LedgerChainResponse;
 import ai.philterd.philter.api.responses.LedgerEntryView;
 import ai.philterd.philter.api.responses.LedgerExport;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
@@ -117,6 +119,7 @@ public class LedgerApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
+    @RequiresScope(ApiKeyScope.LEDGER_READ)
     @RequestMapping(value = "/api/ledger", method = RequestMethod.GET)
     public ResponseEntity<String> getLedger(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -164,6 +167,7 @@ public class LedgerApiController extends AbstractApiController {
             description = "Returns the full ordered chain of ledger entries for a document, along with whether the "
                     + "hash chain currently verifies.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequiresScope(ApiKeyScope.LEDGER_READ)
     @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.GET)
     public ResponseEntity<String> getChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -207,6 +211,7 @@ public class LedgerApiController extends AbstractApiController {
             description = "Returns whether the hash chain for the document's ledger verifies (no entry has been "
                     + "altered and every link is intact).")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequiresScope(ApiKeyScope.LEDGER_READ)
     @RequestMapping(value = "/api/ledger/{documentId}/valid", method = RequestMethod.GET)
     public ResponseEntity<String> validateChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -240,6 +245,7 @@ public class LedgerApiController extends AbstractApiController {
                     + "and later re-verified. The export contains the decrypted token and replacement values, so treat it "
                     + "as sensitive.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequiresScope(ApiKeyScope.LEDGER_EXPORT)
     @RequestMapping(value = "/api/ledger/{documentId}/export", method = RequestMethod.GET)
     public ResponseEntity<String> exportChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -304,6 +310,7 @@ public class LedgerApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "No ledger chain for that document exists for this user."),
             @ApiResponse(responseCode = "423", description = "The chain is protected by an active legal hold. Release the hold before deleting.")
     })
+    @RequiresScope(ApiKeyScope.LEDGER_DELETE)
     @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> deleteChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -358,6 +365,7 @@ public class LedgerApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404"),
             @ApiResponse(responseCode = "423", description = "One or more active legal holds protect entries in this user's ledger. Release all holds before purging.")
     })
+    @RequiresScope(ApiKeyScope.LEDGER_DELETE)
     @RequestMapping(value = "/api/ledger", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> purge(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

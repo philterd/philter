@@ -24,6 +24,8 @@ import ai.philterd.philter.api.responses.GetContextEntriesResponse;
 import ai.philterd.philter.api.responses.ImportContextEntriesResponse;
 import ai.philterd.philter.api.responses.GetContextResponse;
 import ai.philterd.philter.api.responses.GetContextsResponse;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -148,6 +150,7 @@ public class ContextsApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_READ)
     @RequestMapping(value = "/api/contexts", method = RequestMethod.GET)
     public ResponseEntity<String> getContexts(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -194,6 +197,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "A context with the given name does not exist."),
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_READ)
     @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.GET)
     public ResponseEntity<String> getContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -235,6 +239,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "The context could not be created."),
             @ApiResponse(responseCode = "409", description = "A context with this name already exists.")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts", method = RequestMethod.POST)
     public ResponseEntity<GenericResponse> createContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -282,6 +287,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "The context could not be deleted."),
             @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> deleteContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -337,6 +343,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The context was updated."),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.PUT)
     public ResponseEntity<GenericResponse> updateContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -370,6 +377,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_READ)
     @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.GET)
     public ResponseEntity<String> listEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -414,6 +422,7 @@ public class ContextsApiController extends AbstractApiController {
 
     @Operation(summary = "Empty all entries from a context.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> emptyEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -449,6 +458,7 @@ public class ContextsApiController extends AbstractApiController {
 
     @Operation(summary = "Delete a single context entry by id.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}/entries/{entryId}", method = RequestMethod.DELETE)
     public ResponseEntity<GenericResponse> deleteEntry(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -495,6 +505,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_READ)
     @RequestMapping(value = "/api/contexts/{name}/entries/export", method = RequestMethod.GET)
     public ResponseEntity<String> exportEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -552,6 +563,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "The payload or on_conflict value is invalid."),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}/entries/import", method = RequestMethod.POST)
     public ResponseEntity<?> importEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

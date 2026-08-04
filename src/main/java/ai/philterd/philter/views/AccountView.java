@@ -25,6 +25,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.mfa.TotpService;
@@ -32,6 +33,8 @@ import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.CheckboxGroup;
+import com.vaadin.flow.component.checkbox.CheckboxGroupVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
@@ -45,6 +48,11 @@ import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
@@ -306,6 +314,27 @@ public class AccountView extends AbstractRestrictedView {
 
         // Deleted keys are revoked and retained in the database for audit resolution, but they are not
         // shown here: the list shows only usable keys.
+        apiKeysGrid.addColumn(apiKeyEntity -> describeScopes(apiKeyEntity.getScopes()))
+                .setHeader("Scopes").setResizable(true).setFlexGrow(1);
+
+        apiKeysGrid.addComponentColumn(apiKeyEntity -> {
+            final Button editScopesButton = new Button("Edit scopes", VaadinIcon.KEY.create());
+            editScopesButton.setTooltipText("Change what this key is allowed to do");
+            editScopesButton.addClickListener(event ->
+                    openScopeDialog("Edit API Key Scopes",
+                            "Choose what this key is allowed to do. The key itself does not change, so "
+                                    + "integrations keep working with the same credential; only what it may "
+                                    + "call changes, and the change takes effect immediately.",
+                            apiKeyEntity.getScopes(),
+                            selected -> {
+                                apiKeyService.updateScopes(RequestIdGenerator.generate(), apiKeyEntity,
+                                        selected, getClientIpAddress());
+                                apiKeysGrid.getDataProvider().refreshAll();
+                                showSuccessNotification("API key scopes updated.");
+                            }));
+            return editScopesButton;
+        }).setHeader("Scopes").setAutoWidth(true).setFlexGrow(0);
+
         apiKeysGrid.addComponentColumn(apiKeyEntity -> {
             final Button deleteButton = new Button("Delete", VaadinIcon.TRASH.create());
             deleteButton.setTooltipText("Delete this API key");
@@ -336,10 +365,14 @@ public class AccountView extends AbstractRestrictedView {
 
         final Button createApiKeyButton = new Button("New API Key", VaadinIcon.PLUS.create());
         createApiKeyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createApiKeyButton.addClickListener(event -> {
+        createApiKeyButton.addClickListener(event -> openScopeDialog("New API Key",
+                "Choose what this key is allowed to do. Grant only the scopes the integration needs: a key "
+                        + "carries the scopes you select here and nothing else.",
+                ApiKeyScope.all(),
+                scopes -> {
 
             final ServiceResponse serviceResponse = apiKeyService.createApiKey(
-                    RequestIdGenerator.generate(), accountUser.getId(), getClientIpAddress());
+                    RequestIdGenerator.generate(), accountUser.getId(), getClientIpAddress(), scopes);
 
             if (serviceResponse.isSuccessful()) {
 
@@ -380,7 +413,7 @@ public class AccountView extends AbstractRestrictedView {
 
             }
 
-        });
+        }));
 
         final VerticalLayout layout = new VerticalLayout();
 
@@ -543,6 +576,74 @@ public class AccountView extends AbstractRestrictedView {
             sb.append(SECRET_ALPHABET.charAt(SECURE_RANDOM.nextInt(SECRET_ALPHABET.length())));
         }
         return sb.toString();
+    }
+
+    /**
+     * Opens a dialog for choosing scopes, pre-selecting {@code selected}, and hands the chosen set to
+     * {@code onSave}. Shared by key creation and scope editing so both present the same list.
+     */
+    private void openScopeDialog(final String title, final String explanation, final Set<String> selected,
+                                 final Consumer<Set<String>> onSave) {
+
+        final Dialog dialog = new Dialog(title);
+        dialog.setWidth("560px");
+        dialog.add(new Paragraph(explanation));
+
+        final CheckboxGroup<ApiKeyScope> scopeGroup = new CheckboxGroup<>();
+        scopeGroup.setItems(ApiKeyScope.values());
+        scopeGroup.setItemLabelGenerator(scope -> scope.getScope() + " - " + scope.getDescription());
+        scopeGroup.addThemeVariants(CheckboxGroupVariant.LUMO_VERTICAL);
+        scopeGroup.setWidthFull();
+        scopeGroup.setValue(Arrays.stream(ApiKeyScope.values())
+                .filter(scope -> selected.contains(scope.getScope()))
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
+
+        dialog.add(scopeGroup);
+
+        final Button saveButton = new Button("Save", e -> {
+
+            final Set<String> chosen = scopeGroup.getValue().stream()
+                    .map(ApiKeyScope::getScope)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            // A key with no scopes can call nothing, which is almost certainly a mistake rather than an
+            // intent. Ask for at least one rather than silently creating a key that cannot be used.
+            if (chosen.isEmpty()) {
+                showFailureNotification("Select at least one scope. A key with no scopes cannot call anything.");
+                return;
+            }
+
+            onSave.accept(chosen);
+            dialog.close();
+
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        final Button cancelButton = new Button("Cancel", e -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        dialog.getFooter().add(cancelButton, saveButton);
+        dialog.open();
+
+    }
+
+    /** Short summary of a key's scopes for the grid: the count, or the list when it is short. */
+    static String describeScopes(final Set<String> scopes) {
+
+        if (scopes == null || scopes.isEmpty()) {
+            return "None (key cannot be used)";
+        }
+
+        if (scopes.size() == ApiKeyScope.values().length) {
+            return "All scopes";
+        }
+
+        if (scopes.size() <= 3) {
+            return String.join(", ", scopes);
+        }
+
+        return scopes.size() + " of " + ApiKeyScope.values().length + " scopes";
+
     }
 
 }

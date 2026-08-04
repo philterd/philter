@@ -19,6 +19,8 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GetDocumentsResponse;
 import ai.philterd.philter.api.responses.GetRedactionStatusResponse;
 import ai.philterd.philter.api.responses.PendingRedactedDocuments;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
@@ -76,6 +78,7 @@ public class DocumentsApiController extends AbstractApiController {
 
     @Operation(summary = "List documents submitted for async redaction.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200")})
+    @RequiresScope(ApiKeyScope.DOCUMENTS_READ)
     @RequestMapping(value = "/api/documents", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> listDocuments(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -114,6 +117,7 @@ public class DocumentsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Unknown document id.")
     })
+    @RequiresScope(ApiKeyScope.DOCUMENTS_READ)
     @RequestMapping(value = "/api/documents/{documentId}/status", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getStatus(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -147,6 +151,7 @@ public class DocumentsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "409", description = "Redaction not yet complete."),
             @ApiResponse(responseCode = "410", description = "Redaction failed.")
     })
+    @RequiresScope(ApiKeyScope.DOCUMENTS_READ)
     @RequestMapping(value = "/api/documents/{documentId}", method = RequestMethod.GET)
     public ResponseEntity<byte[]> downloadDocument(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
@@ -195,6 +200,7 @@ public class DocumentsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The record and any stored redacted bytes were deleted."),
             @ApiResponse(responseCode = "404", description = "Unknown document id.")
     })
+    @RequiresScope(ApiKeyScope.DOCUMENTS_WRITE)
     @RequestMapping(value = "/api/documents/{documentId}", method = RequestMethod.DELETE)
     public ResponseEntity<Void> deleteDocument(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,

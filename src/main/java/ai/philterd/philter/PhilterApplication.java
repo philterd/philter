@@ -34,6 +34,7 @@ import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
@@ -72,6 +73,7 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -158,6 +160,46 @@ public class PhilterApplication implements AppShellConfigurator {
                 .info(new Info().title("Philter API").version(version))
                 .components(new Components().addSecuritySchemes(API_KEY_SECURITY_SCHEME, apiKeyScheme))
                 .addSecurityItem(new SecurityRequirement().addList(API_KEY_SECURITY_SCHEME));
+
+    }
+
+    /**
+     * Records each endpoint's required API key scope in the generated specification.
+     *
+     * <p>springdoc knows nothing about {@link RequiresScope}, so without this the specification would
+     * say every endpoint needs a bearer token but not what that token must carry. The sentence is
+     * derived from the same annotation {@code ApiKeyScopeInterceptor} enforces, so the documentation
+     * cannot drift from the behavior.
+     *
+     * <p>The scope is prose in the description rather than structured metadata because OpenAPI only
+     * expresses scopes for {@code oauth2} and {@code openIdConnect} schemes. Philter authenticates with
+     * a bearer API key, and declaring an OAuth2 scheme to gain the field would misdescribe the API to
+     * generated clients.
+     */
+    @Bean
+    public OperationCustomizer requiredScopeCustomizer() {
+
+        return (operation, handlerMethod) -> {
+
+            final RequiresScope requiresScope = handlerMethod.getMethodAnnotation(RequiresScope.class);
+
+            if (requiresScope == null) {
+                return operation;
+            }
+
+            final String sentence = "Requires the `" + requiresScope.value().getScope() + "` scope.";
+            final String description = operation.getDescription();
+
+            if (description == null || description.isBlank()) {
+                operation.setDescription(sentence);
+            } else if (!description.contains(sentence)) {
+                // Guarded against re-appending: springdoc may customize a cached document more than once.
+                operation.setDescription(description + " " + sentence);
+            }
+
+            return operation;
+
+        };
 
     }
 

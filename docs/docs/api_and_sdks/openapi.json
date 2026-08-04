@@ -17,7 +17,7 @@
           "Contexts"
         ],
         "summary": "Get the names of existing contexts.",
-        "description": "Get the names of existing contexts.",
+        "description": "Get the names of existing contexts. Requires the `contexts:read` scope.",
         "operationId": "getContexts",
         "parameters": [
           {
@@ -135,7 +135,7 @@
           "Contexts"
         ],
         "summary": "Create a context.",
-        "description": "Create a new context.",
+        "description": "Create a new context. Requires the `contexts:write` scope.",
         "operationId": "createContext",
         "parameters": [
           {
@@ -271,7 +271,7 @@
           "Contexts"
         ],
         "summary": "Delete a context.",
-        "description": "Delete an existing context.",
+        "description": "Delete an existing context. Requires the `contexts:write` scope.",
         "operationId": "deleteContext",
         "parameters": [
           {
@@ -387,7 +387,7 @@
           "Contexts"
         ],
         "summary": "Get the details of a context.",
-        "description": "Get the details of a context with the provided name.",
+        "description": "Get the details of a context with the provided name. Requires the `contexts:read` scope.",
         "operationId": "getContext",
         "parameters": [
           {
@@ -503,7 +503,7 @@
           "Contexts"
         ],
         "summary": "Update a context's settings.",
-        "description": "Update the entity_type_disambiguation and ledger flags on an existing context.",
+        "description": "Update the entity_type_disambiguation and ledger flags on an existing context. Requires the `contexts:write` scope.",
         "operationId": "updateContext",
         "parameters": [
           {
@@ -639,6 +639,7 @@
           "Contexts"
         ],
         "summary": "Empty all entries from a context.",
+        "description": "Requires the `contexts:write` scope.",
         "operationId": "emptyEntries",
         "parameters": [
           {
@@ -754,6 +755,7 @@
           "Contexts"
         ],
         "summary": "List entries within a context.",
+        "description": "Requires the `contexts:read` scope.",
         "operationId": "listEntries",
         "parameters": [
           {
@@ -891,7 +893,7 @@
           "Contexts"
         ],
         "summary": "Export a context's mapping table.",
-        "description": "Returns the complete token-to-replacement mapping table for a context in a portable JSON form that can be re-imported into another context or environment. Only token hashes (never the original tokens) and their replacements are returned.",
+        "description": "Returns the complete token-to-replacement mapping table for a context in a portable JSON form that can be re-imported into another context or environment. Only token hashes (never the original tokens) and their replacements are returned. Requires the `contexts:read` scope.",
         "operationId": "exportEntries",
         "parameters": [
           {
@@ -1009,7 +1011,7 @@
           "Contexts"
         ],
         "summary": "Import a mapping table into a context.",
-        "description": "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite to replace existing replacements instead.",
+        "description": "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite to replace existing replacements instead. Requires the `contexts:write` scope.",
         "operationId": "importEntries",
         "parameters": [
           {
@@ -1146,6 +1148,7 @@
           "Contexts"
         ],
         "summary": "Delete a single context entry by id.",
+        "description": "Requires the `contexts:write` scope.",
         "operationId": "deleteEntry",
         "parameters": [
           {
@@ -1271,6 +1274,7 @@
           "Documents"
         ],
         "summary": "List documents submitted for async redaction.",
+        "description": "Requires the `documents:read` scope.",
         "operationId": "listDocuments",
         "parameters": [
           {
@@ -1390,6 +1394,7 @@
           "Documents"
         ],
         "summary": "Delete an async redaction record.",
+        "description": "Requires the `documents:write` scope.",
         "operationId": "deleteDocument",
         "parameters": [
           {
@@ -1491,6 +1496,7 @@
           "Documents"
         ],
         "summary": "Download the redacted document.",
+        "description": "Requires the `documents:read` scope.",
         "operationId": "downloadDocument",
         "parameters": [
           {
@@ -1632,6 +1638,7 @@
           "Documents"
         ],
         "summary": "Get the status of an async redaction.",
+        "description": "Requires the `documents:read` scope.",
         "operationId": "getStatus",
         "parameters": [
           {
@@ -1749,7 +1756,7 @@
           "Explain"
         ],
         "summary": "Redact text and explain the redactions.",
-        "description": "Redacts the plain-text request body using the given policy and context, returning the filtered text together with an explanation of every span that was redacted (type, position, and applied filter). Use the c query parameter to select a context and p to select a policy. When output signing is enabled in Admin Settings, the response includes an `X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 hash of the response body, the applied policy name and version, a per-response UUID, and an issue timestamp. Verify the signature using the public key from `GET /api/signing-key`.",
+        "description": "Redacts the plain-text request body using the given policy and context, returning the filtered text together with an explanation of every span that was redacted (type, position, and applied filter). Use the c query parameter to select a context and p to select a policy. When output signing is enabled in Admin Settings, the response includes an `X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 hash of the response body, the applied policy name and version, a per-response UUID, and an issue timestamp. Verify the signature using the public key from `GET /api/signing-key`. Requires the `redact` scope.",
         "operationId": "explainTextPlainAsApplicationJson",
         "parameters": [
           {
@@ -1887,7 +1894,7 @@
           "Filter"
         ],
         "summary": "Filter a PDF and receive a redacted PDF in return.",
-        "description": "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. Append `?async=false` to receive the redacted PDF bytes inline (200 OK).",
+        "description": "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. Append `?async=false` to receive the redacted PDF bytes inline (200 OK). Requires the `redact` scope.",
         "operationId": "filterTextPlainAsTextPlain",
         "parameters": [
           {
@@ -2134,7 +2141,7 @@
           "Legal Holds"
         ],
         "summary": "List legal holds.",
-        "description": "Returns the caller's active legal holds, paged and ordered by set date descending. Admins may list another user's holds via the owner parameter.",
+        "description": "Returns the caller's active legal holds, paged and ordered by set date descending. Admins may list another user's holds via the owner parameter. Requires the `holds:read` scope.",
         "operationId": "listHolds",
         "parameters": [
           {
@@ -2268,7 +2275,7 @@
           "Legal Holds"
         ],
         "summary": "Set a legal hold.",
-        "description": "Creates a named hold that blocks deletion and purge of the specified evidence until the hold is released. The reference must be unique for the calling user. Two scope types are supported: 'document_chain' protects a specific document's ledger chain; 'user' protects all governance evidence owned by the user. Admins may place a hold on another user's evidence via the owner parameter.",
+        "description": "Creates a named hold that blocks deletion and purge of the specified evidence until the hold is released. The reference must be unique for the calling user. Two scope types are supported: 'document_chain' protects a specific document's ledger chain; 'user' protects all governance evidence owned by the user. Admins may place a hold on another user's evidence via the owner parameter. Requires the `holds:write` scope.",
         "operationId": "setHold",
         "parameters": [
           {
@@ -2398,7 +2405,7 @@
           "Legal Holds"
         ],
         "summary": "Release a legal hold.",
-        "description": "Removes the hold with the given reference. Once released, evidence previously covered by this hold may become eligible for deletion or purge if no other holds remain. Releasing a hold is audited. Admins may release another user's hold via the owner parameter.",
+        "description": "Removes the hold with the given reference. Once released, evidence previously covered by this hold may become eligible for deletion or purge if no other holds remain. Releasing a hold is audited. Admins may release another user's hold via the owner parameter. Requires the `holds:write` scope.",
         "operationId": "releaseHold",
         "parameters": [
           {
@@ -2500,7 +2507,7 @@
           "Legal Holds"
         ],
         "summary": "Get a legal hold.",
-        "description": "Returns the hold with the given reference. Admins may retrieve another user's hold via the owner parameter.",
+        "description": "Returns the hold with the given reference. Admins may retrieve another user's hold via the owner parameter. Requires the `holds:read` scope.",
         "operationId": "getHold",
         "parameters": [
           {
@@ -2618,7 +2625,7 @@
           "Redaction Ledger"
         ],
         "summary": "Purge old ledger entries.",
-        "description": "Deletes ledger entries older than the given number of days. The ledger is kept indefinitely by default, so this is how stale entries are pruned on demand. Requires an administrator and LEDGER_DELETION_ENABLED=true. Admins may purge another user's entries by passing that user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true.",
+        "description": "Deletes ledger entries older than the given number of days. The ledger is kept indefinitely by default, so this is how stale entries are pruned on demand. Requires an administrator and LEDGER_DELETION_ENABLED=true. Admins may purge another user's entries by passing that user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true. Requires the `ledger:delete` scope.",
         "operationId": "purge",
         "parameters": [
           {
@@ -2755,7 +2762,7 @@
           "Redaction Ledger"
         ],
         "summary": "List redaction-ledger chains.",
-        "description": "Returns the head (genesis entry) of each redacted document's ledger chain, most recent first. Pass q to filter by document id or filename. Admins may list another user's chains by passing that user's email as owner.",
+        "description": "Returns the head (genesis entry) of each redacted document's ledger chain, most recent first. Pass q to filter by document id or filename. Admins may list another user's chains by passing that user's email as owner. Requires the `ledger:read` scope.",
         "operationId": "getLedger",
         "parameters": [
           {
@@ -2893,7 +2900,7 @@
           "Redaction Ledger"
         ],
         "summary": "Delete a document's ledger chain.",
-        "description": "Permanently deletes every ledger entry for the given document. Requires an administrator and LEDGER_DELETION_ENABLED=true. Admins may delete another user's chain by passing that user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true.",
+        "description": "Permanently deletes every ledger entry for the given document. Requires an administrator and LEDGER_DELETION_ENABLED=true. Admins may delete another user's chain by passing that user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true. Requires the `ledger:delete` scope.",
         "operationId": "deleteChain",
         "parameters": [
           {
@@ -3029,7 +3036,7 @@
           "Redaction Ledger"
         ],
         "summary": "Get a document's ledger chain.",
-        "description": "Returns the full ordered chain of ledger entries for a document, along with whether the hash chain currently verifies.",
+        "description": "Returns the full ordered chain of ledger entries for a document, along with whether the hash chain currently verifies. Requires the `ledger:read` scope.",
         "operationId": "getChain",
         "parameters": [
           {
@@ -3157,7 +3164,7 @@
           "Redaction Ledger"
         ],
         "summary": "Export a document's ledger chain.",
-        "description": "Returns the full ledger chain for a document as a portable JSON document that can be archived and later re-verified. The export contains the decrypted token and replacement values, so treat it as sensitive.",
+        "description": "Returns the full ledger chain for a document as a portable JSON document that can be archived and later re-verified. The export contains the decrypted token and replacement values, so treat it as sensitive. Requires the `ledger:export` scope.",
         "operationId": "exportChain",
         "parameters": [
           {
@@ -3275,7 +3282,7 @@
           "Redaction Ledger"
         ],
         "summary": "Verify a document's ledger chain.",
-        "description": "Returns whether the hash chain for the document's ledger verifies (no entry has been altered and every link is intact).",
+        "description": "Returns whether the hash chain for the document's ledger verifies (no entry has been altered and every link is intact). Requires the `ledger:read` scope.",
         "operationId": "validateChain",
         "parameters": [
           {
@@ -3403,7 +3410,7 @@
           "Custom Lists"
         ],
         "summary": "Get the names of existing lists.",
-        "description": "Get the names of existing lists.",
+        "description": "Get the names of existing lists. Requires the `lists:read` scope.",
         "operationId": "getLists",
         "parameters": [
           {
@@ -3503,7 +3510,7 @@
           "Custom Lists"
         ],
         "summary": "Delete a list.",
-        "description": "Delete a list with the given name.",
+        "description": "Delete a list with the given name. Requires the `lists:write` scope.",
         "operationId": "deleteList",
         "parameters": [
           {
@@ -3619,7 +3626,7 @@
           "Custom Lists"
         ],
         "summary": "Create or update a list.",
-        "description": "Create a list whose contents are the request body, or overwrite it if a list with the same name already exists.",
+        "description": "Create a list whose contents are the request body, or overwrite it if a list with the same name already exists. Requires the `lists:write` scope.",
         "operationId": "createList",
         "parameters": [
           {
@@ -3769,7 +3776,7 @@
           "Custom Lists"
         ],
         "summary": "Get the contents of a list.",
-        "description": "Get the contents of a list with the provided name.",
+        "description": "Get the contents of a list with the provided name. Requires the `lists:read` scope.",
         "operationId": "getLists_1",
         "parameters": [
           {
@@ -3887,7 +3894,7 @@
           "Policies"
         ],
         "summary": "Get the names of existing policies.",
-        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner.",
+        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner. Requires the `policies:read` scope.",
         "operationId": "getPolicyNames",
         "parameters": [
           {
@@ -4021,7 +4028,7 @@
           "Policies"
         ],
         "summary": "Create or update a policy.",
-        "description": "Saves the policy supplied in the request body under the given name, overwriting any existing policy of the same name. The policy is validated before it is stored. Admins may save into another user's account by passing that user's email as owner.",
+        "description": "Saves the policy supplied in the request body under the given name, overwriting any existing policy of the same name. The policy is validated before it is stored. Admins may save into another user's account by passing that user's email as owner. Requires the `policies:write` scope.",
         "operationId": "save",
         "parameters": [
           {
@@ -4135,7 +4142,7 @@
           "Policies"
         ],
         "summary": "Compile a PhiSQL policy.",
-        "description": "Compiles a policy authored in PhiSQL into the native Phileas policy format. The request body is PhiSQL source; the response carries the policy name and description and the compiled policy JSON, which can then be saved via POST /api/policies.",
+        "description": "Compiles a policy authored in PhiSQL into the native Phileas policy format. The request body is PhiSQL source; the response carries the policy name and description and the compiled policy JSON, which can then be saved via POST /api/policies. Requires the `policies:read` scope.",
         "operationId": "compile",
         "parameters": [
           {
@@ -4237,7 +4244,7 @@
           "Policies"
         ],
         "summary": "Delete a policy.",
-        "description": "Deletes the policy with the given name. Admins may delete another user's policy by passing that user's email as owner.",
+        "description": "Deletes the policy with the given name. Admins may delete another user's policy by passing that user's email as owner. Requires the `policies:write` scope.",
         "operationId": "delete",
         "parameters": [
           {
@@ -4339,7 +4346,7 @@
           "Policies"
         ],
         "summary": "Get a policy.",
-        "description": "Returns the full policy with the given name. Admins may retrieve another user's policy by passing that user's email as owner.",
+        "description": "Returns the full policy with the given name. Admins may retrieve another user's policy by passing that user's email as owner. Requires the `policies:read` scope.",
         "operationId": "get",
         "parameters": [
           {
@@ -4457,7 +4464,7 @@
           "Policy Versions"
         ],
         "summary": "Diff two revisions of a policy.",
-        "description": "Returns an RFC 6902 JSON Patch array describing what changed between the 'from' revision and the 'to' revision. If from and to are omitted, the two most recent retained revisions are compared. Object-level changes (adds, removes, replaces) are reported per field path; array values that differ are reported as a single replace at the array path. Admins may diff another user's policy via owner.",
+        "description": "Returns an RFC 6902 JSON Patch array describing what changed between the 'from' revision and the 'to' revision. If from and to are omitted, the two most recent retained revisions are compared. Object-level changes (adds, removes, replaces) are reported per field path; array values that differ are reported as a single replace at the array path. Admins may diff another user's policy via owner. Requires the `policies:read` scope.",
         "operationId": "diff",
         "parameters": [
           {
@@ -4593,7 +4600,7 @@
           "Policy Versions"
         ],
         "summary": "Roll back a policy to a prior revision.",
-        "description": "Restores the content of the specified revision as a new head revision, preserving the full history. The live policy is updated with the prior content and its revision counter is incremented. The rollback is audited. Admins may roll back another user's policy via the owner parameter.",
+        "description": "Restores the content of the specified revision as a new head revision, preserving the full history. The live policy is updated with the prior content and its revision counter is incremented. The rollback is audited. Admins may roll back another user's policy via the owner parameter. Requires the `policies:write` scope.",
         "operationId": "rollback",
         "parameters": [
           {
@@ -4730,7 +4737,7 @@
           "Policy Versions"
         ],
         "summary": "List retained versions of a policy.",
-        "description": "Returns a summary of each retained snapshot for the named policy, ordered by revision descending (most recent first). Each entry carries the revision number, the timestamp the snapshot was captured, and its content hash. Admins may browse another user's history via the owner parameter.",
+        "description": "Returns a summary of each retained snapshot for the named policy, ordered by revision descending (most recent first). Each entry carries the revision number, the timestamp the snapshot was captured, and its content hash. Admins may browse another user's history via the owner parameter. Requires the `policies:read` scope.",
         "operationId": "listVersions",
         "parameters": [
           {
@@ -4874,7 +4881,7 @@
           "Policy Versions"
         ],
         "summary": "Fetch a specific revision of a policy.",
-        "description": "Returns the full policy JSON as it existed at the given revision. The response shape is identical to GET /api/policies/{policyName}. Admins may fetch another user's revision via the owner parameter.",
+        "description": "Returns the full policy JSON as it existed at the given revision. The response shape is identical to GET /api/policies/{policyName}. Admins may fetch another user's revision via the owner parameter. Requires the `policies:read` scope.",
         "operationId": "getVersion",
         "parameters": [
           {
@@ -5001,7 +5008,7 @@
           "Always/Never Redact Lists"
         ],
         "summary": "Get the always-redact and never-redact lists.",
-        "description": "Returns the account's always-redact and never-redact lists. Both lists are always present; an account with no saved terms returns empty arrays. Admins may read another user's lists by passing that user's email as owner.",
+        "description": "Returns the account's always-redact and never-redact lists. Both lists are always present; an account with no saved terms returns empty arrays. Admins may read another user's lists by passing that user's email as owner. Requires the `lists:read` scope.",
         "operationId": "getRedactLists",
         "parameters": [
           {
@@ -5109,7 +5116,7 @@
           "Always/Never Redact Lists"
         ],
         "summary": "Replace the always-redact and never-redact lists.",
-        "description": "Replaces both lists in full with the supplied contents - this is not a merge. Each field is the complete desired contents of that list; a list that is omitted or sent as an empty array is cleared. Terms are trimmed and blank entries are dropped. Each list may contain up to 1000 terms, and each term may be up to 100 characters. Admins may replace another user's lists by passing that user's email as owner.",
+        "description": "Replaces both lists in full with the supplied contents - this is not a merge. Each field is the complete desired contents of that list; a list that is omitted or sent as an empty array is cleared. Terms are trimmed and blank entries are dropped. Each list may contain up to 1000 terms, and each term may be up to 100 characters. Admins may replace another user's lists by passing that user's email as owner. Requires the `lists:write` scope.",
         "operationId": "replaceRedactLists",
         "parameters": [
           {
@@ -5226,7 +5233,7 @@
           "Always/Never Redact Lists"
         ],
         "summary": "Append to the always-redact and never-redact lists.",
-        "description": "Appends the supplied terms to the existing lists rather than replacing them - use POST to replace. Each field's terms are added to the current contents of that list; a list that is omitted or sent as an empty array is left unchanged. Terms are trimmed, blank entries are dropped, and terms already present are not added again. The resulting list may contain up to 1000 terms, and each term may be up to 100 characters; an append that would exceed the limit is rejected. Admins may append to another user's lists by passing that user's email as owner.",
+        "description": "Appends the supplied terms to the existing lists rather than replacing them - use POST to replace. Each field's terms are added to the current contents of that list; a list that is omitted or sent as an empty array is left unchanged. Terms are trimmed, blank entries are dropped, and terms already present are not added again. The resulting list may contain up to 1000 terms, and each term may be up to 100 characters; an append that would exceed the limit is rejected. Admins may append to another user's lists by passing that user's email as owner. Requires the `lists:write` scope.",
         "operationId": "appendRedactLists",
         "parameters": [
           {
@@ -5345,7 +5352,7 @@
           "Re-identification"
         ],
         "summary": "Re-identify redacted values.",
-        "description": "Reverses one or more values that were redacted via the CRYPTO_REPLACE or FPE_ENCRYPT_REPLACE strategy. The caller must supply a stated reason, which is recorded in the audit log alongside the actor, timestamp, and count of reversals. A user may re-identify their own values; an admin may re-identify any user's values by supplying that user's email via the owner parameter. CRYPTO_REPLACE requires policyName so the key can be resolved from the stored policy. FPE_ENCRYPT_REPLACE uses the user's per-account FPE key; if the policy specified a custom FPE key, also pass policyName so that key is used instead.",
+        "description": "Reverses one or more values that were redacted via the CRYPTO_REPLACE or FPE_ENCRYPT_REPLACE strategy. The caller must supply a stated reason, which is recorded in the audit log alongside the actor, timestamp, and count of reversals. A user may re-identify their own values; an admin may re-identify any user's values by supplying that user's email via the owner parameter. CRYPTO_REPLACE requires policyName so the key can be resolved from the stored policy. FPE_ENCRYPT_REPLACE uses the user's per-account FPE key; if the policy specified a custom FPE key, also pass policyName so that key is used instead. Requires the `reidentify` scope.",
         "operationId": "reidentify",
         "parameters": [
           {

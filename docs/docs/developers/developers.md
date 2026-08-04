@@ -1,43 +1,43 @@
 # Developers
 
-Philter is designed to be easily integrated into your existing workflows and applications. Whether you are building a custom application, a data pipeline, or a large-scale data processing system, our API and developer tools provide the flexibility and power you need to protect sensitive information at scale.
+Philter's REST API is the integration surface for applications, data pipelines, and batch processing. Everything the dashboard does to redaction resources is also available over the API, so policies and redaction workflows can be managed as code.
 
-View the [Developer Quick Start](./developer_quick_start.md) to see API examples.
+The [Developer Quick Start](./developer_quick_start.md) walks through creating a policy, redacting text, and redacting a PDF, with `curl` and Python examples.
 
 ## API Integration
 
-The primary way for developers to interact with Philter is through the REST API. The API provides programmatic access to all the platform's core capabilities, including:
+The API covers:
 
-*   **Automated Redaction**: Process documents and raw text for PII/PHI identification and redaction.
-*   **Policy Management**: Create and manage your redaction policies as code.
+*   **Redaction**: redact text synchronously and PDFs asynchronously, and inspect what was detected with `POST /api/explain`.
+*   **Policy management**: create, retrieve, and delete [policies](../redaction/policies.md), with every save retained as an immutable version that can be compared and rolled back.
+*   **Contexts**: manage [contexts](../redaction/contexts.md) and their token-to-replacement entries, including export and import.
+*   **Lists**: manage [custom lists](../redaction/custom_lists.md) and [always/never redact lists](../redaction/redact_lists.md).
+*   **Evidence**: query and export the [redaction ledger](../redaction/ledgers.md), and set or release [legal holds](../redaction/legal_holds.md).
+*   **Re-identification**: reverse a `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE` value with [re-identification](../redaction/re-identification.md), which requires a reason that is recorded in the audit log.
 
-To get started with the API, please refer to the [API Documentation](../developers/developer_quick_start.md).
+See the [API Reference](../api_and_sdks/api.md) for every endpoint, and [Client SDKs](../api_and_sdks/sdks.md) for the Java SDK and for generating a client in other languages from the OpenAPI specification.
 
 ## API Authentication
 
-All requests to the Philter API require authentication using an API Key. You can manage your API keys in the [API Keys](../account/api_keys.md) section of your account.
-
-Authentication is performed by including your API key in the `Authorization` header of every request:
+All API requests authenticate with an API key sent as a bearer token. Manage keys on the [API Keys](../account/api_keys.md) page of the dashboard, or seed one at startup with `PHILTER_BOOTSTRAP_API_KEY`.
 
 ```http
 Authorization: Bearer <YOUR_API_KEY>
 ```
 
+`GET /api/status`, `GET /api/health`, and `GET /api/signing-key` are the exceptions: they are served without authentication so load balancers can probe Philter and so verifiers can fetch the public signing key.
+
 ## Interactive API Reference
 
-We provide a comprehensive and interactive API reference using Swagger UI. This allows you to explore every endpoint, understand request and response formats, and even test API calls directly from your browser.
-
-*   **Philterd API Swagger UI**: [https://your-philter-endpoint:8080/swagger-ui/index.html](https://your-philter-endpoint:8080/swagger-ui/index.html)
+Every running instance serves Swagger UI at `/swagger-ui/index.html` (for example, `https://localhost:8080/swagger-ui/index.html`), where you can explore each endpoint and issue test calls from the browser. The OpenAPI specification itself is at `/v3/api-docs`. Neither requires authentication.
 
 ## Developer Guidelines
 
-When building integrations with Philterd Data Services, keep the following guidelines in mind:
-
-*   **Security First**: Use firewall rules from your cloud provider or own hardware to restrict API access to trusted clients.
-*   **Error Handling**: Your application should gracefully handle common API response codes (e.g., 401 Unauthorized, 403 Forbidden, 429 Too Many Requests).
-*   **Iterative Development**: Use a separate [Context](../redaction/contexts.md) for testing and development to keep your production data organized.
+*   **Restrict access.** Put Philter behind firewall rules that limit API access to trusted clients, and set `API_IP_ALLOWLIST` to constrain which addresses may call the API (see [Settings](../settings.md)).
+*   **Handle error responses.** Beyond `401 Unauthorized` for a missing or invalid key, expect `403 Forbidden` (the operation requires an administrator, the feature is disabled, or the caller's address is not in the allowlist), `413 Payload Too Large` and `415 Unsupported Media Type` on redaction requests, `409 Conflict` and `410 Gone` when downloading an asynchronous document that is not finished or that failed, and `423 Locked` when a legal hold blocks a deletion.
+*   **Use a separate context for development.** A distinct [context](../redaction/contexts.md) keeps test replacements out of your production data.
+*   **Validate against your own data.** Detection is probabilistic, so measure a policy against representative documents before relying on it, and review the results.
 
 ## Need Support?
 
-If you have technical questions or need assistance with your integration, our team is here to help. Contact us at [support@philterd.ai](mailto:support@philterd.ai).
-
+See [Support](../support.md), or contact [support@philterd.ai](mailto:support@philterd.ai).

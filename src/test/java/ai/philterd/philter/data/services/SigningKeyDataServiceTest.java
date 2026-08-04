@@ -23,6 +23,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.result.UpdateResult;
+import org.bson.conversions.Bson;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.bson.types.ObjectId;
@@ -44,11 +46,13 @@ import java.util.Base64;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -71,8 +75,12 @@ class SigningKeyDataServiceTest {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("signing_keys")).thenReturn(mongoCollection);
         when(mongoCollection.find()).thenReturn(findIterable);
+        // The service now looks for the active key first, then falls back to any key.
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(mongoCollection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
         when(mongoCollection.deleteMany(any())).thenReturn(mock(DeleteResult.class));
+        when(mongoCollection.updateMany(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
     }
 
     @Test
@@ -110,16 +118,29 @@ class SigningKeyDataServiceTest {
     }
 
     @Test
-    void regenerateReplacesKeyAndEmitsAuditEventWithCorrectActingUser() {
+    void regenerateRetainsTheOldKeyAndEmitsAuditEventWithCorrectActingUser() {
         when(findIterable.first()).thenReturn(null);
         final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
 
         final ObjectId actingUserId = new ObjectId();
         service.regenerate(actingUserId);
 
-        verify(mongoCollection).deleteMany(any());
+        // Superseded keys are marked inactive, never deleted: ledger entries signed with them must
+        // stay verifiable, so deleting the key would destroy the provenance of existing evidence.
+        verify(mongoCollection, never()).deleteMany(any());
+        verify(mongoCollection, atLeastOnce()).updateMany(any(Bson.class), any(Bson.class));
         verify(auditEventPublisher).auditEvent(
                 isNull(), eq(AuditLogEvent.SIGNING_KEY_REGENERATED), eq(actingUserId), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    void everyGeneratedKeyGetsAStableIdDerivedFromItsPublicKey() {
+        when(findIterable.first()).thenReturn(null);
+        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, auditEventPublisher);
+
+        assertNotNull(service.getActiveKeyId(), "a key must be identifiable so entries can name it");
+        // A third party can recompute the id from the public key alone.
+        assertEquals(SigningKeyDataService.keyIdFor(service.getPublicKey()), service.getActiveKeyId());
     }
 
     @Test

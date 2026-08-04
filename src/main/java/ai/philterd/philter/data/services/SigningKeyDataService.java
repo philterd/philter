@@ -30,6 +30,8 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -53,6 +55,7 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
     private static final Logger LOGGER = LogManager.getLogger(SigningKeyDataService.class);
 
     private volatile KeyPair keyPair;
+    private volatile String activeKeyId;
 
     public SigningKeyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "signing_keys", auditEventPublisher);
@@ -64,16 +67,27 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
         if (keyPath != null && !keyPath.isBlank()) {
             try {
                 LOGGER.info("Loading signing key from PHILTER_SIGNING_KEY_PATH: {}", keyPath);
-                return loadFromPemFile(keyPath);
+                final KeyPair fromPem = loadFromPemFile(keyPath);
+                this.activeKeyId = keyIdFor(fromPem.getPublic());
+                return fromPem;
             } catch (final Exception e) {
                 throw new IllegalStateException("Failed to load signing key from PHILTER_SIGNING_KEY_PATH: " + keyPath, e);
             }
         }
 
-        final Document doc = collection.find().first();
+        Document doc = collection.find(Filters.eq("active", true)).first();
+        if (doc == null) {
+            // Written before rotation history existed: no flag, and it is the only key.
+            doc = collection.find().first();
+        }
         if (doc != null) {
             LOGGER.info("Loaded existing signing key from MongoDB.");
-            return fromEntity(SigningKeyEntity.fromDocument(doc));
+            final SigningKeyEntity entity = SigningKeyEntity.fromDocument(doc);
+            final KeyPair loaded = fromEntity(entity);
+            this.activeKeyId = entity.getKeyId() != null
+                    ? entity.getKeyId()
+                    : backfillKeyId(entity, loaded);
+            return loaded;
         }
 
         LOGGER.info("No signing key found; generating a new ES256 keypair.");
@@ -87,9 +101,61 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
      * @param actingUserId the id of the admin who triggered the regeneration, for audit
      */
     public void regenerate(final ObjectId actingUserId) {
-        LOGGER.info("Regenerating signing keypair.");
-        collection.deleteMany(new Document());
+        LOGGER.info("Regenerating signing keypair; the superseded key is retained for verification.");
+        // Retained, not deleted: ledger entries signed with it must stay verifiable forever.
+        collection.updateMany(Filters.eq("active", true),
+                Updates.combine(Updates.set("active", false), Updates.set("superseded_at", new Date())));
+        collection.updateMany(Filters.exists("active", false),
+                Updates.combine(Updates.set("active", false), Updates.set("superseded_at", new Date())));
         this.keyPair = generateAndPersist(false, actingUserId);
+    }
+
+    /** Stable identifier a third party can recompute from the public key alone. */
+    static String keyIdFor(final PublicKey publicKey) {
+        try {
+            final byte[] digest = MessageDigest.getInstance("SHA-256").digest(publicKey.getEncoded());
+            return HexFormat.of().formatHex(Arrays.copyOfRange(digest, 0, 8));
+        } catch (final Exception e) {
+            throw new IllegalStateException("Failed to compute a signing key id.", e);
+        }
+    }
+
+    /** Gives a pre-existing key its id on first load, so entries signed from now on can name it. */
+    private String backfillKeyId(final SigningKeyEntity entity, final KeyPair loaded) {
+        final String keyId = keyIdFor(loaded.getPublic());
+        if (entity.getId() != null) {
+            collection.updateOne(Filters.eq("_id", entity.getId()), Updates.set("key_id", keyId));
+        }
+        return keyId;
+    }
+
+    /** The id of the key new signatures are made with. */
+    public String getActiveKeyId() {
+        return activeKeyId;
+    }
+
+    /**
+     * Returns the public key with the given id, active or superseded, so a historical signature can
+     * still be verified. Returns null when no key matches.
+     */
+    public PublicKey findPublicKeyById(final String keyId) {
+        if (keyId == null) {
+            return null;
+        }
+        if (keyId.equals(activeKeyId)) {
+            return keyPair.getPublic();
+        }
+        final Document doc = collection.find(Filters.eq("key_id", keyId)).first();
+        if (doc == null) {
+            return null;
+        }
+        try {
+            return KeyFactory.getInstance("EC").generatePublic(
+                    new X509EncodedKeySpec(SigningKeyEntity.fromDocument(doc).getPublicKeyEncoded()));
+        } catch (final Exception e) {
+            LOGGER.warn("Stored signing key {} could not be read.", keyId, e);
+            return null;
+        }
     }
 
     private KeyPair generateAndPersist(final boolean isFirstGeneration, final ObjectId actingUserId) {
@@ -99,9 +165,12 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
             final KeyPair kp = kpg.generateKeyPair();
 
             final SigningKeyEntity entity = new SigningKeyEntity();
+            entity.setKeyId(keyIdFor(kp.getPublic()));
             entity.setPrivateKeyEncoded(kp.getPrivate().getEncoded());
             entity.setPublicKeyEncoded(kp.getPublic().getEncoded());
             entity.setCreatedAt(new Date());
+            entity.setActive(true);
+            this.activeKeyId = entity.getKeyId();
 
             collection.insertOne(entity.toDocument());
 
@@ -164,6 +233,17 @@ public class SigningKeyDataService extends AbstractService<SigningKeyEntity> {
     }
 
     /** Returns the public key in PEM (BEGIN PUBLIC KEY) format. */
+    /** PEM for any retained key, active or superseded. Returns null when the id is unknown. */
+    public String getPublicKeyPem(final String keyId) {
+        final PublicKey key = findPublicKeyById(keyId);
+        return key == null ? null : toPem(key.getEncoded());
+    }
+
+    private static String toPem(final byte[] encoded) {
+        final String b64 = Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded);
+        return "-----BEGIN PUBLIC KEY-----\n" + b64 + "\n-----END PUBLIC KEY-----\n";
+    }
+
     public String getPublicKeyPem() {
         final byte[] encoded = keyPair.getPublic().getEncoded();
         final String b64 = Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded);

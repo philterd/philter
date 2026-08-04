@@ -88,8 +88,12 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         assertNotEquals(fingerprintBefore, fingerprintAfter,
                 "fingerprint must change after regeneration");
 
-        final long count = mongoClient.getDatabase("philter").getCollection("signing_keys").countDocuments();
-        assertEquals(1, count, "MongoDB must contain exactly one keypair document after regeneration");
+        // Two documents, not one: the superseded key is retained so ledger entries signed with it
+        // stay verifiable. Exactly one is active.
+        final var keys = mongoClient.getDatabase("philter").getCollection("signing_keys");
+        assertEquals(2, keys.countDocuments(), "the superseded keypair must be retained, not deleted");
+        assertEquals(1, keys.countDocuments(com.mongodb.client.model.Filters.eq("active", true)),
+                "exactly one key may be active");
 
         verify(publisher).auditEvent(isNull(), eq(AuditLogEvent.SIGNING_KEY_REGENERATED), eq(actingUser), isNull(), isNull(), isNull());
     }

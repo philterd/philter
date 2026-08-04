@@ -24,16 +24,24 @@ import java.util.Date;
 public class SigningKeyEntity extends AbstractEntity {
 
     private ObjectId id;
+    private String keyId;
     private byte[] privateKeyEncoded;
     private byte[] publicKeyEncoded;
     private Date createdAt;
+    /** Superseded keys are retained, not deleted, so entries they signed stay verifiable. */
+    private boolean active = true;
+    private Date supersededAt;
 
     public static SigningKeyEntity fromDocument(final Document doc) {
         final SigningKeyEntity e = new SigningKeyEntity();
         e.setId(doc.getObjectId("_id"));
+        e.setKeyId(doc.getString("key_id"));
         e.setPrivateKeyEncoded(doc.get("private_key", Binary.class).getData());
         e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
         e.setCreatedAt(doc.getDate("created_at"));
+        // Keys written before rotation history existed carry no flag and are the active key.
+        e.setActive(doc.getBoolean("active", true));
+        e.setSupersededAt(doc.getDate("superseded_at"));
         return e;
     }
 
@@ -43,9 +51,12 @@ public class SigningKeyEntity extends AbstractEntity {
         if (id != null) {
             doc.put("_id", id);
         }
+        doc.put("key_id", keyId);
         doc.put("private_key", privateKeyEncoded);
         doc.put("public_key", publicKeyEncoded);
         doc.put("created_at", createdAt);
+        doc.put("active", active);
+        doc.put("superseded_at", supersededAt);
         return doc;
     }
 
@@ -72,6 +83,30 @@ public class SigningKeyEntity extends AbstractEntity {
 
     public void setPublicKeyEncoded(final byte[] publicKeyEncoded) {
         this.publicKeyEncoded = publicKeyEncoded;
+    }
+
+    public String getKeyId() {
+        return keyId;
+    }
+
+    public void setKeyId(final String keyId) {
+        this.keyId = keyId;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(final boolean active) {
+        this.active = active;
+    }
+
+    public Date getSupersededAt() {
+        return supersededAt;
+    }
+
+    public void setSupersededAt(final Date supersededAt) {
+        this.supersededAt = supersededAt;
     }
 
     public Date getCreatedAt() {

@@ -10,6 +10,8 @@ Every policy in Philter is internally represented as a JSON (JavaScript Object N
 
 For a comprehensive guide on the available filters, processing strategies, and advanced configuration options, please refer to our detailed [Policy Schema Reference](../policies/policy_schema.md) documentation. You can also learn how Philterd resolves overlapping sensitive terms in our [Disambiguation](disambiguation.md) guide.
 
+Policies can also be authored in [PhiSQL](../policies/phisql.md), a declarative language that compiles to this same JSON. A policy written as `REDACT SSN WITH MASK;` is easier to review than its JSON equivalent, which matters when a compliance reviewer rather than an engineer signs off on the rules.
+
 ## Managing Your Policies
 
 The Philterd dashboard provides a powerful interface for managing the entire lifecycle of your redaction policies.

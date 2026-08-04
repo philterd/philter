@@ -94,6 +94,7 @@ nav:
   - 'Policies':
     - 'Redaction Policies': 'redaction/policies.md'
     - 'Sample Policies': 'policies/sample_policies.md'
+    - 'Authoring Policies with PhiSQL': 'policies/phisql.md'
     - 'Filter Policies': 'policies/filter_policies.md'
     - 'Policy Schema 1.0.0 Reference': 'policies/policy_schema.md'
     - 'Filters': 'policies/filters.md'

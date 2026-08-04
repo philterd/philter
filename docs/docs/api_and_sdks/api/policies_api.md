@@ -97,6 +97,59 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/
 
 ---
 
+## Compile a PhiSQL Policy
+
+| Method | Endpoint                | Description                                                    |
+| ------ |-------------------------|----------------------------------------------------------------|
+| `POST` | `/api/policies/compile` | Compile [PhiSQL](../../policies/phisql.md) source into a native policy. |
+
+The request body is PhiSQL source sent as `text/plain`. The response carries the policy name and description from the `POLICY` declaration and the compiled policy. Compiling does not save anything: post the returned `policy` to [`POST /api/policies`](#save-a-policy) to store it.
+
+The compiled policy is validated against the policy schema before it is returned, so a policy that compiles but would be rejected on save fails here instead.
+
+### Responses
+
+* `200 OK` - The policy compiled successfully.
+* `400 Bad Request` - The source failed to parse or compile, or the compiled policy failed validation. The body carries the compiler's message.
+
+Example request:
+
+```
+curl -X POST -k -H "Authorization: Bearer <token>" -H "Content-Type: text/plain" \
+  https://localhost:8080/api/policies/compile \
+  --data-binary 'POLICY ssn_only;
+REDACT SSN WITH MASK;'
+```
+
+Example response:
+
+```json
+{
+  "name": "ssn_only",
+  "policy": {
+    "identifiers": {
+      "ssn": {
+        "ssnFilterStrategies": [
+          { "strategy": "MASK" }
+        ]
+      }
+    }
+  }
+}
+```
+
+The `description` field is present when the source declares one. `name` is `null` when the source has no `POLICY` declaration, in which case supply a name yourself when saving.
+
+Example error response:
+
+```json
+{"message": "Unknown entity type: NOT_A_THING"}
+```
+
+See [Authoring Policies with PhiSQL](../../policies/phisql.md) for the language and the compile-then-save workflow.
+
+---
+
 ## Policy Version History
 
 Every time a policy is created or updated, Philter automatically retains an immutable snapshot of its content. The following endpoints expose that history and allow any prior revision to be restored.

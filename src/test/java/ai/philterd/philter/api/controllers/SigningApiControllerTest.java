@@ -28,6 +28,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -91,6 +92,60 @@ class SigningApiControllerTest {
 
         assertTrue(contentType != null && contentType.contains("application/json"),
                 "content type must be application/json; was: " + contentType);
+    }
+
+    @Test
+    void getSigningKeyByIdReturnsTheRetainedKeyAndMarksItInactive() throws Exception {
+        when(signingKeyDataService.getPublicKeyPem("key-1"))
+                .thenReturn("-----BEGIN PUBLIC KEY-----\nMFkw...\n-----END PUBLIC KEY-----\n");
+        when(signingKeyDataService.getActiveKeyId()).thenReturn("key-2");
+
+        final String body = mockMvc.perform(get("/api/signing-key/key-1").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"keyId\":\"key-1\""), "response must name the key; was: " + body);
+        assertTrue(body.contains("BEGIN PUBLIC KEY"), "response must include the PEM; was: " + body);
+        // A superseded key is still served (ledger entries signed with it must stay verifiable) but
+        // must not claim to be the active one.
+        assertTrue(body.contains("\"active\":false"), "a superseded key must report active=false; was: " + body);
+    }
+
+    @Test
+    void getSigningKeyByIdMarksTheCurrentKeyActive() throws Exception {
+        when(signingKeyDataService.getPublicKeyPem("key-2"))
+                .thenReturn("-----BEGIN PUBLIC KEY-----\nMFkw...\n-----END PUBLIC KEY-----\n");
+        when(signingKeyDataService.getActiveKeyId()).thenReturn("key-2");
+
+        final String body = mockMvc.perform(get("/api/signing-key/key-2").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"active\":true"), "the current key must report active=true; was: " + body);
+    }
+
+    @Test
+    void getSigningKeyByIdReturns404ForAnUnknownKey() throws Exception {
+        when(signingKeyDataService.getPublicKeyPem("nope")).thenReturn(null);
+
+        mockMvc.perform(get("/api/signing-key/nope").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getSigningKeyByIdEscapesThePemForJson() throws Exception {
+        // The response is assembled as a JSON string by hand, so newlines in the PEM must be escaped
+        // rather than emitted raw, which would produce a malformed document.
+        when(signingKeyDataService.getPublicKeyPem("key-1"))
+                .thenReturn("-----BEGIN PUBLIC KEY-----\nline\n-----END PUBLIC KEY-----\n");
+        when(signingKeyDataService.getActiveKeyId()).thenReturn("key-1");
+
+        final String body = mockMvc.perform(get("/api/signing-key/key-1").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertFalse(body.contains("\n-----END"), "raw newlines must not appear in the JSON; was: " + body);
+        assertTrue(body.contains("\\n"), "newlines must be escaped; was: " + body);
     }
 
 }

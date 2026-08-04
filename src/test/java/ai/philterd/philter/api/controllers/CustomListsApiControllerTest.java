@@ -15,6 +15,17 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.data.entities.CustomListEntity;
+import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ServiceResponse;
+import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import org.springframework.http.MediaType;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
@@ -163,6 +174,88 @@ class CustomListsApiControllerTest {
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-forbidden"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getOneListReturnsItsItemsScopedToTheOwningUser() throws Exception {
+        final CustomListEntity entity = new CustomListEntity();
+        entity.setId(new ObjectId());
+        entity.setName("my-list");
+        entity.setItems(List.of("Project Cardinal", "ACME-1234"));
+        when(customListService.findOneByName(eq("my-list"), eq(userId))).thenReturn(entity);
+
+        final String body = mockMvc.perform(get("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-get-list"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("Project Cardinal"), "the list items must be returned: " + body);
+        // Scoped to the owning user, so one user cannot read another's list by name.
+        verify(customListService).findOneByName("my-list", userId);
+    }
+
+    @Test
+    void getOneListReturns404WhenItDoesNotExist() throws Exception {
+        when(customListService.findOneByName(eq("missing"), eq(userId))).thenReturn(null);
+
+        mockMvc.perform(get("/api/lists/missing").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-get-missing"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED),
+                any(), any(), any());
+    }
+
+    @Test
+    void createListStoresTheItemsForTheOwningUser() throws Exception {
+        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), anyString(),
+                eq(List.of("alpha", "beta")), eq(true), any()))
+                .thenReturn(new ServiceResponse("Created.", true, 201));
+
+        mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"alpha\",\"beta\"]")
+                        .requestAttr("requestId", "req-create-list"))
+                .andExpect(status().isCreated());
+
+        verify(customListService).saveOrUpdate(anyString(), eq(userId), eq("my-list"), anyString(),
+                eq(List.of("alpha", "beta")), eq(true), any());
+    }
+
+    @Test
+    void createListPropagatesTheServiceStatusCode() throws Exception {
+        // The service reports rejections (too many items, item too long) through the status code.
+        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), anyString(),
+                any(), eq(true), any()))
+                .thenReturn(new ServiceResponse("Too many items.", false, 400));
+
+        mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"alpha\"]")
+                        .requestAttr("requestId", "req-create-rejected"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createListForAnotherOwnerReturns404ForANonAdmin() throws Exception {
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+        final UserEntity owner = new UserEntity();
+        owner.setId(new ObjectId());
+        owner.setEmail("other@example.com");
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+
+        mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"alpha\"]")
+                        .requestAttr("requestId", "req-create-forbidden"))
+                .andExpect(status().isNotFound());
+
+        verify(customListService, never()).saveOrUpdate(anyString(), any(), anyString(), anyString(),
+                any(), anyBoolean(), any());
     }
 
 }

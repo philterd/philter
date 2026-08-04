@@ -42,6 +42,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 
+import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -50,6 +51,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -119,6 +121,47 @@ class PoliciesApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(policyDataService).findAll(eq(userId), anyInt(), anyInt(), eq(false));
+    }
+
+    @Test
+    void getReturnsThePolicyScopedToTheOwningUserId() throws Exception {
+        final PolicyEntity entity = new PolicyEntity();
+        entity.setName("my-policy");
+        entity.setUserId(userId);
+        entity.setPolicy("{\"name\":\"my-policy\",\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}");
+        when(policyDataService.findOne("my-policy", userId)).thenReturn(entity);
+
+        final String body = mockMvc.perform(get("/api/policies/my-policy").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("ssnFilterStrategies"), "the policy body must be returned: " + body);
+        // The lookup must use the key's owning user id, not the key's own id.
+        verify(policyDataService).findOne("my-policy", userId);
+    }
+
+    @Test
+    void getReturns404WhenThePolicyDoesNotExist() throws Exception {
+        when(policyDataService.findOne("missing", userId)).thenReturn(null);
+
+        mockMvc.perform(get("/api/policies/missing").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getReturns404WhenANonAdminNamesAnotherOwner() throws Exception {
+        makeOwnerLookup("other@example.com", new ObjectId());
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+
+        mockMvc.perform(get("/api/policies/my-policy").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com"))
+                .andExpect(status().isNotFound());
+
+        // The policy must never be read for a caller that is not entitled to the owner's data.
+        verify(policyDataService, never()).findOne(anyString(), any());
     }
 
     @Test

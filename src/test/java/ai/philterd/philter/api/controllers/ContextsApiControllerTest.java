@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -54,6 +55,8 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
@@ -697,6 +700,107 @@ class ContextsApiControllerTest {
 
         verify(contextService).findOne(eq("ctx-owned-by-other"), eq(userId));
         verify(contextEntryService, never()).findAllByUserIdAndContext(any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void updateContextAppliesTheSettingsToTheOwningUser() throws Exception {
+        when(contextService.updateSettings(eq("my-context"), eq(userId), eq(true), eq(true)))
+                .thenReturn(ServiceResponse.success("Context updated."));
+
+        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .param("entity_type_disambiguation", "true")
+                        .param("ledger", "true"))
+                .andExpect(status().isOk());
+
+        verify(contextService).updateSettings("my-context", userId, true, true);
+    }
+
+    @Test
+    void updateContextDefaultsBothFlagsToFalseWhenOmitted() throws Exception {
+        when(contextService.updateSettings(eq("my-context"), eq(userId), eq(false), eq(false)))
+                .thenReturn(ServiceResponse.success("Context updated."));
+
+        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isOk());
+
+        verify(contextService).updateSettings("my-context", userId, false, false);
+    }
+
+    @Test
+    void updateContextReturns404WhenTheContextDoesNotExist() throws Exception {
+        when(contextService.updateSettings(eq("missing"), eq(userId), anyBoolean(), anyBoolean()))
+                .thenReturn(ServiceResponse.failure("Context not found."));
+
+        mockMvc.perform(put("/api/contexts/missing").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void emptyEntriesPurgesTheContextAndAuditsIt() throws Exception {
+        when(contextService.emptyByName(eq("my-context"), eq(userId)))
+                .thenReturn(ServiceResponse.success("Entries removed."));
+
+        mockMvc.perform(delete("/api/contexts/my-context/entries").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-empty"))
+                .andExpect(status().isOk());
+
+        verify(contextService).emptyByName("my-context", userId);
+        verify(auditEventPublisher).auditEvent(eq("req-empty"), eq(AuditLogEvent.CONTEXT_ENTRIES_PURGED),
+                eq(userId), isNull(), any(), contains("my-context"));
+    }
+
+    @Test
+    void emptyEntriesReturns404AndAuditsNothingWhenTheContextDoesNotExist() throws Exception {
+        when(contextService.emptyByName(eq("missing"), eq(userId)))
+                .thenReturn(ServiceResponse.failure("Context not found."));
+
+        mockMvc.perform(delete("/api/contexts/missing/entries").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-empty-missing"))
+                .andExpect(status().isNotFound());
+
+        // A failed purge must not leave a purge event in the audit log.
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.CONTEXT_ENTRIES_PURGED),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    void deleteEntryRemovesTheEntryScopedToTheOwningUser() throws Exception {
+        final ObjectId entryId = new ObjectId();
+        when(contextEntryService.deleteByIdAndUserId(eq(entryId), eq(userId))).thenReturn(1L);
+
+        mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId.toHexString())
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-entry"))
+                .andExpect(status().isOk());
+
+        // Scoped by user id, so one user cannot delete another user's entry by guessing its id.
+        verify(contextEntryService).deleteByIdAndUserId(entryId, userId);
+        verify(auditEventPublisher).auditEvent(eq("req-del-entry"), eq(AuditLogEvent.CONTEXT_ENTRY_DELETED),
+                eq(userId), isNull(), any(), contains(entryId.toHexString()));
+    }
+
+    @Test
+    void deleteEntryReturns404WhenNothingWasDeleted() throws Exception {
+        final ObjectId entryId = new ObjectId();
+        when(contextEntryService.deleteByIdAndUserId(eq(entryId), eq(userId))).thenReturn(0L);
+
+        mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId.toHexString())
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-missing"))
+                .andExpect(status().isNotFound());
+
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.CONTEXT_ENTRY_DELETED),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    void deleteEntryRejectsAnEntryIdThatIsNotAnObjectId() throws Exception {
+        mockMvc.perform(delete("/api/contexts/my-context/entries/not-an-object-id")
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-bad-id"))
+                .andExpect(status().isBadRequest());
+
+        verify(contextEntryService, never()).deleteByIdAndUserId(any(), any());
     }
 
 }

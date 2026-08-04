@@ -23,7 +23,26 @@ Philter is developed and tested against **MongoDB 8.2**, which is what the bundl
 | Admin settings | Instance-wide administrator settings (for example, whether logging is enabled). |
 | Audit events | The audit log of security-relevant actions. See [Auditing](auditing.md). |
 
-Sensitive fields are encrypted at rest before they are written to MongoDB. See [encryption](settings.md#encryption).
+Some collections are encrypted at rest and some are not. See [What is encrypted at rest](#what-is-encrypted-at-rest) below and [encryption](settings.md#encryption).
+
+## What is encrypted at rest
+
+Encryption is per collection, not blanket. Each encrypted record carries its own random data key,
+stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to read any of it.
+
+**Encrypted:**
+
+| Collection | What is protected |
+|---|---|
+| `users` | Account details and the webhook secret |
+| `ledger` | The original token and its replacement |
+| `custom_lists` | List items |
+| `redact_lists` | Always/never redact terms |
+| `pending_documents` | The submitted document and the redacted result |
+
+**Not encrypted**, because the values are not recoverable secrets: API keys (stored as a hash),
+context entries (stored as a token hash, not the original value), policies and their version
+snapshots, contexts, legal holds, admin settings, and webhook delivery records.
 
 ## Configuring the connection
 

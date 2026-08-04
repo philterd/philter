@@ -23,9 +23,17 @@ so altering an entry breaks every link after it. On its own this is not proof of
 to write to the database could rewrite an entry, recompute its hash, and relink the entries that
 follow, producing a chain that verifies perfectly.
 
-**The signature proves origin.** Every entry is signed with the deployment's ES256 key, which the
-database does not hold, so a rewritten chain cannot be re-signed. Signing is always on and is not
-tied to the [output signing](../output_signing.md) setting.
+**The signature proves origin.** Every entry is signed with the deployment's ES256 key, so an entry
+rewritten in the database cannot be re-signed without that key. Signing is always on and is not tied
+to the [output signing](../output_signing.md) setting.
+
+**How strong that is depends on where the key lives.** By default Philter generates the signing key
+and stores it in MongoDB, in the same database as the ledger. Someone with full database access can
+therefore read the key and re-sign a rewritten chain, so in that configuration the signature defends
+against tampering through Philter or by anyone with write access to the `ledger` collection alone,
+not against a full database compromise. To get the stronger property, supply the key from outside the
+database with `PHILTER_SIGNING_KEY_PATH` (see [Output Signing](../output_signing.md)) and restrict who
+can read that file.
 
 The validity response reports both, plus how many entries carry a signature:
 

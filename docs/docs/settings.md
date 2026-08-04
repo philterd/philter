@@ -25,7 +25,7 @@ Philter requires a MongoDB database to store policies and other data. See [Datab
 
 ## Encryption
 
-Philter encrypts sensitive data at rest and requires an encryption key. Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts.
+Philter encrypts sensitive data at rest and requires an encryption key. Encryption is applied per collection; see [what is encrypted](database.md#what-is-encrypted-at-rest). Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|

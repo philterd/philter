@@ -183,6 +183,22 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    /**
+     * Looks up an active key by its id. Used to re-read a key from the database before acting on it, so
+     * an authorization check is made against stored state rather than against a caller-supplied object.
+     */
+    public ApiKeyEntity findOneById(final ObjectId id) {
+
+        if (id == null) {
+            return null;
+        }
+
+        final Document document = collection.find(new Document("_id", id).append("deleted", false)).first();
+
+        return document == null ? null : ApiKeyEntity.fromDocument(document);
+
+    }
+
     public ApiKeyEntity findOneByApiKey(final String apiKey) {
 
         final String apiKeyHash = EncryptionService.hashSha256(apiKey);
@@ -251,45 +267,100 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     }
 
     /**
+     * Confirms that the given key exists, is active, and belongs to {@code callerUserId}, returning the
+     * stored key or {@code null}.
+     *
+     * <p>The check is made against the key as stored, not against the entity the caller passed in: an
+     * object handed to this service carries whatever owner the caller put on it, so trusting its
+     * {@code userId} would make the check meaningless. Callers today only ever pass a key they listed
+     * for the signed-in user, so a failure here means a bug or an attempt to act on someone else's key,
+     * and is logged as such.
+     */
+    private ApiKeyEntity requireOwnedKey(final ObjectId callerUserId, final ApiKeyEntity apiKeyEntity,
+                                         final String operation) {
+
+        if (callerUserId == null || apiKeyEntity == null || apiKeyEntity.getId() == null) {
+            LOGGER.warn("Refusing to {} an API key: the key or the caller is not identified.", operation);
+            return null;
+        }
+
+        final ApiKeyEntity stored = findOneById(apiKeyEntity.getId());
+
+        if (stored == null || !callerUserId.equals(stored.getUserId())) {
+            LOGGER.warn("Refusing to {} API key {}: it does not belong to the calling user.",
+                    operation, apiKeyEntity.getId());
+            return null;
+        }
+
+        return stored;
+
+    }
+
+    /**
      * Replaces the scopes on an existing key. The key itself is unchanged, so integrations keep working
      * with the same credential and only what it may call changes.
      */
-    public ServiceResponse updateScopes(final String requestId, final ApiKeyEntity apiKeyEntity,
+    public ServiceResponse updateScopes(final String requestId, final ObjectId callerUserId,
+                                        final ApiKeyEntity apiKeyEntity,
                                         final Set<String> scopes, final String source) {
+
+        final ApiKeyEntity stored = requireOwnedKey(callerUserId, apiKeyEntity, "change the scopes of");
+
+        if (stored == null) {
+            return new ServiceResponse("API key not found.", false, 404);
+        }
 
         // Capture what the key held before the change: an audit entry saying only that the scopes
         // changed does not tell an auditor whether the key was widened or narrowed.
-        final Set<String> previousScopes = new LinkedHashSet<>(apiKeyEntity.getScopes());
+        final Set<String> previousScopes = new LinkedHashSet<>(stored.getScopes());
 
-        apiKeyEntity.setScopes(scopes);
-        update(apiKeyEntity);
+        stored.setScopes(scopes);
+        update(stored);
+
+        // Keep the caller's copy consistent with what was stored, so a UI holding the old object shows
+        // the change without re-reading.
+        apiKeyEntity.setScopes(stored.getScopes());
 
         // Evict so the new scopes apply to the next request rather than after the cache TTL, matching
         // how revocation is handled. The cached entity carries the old scopes until it is dropped.
-        apiKeyCache.delete(apiKeyEntity.getApiKeyHash());
+        apiKeyCache.delete(stored.getApiKeyHash());
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_SCOPES_CHANGED, apiKeyEntity.getId(),
-                apiKeyEntity.getId(), source,
-                "from: [" + String.join(", ", previousScopes) + "], to: [" + String.join(", ", apiKeyEntity.getScopes()) + "]");
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_SCOPES_CHANGED, stored.getId(),
+                stored.getId(), source,
+                "from: [" + String.join(", ", previousScopes) + "], to: [" + String.join(", ", stored.getScopes()) + "]");
 
         return ServiceResponse.success();
 
     }
 
-    public ServiceResponse deleteByApiKey(final String requestId, final ApiKeyEntity apiKeyEntity, final String source) {
+    public ServiceResponse deleteByApiKey(final String requestId, final ObjectId callerUserId,
+                                          final ApiKeyEntity apiKeyEntity, final String source) {
+
+        final ApiKeyEntity owned = requireOwnedKey(callerUserId, apiKeyEntity, "delete");
+
+        if (owned == null) {
+            return new ServiceResponse("API key not found.", false, 404);
+        }
 
         // API keys are never removed from the database - just marked as deleted (revoked) with the time
         // of deletion. This preserves usage history so audit entries referencing the key id still
         // resolve to it. A deleted key can never authenticate again and cannot be reactivated.
+        // Write the key as stored, not the object the caller passed: ownership was checked against the
+        // stored key, so persisting caller-supplied fields would let a tampered copy through the guard.
+        owned.setDeleted(true);
+        owned.setDeletedAt(new Date());
+        update(owned);
+
+        // Keep the caller's copy consistent with what was stored, so a UI holding the old object
+        // reflects the deletion without re-reading.
         apiKeyEntity.setDeleted(true);
-        apiKeyEntity.setDeletedAt(new Date());
-        update(apiKeyEntity);
+        apiKeyEntity.setDeletedAt(owned.getDeletedAt());
 
         // Evict the key from the cache so the deletion takes effect immediately rather than after the
         // cache TTL. The cache is keyed by the key's hash, which the entity carries.
-        apiKeyCache.delete(apiKeyEntity.getApiKeyHash());
+        apiKeyCache.delete(owned.getApiKeyHash());
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, apiKeyEntity.getId(), apiKeyEntity.getId(), source);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, owned.getId(), owned.getId(), source);
 
         return ServiceResponse.success();
 

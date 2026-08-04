@@ -132,12 +132,22 @@ class ApiKeyDataServiceTest {
 
     @Test
     void deleteByApiKey() {
+        final ObjectId owner = new ObjectId();
         ApiKeyEntity entity = new ApiKeyEntity();
         entity.setId(new ObjectId());
+        entity.setUserId(owner);
+
+        // The service re-reads the key to check ownership against stored state, so the lookup must
+        // return a key belonging to the caller.
+        final Document stored = new Document("_id", entity.getId()).append("user_id", owner).append("deleted", false);
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(stored);
+
         UpdateResult updateResult = mock(UpdateResult.class);
         when(mongoCollection.updateOne(any(Bson.class), any(Document.class))).thenReturn(updateResult);
 
-        ServiceResponse response = apiKeyDataService.deleteByApiKey("requestId", entity, "source");
+        ServiceResponse response = apiKeyDataService.deleteByApiKey("requestId", owner, entity, "source");
 
         assertTrue(response.isSuccessful());
         assertTrue(entity.isDeleted());
@@ -178,4 +188,26 @@ class ApiKeyDataServiceTest {
         apiKeyDataService.count(new ObjectId(), true);
         assertFalse(queryCaptor.getValue().containsKey("deleted"));
     }
+
+    @Test
+    void deleteByApiKeyRefusesAKeyOwnedByAnotherUser() {
+        final ApiKeyEntity entity = new ApiKeyEntity();
+        entity.setId(new ObjectId());
+        entity.setUserId(new ObjectId());
+
+        // Stored state says the key belongs to someone else, whatever the passed entity claims.
+        final Document stored = new Document("_id", entity.getId())
+                .append("user_id", new ObjectId()).append("deleted", false);
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(stored);
+
+        final ServiceResponse response =
+                apiKeyDataService.deleteByApiKey("requestId", new ObjectId(), entity, "source");
+
+        assertFalse(response.isSuccessful());
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Document.class));
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.API_KEY_DELETED), any(), any(), any());
+    }
+
 }

@@ -35,6 +35,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 
@@ -68,7 +70,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         apiKeyCache.insert(entity.getApiKeyHash(), entity);
         assertTrue(apiKeyCache.containsApiKey(entity.getApiKeyHash()));
 
-        service.deleteByApiKey("req", entity, "src");
+        service.deleteByApiKey("req", entity.getUserId(), entity, "src");
 
         // Deleting the key evicts it from the cache so it stops working immediately, not after the TTL.
         assertFalse(apiKeyCache.containsApiKey(entity.getApiKeyHash()));
@@ -141,7 +143,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
         final ObjectId keyId = entity.getId();
-        assertTrue(service.deleteByApiKey("req", entity, "src").isSuccessful());
+        assertTrue(service.deleteByApiKey("req", entity.getUserId(), entity, "src").isSuccessful());
         assertTrue(entity.isDeleted());
         // The deletion time is stamped.
         assertNotNull(entity.getDeletedAt());
@@ -167,7 +169,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final String apiKey = service.createApiKey("req", user, "src").getMessage();
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
 
-        service.deleteByApiKey("req", entity, "src");
+        service.deleteByApiKey("req", entity.getUserId(), entity, "src");
 
         // There is no reactivation: the revoked key stays unresolvable for authentication even though
         // its record is retained.
@@ -237,7 +239,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final String key = "sk_" + "c".repeat(32);
 
         service.ensureApiKey("req", user, key, "src");
-        service.deleteByApiKey("req", service.findOneByApiKey(key), "src");
+        service.deleteByApiKey("req", user, service.findOneByApiKey(key), "src");
 
         // A revoked bootstrap key must stay revoked across restarts.
         assertFalse(service.ensureApiKey("req", user, key, "src"));
@@ -267,7 +269,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final String key = "sk_" + "e".repeat(32);
 
         service.ensureApiKey("req", user, key, "src");
-        service.deleteByApiKey("req", service.findOneByApiKey(key), "src");
+        service.deleteByApiKey("req", user, service.findOneByApiKey(key), "src");
 
         assertNull(service.findActiveBootstrapKey(user));
     }
@@ -307,7 +309,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final String apiKey = created.getMessage();
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
 
-        service.updateScopes("req", entity, Set.of(ApiKeyScope.POLICIES_READ.getScope()), "src");
+        service.updateScopes("req", entity.getUserId(), entity, Set.of(ApiKeyScope.POLICIES_READ.getScope()), "src");
 
         // The credential is unchanged, so integrations keep working; only the scopes differ.
         final ApiKeyEntity reloaded = service.findOneByApiKey(apiKey);
@@ -335,7 +337,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
                 Set.of(ApiKeyScope.REDACT.getScope()));
         final ApiKeyEntity entity = service.findOneByApiKey(created.getMessage());
 
-        service.updateScopes("req-scope-change", entity,
+        service.updateScopes("req-scope-change", entity.getUserId(), entity,
                 Set.of(ApiKeyScope.POLICIES_READ.getScope()), "webui");
 
         final ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);
@@ -392,6 +394,46 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertTrue(fromCache.hasScope(ApiKeyScope.REDACT));
         assertFalse(fromCache.hasScope(ApiKeyScope.LEDGER_EXPORT),
                 "the cache must not widen a key's scopes");
+    }
+
+    @Test
+    void updateScopesRefusesAKeyOwnedByAnotherUser() {
+        final ObjectId owner = new ObjectId();
+        final ObjectId attacker = new ObjectId();
+        final ServiceResponse created = service.createApiKey("req", owner, "src",
+                Set.of(ApiKeyScope.REDACT.getScope()));
+        final ApiKeyEntity key = service.findOneByApiKey(created.getMessage());
+
+        final ServiceResponse response = service.updateScopes("req", attacker, key,
+                ApiKeyScope.all(), "webui");
+
+        assertFalse(response.isSuccessful(), "another user must not be able to widen this key");
+
+        // Nothing was changed, and no audit event claims otherwise.
+        final ApiKeyEntity reloaded = service.findOneByApiKey(created.getMessage());
+        assertEquals(Set.of(ApiKeyScope.REDACT.getScope()), reloaded.getScopes());
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.API_KEY_SCOPES_CHANGED),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    void updateScopesIgnoresATamperedOwnerOnTheSuppliedEntity() {
+        final ObjectId owner = new ObjectId();
+        final ServiceResponse created = service.createApiKey("req", owner, "src",
+                Set.of(ApiKeyScope.REDACT.getScope()));
+        final ApiKeyEntity key = service.findOneByApiKey(created.getMessage());
+
+        // The caller claims the key is theirs by rewriting the owner on the object they pass in. The
+        // check reads stored state, so the claim is worthless.
+        final ObjectId attacker = new ObjectId();
+        key.setUserId(attacker);
+
+        final ServiceResponse response = service.updateScopes("req", attacker, key,
+                ApiKeyScope.all(), "webui");
+
+        assertFalse(response.isSuccessful(), "a tampered owner on the passed entity must not authorize the change");
+        assertEquals(Set.of(ApiKeyScope.REDACT.getScope()),
+                service.findOneByApiKey(created.getMessage()).getScopes());
     }
 
 }

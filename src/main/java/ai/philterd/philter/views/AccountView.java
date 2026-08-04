@@ -327,8 +327,8 @@ public class AccountView extends AbstractRestrictedView {
                                     + "call changes, and the change takes effect immediately.",
                             apiKeyEntity.getScopes(),
                             selected -> {
-                                apiKeyService.updateScopes(RequestIdGenerator.generate(), apiKeyEntity,
-                                        selected, getClientIpAddress());
+                                apiKeyService.updateScopes(RequestIdGenerator.generate(), accountUser.getId(),
+                                        apiKeyEntity, selected, getClientIpAddress());
                                 apiKeysGrid.getDataProvider().refreshAll();
                                 showSuccessNotification("API key scopes updated.");
                             }));
@@ -347,7 +347,7 @@ public class AccountView extends AbstractRestrictedView {
                 confirmDialog.add(new Paragraph("Are you sure you want to delete the selected API key? It is revoked immediately and stops working right away. This cannot be undone; the key cannot be reactivated. The key record is retained (marked deleted) so audit entries that reference it still resolve."));
 
                 final Button confirmButton = new Button("Delete", e -> {
-                    apiKeyService.deleteByApiKey(RequestIdGenerator.generate(), apiKeyEntity, getClientIpAddress());
+                    apiKeyService.deleteByApiKey(RequestIdGenerator.generate(), accountUser.getId(), apiKeyEntity, getClientIpAddress());
                     apiKeysGrid.getDataProvider().refreshAll();
                     showSuccessNotification("API key deleted.");
                     confirmDialog.close();

@@ -98,6 +98,12 @@ The export body has the shape:
 
 > **Security:** unlike a context export (token hashes only), a ledger export contains the **decrypted token and replacement** values. Treat it as sensitive and store and transmit it securely.
 
+### Export contents
+
+Each entry carries its `signature` and the `signingKeyId` of the key that produced it, and the export
+embeds those public keys in a `signingKeys` map so it can be verified without contacting the instance
+that produced it. The export schema is **version 3**.
+
 ## Delete a document's ledger chain
 
 | Method   | Endpoint                   | Description                            |

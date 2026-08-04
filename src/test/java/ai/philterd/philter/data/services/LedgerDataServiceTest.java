@@ -32,6 +32,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import ai.philterd.philter.services.signing.SigningService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -69,7 +70,7 @@ class LedgerDataServiceTest {
         when(legalHoldDataService.findAllHoldsForUser(any())).thenReturn(Collections.emptyList());
         when(legalHoldDataService.findBlockingHoldsForDocument(any(), any())).thenReturn(Collections.emptyList());
         ledgerDataService = new LedgerDataService(mongoClient, encryptionService, auditEventPublisher,
-                legalHoldDataService);
+                legalHoldDataService, mock(SigningService.class));
     }
 
     @Test

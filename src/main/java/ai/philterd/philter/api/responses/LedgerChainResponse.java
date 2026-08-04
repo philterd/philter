@@ -25,12 +25,43 @@ public class LedgerChainResponse {
 
     private final String documentId;
     private final boolean valid;
+    /** Reported apart from {@code valid}: these fail for different reasons and mean different things. */
+    private final boolean hashChainValid;
+    private final boolean signaturesValid;
+    private final int signedEntries;
+    private final int unsignedEntries;
     private final List<LedgerEntryView> entries;
 
     public LedgerChainResponse(final String documentId, final boolean valid, final List<LedgerEntryView> entries) {
+        this(documentId, valid, valid, valid, 0, 0, entries);
+    }
+
+    public LedgerChainResponse(final String documentId, final boolean valid, final boolean hashChainValid,
+                               final boolean signaturesValid, final int signedEntries,
+                               final int unsignedEntries, final List<LedgerEntryView> entries) {
         this.documentId = documentId;
         this.valid = valid;
+        this.hashChainValid = hashChainValid;
+        this.signaturesValid = signaturesValid;
+        this.signedEntries = signedEntries;
+        this.unsignedEntries = unsignedEntries;
         this.entries = entries;
+    }
+
+    public boolean isHashChainValid() {
+        return hashChainValid;
+    }
+
+    public boolean isSignaturesValid() {
+        return signaturesValid;
+    }
+
+    public int getSignedEntries() {
+        return signedEntries;
+    }
+
+    public int getUnsignedEntries() {
+        return unsignedEntries;
     }
 
     public String getDocumentId() {

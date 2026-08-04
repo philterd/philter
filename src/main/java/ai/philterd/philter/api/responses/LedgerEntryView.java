@@ -37,6 +37,25 @@ public class LedgerEntryView {
     private String policyName;
     private int policyVersion;
     private String policyContentHash;
+    /** ES256 signature over {@code hash}, and the id of the key that produced it. */
+    private String signature;
+    private String signingKeyId;
+
+    public String getSignature() {
+        return signature;
+    }
+
+    public void setSignature(final String signature) {
+        this.signature = signature;
+    }
+
+    public String getSigningKeyId() {
+        return signingKeyId;
+    }
+
+    public void setSigningKeyId(final String signingKeyId) {
+        this.signingKeyId = signingKeyId;
+    }
 
     public LedgerEntryView() {
     }

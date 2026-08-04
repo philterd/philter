@@ -23,6 +23,8 @@ import ai.philterd.philter.api.responses.LedgerExport;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.LedgerDataService;
+import java.util.LinkedHashMap;
+import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
@@ -73,6 +75,7 @@ public class LedgerView extends AbstractRestrictedView {
     private static final int PAGE_SIZE = 25;
 
     private final LedgerDataService ledgerService;
+    private final SigningKeyDataService signingKeyDataService;
     private final UserEntity currentUser;
     private final Grid<LedgerEntity> grid = new Grid<>(LedgerEntity.class, false);
 
@@ -80,10 +83,12 @@ public class LedgerView extends AbstractRestrictedView {
     private String searchTerm;
 
     public LedgerView(final MongoClient mongoClient, final EncryptionService encryptionService,
-                      final AuditEventPublisher auditEventPublisher, final LedgerDataService ledgerService) {
+                      final AuditEventPublisher auditEventPublisher, final LedgerDataService ledgerService,
+                      final SigningKeyDataService signingKeyDataService) {
         super(mongoClient, encryptionService, auditEventPublisher);
 
         this.ledgerService = ledgerService;
+        this.signingKeyDataService = signingKeyDataService;
         this.currentUser = getCurrentUser();
 
         grid.addColumn(LedgerEntity::getDocumentId).setHeader("Document ID").setResizable(true).setAutoWidth(true);
@@ -314,12 +319,28 @@ public class LedgerView extends AbstractRestrictedView {
     private DownloadHandler exportResource(final String documentId, final List<LedgerEntity> chain) {
         final List<LedgerEntryView> entries = new ArrayList<>(chain.size());
         for (final LedgerEntity entry : chain) {
-            entries.add(new LedgerEntryView(entry.getDocumentId(), entry.getFilename(), entry.getType(),
+            final LedgerEntryView view = new LedgerEntryView(entry.getDocumentId(), entry.getFilename(), entry.getType(),
                     entry.getToken(), entry.getReplacement(), entry.getStartPosition(), entry.getDocumentHash(),
                     entry.getPreviousHash(), entry.getHash(), entry.getTimestamp(),
-                    entry.getPolicyName(), entry.getPolicyVersion(), entry.getPolicyContentHash()));
+                    entry.getPolicyName(), entry.getPolicyVersion(), entry.getPolicyContentHash());
+            view.setSignature(entry.getSignature());
+            view.setSigningKeyId(entry.getSigningKeyId());
+            entries.add(view);
         }
-        final byte[] json = GSON.toJson(new LedgerExport(documentId, entries)).getBytes(StandardCharsets.UTF_8);
+
+        // The keys the entries were signed with, so a downloaded export verifies on its own.
+        final Map<String, String> signingKeys = new LinkedHashMap<>();
+        for (final LedgerEntryView entry : entries) {
+            final String keyId = entry.getSigningKeyId();
+            if (keyId != null && !signingKeys.containsKey(keyId)) {
+                final String pem = signingKeyDataService.getPublicKeyPem(keyId);
+                if (pem != null) {
+                    signingKeys.put(keyId, pem);
+                }
+            }
+        }
+
+        final byte[] json = GSON.toJson(new LedgerExport(documentId, entries, signingKeys)).getBytes(StandardCharsets.UTF_8);
         return DownloadHandler.fromInputStream(downloadEvent ->
                 new DownloadResponse(new ByteArrayInputStream(json), "ledger-" + documentId + "-export.json",
                         "application/json", json.length));

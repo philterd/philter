@@ -21,6 +21,9 @@ import ai.philterd.philter.data.services.SigningKeyDataService;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.PublicKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.security.Signature;
 import java.util.Arrays;
 import java.util.Base64;
@@ -39,6 +42,8 @@ import java.util.HexFormat;
  * the operator's public key, available from {@code GET /api/signing-key}.
  */
 public class SigningService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SigningService.class);
 
     public static final String SIGNATURE_HEADER = "X-Philter-Signature";
 
@@ -84,6 +89,51 @@ public class SigningService {
         final byte[] p1363Sig = derToP1363(derSig);
 
         return signingInput + "." + base64url(p1363Sig);
+    }
+
+    /**
+     * Signs a ledger entry's hash, binding the entry to this deployment's key. The hash already
+     * covers the entry's content and its link to the previous entry, so signing it attests the whole
+     * entry. Returns base64url ES256 (P1363) bytes.
+     *
+     * <p>Unlike response signing this is not optional: the ledger exists to be evidence, and a hash
+     * chain alone proves only internal consistency, not origin. Anyone with write access to the
+     * collection can rewrite an entry and recompute every subsequent hash.
+     */
+    public String signLedgerEntry(final String entryHash) throws Exception {
+        final Signature signer = Signature.getInstance("SHA256withECDSA");
+        signer.initSign(signingKeyDataService.getPrivateKey());
+        signer.update(entryHash.getBytes(StandardCharsets.UTF_8));
+        return base64url(derToP1363(signer.sign()));
+    }
+
+    /** The id of the key {@link #signLedgerEntry} currently signs with. */
+    public String getActiveKeyId() {
+        return signingKeyDataService.getActiveKeyId();
+    }
+
+    /**
+     * Verifies a ledger entry signature against the key that made it, which may have since been
+     * superseded. Returns false when the key is unknown or the signature does not match.
+     */
+    public boolean verifyLedgerEntry(final String entryHash, final String signature, final String keyId) {
+        if (entryHash == null || signature == null) {
+            return false;
+        }
+        final PublicKey publicKey = signingKeyDataService.findPublicKeyById(keyId);
+        if (publicKey == null) {
+            LOGGER.warn("No signing key {} is retained, so this entry's signature cannot be verified.", keyId);
+            return false;
+        }
+        try {
+            final Signature verifier = Signature.getInstance("SHA256withECDSAinP1363Format");
+            verifier.initVerify(publicKey);
+            verifier.update(entryHash.getBytes(StandardCharsets.UTF_8));
+            return verifier.verify(Base64.getUrlDecoder().decode(signature));
+        } catch (final Exception e) {
+            LOGGER.warn("A ledger entry signature could not be verified.", e);
+            return false;
+        }
     }
 
     private static String buildPayload(final String bodyHash, final String policyName,

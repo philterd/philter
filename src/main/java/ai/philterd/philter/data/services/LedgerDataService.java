@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.signing.SigningService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -56,12 +57,15 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     private static final String LEGACY_TTL_INDEX_NAME = "timestamp_1";
 
     private final LegalHoldDataService legalHoldDataService;
+    private final SigningService signingService;
 
     public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                               final AuditEventPublisher auditEventPublisher,
-                              final LegalHoldDataService legalHoldDataService) {
+                              final LegalHoldDataService legalHoldDataService,
+                              final SigningService signingService) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
         this.legalHoldDataService = legalHoldDataService;
+        this.signingService = signingService;
 
         // Chain-head listing queries (user_id, previous_hash) ordered by timestamp; per-document
         // chain retrieval and deletion query (user_id, document_id).
@@ -88,42 +92,89 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     }
 
     public void addTransaction(final LedgerEntity ledgerEntity) {
+
+        // Signed here because every entry, genesis and redaction alike, is written through this
+        // method. The hash chain proves internal consistency; the signature proves origin.
+        if (signingService != null && ledgerEntity.getHash() != null) {
+            try {
+                ledgerEntity.setSignature(signingService.signLedgerEntry(ledgerEntity.getHash()));
+                ledgerEntity.setSigningKeyId(signingService.getActiveKeyId());
+            } catch (final Exception e) {
+                // A ledger entry that cannot be signed is still better evidence than none, so the
+                // redaction is not failed; the entry simply verifies as unsigned.
+                LOGGER.error("Unable to sign a ledger entry; it will be recorded unsigned.", e);
+            }
+        }
+
         collection.insertOne(ledgerEntity.toDocument(encryptionService));
     }
 
+    /**
+     * The outcome of validating a chain. A reviewer needs these apart: a broken hash chain means the
+     * entries contradict each other, an invalid signature means something outside Philter wrote them,
+     * and an unsigned entry means only that it predates signing.
+     */
+    public record ChainValidation(boolean hashChainValid, boolean signaturesValid,
+                                  int signedEntries, int unsignedEntries) {
+        public boolean valid() {
+            return hashChainValid && signaturesValid;
+        }
+    }
+
     public boolean isChainValid(final ObjectId userId, final String documentId) throws Exception {
+        return validateChain(userId, documentId).valid();
+    }
+
+    public ChainValidation validateChain(final ObjectId userId, final String documentId) throws Exception {
 
         final List<LedgerEntity> chain = getChain(userId, documentId);
 
-        if(!chain.isEmpty()) {
+        if (chain.isEmpty()) {
+            return new ChainValidation(false, false, 0, 0);
+        }
 
-            for (int i = 1; i < chain.size(); i++) {
+        boolean hashChainValid = true;
 
-                final LedgerEntity currentRedaction = chain.get(i);
-                final LedgerEntity previousRedaction = chain.get(i - 1);
+        for (int i = 1; i < chain.size(); i++) {
 
-                if (!currentRedaction.getHash().equals(currentRedaction.calculateHash())) {
-                    LOGGER.debug("Current hash is invalid for redaction of: {}", currentRedaction.getToken());
-                    LOGGER.debug("Expected: {}", currentRedaction.getHash());
-                    LOGGER.debug("Actual: {}", currentRedaction.calculateHash());
-                    return false;
-                }
+            final LedgerEntity currentRedaction = chain.get(i);
+            final LedgerEntity previousRedaction = chain.get(i - 1);
 
-                if (!currentRedaction.getPreviousHash().equals(previousRedaction.getHash())) {
-                    LOGGER.warn("Previous hash link is broken for redaction of: {}", currentRedaction.getToken());
-                    return false;
-                }
-
+            if (!currentRedaction.getHash().equals(currentRedaction.calculateHash())) {
+                LOGGER.debug("Current hash is invalid for redaction of: {}", currentRedaction.getToken());
+                hashChainValid = false;
+                break;
             }
 
-            return true;
-
-        } else {
-
-            // Chain was not found.
-            return false;
+            if (!currentRedaction.getPreviousHash().equals(previousRedaction.getHash())) {
+                LOGGER.warn("Previous hash link is broken for redaction of: {}", currentRedaction.getToken());
+                hashChainValid = false;
+                break;
+            }
 
         }
+
+        // The hash chain proves the entries are internally consistent. The signatures prove this
+        // deployment produced them, which a rewritten-and-rehashed chain cannot fake.
+        boolean signaturesValid = true;
+        int signed = 0;
+        int unsigned = 0;
+
+        for (final LedgerEntity entry : chain) {
+            if (entry.getSignature() == null) {
+                // Written before entries were signed. Not a failure: it cannot be signed after the
+                // fact, and reporting history as tampered would be wrong.
+                unsigned++;
+                continue;
+            }
+            signed++;
+            if (!signingService.verifyLedgerEntry(entry.getHash(), entry.getSignature(), entry.getSigningKeyId())) {
+                LOGGER.warn("Ledger entry signature does not verify for document {}.", documentId);
+                signaturesValid = false;
+            }
+        }
+
+        return new ChainValidation(hashChainValid, signaturesValid, signed, unsigned);
 
     }
 

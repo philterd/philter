@@ -22,6 +22,7 @@ import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
@@ -52,6 +53,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -87,7 +89,7 @@ class LedgerApiControllerTest {
         when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
 
         final LedgerApiController controller = new LedgerApiController(
-                ledgerService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+                ledgerService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, mock(SigningKeyDataService.class), new Gson());
 
         // Admin cross-user access is opt-in (off by default); enable it for the admin tests here.
 
@@ -258,7 +260,8 @@ class LedgerApiControllerTest {
     @Test
     void getChainReturnsEntriesAndValidity() throws Exception {
         when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
-        when(ledgerService.isChainValid(userId, "doc-1")).thenReturn(true);
+        when(ledgerService.validateChain(userId, "doc-1"))
+                .thenReturn(new LedgerDataService.ChainValidation(true, true, 2, 0));
 
         final String body = mockMvc.perform(get("/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-chain"))
@@ -280,7 +283,8 @@ class LedgerApiControllerTest {
     @Test
     void validateReturnsValidity() throws Exception {
         when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
-        when(ledgerService.isChainValid(userId, "doc-1")).thenReturn(false);
+        when(ledgerService.validateChain(userId, "doc-1"))
+                .thenReturn(new LedgerDataService.ChainValidation(false, true, 2, 0));
 
         final String body = mockMvc.perform(get("/api/ledger/doc-1/valid").header("Authorization", AUTH_HEADER))
                 .andExpect(status().isOk())
@@ -529,7 +533,8 @@ class LedgerApiControllerTest {
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         when(ledgerService.getChain(otherUser, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
-        when(ledgerService.isChainValid(otherUser, "doc-1")).thenReturn(true);
+        when(ledgerService.validateChain(otherUser, "doc-1"))
+                .thenReturn(new LedgerDataService.ChainValidation(true, true, 2, 0));
 
         mockMvc.perform(get("/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")

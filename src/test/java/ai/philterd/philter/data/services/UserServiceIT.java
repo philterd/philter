@@ -29,6 +29,7 @@ import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import ai.philterd.philter.services.signing.SigningService;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.Cipher;
@@ -320,7 +321,7 @@ class UserServiceIT extends AbstractMongoIT {
         when(noOpHoldService.findBlockingHoldsForDocument(any(), any())).thenReturn(java.util.Collections.emptyList());
         final LedgerDataService ledgerDataService = new LedgerDataService(
                 mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class),
-                noOpHoldService);
+                noOpHoldService, mock(SigningService.class));
         ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt", "default", 0, "policy-hash");
         assertEquals(1, ledgerDataService.countChainsByUserId(userId));
 

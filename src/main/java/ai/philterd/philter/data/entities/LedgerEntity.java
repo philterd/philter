@@ -92,6 +92,8 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         ledgerEntity.policyName = document.getString("policy_name");
         ledgerEntity.policyVersion = document.getInteger("policy_version", 0);
         ledgerEntity.policyContentHash = document.getString("policy_content_hash");
+        ledgerEntity.signature = document.getString("signature");
+        ledgerEntity.signingKeyId = document.getString("signing_key_id");
 
         final String tokenEncryptedKey = document.getString("token_encrypted_key");
         ledgerEntity.token = encryptionService.decrypt(document.getString("token"), tokenEncryptedKey);
@@ -134,9 +136,34 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         document.put("policy_name", policyName);
         document.put("policy_version", policyVersion);
         document.put("policy_content_hash", policyContentHash);
+        document.put("signature", signature);
+        document.put("signing_key_id", signingKeyId);
 
         return document;
 
+    }
+
+    /**
+     * ES256 signature over {@link #hash}, and the id of the key that made it. Excluded from
+     * calculateHash: the signature covers the hash, so including it would be circular.
+     */
+    private String signature;
+    private String signingKeyId;
+
+    public String getSignature() {
+        return signature;
+    }
+
+    public void setSignature(final String signature) {
+        this.signature = signature;
+    }
+
+    public String getSigningKeyId() {
+        return signingKeyId;
+    }
+
+    public void setSigningKeyId(final String signingKeyId) {
+        this.signingKeyId = signingKeyId;
     }
 
     public String calculateHash() throws NoSuchAlgorithmException {

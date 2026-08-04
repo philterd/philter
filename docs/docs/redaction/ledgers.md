@@ -2,7 +2,7 @@
 
 A Redaction Ledger is a core security feature of Philter, providing a cryptographically-verifiable and immutable log of every redaction performed on your documents. In an era where data integrity and transparency are paramount, ledgers offer a definitive way to audit and trust the automated redaction process.
 
-By maintaining a verifiable record of what was changed, why it was changed, and how it was changed, Philter empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA. The chain is **tamper-evident** — entries cannot be altered without detection — but, as described under [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted), entries can be removed deliberately for data-minimization or lifecycle reasons.
+By maintaining a verifiable record of what was changed, why it was changed, and how it was changed, Philter empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA. The chain is **tamper-evident** and each entry is **signed**, so an altered entry is detectable and its origin is provable. See [What the Ledger Proves](#what-the-ledger-proves). As described under [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted), entries can still be removed deliberately for data-minimization or lifecycle reasons.
 
 ## How Redaction Ledgers Work
 
@@ -12,6 +12,49 @@ The Philterd ledger system is built on the principles of cryptographic chaining,
 2.  **Cryptographic Chaining**: Each ledger entry contains a cryptographic hash of its own data plus the hash of the preceding entry. This creates a "chain of trust."
 3.  **Immutability**: Because each entry is linked to the previous one, any attempt to retroactively modify or delete a redaction record would break the cryptographic chain, making the tampering immediately evident.
 4.  **Verifiability**: This architecture allows you to mathematically prove the integrity of your redaction history at any point in time.
+
+## What the Ledger Proves
+
+Two separate guarantees, which fail for different reasons and are reported separately by
+`GET /api/ledger/{documentId}/valid`.
+
+**The hash chain proves internal consistency.** Each entry contains the hash of the previous entry,
+so altering an entry breaks every link after it. On its own this is not proof of origin: anyone able
+to write to the database could rewrite an entry, recompute its hash, and relink the entries that
+follow, producing a chain that verifies perfectly.
+
+**The signature proves origin.** Every entry is signed with the deployment's ES256 key, which the
+database does not hold, so a rewritten chain cannot be re-signed. Signing is always on and is not
+tied to the [output signing](../output_signing.md) setting.
+
+The validity response reports both, plus how many entries carry a signature:
+
+```json
+{
+  "documentId": "...",
+  "valid": true,
+  "hashChainValid": true,
+  "signaturesValid": true,
+  "signedEntries": 2,
+  "unsignedEntries": 0
+}
+```
+
+`unsignedEntries` counts entries written before signing existed. They cannot be signed after the
+fact, so they are reported as unproven rather than treated as tampered.
+
+**Verifying independently.** Each entry names the key that signed it in `signingKeyId`. Fetch that
+key from `GET /api/signing-key/{keyId}`, which needs no authentication, then verify the ES256
+signature over the entry's `hash`. A ledger export embeds the keys it needs in a `signingKeys` map,
+so an exported chain verifies without reaching the instance that produced it.
+
+**Key rotation preserves history.** Regenerating the signing key retains the superseded key rather
+than deleting it, so entries signed with it stay verifiable. Without this, a single regeneration
+would void the provenance of every entry ever written.
+
+**What the ledger does not prove.** It does not prove that a redaction was correct, only what
+Philter recorded. It also does not prevent deletion: an administrator with `LEDGER_DELETION_ENABLED`
+can remove entries, and a [legal hold](legal_holds.md) is what blocks that.
 
 ## Which Policy Version Governed a Redaction
 

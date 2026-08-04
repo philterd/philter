@@ -26,6 +26,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
@@ -52,6 +53,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 
 @Tag(name = "Redaction Ledger", description = "Operations for viewing, exporting, verifying, and deleting redaction-ledger chains.")
@@ -63,22 +66,32 @@ public class LedgerApiController extends AbstractApiController {
     private final LedgerDataService ledgerService;
     private final UserService userService;
     private final AuditEventPublisher auditEventPublisher;
+    private final SigningKeyDataService signingKeyDataService;
     private final Gson gson;
 
     public LedgerApiController(final LedgerDataService ledgerService,
                               final UserService userService,
                               final ApiKeyDataService apiKeyDataService,
                               final AuditEventPublisher auditEventPublisher,
-                              final ApiKeyCache apiKeyCache, final Gson gson) {
+                              final ApiKeyCache apiKeyCache, final SigningKeyDataService signingKeyDataService,
+                              final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
+        this.signingKeyDataService = signingKeyDataService;
         this.ledgerService = ledgerService;
         this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
         this.gson = gson;
     }
 
-    /** Maps a stored ledger entry to its API view. */
+    /** Maps a stored ledger entry to its API view, including its signature. */
     private static LedgerEntryView toView(final LedgerEntity entry) {
+        final LedgerEntryView view = buildView(entry);
+        view.setSignature(entry.getSignature());
+        view.setSigningKeyId(entry.getSigningKeyId());
+        return view;
+    }
+
+    private static LedgerEntryView buildView(final LedgerEntity entry) {
         return new LedgerEntryView(
                 entry.getDocumentId(),
                 entry.getFilename(),
@@ -170,7 +183,7 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final boolean valid = ledgerService.isChainValid(userId, documentId);
+        final LedgerDataService.ChainValidation chainValidation = ledgerService.validateChain(userId, documentId);
 
         final List<LedgerEntryView> entries = new ArrayList<>(chain.size());
         for (final LedgerEntity entry : chain) {
@@ -180,7 +193,9 @@ public class LedgerApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId);
 
-        return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, valid, entries)), HttpStatus.OK);
+        return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, chainValidation.valid(),
+                chainValidation.hashChainValid(), chainValidation.signaturesValid(),
+                chainValidation.signedEntries(), chainValidation.unsignedEntries(), entries)), HttpStatus.OK);
 
     }
 
@@ -208,9 +223,11 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final boolean valid = ledgerService.isChainValid(userId, documentId);
+        final LedgerDataService.ChainValidation validation = ledgerService.validateChain(userId, documentId);
 
-        return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, valid, null)), HttpStatus.OK);
+        return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, validation.valid(),
+                validation.hashChainValid(), validation.signaturesValid(),
+                validation.signedEntries(), validation.unsignedEntries(), null)), HttpStatus.OK);
 
     }
 
@@ -253,7 +270,19 @@ public class LedgerApiController extends AbstractApiController {
         final HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ledger-" + documentId + "-export.json\"");
 
-        return new ResponseEntity<>(gson.toJson(new LedgerExport(documentId, entries)), headers, HttpStatus.OK);
+        // Collect the public keys the entries were signed with so the export verifies standalone.
+        final Map<String, String> signingKeys = new LinkedHashMap<>();
+        for (final LedgerEntryView entry : entries) {
+            final String keyId = entry.getSigningKeyId();
+            if (keyId != null && !signingKeys.containsKey(keyId)) {
+                final String pem = signingKeyDataService.getPublicKeyPem(keyId);
+                if (pem != null) {
+                    signingKeys.put(keyId, pem);
+                }
+            }
+        }
+
+        return new ResponseEntity<>(gson.toJson(new LedgerExport(documentId, entries, signingKeys)), headers, HttpStatus.OK);
 
     }
 

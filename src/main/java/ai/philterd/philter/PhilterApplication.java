@@ -228,7 +228,8 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public LedgerDataService ledgerService() {
-        return new LedgerDataService(mongoClient(), encryptionService(), auditEventPublisher(), legalHoldDataService());
+        return new LedgerDataService(mongoClient(), encryptionService(), auditEventPublisher(),
+                legalHoldDataService(), signingService());
     }
 
     @Bean

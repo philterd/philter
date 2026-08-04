@@ -38,6 +38,7 @@ import ai.philterd.philter.testutil.TestEncryptionService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import ai.philterd.philter.services.signing.SigningService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -96,7 +97,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
 
         final LegalHoldDataService legalHoldDataService = mock(LegalHoldDataService.class);
         ledgerDataService = new LedgerDataService(mongoClient, new TestEncryptionService(),
-                mock(AuditEventPublisher.class), legalHoldDataService);
+                mock(AuditEventPublisher.class), legalHoldDataService, mock(SigningService.class));
 
         redactionService = new RedactionService(mongoClient, policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,

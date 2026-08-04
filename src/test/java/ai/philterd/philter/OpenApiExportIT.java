@@ -15,26 +15,19 @@
  */
 package ai.philterd.philter;
 
-import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.testutil.TestEncryptionService;
+import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import de.bwaldvogel.mongo.MongoServer;
-import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -56,36 +49,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         properties = {"spring.main.allow-bean-definition-overriding=true"})
 class OpenApiExportIT {
 
+    /**
+     * Registered as a nested class rather than imported directly: a nested {@code @TestConfiguration}
+     * is processed after the application's own configuration, so its beans override the real ones.
+     * An {@code @Import} of the same class is processed too early and the application's beans win,
+     * which surfaces as PHILTER_ENCRYPTION_KEY being required.
+     */
+    @TestConfiguration
+    static class Config extends InMemoryTestConfiguration {
+    }
+
     @Autowired
     private Environment environment;
 
-    /**
-     * Replaces the application's {@code mongoClient} bean (which connects to the
-     * {@code MONGODB_CONNECTION_STRING} environment variable) with a client backed by an
-     * in-process, in-memory mongo-java-server, so the application can boot with no external
-     * dependencies.
-     */
-    @TestConfiguration
-    static class InMemoryMongoConfiguration {
-
-        @Bean(destroyMethod = "shutdown")
-        MongoServer mongoServer() {
-            return new MongoServer(new MemoryBackend());
-        }
-
-        @Bean
-        MongoClient mongoClient(final MongoServer mongoServer) {
-            final InetSocketAddress address = mongoServer.bind();
-            return MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());
-        }
-
-        @Bean
-        EncryptionService encryptionService() {
-            // The production bean requires the PHILTER_ENCRYPTION_KEY environment variable.
-            return new TestEncryptionService();
-        }
-
-    }
 
     @Test
     void exportOpenApiSpecification() throws Exception {

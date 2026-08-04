@@ -20,12 +20,7 @@ import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.testutil.TestEncryptionService;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import de.bwaldvogel.mongo.MongoServer;
-import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
+import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,10 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -68,6 +61,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         properties = {"spring.main.allow-bean-definition-overriding=true"})
 class ApiIpAllowlistEnvironmentIT {
 
+    /**
+     * Registered as a nested class rather than imported directly: a nested {@code @TestConfiguration}
+     * is processed after the application's own configuration, so its beans override the real ones.
+     * An {@code @Import} of the same class is processed too early and the application's beans win,
+     * which surfaces as PHILTER_ENCRYPTION_KEY being required.
+     */
+    @TestConfiguration
+    static class Config extends InMemoryTestConfiguration {
+    }
+
     @Autowired
     private Environment environment;
 
@@ -87,26 +90,6 @@ class ApiIpAllowlistEnvironmentIT {
     private String baseUrl;
     private String apiKey;
 
-    @TestConfiguration
-    static class InMemoryMongoConfiguration {
-
-        @Bean(destroyMethod = "shutdown")
-        MongoServer mongoServer() {
-            return new MongoServer(new MemoryBackend());
-        }
-
-        @Bean
-        MongoClient mongoClient(final MongoServer mongoServer) {
-            final InetSocketAddress address = mongoServer.bind();
-            return MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());
-        }
-
-        @Bean
-        EncryptionService encryptionService() {
-            return new TestEncryptionService();
-        }
-
-    }
 
     @BeforeEach
     void setUp() {

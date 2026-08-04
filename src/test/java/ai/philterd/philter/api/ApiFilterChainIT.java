@@ -26,12 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import ai.philterd.philter.model.Constants;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.testutil.TestEncryptionService;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import de.bwaldvogel.mongo.MongoServer;
-import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
+import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -45,11 +40,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
 import java.io.ByteArrayOutputStream;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -79,6 +72,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         properties = {"spring.main.allow-bean-definition-overriding=true"})
 class ApiFilterChainIT {
 
+    /**
+     * Registered as a nested class rather than imported directly: a nested {@code @TestConfiguration}
+     * is processed after the application's own configuration, so its beans override the real ones.
+     * An {@code @Import} of the same class is processed too early and the application's beans win,
+     * which surfaces as PHILTER_ENCRYPTION_KEY being required.
+     */
+    @TestConfiguration
+    static class Config extends InMemoryTestConfiguration {
+    }
+
     /** A syntactically valid key (sk_ + 32 alphanumerics) that was never issued. */
     private static final String UNISSUED_API_KEY = "sk_00000000000000000000000000000000";
 
@@ -103,31 +106,6 @@ class ApiFilterChainIT {
     private String username;
     private String otherUsername;
 
-    /**
-     * Replaces the application's {@code mongoClient} bean with one backed by an in-process, in-memory
-     * mongo-java-server, and the encryption service with a test implementation, so the application
-     * boots with no external dependencies and without PHILTER_ENCRYPTION_KEY.
-     */
-    @TestConfiguration
-    static class InMemoryMongoConfiguration {
-
-        @Bean(destroyMethod = "shutdown")
-        MongoServer mongoServer() {
-            return new MongoServer(new MemoryBackend());
-        }
-
-        @Bean
-        MongoClient mongoClient(final MongoServer mongoServer) {
-            final InetSocketAddress address = mongoServer.bind();
-            return MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());
-        }
-
-        @Bean
-        EncryptionService encryptionService() {
-            return new TestEncryptionService();
-        }
-
-    }
 
     @BeforeEach
     void setUp() {

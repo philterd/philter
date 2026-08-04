@@ -103,6 +103,7 @@
         <!-- Project dependency versions -->
         <bouncycastle.version>1.85</bouncycastle.version>
         <commons.net.version>3.13.0</commons.net.version>
+        <jedis-mock.version>1.1.11</jedis-mock.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <mongodb.version>5.9.1</mongodb.version>
         <phileas.version>4.2.0</phileas.version>
@@ -692,6 +693,16 @@
             <groupId>de.bwaldvogel</groupId>
             <artifactId>mongo-java-server</artifactId>
             <version>${mongo-java-server.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- An in-process Redis server for tests, mirroring how mongo-java-server provides an
+             in-process MongoDB. It speaks the real RESP protocol, so JedisCacheBackend is exercised
+             through the actual Jedis client rather than a mock, and the build still needs no Docker
+             and no external service. -->
+        <dependency>
+            <groupId>com.github.fppt</groupId>
+            <artifactId>jedis-mock</artifactId>
+            <version>${jedis-mock.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -8,7 +8,9 @@ When a legal hold is active on a user's data, every deletion path in Philter is 
 
 Redaction ledgers record a tamper-evident history of every redaction performed on every document. This history is normally deletable: an administrator can purge old entries on demand or delete individual document chains. For most purposes that is fine, but when evidence is needed for a legal or regulatory matter, accidental or routine deletion would destroy it.
 
-Legal holds provide a hard, enforceable guarantee that no deletion can occur while the hold is active. The hold is named (so it can be referenced in legal correspondence), scoped (so it only protects what it should), audited (so the hold lifecycle is part of the permanent record), and independently releasable (so removing one hold does not unblock evidence still covered by another).
+Legal holds block every deletion path through Philter for as long as the hold is active. The hold is named (so it can be referenced in legal correspondence), scoped (so it only protects what it should), audited (so the hold lifecycle is part of the permanent record), and independently releasable (so removing one hold does not unblock evidence still covered by another).
+
+Enforcement is within Philter. Anyone with direct access to the underlying MongoDB can still remove data, so secure and back up the database to the standard your retention obligations require.
 
 ## Hold Concepts
 

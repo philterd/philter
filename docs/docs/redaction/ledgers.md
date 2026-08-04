@@ -88,7 +88,7 @@ Redaction ledgers are controlled on a per-context basis. When creating or editin
 
 Deletion always operates on **whole document chains**, never on individual entries within a chain. This preserves verifiability: a chain that remains is always complete and can still be validated, and a chain that is removed is removed in its entirety.
 
-**Legal holds block both deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, a purge or a single-chain delete against that evidence is blocked and returns HTTP 423. The hold must be released before either can proceed. Because these are the only ways entries are removed, a hold is an absolute guarantee that the evidence it covers is preserved. See [Legal Holds](legal_holds.md) for the full documentation.
+**Legal holds block both deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, a purge or a single-chain delete against that evidence is blocked and returns HTTP 423. The hold must be released before either can proceed. Because these are the only ways entries are removed through Philter, a hold preserves the evidence it covers for as long as it is active. Securing the underlying MongoDB is a separate responsibility. See [Legal Holds](legal_holds.md) for the full documentation.
 
 > **Deletion is restricted.** Both paths require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is **`false` by default**. A deployment that has not opted in cannot delete ledger evidence through Philter at all, and the deletion controls do not appear in the dashboard. See [Settings](../settings.md).
 

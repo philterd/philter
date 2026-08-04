@@ -289,6 +289,58 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <!-- The Vaadin views are a third of the instructions and are not unit tested,
+                                 so including them would put any useful threshold out of reach. They are
+                                 excluded from the threshold only: the report above still covers them, so
+                                 their coverage stays visible. -->
+                            <excludes>
+                                <exclude>ai/philterd/philter/views/**</exclude>
+                                <exclude>ai/philterd/philter/data/providers/**</exclude>
+                            </excludes>
+                            <rules>
+                                <!-- The floors are set below current coverage on purpose. A threshold is
+                                     here to catch a drop, not to state an ambition: one set above where
+                                     the code actually is fails every build until someone lowers it, which
+                                     teaches people to lower it. Raise these deliberately as coverage
+                                     rises. -->
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <rule>
+                                    <!-- The request path and the data layer: a regression here can go
+                                         unnoticed in the aggregate, so each is held to its own floor. -->
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>ai.philterd.philter.api.controllers</include>
+                                        <include>ai.philterd.philter.api.security</include>
+                                        <include>ai.philterd.philter.api.filters.*</include>
+                                        <include>ai.philterd.philter.data.services</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>

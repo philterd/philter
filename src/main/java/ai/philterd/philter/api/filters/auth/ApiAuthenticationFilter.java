@@ -105,6 +105,13 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             LOGGER.trace("Request to status/health endpoint, allowing without authorization: {}", path);
             chain.doFilter(request, response);
 
+        } else if (path.equals("/api/signing-key") || path.startsWith("/api/signing-key/")) {
+
+            // Public keys, and only public keys. A recipient verifying a signed response or an
+            // exported ledger chain is not the operator and holds no API key of theirs.
+            LOGGER.trace("Request for a public signing key, allowing without authorization: {}", path);
+            chain.doFilter(request, response);
+
         } else if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui/")) {
 
             // Allow all access to the OpenAPI specs.

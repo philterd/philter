@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -62,14 +63,44 @@ public class SigningApiController extends AbstractApiController {
         final String jwk = signingKeyDataService.getPublicKeyJwk();
         final String fingerprint = signingKeyDataService.getPublicKeyFingerprint();
 
-        final String json = "{\"pem\":\"" + escapePem(pem) + "\",\"jwk\":" + jwk + ",\"fingerprint\":\"" + fingerprint + "\"}";
+        final String json = "{\"keyId\":\"" + escapePem(signingKeyDataService.getActiveKeyId())
+                + "\",\"pem\":\"" + escapePem(pem) + "\",\"jwk\":" + jwk + ",\"fingerprint\":\"" + fingerprint + "\"}";
 
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(json);
     }
 
+    @Operation(
+            summary = "Get a specific public signing key.",
+            description = "Returns a retained public signing key by its id, in PEM form. A key that has been "
+                    + "superseded by a regeneration is kept, because redaction-ledger entries signed with it "
+                    + "must remain verifiable. Ledger entries and exports name the key that signed them in "
+                    + "their signingKeyId field. This endpoint does not require authentication.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The public key with the given id."),
+            @ApiResponse(responseCode = "404", description = "No key with that id is retained.")
+    })
+    @RequestMapping(value = "/api/signing-key/{keyId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<String> getSigningKeyById(@PathVariable("keyId") final String keyId) {
+
+        final String pem = signingKeyDataService.getPublicKeyPem(keyId);
+
+        if (pem == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final boolean active = keyId.equals(signingKeyDataService.getActiveKeyId());
+        final String json = "{\"keyId\":\"" + escapePem(keyId) + "\",\"pem\":\"" + escapePem(pem)
+                + "\",\"active\":" + active + "}";
+
+        return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body(json);
+    }
+
     private static String escapePem(final String pem) {
+        if (pem == null) {
+            return "";
+        }
         return pem.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 

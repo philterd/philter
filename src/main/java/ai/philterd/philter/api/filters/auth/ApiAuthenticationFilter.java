@@ -54,6 +54,11 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     private static final List<SubnetUtils.SubnetInfo> IP_ALLOWLIST =
             parseIpAllowlist(System.getenv().getOrDefault("API_IP_ALLOWLIST", ""));
 
+    // Test-only override: when non-null it takes precedence over API_IP_ALLOWLIST, so an integration
+    // test can exercise the allowlist without setting an environment variable for the whole JVM. Set
+    // via setAllowlistOverrideForTesting and cleared (null) afterwards, as in AdminAccessConfig.
+    private static volatile List<SubnetUtils.SubnetInfo> allowlistOverrideForTesting = null;
+
     private final ApiKeyDataService apiKeyService;
     private final ApiKeyCache apiKeyCache;
     private final UserService userService;
@@ -244,7 +249,17 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     }
 
     public boolean isIpAddressAllowed(final String ipAddress) {
-        return isIpAddressAllowed(IP_ALLOWLIST, ipAddress);
+        final List<SubnetUtils.SubnetInfo> allowlist =
+                allowlistOverrideForTesting != null ? allowlistOverrideForTesting : IP_ALLOWLIST;
+        return isIpAddressAllowed(allowlist, ipAddress);
+    }
+
+    /**
+     * Test hook: force the allowlist to the given comma-separated addresses/CIDR ranges, or pass
+     * {@code null} to fall back to the {@code API_IP_ALLOWLIST} environment variable.
+     */
+    public static void setAllowlistOverrideForTesting(final String raw) {
+        allowlistOverrideForTesting = raw == null ? null : parseIpAllowlist(raw);
     }
 
     /**

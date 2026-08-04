@@ -111,6 +111,7 @@
         <!-- Build plugin versions -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
         <git-commit-id-maven-plugin.version>9.0.2</git-commit-id-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
         <license-maven-plugin.version>1.19</license-maven-plugin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
@@ -258,6 +259,35 @@
                                 <API_IP_ALLOWLIST>10.0.0.0/8</API_IP_ALLOWLIST>
                             </environmentVariables>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <!-- Measures which code the tests actually execute, so an endpoint or branch that no test
+                     reaches is visible rather than something you have to go looking for.
+
+                     One agent covers all three test forks. 'prepare-agent' sets the argLine property,
+                     which surefire and both failsafe executions each pick up, and the agent appends to a
+                     single target/jacoco.exec, so the report reflects unit, integration, and
+                     environment-fork tests together. Reporting only: the build does not fail on a
+                     coverage threshold. -->
+                <executions>
+                    <execution>
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <!-- After 'verify', so the integration tests are counted too. -->
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

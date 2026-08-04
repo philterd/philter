@@ -28,6 +28,9 @@ Philter is built and run with Java 25. It is built with Maven:
 mvn clean install
 ```
 
+`mvn verify` also writes a test coverage report to `target/site/jacoco/index.html`, covering the unit
+tests and the integration tests together.
+
 To run Philter:
 
 ```

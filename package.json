@@ -4,7 +4,7 @@
   "type": "module",
   "dependencies": {
     "@vaadin/aura": "25.2.6",
-    "@vaadin/common-frontend": "0.0.23",
+    "@vaadin/common-frontend": "0.0.24",
     "@vaadin/react-components": "25.2.6",
     "@vaadin/react-components-pro": "25.2.6",
     "@vaadin/vaadin-development-mode-detector": "2.0.7",
@@ -44,7 +44,7 @@
   "vaadin": {
     "dependencies": {
       "@vaadin/aura": "25.2.6",
-      "@vaadin/common-frontend": "0.0.23",
+      "@vaadin/common-frontend": "0.0.24",
       "@vaadin/react-components": "25.2.6",
       "@vaadin/react-components-pro": "25.2.6",
       "@vaadin/vaadin-development-mode-detector": "2.0.7",

@@ -91,9 +91,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 // utility stylesheet here (replaces the removed "utility" entry in theme.json's lumoImports).
 @StyleSheet(Lumo.UTILITY_STYLESHEET)
 // Override the react-router version that Vaadin's React integration pulls in transitively. The
-// platform-bundled version (7.13.1 with Vaadin 25.1.x) has open security advisories; pin a patched
-// release. See the Dependabot alerts for react-router (GHSA-8x6r-g9mw-2r78 and related).
-@NpmPackage(value = "react-router", version = "7.17.0")
+// platform-bundled version has open security advisories; pin a patched release. See the Dependabot
+// alerts for react-router (GHSA-qwww-vcr4-c8h2, CVE-2026-55685, and related).
+@NpmPackage(value = "react-router", version = "7.18.2")
 @SpringBootApplication
 @PropertySource("classpath:internal.properties")
 @EnableScheduling

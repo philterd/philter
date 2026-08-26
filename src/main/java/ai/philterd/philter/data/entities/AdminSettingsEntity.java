@@ -26,6 +26,7 @@ public class AdminSettingsEntity extends AbstractEntity {
     private String phieldUrl = "";
     private String phieldSourceId = "philter";
     private String phieldOrganization = "philter";
+    private String phieldApiKey = "";
     private boolean signingEnabled;
     private boolean mfaEnabled;
 
@@ -53,6 +54,8 @@ public class AdminSettingsEntity extends AbstractEntity {
         document.put("phield_url", phieldUrl);
         document.put("phield_source_id", phieldSourceId);
         document.put("phield_organization", phieldOrganization);
+        // The Phield API key is deliberately absent: it is encrypted at rest, and AdminSettingsDataService
+        // is the only writer of it. Emitting it here would write the decrypted key back in the clear.
         document.put("signing_enabled", signingEnabled);
         document.put("mfa_enabled", mfaEnabled);
         return document;
@@ -105,6 +108,14 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setPhieldOrganization(String phieldOrganization) {
         this.phieldOrganization = phieldOrganization;
+    }
+
+    public String getPhieldApiKey() {
+        return phieldApiKey;
+    }
+
+    public void setPhieldApiKey(String phieldApiKey) {
+        this.phieldApiKey = phieldApiKey;
     }
 
     public boolean isSigningEnabled() {

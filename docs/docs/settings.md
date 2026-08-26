@@ -171,4 +171,4 @@ Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses wit
 
 ## PII Drift Monitoring (Phield)
 
-Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor; only counts are sent, never any PII. This is configured in the dashboard **Admin** settings (enable, Phield URL, source id, organization), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).
+Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured in the dashboard **Admin** settings (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with `PHIELD_API_KEY` set), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).

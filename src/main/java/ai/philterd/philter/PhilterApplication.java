@@ -347,7 +347,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public AdminSettingsDataService adminSettingsDataService() {
-        return new AdminSettingsDataService(mongoClient(), auditEventPublisher());
+        return new AdminSettingsDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean

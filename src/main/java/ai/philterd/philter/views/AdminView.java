@@ -28,6 +28,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
@@ -539,17 +540,30 @@ public class AdminView extends AbstractRestrictedView {
         final TextField phieldOrganizationField = new TextField("Phield Organization");
         phieldOrganizationField.setValue(finalAdminSettingsEntity.getPhieldOrganization() != null ? finalAdminSettingsEntity.getPhieldOrganization() : "philter");
 
+        final Span phieldNote = new Span(
+                "Only counts are sent: how many times each PII type was identified, plus the source, "
+                        + "organization, and context labels. The redacted text and its replacements never "
+                        + "leave Philter. The context is forwarded as the API caller supplied it, so avoid "
+                        + "context names that are themselves sensitive.");
+
+        final PasswordField phieldApiKeyField = new PasswordField("Phield API Key");
+        phieldApiKeyField.setHelperText("Sent as a bearer token and stored encrypted. Required only when the Phield instance sets PHIELD_API_KEY. Click the eye icon to reveal.");
+        phieldApiKeyField.setWidth("480px");
+        phieldApiKeyField.setValue(finalAdminSettingsEntity.getPhieldApiKey() != null ? finalAdminSettingsEntity.getPhieldApiKey() : "");
+
         // The Phield endpoint fields are only relevant when publishing to Phield is enabled, so keep
         // them enabled/disabled in lockstep with the checkbox (initially and as it is toggled).
         final boolean phieldInitiallyEnabled = phieldEnabledCheckbox.getValue();
         phieldUrlField.setEnabled(phieldInitiallyEnabled);
         phieldSourceIdField.setEnabled(phieldInitiallyEnabled);
         phieldOrganizationField.setEnabled(phieldInitiallyEnabled);
+        phieldApiKeyField.setEnabled(phieldInitiallyEnabled);
         phieldEnabledCheckbox.addValueChangeListener(e -> {
             final boolean enabled = e.getValue();
             phieldUrlField.setEnabled(enabled);
             phieldSourceIdField.setEnabled(enabled);
             phieldOrganizationField.setEnabled(enabled);
+            phieldApiKeyField.setEnabled(enabled);
         });
 
         // Output signing section.
@@ -598,15 +612,22 @@ public class AdminView extends AbstractRestrictedView {
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
             adminSettingsDataService.savePhieldSettings(phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
-                    phieldSourceIdField.getValue(), phieldOrganizationField.getValue());
+                    phieldSourceIdField.getValue(), phieldOrganizationField.getValue(), phieldApiKeyField.getValue());
             adminSettingsDataService.saveSigningEnabled(signingEnabledCheckbox.getValue());
             adminSettingsDataService.saveMfaEnabled(mfaEnabledCheckbox.getValue());
             showSuccessNotification("Admin settings saved.");
+            // The settings are saved either way; sending a credential over cleartext http is the
+            // administrator's call to make, but they should know they are making it.
+            if (phieldEnabledCheckbox.getValue()
+                    && PhieldPublisher.sendsApiKeyInTheClear(phieldUrlField.getValue(), phieldApiKeyField.getValue())) {
+                showWarningNotification("The Phield URL is http, so the API key is sent in the clear. "
+                        + "Use an https URL so the key cannot be intercepted.");
+            }
         });
         saveLoggingSettingsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         adminSettingsVerticalLayout.add(auditAlwaysOnNote, diffuseCountsEnabledCheckbox,
-                phieldEnabledCheckbox, phieldUrlField, phieldSourceIdField, phieldOrganizationField,
+                phieldEnabledCheckbox, phieldNote, phieldUrlField, phieldSourceIdField, phieldOrganizationField, phieldApiKeyField,
                 new H3("Output Signing"), signingEnabledCheckbox, fingerprintField, regenerateKeyButton,
                 new H3("Multi-Factor Authentication"), mfaEnabledCheckbox, mfaNote,
                 saveLoggingSettingsButton);

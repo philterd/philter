@@ -39,10 +39,12 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 | `custom_lists` | List items |
 | `redact_lists` | Always/never redact terms |
 | `pending_documents` | The submitted document and the redacted result |
+| `signing_keys` | The private half of the signing keypair (the public half stays readable, since verifiers need it) |
+| `admin_settings` | The Phield API key |
 
 **Not encrypted**, because the values are not recoverable secrets: API keys (stored as a hash),
 context entries (stored as a token hash, not the original value), policies and their version
-snapshots, contexts, legal holds, admin settings, and webhook delivery records.
+snapshots, contexts, legal holds, the rest of the admin settings, and webhook delivery records.
 
 ## Configuring the connection
 

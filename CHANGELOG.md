@@ -34,6 +34,8 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   admin viewer and CSV export.
 - **Phield and Diffuse integrations.** Optional publishing of PII type counts for drift monitoring
   and of differential-privacy aggregates. Both are configured in the dashboard and off by default.
+  The Phield integration takes an optional API key, sent as a bearer token, for Phield instances
+  run with `PHIELD_API_KEY` set. The key is encrypted at rest.
 - **Asynchronous PDF redaction** and the `/api/documents` endpoints for listing, polling,
   downloading, and deleting jobs, with signed webhook delivery on completion or failure.
 - **Admin cross-user access.** Administrators can act on another user's resources with an `owner`

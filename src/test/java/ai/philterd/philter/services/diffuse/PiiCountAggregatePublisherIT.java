@@ -18,6 +18,7 @@ package ai.philterd.philter.services.diffuse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +45,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpServices() {
-        adminSettingsDataService = new AdminSettingsDataService(mongoClient, mock(AuditEventPublisher.class));
+        adminSettingsDataService = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
         aggregates = mongoClient.getDatabase("philter").getCollection(PiiCountAggregatePublisher.COLLECTION);
     }
 

@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class StatusApiControllerTest {
 
     @Test
-    public void statusReturnsVersionsAndHealthy() {
+    public void statusReturnsVersionsAndUp() {
         final StatusApiController controller = new StatusApiController("4.0.0");
 
         final ResponseEntity<StatusResponse> entity = controller.status();
@@ -36,7 +36,7 @@ public class StatusApiControllerTest {
         assertEquals(HttpStatus.OK, entity.getStatusCode());
         final StatusResponse body = entity.getBody();
         assertNotNull(body);
-        assertEquals("Healthy", body.getStatus());
+        assertEquals("UP", body.getStatus());
         assertEquals("4.0.0", body.getApplicationVersion());
         // The schema version must be the version supported by the bundled Phileas.
         assertEquals(PolicySchema.getSupportedSchemaVersion(), body.getRedactionPolicySchemaVersion());

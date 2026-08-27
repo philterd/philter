@@ -311,7 +311,7 @@ class ApiFilterChainIT {
     @DisplayName("The documented unauthenticated endpoints stay open")
     void unauthenticatedEndpointsRemainOpen() throws Exception {
 
-        for (final String path : new String[]{"/api/status", "/api/health", "/api/signing-key"}) {
+        for (final String path : new String[]{"/api/health", "/api/signing-key"}) {
 
             final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + path))
                     .GET()
@@ -458,9 +458,9 @@ class ApiFilterChainIT {
     @DisplayName("Scopes do not bypass the unauthenticated endpoints")
     void scopelessKeyStillReachesUnauthenticatedEndpoints() throws Exception {
 
-        // /api/status carries no scope requirement because it takes no credential at all. A key with
+        // /api/health carries no scope requirement because it takes no credential at all. A key with
         // no scopes must not be blocked from it, or the interceptor is over-reaching.
-        final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/status"))
+        final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/health"))
                 .header("Authorization", "Bearer " + scopedKey())
                 .GET()
                 .build());
@@ -481,7 +481,7 @@ class ApiFilterChainIT {
 
         for (final String attempt : new String[]{
                 "/api/signing-key/../policies",
-                "/api/status/../policies",
+                "/api/health/../policies",
                 "/api/policies;jsessionid=x"}) {
 
             final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + attempt))

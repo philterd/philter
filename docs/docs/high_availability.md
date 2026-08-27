@@ -7,7 +7,7 @@ Philter scales horizontally as a pool of stateless API nodes behind a load balan
 ```mermaid
 flowchart TB
   clients["Your applications"]
-  lb["Load balancer<br/>health check: GET /api/status"]
+  lb["Load balancer<br/>health check: GET /api/health"]
   subgraph api["Stateless Philter API nodes (scale horizontally)"]
     p1["Philter node 1"]
     p2["Philter node 2"]
@@ -50,13 +50,13 @@ Every node must share the same backing services:
 
 ## Load balancing
 
-Put any HTTP load balancer in front of the API nodes. Requests are stateless, so no sticky sessions are needed for `/api/**`. Configure the load balancer health check against Philter's status endpoint:
+Put any HTTP load balancer in front of the API nodes. Requests are stateless, so no sticky sessions are needed for `/api/**`. Configure the load balancer health check against Philter's health endpoint:
 
 ```
-GET /api/status
+GET /api/health
 ```
 
-The [status endpoint](api_and_sdks/api/filtering_api.md#status) is intended for exactly this: monitoring tools and load-balancer health checks. Route a node out of service when it stops returning a healthy status. If you also expose the dashboard through the load balancer, send it to the single dashboard instance rather than the API pool, since it is session-based.
+The [health endpoint](api_and_sdks/api/filtering_api.md#health) is intended for exactly this: monitoring tools and load-balancer health checks. A healthy node returns `200` with `"status": "UP"`. Route a node out of service when it stops doing so. If you also expose the dashboard through the load balancer, send it to the single dashboard instance rather than the API pool, since it is session-based.
 
 Nodes serve HTTPS with a self-signed certificate by default, which a load balancer will not trust. Hold the real certificate at the load balancer and set `SSL_ENABLED=false` on every node so they serve plain HTTP behind it, over a private network. See [TLS](settings.md#tls).
 
@@ -71,7 +71,7 @@ Nodes serve HTTPS with a self-signed certificate by default, which a load balanc
 
 Because the nodes are stateless and share the cache and database, losing one does not break redaction:
 
-- The load balancer stops routing to a node once its `/api/status` health check fails, and sends new requests to the remaining healthy nodes.
+- The load balancer stops routing to a node once its `/api/health` health check fails, and sends new requests to the remaining healthy nodes.
 - Requests in flight on the lost node fail and should be retried; the retry is served by another node.
 - Consistent pseudonymization is preserved across the failover. Replacements are written to the shared cache and persisted in MongoDB, so a surviving node produces the same replacement for the same input value. No per-node state is lost that would change redaction output.
 

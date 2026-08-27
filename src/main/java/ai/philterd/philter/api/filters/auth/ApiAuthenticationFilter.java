@@ -101,13 +101,12 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
         LOGGER.debug("API path requested: {}", path);
 
-        // The status and health endpoints are unauthenticated and served by
-        // StatusApiController, which reports the application version and the
-        // supported redaction policy schema version. Both paths return the same
-        // response.
-        if ("/api/status".equals(path) || "/api/health".equals(path)) {
+        // The health endpoint is unauthenticated and served by StatusApiController,
+        // which reports the application version and the supported redaction policy
+        // schema version.
+        if ("/api/health".equals(path)) {
 
-            LOGGER.trace("Request to status/health endpoint, allowing without authorization: {}", path);
+            LOGGER.trace("Request to health endpoint, allowing without authorization: {}", path);
             chain.doFilter(request, response);
 
         } else if (path.equals("/api/signing-key") || path.startsWith("/api/signing-key/")) {

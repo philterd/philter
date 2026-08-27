@@ -184,16 +184,33 @@ The response also reports which policy version was applied, in the `policyName` 
 }
 ```
 
-## Status
+## Health
 
-The `status` endpoint is useful in determining the current state of Philter. The `status` endpoint can be used by monitoring software to assess Philter's availability or by your cloud provider for purposes of determining Philter's health when deployed behind a load balancer.
+The health endpoint is useful in determining the current state of Philter. It can be used by monitoring software to assess Philter's availability or by your cloud provider for purposes of determining Philter's health when deployed behind a load balancer.
+
+The endpoint is unauthenticated.
 
 | Method | Endpoint      | Description                 |
 |--------|---------------|-----------------------------| 
-| `GET`  | `/api/status` | Gets the status of Philter. |
+| `GET`  | `/api/health` | Gets the health of Philter. |
 
 Example request:
 
 ```
-curl -k -X GET "https://localhost:8080/api/status"
+curl -k -X GET "https://localhost:8080/api/health"
 ```
+
+Example response:
+
+```json
+{
+  "status": "UP",
+  "applicationVersion": "4.0.0",
+  "redactionPolicySchemaVersion": "1.0.0",
+  "gitCommit": "a1b2c3d"
+}
+```
+
+`status` is `UP` when Philter is healthy, and the response code is `200`. Treat any other status
+value, or any non-`200` response, as unhealthy. This is the health response shape shared across
+Philterd products.

@@ -75,7 +75,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `holds:write` | `DELETE /api/holds/{reference}`<br>`POST /api/holds` |
 | `reidentify` | `POST /api/reidentify` |
 
-`/api/status`, `/api/health`, and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).
+`/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).
 
 ### Choosing and changing scopes
 
@@ -105,7 +105,7 @@ You can optionally restrict which client IP addresses may call the API with the 
 
 A small number of endpoints do not require an API key:
 
-* `/api/status` and `/api/health` (the status/health endpoints).
+* `/api/health` (the health endpoint).
 * `/v3/api-docs` and `/swagger-ui/` (the OpenAPI specification and Swagger UI).
 
 All other `/api/` endpoints require a valid API key.

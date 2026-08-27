@@ -25,7 +25,7 @@ All API requests authenticate with an API key sent as a bearer token. Manage key
 Authorization: Bearer <YOUR_API_KEY>
 ```
 
-`GET /api/status`, `GET /api/health`, and `GET /api/signing-key` are the exceptions: they are served without authentication so load balancers can probe Philter and so verifiers can fetch the public signing key.
+`GET /api/health` and `GET /api/signing-key` are the exceptions: they are served without authentication so load balancers can probe Philter and so verifiers can fetch the public signing key.
 
 ## Interactive API Reference
 

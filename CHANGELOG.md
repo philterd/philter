@@ -64,13 +64,17 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **PDF redaction is asynchronous by default.** `POST /api/filter` with `application/pdf` returns
   `202 Accepted` and `{"documentId": "..."}`; append `?async=false` for the previous behavior. Text
   redaction is unchanged and remains synchronous.
-- **`/api/health` returns a new response shape**, matching `/api/status`. Update health probes.
+- **`/api/health` is the only health endpoint, and returns `"status": "UP"`** instead of
+  `"Healthy"`, matching the health response shared across Philterd products. Its response shape also
+  changed to the one `/api/status` used to return. Update health probes to `GET /api/health` and to
+  match on `UP`.
 - **Philter serves its own UI**, so the separate `philter-ui` container is gone.
 - **Context names are unique per user** rather than globally.
 - **Users are deactivated rather than deleted**, so their policies and ledger evidence are preserved.
 
 ### Removed
 
+- **`GET /api/status` was removed.** Use `GET /api/health`, which returns the same response.
 - **OpenSearch** is no longer a dependency. The `opensearch` service and the `OPENSEARCH_*` and
   `API_REQUESTS_INDEXING_ENABLED` variables were removed.
 

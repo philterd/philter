@@ -2056,10 +2056,10 @@
       "get": {
         "security": [],
         "tags": [
-          "Status"
+          "Health"
         ],
-        "summary": "Get the status of Philter, including the supported redaction policy schema version.",
-        "description": "Unauthenticated endpoint returning health, the application version, the supported redaction policy schema version, and the build's git commit. Both /api/status and /api/health return the same response.",
+        "summary": "Get the health of Philter, including the supported redaction policy schema version.",
+        "description": "Unauthenticated endpoint returning health, the application version, the supported redaction policy schema version, and the build's git commit. The status is \"UP\" when Philter is healthy.",
         "operationId": "status",
         "responses": {
           "200": {
@@ -5603,89 +5603,6 @@
             "description": "No key with that id is retained.",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/status": {
-      "get": {
-        "security": [],
-        "tags": [
-          "Status"
-        ],
-        "summary": "Get the status of Philter, including the supported redaction policy schema version.",
-        "description": "Unauthenticated endpoint returning health, the application version, the supported redaction policy schema version, and the build's git commit. Both /api/status and /api/health return the same response.",
-        "operationId": "status_1",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "*/*": {
                 "schema": {
                   "type": "string"
                 }
@@ -11397,12 +11314,12 @@
       "name": "Redaction Ledger"
     },
     {
-      "description": "Operations for creating and managing contexts.",
-      "name": "Contexts"
+      "description": "Unauthenticated health, including the supported redaction policy schema version.",
+      "name": "Health"
     },
     {
-      "description": "Unauthenticated health and status, including the supported redaction policy schema version.",
-      "name": "Status"
+      "description": "Operations for creating and managing contexts.",
+      "name": "Contexts"
     },
     {
       "description": "Retrieve the public signing key used to verify Philter output signatures.",

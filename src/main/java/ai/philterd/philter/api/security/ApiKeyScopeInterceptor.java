@@ -48,11 +48,11 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiKeyScopeInterceptor.class);
 
     /**
-     * Endpoints served without an API key, which therefore have no scope to check: the health and
-     * status probes and the public signing keys. Kept here, next to the enforcement, so the set of
-     * unauthenticated endpoints is stated in exactly one place on this path.
+     * Endpoints served without an API key, which therefore have no scope to check: the health probe
+     * and the public signing keys. Kept here, next to the enforcement, so the set of unauthenticated
+     * endpoints is stated in exactly one place on this path.
      */
-    private static final Set<String> UNAUTHENTICATED_PATHS = Set.of("/api/status", "/api/health");
+    private static final Set<String> UNAUTHENTICATED_PATHS = Set.of("/api/health");
 
     private static final String SIGNING_KEY_PATH = "/api/signing-key";
 

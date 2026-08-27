@@ -119,7 +119,7 @@ class ApiIpAllowlistEnvironmentIT {
     void addressOutsideTheConfiguredAllowlistIsForbidden() throws Exception {
 
         // An authenticated endpoint: the allowlist is checked after the key resolves, so the
-        // unauthenticated endpoints (/api/status, /api/health, /api/signing-key) never reach it.
+        // unauthenticated endpoints (/api/health, /api/signing-key) never reach it.
         // The test client connects from loopback, which 10.0.0.0/8 excludes.
         final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies"))
                 .header("Authorization", "Bearer " + apiKey)

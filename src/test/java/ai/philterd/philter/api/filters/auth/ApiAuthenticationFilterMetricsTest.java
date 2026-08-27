@@ -173,9 +173,9 @@ class ApiAuthenticationFilterMetricsTest {
     }
 
     @Test
-    void statusEndpointIsNotMetered() throws Exception {
+    void healthEndpointIsNotMetered() throws Exception {
         final MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/status");
+        request.setRequestURI("/api/health");
         request.setMethod("GET");
 
         final MockHttpServletResponse response = new MockHttpServletResponse();

@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.io.InputStream;
 import java.util.Properties;
 
-@Tag(name = "Status", description = "Unauthenticated health and status, including the supported redaction policy schema version.")
+@Tag(name = "Health", description = "Unauthenticated health, including the supported redaction policy schema version.")
 @Controller
 public class StatusApiController {
 
@@ -50,17 +50,17 @@ public class StatusApiController {
         this.gitCommit = readGitCommit();
     }
 
-    @Operation(summary = "Get the status of Philter, including the supported redaction policy schema version.",
+    @Operation(summary = "Get the health of Philter, including the supported redaction policy schema version.",
             description = "Unauthenticated endpoint returning health, the application version, the supported redaction "
-                    + "policy schema version, and the build's git commit. Both /api/status and /api/health return the same response.")
+                    + "policy schema version, and the build's git commit. The status is \"UP\" when Philter is healthy.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200")})
     // Overrides the document-wide bearer requirement: this endpoint is served without authentication.
     @SecurityRequirements
-    @RequestMapping(value = {"/api/status", "/api/health"}, method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/health", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<StatusResponse> status() {
 
         final StatusResponse response = new StatusResponse(
-                "Healthy",
+                "UP",
                 applicationVersion,
                 PolicySchema.getSupportedSchemaVersion(),
                 gitCommit);

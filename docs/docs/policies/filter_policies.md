@@ -55,7 +55,7 @@ To use this policy we will save it as `/opt/philter/profiles/email-and-phone-num
 
 ```
 curl -k -X POST "https://localhost:8080/api/filter?c=context&p=email-and-phone-numbers" \
-  -d @file.txt -H Content-Type "text/plain"
+  -d @file.txt -H "Content-Type: text/plain"
 ```
 
 In this command, we have provided the parameter `p` along with a value that is the name of the policy we want to use for this request. If we had multiple policies in Philter we could choose a different policy for this request simply by changing the name given to the parameter `p`. For more details see Philter’s [API](../api_and_sdks/api.md).

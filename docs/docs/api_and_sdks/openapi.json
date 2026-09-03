@@ -5667,6 +5667,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -5700,6 +5703,13 @@
       "AgeFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -5717,12 +5727,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -5733,6 +5752,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -5749,7 +5769,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -5765,8 +5784,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -5777,8 +5811,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -5806,6 +5846,9 @@
         "properties": {
           "identification": {
             "type": "boolean"
+          },
+          "spanDisambiguation": {
+            "type": "boolean"
           }
         }
       },
@@ -5821,6 +5864,9 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -5855,6 +5901,13 @@
       "BankRoutingNumberFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -5872,12 +5925,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -5888,6 +5950,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -5904,7 +5967,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -5920,8 +5982,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -5932,8 +6009,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -5968,6 +6051,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -6001,6 +6087,13 @@
       "BitcoinAddressFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -6018,12 +6111,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -6034,6 +6136,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -6050,7 +6153,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -6066,8 +6168,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -6078,8 +6195,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -6114,6 +6237,9 @@
           "h": {
             "type": "number",
             "format": "float"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -6179,6 +6305,9 @@
           "fuzzy": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -6216,6 +6345,12 @@
               "high"
             ]
           },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -6225,6 +6360,13 @@
       "CityFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -6242,12 +6384,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -6258,6 +6409,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -6274,7 +6426,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -6290,8 +6441,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -6302,8 +6468,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -6361,6 +6533,9 @@
           "fuzzy": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -6398,6 +6573,12 @@
               "high"
             ]
           },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -6407,6 +6588,13 @@
       "CountyFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -6424,12 +6612,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -6440,6 +6637,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -6456,7 +6654,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -6472,8 +6669,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -6484,8 +6696,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -6519,6 +6737,9 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignoreWhenInUnixTimestamp": {
             "type": "boolean"
@@ -6562,6 +6783,13 @@
       "CreditCardFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -6579,12 +6807,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -6595,6 +6832,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -6611,7 +6849,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -6627,8 +6864,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -6639,8 +6891,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -6686,6 +6944,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -6719,6 +6980,13 @@
       "CurrencyFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -6736,12 +7004,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -6752,6 +7029,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -6768,7 +7046,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -6784,8 +7061,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -6796,8 +7088,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -6847,6 +7145,9 @@
           "fuzzy": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -6874,6 +7175,16 @@
           "sensitivity": {
             "type": "string"
           },
+          "sensitivityLevel": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "off",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
           "terms": {
             "type": "array",
             "items": {
@@ -6889,6 +7200,13 @@
       "CustomDictionaryFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -6906,12 +7224,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -6922,6 +7249,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -6938,7 +7266,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -6954,8 +7281,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -6966,8 +7308,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7001,6 +7349,9 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -7038,6 +7389,13 @@
       "DateFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -7055,12 +7413,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -7071,6 +7438,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -7087,7 +7455,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -7106,8 +7473,23 @@
           "futureDates": {
             "type": "boolean"
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -7118,8 +7500,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7169,6 +7557,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -7202,6 +7593,13 @@
       "DriversLicenseFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -7219,12 +7617,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -7235,6 +7642,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -7251,7 +7659,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -7267,8 +7674,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -7279,8 +7701,203 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
+          },
+          "salt": {
+            "type": "boolean"
+          },
+          "staticReplacement": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string"
+          },
+          "truncateCharacter": {
+            "type": "string"
+          },
+          "truncateDirection": {
+            "type": "string"
+          },
+          "truncateLeaveCharacters": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Ein": {
+        "type": "object",
+        "properties": {
+          "einFilterStrategies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EinFilterStrategy"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ignored": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "ignoredFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "ignoredPatterns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IgnoredPattern"
+            }
+          },
+          "onlyValidPrefixes": {
+            "type": "boolean"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "windowSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EinFilterStrategy": {
+        "type": "object",
+        "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "anonymizationCandidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "anonymizationMethod": {
+            "type": "string",
+            "enum": [
+              "realistic",
+              "from_list",
+              "uuid"
+            ]
+          },
+          "anonymizationService": {
+            "$ref": "#/components/schemas/AnonymizationService"
+          },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "conditions": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
+          },
+          "filterType": {
+            "type": "string",
+            "enum": [
+              "age",
+              "bank-routing-number",
+              "bitcoin-address",
+              "currency",
+              "credit-card",
+              "drivers-license-number",
+              "ein",
+              "city",
+              "state",
+              "county",
+              "date",
+              "email-address",
+              "first-name",
+              "hospital",
+              "hospital-abbreviation",
+              "iban-code",
+              "id",
+              "ip-address",
+              "mac-address",
+              "passport-number",
+              "pheye",
+              "phone-number",
+              "phone-number-extension",
+              "section",
+              "ssn",
+              "state-abbreviation",
+              "street-address",
+              "surname",
+              "tracking-number",
+              "url",
+              "vin",
+              "zip-code",
+              "custom-dictionary",
+              "person",
+              "medical-condition",
+              "other"
+            ]
+          },
+          "generator": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "maskCharacter": {
+            "type": "string"
+          },
+          "maskLength": {
+            "type": "string"
+          },
+          "redactionFormat": {
+            "type": "string"
+          },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
+          "replacementScope": {
+            "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7314,6 +7931,9 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -7354,6 +7974,13 @@
       "EmailAddressFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -7371,12 +7998,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -7387,6 +8023,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -7403,7 +8040,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -7419,8 +8055,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -7431,8 +8082,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7484,6 +8141,9 @@
           "fuzzy": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -7521,6 +8181,12 @@
               "high"
             ]
           },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -7530,6 +8196,13 @@
       "FirstNameFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -7547,12 +8220,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -7563,6 +8245,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -7579,7 +8262,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -7595,8 +8277,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -7607,8 +8304,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7626,6 +8329,27 @@
             "type": "string"
           },
           "truncateLeaveCharacters": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Generator": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "timeoutMs": {
             "type": "integer",
             "format": "int32"
           }
@@ -7679,6 +8403,9 @@
               "$ref": "#/components/schemas/HospitalFilterStrategy"
             }
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -7716,6 +8443,12 @@
               "high"
             ]
           },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -7725,6 +8458,13 @@
       "HospitalFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -7742,12 +8482,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -7758,6 +8507,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -7774,7 +8524,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -7790,8 +8539,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -7802,8 +8566,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7841,6 +8611,9 @@
               "$ref": "#/components/schemas/IbanCodeFilterStrategy"
             }
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -7877,6 +8650,13 @@
       "IbanCodeFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -7894,12 +8674,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -7910,6 +8699,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -7926,7 +8716,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -7942,8 +8731,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -7954,8 +8758,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -7993,6 +8803,9 @@
           "groupNumber": {
             "type": "integer",
             "format": "int32"
+          },
+          "id": {
+            "type": "string"
           },
           "identifierFilterStrategies": {
             "type": "array",
@@ -8039,6 +8852,13 @@
       "IdentifierFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -8056,12 +8876,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -8072,6 +8901,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -8088,7 +8918,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -8104,8 +8933,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -8116,8 +8960,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -8179,6 +9029,9 @@
           "driversLicense": {
             "$ref": "#/components/schemas/DriversLicense"
           },
+          "ein": {
+            "$ref": "#/components/schemas/Ein"
+          },
           "emailAddress": {
             "$ref": "#/components/schemas/EmailAddress"
           },
@@ -8224,9 +9077,6 @@
           },
           "phoneNumberExtension": {
             "$ref": "#/components/schemas/PhoneNumberExtension"
-          },
-          "physicianName": {
-            "$ref": "#/components/schemas/PhysicianName"
           },
           "sections": {
             "type": "array",
@@ -8300,6 +9150,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -8339,6 +9192,13 @@
       "IpAddressFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -8356,12 +9216,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -8372,6 +9241,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -8388,7 +9258,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -8404,8 +9273,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -8416,8 +9300,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -8437,6 +9327,291 @@
           "truncateLeaveCharacters": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "JsonArray": {
+        "type": "object",
+        "properties": {
+          "asBigDecimal": {
+            "type": "number"
+          },
+          "asBigInteger": {
+            "type": "integer"
+          },
+          "asBoolean": {
+            "type": "boolean"
+          },
+          "asByte": {
+            "type": "string",
+            "format": "byte"
+          },
+          "asCharacter": {
+            "deprecated": true,
+            "type": "string"
+          },
+          "asDouble": {
+            "type": "number",
+            "format": "double"
+          },
+          "asFloat": {
+            "type": "number",
+            "format": "float"
+          },
+          "asInt": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asJsonArray": {},
+          "asJsonNull": {
+            "$ref": "#/components/schemas/JsonNull"
+          },
+          "asJsonObject": {},
+          "asJsonPrimitive": {
+            "$ref": "#/components/schemas/JsonPrimitive"
+          },
+          "asLong": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "asNumber": {
+            "type": "number"
+          },
+          "asShort": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asString": {
+            "type": "string"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "jsonArray": {
+            "type": "boolean"
+          },
+          "jsonNull": {
+            "type": "boolean"
+          },
+          "jsonObject": {
+            "type": "boolean"
+          },
+          "jsonPrimitive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "JsonNull": {
+        "type": "object",
+        "properties": {
+          "asBigDecimal": {
+            "type": "number"
+          },
+          "asBigInteger": {
+            "type": "integer"
+          },
+          "asBoolean": {
+            "type": "boolean"
+          },
+          "asByte": {
+            "type": "string",
+            "format": "byte"
+          },
+          "asCharacter": {
+            "deprecated": true,
+            "type": "string"
+          },
+          "asDouble": {
+            "type": "number",
+            "format": "double"
+          },
+          "asFloat": {
+            "type": "number",
+            "format": "float"
+          },
+          "asInt": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asJsonArray": {},
+          "asJsonNull": {},
+          "asJsonObject": {},
+          "asJsonPrimitive": {},
+          "asLong": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "asNumber": {
+            "type": "number"
+          },
+          "asShort": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asString": {
+            "type": "string"
+          },
+          "jsonArray": {
+            "type": "boolean"
+          },
+          "jsonNull": {
+            "type": "boolean"
+          },
+          "jsonObject": {
+            "type": "boolean"
+          },
+          "jsonPrimitive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "JsonObject": {
+        "type": "object",
+        "properties": {
+          "asBigDecimal": {
+            "type": "number"
+          },
+          "asBigInteger": {
+            "type": "integer"
+          },
+          "asBoolean": {
+            "type": "boolean"
+          },
+          "asByte": {
+            "type": "string",
+            "format": "byte"
+          },
+          "asCharacter": {
+            "deprecated": true,
+            "type": "string"
+          },
+          "asDouble": {
+            "type": "number",
+            "format": "double"
+          },
+          "asFloat": {
+            "type": "number",
+            "format": "float"
+          },
+          "asInt": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asJsonArray": {
+            "$ref": "#/components/schemas/JsonArray"
+          },
+          "asJsonNull": {
+            "$ref": "#/components/schemas/JsonNull"
+          },
+          "asJsonObject": {
+            "$ref": "#/components/schemas/JsonObject"
+          },
+          "asJsonPrimitive": {
+            "$ref": "#/components/schemas/JsonPrimitive"
+          },
+          "asLong": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "asNumber": {
+            "type": "number"
+          },
+          "asShort": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asString": {
+            "type": "string"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "jsonArray": {
+            "type": "boolean"
+          },
+          "jsonNull": {
+            "type": "boolean"
+          },
+          "jsonObject": {
+            "type": "boolean"
+          },
+          "jsonPrimitive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "JsonPrimitive": {
+        "type": "object",
+        "properties": {
+          "asBigDecimal": {
+            "type": "number"
+          },
+          "asBigInteger": {
+            "type": "integer"
+          },
+          "asBoolean": {
+            "type": "boolean"
+          },
+          "asByte": {
+            "type": "string",
+            "format": "byte"
+          },
+          "asCharacter": {
+            "deprecated": true,
+            "type": "string"
+          },
+          "asDouble": {
+            "type": "number",
+            "format": "double"
+          },
+          "asFloat": {
+            "type": "number",
+            "format": "float"
+          },
+          "asInt": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asJsonArray": {},
+          "asJsonNull": {
+            "$ref": "#/components/schemas/JsonNull"
+          },
+          "asJsonObject": {},
+          "asJsonPrimitive": {},
+          "asLong": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "asNumber": {
+            "type": "number"
+          },
+          "asShort": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "asString": {
+            "type": "string"
+          },
+          "boolean": {
+            "type": "boolean"
+          },
+          "jsonArray": {
+            "type": "boolean"
+          },
+          "jsonNull": {
+            "type": "boolean"
+          },
+          "jsonObject": {
+            "type": "boolean"
+          },
+          "jsonPrimitive": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": "boolean"
+          },
+          "string": {
+            "type": "boolean"
           }
         }
       },
@@ -8484,6 +9659,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -8523,6 +9701,13 @@
       "MacAddressFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -8540,12 +9725,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -8556,6 +9750,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -8572,7 +9767,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -8588,8 +9782,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -8600,8 +9809,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -8629,6 +9844,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -8682,6 +9900,13 @@
       "MedicalConditionFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -8699,12 +9924,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -8715,6 +9949,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -8731,7 +9966,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -8747,8 +9981,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -8759,8 +10008,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -8788,6 +10043,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -8828,6 +10086,13 @@
       "PassportNumberFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -8845,12 +10110,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -8861,6 +10135,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -8877,7 +10152,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -8893,8 +10167,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -8905,8 +10194,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -8970,6 +10265,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -9051,6 +10349,13 @@
       "PhEyeFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -9068,12 +10373,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -9084,6 +10398,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -9100,7 +10415,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -9116,8 +10430,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -9128,8 +10457,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -9157,6 +10492,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -9188,6 +10526,12 @@
             "type": "integer",
             "format": "int32"
           },
+          "region": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -9199,6 +10543,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -9239,6 +10586,13 @@
       "PhoneNumberExtensionFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -9256,12 +10610,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -9272,6 +10635,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -9288,7 +10652,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -9304,8 +10667,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -9316,8 +10694,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -9343,6 +10727,13 @@
       "PhoneNumberFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -9360,12 +10751,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -9376,6 +10776,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -9392,7 +10793,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -9408,8 +10808,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -9420,154 +10835,14 @@
           "redactionFormat": {
             "type": "string"
           },
-          "replacementScope": {
-            "type": "string"
-          },
-          "salt": {
-            "type": "boolean"
-          },
-          "staticReplacement": {
-            "type": "string"
-          },
-          "strategy": {
-            "type": "string"
-          },
-          "truncateCharacter": {
-            "type": "string"
-          },
-          "truncateDirection": {
-            "type": "string"
-          },
-          "truncateLeaveCharacters": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "PhysicianName": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "ignored": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "uniqueItems": true
-          },
-          "ignoredFiles": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "uniqueItems": true
-          },
-          "ignoredPatterns": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IgnoredPattern"
-            }
-          },
-          "physicianNameFilterStrategies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PhysicianNameFilterStrategy"
-            }
-          },
-          "priority": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "windowSize": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "PhysicianNameFilterStrategy": {
-        "type": "object",
-        "properties": {
-          "anonymizationCandidates": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "anonymizationMethod": {
-            "type": "string",
-            "enum": [
-              "realistic",
-              "from_list",
-              "uuid"
-            ]
-          },
-          "anonymizationService": {
-            "$ref": "#/components/schemas/AnonymizationService"
-          },
-          "condition": {
-            "type": "string"
-          },
-          "conditions": {
-            "type": "string",
-            "writeOnly": true
-          },
-          "filterType": {
-            "type": "string",
-            "enum": [
-              "age",
-              "bank-routing-number",
-              "bitcoin-address",
-              "currency",
-              "credit-card",
-              "drivers-license-number",
-              "city",
-              "state",
-              "county",
-              "date",
-              "email-address",
-              "first-name",
-              "hospital",
-              "hospital-abbreviation",
-              "iban-code",
-              "id",
-              "ip-address",
-              "mac-address",
-              "passport-number",
-              "pheye",
-              "phone-number",
-              "phone-number-extension",
-              "physician-name",
-              "section",
-              "ssn",
-              "state-abbreviation",
-              "street-address",
-              "surname",
-              "tracking-number",
-              "url",
-              "vin",
-              "zip-code",
-              "custom-dictionary",
-              "person",
-              "medical-condition",
-              "other"
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "maskCharacter": {
-            "type": "string"
-          },
-          "maskLength": {
-            "type": "string"
-          },
-          "redactionFormat": {
-            "type": "string"
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
           },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -9593,6 +10868,9 @@
       "Policy": {
         "type": "object",
         "properties": {
+          "description": {
+            "type": "string"
+          },
           "cacheKey": {
             "type": "string"
           },
@@ -9604,6 +10882,12 @@
           },
           "fpe": {
             "$ref": "#/components/schemas/FPE"
+          },
+          "generators": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Generator"
+            }
           },
           "graphical": {
             "$ref": "#/components/schemas/Graphical"
@@ -9622,6 +10906,9 @@
             "items": {
               "$ref": "#/components/schemas/IgnoredPattern"
             }
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/JsonObject"
           }
         }
       },
@@ -9684,6 +10971,8 @@
           }
         }
       },
+      "ReplacementGenerator": {},
+      "ReplacementValidator": {},
       "Section": {
         "type": "object",
         "properties": {
@@ -9691,6 +10980,9 @@
             "type": "boolean"
           },
           "endPattern": {
+            "type": "string"
+          },
+          "id": {
             "type": "string"
           },
           "ignored": {
@@ -9735,6 +11027,13 @@
       "SectionFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -9752,12 +11051,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -9768,6 +11076,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -9784,7 +11093,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -9800,8 +11108,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -9812,8 +11135,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -9845,6 +11174,10 @@
           "method": {
             "type": "string"
           },
+          "overlap": {
+            "type": "integer",
+            "format": "int32"
+          },
           "threshold": {
             "type": "integer",
             "format": "int32"
@@ -9856,6 +11189,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -9896,6 +11232,13 @@
       "SsnFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -9913,12 +11256,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -9929,6 +11281,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -9945,7 +11298,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -9961,8 +11313,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -9973,8 +11340,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10008,6 +11381,9 @@
           },
           "fuzzy": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -10052,6 +11428,12 @@
               "$ref": "#/components/schemas/StateFilterStrategy"
             }
           },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -10063,6 +11445,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -10103,6 +11488,13 @@
       "StateAbbreviationFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -10120,12 +11512,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -10136,6 +11537,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -10152,7 +11554,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -10168,8 +11569,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -10180,8 +11596,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10207,6 +11629,13 @@
       "StateFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -10224,12 +11653,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -10240,6 +11678,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -10256,7 +11695,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -10272,8 +11710,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -10284,8 +11737,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10331,6 +11790,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -10370,6 +11832,13 @@
       "StreetAddressFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -10387,12 +11856,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -10403,6 +11881,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -10419,7 +11898,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -10435,8 +11913,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -10447,8 +11940,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10482,6 +11981,9 @@
           },
           "fuzzy": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -10526,6 +12028,12 @@
               "$ref": "#/components/schemas/SurnameFilterStrategy"
             }
           },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "windowSize": {
             "type": "integer",
             "format": "int32"
@@ -10535,6 +12043,13 @@
       "SurnameFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -10552,12 +12067,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -10568,6 +12092,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -10584,7 +12109,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -10600,8 +12124,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -10612,8 +12151,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10647,6 +12192,9 @@
           },
           "fedex": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -10693,6 +12241,13 @@
       "TrackingNumberFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -10710,12 +12265,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -10726,6 +12290,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -10742,7 +12307,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -10758,8 +12322,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -10770,8 +12349,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10799,6 +12384,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -10842,6 +12430,13 @@
       "UrlFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -10859,12 +12454,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -10875,6 +12479,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -10891,7 +12496,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -10907,8 +12511,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -10919,8 +12538,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -10961,6 +12586,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "id": {
+            "type": "string"
+          },
           "ignored": {
             "type": "array",
             "items": {
@@ -11000,6 +12628,13 @@
       "VinFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -11017,12 +12652,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -11033,6 +12677,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -11049,7 +12694,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -11065,8 +12709,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -11077,8 +12736,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"
@@ -11106,6 +12771,9 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
           },
           "ignored": {
             "type": "array",
@@ -11152,6 +12820,13 @@
       "ZipCodeFilterStrategy": {
         "type": "object",
         "properties": {
+          "acceptedStrategies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
           "anonymizationCandidates": {
             "type": "array",
             "items": {
@@ -11169,12 +12844,21 @@
           "anonymizationService": {
             "$ref": "#/components/schemas/AnonymizationService"
           },
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
           "condition": {
             "type": "string"
           },
           "conditions": {
             "type": "string",
             "writeOnly": true
+          },
+          "fallbackStrategy": {
+            "type": "string"
           },
           "filterType": {
             "type": "string",
@@ -11185,6 +12869,7 @@
               "currency",
               "credit-card",
               "drivers-license-number",
+              "ein",
               "city",
               "state",
               "county",
@@ -11201,7 +12886,6 @@
               "pheye",
               "phone-number",
               "phone-number-extension",
-              "physician-name",
               "section",
               "ssn",
               "state-abbreviation",
@@ -11217,8 +12901,23 @@
               "other"
             ]
           },
+          "generator": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
+          },
+          "mappingFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "maskCharacter": {
             "type": "string"
@@ -11229,8 +12928,14 @@
           "redactionFormat": {
             "type": "string"
           },
+          "replacementGenerator": {
+            "$ref": "#/components/schemas/ReplacementGenerator"
+          },
           "replacementScope": {
             "type": "string"
+          },
+          "replacementValidator": {
+            "$ref": "#/components/schemas/ReplacementValidator"
           },
           "salt": {
             "type": "boolean"

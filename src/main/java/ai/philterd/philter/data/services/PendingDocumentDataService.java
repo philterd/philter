@@ -54,7 +54,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
         final long ttlSeconds = EnvUtils.getLong("PENDING_DOCUMENTS_TTL_SECONDS", DEFAULT_TTL_SECONDS);
 
-        collection.createIndex(
+        ensureIndex(
                 Indexes.ascending("completed_at"),
                 new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
 

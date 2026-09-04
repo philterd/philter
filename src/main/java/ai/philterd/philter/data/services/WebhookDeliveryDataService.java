@@ -47,11 +47,11 @@ public class WebhookDeliveryDataService extends AbstractService<WebhookDeliveryE
     public WebhookDeliveryDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "webhook_deliveries", auditEventPublisher);
 
-        collection.createIndex(Indexes.ascending("status", "next_attempt_at"));
+        ensureIndex(Indexes.ascending("status", "next_attempt_at"));
 
         final long ttlSeconds = EnvUtils.getLong("WEBHOOK_DELIVERIES_TTL_SECONDS", DEFAULT_TTL_SECONDS);
 
-        collection.createIndex(
+        ensureIndex(
                 Indexes.ascending("delivered_at"),
                 new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
 

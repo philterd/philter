@@ -85,20 +85,31 @@ public class LedgerApiController extends AbstractApiController {
         this.gson = gson;
     }
 
-    /** Maps a stored ledger entry to its API view, including its signature. */
+    /**
+     * Read view. The token is the original PII, so it is carried only by the export, which has its own
+     * scope; reading a chain proves what happened without handing back what was redacted.
+     */
     private static LedgerEntryView toView(final LedgerEntity entry) {
-        final LedgerEntryView view = buildView(entry);
+        return signed(buildView(entry, null), entry);
+    }
+
+    /** Export view, which carries the token. Reached only with {@code ledger:export}. */
+    private static LedgerEntryView toExportView(final LedgerEntity entry) {
+        return signed(buildView(entry, entry.getToken()), entry);
+    }
+
+    private static LedgerEntryView signed(final LedgerEntryView view, final LedgerEntity entry) {
         view.setSignature(entry.getSignature());
         view.setSigningKeyId(entry.getSigningKeyId());
         return view;
     }
 
-    private static LedgerEntryView buildView(final LedgerEntity entry) {
+    private static LedgerEntryView buildView(final LedgerEntity entry, final String token) {
         return new LedgerEntryView(
                 entry.getDocumentId(),
                 entry.getFilename(),
                 entry.getType(),
-                entry.getToken(),
+                token,
                 entry.getReplacement(),
                 entry.getStartPosition(),
                 entry.getDocumentHash(),
@@ -271,7 +282,7 @@ public class LedgerApiController extends AbstractApiController {
 
         final List<LedgerEntryView> entries = new ArrayList<>(chain.size());
         for (final LedgerEntity entry : chain) {
-            entries.add(toView(entry));
+            entries.add(toExportView(entry));
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_EXPORTED, apiKeyEntity.getUserId(), null,

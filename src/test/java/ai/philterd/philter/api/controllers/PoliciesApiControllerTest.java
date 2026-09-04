@@ -44,6 +44,7 @@ import java.util.Collections;
 
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ServiceResponse;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -179,6 +180,8 @@ class PoliciesApiControllerTest {
     @Test
     void createValidatesAndStoresTheValidPolicy() throws Exception {
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+        when(policyDataService.create(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString()))
+                .thenReturn(ServiceResponse.success());
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "my-policy")
@@ -186,14 +189,19 @@ class PoliciesApiControllerTest {
                         .content(VALID_POLICY_BODY))
                 .andExpect(status().isCreated());
 
-        // The policy is validated before being persisted.
+        // Validated, then written through create() so the name rules, the version snapshot and the
+        // cache eviction all apply.
         verify(policyDataService).validatePolicy(anyString());
-        verify(policyDataService).save(org.mockito.ArgumentMatchers.any());
+        verify(policyDataService).create(anyString(), any(), anyString(), isNull(), isNull(),
+                eq("my-policy"), anyString());
+        verify(policyDataService, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
     void createEmitsActivationAuditEvent() throws Exception {
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+        when(policyDataService.create(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString()))
+                .thenReturn(ServiceResponse.success());
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "my-policy")

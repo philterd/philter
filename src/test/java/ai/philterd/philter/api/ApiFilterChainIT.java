@@ -277,6 +277,59 @@ class ApiFilterChainIT {
 
     }
 
+    private HttpResponse<String> savePolicy(final String name, final String json) throws Exception {
+        return send(authenticated(baseUrl + "/api/policies?name=" + name)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build());
+    }
+
+    private static final String SSN_POLICY =
+            "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
+
+    @Test
+    @DisplayName("Saving a policy twice overwrites it rather than creating a duplicate")
+    void savingAPolicyTwiceOverwritesIt() throws Exception {
+
+        final String name = "upsert-" + System.nanoTime();
+
+        assertEquals(201, savePolicy(name, SSN_POLICY).statusCode());
+        assertEquals(201, savePolicy(name, SSN_POLICY).statusCode(), "the endpoint is documented as an upsert");
+
+        // The raw save path inserted a second document under the same name.
+        final HttpResponse<String> list = send(authenticated(baseUrl + "/api/policies").GET().build());
+        final long occurrences = list.body().split("\"" + name + "\"", -1).length - 1;
+        assertEquals(1, occurrences, "exactly one policy may carry the name: " + list.body());
+
+    }
+
+    @Test
+    @DisplayName("A saved policy is retained as a version snapshot")
+    void aSavedPolicyIsRetainedAsAVersionSnapshot() throws Exception {
+
+        final String name = "snap-" + System.nanoTime();
+        assertEquals(201, savePolicy(name, SSN_POLICY).statusCode());
+
+        final HttpResponse<String> versions =
+                send(authenticated(baseUrl + "/api/policies/" + name + "/versions").GET().build());
+
+        assertEquals(200, versions.statusCode());
+        assertTrue(versions.body().contains("\"revision\""),
+                "the save must retain a snapshot, which the raw insert did not: " + versions.body());
+
+    }
+
+    @Test
+    @DisplayName("An invalid policy name is rejected")
+    void anInvalidPolicyNameIsRejected() throws Exception {
+
+        assertEquals(400, savePolicy("has%20spaces", SSN_POLICY).statusCode(),
+                "the name rules must apply on the API path too");
+        assertEquals(400, savePolicy("managed_sneaky", SSN_POLICY).statusCode(),
+                "a name may not impersonate a managed policy");
+
+    }
+
     @Test
     @DisplayName("With cross-user access disabled, naming another owner returns 404 rather than 403")
     void crossUserAccessDisabledHidesOtherUsers() throws Exception {

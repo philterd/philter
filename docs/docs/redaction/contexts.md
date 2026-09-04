@@ -87,7 +87,7 @@ If your application uses [asynchronous PDF redaction](../api_and_sdks/api/docume
 
 A context's mapping table can be exported and imported through the [Contexts API](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table). This lets you reuse the same replacements across separate environments or rebuild a context's mappings after it has been cleared:
 
-*   **Export** returns the context's mappings as a portable JSON document. Only the SHA-256 hash of each original value is exported (never the original value itself), so the same value continues to map to the same replacement wherever the table is imported.
+*   **Export** returns the context's mappings as a JSON document. Only a keyed hash of each original value is exported, never the original value itself, so the same value continues to map to the same replacement wherever the table is imported. The key is derived from `PHILTER_ENCRYPTION_KEY`, so an export can be imported elsewhere in the same deployment but not into a different one.
 *   **Import** loads such a document into an existing context. By default an incoming value that already exists is skipped; you can choose to overwrite instead.
 
 Export and import are restricted to the user that **created** the context or to an **admin**. Because context names are unique only per user, an admin reaching another user's context supplies that user's email via the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.

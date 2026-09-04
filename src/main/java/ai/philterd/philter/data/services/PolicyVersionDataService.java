@@ -62,11 +62,12 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     public PolicyVersionDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "policy_versions", auditEventPublisher);
 
-        // Snapshots are resolved by content hash; the hash is the de-duplication key (one snapshot per
-        // distinct policy content).
-        ensureIndex(Indexes.ascending("content_hash"), new IndexOptions().unique(true));
-        // Browsing a policy's retained versions by name/revision.
-        ensureIndex(Indexes.ascending("user_id", "name", "revision"));
+        // A snapshot is identified by the revision it was taken at, not by its content: the same
+        // content legitimately reappears at a later revision, through a rollback or an edit that
+        // restores an earlier policy.
+        ensureIndex(Indexes.ascending("user_id", "name", "revision"), new IndexOptions().unique(true));
+        // Resolving a pinned policy by its fingerprint, which several revisions may share.
+        ensureIndex(Indexes.ascending("content_hash"));
     }
 
     /**
@@ -141,9 +142,8 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
             return null;
         }
 
-        // Idempotent: one immutable snapshot per distinct content. The unique index on content_hash is
-        // the backstop against a race.
-        if (findByContentHash(hash) != null) {
+        // Idempotent per revision. The unique index is the backstop against a race.
+        if (findByNameAndRevision(policyEntity.getName(), policyEntity.getUserId(), policyEntity.getRevision()) != null) {
             return hash;
         }
 
@@ -158,15 +158,14 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         try {
             save(version);
         } catch (final com.mongodb.MongoWriteException e) {
-            // A concurrent snapshot of identical content won the race; the version is retained either
-            // way, so treat a duplicate-key collision as success.
+            // A concurrent snapshot of the same revision won the race; it is retained either way.
             LOGGER.debug("Policy version snapshot for hash {} already exists: {}", hash, e.getMessage());
         }
 
         return hash;
     }
 
-    /** Resolves a retained snapshot by its content hash, or {@code null} if none has been retained. */
+    /** Any retained snapshot with this content, since several revisions may share it. */
     public PolicyVersionEntity findByContentHash(final String contentHash) {
         if (contentHash == null) {
             return null;

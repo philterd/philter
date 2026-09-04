@@ -159,7 +159,7 @@ Example response:
 }
 ```
 
-The original token is never returned by this endpoint; only its SHA-256 hash is stored.
+The original token is never returned by this endpoint; only a keyed hash of it is stored.
 
 ## Empty a Context
 
@@ -211,7 +211,9 @@ Exports every token-to-replacement mapping in the context in a portable JSON for
 
 Returns `200 OK` with the export document. The response is sent with a `Content-Disposition` header so it can be saved directly to a file.
 
-> **Security:** the export contains only the SHA-256 **hash** of each original token (never the original value) along with its replacement. Because the hash is what redaction looks up, this is sufficient to reproduce consistent replacements without exposing the underlying sensitive data. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
+> **Security:** the export contains a **keyed hash** (HMAC-SHA256) of each original token, never the original value, along with its replacement. The key is derived from `PHILTER_ENCRYPTION_KEY` and never leaves the deployment, so the hash cannot be reversed by guessing candidate values — which matters because most of what Philter detects is low-entropy: an SSN is only 10<sup>9</sup> possibilities, a date of birth far fewer. A bare digest of one is recoverable by enumeration in seconds. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
+
+> **Portability:** because the hash is keyed to the deployment, an export can be imported into another context or account **within the same Philter deployment**, but not into a different one — the hashes would not match, and the original tokens are not stored, so they cannot be recomputed. Moving pseudonymization consistency between installations requires the same `PHILTER_ENCRYPTION_KEY`.
 
 Example request:
 
@@ -264,6 +266,7 @@ Accepts a document in the same format produced by the [export](#export-a-context
 ### Behavior and Validation
 
 * The payload is fully validated before anything is written, so a malformed entry cannot leave a partially-imported table. Each entry must have a valid 64-character hex `tokenHash` and a non-empty `replacement`.
+* **The export must come from a deployment sharing this one's `PHILTER_ENCRYPTION_KEY`.** Token hashes are keyed (see [Export](#export-a-contexts-mapping-table)), and a hash from a differently-keyed deployment is indistinguishable from a valid one: it will import successfully and then never match during redaction. Importing between contexts or accounts within one deployment is unaffected.
 * Imported entries start with a read count of zero. As with normal redaction, imports honor the context's `MAX_CONTEXT_SIZE` and may evict least-read entries when the context is full.
 
 Returns `200 OK` with a summary, `400 Bad Request` for an invalid `on_conflict` value or malformed payload, and `404 Not Found` if the context does not exist or the caller is not authorized to access it.

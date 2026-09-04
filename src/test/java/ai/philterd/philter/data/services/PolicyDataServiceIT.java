@@ -23,6 +23,7 @@ import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -44,12 +45,14 @@ import static org.mockito.Mockito.mock;
 class PolicyDataServiceIT extends AbstractMongoIT {
 
     private PolicyDataService service;
+    private PolicyVersionDataService versionService;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUpService() {
+        versionService = new PolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class));
         service = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson,
-                new PolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), new ai.philterd.philter.services.cache.RedactionCache());
+                versionService, new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     /** Builds a valid native policy JSON (a single SSN filter), matching the unit-test fixture. */
@@ -152,7 +155,23 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final PolicyEntity updated = service.findOneById(policyId, user);
         assertEquals("new description", updated.getDescription());
         assertEquals("new notes", updated.getNotes());
-        assertEquals(originalRevision + 1, updated.getRevision());
+
+        // Description and notes are not policy content, so this is not a new revision.
+        assertEquals(originalRevision, updated.getRevision());
+    }
+
+    @Test
+    @DisplayName("A content change advances the revision")
+    void aContentChangeAdvancesTheRevision() {
+        final ObjectId user = new ObjectId();
+        final ObjectId policyId = create(user, "to-edit").getObjectId();
+
+        final int originalRevision = service.findOneById(policyId, user).getRevision();
+
+        assertTrue(service.update("req", user, policyId,
+                validPolicyJson().replace("REDACT", "MASK"), null, null, "source").isSuccessful());
+
+        assertEquals(originalRevision + 1, service.findOneById(policyId, user).getRevision());
     }
 
     @Test
@@ -290,6 +309,91 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
         // Search is user-scoped.
         assertTrue(service.find(new ObjectId(), "notes").isEmpty());
+    }
+
+
+    @Test
+    @DisplayName("An unchanged save does not advance the revision")
+    void anUnchangedSaveDoesNotAdvanceTheRevision() {
+        final ObjectId userId = new ObjectId();
+        service.create("req", userId, validPolicyJson(), null, null, "p", "test");
+
+        final int created = service.findOne("p", userId).getRevision();
+
+        for (int i = 0; i < 3; i++) {
+            assertTrue(service.update("req", userId, service.findOne("p", userId).getId(),
+                    validPolicyJson(), null, null, "test").isSuccessful());
+        }
+
+        assertEquals(created, service.findOne("p", userId).getRevision(),
+                "saving identical content is not a new version");
+    }
+
+    @Test
+    @DisplayName("Every revision the policy reaches has a snapshot behind it")
+    void everyRevisionHasASnapshot() {
+        final ObjectId userId = new ObjectId();
+        service.create("req", userId, validPolicyJson(), null, null, "p", "test");
+
+        // A real edit, then a no-op save. The no-op must be what leaves the policy on its final
+        // revision: ending on a real edit would pass either way, since that revision is snapshotted.
+        service.update("req", userId, service.findOne("p", userId).getId(),
+                validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
+        service.update("req", userId, service.findOne("p", userId).getId(),
+                validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
+
+        final int revision = service.findOne("p", userId).getRevision();
+
+        // The symptom of D-12: a policy that could not be rolled back to the revision it was on.
+        assertTrue(service.rollback("req", "p", userId, revision).isSuccessful(),
+                "the policy must be able to roll back to its own revision " + revision);
+    }
+
+
+    @Test
+    @DisplayName("A rollback's new revision has a snapshot behind it")
+    void aRollbackLeavesItsRevisionResolvable() {
+        final ObjectId userId = new ObjectId();
+        service.create("req", userId, validPolicyJson(), null, null, "p", "test");
+        service.update("req", userId, service.findOne("p", userId).getId(),
+                validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
+
+        // Rollback restores content that is already snapshotted at an earlier revision.
+        assertTrue(service.rollback("req", "p", userId, 0).isSuccessful());
+
+        final int afterRollback = service.findOne("p", userId).getRevision();
+
+        assertTrue(service.rollback("req", "p", userId, afterRollback).isSuccessful(),
+                "the revision a rollback lands on must itself be resolvable");
+    }
+
+    @Test
+    @DisplayName("Editing back to earlier content still snapshots the new revision")
+    void editingBackToEarlierContentIsSnapshotted() {
+        final ObjectId userId = new ObjectId();
+        final ObjectId policyId = service.create("req", userId, validPolicyJson(), null, null, "p", "test").getObjectId();
+
+        service.update("req", userId, policyId, validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
+        service.update("req", userId, policyId, validPolicyJson(), null, null, "test");
+
+        final int revision = service.findOne("p", userId).getRevision();
+
+        assertTrue(service.rollback("req", "p", userId, revision).isSuccessful(),
+                "A -> B -> A must leave revision " + revision + " resolvable");
+    }
+
+    @Test
+    @DisplayName("Two users with identical policy content each keep their own snapshot")
+    void identicalContentIsSnapshottedPerUser() {
+        final ObjectId first = new ObjectId();
+        final ObjectId second = new ObjectId();
+
+        service.create("req", first, validPolicyJson(), null, null, "shared-name", "test");
+        service.create("req", second, validPolicyJson(), null, null, "shared-name", "test");
+
+        assertNotNull(versionService.findByNameAndRevision("shared-name", first, 0));
+        assertNotNull(versionService.findByNameAndRevision("shared-name", second, 0),
+                "the second user's snapshot must not be swallowed by the first's identical content");
     }
 
 }

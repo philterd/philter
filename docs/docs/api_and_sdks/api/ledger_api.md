@@ -49,7 +49,6 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
       "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
       "filename": "note.txt",
       "type": "PERSON",
-      "token": "John Smith",
       "replacement": "{{{REDACTED-person}}}",
       "startPosition": 11,
       "documentHash": "…",
@@ -61,7 +60,7 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
 }
 ```
 
-> **Security:** ledger entries contain the **decrypted original token** that was redacted. Access is restricted to the chain's owner.
+> **Security:** reading a chain does not return the original values that were redacted, only the replacements that appear in the redacted document. The originals are carried by the [export](#export-a-ledger-chain), which requires the separate `ledger:export` scope. Access is restricted to the chain's owner either way.
 
 ## Verify a document's ledger chain
 
@@ -96,7 +95,7 @@ The export body has the shape:
 }
 ```
 
-> **Security:** unlike a context export (token hashes only), a ledger export contains the **decrypted token and replacement** values. Treat it as sensitive and store and transmit it securely.
+> **Security:** unlike reading a chain, and unlike a context export (token hashes only), a ledger export contains the **decrypted original values**. That is why it needs `ledger:export` rather than `ledger:read`. Treat the file as sensitive and store and transmit it securely.
 
 ### Export contents
 

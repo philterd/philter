@@ -135,11 +135,16 @@ public class RedactionWorker {
             pendingDocumentDataService.markComplete(job.getId(), job.getUserId(), output);
             LOGGER.info("Completed pending document {}", job.getDocumentId());
 
+            // markComplete writes the database, not this copy, which still reads PROCESSING.
+            job.setStatus(PendingDocumentEntity.STATUS_COMPLETE);
+
             enqueueWebhook(job, WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE, null);
 
         } catch (Exception ex) {
             LOGGER.error("Redaction failed for document {}", job.getDocumentId(), ex);
             pendingDocumentDataService.markFailed(job.getId(), ex.getMessage());
+
+            job.setStatus(PendingDocumentEntity.STATUS_FAILED);
 
             enqueueWebhook(job, WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_FAILED, ex.getMessage());
         }

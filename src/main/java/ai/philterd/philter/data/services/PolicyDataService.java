@@ -43,6 +43,7 @@ import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class PolicyDataService extends AbstractService<PolicyEntity> {
@@ -100,7 +101,16 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return new ServiceResponse("You cannot update a managed policy.", false, 409);
         }
 
-        policyEntity.incrementRevision();
+        // Only a content change is a new revision. The snapshot store is content-addressed, so an
+        // unchanged save retains nothing and would leave the revision pointing at no snapshot.
+        final boolean contentChanged = !Objects.equals(
+                PolicyVersionDataService.contentHash(policyEntity.getPolicy()),
+                PolicyVersionDataService.contentHash(policyJson));
+
+        if (contentChanged) {
+            policyEntity.incrementRevision();
+        }
+
         policyEntity.setPolicy(policyJson);
         policyEntity.setLastUpdatedTimestamp(new Date());
 
@@ -203,7 +213,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             policyEntity.setLastUpdatedTimestamp(new Date());
 
             // Truncate the policy notes.
-            if (policyNotes != null & !policyNotes.isEmpty()) {
+            if (policyNotes != null && !policyNotes.isEmpty()) {
 
                 if (policyNotes.length() > POLICY_NOTES_MAX_LENGTH) {
                     final String truncatedNotes = policyNotes.substring(0, 1000);

@@ -38,7 +38,7 @@ Under `CONTEXT` scope, the first time a value is replaced Philter records the ma
 
 * **Persistence.** Mappings are stored in MongoDB and survive across requests and restarts, so consistency holds for documents processed days apart.
 * **Scoping.** Each mapping is keyed by user **and** context name, so contexts are isolated from one another and one user's mappings are never visible to another.
-* **Privacy.** The original value is **not** stored in clear text. Only a SHA-256 hash of the token is kept, alongside the generated replacement, the filter type, a read counter, and a timestamp.
+* **Privacy.** The original value is **not** stored in clear text. Only a keyed hash (HMAC-SHA256 under a key derived from `PHILTER_ENCRYPTION_KEY`) is kept, alongside the generated replacement, the filter type, a read counter, and a timestamp. The key matters: most detected values are low-entropy, so a bare digest of one could be reversed by trying candidates.
 * **Capacity and eviction.** A context holds at most `MAX_CONTEXT_SIZE` mappings (default `10000`, configurable with the `MAX_CONTEXT_SIZE` environment variable; see [Settings](../settings.md)). When a context is full, the **least-read** mapping is evicted to make room. A value whose mapping has been evicted is treated as new the next time it is seen and receives a fresh replacement.
 
 ## Interaction with replacement strategies

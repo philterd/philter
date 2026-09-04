@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.services.encryption.ContextTokenHasher;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
-import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -173,7 +173,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     public boolean containsToken(final ObjectId userId, final String contextName, final String token) {
 
         // The token must be hashed.
-        final String tokenHash = EncryptionService.hashSha256(token);
+        final String tokenHash = ContextTokenHasher.hash(token);
 
         final Document query = new Document("user_id", userId).append("context_name", contextName).append("token_hash", tokenHash);
         final Document document = collection.find(query).first();
@@ -203,7 +203,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     public ContextEntryEntity findOneEntryByToken(final ObjectId userId, final String contextName, final String token) {
 
         // The token must be hashed.
-        final String tokenHash = EncryptionService.hashSha256(token);
+        final String tokenHash = ContextTokenHasher.hash(token);
 
         final Document query = new Document("user_id", userId).append("context_name", contextName).append("token_hash", tokenHash);
         final Document document = collection.find(query).first();
@@ -220,7 +220,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     public void putReplacement(final ObjectId userId, final String contextName, final String token, final String replacement, final String filterType) {
 
         // The token must be hashed.
-        final String tokenHash = EncryptionService.hashSha256(token);
+        final String tokenHash = ContextTokenHasher.hash(token);
 
         // Check to see if this token already exists in the context.
         if(!containsToken(userId, contextName, token)) {

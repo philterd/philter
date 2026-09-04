@@ -19,6 +19,7 @@ import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -27,6 +28,7 @@ import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -37,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -153,6 +156,56 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final PendingDocumentEntity recovered = pendingDocumentDataService.findOneByDocumentIdAndUserId("doc-1", user);
         assertEquals(PendingDocumentEntity.STATUS_COMPLETE, recovered.getStatus());
         assertArrayEquals(new byte[]{5}, recovered.getOutput());
+    }
+
+
+    /** A user with a webhook configured, so the worker enqueues a delivery. */
+    private void userWithWebhook(final ObjectId userId) {
+        final ai.philterd.philter.data.entities.UserEntity user =
+                mock(ai.philterd.philter.data.entities.UserEntity.class);
+        when(user.getId()).thenReturn(userId);
+        when(user.getWebhookUrl()).thenReturn("https://example.com/hook");
+        when(user.getWebhookSecret()).thenReturn("the-shared-secret-1234567890");
+        when(userService.findOneById(userId)).thenReturn(user);
+    }
+
+    private String enqueuedPayload() {
+        final ArgumentCaptor<WebhookDeliveryEntity> delivery =
+                ArgumentCaptor.forClass(WebhookDeliveryEntity.class);
+        verify(webhookDeliveryDataService).save(delivery.capture());
+        return delivery.getValue().getPayload();
+    }
+
+    @Test
+    @DisplayName("The completion webhook reports COMPLETE, not the status the job was claimed with")
+    void completionWebhookReportsComplete() throws Exception {
+        final ObjectId user = new ObjectId();
+        userWithWebhook(user);
+        pendingDocumentDataService.save(newPending(user, "doc-1"));
+        stubRedactionReturns(new byte[]{9});
+
+        worker.poll();
+
+        final String payload = enqueuedPayload();
+        assertTrue(payload.contains("\"status\":\"" + PendingDocumentEntity.STATUS_COMPLETE + "\""),
+                "the completion event must not report PROCESSING: " + payload);
+        assertTrue(payload.contains(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE));
+    }
+
+    @Test
+    @DisplayName("The failure webhook reports FAILED")
+    void failureWebhookReportsFailed() throws Exception {
+        final ObjectId user = new ObjectId();
+        userWithWebhook(user);
+        pendingDocumentDataService.save(newPending(user, "doc-1"));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("boom"));
+
+        worker.poll();
+
+        final String payload = enqueuedPayload();
+        assertTrue(payload.contains("\"status\":\"" + PendingDocumentEntity.STATUS_FAILED + "\""),
+                "the failure event must report FAILED: " + payload);
     }
 
 }

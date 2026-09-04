@@ -72,7 +72,8 @@ public class ContextsApiController extends AbstractApiController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContextsApiController.class);
 
     /** Matches a lowercase/uppercase hex-encoded SHA-256 digest (the token hash format). */
-    private static final Pattern SHA256_HEX = Pattern.compile("^[a-fA-F0-9]{64}$");
+    /** The width a token hash is written in; the hash itself is keyed, see ContextTokenHasher. */
+    private static final Pattern TOKEN_HASH_HEX = Pattern.compile("^[a-fA-F0-9]{64}$");
 
     private final ContextDataService contextService;
     private final ContextEntryDataService contextEntryService;
@@ -617,8 +618,8 @@ public class ContextsApiController extends AbstractApiController {
         // Validate the entire payload before writing anything, so a malformed entry cannot leave a
         // partially-imported mapping table.
         for (final ContextEntryExport entry : payload.getEntries()) {
-            if (entry == null || entry.getTokenHash() == null || !SHA256_HEX.matcher(entry.getTokenHash()).matches()) {
-                return new ResponseEntity<>(new GenericResponse("Each entry requires a valid SHA-256 token_hash."), HttpStatus.BAD_REQUEST);
+            if (entry == null || entry.getTokenHash() == null || !TOKEN_HASH_HEX.matcher(entry.getTokenHash()).matches()) {
+                return new ResponseEntity<>(new GenericResponse("Each entry requires a valid token_hash: 64 hexadecimal characters, as produced by an export from this deployment."), HttpStatus.BAD_REQUEST);
             }
             if (entry.getReplacement() == null || entry.getReplacement().isEmpty()) {
                 return new ResponseEntity<>(new GenericResponse("Each entry requires a non-empty replacement."), HttpStatus.BAD_REQUEST);

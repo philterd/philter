@@ -75,7 +75,8 @@ The policy is validated before it is stored. It must be valid JSON in the native
 ### Responses
 
 * `201 Created` - The policy was saved.
-* `400 Bad Request` - The policy name is missing or the policy is invalid.
+* `400 Bad Request` - The policy name is missing or invalid, or the policy is invalid. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
+* `409 Conflict` - The named policy is a managed policy and cannot be overwritten.
 
 Example request:
 
@@ -152,7 +153,7 @@ See [Authoring Policies with PhiSQL](../../policies/phisql.md) for the language 
 
 ## Policy Version History
 
-Every time a policy is created or updated, Philter automatically retains an immutable snapshot of its content. The following endpoints expose that history and allow any prior revision to be restored.
+Every time a policy's content changes, Philter automatically retains an immutable snapshot of it and advances the policy's revision. Saving a policy without changing its content — or changing only its description or notes — is not a new revision. The following endpoints expose that history and allow any prior revision to be restored.
 
 ### List Versions
 

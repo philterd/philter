@@ -62,9 +62,9 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `policy_created` | A policy was created via the dashboard. |
-| `policy_updated` | A policy was updated via the dashboard. |
-| `policy_activated` | A policy was saved via the API and became active immediately. Details include the policy name and the API key (user) that activated it. |
+| `policy_created` | A policy was created, through the dashboard or `POST /api/policies`. The source field distinguishes them. |
+| `policy_updated` | A policy was updated, through the dashboard or `POST /api/policies` naming an existing policy. |
+| `policy_activated` | A policy was saved via the API and became active immediately. Recorded alongside `policy_created` or `policy_updated`, and attributing the change to the API key that made it. Details include the policy name. |
 | `policy_deleted` | A policy was deleted. |
 | `policy_version_history_retrieved` | The version history of a policy was retrieved. |
 | `policy_rolled_back` | A policy was rolled back to a prior revision. Details include the policy name, the target revision, and the new revision number. |

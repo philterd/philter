@@ -50,8 +50,8 @@ public enum ApiKeyScope {
     DOCUMENTS_READ("documents:read", "List asynchronous redaction jobs and download their results."),
     DOCUMENTS_WRITE("documents:write", "Delete asynchronous redaction records."),
 
-    LEDGER_READ("ledger:read", "List, read, and validate redaction ledger chains."),
-    LEDGER_EXPORT("ledger:export", "Export a ledger chain, which contains the original tokens in the clear."),
+    LEDGER_READ("ledger:read", "List, read, and validate redaction ledger chains, without the redacted values."),
+    LEDGER_EXPORT("ledger:export", "Export a ledger chain, which carries the original values in the clear."),
     LEDGER_DELETE("ledger:delete", "Delete or purge ledger entries. Also requires an administrator."),
 
     HOLDS_READ("holds:read", "List and read legal holds."),

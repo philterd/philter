@@ -33,6 +33,7 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -47,6 +48,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -64,6 +66,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class LedgerApiControllerTest {
+
+    private static final String REDACTED_VALUE = "John Smith";
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
@@ -119,6 +123,8 @@ class LedgerApiControllerTest {
         entity.setPreviousHash(LedgerDataService.GENESIS);
         entity.setHash("hash-" + documentId);
         entity.setTimestamp(new Date());
+        entity.setToken(REDACTED_VALUE);
+        entity.setReplacement("{{{REDACTED-person}}}");
         return entity;
     }
 
@@ -598,6 +604,54 @@ class LedgerApiControllerTest {
 
         verify(ledgerService).getChain(userId, documentId);
         verify(ledgerService, never()).getChain(eq(otherUser), any());
+    }
+
+
+    @Test
+    @DisplayName("Reading a chain does not return the redacted values")
+    void readingAChainDoesNotReturnTheValues() throws Exception {
+        when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
+        when(ledgerService.validateChain(userId, "doc-1"))
+                .thenReturn(new LedgerDataService.ChainValidation(true, true, 1, 0));
+
+        final String body = mockMvc.perform(get("/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertFalse(body.contains(REDACTED_VALUE),
+                "ledger:read must not hand back what was redacted: " + body);
+        assertTrue(body.contains("{{{REDACTED-person}}}"),
+                "the replacement stays, since it is what appears in the redacted document");
+    }
+
+    @Test
+    @DisplayName("Listing chains does not return the redacted values")
+    void listingChainsDoesNotReturnTheValues() throws Exception {
+        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
+                .thenReturn(List.of(chainHead("doc-1", "a.txt")));
+        when(ledgerService.countChainsByUserId(userId)).thenReturn(1);
+
+        final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertFalse(body.contains(REDACTED_VALUE), "ledger:read must not hand back what was redacted: " + body);
+    }
+
+    @Test
+    @DisplayName("Exporting a chain does return the redacted values")
+    void exportingAChainDoesReturnTheValues() throws Exception {
+        when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
+
+        final String body = mockMvc.perform(get("/api/ledger/doc-1/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains(REDACTED_VALUE),
+                "the export is what carries the values, which is why it has its own scope: " + body);
     }
 
 }

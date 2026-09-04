@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.services.encryption.ContextTokenHasher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import org.bson.types.ObjectId;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,7 +58,9 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
         assertEquals("David Jones", service.getReplacement(user, "ctx", "John Smith"));
 
         final ContextEntryEntity entry = service.findOneEntryByToken(user, "ctx", "John Smith");
-        assertEquals(EncryptionService.hashSha256("John Smith"), entry.getTokenHash());
+        assertEquals(ContextTokenHasher.hash("John Smith"), entry.getTokenHash());
+        assertNotEquals(EncryptionService.hashSha256("John Smith"), entry.getTokenHash(),
+                "the stored hash must be keyed, not a bare digest of the token");
         assertEquals("David Jones", entry.getReplacement());
         assertEquals("PERSON", entry.getFilterType());
     }
@@ -100,7 +104,8 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
     @Test
     void importSkipKeepsExistingAndOverwriteReplaces() {
         final ObjectId user = new ObjectId();
-        final String hash = EncryptionService.hashSha256("John Smith");
+        // An import supplies the hash, so it must be computed the same way redaction computes it.
+        final String hash = ContextTokenHasher.hash("John Smith");
 
         assertEquals(ContextEntryDataService.ImportOutcome.INSERTED,
                 service.importEntryByHash(user, "ctx", hash, "R1", "PERSON", false, false));

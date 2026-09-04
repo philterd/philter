@@ -4071,7 +4071,7 @@
             "description": "The policy was saved and is now active. A policy_activated audit event is recorded."
           },
           "400": {
-            "description": "The policy name is missing or the policy is invalid.",
+            "description": "The policy name is missing or invalid, or the policy is invalid.",
             "content": {
               "*/*": {
                 "schema": {
@@ -9363,13 +9363,9 @@
             "format": "int32"
           },
           "asJsonArray": {},
-          "asJsonNull": {
-            "$ref": "#/components/schemas/JsonNull"
-          },
+          "asJsonNull": {},
           "asJsonObject": {},
-          "asJsonPrimitive": {
-            "$ref": "#/components/schemas/JsonPrimitive"
-          },
+          "asJsonPrimitive": {},
           "asLong": {
             "type": "integer",
             "format": "int64"
@@ -9433,9 +9429,13 @@
             "type": "integer",
             "format": "int32"
           },
-          "asJsonArray": {},
+          "asJsonArray": {
+            "$ref": "#/components/schemas/JsonArray"
+          },
           "asJsonNull": {},
-          "asJsonObject": {},
+          "asJsonObject": {
+            "$ref": "#/components/schemas/JsonObject"
+          },
           "asJsonPrimitive": {},
           "asLong": {
             "type": "integer",
@@ -9572,11 +9572,15 @@
             "type": "integer",
             "format": "int32"
           },
-          "asJsonArray": {},
+          "asJsonArray": {
+            "$ref": "#/components/schemas/JsonArray"
+          },
           "asJsonNull": {
             "$ref": "#/components/schemas/JsonNull"
           },
-          "asJsonObject": {},
+          "asJsonObject": {
+            "$ref": "#/components/schemas/JsonObject"
+          },
           "asJsonPrimitive": {},
           "asLong": {
             "type": "integer",

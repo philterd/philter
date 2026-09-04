@@ -29,6 +29,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -164,7 +165,7 @@ public class PoliciesApiController extends AbstractApiController {
                     + "into another user's account by passing that user's email as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The policy was saved and is now active. A policy_activated audit event is recorded."),
-            @ApiResponse(responseCode = "400", description = "The policy name is missing or the policy is invalid."),
+            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, or the policy is invalid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
     })
@@ -204,12 +205,21 @@ public class PoliciesApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "create policy '" + name + "'");
 
-        final PolicyEntity policyEntity = new PolicyEntity();
-        policyEntity.setUserId(userId);
-        policyEntity.setPolicy(policyJson);
-        policyEntity.setName(name);
+        // Through create/update rather than save: those enforce the name rules, retain the version
+        // snapshot, and evict the redaction cache. This endpoint is an upsert, so which one depends on
+        // whether the policy already exists.
+        final PolicyEntity existing = policyDataService.findOne(name, userId);
 
-        policyDataService.save(policyEntity);
+        final ServiceResponse response = existing == null
+                ? policyDataService.create(requestId, userId, policyJson, null, null, name, Source.API.getSource())
+                : policyDataService.update(requestId, userId, existing.getId(), policyJson, null, null, Source.API.getSource());
+
+        if (!response.isSuccessful()) {
+            if (response.getStatusCode() == HttpStatus.BAD_REQUEST.value()) {
+                throw new BadRequestException(response.getMessage());
+            }
+            return ResponseEntity.status(response.getStatusCode()).build();
+        }
 
         // Policies saved via the API become active immediately. Record the activation so it is
         // attributable to the specific API key even when no approval step exists.

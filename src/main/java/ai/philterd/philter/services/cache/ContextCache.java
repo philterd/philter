@@ -15,7 +15,7 @@
  */
 package ai.philterd.philter.services.cache;
 
-import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.encryption.ContextTokenHasher;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +72,7 @@ public class ContextCache extends Cache {
     public void setTokenReplacement(final ObjectId userId, final String context, final String token, final ObjectId entryId, final String replacement) {
 
         // The token must be hashed.
-        final String tokenHash = EncryptionService.hashSha256(token);
+        final String tokenHash = ContextTokenHasher.hash(token);
 
         if (entryId == null) {
             // Without an id, the cache value would be ambiguous on read; skip caching rather than store a value
@@ -97,7 +97,7 @@ public class ContextCache extends Cache {
      */
     public CachedReplacement getReplacement(final ObjectId userId, final String context, final String token) {
 
-        final String tokenHash = EncryptionService.hashSha256(token);
+        final String tokenHash = ContextTokenHasher.hash(token);
 
         final String raw = backend.hget(buildKey(userId, context), tokenHash);
 
@@ -132,7 +132,7 @@ public class ContextCache extends Cache {
 
         // The token needs to be encrypted.
 
-        final String tokenHash = EncryptionService.hashSha256(token);
+        final String tokenHash = ContextTokenHasher.hash(token);
 
         return backend.hexists(buildKey(userId, context), tokenHash);
 

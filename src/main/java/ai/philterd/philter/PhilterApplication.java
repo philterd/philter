@@ -373,7 +373,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public PolicyDataService policyDataService() {
-        return new PolicyDataService(mongoClient(), auditEventPublisher(), gson(), policyVersionDataService());
+        return new PolicyDataService(mongoClient(), auditEventPublisher(), gson(), policyVersionDataService(), redactionCache());
     }
 
     @Bean

@@ -99,7 +99,7 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
 
         // A real PolicyDataService writes a snapshot on create and must not remove it on delete.
         final PolicyDataService policyService = new PolicyDataService(
-                mongoClient, mock(AuditEventPublisher.class), new Gson(), versionService);
+                mongoClient, mock(AuditEventPublisher.class), new Gson(), versionService, new ai.philterd.philter.services.cache.RedactionCache());
 
         assertTrue(policyService.create("req", user, json, "desc", "notes", "evidence-policy", "system").isSuccessful());
         final String hash = PolicyVersionDataService.contentHash(json);

@@ -35,8 +35,9 @@ import java.util.List;
  * <p>The user's managed FPE key is <em>not</em> cached here — it is resolved and injected into the
  * policy fresh on every request, so no key material lives in the cache.
  *
- * <p>Entries expire after {@code REDACTION_CACHE_TTL_SECONDS} (default 60), which is also the upper
- * bound on how long an edited or deleted policy / redact list keeps being used, so it is kept low.
+ * <p>Entries expire after {@code REDACTION_CACHE_TTL_SECONDS} (default 60). Policy writes evict
+ * explicitly (see {@link #evictPolicy}), so the TTL is a backstop for policies rather than the bound
+ * on how stale one can be. It is still that bound for the redact lists, which have no eviction.
  */
 public class RedactionCache {
 
@@ -54,6 +55,15 @@ public class RedactionCache {
     /** Caches the policy JSON and its revision for the user and policy name. */
     public void putPolicy(final ObjectId userId, final String policyName, final String policyJson, final int revision) {
         backend.setex(policyKey(userId, policyName), TTL_SECONDS, gson.toJson(new CachedPolicy(policyJson, revision)));
+    }
+
+    /**
+     * Drops the cached policy so the next redaction re-reads it. Called from every path that writes a
+     * policy, so an edit, rollback or deletion takes effect on the next request rather than after the
+     * TTL.
+     */
+    public void evictPolicy(final ObjectId userId, final String policyName) {
+        backend.del(policyKey(userId, policyName));
     }
 
     /** Returns the cached redact lists for the user, or null if not cached. */

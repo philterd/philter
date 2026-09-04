@@ -74,7 +74,7 @@ public class HttpUtils {
      * @throws KeyStoreException Thrown if there is a problem with the key store.
      * @throws KeyManagementException Thrown if there is a problem with key management.
      */
-    public static SSLConnectionSocketFactory getTrustAllSslConnectionSocketFactory() throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+    private static SSLConnectionSocketFactory getTrustAllSslConnectionSocketFactory() throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
 
         final SSLContext sslContext = SSLContextBuilder.create()
                 .loadTrustMaterial(new TrustAllStrategy())
@@ -89,12 +89,14 @@ public class HttpUtils {
 
     /**
      * Creates a {@link PoolingHttpClientConnectionManagerBuilder} pre-configured to trust all certificates.
+     * Private: reachable only through the gated method above, so trust-all cannot be obtained without the
+     * switch and its warning.
      * @return A {@link PoolingHttpClientConnectionManagerBuilder}.
      * @throws NoSuchAlgorithmException Thrown if the algorithm is not available.
      * @throws KeyStoreException Thrown if there is a problem with the key store.
      * @throws KeyManagementException Thrown if there is a problem with key management.
      */
-    public static PoolingHttpClientConnectionManagerBuilder getTrustAllPoolingHttpClientConnectionManagerBuilder() throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+    private static PoolingHttpClientConnectionManagerBuilder getTrustAllPoolingHttpClientConnectionManagerBuilder() throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
 
         return PoolingHttpClientConnectionManagerBuilder.create()
                 .setSSLSocketFactory(getTrustAllSslConnectionSocketFactory());

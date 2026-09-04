@@ -163,6 +163,15 @@ Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that created a Mon
 
 Records for asynchronous (PDF) redactions and outbound webhook deliveries are expired automatically by MongoDB TTL indexes.
 
+**Changing a retention period on an existing deployment takes an extra step.** MongoDB fixes a TTL index's expiry when the index is created and rejects a later change to it. Philter logs a warning and carries on rather than failing to start, so setting a new value on a deployment that has already run has no effect: the old retention period stays in force. Drop the index once and restart, which recreates it with the new value.
+
+```
+db.pending_documents.dropIndex("completed_at_1")
+db.webhook_deliveries.dropIndex("delivered_at_1")
+```
+
+Dropping a TTL index does not delete any records. A fresh deployment, where the collection does not exist yet, needs none of this.
+
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep completed asynchronous redaction records (including the input and redacted output bytes) before MongoDB expires them. | `604800` (7 days) |

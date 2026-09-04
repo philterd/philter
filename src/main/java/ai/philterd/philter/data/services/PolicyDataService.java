@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.policies.ManagedPolicyLoader;
 import ai.philterd.philter.services.policies.PolicyValidation;
@@ -59,10 +60,14 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     private final Gson gson;
     private final PolicyVersionDataService policyVersionDataService;
 
-    public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService) {
+    // Evicted on every write so an edit governs the next redaction, not the one after the TTL.
+    private final RedactionCache redactionCache;
+
+    public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {
         super(mongoClient, "policies", auditEventPublisher);
         this.gson = gson;
         this.policyVersionDataService = policyVersionDataService;
+        this.redactionCache = redactionCache;
 
         // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
         ensureIndex(Indexes.ascending("user_id", "name"));
@@ -138,6 +143,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             // Retain an immutable snapshot of the new version as governance evidence.
             policyVersionDataService.snapshot(policyEntity);
+
+            redactionCache.evictPolicy(userId, policyEntity.getName());
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), source);
 
@@ -595,6 +602,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         policyEntity.setId(objectId);
         policyVersionDataService.snapshot(policyEntity);
 
+        redactionCache.evictPolicy(userId, newName);
+
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, objectId, source);
 
         return new ServiceResponse("The policy was duplicated.", true, objectId, 200);
@@ -638,6 +647,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         update(live);
         policyVersionDataService.snapshot(live);
 
+        redactionCache.evictPolicy(userId, policyName);
+
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ROLLED_BACK, null, null,
                 "policy: " + policyName + ", rolled back to revision: " + targetRevision
                         + ", new revision: " + newRevision, null);
@@ -661,6 +672,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         final DeleteResult deleteResult = collection.deleteOne(query);
 
         if(deleteResult.getDeletedCount() == 1) {
+
+            redactionCache.evictPolicy(userId, policyName);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, null, null,"Policy Name: " + policyName, source.getSource());
 

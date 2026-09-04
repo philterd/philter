@@ -51,6 +51,7 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
+import ai.philterd.philter.utils.EnvUtils;
 import ai.philterd.philter.utils.FilterTypeCounter;
 import io.micrometer.core.instrument.MeterRegistry;
 import ai.philterd.philter.utils.HttpUtils;
@@ -82,6 +83,8 @@ public class RedactionService {
     static final String NO_FILENAME = "none-provided";
 
     private static final String CACHE_HOSTNAME = System.getenv("CACHE_HOSTNAME");
+    // Read the same way the cache beans read it, so a non-default port reaches every cache.
+    static final int CACHE_PORT = EnvUtils.getInt("CACHE_PORT", 6379);
     private static final String CACHE_PASSWORD = System.getenv("CACHE_PASSWORD");
     private static final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv("CACHE_SSL"));
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -308,8 +311,8 @@ public class RedactionService {
 
         // Initialize the contextCache. It is created per request and must be closed before returning
         // so that, when backed by Valkey/Redis, its connection pool is released rather than leaked.
-        LOGGER.info("Initializing contextCache with hostname: {}:6379", CACHE_HOSTNAME);
-        final ContextCache contextCache = new ContextCache(CACHE_HOSTNAME, 6379, CACHE_PASSWORD, CACHE_SSL);
+        LOGGER.info("Initializing contextCache with hostname: {}:{}", CACHE_HOSTNAME, CACHE_PORT);
+        final ContextCache contextCache = new ContextCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
 
         try {
 

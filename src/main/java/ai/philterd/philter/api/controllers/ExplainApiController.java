@@ -48,7 +48,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 
 @Tag(name = "Explain", description = "Redact text and return a detailed explanation of what was redacted and why.")
 @Controller
@@ -111,7 +110,8 @@ public class ExplainApiController extends AbstractApiController {
         json.addProperty("policyVersion", outcome.appliedPolicy().version());
         json.addProperty("policyContentHash", outcome.appliedPolicy().contentHash());
 
-        final String documentId = UUID.randomUUID().toString();
+        // The id the redaction was recorded under, so GET /api/ledger/{documentId} resolves it.
+        final String documentId = outcome.documentId();
         final String responseBody = gson.toJson(json);
         final HttpHeaders headers = new HttpHeaders();
         headers.set(FilterApiController.DOCUMENT_ID_HEADER, documentId);

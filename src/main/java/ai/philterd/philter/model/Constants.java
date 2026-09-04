@@ -24,10 +24,15 @@ public class Constants {
     public static final int MAX_FILE_SIZE_BYTES = (int) getEnvLong("MAX_FILE_SIZE_BYTES", 10L * 1024 * 1024);
 
     /**
-     * Maximum file size in bytes for all other POST and PUT endpoints. Defaults to 10 KB; override
+     * Maximum file size in bytes for all other POST and PUT endpoints. Defaults to 256 KB; override
      * with the {@code MAX_FILE_SIZE_BYTES_OTHER} environment variable.
+     *
+     * <p>Sized to what these endpoints advertise, not picked round: a redact-lists POST replaces both
+     * lists at once, so at the documented maximum ({@code RedactListsDataService}: 1000 terms of 100
+     * characters each) the body reaches ~203 KB. Policies have no size cap of their own, so this is
+     * the only bound on a policy carrying inline dictionaries. At 10 KB both were unreachable.
      */
-    public static final long MAX_FILE_SIZE_BYTES_OTHER = getEnvLong("MAX_FILE_SIZE_BYTES_OTHER", 10L * 1024);
+    public static final long MAX_FILE_SIZE_BYTES_OTHER = getEnvLong("MAX_FILE_SIZE_BYTES_OTHER", 256L * 1024);
 
     private Constants() {
 

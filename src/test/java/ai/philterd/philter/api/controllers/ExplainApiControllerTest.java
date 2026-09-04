@@ -103,14 +103,19 @@ class ExplainApiControllerTest {
                 new Explanation(List.of(span), Collections.emptyList()), Collections.emptyList(), 5);
 
         when(redactionService.filter(eq("default"), any(), eq(""), any(), any(), any()))
-                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 9, "policyhash")));
+                .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 9, "policyhash")));
 
-        final String body = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
+        final var response = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("John was here"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse();
+        final String body = response.getContentAsString();
+
+        // The id the redaction was recorded under, so GET /api/ledger/{documentId} resolves it.
+        assertEquals("doc-explain", response.getHeader("X-Document-Id"),
+                "X-Document-Id must be the id the ledger and audit trail were written under");
 
         // The 3.4.0 contract: filteredText is present and the spans are under a nested "explanation".
         assertTrue(body.contains("\"filteredText\""), "response must include filteredText; was: " + body);
@@ -131,7 +136,7 @@ class ExplainApiControllerTest {
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
         when(redactionService.filter(any(), any(), any(), any(), any(), any()))
-                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
+                .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
 
         final var response = mockMvc.perform(post("/api/explain")
                         .header("Authorization", AUTH_HEADER)
@@ -151,7 +156,7 @@ class ExplainApiControllerTest {
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
         when(redactionService.filter(any(), any(), any(), any(), any(), any()))
-                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
+                .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
 
         final var response = mockMvc.perform(post("/api/explain")
                         .header("Authorization", AUTH_HEADER)
@@ -173,7 +178,7 @@ class ExplainApiControllerTest {
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
         when(redactionService.filter(any(), any(), any(), any(), any(), any()))
-                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 1, "hash")));
+                .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
 
         mockMvc.perform(post("/api/explain")
                         .header("Authorization", AUTH_HEADER)

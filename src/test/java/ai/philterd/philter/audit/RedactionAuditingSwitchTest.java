@@ -98,7 +98,6 @@ class RedactionAuditingSwitchTest {
         // account change, and legal holds. None of these may be suppressed.
         final List<AuditLogEvent> security = Arrays.asList(
                 AuditLogEvent.API_AUTHENTICATION_FAILED,
-                AuditLogEvent.API_IP_BLOCKED,
                 AuditLogEvent.API_KEY_CREATED,
                 AuditLogEvent.REDACTION_LEDGER_EXPORTED,
                 AuditLogEvent.REDACTION_LEDGER_DELETED,

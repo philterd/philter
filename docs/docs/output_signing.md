@@ -74,7 +74,7 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 | `bodyHash` | string | SHA-256 of the response body (lowercase hex). |
 | `policyName` | string | Name of the policy applied during redaction. |
 | `policyVersion` | integer | Revision of the policy applied during redaction. |
-| `documentId` | string | The document ID returned in the `X-Document-Id` response header. |
+| `documentId` | string | The document ID returned in the `X-Document-Id` response header, which is also the ID of the redaction ledger chain when the context has the ledger enabled. |
 | `iat` | integer | Unix epoch (seconds) when the JWT was issued. |
 
 **Signature:** ES256 (ECDSA P-256 / SHA-256), using the operator's private key.

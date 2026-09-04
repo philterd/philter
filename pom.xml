@@ -102,7 +102,6 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
         <bouncycastle.version>1.85</bouncycastle.version>
-        <commons.net.version>3.13.0</commons.net.version>
         <jedis-mock.version>1.1.11</jedis-mock.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <mongodb.version>5.9.1</mongodb.version>
@@ -222,10 +221,6 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
-                    <excludes>
-                        <!-- Run in their own fork below, with the environment they need. -->
-                        <exclude>**/*EnvironmentIT.java</exclude>
-                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
@@ -236,30 +231,6 @@
                             <!-- 'verify' checks the integration-test results and fails the build on failures. -->
                             <goal>verify</goal>
                         </goals>
-                    </execution>
-                    <!-- Some configuration is read from the environment once, into a static field, when its
-                         class is first loaded, so it cannot be changed from inside a running JVM. Testing
-                         that such a variable is actually read requires a fork started with it set, which is
-                         what this execution provides. Keep it to configuration that genuinely cannot be
-                         exercised in the main fork: an extra fork costs a second application boot. -->
-                    <execution>
-                        <id>failsafe-environment-integration-tests</id>
-                        <phase>integration-test</phase>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                        <configuration>
-                            <includes>
-                                <include>**/*EnvironmentIT.java</include>
-                            </includes>
-                            <excludes>
-                                <exclude>none</exclude>
-                            </excludes>
-                            <environmentVariables>
-                                <API_IP_ALLOWLIST>10.0.0.0/8</API_IP_ALLOWLIST>
-                            </environmentVariables>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -642,11 +613,6 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-net</groupId>
-            <artifactId>commons-net</artifactId>
-            <version>${commons.net.version}</version>
         </dependency>
         <dependency>
             <groupId>redis.clients</groupId>

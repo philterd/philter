@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.api;
 
-import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -24,6 +23,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.model.Constants;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
@@ -63,7 +63,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * single controller and never runs the servlet filters. The filters have their own unit tests, but
  * nothing else verifies that they are registered, ordered, and composed with the controllers when a
  * real request arrives. That composition is the API's security boundary: authentication, the IP
- * allowlist, request size limits, content-type verification, and admin cross-user access.
+ * request size limits, content-type verification, and admin cross-user access.
  *
  * <p>This boots the whole application on a random port against an in-process, in-memory MongoDB (no
  * Docker, no external services, as in {@code OpenApiExportIT}) and drives it over real HTTP.
@@ -141,7 +141,6 @@ class ApiFilterChainIT {
     @AfterEach
     void tearDown() {
         // Never leave an override set: it is global state that would leak into other tests.
-        ApiAuthenticationFilter.setAllowlistOverrideForTesting(null);
         AdminAccessConfig.setOverrideForTesting(null);
         httpClient.close();
     }
@@ -257,28 +256,26 @@ class ApiFilterChainIT {
     }
 
     @Test
-    @DisplayName("An address outside API_IP_ALLOWLIST is rejected with 403, one inside is allowed")
-    void ipAllowlistIsEnforced() throws Exception {
+    @DisplayName("A redact-lists body at the documented maximum is accepted")
+    void aFullSizeRedactListsBodyIsAccepted() throws Exception {
 
-        ApiAuthenticationFilter.setAllowlistOverrideForTesting("10.0.0.0/8");
+        // One POST replaces both lists, so the largest body the API documents as valid is 2 x 1000
+        // terms of 100 characters -- about 203 KB. The configuration limit used to be 10 KB, which
+        // made the documented maximum unreachable.
+        final String term = "\"" + "b".repeat(RedactListsDataService.MAXIMUM_TERM_LENGTH) + "\"";
+        final String list = String.join(",", java.util.Collections.nCopies(
+                RedactListsDataService.MAXIMUM_TERMS_PER_LIST, term));
+        final String body = "{\"alwaysRedact\": [" + list + "], \"neverRedact\": [" + list + "]}";
 
-        // The test client connects from loopback, which the allowlist above excludes.
-        final HttpResponse<String> blocked = send(authenticated(baseUrl + "/api/filter?p=ssn-only")
-                .header("Content-Type", "text/plain")
-                .POST(HttpRequest.BodyPublishers.ofString("His SSN was 123-45-6789."))
+        assertTrue(body.length() > 200_000, "the documented maximum really is this large: " + body.length());
+
+        final HttpResponse<String> response = send(authenticated(baseUrl + "/api/redact-lists")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build());
 
-        assertEquals(403, blocked.statusCode());
-
-        // The same request from an address inside the range is allowed. The filter resolves the client
-        // address from X-Forwarded-For when present.
-        final HttpResponse<String> allowed = send(authenticated(baseUrl + "/api/filter?p=ssn-only")
-                .header("Content-Type", "text/plain")
-                .header("X-Forwarded-For", "10.1.2.3")
-                .POST(HttpRequest.BodyPublishers.ofString("His SSN was 123-45-6789."))
-                .build());
-
-        assertEquals(200, allowed.statusCode());
+        assertEquals(200, response.statusCode(),
+                "the documented maximum must fit the configuration limit: " + response.body());
 
     }
 

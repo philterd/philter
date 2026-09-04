@@ -99,7 +99,10 @@ Authentication stays fully enabled; the bootstrap key is your own secret, provis
 
 ## Restricting access by IP address
 
-You can optionally restrict which client IP addresses may call the API with the `API_IP_ALLOWLIST` environment variable (see [Settings](../settings.md#api-access)). When set, an otherwise-authenticated request from an address that is not on the allowlist is rejected with `403 Forbidden` and the denial is recorded in the [audit log](../auditing.md).
+Philter does not filter by client IP address. Restrict access at the network layer instead — security
+groups, firewall rules, or your ingress or load balancer — where the rules apply to every port on the
+host and cannot be influenced by the request itself. An application-level check sees only the address
+the request claims to come from, which a client controls through forwarding headers.
 
 ## Unauthenticated endpoints
 

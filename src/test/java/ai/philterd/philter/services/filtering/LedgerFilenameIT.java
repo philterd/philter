@@ -200,6 +200,34 @@ class LedgerFilenameIT extends AbstractMongoIT {
 
     }
 
+    @Test
+    void theReturnedDocumentIdResolvesTheLedgerChain() throws Exception {
+
+        final RedactionOutcome outcome = redactionService.filter(POLICY_NAME, userId, CONTEXT,
+                TEXT.getBytes(), MimeType.TEXT_PLAIN, "invoice-42.txt");
+
+        // What the caller is handed must be what GET /api/ledger/{documentId} resolves. The service
+        // used to keep this id to itself while the controller returned an unrelated one.
+        assertEquals(chainHead().getDocumentId(), outcome.documentId());
+        assertFalse(ledgerDataService.getChain(userId, outcome.documentId()).isEmpty(),
+                "the returned id must resolve a chain");
+
+    }
+
+    @Test
+    void aRequestedDocumentIdIsRecordedInTheLedger() throws Exception {
+
+        // The async path: the worker replays the id already returned with the 202, so the pending
+        // document and the ledger chain share one identifier.
+        final RedactionOutcome outcome = redactionService.filter(POLICY_NAME, userId, CONTEXT,
+                TEXT.getBytes(), MimeType.TEXT_PLAIN, null, "invoice-42.txt", "job-1234");
+
+        assertEquals("job-1234", outcome.documentId());
+        assertEquals("job-1234", chainHead().getDocumentId());
+        assertFalse(ledgerDataService.getChain(userId, "job-1234").isEmpty());
+
+    }
+
     private LedgerEntity chainHead() {
         final List<LedgerEntity> heads = ledgerDataService.findChainsByUserId(
                 "req-list", userId, 0, 25, Source.API.getSource());

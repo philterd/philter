@@ -129,7 +129,7 @@ class FilterApiControllerTest {
     }
 
     private static RedactionOutcome outcome(final ai.philterd.phileas.model.filtering.AbstractFilterResult result) {
-        return new RedactionOutcome(result, new AppliedPolicy("default", 4, "abc123hash"));
+        return new RedactionOutcome("doc-filter", result, new AppliedPolicy("default", 4, "abc123hash"));
     }
 
     @Test
@@ -151,8 +151,9 @@ class FilterApiControllerTest {
         // The applied policy name, version, and document ID are reported as response headers.
         org.junit.jupiter.api.Assertions.assertEquals("default", response.getHeader("X-Philter-Policy-Name"));
         org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
-        org.junit.jupiter.api.Assertions.assertNotNull(response.getHeader("X-Document-Id"),
-                "every text response must include X-Document-Id");
+        // The id the redaction was recorded under, not a fresh one minted for the response.
+        org.junit.jupiter.api.Assertions.assertEquals("doc-filter", response.getHeader("X-Document-Id"),
+                "X-Document-Id must be the id the ledger and audit trail were written under");
 
         // The redaction must be attributed to the owning user id, not the API key's own id.
         verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any());

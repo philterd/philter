@@ -18,7 +18,6 @@ package ai.philterd.philter.services.policies;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import com.google.gson.Gson;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,14 +71,15 @@ public class ManagedPolicyLoader {
             try {
 
                 final String resourcePath = MANAGED_POLICIES_PATH + managedPolicy.fileName();
-                final InputStream inputStream = getClass().getResourceAsStream(resourcePath);
 
-                if (inputStream == null) {
-                    LOGGER.warn("Managed policy file not found: {}", resourcePath);
-                    continue;
+                final String policyJson;
+                try (final InputStream inputStream = getClass().getResourceAsStream(resourcePath)) {
+                    if (inputStream == null) {
+                        LOGGER.warn("Managed policy file not found: {}", resourcePath);
+                        continue;
+                    }
+                    policyJson = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
                 }
-
-                final String policyJson = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
 
                 // Parse to confirm the resource is a valid native Phileas policy; store the raw JSON.
                 gson.fromJson(policyJson, Policy.class);

@@ -59,7 +59,7 @@ Every `filter` response reports which policy version governed the request, so th
 
 Every successful plain-text `filter` response (200 OK) also includes:
 
-* `X-Document-Id` - A UUID that uniquely identifies this specific request/response. This value is also bound into the `X-Philter-Signature` JWT payload as `documentId` when output signing is enabled.
+* `X-Document-Id` - The ID this redaction was recorded under. When the request's [context](../../redaction/contexts.md) has the [redaction ledger](../../redaction/ledgers.md) enabled, it is the ID of the ledger chain written for the document, so `GET /api/ledger/{documentId}` retrieves that chain. It is also bound into the `X-Philter-Signature` JWT payload as `documentId` when output signing is enabled. For an asynchronous PDF redaction, this is the same `documentId` returned in the `202 Accepted` body, so one ID identifies the job, the downloaded result, and the ledger chain.
 
 When [output signing](../../output_signing.md) is enabled in Admin Settings, successful plain-text `filter` responses additionally include:
 

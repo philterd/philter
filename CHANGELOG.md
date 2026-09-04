@@ -56,7 +56,7 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   capabilities that return original values in the clear, so a key can read a ledger without being able
   to export its plaintext. Scopes only narrow a key: admin-only operations and cross-user access still
   require the role and `ADMIN_CROSS_USER_ACCESS_ENABLED` on top. Scope changes are audited.
-- Optional shared Valkey/Redis caching, an API IP allowlist, and bounded context and vector storage.
+- Optional shared Valkey/Redis caching, and bounded context and vector storage.
 
 ### Changed
 

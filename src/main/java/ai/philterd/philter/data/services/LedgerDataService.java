@@ -40,6 +40,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
@@ -133,21 +134,34 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             return new ChainValidation(false, false, 0, 0);
         }
 
-        boolean hashChainValid = true;
+        final LedgerEntity genesis = chain.get(0);
 
-        for (int i = 1; i < chain.size(); i++) {
+        // The head must be a genesis entry whose own hash recomputes. It carries the input document
+        // hash, the filename and the governing policy, none of which the link checks below reach.
+        boolean hashChainValid = GENESIS.equals(genesis.getPreviousHash())
+                && Objects.equals(genesis.getHash(), genesis.calculateHash());
+
+        if (!hashChainValid) {
+            LOGGER.warn("The genesis entry for document {} is missing or does not verify.", documentId);
+        }
+
+        for (int i = 1; hashChainValid && i < chain.size(); i++) {
 
             final LedgerEntity currentRedaction = chain.get(i);
             final LedgerEntity previousRedaction = chain.get(i - 1);
 
+            // Identify the entry, never its token: that is the decrypted PII this ledger exists to
+            // protect, and validation failure is exactly when it would be written to the log.
             if (!currentRedaction.getHash().equals(currentRedaction.calculateHash())) {
-                LOGGER.debug("Current hash is invalid for redaction of: {}", currentRedaction.getToken());
+                LOGGER.warn("Ledger entry {} (document {}, position {}) does not match its recomputed hash.",
+                        currentRedaction.getId(), documentId, i);
                 hashChainValid = false;
                 break;
             }
 
             if (!currentRedaction.getPreviousHash().equals(previousRedaction.getHash())) {
-                LOGGER.warn("Previous hash link is broken for redaction of: {}", currentRedaction.getToken());
+                LOGGER.warn("Ledger entry {} (document {}, position {}) does not link to the previous entry.",
+                        currentRedaction.getId(), documentId, i);
                 hashChainValid = false;
                 break;
             }

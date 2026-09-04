@@ -67,10 +67,13 @@ import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springdoc.core.customizers.OperationCustomizer;
@@ -203,6 +206,22 @@ public class PhilterApplication implements AppShellConfigurator {
 
     }
 
+    /**
+     * Timeouts for outbound webhook delivery, the only user of this client.
+     *
+     * <p>Apache HttpClient leaves {@code responseTimeout} unbounded by default, so a receiver that
+     * accepts a connection and never answers holds the delivery thread forever. That thread is shared
+     * with the redaction worker, so one such receiver stalls redaction for every tenant.
+     *
+     * <p>10 seconds matches what GitHub and Stripe allow a webhook receiver: it is expected to
+     * acknowledge and do its work asynchronously. Genuine outages are covered by the retry ladder
+     * ({@code WebhookDeliveryDataService}: 8 attempts, 30s to 4h), so being generous here buys
+     * nothing and costs the shared thread.
+     */
+    static final int WEBHOOK_CONNECT_TIMEOUT_SECONDS = EnvUtils.getInt("WEBHOOK_CONNECT_TIMEOUT_SECONDS", 5);
+    static final int WEBHOOK_RESPONSE_TIMEOUT_SECONDS = EnvUtils.getInt("WEBHOOK_RESPONSE_TIMEOUT_SECONDS", 10);
+    static final int WEBHOOK_POOL_TIMEOUT_SECONDS = EnvUtils.getInt("WEBHOOK_POOL_TIMEOUT_SECONDS", 5);
+
     @Bean
     public HttpClient httpClient() {
 
@@ -211,10 +230,17 @@ public class PhilterApplication implements AppShellConfigurator {
                         .setMaxConnTotal(10)
                         .setMaxConnPerRoute(10)
                         .setValidateAfterInactivity(TimeValue.ofSeconds(5))
+                        .setDefaultConnectionConfig(ConnectionConfig.custom()
+                                .setConnectTimeout(Timeout.ofSeconds(WEBHOOK_CONNECT_TIMEOUT_SECONDS))
+                                .build())
                         .build();
 
         return HttpClients.custom()
                 .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(RequestConfig.custom()
+                        .setConnectionRequestTimeout(Timeout.ofSeconds(WEBHOOK_POOL_TIMEOUT_SECONDS))
+                        .setResponseTimeout(Timeout.ofSeconds(WEBHOOK_RESPONSE_TIMEOUT_SECONDS))
+                        .build())
                 .evictIdleConnections(TimeValue.ofSeconds(30))
                 .evictExpiredConnections()
                 .disableAutomaticRetries()

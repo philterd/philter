@@ -63,7 +63,6 @@ public enum AuditLogEvent {
 
     // Authentication outcomes recorded by the API authentication filter.
     API_AUTHENTICATION_FAILED("api_authentication_failed"),
-    API_IP_BLOCKED("api_ip_blocked"),
 
     // An admin acted on another user's resource (via the owner parameter). Recorded with the acting
     // admin as the subject and the affected user as the associated object.

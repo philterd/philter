@@ -20,9 +20,13 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.Locale;
 
 public class LedgerEntity extends AbstractEncryptedEntity {
 
@@ -166,14 +170,30 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         this.signingKeyId = signingKeyId;
     }
 
+    /**
+     * The timestamp's hash form. Pinned to UTC (and ROOT digits) so the digest depends only on the
+     * entry's content; {@code Date.toString()} would bind it to the JVM's default timezone, making a
+     * chain written in one zone validate as tampered in another. Keeps milliseconds.
+     */
+    private static final DateTimeFormatter HASH_TIMESTAMP_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                    .withZone(ZoneOffset.UTC)
+                    .withLocale(Locale.ROOT);
+
+    /** Hashes as "null" when unset, so a malformed record reads as broken rather than throwing. */
+    private String hashTimestamp() {
+        return timestamp == null ? "null" : HASH_TIMESTAMP_FORMAT.format(timestamp.toInstant());
+    }
+
     public String calculateHash() throws NoSuchAlgorithmException {
 
-        final String dataToHash = userId + documentId + token + replacement + startPosition + documentHash + timestamp + previousHash
+        final String dataToHash = userId + documentId + token + replacement + startPosition + documentHash + hashTimestamp() + previousHash
                 + policyName + policyVersion + policyContentHash;
 
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-        final byte[] bytes = digest.digest(dataToHash.getBytes());
+        // Explicit UTF-8: the default charset is ambient JVM state, like the timezone above.
+        final byte[] bytes = digest.digest(dataToHash.getBytes(StandardCharsets.UTF_8));
 
         final StringBuilder buffer = new StringBuilder();
 

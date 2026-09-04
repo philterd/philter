@@ -81,7 +81,6 @@ Running the JAR directly serves plain HTTP unless you set `SSL_ENABLED=true`, si
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `API_IP_ALLOWLIST` | Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API. When set, authenticated requests from other addresses receive `403 Forbidden`. A bare address is treated as a single host. IPv4 only. | (empty, allow all) |
 | `PHILTER_BOOTSTRAP_API_KEY` | Optional API key to seed at startup so automation and turnkey deployments have a credential without using the dashboard. Must be `sk_` followed by 32 alphanumeric characters (generate one however you provision secrets). When set, it is assigned to the `admin` user, but only if that user has no API keys at all (active or archived), so it is seeded once on a fresh install and never resurrected after you create or revoke a key of your own. It is created with every [scope](account/api_keys.md#scopes); narrow it in the dashboard or replace it with a key scoped to what your automation needs. Authentication stays enabled. While the bootstrap key is in use, the dashboard shows a warning on login and surfaces the key on the API Keys page. Rotate or revoke it in the dashboard when it is no longer needed. | (empty; UI key creation only) |
 | `ADMIN_CROSS_USER_ACCESS_ENABLED` | Whether an administrator may view or act on **other** users' resources (their contexts, policies, custom lists, documents, and redaction ledger) via the API `owner` parameter and the admin "All …" dashboard tabs. **Disabled by default**, so an admin sees only their own data, like any user; set to `true` to opt in. Does not affect ordinary admin functions such as user management. | `false` |
 | `LEDGER_DELETION_ENABLED` | Whether [redaction ledger](redaction/ledgers.md) entries may be deleted at all, through `DELETE /api/ledger` or the Redaction Ledgers dashboard. **Disabled by default**: when unset, no ledger evidence can be deleted through Philter and the dashboard controls are hidden. Deletion is additionally restricted to administrators, and [legal holds](redaction/legal_holds.md) still block it. Deleting another user's ledger requires `ADMIN_CROSS_USER_ACCESS_ENABLED` as well. | `false` |
@@ -142,6 +141,9 @@ Records for asynchronous (PDF) redactions and outbound webhook deliveries are ex
 |----------------------|-------------|---------------|
 | `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep completed asynchronous redaction records (including the input and redacted output bytes) before MongoDB expires them. | `604800` (7 days) |
 | `WEBHOOK_DELIVERIES_TTL_SECONDS` | How long to keep delivered webhook records before MongoDB expires them. | `2592000` (30 days) |
+| `WEBHOOK_RESPONSE_TIMEOUT_SECONDS` | How long to wait for your endpoint to respond after the request is sent. A receiver that exceeds this is treated as a failed attempt and retried. Your endpoint should acknowledge quickly and do its work asynchronously. | `10` |
+| `WEBHOOK_CONNECT_TIMEOUT_SECONDS` | How long to wait to establish the TCP connection (and TLS handshake) to your endpoint. | `5` |
+| `WEBHOOK_POOL_TIMEOUT_SECONDS` | How long to wait for a free connection from the outbound connection pool. | `5` |
 
 ## Contexts and Disambiguation
 
@@ -158,7 +160,7 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 |----------------------|-------------|---------------|
 | `INCREMENTAL_REDACTIONS_ENABLED` | Whether Phileas computes incremental redactions. These are required to populate the redaction ledger; leave enabled if any context uses the ledger. | `true` |
 | `MAX_FILE_SIZE_BYTES` | Maximum request body size, in bytes, for the endpoints that accept a document to redact: `POST /api/filter` and `POST /api/explain`. | `10485760` (10 MB) |
-| `MAX_FILE_SIZE_BYTES_OTHER` | Maximum request body size, in bytes, for every other `POST` and `PUT`. These carry configuration (policies, contexts, lists), not documents. | `10240` (10 KB) |
+| `MAX_FILE_SIZE_BYTES_OTHER` | Maximum request body size, in bytes, for every other `POST` and `PUT`. These carry configuration (policies, contexts, lists), not documents. The default accommodates the largest body these endpoints accept: a [redact lists](redaction/redact_lists.md) `POST` replaces both lists at once, so at the documented maximum of 1,000 terms of 100 characters per list it reaches roughly 203 KB. | `262144` (256 KB) |
 | `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service used by policies that perform named-entity recognition. | (none) |
 
 ## Output Signing

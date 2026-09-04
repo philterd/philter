@@ -19,6 +19,7 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
+import java.util.TimeZone;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -82,6 +83,72 @@ class LedgerEntityTest {
         // stamped policy cannot be altered without breaking the chain.
         assertNotEquals(v5.getHash(), v6.getHash());
         assertNotEquals(v5.getHash(), differentHash.getHash());
+    }
+
+    /** Fixed in every field but the timestamp. Non-ASCII token, to exercise the charset too. */
+    private static LedgerEntity entryAt(final ObjectId userId, final Date timestamp) {
+        final LedgerEntity entity = new LedgerEntity();
+        entity.setUserId(userId);
+        entity.setDocumentId("doc-1");
+        entity.setToken("Zo\u00eb M\u00fcller");
+        entity.setReplacement("{{{REDACTED}}}");
+        entity.setStartPosition(0);
+        entity.setDocumentHash("dochash");
+        entity.setTimestamp(timestamp);
+        entity.setPreviousHash("prev");
+        entity.setType("PERSON");
+        entity.setPolicyName("default");
+        entity.setPolicyVersion(5);
+        entity.setPolicyContentHash("policyhash");
+        return entity;
+    }
+
+    @Test
+    void theChainHashDoesNotDependOnTheDefaultTimezone() throws Exception {
+
+        final TimeZone originalTimeZone = TimeZone.getDefault();
+
+        try {
+
+            final ObjectId userId = new ObjectId();
+            final Date timestamp = new Date(1_767_225_600_123L);
+
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            final String inUtc = entryAt(userId, timestamp).calculateHash();
+
+            TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+            final String inNewYork = entryAt(userId, timestamp).calculateHash();
+
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
+            final String inKolkata = entryAt(userId, timestamp).calculateHash();
+
+            // A moved container or a restore elsewhere must not report a sound ledger as tampered.
+            assertEquals(inUtc, inNewYork, "the chain hash must not follow the default timezone");
+            assertEquals(inUtc, inKolkata, "the chain hash must not follow the default timezone");
+
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
+
+    }
+
+    @Test
+    void theChainHashKeepsMillisecondPrecision() throws Exception {
+        // Entries are written in a tight loop and routinely share a second.
+        final ObjectId userId = new ObjectId();
+
+        final String first = entryAt(userId, new Date(1_767_225_600_000L)).calculateHash();
+        final String later = entryAt(userId, new Date(1_767_225_600_001L)).calculateHash();
+
+        assertNotEquals(first, later, "entries one millisecond apart must hash differently");
+    }
+
+    @Test
+    void anEntryWithNoTimestampStillHashes() throws Exception {
+        // A record missing its timestamp must read as broken, not throw and fail the whole chain check.
+        final String hash = entryAt(new ObjectId(), null).calculateHash();
+
+        assertEquals(64, hash.length(), "a SHA-256 hex digest is 64 characters");
     }
 
     @Test

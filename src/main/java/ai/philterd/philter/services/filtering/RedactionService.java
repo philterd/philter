@@ -184,11 +184,11 @@ public class RedactionService {
     }
 
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, null, null);
+        return filter(policyName, userId, contextName, body, mimeType, null, null, null);
     }
 
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final String filename) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, null, filename);
+        return filter(policyName, userId, contextName, body, mimeType, null, filename, null);
     }
 
     /**
@@ -196,8 +196,13 @@ public class RedactionService {
      * {@code pinnedPolicy} is non-null the redaction uses, and stamps, exactly that pinned version
      * (used by deferred/async redaction so the version in force at request time governs the job);
      * otherwise the user's current policy named {@code policyName} is resolved and used.
+     *
+     * <p>{@code requestedDocumentId} lets a caller that already published an id record the redaction
+     * under it: the async worker hands back the id returned with its 202, so the pending document, the
+     * ledger chain, and the audit trail share one identifier. When null, an id is generated. Either
+     * way it comes back on the {@link RedactionOutcome} rather than being minted again downstream.
      */
-    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename) throws Exception {
+    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -379,8 +384,8 @@ public class RedactionService {
 
         }
 
-        // Create a document ID.
-        final String documentId = UUID.randomUUID().toString();
+        // The id this redaction is recorded under, and the one returned to the caller.
+        final String documentId = requestedDocumentId != null ? requestedDocumentId : UUID.randomUUID().toString();
 
         // The disambiguation flag is the single switch for the span-disambiguation engine and the only
         // per-request config input, so the warm filter services (with their populated per-policy filter
@@ -472,7 +477,7 @@ public class RedactionService {
                 "redactions: " + filterResult.getExplanation().appliedSpans().size()
                         + ", policy: " + appliedPolicy.name() + ", policyVersion: " + appliedPolicy.version());
 
-        return new RedactionOutcome(filterResult, appliedPolicy);
+        return new RedactionOutcome(documentId, filterResult, appliedPolicy);
 
         } finally {
             // Release the per-request cache (closes the Valkey/Redis pool when one is configured).

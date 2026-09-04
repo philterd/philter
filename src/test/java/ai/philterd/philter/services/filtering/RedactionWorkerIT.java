@@ -85,8 +85,8 @@ class RedactionWorkerIT extends AbstractMongoIT {
     private void stubRedactionReturns(final byte[] output) throws Exception {
         final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
         when(result.getDocument()).thenReturn(output);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(new RedactionOutcome(result, new AppliedPolicy("default", 0, "hash")));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new RedactionOutcome("doc-worker", result, new AppliedPolicy("default", 0, "hash")));
     }
 
     @Test
@@ -104,11 +104,12 @@ class RedactionWorkerIT extends AbstractMongoIT {
         assertArrayEquals(redacted, completed.getOutput());
         assertNull(completed.getInput(), "input must be cleared once complete");
 
-        // The redaction ran with the job's policy/user/context/input, and the job's filename reaches
-        // the service so the async chain head records it rather than the placeholder.
+        // The redaction ran with the job's policy/user/context/input, the job's filename reaches the
+        // service so the async chain head records it rather than the placeholder, and the job's own
+        // document id is passed through so the ledger is written under the id the caller already holds.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
         verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(),
-                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"));
+                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"), eq("doc-1"));
         assertArrayEquals(new byte[]{1, 2, 3}, body.getValue());
     }
 
@@ -117,7 +118,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final ObjectId user = new ObjectId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
 
         worker.poll();
 
@@ -130,7 +131,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     void pollDoesNothingWhenQueueIsEmpty() throws Exception {
         worker.poll();
-        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

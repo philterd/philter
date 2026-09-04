@@ -33,31 +33,18 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.commons.net.util.SubnetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.GenericFilterBean;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Pattern;
 
 public class ApiAuthenticationFilter extends GenericFilterBean {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiAuthenticationFilter.class);
     private static final Pattern API_KEY_PATTERN = Pattern.compile("^sk_[a-zA-Z0-9]{32}$");
-
-    // Optional comma-separated list of IPv4 addresses/CIDR ranges allowed to call the API.
-    // Empty (the default) disables the restriction and allows all source addresses.
-    private static final List<SubnetUtils.SubnetInfo> IP_ALLOWLIST =
-            parseIpAllowlist(System.getenv().getOrDefault("API_IP_ALLOWLIST", ""));
-
-    // Test-only override: when non-null it takes precedence over API_IP_ALLOWLIST, so an integration
-    // test can exercise the allowlist without setting an environment variable for the whole JVM. Set
-    // via setAllowlistOverrideForTesting and cleared (null) afterwards, as in AdminAccessConfig.
-    private static volatile List<SubnetUtils.SubnetInfo> allowlistOverrideForTesting = null;
 
     private final ApiKeyDataService apiKeyService;
     private final ApiKeyCache apiKeyCache;
@@ -180,24 +167,6 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 }
 
-                // Enforce IP address restrictions, if an allowlist is configured.
-                final String clientIpAddress = AbstractApiController.getClientIpAddress(httpRequest);
-
-                if (!isIpAddressAllowed(clientIpAddress)) {
-
-                    LOGGER.warn("Forbidding request from an IP address not permitted by API_IP_ALLOWLIST.");
-
-                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_IP_BLOCKED, apiKeyEntity.getUserId(), null,
-                            clientIpAddress, "IP address not permitted by API_IP_ALLOWLIST");
-
-                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-                    httpServletResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Your IP address is not allowed to access this API.\"}");
-                    return;
-
-                }
-
                 // Hand the resolved key to the downstream controllers so they do not look it up again.
                 httpRequest.setAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE, apiKeyEntity);
 
@@ -244,86 +213,6 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             chain.doFilter(request, response);
 
         }
-
-    }
-
-    public boolean isIpAddressAllowed(final String ipAddress) {
-        final List<SubnetUtils.SubnetInfo> allowlist =
-                allowlistOverrideForTesting != null ? allowlistOverrideForTesting : IP_ALLOWLIST;
-        return isIpAddressAllowed(allowlist, ipAddress);
-    }
-
-    /**
-     * Test hook: force the allowlist to the given comma-separated addresses/CIDR ranges, or pass
-     * {@code null} to fall back to the {@code API_IP_ALLOWLIST} environment variable.
-     */
-    public static void setAllowlistOverrideForTesting(final String raw) {
-        allowlistOverrideForTesting = raw == null ? null : parseIpAllowlist(raw);
-    }
-
-    /**
-     * Returns true if the address is permitted by the allowlist. An empty allowlist allows all
-     * addresses. Only IPv4 addresses/ranges are supported; when an allowlist is configured, an
-     * address that cannot be evaluated (null, malformed, or IPv6) is denied.
-     */
-    static boolean isIpAddressAllowed(final List<SubnetUtils.SubnetInfo> allowlist, final String ipAddress) {
-
-        // No allowlist configured: all addresses are allowed.
-        if (allowlist.isEmpty()) {
-            return true;
-        }
-
-        if (ipAddress == null || ipAddress.isBlank()) {
-            return false;
-        }
-
-        for (final SubnetUtils.SubnetInfo subnet : allowlist) {
-            try {
-                if (subnet.isInRange(ipAddress)) {
-                    return true;
-                }
-            } catch (final Exception ex) {
-                // Malformed or non-IPv4 (e.g. IPv6) address cannot match an IPv4 allowlist entry.
-                LOGGER.debug("Could not evaluate IP address against allowlist entry {}: {}", subnet.getCidrSignature(), ex.getMessage());
-            }
-        }
-
-        return false;
-
-    }
-
-    /**
-     * Parses a comma-separated list of IPv4 addresses and/or CIDR ranges into matchable subnets.
-     * Bare addresses are treated as a single host (/32). Invalid entries are logged and skipped.
-     */
-    static List<SubnetUtils.SubnetInfo> parseIpAllowlist(final String raw) {
-
-        final List<SubnetUtils.SubnetInfo> allowlist = new ArrayList<>();
-
-        if (raw == null || raw.isBlank()) {
-            return allowlist;
-        }
-
-        for (String entry : raw.split(",")) {
-
-            entry = entry.trim();
-
-            if (entry.isEmpty()) {
-                continue;
-            }
-
-            try {
-                final String cidr = entry.contains("/") ? entry : entry + "/32";
-                final SubnetUtils utils = new SubnetUtils(cidr);
-                utils.setInclusiveHostCount(true);
-                allowlist.add(utils.getInfo());
-            } catch (final Exception ex) {
-                LOGGER.error("Ignoring invalid API_IP_ALLOWLIST entry '{}': {}", entry, ex.getMessage());
-            }
-
-        }
-
-        return allowlist;
 
     }
 

@@ -218,7 +218,8 @@ public class FilterApiController extends AbstractApiController {
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN, filename);
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
-        final String documentId = UUID.randomUUID().toString();
+        // The id the redaction was recorded under, so GET /api/ledger/{documentId} resolves it.
+        final String documentId = outcome.documentId();
         final HttpHeaders headers = policyHeaders(outcome.appliedPolicy());
         headers.set(DOCUMENT_ID_HEADER, documentId);
         if (signingService.isSigningEnabled()) {

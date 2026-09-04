@@ -69,6 +69,11 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   changed to the one `/api/status` used to return. Update health probes to `GET /api/health` and to
   match on `UP`.
 - **Philter serves its own UI**, so the separate `philter-ui` container is gone.
+- **Outbound HTTPS from the redaction pipeline now verifies certificates.** Earlier builds trusted
+  any certificate from any host unconditionally. If Philter reaches ph-eye (or another service in the
+  pipeline) over HTTPS with a self-signed or privately-issued certificate, add its issuer to the JVM
+  truststore, or set `TLS_TRUST_ALL_ENABLED=true` to restore the old behavior. Philter logs a warning
+  at startup while that switch is on.
 - **Context names are unique per user** rather than globally.
 - **Users are deactivated rather than deleted**, so their policies and ledger evidence are preserved.
 

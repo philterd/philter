@@ -77,6 +77,32 @@ Running the JAR directly serves plain HTTP unless you set `SSL_ENABLED=true`, si
 | `SSL_KEY_ALIAS` | The alias of the key to use within the keystore. | `philter` |
 | `SSL_CERTIFICATE_HOSTNAME` | The hostname recorded in the generated certificate's subject and subject alternative name. Used only when generating one. | `localhost` |
 
+### Outbound TLS
+
+The settings above govern the certificate Philter *serves*. This one governs how Philter treats certificates it *receives* when the redaction pipeline calls another service over HTTPS, such as a [ph-eye](system_requirements.md) instance behind its own certificate.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `TLS_TRUST_ALL_ENABLED` | Whether outbound HTTPS from the redaction pipeline accepts any certificate from any host, skipping certificate and hostname verification. **Disabled by default.** Set to `true` only for a self-signed service on a private network; with it on those connections are interceptable by anything on the path. Philter logs a warning at startup while it is enabled. | `false` |
+
+Prefer adding the service's issuing certificate to the JVM truststore over enabling this. Where the certificate is `ph-eye.crt`, that means importing it into a truststore and pointing the JVM at it:
+
+```
+keytool -importcert -alias ph-eye -file ph-eye.crt \
+  -keystore /opt/philter/ssl/truststore.p12 -storetype PKCS12 -storepass changeit -noprompt
+```
+
+```yaml
+services:
+  philter:
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Djavax.net.ssl.trustStore=/opt/philter/ssl/truststore.p12
+        -Djavax.net.ssl.trustStorePassword=changeit
+```
+
+That keeps verification on and trusts exactly the one certificate you intend, rather than all of them.
+
 ## API Access
 
 | Environment Variable | Description | Default Value |

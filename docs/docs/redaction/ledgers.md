@@ -23,6 +23,13 @@ so altering an entry breaks every link after it. On its own this is not proof of
 to write to the database could rewrite an entry, recompute its hash, and relink the entries that
 follow, producing a chain that verifies perfectly.
 
+Every recorded value is covered by that hash: the owning user and document, the redacted value and
+its replacement, its position, the document fingerprint, the timestamp, the link to the previous
+entry, the [governing policy](#which-policy-version-governed-a-redaction) name, version and
+fingerprint, the filename, and the PII type. None can be changed without the entry failing
+validation. Only the signature and the id of the key that made it sit outside the hash, because the
+signature is taken *over* the hash.
+
 **The signature proves origin.** Every entry is signed with the deployment's ES256 key, so an entry
 rewritten in the database cannot be re-signed without that key. Signing is always on and is not tied
 to the [output signing](../output_signing.md) setting.

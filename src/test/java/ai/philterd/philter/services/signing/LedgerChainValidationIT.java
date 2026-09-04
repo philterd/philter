@@ -141,6 +141,28 @@ class LedgerChainValidationIT extends AbstractMongoIT {
     }
 
     @Test
+    @DisplayName("Rewriting the filename on the genesis entry is detected")
+    void rewritingTheGenesisFilenameIsDetected() throws Exception {
+        writeChain();
+
+        tamperWithGenesis("filename", "not-the-file-that-was-redacted.txt");
+
+        assertFalse(ledgerDataService.isChainValid(USER, DOC));
+    }
+
+    @Test
+    @DisplayName("Relabelling a redaction's PII type is detected")
+    void relabellingAPiiTypeIsDetected() throws Exception {
+        writeChain();
+
+        // An entry recorded as an SSN redaction, restamped as something less sensitive.
+        final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(1);
+        ledger().updateOne(Filters.eq("hash", target.getHash()), Updates.set("type", "person"));
+
+        assertFalse(ledgerDataService.isChainValid(USER, DOC));
+    }
+
+    @Test
     @DisplayName("Deleting the genesis entry is detected")
     void deletingTheGenesisEntryIsDetected() throws Exception {
         writeChain();

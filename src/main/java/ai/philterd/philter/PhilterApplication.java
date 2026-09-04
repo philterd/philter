@@ -37,6 +37,7 @@ import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
+import ai.philterd.philter.config.TlsVerificationConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -124,6 +125,15 @@ public class PhilterApplication implements AppShellConfigurator {
             LOGGER.warn("* users' contexts, policies, custom lists, documents, and redaction ledger via the    *");
             LOGGER.warn("* API 'owner' parameter and the admin 'All ...' UI tabs. Disable this unless you      *");
             LOGGER.warn("* explicitly require cross-user administration.                                       *");
+            LOGGER.warn("****************************************************************************************");
+        }
+
+        if (TlsVerificationConfig.isTrustAllEnabled()) {
+            LOGGER.warn("****************************************************************************************");
+            LOGGER.warn("* TLS_TRUST_ALL_ENABLED is ON: outbound HTTPS from the redaction pipeline accepts ANY  *");
+            LOGGER.warn("* certificate from ANY host, so those connections are interceptable by anything on    *");
+            LOGGER.warn("* the path. Use this only for a self-signed service on a private network, and prefer  *");
+            LOGGER.warn("* adding its issuer to the JVM truststore instead.                                    *");
             LOGGER.warn("****************************************************************************************");
         }
 

@@ -85,6 +85,24 @@ class LedgerEntityTest {
         assertNotEquals(v5.getHash(), differentHash.getHash());
     }
 
+    @Test
+    void theFilenameAndPiiTypeArePartOfTheTamperEvidentHash() throws Exception {
+        final ObjectId userId = new ObjectId();
+
+        final LedgerEntity base = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
+
+        final LedgerEntity renamed = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
+        renamed.setFilename("something-else.txt");
+
+        final LedgerEntity relabelled = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
+        relabelled.setType("email-address");
+
+        // Which file was redacted, and what the value was detected as, cannot be rewritten without
+        // breaking the chain.
+        assertNotEquals(base.getHash(), renamed.calculateHash());
+        assertNotEquals(base.getHash(), relabelled.calculateHash());
+    }
+
     /** Fixed in every field but the timestamp. Non-ASCII token, to exercise the charset too. */
     private static LedgerEntity entryAt(final ObjectId userId, final Date timestamp) {
         final LedgerEntity entity = new LedgerEntity();

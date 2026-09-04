@@ -188,7 +188,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     public String calculateHash() throws NoSuchAlgorithmException {
 
         final String dataToHash = userId + documentId + token + replacement + startPosition + documentHash + hashTimestamp() + previousHash
-                + policyName + policyVersion + policyContentHash;
+                + policyName + policyVersion + policyContentHash + filename + type;
 
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
 

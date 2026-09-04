@@ -113,7 +113,7 @@ public class RedactionService {
 
     private static PoolingHttpClientConnectionManager createConnectionManager() {
         try {
-            return HttpUtils.getTrustAllPoolingHttpClientConnectionManagerBuilder()
+            return HttpUtils.getPoolingHttpClientConnectionManagerBuilder()
                     .setMaxConnTotal(10)
                     .setMaxConnPerRoute(10)
                     .setValidateAfterInactivity(TimeValue.ofSeconds(5))

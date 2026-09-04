@@ -139,10 +139,8 @@ class JedisCacheBackendIT {
     @DisplayName("A ContextCache reaches a server on a non-default port")
     void contextCacheHonoursTheConfiguredPort() {
 
-        // RedactionService builds a ContextCache per request from CACHE_HOSTNAME/CACHE_PORT. It used to
-        // pass a hardcoded 6379, so a deployment on any other port had a broken context cache. This
-        // proves the port argument reaches the client: the server here is on an ephemeral port, so a
-        // ContextCache that ignored it could not read its own write.
+        // The server is on an ephemeral port, so a ContextCache ignoring it could not read its
+        // own write. RedactionService used to pass a hardcoded 6379 here.
         final ObjectId userId = new ObjectId();
 
         final ContextCache contextCache = new ContextCache(server.getHost(), server.getBindPort(), "", false);

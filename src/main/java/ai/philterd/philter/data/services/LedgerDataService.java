@@ -136,8 +136,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
         final LedgerEntity genesis = chain.get(0);
 
-        // The head must be a genesis entry whose own hash recomputes. It carries the input document
-        // hash, the filename and the governing policy, none of which the link checks below reach.
+        // The head must be a genesis entry whose own hash recomputes; the link checks below skip it.
         boolean hashChainValid = GENESIS.equals(genesis.getPreviousHash())
                 && Objects.equals(genesis.getHash(), genesis.calculateHash());
 
@@ -150,8 +149,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             final LedgerEntity currentRedaction = chain.get(i);
             final LedgerEntity previousRedaction = chain.get(i - 1);
 
-            // Identify the entry, never its token: that is the decrypted PII this ledger exists to
-            // protect, and validation failure is exactly when it would be written to the log.
+            // Identify the entry, never its token: that is the decrypted PII.
             if (!currentRedaction.getHash().equals(currentRedaction.calculateHash())) {
                 LOGGER.warn("Ledger entry {} (document {}, position {}) does not match its recomputed hash.",
                         currentRedaction.getId(), documentId, i);

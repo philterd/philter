@@ -110,7 +110,7 @@ public class ExplainApiController extends AbstractApiController {
         json.addProperty("policyVersion", outcome.appliedPolicy().version());
         json.addProperty("policyContentHash", outcome.appliedPolicy().contentHash());
 
-        // The id the redaction was recorded under, so GET /api/ledger/{documentId} resolves it.
+        // The id it was recorded under, so GET /api/ledger/{documentId} resolves it.
         final String documentId = outcome.documentId();
         final String responseBody = gson.toJson(json);
         final HttpHeaders headers = new HttpHeaders();

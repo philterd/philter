@@ -36,8 +36,7 @@ import java.util.List;
  * policy fresh on every request, so no key material lives in the cache.
  *
  * <p>Entries expire after {@code REDACTION_CACHE_TTL_SECONDS} (default 60). Policy writes evict
- * explicitly (see {@link #evictPolicy}), so the TTL is a backstop for policies rather than the bound
- * on how stale one can be. It is still that bound for the redact lists, which have no eviction.
+ * explicitly; the TTL is still the staleness bound for the redact lists, which have no eviction.
  */
 public class RedactionCache {
 
@@ -57,11 +56,7 @@ public class RedactionCache {
         backend.setex(policyKey(userId, policyName), TTL_SECONDS, gson.toJson(new CachedPolicy(policyJson, revision)));
     }
 
-    /**
-     * Drops the cached policy so the next redaction re-reads it. Called from every path that writes a
-     * policy, so an edit, rollback or deletion takes effect on the next request rather than after the
-     * TTL.
-     */
+    /** Called from every policy write, so an edit governs the next request rather than the next TTL. */
     public void evictPolicy(final ObjectId userId, final String policyName) {
         backend.del(policyKey(userId, policyName));
     }

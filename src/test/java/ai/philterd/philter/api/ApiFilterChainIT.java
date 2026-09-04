@@ -259,9 +259,7 @@ class ApiFilterChainIT {
     @DisplayName("A redact-lists body at the documented maximum is accepted")
     void aFullSizeRedactListsBodyIsAccepted() throws Exception {
 
-        // One POST replaces both lists, so the largest body the API documents as valid is 2 x 1000
-        // terms of 100 characters -- about 203 KB. The configuration limit used to be 10 KB, which
-        // made the documented maximum unreachable.
+        // One POST replaces both lists: 2 x 1000 terms of 100 characters, ~203 KB. The limit was 10 KB.
         final String term = "\"" + "b".repeat(RedactListsDataService.MAXIMUM_TERM_LENGTH) + "\"";
         final String list = String.join(",", java.util.Collections.nCopies(
                 RedactListsDataService.MAXIMUM_TERMS_PER_LIST, term));

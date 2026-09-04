@@ -40,11 +40,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * A receiver that accepts a connection and never answers is the case Apache HttpClient does not bound
- * by default. Left unbounded it holds the delivery thread indefinitely, and that thread is shared with
- * the redaction worker.
- */
+/** A receiver that accepts and never answers is the case HttpClient does not bound by default. */
 class WebhookTimeoutIT {
 
     private static final int RESPONSE_TIMEOUT_SECONDS = 2;
@@ -60,7 +56,7 @@ class WebhookTimeoutIT {
         acceptor = new Thread(() -> {
             while (!serverSocket.isClosed()) {
                 try {
-                    // Accept, hold the socket open, and never write a response.
+                    // Hold the socket open and never write a response.
                     accepted.add(serverSocket.accept());
                     connected.countDown();
                 } catch (final IOException e) {
@@ -81,7 +77,7 @@ class WebhookTimeoutIT {
         acceptor.join(TimeUnit.SECONDS.toMillis(5));
     }
 
-    /** Built the way the application's httpClient bean is, with a shorter response timeout. */
+    /** As the application's httpClient bean is built, with a shorter timeout. */
     private static CloseableHttpClient client() {
         return HttpClients.custom()
                 .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()

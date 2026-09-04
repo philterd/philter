@@ -41,10 +41,7 @@ public class HttpUtils {
         // This is a utility class.
     }
 
-    /**
-     * Builds the connection manager for the redaction pipeline's outbound HTTPS calls: verifying by
-     * default, trusting any certificate only when {@code TLS_TRUST_ALL_ENABLED} is set.
-     */
+    /** Verifying by default; trust-all only when {@code TLS_TRUST_ALL_ENABLED} is set. */
     public static PoolingHttpClientConnectionManagerBuilder getPoolingHttpClientConnectionManagerBuilder()
             throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
 
@@ -89,8 +86,7 @@ public class HttpUtils {
 
     /**
      * Creates a {@link PoolingHttpClientConnectionManagerBuilder} pre-configured to trust all certificates.
-     * Private: reachable only through the gated method above, so trust-all cannot be obtained without the
-     * switch and its warning.
+     * Private, so trust-all is reachable only through the gated method above.
      * @return A {@link PoolingHttpClientConnectionManagerBuilder}.
      * @throws NoSuchAlgorithmException Thrown if the algorithm is not available.
      * @throws KeyStoreException Thrown if there is a problem with the key store.

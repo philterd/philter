@@ -70,10 +70,8 @@ public class AbstractEncryptedService<T extends AbstractEncryptedEntity> {
     }
 
     /**
-     * Creates an index with the given options if it does not already exist. As with
-     * {@link #ensureIndex(Bson)}, a failure is logged but never propagated. That matters most for a TTL
-     * index: MongoDB rejects a {@code createIndex} that changes {@code expireAfterSeconds} on an
-     * existing index, so without this an altered retention setting would stop the application starting.
+     * Creates an index with the given options, logging rather than propagating a failure: MongoDB
+     * rejects a changed {@code expireAfterSeconds}, which would otherwise stop startup.
      *
      * @param keys    The index key specification (see {@code com.mongodb.client.model.Indexes}).
      * @param options The index options (see {@code com.mongodb.client.model.IndexOptions}).

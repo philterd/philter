@@ -47,12 +47,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Redaction caches a user's policy for {@code REDACTION_CACHE_TTL_SECONDS} (60 by default). Without
- * eviction on write, an edited or deleted policy kept governing redaction for up to that long, and the
- * stale revision was stamped into the response headers and the ledger as the version that applied.
- *
- * <p>A real {@link PolicyDataService} and a real {@link RedactionCache} are used, so these assert the
- * eviction actually happens rather than that the method was called.
+ * Without eviction on write, an edited policy kept governing redaction for the cache TTL. A real
+ * {@link PolicyDataService} and cache, so these assert eviction happens rather than that it is called.
  */
 class PolicyCacheEvictionIT extends AbstractMongoIT {
 
@@ -79,7 +75,7 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
         when(userService.findOneById(userId)).thenReturn(userEntity);
         when(userService.ensureFpeKey(userEntity)).thenReturn(EncryptionService.generateFpeKey());
 
-        // One cache instance shared by the writer and the reader, as in the application.
+        // One instance shared by writer and reader, as in the application.
         final RedactionCache redactionCache = new RedactionCache();
 
         policyDataService = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), new Gson(),
@@ -99,7 +95,7 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
 
     }
 
-    /** Redacts with no context, which is the cached path, and returns the outcome. */
+    /** No context: the cached path. */
     private RedactionOutcome redact() throws Exception {
         return redactionService.filter(POLICY_NAME, userId, "", TEXT.getBytes(), MimeType.TEXT_PLAIN);
     }
@@ -118,8 +114,6 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
 
         final RedactionOutcome after = redact();
 
-        // Content and stamped version both move immediately; before the fix each stayed stale for
-        // up to the cache TTL.
         assertTrue(((TextFilterResult) after.result()).getFilteredText().contains("{{{SECOND-"),
                 "the edited policy must apply at once, not after the cache TTL");
         assertNotEquals(before.appliedPolicy().version(), after.appliedPolicy().version(),
@@ -138,8 +132,8 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
         policyDataService.update("req", userId, policyDataService.findOne(POLICY_NAME, userId).getId(),
                 LEAVE_SSNS, null, null, Source.API.getSource());
 
-        // Redact first, so the cache holds the *edited* policy. Without this the rollback would be
-        // restoring content the cache already had, and the assertion below would hold either way.
+        // Redact first, so the cache holds the edited policy; otherwise the rollback restores what
+        // the cache already had and the assertion below holds either way.
         assertTrue(((TextFilterResult) redact().result()).getFilteredText().contains("{{{SECOND-"),
                 "the edited policy must be the one cached before the rollback");
 

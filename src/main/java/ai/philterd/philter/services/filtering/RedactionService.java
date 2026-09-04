@@ -83,7 +83,6 @@ public class RedactionService {
     static final String NO_FILENAME = "none-provided";
 
     private static final String CACHE_HOSTNAME = System.getenv("CACHE_HOSTNAME");
-    // Read the same way the cache beans read it, so a non-default port reaches every cache.
     static final int CACHE_PORT = EnvUtils.getInt("CACHE_PORT", 6379);
     private static final String CACHE_PASSWORD = System.getenv("CACHE_PASSWORD");
     private static final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv("CACHE_SSL"));
@@ -200,10 +199,8 @@ public class RedactionService {
      * (used by deferred/async redaction so the version in force at request time governs the job);
      * otherwise the user's current policy named {@code policyName} is resolved and used.
      *
-     * <p>{@code requestedDocumentId} lets a caller that already published an id record the redaction
-     * under it: the async worker hands back the id returned with its 202, so the pending document, the
-     * ledger chain, and the audit trail share one identifier. When null, an id is generated. Either
-     * way it comes back on the {@link RedactionOutcome} rather than being minted again downstream.
+     * <p>{@code requestedDocumentId} records the redaction under an id the caller already published;
+     * null generates one. Either way it comes back on the {@link RedactionOutcome}.
      */
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
 
@@ -387,7 +384,6 @@ public class RedactionService {
 
         }
 
-        // The id this redaction is recorded under, and the one returned to the caller.
         final String documentId = requestedDocumentId != null ? requestedDocumentId : UUID.randomUUID().toString();
 
         // The disambiguation flag is the single switch for the span-disambiguation engine and the only

@@ -18,12 +18,10 @@ package ai.philterd.philter.services.filtering;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 
 /**
- * The result of a redaction together with the policy version that governed it and the id it was
- * recorded under. Callers that only need the redacted content read {@link #result()}; controllers that
- * report provenance ({@code /explain} body, {@code /filter} headers) read {@link #appliedPolicy()}.
+ * A redaction's result, the policy version that governed it, and the id it was recorded under.
  *
- * <p>{@link #documentId()} is the id the ledger chain and the audit trail were written under, so it is
- * the value to return to the caller: it is what {@code GET /api/ledger/{documentId}} resolves.
+ * <p>{@link #documentId()} is what the ledger chain and audit trail were written under, so it is the
+ * id to return to the caller: {@code GET /api/ledger/{documentId}} resolves it.
  */
 public record RedactionOutcome(String documentId, AbstractFilterResult result, AppliedPolicy appliedPolicy) {
 }

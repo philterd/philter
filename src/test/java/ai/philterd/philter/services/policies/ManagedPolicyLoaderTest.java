@@ -28,11 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The loader reads its policies from classpath resources at startup and swallows a per-file failure,
- * so a policy that stops loading disappears silently rather than failing anything. These assert the
- * three built-ins are actually read and parse as Phileas policies.
- */
+/** The loader swallows a per-file failure, so a policy that stops loading disappears silently. */
 class ManagedPolicyLoaderTest {
 
     private static final Gson GSON = new Gson();
@@ -61,8 +57,7 @@ class ManagedPolicyLoaderTest {
             assertNotNull(policy.getPolicy(), policy.getName() + " must carry its JSON");
             assertFalse(policy.getPolicy().isBlank(), policy.getName() + " must not be empty");
 
-            // The loader parses to validate but stores the raw JSON, so parse again here: a truncated
-            // or mis-decoded read would still produce a non-blank string.
+            // Parse again: a truncated read would still produce a non-blank string.
             final Policy parsed = GSON.fromJson(policy.getPolicy(), Policy.class);
             assertNotNull(parsed, policy.getName() + " must parse as a Phileas policy");
             assertNotNull(parsed.getIdentifiers(), policy.getName() + " must declare identifiers");
@@ -83,8 +78,7 @@ class ManagedPolicyLoaderTest {
                 .findFirst()
                 .orElseThrow();
 
-        // The read must return the entire resource. Comparing against the file's own byte length
-        // catches a partial read, which parsing alone would not necessarily reveal.
+        // Against the resource itself, since a partial read can still parse.
         final byte[] expected;
         try (final var in = getClass().getResourceAsStream("/managed-policies/common-pii.json")) {
             assertNotNull(in);

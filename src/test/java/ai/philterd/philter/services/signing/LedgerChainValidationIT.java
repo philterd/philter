@@ -48,10 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * The genesis entry is the only record of which document was redacted and under which policy, and no
- * later entry restates it. These tests tamper with it the way someone holding the database would.
- */
+/** The genesis entry is the only record of which document was redacted, under which policy. */
 class LedgerChainValidationIT extends AbstractMongoIT {
 
     private static final ObjectId USER = new ObjectId();
@@ -123,8 +120,7 @@ class LedgerChainValidationIT extends AbstractMongoIT {
     void rewritingTheGenesisDocumentHashIsDetected() throws Exception {
         writeChain();
 
-        // Which document was redacted. Every later entry's hash is untouched, so before the fix the
-        // chain validated and the ledger attested to a document that was never submitted.
+        // Every later entry's hash is untouched, so the pairwise checks alone see nothing.
         tamperWithGenesis("document_hash", "some-other-document");
 
         assertFalse(ledgerDataService.isChainValid(USER, DOC));
@@ -155,7 +151,6 @@ class LedgerChainValidationIT extends AbstractMongoIT {
     void relabellingAPiiTypeIsDetected() throws Exception {
         writeChain();
 
-        // An entry recorded as an SSN redaction, restamped as something less sensitive.
         final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(1);
         ledger().updateOne(Filters.eq("hash", target.getHash()), Updates.set("type", "person"));
 
@@ -167,8 +162,7 @@ class LedgerChainValidationIT extends AbstractMongoIT {
     void deletingTheGenesisEntryIsDetected() throws Exception {
         writeChain();
 
-        // Removing the head rather than editing it: the survivors still link to each other, so pairwise
-        // checks alone see a sound chain that no longer says what was redacted.
+        // The survivors still link to each other, so only the GENESIS marker check catches this.
         ledger().deleteOne(Filters.and(
                 Filters.eq("document_id", DOC), Filters.eq("previous_hash", LedgerDataService.GENESIS)));
 
@@ -191,7 +185,7 @@ class LedgerChainValidationIT extends AbstractMongoIT {
         }
     }
 
-    /** Runs validateChain with the logger captured, at the configured level. Returns what was logged. */
+    /** Validates with the logger captured, and returns what was logged. */
     private String logsFromValidation() throws Exception {
         final CapturingAppender appender = new CapturingAppender();
         appender.start();
@@ -223,9 +217,8 @@ class LedgerChainValidationIT extends AbstractMongoIT {
         final String ssn = "123-45-6789";
         writeChain(ssn);
 
-        // Relink the last entry to nothing, recomputing its own hash so it still verifies. That lands on
-        // the link-broken branch, which logged the decrypted token at WARN -- reaching production logs
-        // under the shipped INFO root level.
+        // Recompute the hash so the entry still verifies: this lands on the link-broken branch,
+        // the one that logged the token at WARN.
         final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(2);
         final String storedHash = target.getHash();
         target.setPreviousHash("0000000000000000000000000000000000000000000000000000000000000000");

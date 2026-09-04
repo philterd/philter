@@ -37,11 +37,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * The redaction pipeline talks to ph-eye over this client. Trusting any certificate must be something
- * an operator opts into, not the default, so these drive a real TLS handshake against a self-signed
- * server rather than inspecting the builder.
- */
+/** A real TLS handshake against a self-signed server, rather than inspecting the builder. */
 class HttpUtilsTest {
 
     @AfterEach
@@ -49,7 +45,7 @@ class HttpUtilsTest {
         TlsVerificationConfig.setOverrideForTesting(null);
     }
 
-    /** A TLS server presenting a self-signed certificate no truststore knows. */
+    /** Presents a self-signed certificate no truststore knows. */
     private static SSLServerSocket selfSignedServer() throws Exception {
         final KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (final var in = HttpUtilsTest.class.getResourceAsStream("/self-signed.p12")) {
@@ -68,13 +64,13 @@ class HttpUtilsTest {
         return (SSLServerSocket) factory.createServerSocket(0);
     }
 
-    /** Accepts one connection and completes the handshake, so the client's own trust decision decides. */
+    /** Completes the handshake, so the client's own trust decision decides. */
     private static Thread accept(final SSLServerSocket server) {
         final Thread thread = new Thread(() -> {
             try (final Socket socket = server.accept()) {
                 socket.getInputStream().read();
             } catch (final IOException ignored) {
-                // The client rejecting our certificate closes the socket; that is the point of the test.
+                // The client rejecting our certificate closes the socket. That is the point.
             }
         });
         thread.setDaemon(true);
@@ -121,8 +117,7 @@ class HttpUtilsTest {
             final String url = "https://localhost:" + server.getLocalPort() + "/";
 
             try (final CloseableHttpClient httpClient = client()) {
-                // The handshake succeeds, so the failure is the server never sending a response rather
-                // than the certificate being rejected. Anything but an SSLException proves trust.
+                // Anything but an SSLException means the handshake succeeded.
                 final Exception thrown = assertThrows(Exception.class,
                         () -> httpClient.execute(new org.apache.hc.client5.http.classic.methods.HttpGet(url),
                                 response -> null));

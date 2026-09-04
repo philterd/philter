@@ -60,7 +60,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     private final Gson gson;
     private final PolicyVersionDataService policyVersionDataService;
 
-    // Evicted on every write so an edit governs the next redaction, not the one after the TTL.
+    // Evicted on every write, so an edit governs the next redaction.
     private final RedactionCache redactionCache;
 
     public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {

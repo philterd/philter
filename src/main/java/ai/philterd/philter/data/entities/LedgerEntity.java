@@ -170,17 +170,13 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         this.signingKeyId = signingKeyId;
     }
 
-    /**
-     * The timestamp's hash form. Pinned to UTC (and ROOT digits) so the digest depends only on the
-     * entry's content; {@code Date.toString()} would bind it to the JVM's default timezone, making a
-     * chain written in one zone validate as tampered in another. Keeps milliseconds.
-     */
+    /** UTC and ROOT digits, so the digest cannot follow the JVM's timezone. Keeps milliseconds. */
     private static final DateTimeFormatter HASH_TIMESTAMP_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
                     .withZone(ZoneOffset.UTC)
                     .withLocale(Locale.ROOT);
 
-    /** Hashes as "null" when unset, so a malformed record reads as broken rather than throwing. */
+    /** "null" when unset, so a malformed record reads as broken rather than throwing. */
     private String hashTimestamp() {
         return timestamp == null ? "null" : HASH_TIMESTAMP_FORMAT.format(timestamp.toInstant());
     }
@@ -192,7 +188,6 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-        // Explicit UTF-8: the default charset is ambient JVM state, like the timezone above.
         final byte[] bytes = digest.digest(dataToHash.getBytes(StandardCharsets.UTF_8));
 
         final StringBuilder buffer = new StringBuilder();

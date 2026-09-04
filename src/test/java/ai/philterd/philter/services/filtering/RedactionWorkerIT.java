@@ -104,9 +104,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         assertArrayEquals(redacted, completed.getOutput());
         assertNull(completed.getInput(), "input must be cleared once complete");
 
-        // The redaction ran with the job's policy/user/context/input, the job's filename reaches the
-        // service so the async chain head records it rather than the placeholder, and the job's own
-        // document id is passed through so the ledger is written under the id the caller already holds.
+        // The job's policy, input, filename and document id all reach the service.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
         verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(),
                 eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"), eq("doc-1"));

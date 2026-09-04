@@ -121,8 +121,7 @@ public class RedactionWorker {
                     inputMimeType,
                     pinnedPolicy,
                     job.getFileName(),
-                    // The id already handed to the caller with the 202, so the pending document, the
-                    // ledger chain and the audit trail all share one identifier.
+                    // The id already returned with the 202, so the job and its ledger chain match.
                     job.getDocumentId()
             ).result();
 

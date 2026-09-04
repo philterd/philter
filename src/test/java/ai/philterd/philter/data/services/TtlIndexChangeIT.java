@@ -35,17 +35,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
 /**
- * Both TTL indexes are built from a service constructor, so an index-creation failure there takes the
- * application context down with it. Changing a retention setting is one way to cause that: MongoDB
- * rejects a {@code createIndex} that alters {@code expireAfterSeconds} on an existing index.
- *
- * <p>That specific rejection cannot be driven here — the in-process mongo-java-server accepts a
- * changed TTL rather than raising {@code IndexOptionsConflict} — so these tests exercise the guard
- * with a failure it does produce, a unique index over data that violates it.
+ * Both TTL indexes are built from a service constructor, so a failure there takes the context down.
+ * The real trigger cannot be driven here (mongo-java-server accepts a changed
+ * {@code expireAfterSeconds}), so these use one it does produce: a unique index over duplicates.
  */
 class TtlIndexChangeIT extends AbstractMongoIT {
 
-    /** Minimal subclass, only to reach the protected helper the TTL indexes now go through. */
+    /** Only to reach the protected helper the TTL indexes go through. */
     private static final class ProbeService extends AbstractEncryptedService<AbstractEncryptedEntity> {
 
         ProbeService(final MongoClient mongoClient, final EncryptionService encryptionService,
@@ -79,7 +75,7 @@ class TtlIndexChangeIT extends AbstractMongoIT {
         final Bson keys = Indexes.ascending("k");
         final IndexOptions unique = new IndexOptions().unique(true);
 
-        // Establishes that this failure is real, so the assertion below is not vacuous.
+        // So the assertion below is not vacuous.
         assertThrows(Exception.class, () -> service.createIndexUnguarded(keys, unique));
 
         assertDoesNotThrow(() -> service.createIndexGuarded(keys, unique),

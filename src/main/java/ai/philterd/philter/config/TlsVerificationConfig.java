@@ -18,17 +18,11 @@ package ai.philterd.philter.config;
 import ai.philterd.philter.utils.EnvUtils;
 
 /**
- * Whether Philter's outbound HTTPS calls from the redaction pipeline skip certificate and hostname
- * verification. This exists for a self-signed sidecar on a private network, such as a ph-eye instance
- * behind its own certificate.
- *
- * <p><strong>Disabled by default.</strong> With it on, any certificate from any host is accepted, so
- * the connection is interceptable by anything on the path. Prefer trusting the certificate's issuer in
- * the JVM truststore.
+ * Whether outbound HTTPS from the redaction pipeline skips certificate and hostname verification.
+ * Off by default; on, any certificate from any host is accepted.
  */
 public final class TlsVerificationConfig {
 
-    // Test-only override: when non-null it takes precedence over the environment variable.
     private static volatile Boolean overrideForTesting = null;
 
     private TlsVerificationConfig() {
@@ -41,7 +35,7 @@ public final class TlsVerificationConfig {
         return EnvUtils.getBoolean("TLS_TRUST_ALL_ENABLED", false);
     }
 
-    /** Test hook: force the flag on/off, or pass {@code null} to fall back to the environment variable. */
+    /** Test hook; null falls back to the environment variable. */
     public static void setOverrideForTesting(final Boolean value) {
         overrideForTesting = value;
     }

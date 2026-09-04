@@ -369,11 +369,6 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public CustomListDataService customListDataService() {
-        return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
     public AdminSettingsDataService adminSettingsDataService() {
         return new AdminSettingsDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }

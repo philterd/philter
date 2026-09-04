@@ -97,10 +97,14 @@ class LedgerEntityTest {
         final LedgerEntity relabelled = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
         relabelled.setType("email-address");
 
-        // Which file was redacted, and what the value was detected as, cannot be rewritten without
-        // breaking the chain.
+        final LedgerEntity moved = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
+        moved.setStartPosition(42);
+
+        // Which file was redacted, what the value was detected as, and where it was located cannot
+        // be rewritten without breaking the chain.
         assertNotEquals(base.getHash(), renamed.calculateHash());
         assertNotEquals(base.getHash(), relabelled.calculateHash());
+        assertNotEquals(base.getHash(), moved.calculateHash());
     }
 
     /** Fixed in every field but the timestamp. Non-ASCII token, to exercise the charset too. */
@@ -178,6 +182,7 @@ class LedgerEntityTest {
         entity.setDocumentId("doc-1");
         entity.setToken("t");
         entity.setReplacement("r");
+        entity.setStartPosition(123L);
         entity.setTimestamp(new Date(0));
         entity.setPreviousHash("prev");
         entity.setHash("hash");
@@ -199,6 +204,7 @@ class LedgerEntityTest {
         assertEquals("default", restored.getPolicyName());
         assertEquals(9, restored.getPolicyVersion());
         assertEquals("phash", restored.getPolicyContentHash());
+        assertEquals(123L, restored.getStartPosition());
         assertTrue(true);
     }
 }

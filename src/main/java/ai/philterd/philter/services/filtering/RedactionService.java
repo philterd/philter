@@ -439,6 +439,7 @@ public class RedactionService {
                 ledgerEntity.setDocumentId(documentId);
                 ledgerEntity.setReplacement(incrementalRedaction.getSpan().getReplacement());
                 ledgerEntity.setToken(incrementalRedaction.getSpan().getText());
+                ledgerEntity.setStartPosition(incrementalRedaction.getSpan().getCharacterStart());
                 ledgerEntity.setUserId(userEntity.getId());
                 ledgerEntity.setDocumentHash(incrementalRedaction.getHash());
                 ledgerEntity.setPreviousHash(ledgerService.getLatestTransaction(userEntity.getId(), documentId).getHash());

@@ -214,6 +214,22 @@ class LedgerFilenameIT extends AbstractMongoIT {
     }
 
     @Test
+    void redactionEntriesCarrySpanStartPosition() throws Exception {
+
+        redactionService.filter(POLICY_NAME, userId, CONTEXT, TEXT.getBytes(),
+                MimeType.TEXT_PLAIN, "invoice-42.txt");
+
+        final String documentId = chainHead().getDocumentId();
+        final List<LedgerEntity> chain = ledgerDataService.getChain(userId, documentId);
+
+        assertEquals(2, chain.size(), "chain should contain genesis and one redaction");
+        assertEquals(0, chain.get(0).getStartPosition(), "genesis entry has startPosition 0");
+        assertEquals(12, chain.get(1).getStartPosition(), "redaction entry has startPosition from span");
+        assertTrue(ledgerDataService.isChainValid(userId, documentId), "chain should be valid");
+
+    }
+
+    @Test
     void aRequestedDocumentIdIsRecordedInTheLedger() throws Exception {
 
         // The async path: the worker replays the id it returned with the 202.

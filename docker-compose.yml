@@ -18,7 +18,7 @@ services:
       # CACHE_PORT: "6379"
       # CACHE_PASSWORD: ""
       # CACHE_SSL: "false"
-      MONGODB_CONNECTION_STRING: mongodb://mongodb:27017/philter
+      MONGODB_CONNECTION_STRING: mongodb://philter:${MONGODB_PASSWORD}@mongodb:27017/philter?authSource=admin
       # Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest.
       # Required. Generate one with: openssl rand -base64 32
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?set PHILTER_ENCRYPTION_KEY (e.g. export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32))}
@@ -48,12 +48,18 @@ services:
 
   mongodb:
     image: mongo:8.2.12
-    ports:
-      - "27017:27017"
+    # Not published to the host. This database holds the ledger, the audit log and the encrypted
+    # PII, and Philter reaches it over the compose network by service name, so nothing needs a host
+    # port. Uncomment to attach mongosh or Philter Diffuse from your machine, which also exposes it
+    # to anything else running there.
+    # ports:
+    #   - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: philter
-      #MONGO_INITDB_ROOT_USERNAME: admin
-      #MONGO_INITDB_ROOT_PASSWORD: password
+      # Authentication is on. The password is read from the environment rather than written here,
+      # generate one with: openssl rand -hex 24
+      MONGO_INITDB_ROOT_USERNAME: philter
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:?set MONGODB_PASSWORD (e.g. export MONGODB_PASSWORD=$(openssl rand -hex 24))}
     networks:
       - philter
     healthcheck:

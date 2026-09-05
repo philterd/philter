@@ -28,8 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -41,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,7 +49,6 @@ import static org.mockito.Mockito.when;
  * their own resources, while an admin may target another user via the {@code owner} email.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class AbstractApiControllerTest {
 
     /** Minimal concrete subclass so the protected helpers can be exercised directly. */
@@ -122,9 +120,10 @@ class AbstractApiControllerTest {
         controller.crossUserAccessEnabled = false;
         final ObjectId otherId = new ObjectId();
         when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
-        when(userService.findOneById(callerId)).thenReturn(user(callerId, "admin@example.com", "admin"));
 
         assertNull(controller.resolveTargetUserId(userService, callerId, "other@example.com"));
+        // The switch is read before the role is, so a disabled deployment never even asks who is asking.
+        verify(userService, never()).findOneById(any());
     }
 
     @Test
@@ -208,6 +207,31 @@ class AbstractApiControllerTest {
         final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
 
         assertSame(correct, resolved);
+    }
+
+    @Test
+    void resolvesFromTheCacheWithoutTouchingTheDatabase() {
+        final ApiKeyEntity cached = apiKeyEntity("sk_match", new ObjectId());
+        final String hash = EncryptionService.hashSha256("sk_match");
+        when(apiKeyCache.containsApiKey(hash)).thenReturn(true);
+        when(apiKeyCache.get(hash)).thenReturn(cached);
+
+        assertSame(cached, controller.getApiKeyEntity("Bearer sk_match"));
+        verify(apiKeyDataService, never()).findOneByApiKey(anyString());
+    }
+
+    @Test
+    void cachesUnderTheHashSoTheFilterAndTheControllerAgree() {
+        // The filter looks the key up by hash. Caching under anything else would mean every request
+        // reaches the database, and the plaintext key would sit in the cache besides.
+        final ApiKeyEntity resolved = apiKeyEntity("sk_match", new ObjectId());
+        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
+        when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(resolved);
+
+        controller.getApiKeyEntity("Bearer sk_match");
+
+        verify(apiKeyCache).insert(EncryptionService.hashSha256("sk_match"), resolved);
+        verify(apiKeyCache, never()).insert(eq("sk_match"), any());
     }
 
     @Test

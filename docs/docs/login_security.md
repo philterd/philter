@@ -66,6 +66,8 @@ Philter supports time-based one-time-password (TOTP) MFA for the dashboard, comp
 
 **At login.** An enrolled user signs in with their username and password as usual, then enters a code from their authenticator app to finish signing in. A user who is not enrolled signs in with just their password.
 
+**Each code is single-use.** A TOTP code stays valid for its 30-second window plus one either side, so accepting one twice would let a code seen over someone's shoulder, or captured in transit, be reused for up to a minute and a half. Philter records the time step of each accepted code and refuses that one and any earlier: the second attempt is rejected with a prompt to wait for the next code, and counts toward the failed-attempt lock.
+
 **Too many failed codes.** After 5 consecutive incorrect codes, the account is locked and the user cannot finish signing in. The lock does not expire on its own; an administrator must clear it. The lock is recorded in the [audit log](auditing.md) as a `user_mfa_locked` event.
 
 **Unlock a locked account (admin).** An administrator clears the lock with Unlock on the Admin, Users tab. The user's enrollment is unchanged and they can enter a code again. (Disabling MFA for the user also clears the lock.)

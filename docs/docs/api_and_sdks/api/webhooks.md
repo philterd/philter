@@ -121,8 +121,20 @@ Each attempt is bounded: Philter waits `WEBHOOK_CONNECT_TIMEOUT_SECONDS` (defaul
 
 After the 8th failure, the delivery is marked `FAILED` and no further attempts are made. Delivered records expire from the `webhook_deliveries` collection after `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days).
 
+## Where a webhook may point
+
+Philter refuses to deliver to private, loopback and link-local addresses, so a webhook cannot be aimed at the network Philter itself sits on. An administrator can widen or narrow that on **Admin** → **Admin Settings** → **Webhook Destinations**, with a comma-separated list of hostnames and IP addresses or CIDR ranges:
+
+```
+hooks.example.com, 203.0.113.0/24, 10.4.0.0/16
+```
+
+Leaving it empty allows any public address. Listing an internal range permits that range and no other, which is how to deliver to a collector inside your own network.
+
+The rule is applied when a URL is saved, again before each delivery, and once more against the address the hostname actually resolves to at the moment of connection. Redirects are not followed, so a permitted endpoint cannot forward a delivery somewhere else. A delivery refused by the policy is recorded as a failed attempt.
+
 ## Operational notes
 
 * Webhooks fire from the same Philter instance that processes the async job. Multiple Philter instances coordinate via MongoDB; only one instance will deliver a given attempt.
-* The worker poll interval is configurable via `philter.webhook.poll-interval-ms` (default 5,000ms).
+* The worker poll interval is configurable via `philter.webhook.poll-interval-ms` (default 5,000ms). Each poll delivers everything that is due rather than one delivery, so the interval is how long an idle worker waits, not a rate limit.
 * The redacted document bytes are *not* included in the payload. Fetch them via [`GET /api/documents/{documentId}`](documents_api.md#download) once you see a `COMPLETE` event.

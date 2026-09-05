@@ -89,24 +89,35 @@ public class TotpService {
      * Verifies a 6-digit TOTP code against the secret, accepting the current step and one step on each
      * side. Returns {@code false} for null/blank input or a malformed secret rather than throwing.
      */
+    /** The code matched no step. */
+    public static final long NO_MATCH = -1L;
+
     public boolean verifyCode(final String secret, final String code) {
+        return matchingTimeStep(secret, code) != NO_MATCH;
+    }
+
+    /**
+     * The step the code belongs to, or {@link #NO_MATCH}. A caller recording the last step it accepted
+     * can refuse a replay, which checking validity alone cannot.
+     */
+    public long matchingTimeStep(final String secret, final String code) {
         if (secret == null || secret.isBlank() || code == null || code.isBlank()) {
-            return false;
+            return NO_MATCH;
         }
         final String trimmed = code.trim();
         final byte[] key;
         try {
             key = new Base32().decode(secret);
         } catch (final Exception e) {
-            return false;
+            return NO_MATCH;
         }
         final long currentStep = Instant.now().getEpochSecond() / TIME_STEP_SECONDS;
         for (long i = -WINDOW; i <= WINDOW; i++) {
             if (constantTimeEquals(generateCode(key, currentStep + i), trimmed)) {
-                return true;
+                return currentStep + i;
             }
         }
-        return false;
+        return NO_MATCH;
     }
 
     private String generateCode(final byte[] key, final long timeStep) {

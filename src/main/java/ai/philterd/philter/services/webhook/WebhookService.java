@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Supplier;
 
 public class WebhookService {
 
@@ -34,12 +36,22 @@ public class WebhookService {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
 
     private final HttpClient httpClient;
+    private final Supplier<WebhookDestinationPolicy> destinationPolicy;
 
-    public WebhookService(final HttpClient httpClient) {
+    public WebhookService(final HttpClient httpClient, final Supplier<WebhookDestinationPolicy> destinationPolicy) {
         this.httpClient = httpClient;
+        this.destinationPolicy = destinationPolicy;
     }
 
     public void deliver(final WebhookDeliveryEntity delivery) throws Exception {
+
+        // Re-checked here, not only when the URL was saved, so narrowing the allowlist takes effect on
+        // destinations already configured.
+        final String host = URI.create(delivery.getUrl()).getHost();
+
+        if (!destinationPolicy.get().isHostAllowed(host)) {
+            throw new WebhookDeliveryException("Delivery to " + host + " is not permitted by the webhook allowlist.");
+        }
 
         final long timestamp = System.currentTimeMillis() / 1000L;
         final String signature = sign(timestamp, delivery.getPayload(), delivery.getSecret());

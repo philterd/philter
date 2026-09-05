@@ -24,6 +24,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
@@ -32,8 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -46,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,10 +60,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * cross-user {@code owner} parameter.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class RedactListsApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock private RedactListsDataService redactListsService;
@@ -83,8 +83,10 @@ class RedactListsApiControllerTest {
         // A distinct API-key _id so a regression to getId() instead of getUserId() would fail.
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final RedactListsApiController controller = new RedactListsApiController(
                 redactListsService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());

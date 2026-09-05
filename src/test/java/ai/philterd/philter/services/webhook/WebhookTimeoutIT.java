@@ -15,7 +15,9 @@
  */
 package ai.philterd.philter.services.webhook;
 
+import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.services.AdminSettingsDataService;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -37,6 +39,9 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -110,7 +115,7 @@ class WebhookTimeoutIT {
         final long start = System.nanoTime();
 
         try (final CloseableHttpClient httpClient = client()) {
-            assertThrows(IOException.class, () -> new WebhookService(httpClient).deliver(delivery()),
+            assertThrows(IOException.class, () -> new WebhookService(httpClient, () -> new WebhookDestinationPolicy("127.0.0.1")).deliver(delivery()),
                     "a silent receiver must abort the delivery, not hold the thread");
         }
 

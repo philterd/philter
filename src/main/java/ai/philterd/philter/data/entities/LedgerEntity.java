@@ -181,10 +181,30 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         return timestamp == null ? "null" : HASH_TIMESTAMP_FORMAT.format(timestamp.toInstant());
     }
 
+    /**
+     * Appends one field, length first, so the boundary between fields cannot move. A separator alone
+     * would not do: a token and a replacement are arbitrary text and may contain whatever character
+     * was chosen as the separator.
+     */
+    private static void appendField(final StringBuilder buffer, final Object field) {
+        final String value = String.valueOf(field);
+        buffer.append(value.length()).append(':').append(value);
+    }
+
     public String calculateHash() throws NoSuchAlgorithmException {
 
-        final String dataToHash = userId + documentId + token + replacement + startPosition + documentHash + hashTimestamp() + previousHash
-                + policyName + policyVersion + policyContentHash + filename + type;
+        // Every field is length-prefixed. Concatenated plainly, token "ab" with replacement "c" and
+        // token "a" with replacement "bc" produce the same digest, and one could be edited into the
+        // other without breaking the chain.
+        final StringBuilder canonical = new StringBuilder();
+
+        for (final Object field : new Object[]{userId, documentId, token, replacement, startPosition,
+                documentHash, hashTimestamp(), previousHash, policyName, policyVersion,
+                policyContentHash, filename, type}) {
+            appendField(canonical, field);
+        }
+
+        final String dataToHash = canonical.toString();
 
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
 

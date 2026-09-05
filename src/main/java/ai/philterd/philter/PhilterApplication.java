@@ -52,8 +52,11 @@ import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
+import ai.philterd.philter.services.webhook.WebhookDestinationPolicy;
+import ai.philterd.philter.services.webhook.WebhookDnsResolver;
 import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.utils.EnvUtils;
+import ai.philterd.philter.services.policies.PhiSqlCompileService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -86,6 +89,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import org.springdoc.core.utils.SpringDocUtils;
 
 
 @Configuration
@@ -104,6 +113,21 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 public class PhilterApplication implements AppShellConfigurator {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
+
+    static {
+        // Gson's JsonObject and friends are mutually recursive, and springdoc documents them as beans:
+        // getAsJsonObject(), getAsJsonArray() and the rest become properties referring to one another.
+        // That put four internal Gson schemas into the published spec, reached through the metadata
+        // field of Phileas's Policy, and left the accessors resolving to a $ref or an empty object
+        // depending on the order they happened to be walked in — so identical code produced a
+        // different spec from one build to the next. They are JSON; document them as such.
+        SpringDocUtils.getConfig()
+                .replaceWithClass(JsonElement.class, Object.class)
+                .replaceWithClass(JsonObject.class, Object.class)
+                .replaceWithClass(JsonArray.class, Object.class)
+                .replaceWithClass(JsonPrimitive.class, Object.class)
+                .replaceWithClass(JsonNull.class, Object.class);
+    }
 
     // Name of the OpenAPI security scheme covering the API key bearer token.
     private static final String API_KEY_SECURITY_SCHEME = "apiKey";
@@ -229,6 +253,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
         final PoolingHttpClientConnectionManager connectionManager =
                 PoolingHttpClientConnectionManagerBuilder.create()
+                        .setDnsResolver(new WebhookDnsResolver(adminSettingsDataService()))
                         .setMaxConnTotal(10)
                         .setMaxConnPerRoute(10)
                         .setValidateAfterInactivity(TimeValue.ofSeconds(5))
@@ -246,6 +271,9 @@ public class PhilterApplication implements AppShellConfigurator {
                 .evictIdleConnections(TimeValue.ofSeconds(30))
                 .evictExpiredConnections()
                 .disableAutomaticRetries()
+                // A receiver has no reason to redirect, and following one would leave the destination
+                // policy applied to a host the caller never chose.
+                .disableRedirectHandling()
                 .build();
 
     }
@@ -355,7 +383,10 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public WebhookService webhookService() {
-        return new WebhookService(httpClient());
+        return new WebhookService(httpClient(), () -> {
+            final var settings = adminSettingsDataService().findAdminSettings();
+            return new WebhookDestinationPolicy(settings == null ? null : settings.getWebhookAllowlist());
+        });
     }
 
     @Bean
@@ -391,6 +422,11 @@ public class PhilterApplication implements AppShellConfigurator {
     @Bean
     public EncryptionService encryptionService() {
         return new LocalEncryptionService();
+    }
+
+    @Bean
+    public PhiSqlCompileService phiSqlCompileService() {
+        return new PhiSqlCompileService();
     }
 
     @Bean

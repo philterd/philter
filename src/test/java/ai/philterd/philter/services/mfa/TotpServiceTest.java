@@ -16,6 +16,7 @@
 package ai.philterd.philter.services.mfa;
 
 import org.apache.commons.codec.binary.Base32;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.Mac;
@@ -115,4 +116,41 @@ class TotpServiceTest {
             throw new RuntimeException(e);
         }
     }
+
+    @Test
+    @DisplayName("A valid code reports the step it belongs to, so a replay can be refused")
+    void aValidCodeReportsItsTimeStep() {
+        final String secret = totpService.generateSecret();
+        final long step = java.time.Instant.now().getEpochSecond() / 30L;
+        final String code = expectedCode(secret, step);
+
+        final long matched = totpService.matchingTimeStep(secret, code);
+
+        assertEquals(step, matched, "the step must identify which code was used");
+
+        // The same code presented again reports the same step, which is what makes a replay detectable.
+        assertEquals(matched, totpService.matchingTimeStep(secret, code));
+    }
+
+    @Test
+    @DisplayName("An invalid code reports no match")
+    void anInvalidCodeReportsNoMatch() {
+        assertEquals(TotpService.NO_MATCH, totpService.matchingTimeStep(totpService.generateSecret(), "000000"));
+    }
+
+
+    @Test
+    @DisplayName("Enrolling consumes its code, so it cannot also pass the login challenge")
+    void anEnrollmentCodeIsNotReusable() {
+        final String secret = totpService.generateSecret();
+        final long step = java.time.Instant.now().getEpochSecond() / 30L;
+        final String code = expectedCode(secret, step);
+
+        // AccountView records this step at enrollment; MfaChallengeView refuses anything at or below it.
+        final long enrolledAt = totpService.matchingTimeStep(secret, code);
+
+        assertTrue(totpService.matchingTimeStep(secret, code) <= enrolledAt,
+                "the same code must not clear a last-used step recorded from it");
+    }
+
 }

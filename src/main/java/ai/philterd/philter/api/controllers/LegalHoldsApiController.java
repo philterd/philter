@@ -82,7 +82,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The hold was set and is now active."),
             @ApiResponse(responseCode = "400", description = "Required fields are missing or the scope type is invalid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."),
             @ApiResponse(responseCode = "409", description = "A hold with the given reference already exists for this user.")
     })
     @RequiresScope(ApiKeyScope.HOLDS_WRITE)
@@ -139,7 +139,7 @@ public class LegalHoldsApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Array of legal holds, most recently set first."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.HOLDS_READ)
     @RequestMapping(value = "/api/holds", method = RequestMethod.GET,

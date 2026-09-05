@@ -34,7 +34,7 @@ Every running instance serves Swagger UI at `/swagger-ui/index.html` (for exampl
 ## Developer Guidelines
 
 *   **Restrict access.** Put Philter behind firewall rules, security groups, or an ingress that limits API access to trusted clients. Philter itself does not filter by client address; that belongs at the network layer.
-*   **Handle error responses.** Beyond `401 Unauthorized` for a missing or invalid key, expect `403 Forbidden` (the operation requires an administrator, the feature is disabled, or the API key lacks the required scope), `413 Payload Too Large` and `415 Unsupported Media Type` on redaction requests, `409 Conflict` and `410 Gone` when downloading an asynchronous document that is not finished or that failed, and `423 Locked` when a legal hold blocks a deletion.
+*   **Handle error responses.** Beyond `401 Unauthorized` for a missing or invalid key, expect `403 Forbidden` (the operation requires an administrator, the feature is disabled, or the API key lacks the required scope), `404 Not Found` when you name another user with `owner=` and may not reach them — the API answers the same way whether or not that user exists, so the status cannot be used to discover accounts — `413 Payload Too Large` and `415 Unsupported Media Type` on redaction requests, `409 Conflict` and `410 Gone` when downloading an asynchronous document that is not finished or that failed, and `423 Locked` when a legal hold blocks a deletion.
 *   **Use a separate context for development.** A distinct [context](../redaction/contexts.md) keeps test replacements out of your production data.
 *   **Validate against your own data.** Detection is probabilistic, so measure a policy against representative documents before relying on it, and review the results.
 

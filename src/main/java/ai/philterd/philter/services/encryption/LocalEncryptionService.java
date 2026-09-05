@@ -31,6 +31,12 @@ public class LocalEncryptionService extends EncryptionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalEncryptionService.class);
 
+    /** Shared: SecureRandom is thread-safe, and seeding a new one per call is the expensive part. */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /** AES-CBC: the IV is the first 16 bytes of what was stored. */
+    private static final int IV_LENGTH = 16;
+
     public LocalEncryptionService() {
         super(new LocalKeyProvider());
     }
@@ -142,11 +148,17 @@ public class LocalEncryptionService extends EncryptionService {
 
         final SecretKeySpec secretKey = new SecretKeySpec(key, "AES");
 
-        final byte[] ivBytes = new byte[16];
-        System.arraycopy(encrypted, 0, ivBytes, 0, 16);
+        // Without this, too-short input fails inside arraycopy with an index message that says
+        // nothing about what was actually wrong.
+        if (encrypted.length <= IV_LENGTH) {
+            throw new IllegalArgumentException("Encrypted value is too short to contain an IV and ciphertext.");
+        }
 
-        final byte[] cipherBytes = new byte[encrypted.length - 16];
-        System.arraycopy(encrypted, 16, cipherBytes, 0, cipherBytes.length);
+        final byte[] ivBytes = new byte[IV_LENGTH];
+        System.arraycopy(encrypted, 0, ivBytes, 0, IV_LENGTH);
+
+        final byte[] cipherBytes = new byte[encrypted.length - IV_LENGTH];
+        System.arraycopy(encrypted, IV_LENGTH, cipherBytes, 0, cipherBytes.length);
 
         try {
             final Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
@@ -173,12 +185,16 @@ public class LocalEncryptionService extends EncryptionService {
         final SecretKeySpec secretKey = new SecretKeySpec(key, "AES");
         final byte[] combined = Base64.getDecoder().decode(encryptedText);
 
-        final byte[] ivBytes = new byte[16];
-        System.arraycopy(combined, 0, ivBytes, 0, 16);
+        if (combined.length <= IV_LENGTH) {
+            throw new IllegalArgumentException("Encrypted value is too short to contain an IV and ciphertext.");
+        }
+
+        final byte[] ivBytes = new byte[IV_LENGTH];
+        System.arraycopy(combined, 0, ivBytes, 0, IV_LENGTH);
         IvParameterSpec iv = new IvParameterSpec(ivBytes);
 
-        final byte[] encryptedBytes = new byte[combined.length - 16];
-        System.arraycopy(combined, 16, encryptedBytes, 0, encryptedBytes.length);
+        final byte[] encryptedBytes = new byte[combined.length - IV_LENGTH];
+        System.arraycopy(combined, IV_LENGTH, encryptedBytes, 0, encryptedBytes.length);
 
         try {
 
@@ -203,8 +219,8 @@ public class LocalEncryptionService extends EncryptionService {
      * @return a new IvParameterSpec instance.
      */
     private IvParameterSpec generateIv() {
-        byte[] iv = new byte[16];
-        new SecureRandom().nextBytes(iv);
+        byte[] iv = new byte[IV_LENGTH];
+        SECURE_RANDOM.nextBytes(iv);
         return new IvParameterSpec(iv);
     }
 

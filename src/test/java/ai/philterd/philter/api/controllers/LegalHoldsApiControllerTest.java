@@ -26,6 +26,7 @@ import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,8 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -51,10 +50,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class LegalHoldsApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH = "Bearer " + API_KEY;
 
     private static final String SET_HOLD_BODY =
@@ -77,8 +76,10 @@ class LegalHoldsApiControllerTest {
         apiKeyEntity.setUserId(userId);
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         AdminAccessConfig.setOverrideForTesting(true);
 

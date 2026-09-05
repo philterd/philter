@@ -31,6 +31,7 @@ import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,8 +39,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -55,6 +54,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,12 +64,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class LedgerApiControllerTest {
 
     private static final String REDACTED_VALUE = "John Smith";
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
     private static final String UNKNOWN_AUTH_HEADER = "Bearer sk_unknownunknownunknownunknown00";
 
@@ -89,8 +89,10 @@ class LedgerApiControllerTest {
         apiKeyEntity.setUserId(userId);
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final LedgerApiController controller = new LedgerApiController(
                 ledgerService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, mock(SigningKeyDataService.class), new Gson());
@@ -163,9 +165,8 @@ class LedgerApiControllerTest {
         match.setDocumentId("doc-1");
         when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any()))
                 .thenReturn(List.of(match));
-        // The caller owns 7 chains; only 1 matches. `total` must describe the matches.
+        // `total` must count the matches, not the caller's whole ledger.
         when(ledgerService.countChainsByUserIdMatching(eq(userId), eq("invoice"))).thenReturn(1);
-        when(ledgerService.countChainsByUserId(eq(userId))).thenReturn(7);
 
         final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .param("q", "invoice")
@@ -514,7 +515,7 @@ class LedgerApiControllerTest {
         final UserEntity admin = new UserEntity();
         admin.setId(userId);
         admin.setRole("admin");
-        when(userService.findOneById(userId)).thenReturn(admin);
+        lenient().when(userService.findOneById(userId)).thenReturn(admin);
     }
 
     /** Makes the calling user a non-admin. */

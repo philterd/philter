@@ -34,8 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -45,6 +43,8 @@ import java.util.Collections;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.policies.PhiSqlCompileService;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +52,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,10 +67,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * would fail.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class PoliciesApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock private PolicyDataService policyDataService;
@@ -88,11 +89,14 @@ class PoliciesApiControllerTest {
         apiKeyEntity.setUserId(userId);
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final PoliciesApiController controller = new PoliciesApiController(
-                policyDataService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson());
+                policyDataService, userService, apiKeyDataService, auditEventPublisher, apiKeyCache,
+                new PhiSqlCompileService(), new Gson());
 
         // Admin cross-user access is opt-in (off by default); enable it for the admin tests here.
 

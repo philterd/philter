@@ -609,12 +609,26 @@ public class AdminView extends AbstractRestrictedView {
                         + "for a code at login. Existing enrollments are unaffected if this is later turned off. To "
                         + "reset a user who has lost their authenticator, use Disable MFA on the Users tab.");
 
+        // Webhook destinations: where a user's webhook URL is allowed to point.
+        final TextField webhookAllowlistField = new TextField("Webhook Destination Allowlist");
+        webhookAllowlistField.setValue(finalAdminSettingsEntity.getWebhookAllowlist());
+        webhookAllowlistField.setWidth("640px");
+        webhookAllowlistField.setPlaceholder("hooks.example.com, 203.0.113.0/24");
+
+        final Span webhookAllowlistNote = new Span(
+                "Comma-separated hostnames and IP addresses or CIDR ranges that a user may set as their "
+                        + "webhook URL. Leave empty to allow any public address; private, loopback and "
+                        + "link-local addresses are refused either way unless listed here. Enforced when the "
+                        + "URL is saved and again at the moment of delivery, so a name that later resolves "
+                        + "somewhere else is still refused.");
+
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
             adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
             adminSettingsDataService.savePhieldSettings(phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
                     phieldSourceIdField.getValue(), phieldOrganizationField.getValue(), phieldApiKeyField.getValue());
             adminSettingsDataService.saveSigningEnabled(signingEnabledCheckbox.getValue());
             adminSettingsDataService.saveMfaEnabled(mfaEnabledCheckbox.getValue());
+            adminSettingsDataService.saveWebhookAllowlist(webhookAllowlistField.getValue());
             showSuccessNotification("Admin settings saved.");
             // The settings are saved either way; sending a credential over cleartext http is the
             // administrator's call to make, but they should know they are making it.
@@ -630,6 +644,7 @@ public class AdminView extends AbstractRestrictedView {
                 phieldEnabledCheckbox, phieldNote, phieldUrlField, phieldSourceIdField, phieldOrganizationField, phieldApiKeyField,
                 new H3("Output Signing"), signingEnabledCheckbox, fingerprintField, regenerateKeyButton,
                 new H3("Multi-Factor Authentication"), mfaEnabledCheckbox, mfaNote,
+                new H3("Webhook Destinations"), webhookAllowlistField, webhookAllowlistNote,
                 saveLoggingSettingsButton);
 
         final TabSheet tabSheet = new TabSheet();

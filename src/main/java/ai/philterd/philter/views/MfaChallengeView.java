@@ -111,19 +111,28 @@ public class MfaChallengeView extends VerticalLayout implements BeforeEnterObser
         }
 
         final String code = codeField.getValue();
-        if (code == null || code.isBlank() || !totpService.verifyCode(user.getMfaSecret(), code)) {
+        final long timeStep = code == null ? TotpService.NO_MATCH
+                : totpService.matchingTimeStep(user.getMfaSecret(), code);
+
+        // A code lives for its whole window, so a used one must not be accepted again.
+        final boolean alreadyUsed = timeStep != TotpService.NO_MATCH
+                && timeStep <= user.getMfaLastUsedTimeStep();
+
+        if (timeStep == TotpService.NO_MATCH || alreadyUsed) {
             final boolean nowLocked = userService.recordFailedMfaAttempt(
                     RequestIdGenerator.generate(), user, Source.WEBUI.getSource());
             codeField.setInvalid(true);
             if (nowLocked) {
                 codeField.setErrorMessage("Too many failed attempts. Your account is locked; ask an administrator to unlock it.");
+            } else if (alreadyUsed) {
+                codeField.setErrorMessage("That code has already been used. Wait for your authenticator app to show the next one.");
             } else {
                 codeField.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
             }
             return;
         }
 
-        userService.resetMfaAttempts(user);
+        userService.recordAcceptedMfaTimeStep(user, timeStep);
         markSatisfiedAndContinue();
     }
 

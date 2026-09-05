@@ -29,6 +29,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.core.env.Environment;
 
 import java.net.URI;
+import java.util.List;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -80,6 +81,22 @@ class OpenApiExportIT {
             assertTrue(specification.has("openapi"), "The response should be an OpenAPI specification.");
             assertFalse(specification.getAsJsonObject("paths").keySet().isEmpty(),
                     "The specification should document at least one endpoint.");
+
+            // No serializer internals in a published contract. Gson's JsonObject and friends are
+            // mutually recursive, so documenting them as beans both bloated the spec and made it
+            // resolve differently from one build to the next.
+            final JsonObject schemas = specification.getAsJsonObject("components").getAsJsonObject("schemas");
+            final List<String> leaked = schemas.keySet().stream()
+                    .filter(name -> name.startsWith("Json") || name.startsWith("Gson"))
+                    .toList();
+            assertTrue(leaked.isEmpty(), "Gson's own types must not appear in the published spec: " + leaked);
+
+            // A status the endpoint cannot return is worse than an undocumented one: this GET has
+            // always answered 404 for a missing list while the spec advertised 409.
+            final JsonObject getOneList = specification.getAsJsonObject("paths")
+                    .getAsJsonObject("/api/lists/{name}").getAsJsonObject("get").getAsJsonObject("responses");
+            assertTrue(getOneList.has("404"), "A missing list is a 404, and the spec must say so.");
+            assertFalse(getOneList.has("409"), "This endpoint never answers 409.");
 
             // Make the published artifact reproducible: identical code must produce a byte-identical
             // spec so the committed file only changes when the API actually changes. Two sources of

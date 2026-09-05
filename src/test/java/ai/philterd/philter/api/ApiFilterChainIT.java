@@ -21,6 +21,15 @@ import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
+import java.util.List;
+import org.springframework.http.MediaType;
+import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.lang.reflect.Method;
+import org.springframework.web.bind.annotation.RequestMapping;
+import ai.philterd.philter.api.security.RequiresScope;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import ai.philterd.philter.data.services.RedactListsDataService;
@@ -331,6 +340,21 @@ class ApiFilterChainIT {
     }
 
     @Test
+    @DisplayName("An async PDF naming an unknown policy is refused, not accepted")
+    void asyncPdfWithAnUnknownPolicyIsRefused() throws Exception {
+
+        // The synchronous path already errors on this; accepting it asynchronously only defers the
+        // failure into the worker, where the caller learns about it by polling.
+        final HttpResponse<String> response = send(authenticated(baseUrl + "/api/filter?p=no-such-policy")
+                .header("Content-Type", "application/pdf")
+                .POST(HttpRequest.BodyPublishers.ofByteArray("%PDF-1.4 fake".getBytes()))
+                .build());
+
+        assertEquals(404, response.statusCode(), "an unknown policy must be refused up front: " + response.body());
+
+    }
+
+    @Test
     @DisplayName("With cross-user access disabled, naming another owner returns 404 rather than 403")
     void crossUserAccessDisabledHidesOtherUsers() throws Exception {
 
@@ -488,17 +512,81 @@ class ApiFilterChainIT {
     }
 
     @Test
-    @DisplayName("A key with no scopes can call nothing")
+    @DisplayName("A key with no scopes is refused by every scoped endpoint")
     void aKeyWithNoScopesCanCallNothing() throws Exception {
 
+        // Every handler is annotated (ApiKeyScopeCoverageTest) and each annotation names the documented
+        // scope (ApiKeyScopeAssignmentTest). Neither proves the interceptor actually stands in front of
+        // the handler at runtime: the controller tests use standalone MockMvc, which registers no
+        // interceptor at all. This drives every scoped endpoint over real HTTP with a key that holds
+        // nothing, so an endpoint that escapes the chain shows up as a status other than 403.
         final String noScopes = scopedKey();
 
-        final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies"))
-                .header("Authorization", "Bearer " + noScopes)
-                .GET()
-                .build());
+        final List<String> notRefused = new ArrayList<>();
+        int checked = 0;
 
-        assertEquals(403, response.statusCode());
+        for (final Class<?> controller : controllerClasses()) {
+            for (final Method handler : controller.getDeclaredMethods()) {
+
+                final RequestMapping mapping = handler.getAnnotation(RequestMapping.class);
+                if (mapping == null || handler.getAnnotation(RequiresScope.class) == null) {
+                    continue;
+                }
+
+                final String httpMethod = mapping.method()[0].name();
+                final String path = mapping.value()[0].replaceAll("\\{[^}]+}", "placeholder");
+
+                final HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                        .header("Authorization", "Bearer " + noScopes);
+
+                final String consumes = mapping.consumes().length > 0 ? mapping.consumes()[0] : null;
+                if (consumes != null) {
+                    request.header("Content-Type", consumes);
+                }
+                if (mapping.produces().length > 0) {
+                    request.header("Accept", mapping.produces()[0]);
+                }
+
+                // ContentTypeVerifyingFilter inspects the bytes, so a PDF endpoint needs real PDF bytes
+                // to get far enough to be refused for the right reason.
+                final HttpRequest.BodyPublisher body = "GET".equals(httpMethod) || "DELETE".equals(httpMethod)
+                        ? HttpRequest.BodyPublishers.noBody()
+                        : MediaType.APPLICATION_PDF_VALUE.equals(consumes)
+                                ? HttpRequest.BodyPublishers.ofByteArray(onePagePdf())
+                                : HttpRequest.BodyPublishers.ofString("{}");
+
+                final HttpResponse<String> response = send(request.method(httpMethod, body).build());
+                checked++;
+
+                if (response.statusCode() != 403) {
+                    notRefused.add(httpMethod + " " + mapping.value()[0] + " answered " + response.statusCode());
+                }
+
+            }
+        }
+
+        assertTrue(checked > 40, "the sweep must reach the API handlers; drove only " + checked);
+        assertEquals(List.of(), notRefused,
+                "a key holding no scopes must be refused with 403 by every scoped endpoint");
+
+    }
+
+    private static List<Class<?>> controllerClasses() throws Exception {
+
+        final List<Class<?>> classes = new ArrayList<>();
+        final Path controllers = Path.of("src/main/java/ai/philterd/philter/api/controllers");
+
+        try (final Stream<Path> files = Files.list(controllers)) {
+            for (final Path file : files.sorted().toList()) {
+                final String name = file.getFileName().toString();
+                if (name.endsWith("ApiController.java")) {
+                    classes.add(Class.forName("ai.philterd.philter.api.controllers."
+                            + name.substring(0, name.length() - ".java".length())));
+                }
+            }
+        }
+
+        return classes;
 
     }
 

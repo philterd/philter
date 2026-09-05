@@ -128,7 +128,7 @@ public class LedgerApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The matching ledger chains."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LEDGER_READ)
     @RequestMapping(value = "/api/ledger", method = RequestMethod.GET)

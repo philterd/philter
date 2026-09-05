@@ -1835,6 +1835,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "405": {
             "description": "Method Not Allowed",
             "content": {
@@ -1991,6 +2001,16 @@
           },
           "401": {
             "description": "Unauthorized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The named policy does not exist.",
             "content": {
               "*/*": {
                 "schema": {
@@ -2216,7 +2236,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2337,7 +2357,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2842,7 +2862,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "*/*": {
                 "schema": {
@@ -3096,7 +3116,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "",
             "content": {
               "*/*": {
                 "schema": {
@@ -3342,7 +3362,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "",
             "content": {
               "*/*": {
                 "schema": {
@@ -3453,6 +3473,16 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "*/*": {
                 "schema": {
@@ -3717,6 +3747,16 @@
               }
             }
           },
+          "404": {
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "412": {
             "description": "The maximum number of lists already exists.",
             "content": {
@@ -3835,8 +3875,8 @@
               }
             }
           },
-          "409": {
-            "description": "A list with the given does not exist.",
+          "404": {
+            "description": "The list does not exist, or the owner does not exist or may not be reached. The API does not distinguish these, so a name or owner cannot be used to discover what exists.",
             "content": {
               "*/*": {
                 "schema": {
@@ -3969,7 +4009,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4091,7 +4131,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin."
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
           },
           "413": {
             "description": "Content Too Large",
@@ -4297,7 +4337,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin."
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
           },
           "413": {
             "description": "Content Too Large",
@@ -5060,7 +5100,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5177,7 +5217,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5294,7 +5334,7 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller is not an admin.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
               "*/*": {
                 "schema": {
@@ -9330,291 +9370,6 @@
           }
         }
       },
-      "JsonArray": {
-        "type": "object",
-        "properties": {
-          "asBigDecimal": {
-            "type": "number"
-          },
-          "asBigInteger": {
-            "type": "integer"
-          },
-          "asBoolean": {
-            "type": "boolean"
-          },
-          "asByte": {
-            "type": "string",
-            "format": "byte"
-          },
-          "asCharacter": {
-            "deprecated": true,
-            "type": "string"
-          },
-          "asDouble": {
-            "type": "number",
-            "format": "double"
-          },
-          "asFloat": {
-            "type": "number",
-            "format": "float"
-          },
-          "asInt": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asJsonArray": {},
-          "asJsonNull": {
-            "$ref": "#/components/schemas/JsonNull"
-          },
-          "asJsonObject": {},
-          "asJsonPrimitive": {
-            "$ref": "#/components/schemas/JsonPrimitive"
-          },
-          "asLong": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "asNumber": {
-            "type": "number"
-          },
-          "asShort": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asString": {
-            "type": "string"
-          },
-          "empty": {
-            "type": "boolean"
-          },
-          "jsonArray": {
-            "type": "boolean"
-          },
-          "jsonNull": {
-            "type": "boolean"
-          },
-          "jsonObject": {
-            "type": "boolean"
-          },
-          "jsonPrimitive": {
-            "type": "boolean"
-          }
-        }
-      },
-      "JsonNull": {
-        "type": "object",
-        "properties": {
-          "asBigDecimal": {
-            "type": "number"
-          },
-          "asBigInteger": {
-            "type": "integer"
-          },
-          "asBoolean": {
-            "type": "boolean"
-          },
-          "asByte": {
-            "type": "string",
-            "format": "byte"
-          },
-          "asCharacter": {
-            "deprecated": true,
-            "type": "string"
-          },
-          "asDouble": {
-            "type": "number",
-            "format": "double"
-          },
-          "asFloat": {
-            "type": "number",
-            "format": "float"
-          },
-          "asInt": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asJsonArray": {},
-          "asJsonNull": {},
-          "asJsonObject": {},
-          "asJsonPrimitive": {},
-          "asLong": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "asNumber": {
-            "type": "number"
-          },
-          "asShort": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asString": {
-            "type": "string"
-          },
-          "jsonArray": {
-            "type": "boolean"
-          },
-          "jsonNull": {
-            "type": "boolean"
-          },
-          "jsonObject": {
-            "type": "boolean"
-          },
-          "jsonPrimitive": {
-            "type": "boolean"
-          }
-        }
-      },
-      "JsonObject": {
-        "type": "object",
-        "properties": {
-          "asBigDecimal": {
-            "type": "number"
-          },
-          "asBigInteger": {
-            "type": "integer"
-          },
-          "asBoolean": {
-            "type": "boolean"
-          },
-          "asByte": {
-            "type": "string",
-            "format": "byte"
-          },
-          "asCharacter": {
-            "deprecated": true,
-            "type": "string"
-          },
-          "asDouble": {
-            "type": "number",
-            "format": "double"
-          },
-          "asFloat": {
-            "type": "number",
-            "format": "float"
-          },
-          "asInt": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asJsonArray": {
-            "$ref": "#/components/schemas/JsonArray"
-          },
-          "asJsonNull": {
-            "$ref": "#/components/schemas/JsonNull"
-          },
-          "asJsonObject": {
-            "$ref": "#/components/schemas/JsonObject"
-          },
-          "asJsonPrimitive": {
-            "$ref": "#/components/schemas/JsonPrimitive"
-          },
-          "asLong": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "asNumber": {
-            "type": "number"
-          },
-          "asShort": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asString": {
-            "type": "string"
-          },
-          "empty": {
-            "type": "boolean"
-          },
-          "jsonArray": {
-            "type": "boolean"
-          },
-          "jsonNull": {
-            "type": "boolean"
-          },
-          "jsonObject": {
-            "type": "boolean"
-          },
-          "jsonPrimitive": {
-            "type": "boolean"
-          }
-        }
-      },
-      "JsonPrimitive": {
-        "type": "object",
-        "properties": {
-          "asBigDecimal": {
-            "type": "number"
-          },
-          "asBigInteger": {
-            "type": "integer"
-          },
-          "asBoolean": {
-            "type": "boolean"
-          },
-          "asByte": {
-            "type": "string",
-            "format": "byte"
-          },
-          "asCharacter": {
-            "deprecated": true,
-            "type": "string"
-          },
-          "asDouble": {
-            "type": "number",
-            "format": "double"
-          },
-          "asFloat": {
-            "type": "number",
-            "format": "float"
-          },
-          "asInt": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asJsonArray": {},
-          "asJsonNull": {
-            "$ref": "#/components/schemas/JsonNull"
-          },
-          "asJsonObject": {},
-          "asJsonPrimitive": {},
-          "asLong": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "asNumber": {
-            "type": "number"
-          },
-          "asShort": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "asString": {
-            "type": "string"
-          },
-          "boolean": {
-            "type": "boolean"
-          },
-          "jsonArray": {
-            "type": "boolean"
-          },
-          "jsonNull": {
-            "type": "boolean"
-          },
-          "jsonObject": {
-            "type": "boolean"
-          },
-          "jsonPrimitive": {
-            "type": "boolean"
-          },
-          "number": {
-            "type": "boolean"
-          },
-          "string": {
-            "type": "boolean"
-          }
-        }
-      },
       "LegalHoldRequest": {
         "type": "object",
         "properties": {
@@ -10907,9 +10662,7 @@
               "$ref": "#/components/schemas/IgnoredPattern"
             }
           },
-          "metadata": {
-            "$ref": "#/components/schemas/JsonObject"
-          }
+          "metadata": {}
         }
       },
       "PolicyRollbackResponse": {

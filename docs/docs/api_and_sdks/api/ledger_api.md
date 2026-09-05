@@ -60,7 +60,7 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
 }
 ```
 
-> **Security:** reading a chain does not return the original values that were redacted, only the replacements that appear in the redacted document. The originals are carried by the [export](#export-a-ledger-chain), which requires the separate `ledger:export` scope. Access is restricted to the chain's owner either way.
+> **Security:** reading a chain does not return the original values that were redacted, only the replacements that appear in the redacted document. The originals are carried by the [export](#export-a-documents-ledger-chain), which requires the separate `ledger:export` scope. Access is restricted to the chain's owner either way.
 
 ## Verify a document's ledger chain
 
@@ -76,7 +76,7 @@ Returns `200 OK` with `{ "documentId": "…", "valid": true }` (the `entries` ar
 |--------|-----------------------------------|-------------------------------------------------------|
 | `GET`  | `/api/ledger/{documentId}/export` | Export the chain as portable JSON for offline archival. |
 
-Returns `200 OK` with the export document and a `Content-Disposition` header so it can be saved directly to a file, or `404 Not Found` if no such chain exists. Every entry includes its `hash` and `previousHash`, so the exported chain can be re-verified independently of Philter.
+Returns `200 OK` with the export document and a `Content-Disposition` header so it can be saved directly to a file, or `404 Not Found` if no such chain exists. Every entry includes its `hash` and `previousHash`, and the export encloses the public key of each signing key used, so the chain's linkage and its signatures can be checked independently of Philter. Recomputing the hashes themselves additionally needs the owning account's internal user id, which is part of the hash but is not carried in the export; see [What the Ledger Proves](../../redaction/ledgers.md#what-the-ledger-proves).
 
 ```bash
 curl -k -H "Authorization: Bearer <token>" \

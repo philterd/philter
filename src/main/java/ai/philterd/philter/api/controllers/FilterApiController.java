@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
+import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
@@ -106,6 +107,7 @@ public class FilterApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Redacted ZIP bytes (synchronous path)."),
             @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
             @ApiResponse(responseCode = "401", description = "Unauthorized.")
     })
     @RequiresScope(ApiKeyScope.REDACT)
@@ -149,6 +151,7 @@ public class FilterApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Redacted PDF bytes (synchronous path)."),
             @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
             @ApiResponse(responseCode = "401", description = "Unauthorized.")
     })
     @RequiresScope(ApiKeyScope.REDACT)
@@ -196,6 +199,7 @@ public class FilterApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Redacted plain text. Includes `X-Philter-Signature` JWT header when output signing is enabled."),
             @ApiResponse(responseCode = "401", description = "Unauthorized."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
             @ApiResponse(responseCode = "500", description = "Signing is enabled but the signing operation failed.")
     })
     @RequiresScope(ApiKeyScope.REDACT)
@@ -238,7 +242,7 @@ public class FilterApiController extends AbstractApiController {
 
     private ResponseEntity<byte[]> enqueueBinary(final ObjectId userId, final byte[] body, final MimeType inputMimeType,
                                                  final String outputMimeType, final String policyName, final String contextName,
-                                                 final String filename) {
+                                                 final String filename) throws PolicyNotFoundException {
 
         final String documentId = UUID.randomUUID().toString();
 
@@ -257,15 +261,17 @@ public class FilterApiController extends AbstractApiController {
         // Pin the policy version in force when the request is accepted, so the deferred redaction is
         // governed by the version the caller submitted against rather than whatever is current when the
         // worker later runs. We retain a snapshot of that content so the worker can redact with it.
-        int policyVersion = -1;
-        String policyContentHash = null;
         final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
-        if (policyEntity != null) {
-            policyVersion = policyEntity.getRevision();
-            policyContentHash = policyVersionDataService.snapshot(policyEntity);
-            entity.setPolicyVersion(policyVersion);
-            entity.setPolicyContentHash(policyContentHash);
+
+        // As the synchronous path does, rather than failing later in the worker.
+        if (policyEntity == null) {
+            throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
         }
+
+        final int policyVersion = policyEntity.getRevision();
+        final String policyContentHash = policyVersionDataService.snapshot(policyEntity);
+        entity.setPolicyVersion(policyVersion);
+        entity.setPolicyContentHash(policyContentHash);
 
         pendingDocumentDataService.save(entity);
 
@@ -277,17 +283,13 @@ public class FilterApiController extends AbstractApiController {
 
         final String json = gson.toJson(Map.of("documentId", documentId));
 
-        final ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.ACCEPTED)
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .location(URI.create("/api/documents/" + documentId))
                 .contentType(MediaType.APPLICATION_JSON)
-                .header(POLICY_NAME_HEADER, policyName);
-        if (policyVersion >= 0) {
-            builder.header(POLICY_VERSION_HEADER, Integer.toString(policyVersion));
-        }
-        if (policyContentHash != null) {
-            builder.header(POLICY_HASH_HEADER, policyContentHash);
-        }
-        return builder.body(json.getBytes(StandardCharsets.UTF_8));
+                .header(POLICY_NAME_HEADER, policyName)
+                .header(POLICY_VERSION_HEADER, Integer.toString(policyVersion))
+                .header(POLICY_HASH_HEADER, policyContentHash)
+                .body(json.getBytes(StandardCharsets.UTF_8));
 
     }
 

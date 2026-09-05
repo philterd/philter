@@ -42,6 +42,13 @@ RUN chmod +x /opt/philter/philter.jar
 # "Documentation" link points to /public/docs/index.html.
 COPY --from=docs /site/ /opt/philter/public/docs/
 
+RUN groupadd --system --gid 10001 philter \
+    && useradd --system --uid 10001 --gid philter --home-dir /opt/philter \
+        --shell /usr/sbin/nologin philter \
+    && chown -R philter:philter /opt/philter
+
+USER philter
+
 EXPOSE 8080
 
 WORKDIR /opt/philter

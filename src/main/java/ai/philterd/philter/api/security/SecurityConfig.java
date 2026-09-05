@@ -119,7 +119,10 @@ public class SecurityConfig {
                 // handles its own internal requests). It is disabled only for the actuator endpoints,
                 // which do not use cookie-based sessions and are therefore not susceptible to CSRF.
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/actuator/**"))
-                .headers(headers -> headers.frameOptions(headers2 -> headers2.disable()))
+                // Clickjacking protection: the dashboard is only ever framed by itself.
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**", "/styles/**", "/icons/**", "/actuator/**", "/themes/**", "/favicon.ico").permitAll()
                         // The OpenAPI specification and Swagger UI are public, matching the

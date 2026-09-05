@@ -39,8 +39,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -50,6 +48,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,7 +56,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class ReidentifyApiControllerTest {
 
     // 32-byte (256-bit) AES key in hex — used for CRYPTO_REPLACE tests.
@@ -67,6 +65,7 @@ class ReidentifyApiControllerTest {
     private static final String FPE_HEX_KEY = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
     private static final String UNKNOWN_AUTH_HEADER = "Bearer sk_unknownunknownunknownunknown00";
 
@@ -88,8 +87,10 @@ class ReidentifyApiControllerTest {
         apiKeyEntity.setUserId(userId);
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         AdminAccessConfig.setOverrideForTesting(true);
 

@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.entities;
 
 import org.bson.types.ObjectId;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
@@ -207,4 +208,71 @@ class LedgerEntityTest {
         assertEquals(123L, restored.getStartPosition());
         assertTrue(true);
     }
+
+    /** Two entries differing only in where the boundary between two adjacent fields falls. */
+    private static LedgerEntity entryWith(final ObjectId userId, final String token, final String replacement,
+                                          final String filename, final String type) throws Exception {
+        final LedgerEntity entity = new LedgerEntity();
+        entity.setUserId(userId);
+        entity.setDocumentId("doc-1");
+        entity.setToken(token);
+        entity.setReplacement(replacement);
+        entity.setStartPosition(0);
+        entity.setDocumentHash("dochash");
+        entity.setTimestamp(new Date(0));
+        entity.setPreviousHash("prev");
+        entity.setFilename(filename);
+        entity.setType(type);
+        entity.setPolicyName("default");
+        entity.setPolicyVersion(1);
+        entity.setPolicyContentHash("policyhash");
+        entity.setHash(entity.calculateHash());
+        return entity;
+    }
+
+    @Test
+    @DisplayName("Moving a character between the token and the replacement changes the hash")
+    void adjacentFieldsCannotBorrowFromEachOther() throws Exception {
+
+        final ObjectId userId = new ObjectId();
+
+        // Concatenated without lengths both read as "...abc...", so one could be rewritten as the
+        // other and the chain would still verify.
+        final LedgerEntity split = entryWith(userId, "ab", "c", "file.txt", "PERSON");
+        final LedgerEntity shifted = entryWith(userId, "a", "bc", "file.txt", "PERSON");
+
+        assertNotEquals(split.getHash(), shifted.getHash(),
+                "the boundary between token and replacement must be part of what is hashed");
+
+    }
+
+    @Test
+    @DisplayName("The same holds for the other adjacent pairs")
+    void everyFieldBoundaryIsFixed() throws Exception {
+
+        final ObjectId userId = new ObjectId();
+        final LedgerEntity base = entryWith(userId, "tok", "rep", "report.pdf", "PERSON");
+
+        assertNotEquals(base.getHash(), entryWith(userId, "tok", "rep", "report.pd", "fPERSON").getHash(),
+                "a character moved from the filename into the type must change the hash");
+        assertNotEquals(base.getHash(), entryWith(userId, "to", "krep", "report.pdf", "PERSON").getHash(),
+                "a character moved from the token into the replacement must change the hash");
+
+    }
+
+    @Test
+    @DisplayName("A separator character inside a value cannot forge a boundary")
+    void aValueContainingTheSeparatorIsStillUnambiguous() throws Exception {
+
+        final ObjectId userId = new ObjectId();
+
+        // Joining the fields with a colon instead of length-prefixing them, both of these read as
+        // "a:b:c:", so a delimiter alone leaves exactly the hole this finding is about.
+        final LedgerEntity carried = entryWith(userId, "a:b", "c", "file.txt", "PERSON");
+        final LedgerEntity plain = entryWith(userId, "a", "b:c", "file.txt", "PERSON");
+
+        assertNotEquals(carried.getHash(), plain.getHash());
+
+    }
+
 }

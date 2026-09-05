@@ -23,6 +23,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -177,6 +178,29 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
         assertTrue(settings.isDiffuseCountsEnabled());
         assertTrue(settings.isPhieldEnabled());
         assertEquals("https://phield.example.com", settings.getPhieldUrl());
+    }
+
+
+    @Test
+    @DisplayName("Settings are cached, and a write through the service evicts")
+    void settingsAreCachedAndWritesEvict() {
+
+        service.saveSigningEnabled(true);
+        assertTrue(service.findAdminSettings().isSigningEnabled());
+
+        // Change it underneath the service. A cached read must not see this.
+        mongoClient.getDatabase("philter").getCollection("admin_settings")
+                .updateOne(new org.bson.Document(), new org.bson.Document("$set",
+                        new org.bson.Document("signing_enabled", false)));
+
+        assertTrue(service.findAdminSettings().isSigningEnabled(),
+                "the settings are read once per redaction, so they must come from the cache");
+
+        // A write through the service evicts, so the next read is fresh.
+        service.saveSigningEnabled(false);
+        assertFalse(service.findAdminSettings().isSigningEnabled(),
+                "a write must evict, or an admin's change would not take effect");
+
     }
 
 }

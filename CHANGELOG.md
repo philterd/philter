@@ -11,7 +11,7 @@ This file is the source of truth for 4.0.0 and later: record every release entry
 ## [4.0.0] - Unreleased
 
 Major release, the first since 3.4.0. The UI is rebuilt on Vaadin 25 and served by Philter itself,
-the runtime moves to Java 25, Spring Boot 4, and Phileas 4.2.0, and redaction gains an evidence
+the runtime moves to Java 25, Spring Boot 4, and Phileas 4.4.0, and redaction gains an evidence
 trail: a tamper-evident ledger, policy versioning, output signing, and an audit log.
 
 See [Upgrading](docs/docs/upgrading.md) for migration steps.

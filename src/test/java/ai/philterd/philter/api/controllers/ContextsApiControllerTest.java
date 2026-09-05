@@ -31,14 +31,13 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -53,6 +52,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -68,10 +68,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * key's own id (getId).
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class ContextsApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
     private static final String UNKNOWN_AUTH_HEADER = "Bearer sk_unknownunknownunknownunknown00";
     private static final String VALID_HASH = "a".repeat(64);
@@ -94,8 +94,10 @@ class ContextsApiControllerTest {
         apiKeyEntity.setUserId(userId);
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final ContextsApiController controller = new ContextsApiController(
                 contextService, contextEntryService, pendingDocumentDataService, userService,
@@ -356,7 +358,6 @@ class ContextsApiControllerTest {
     void exportForbiddenForNonCreatorNonAdmin() throws Exception {
         // Caller names no owner and is not the creator (owner-scoped lookup misses).
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-export-forbidden-self"))
@@ -527,7 +528,6 @@ class ContextsApiControllerTest {
     void importForbiddenForNonCreatorNonAdmin() throws Exception {
         // Caller names no owner and is not the creator (owner-scoped lookup misses).
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
@@ -580,7 +580,6 @@ class ContextsApiControllerTest {
     void exportAuditsDeniedAttempt() throws Exception {
         // Non-creator, non-admin: the 404 attempt must still be audited.
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-export-denied-audit"))
@@ -594,7 +593,6 @@ class ContextsApiControllerTest {
     void importAuditsDeniedAttempt() throws Exception {
         // Non-creator, non-admin: the 404 attempt must still be audited.
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
@@ -613,7 +611,6 @@ class ContextsApiControllerTest {
         // payload parsing, so the caller gets a 404 (denied) and the attempt is audited — not a 400 for
         // the bad payload — and nothing is imported.
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
@@ -633,7 +630,6 @@ class ContextsApiControllerTest {
         // Authorization runs before per-entry validation, so the caller gets a 404 (denied) and the
         // attempt is audited — not a 400 for the bad entry — and nothing is imported.
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         final String invalidEntryBody = "{\"entries\":[{\"tokenHash\":\"not-a-hash\",\"replacement\":\"R\"}]}";
 
@@ -655,7 +651,6 @@ class ContextsApiControllerTest {
         // the on_conflict check too, so the caller gets a 404 (denied) and the attempt is audited —
         // not a 400 for the bad on_conflict value.
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(null);
-        when(userService.findOneById(userId)).thenReturn(null);
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
                         .header("Authorization", AUTH_HEADER)
@@ -811,7 +806,7 @@ class ContextsApiControllerTest {
         final UserEntity admin = new UserEntity();
         admin.setId(userId);
         admin.setRole("admin");
-        when(userService.findOneById(userId)).thenReturn(admin);
+        lenient().when(userService.findOneById(userId)).thenReturn(admin);
         final ObjectId otherUserId = new ObjectId();
         final UserEntity owner = new UserEntity();
         owner.setId(otherUserId);
@@ -954,6 +949,8 @@ class ContextsApiControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(contextService, never()).deleteByName(anyString(), any(), anyBoolean());
+        // The switch is read before the role is, so a disabled deployment never even asks who is asking.
+        verify(userService, never()).findOneById(any());
     }
 
 }

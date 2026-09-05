@@ -78,12 +78,12 @@ public class RedactionWorker {
                 LOGGER.warn("Reclaimed {} stuck job(s) older than {}", reclaimed, stuckCutoff);
             }
 
-            final PendingDocumentEntity job = pendingDocumentDataService.claimNextPending(workerId);
-            if (job == null) {
-                return;
+            // Drain, rather than one per poll: taking a single job capped throughput at one document
+            // per poll interval however fast redaction actually ran.
+            PendingDocumentEntity job;
+            while ((job = pendingDocumentDataService.claimNextPending(workerId)) != null) {
+                process(job);
             }
-
-            process(job);
 
         } catch (Exception ex) {
             LOGGER.error("Worker poll failed", ex);

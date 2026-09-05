@@ -13,32 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.api.responses;
+package ai.philterd.philter.services.policies;
 
-import java.util.Date;
+/** A request named a policy that does not exist for the user making it. Answered with a 404. */
+public class PolicyNotFoundException extends Exception {
 
-public class GetPolicyMetadataResponse {
-
-    private final String notes;
-    private final String description;
-    private final Date lastUpdated;
-
-    public GetPolicyMetadataResponse(final String notes, final String description, final Date lastUpdated) {
-        this.notes = notes;
-        this.description = description;
-        this.lastUpdated = lastUpdated;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public Date getLastUpdated() {
-        return lastUpdated;
+    public PolicyNotFoundException(final String message) {
+        super(message);
     }
 
 }

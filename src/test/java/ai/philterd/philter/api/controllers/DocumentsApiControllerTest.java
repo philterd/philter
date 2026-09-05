@@ -28,14 +28,13 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -44,6 +43,7 @@ import java.util.Collections;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,10 +57,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * so a regression to {@code getId()} would fail.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class DocumentsApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock
@@ -91,8 +91,10 @@ class DocumentsApiControllerTest {
         apiKeyEntity.setUserId(userId);
         apiKeyEntity.setId(apiKeyId);
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final DocumentsApiController controller = new DocumentsApiController(
                 apiKeyDataService, apiKeyCache, pendingDocumentDataService, userService, auditEventPublisher, new Gson());

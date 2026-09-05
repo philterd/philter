@@ -82,7 +82,7 @@ curl -k -X POST "https://localhost:8080/api/filter" -d @file.txt -H "Content-Typ
 
 ### PDF documents
 
-PDF redaction is **asynchronous by default** in Philter 4.0. The server enqueues the request and returns `202 Accepted` with a JSON body containing the assigned `documentId` and a `Location: /api/documents/{documentId}` header. The redacted bytes can then be downloaded from the [Documents API](documents_api.md) once the job's status is `COMPLETE`.
+PDF redaction is **asynchronous by default** in Philter 4.0. The server enqueues the request and returns `202 Accepted` with a JSON body containing the assigned `documentId` and a `Location: /api/documents/{documentId}` header. A request naming a policy that does not exist is refused with `404 Not Found` before it is enqueued, so a mistyped policy name surfaces immediately rather than as a failed job. The synchronous text endpoint answers the same way. The redacted bytes can then be downloaded from the [Documents API](documents_api.md) once the job's status is `COMPLETE`.
 
 ```
 curl -k -X POST "https://localhost:8080/api/filter" \

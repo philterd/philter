@@ -244,8 +244,12 @@
                      One agent covers all three test forks. 'prepare-agent' sets the argLine property,
                      which surefire and both failsafe executions each pick up, and the agent appends to a
                      single target/jacoco.exec, so the report reflects unit, integration, and
-                     environment-fork tests together. Reporting only: the build does not fail on a
-                     coverage threshold. -->
+                     environment-fork tests together. The agent appends, so a run that reuses an
+                     existing target/ carries the previous run's data: delete target/jacoco.exec
+                     before measuring coverage, or the figure is the union of both runs.
+
+                     The 'jacoco-check' execution below fails the build when coverage drops under the
+                     floors it sets. -->
                 <executions>
                     <execution>
                         <id>jacoco-prepare-agent</id>
@@ -268,13 +272,14 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
-                            <!-- The Vaadin views are a third of the instructions and are not unit tested,
-                                 so including them would put any useful threshold out of reach. They are
-                                 excluded from the threshold only: the report above still covers them, so
-                                 their coverage stays visible. -->
+                            <!-- The Vaadin views are a quarter of the instructions and are covered only
+                                 as far as a headless fixture reaches: the access gate, the navigation,
+                                 and that each page builds. Rendering and the event handlers need a
+                                 browser, so including the views would put any useful threshold out of
+                                 reach. They are excluded from the threshold only: the report above still
+                                 covers them, so their coverage stays visible. -->
                             <excludes>
                                 <exclude>ai/philterd/philter/views/**</exclude>
-                                <exclude>ai/philterd/philter/data/providers/**</exclude>
                             </excludes>
                             <rules>
                                 <!-- The floors are set below current coverage on purpose. A threshold is

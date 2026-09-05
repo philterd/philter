@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.exceptions;
 
+import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
@@ -44,6 +45,14 @@ public class RestApiExceptions {
 		final String message = "A required parameter is missing or contains an invalid value.";
 		LOGGER.error(message, ex);
 		return message;
+	}
+
+	@ResponseBody
+	@ExceptionHandler(PolicyNotFoundException.class)
+	@ResponseStatus(value = HttpStatus.NOT_FOUND)
+	public String handlePolicyNotFoundException(Exception ex) {
+		LOGGER.error("The named policy does not exist.", ex);
+		return ex.getMessage();
 	}
 
 	@ResponseBody

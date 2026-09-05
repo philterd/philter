@@ -80,7 +80,8 @@ public class CustomListsApiController extends AbstractApiController {
 
     @Operation(summary = "Get the names of existing lists.", description = "Get the names of existing lists.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200")
+            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
     @RequestMapping(value = "/api/lists", method = RequestMethod.GET)
@@ -118,7 +119,7 @@ public class CustomListsApiController extends AbstractApiController {
     @Operation(summary = "Get the contents of a list.", description = "Get the contents of a list with the provided name.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
-            @ApiResponse(responseCode = "409", description = "A list with the given does not exist."),
+            @ApiResponse(responseCode = "404", description = "The list does not exist, or the owner does not exist or may not be reached. The API does not distinguish these, so a name or owner cannot be used to discover what exists."),
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
     @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.GET)
@@ -163,6 +164,7 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The list was created."),
             @ApiResponse(responseCode = "200", description = "An existing list with the same name was updated."),
             @ApiResponse(responseCode = "400", description = "The list name is empty, the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."),
             @ApiResponse(responseCode = "412", description = "The maximum number of lists already exists.")
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)

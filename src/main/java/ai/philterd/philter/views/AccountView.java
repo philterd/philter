@@ -29,6 +29,7 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.mfa.TotpService;
+import ai.philterd.philter.services.webhook.WebhookDestinationPolicy;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
@@ -72,6 +73,7 @@ public class AccountView extends AbstractRestrictedView {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserEntity accountUser;
+    private final AdminSettingsDataService adminSettingsDataService;
 
     public AccountView(final MongoClient mongoClient, final EncryptionService encryptionService,
                        final AuditEventPublisher auditEventPublisher, final ApiKeyDataService apiKeyService,
@@ -80,6 +82,7 @@ public class AccountView extends AbstractRestrictedView {
 
         this.accountUser = getCurrentUser();
 
+        this.adminSettingsDataService = adminSettingsDataService;
         final AdminSettingsEntity adminSettings = adminSettingsDataService.findAdminSettings();
         final boolean mfaFeatureEnabled = adminSettings != null && adminSettings.isMfaEnabled();
 
@@ -287,13 +290,17 @@ public class AccountView extends AbstractRestrictedView {
                 return;
             }
 
-            if (!totpService.verifyCode(secret, code)) {
+            final long timeStep = totpService.matchingTimeStep(secret, code);
+
+            if (timeStep == TotpService.NO_MATCH) {
                 codeField.setInvalid(true);
                 codeField.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
                 return;
             }
 
             userService.enableMfa(RequestIdGenerator.generate(), accountUser, secret, Source.WEBUI.getSource());
+            // Consumed, so it cannot also answer the login challenge.
+            userService.recordAcceptedMfaTimeStep(accountUser, timeStep);
             showSuccessNotification("Multi-factor authentication enabled.");
             renderMfaSection(container, mfaFeatureEnabled, totpService);
         });
@@ -525,6 +532,18 @@ public class AccountView extends AbstractRestrictedView {
                 final URI parsed = URI.create(url);
                 if (parsed.getScheme() == null || (!parsed.getScheme().equalsIgnoreCase("http") && !parsed.getScheme().equalsIgnoreCase("https"))) {
                     showFailureNotification("URL must start with http:// or https://");
+                    return;
+                }
+
+                // Told here so the user finds out while looking at the form; enforced again at delivery.
+                final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
+                final WebhookDestinationPolicy policy =
+                        new WebhookDestinationPolicy(settings == null ? null : settings.getWebhookAllowlist());
+
+                if (!policy.isDestinationAllowed(parsed.getHost())) {
+                    showFailureNotification(policy.isEmpty()
+                            ? "Webhooks cannot be sent to a private or loopback address."
+                            : "Your administrator does not permit webhook delivery to " + parsed.getHost() + ".");
                     return;
                 }
             } catch (final Exception ex) {

@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
@@ -39,6 +40,16 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
 
     private final EncryptionService encryptionService;
 
+    /**
+     * One row, read on every redaction and changed rarely. Writes here evict; the TTL bounds how long
+     * another instance's write takes to be seen. Callers treat the entity as read-only.
+     */
+    private static final long CACHE_TTL_MILLIS = EnvUtils.getInt("ADMIN_SETTINGS_CACHE_TTL_SECONDS", 60) * 1000L;
+
+    private volatile AdminSettingsEntity cached;
+    private volatile long cachedAt;
+    private final java.util.concurrent.atomic.AtomicLong writes = new java.util.concurrent.atomic.AtomicLong();
+
     public AdminSettingsDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                                     final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "admin_settings", auditEventPublisher);
@@ -47,15 +58,28 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
 
     public AdminSettingsEntity findAdminSettings() {
 
-        final Document document = collection.find().first();
+        final long now = System.currentTimeMillis();
 
-        if (document != null) {
-            final AdminSettingsEntity adminSettingsEntity = AdminSettingsEntity.fromDocument(document);
-            adminSettingsEntity.setPhieldApiKey(decryptPhieldApiKey(document));
-            return adminSettingsEntity;
+        if (now - cachedAt < CACHE_TTL_MILLIS) {
+            return cached;
         }
 
-        return null;
+        final long seen = writes.get();
+        final Document document = collection.find().first();
+
+        AdminSettingsEntity adminSettingsEntity = null;
+        if (document != null) {
+            adminSettingsEntity = AdminSettingsEntity.fromDocument(document);
+            adminSettingsEntity.setPhieldApiKey(decryptPhieldApiKey(document));
+        }
+
+        // Not if a write landed mid-read; that would cache the pre-write state for a full TTL.
+        if (writes.get() == seen) {
+            cached = adminSettingsEntity;
+            cachedAt = now;
+        }
+
+        return adminSettingsEntity;
 
     }
 
@@ -115,6 +139,10 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         updateSetting("signing_enabled", signingEnabled);
     }
 
+    public void saveWebhookAllowlist(final String webhookAllowlist) {
+        updateSetting("webhook_allowlist", webhookAllowlist == null ? "" : webhookAllowlist.trim());
+    }
+
     public void saveMfaEnabled(final boolean mfaEnabled) {
         updateSetting("mfa_enabled", mfaEnabled);
     }
@@ -140,6 +168,9 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         fields.forEach((key, value) -> updates.add(Updates.set(key, value)));
         final UpdateOptions options = new UpdateOptions().upsert(true);
         collection.updateOne(filter, Updates.combine(updates), options);
+
+        writes.incrementAndGet();
+        cachedAt = 0;
     }
 
 }

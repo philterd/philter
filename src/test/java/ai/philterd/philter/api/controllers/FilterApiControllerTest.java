@@ -29,9 +29,11 @@ import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
+import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.signing.SigningService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
@@ -41,8 +43,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -52,6 +52,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,10 +61,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class FilterApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock
@@ -104,8 +105,10 @@ class FilterApiControllerTest {
         // The entity's own _id differs from the user id; the controller must use the user id.
         apiKeyEntity.setId(apiKeyId);
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final FilterApiController controller = new FilterApiController(redactionService, policyDataService,
                 apiKeyDataService, auditEventPublisher, apiKeyCache, pendingDocumentDataService, new Gson(),
@@ -161,7 +164,7 @@ class FilterApiControllerTest {
 
     @Test
     void missingAuthorizationIsUnauthorized() throws Exception {
-        when(apiKeyCache.containsApiKey("nope")).thenReturn(false);
+        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("nope"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("nope")).thenReturn(null);
 
         mockMvc.perform(post("/api/filter")
@@ -216,6 +219,13 @@ class FilterApiControllerTest {
 
     @Test
     void pdfToZipAsyncEnqueuesZipOutputWithPdfInput() throws Exception {
+        // The policy must exist: an unknown one is now refused at enqueue rather than accepted.
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setName("default");
+        policyEntity.setRevision(1);
+        policyEntity.setPolicy("{\"identifiers\":{}}");
+        when(policyDataService.findOne("default", userId)).thenReturn(policyEntity);
+
         final String responseBody = mockMvc.perform(post("/api/filter")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
@@ -318,7 +328,7 @@ class FilterApiControllerTest {
 
     @Test
     void unauthorizedResponseDoesNotIncludeSignatureHeader() throws Exception {
-        when(apiKeyCache.containsApiKey("bad-key")).thenReturn(false);
+        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("bad-key"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("bad-key")).thenReturn(null);
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -331,6 +341,37 @@ class FilterApiControllerTest {
 
         org.junit.jupiter.api.Assertions.assertNull(response.getHeader("X-Philter-Signature"),
                 "signature header must never appear on error responses");
+    }
+
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("An async request naming an unknown policy is a 404")
+    void asyncWithAnUnknownPolicyIsRefused() throws Exception {
+        when(policyDataService.findOne("default", userId)).thenReturn(null);
+
+        mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_PDF)
+                        .accept(MediaType.APPLICATION_PDF)
+                        .content("%PDF-1.7 fake".getBytes()))
+                .andExpect(status().isNotFound());
+
+        verify(pendingDocumentDataService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("A synchronous request naming an unknown policy is a 404, not a server error")
+    void syncWithAnUnknownPolicyIsAlsoNotFound() throws Exception {
+        when(redactionService.filter(eq("nosuch"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+                .thenThrow(new PolicyNotFoundException("The policy 'nosuch' does not exist."));
+
+        mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("p", "nosuch")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("anything"))
+                .andExpect(status().isNotFound());
     }
 
 }

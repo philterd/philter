@@ -103,7 +103,7 @@ class RedactionWorkerTest {
         final PendingDocumentEntity job = pdfJob();
         final byte[] redacted = "redacted-pdf".getBytes();
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job);
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
         when(redactionService.filter(eq("default"), eq(job.getUserId()), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(), any()))
                 .thenReturn(outcome(binaryResult(redacted)));
         when(userService.findOneById(job.getUserId())).thenReturn(null); // no webhook configured
@@ -120,7 +120,7 @@ class RedactionWorkerTest {
     void redactionFailureMarksJobFailed() throws Exception {
         final PendingDocumentEntity job = pdfJob();
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job);
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
         when(userService.findOneById(job.getUserId())).thenReturn(null);
@@ -139,7 +139,7 @@ class RedactionWorkerTest {
         final TextFilterResult textResult = new TextFilterResult("redacted", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job);
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(outcome(textResult));
         when(userService.findOneById(job.getUserId())).thenReturn(null);
 
@@ -158,7 +158,7 @@ class RedactionWorkerTest {
         user.setWebhookUrl("https://example.com/hook");
         user.setWebhookSecret("a-secret-value");
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job);
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(outcome(binaryResult("ok".getBytes())));
         when(userService.findOneById(job.getUserId())).thenReturn(user);
 
@@ -181,7 +181,7 @@ class RedactionWorkerTest {
         user.setWebhookUrl("https://example.com/hook");
         // no secret
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job);
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(outcome(binaryResult("ok".getBytes())));
         when(userService.findOneById(job.getUserId())).thenReturn(user);
 

@@ -47,6 +47,8 @@ public class UserEntity extends AbstractEncryptedEntity {
     // administrator must clear the lock (it does not expire on its own).
     private int mfaFailedAttempts;
     private boolean mfaLocked;
+    // The last TOTP step accepted, so a code cannot be replayed within its window.
+    private long mfaLastUsedTimeStep;
 
     public static UserEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final UserEntity userEntity = new UserEntity();
@@ -68,6 +70,7 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setMfaSecret(readEncrypted(document, encryptionService, "mfa_secret"));
         userEntity.setMfaFailedAttempts(document.getInteger("mfa_failed_attempts", 0));
         userEntity.setMfaLocked(document.getBoolean("mfa_locked", false));
+        userEntity.setMfaLastUsedTimeStep(document.getLong("mfa_last_used_time_step") == null ? 0L : document.getLong("mfa_last_used_time_step"));
         return userEntity;
     }
 
@@ -110,6 +113,7 @@ public class UserEntity extends AbstractEncryptedEntity {
         putEncrypted(document, encryptionService, "mfa_secret", mfaSecret);
         document.put("mfa_failed_attempts", mfaFailedAttempts);
         document.put("mfa_locked", mfaLocked);
+        document.put("mfa_last_used_time_step", mfaLastUsedTimeStep);
         return document;
     }
 
@@ -215,6 +219,14 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setDeactivatedAt(final Date deactivatedAt) {
         this.deactivatedAt = deactivatedAt;
+    }
+
+    public long getMfaLastUsedTimeStep() {
+        return mfaLastUsedTimeStep;
+    }
+
+    public void setMfaLastUsedTimeStep(final long mfaLastUsedTimeStep) {
+        this.mfaLastUsedTimeStep = mfaLastUsedTimeStep;
     }
 
     public boolean isMfaEnabled() {

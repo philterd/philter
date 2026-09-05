@@ -18,6 +18,7 @@ package ai.philterd.philter.services.encryption;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.Base64;
@@ -117,6 +118,34 @@ class LocalEncryptionServiceTest {
         final String tampered = Base64.getEncoder().encodeToString(combined);
 
         assertThrows(RuntimeException.class, () -> service.decrypt(tampered, result.getEncryptionKey()));
+    }
+
+    @Test
+    @DisplayName("A value too short to hold an IV is refused with a message that says so")
+    void tooShortToHoldAnIvIsRejectedClearly() {
+
+        final LocalEncryptionService service = service();
+        final EncryptResult result = service.encrypt("data", "user-1");
+
+        // Anything at or under the 16-byte IV cannot be a ciphertext. Sliced blindly this failed
+        // inside arraycopy, with an index message that said nothing about what was wrong.
+        for (final int length : new int[]{0, 1, 15, 16}) {
+
+            final String truncated = Base64.getEncoder().encodeToString(new byte[length]);
+
+            final IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
+                    () -> service.decrypt(truncated, result.getEncryptionKey()),
+                    length + " bytes is not a valid encrypted value");
+
+            assertTrue(thrown.getMessage().contains("too short"),
+                    "the message must name the problem; was: " + thrown.getMessage());
+
+        }
+
+        // One byte past the IV is structurally valid, so it fails as a decryption rather than here.
+        final String justLongEnough = Base64.getEncoder().encodeToString(new byte[17]);
+        assertThrows(RuntimeException.class, () -> service.decrypt(justLongEnough, result.getEncryptionKey()));
+
     }
 
     @Test

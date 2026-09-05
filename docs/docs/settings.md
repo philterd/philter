@@ -25,7 +25,7 @@ Philter requires a MongoDB database to store policies and other data. See [Datab
 
 ## Encryption
 
-Philter encrypts sensitive data at rest and requires an encryption key. Encryption is applied per collection; see [what is encrypted](database.md#what-is-encrypted-at-rest). Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts.
+Philter encrypts sensitive data at rest and requires an encryption key. Encryption is applied per collection; see [what is encrypted](database.md#what-is-encrypted-at-rest). Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts. It generates the bootstrap API key and the MongoDB password into the same file.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
@@ -41,6 +41,8 @@ The cache is used for API key and context caching. Philter supports Valkey/Redis
 | `CACHE_PORT` | The Valkey port. | `6379` |
 | `CACHE_PASSWORD` | The Valkey password. | (empty) |
 | `CACHE_SSL` | Whether to use SSL for communication with the Valkey cache. | `false` |
+| `SCHEDULER_POOL_SIZE` | Threads available to Philter's background workers: one redacts asynchronous documents, the other delivers webhooks. With a single thread they block each other, so a slow document delays delivery. Raise it only if you add further scheduled work. | `2` |
+| `ADMIN_SETTINGS_CACHE_TTL_SECONDS` | How long an instance caches the admin settings (output signing, Phield, Diffuse) before re-reading them. They are read on every redaction, so caching keeps that off the database. A change made through this instance's dashboard applies immediately; one made on another instance is picked up within this window. | `60` |
 
 ## Metrics
 

@@ -29,6 +29,8 @@ public class AdminSettingsEntity extends AbstractEntity {
     private String phieldApiKey = "";
     private boolean signingEnabled;
     private boolean mfaEnabled;
+    // Hosts and IP/CIDR entries a user's webhook URL may point at. Empty means any public address.
+    private String webhookAllowlist = "";
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
@@ -39,6 +41,7 @@ public class AdminSettingsEntity extends AbstractEntity {
         adminSettingsEntity.setPhieldSourceId(document.getString("phield_source_id") != null ? document.getString("phield_source_id") : "philter");
         adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
         adminSettingsEntity.setSigningEnabled(document.getBoolean("signing_enabled", false));
+        adminSettingsEntity.setWebhookAllowlist(document.getString("webhook_allowlist") == null ? "" : document.getString("webhook_allowlist"));
         adminSettingsEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
         return adminSettingsEntity;
     }
@@ -57,6 +60,7 @@ public class AdminSettingsEntity extends AbstractEntity {
         // The Phield API key is deliberately absent: it is encrypted at rest, and AdminSettingsDataService
         // is the only writer of it. Emitting it here would write the decrypted key back in the clear.
         document.put("signing_enabled", signingEnabled);
+        document.put("webhook_allowlist", webhookAllowlist);
         document.put("mfa_enabled", mfaEnabled);
         return document;
     }
@@ -116,6 +120,14 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setPhieldApiKey(String phieldApiKey) {
         this.phieldApiKey = phieldApiKey;
+    }
+
+    public String getWebhookAllowlist() {
+        return webhookAllowlist;
+    }
+
+    public void setWebhookAllowlist(final String webhookAllowlist) {
+        this.webhookAllowlist = webhookAllowlist == null ? "" : webhookAllowlist;
     }
 
     public boolean isSigningEnabled() {

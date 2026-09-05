@@ -49,6 +49,7 @@ import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.policies.PolicyResolver;
+import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.utils.EnvUtils;
@@ -155,7 +156,7 @@ public class RedactionService {
                             final PiiCountAggregatePublisher piiCountAggregatePublisher,
                             final RedactionCache redactionCache) {
 
-        this.mongoClient = mongoClient;;
+        this.mongoClient = mongoClient;
         this.policyDataService = policyDataService;
         this.customListService = customListService;
         this.redactListsService = redactListsService;
@@ -230,7 +231,7 @@ public class RedactionService {
                 final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
                 // The named policy must exist for this user.
                 if (policyEntity == null) {
-                    throw new Exception("The policy '" + policyName + "' does not exist.");
+                    throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
                 }
                 policyJson = policyEntity.getPolicy();
                 policyRevision = policyEntity.getRevision();
@@ -274,13 +275,13 @@ public class RedactionService {
         redactListsEntity.setTermsToNeverRedact(cachedRedactLists.getNeverRedact());
 
         // Add in the never-redact (ignore) list.
-        if(redactListsEntity != null && !redactListsEntity.getTermsToNeverRedact().isEmpty()) {
+        if(!redactListsEntity.getTermsToNeverRedact().isEmpty()) {
             final Ignored neverRedactIgnored = new Ignored("never-redact-list", redactListsEntity.getTermsToNeverRedact(), Collections.emptyList(), false);
             phileasPolicy.getIgnored().add(neverRedactIgnored);
         }
 
         // Add in the always-redact list.
-        if(redactListsEntity != null && !redactListsEntity.getTermsToAlwaysRedact().isEmpty()) {
+        if(!redactListsEntity.getTermsToAlwaysRedact().isEmpty()) {
 
             // Break the terms into exact and fuzzy lists.
             final SeparatedTermLists separatedTermLists = redactListsEntity.breakAlwaysRedactIntoSeparateLists();

@@ -447,6 +447,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         }
     }
 
+    /** Records the step accepted, so that code cannot be presented again. */
+    public void recordAcceptedMfaTimeStep(final UserEntity userEntity, final long timeStep) {
+        userEntity.setMfaFailedAttempts(0);
+        userEntity.setMfaLastUsedTimeStep(timeStep);
+        update(userEntity);
+    }
+
     /**
      * Clears an MFA lock and the failed-attempt counter so the user can enter a code again. This is the
      * administrator action that recovers a locked account; the user's enrollment is unchanged.

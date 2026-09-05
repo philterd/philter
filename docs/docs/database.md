@@ -4,7 +4,7 @@ Philter requires a [MongoDB](https://www.mongodb.com/) database. MongoDB is the 
 
 ## Supported versions
 
-Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.yml` pins.
+Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.yml` pins. That MongoDB requires authentication and is not published to the host: it holds the ledger, the audit log and the encrypted PII, and Philter reaches it over the compose network. `compose.sh` generates the password into `.env` on first run. To attach `mongosh` or [Philter Diffuse](diffuse.md) from your machine, uncomment the `ports` block on the `mongodb` service.
 
 ## What Philter stores in MongoDB
 

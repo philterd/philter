@@ -208,4 +208,51 @@ class RedactionWorkerIT extends AbstractMongoIT {
                 "the failure event must report FAILED: " + payload);
     }
 
+
+    @Test
+    @DisplayName("One poll drains the queue rather than taking a single job")
+    void onePollDrainsTheQueue() throws Exception {
+        final ObjectId user = new ObjectId();
+        for (int i = 1; i <= 5; i++) {
+            pendingDocumentDataService.save(newPending(user, "doc-" + i));
+        }
+        stubRedactionReturns(new byte[]{7});
+
+        worker.poll();
+
+        // Before, throughput was one document per poll interval however fast redaction ran.
+        for (int i = 1; i <= 5; i++) {
+            assertEquals(PendingDocumentEntity.STATUS_COMPLETE,
+                    pendingDocumentDataService.findOneByDocumentIdAndUserId("doc-" + i, user).getStatus(),
+                    "doc-" + i + " must be processed by the same poll");
+        }
+    }
+
+    @Test
+    @DisplayName("A failing job does not stop the rest of the queue")
+    void aFailingJobDoesNotStallTheQueue() throws Exception {
+        final ObjectId user = new ObjectId();
+        pendingDocumentDataService.save(newPending(user, "doc-bad"));
+        pendingDocumentDataService.save(newPending(user, "doc-good"));
+
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("boom"))
+                .thenReturn(new RedactionOutcome("doc-good", binaryResultReturning(new byte[]{7}),
+                        new AppliedPolicy("default", 0, "hash")));
+
+        worker.poll();
+
+        assertEquals(PendingDocumentEntity.STATUS_FAILED,
+                pendingDocumentDataService.findOneByDocumentIdAndUserId("doc-bad", user).getStatus());
+        assertEquals(PendingDocumentEntity.STATUS_COMPLETE,
+                pendingDocumentDataService.findOneByDocumentIdAndUserId("doc-good", user).getStatus(),
+                "a failure must not abandon the jobs behind it");
+    }
+
+    private static BinaryDocumentFilterResult binaryResultReturning(final byte[] output) {
+        final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
+        when(result.getDocument()).thenReturn(output);
+        return result;
+    }
+
 }

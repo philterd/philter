@@ -41,8 +41,8 @@ public enum ApiKeyScope {
     CONTEXTS_READ("contexts:read", "List and read contexts and their entries, including exports."),
     CONTEXTS_WRITE("contexts:write", "Create, update, and delete contexts and their entries, including imports."),
 
-    POLICIES_READ("policies:read", "List and read policies, their versions, and diffs."),
-    POLICIES_WRITE("policies:write", "Create, delete, roll back, and compile policies."),
+    POLICIES_READ("policies:read", "List and read policies, their versions, and diffs, and compile PhiSQL."),
+    POLICIES_WRITE("policies:write", "Create, delete, and roll back policies."),
 
     LISTS_READ("lists:read", "Read custom lists and the always/never redact lists."),
     LISTS_WRITE("lists:write", "Create, update, and delete custom lists and the always/never redact lists."),

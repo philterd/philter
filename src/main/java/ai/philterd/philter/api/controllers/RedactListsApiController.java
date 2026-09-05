@@ -95,7 +95,7 @@ public class RedactListsApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The always-redact and never-redact lists."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -140,7 +140,7 @@ public class RedactListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The lists were replaced."),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, a list has too many terms, or a term is too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -213,7 +213,7 @@ public class RedactListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The terms were appended."),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, the resulting list has too many terms, or a term is too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)
     @RequestMapping(value = "/api/redact-lists", method = RequestMethod.PUT, consumes = MediaType.APPLICATION_JSON_VALUE)

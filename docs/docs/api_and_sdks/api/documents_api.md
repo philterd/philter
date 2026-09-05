@@ -6,6 +6,10 @@ The Documents API exposes the lifecycle of asynchronously-submitted PDF redactio
 
 > The `curl` examples assume Philter is enabled for SSL with a self-signed certificate. See the [SSL/TLS settings](../../settings.md) for details.
 
+## How the queue is worked
+
+A background worker claims pending documents and redacts them one after another, draining everything queued before it waits again. The wait between passes is `philter.worker.poll-interval-ms` (default 5,000ms), which is how long an idle worker sleeps rather than a limit on throughput: a backlog is worked through as fast as redaction runs, not one document per interval. The worker has its own thread, so a long document does not delay [webhook](webhooks.md) delivery. A document that repeatedly kills the worker is failed after three attempts rather than retried forever.
+
 ## Statuses
 
 A submitted document moves through one of the following statuses:

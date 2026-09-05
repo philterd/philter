@@ -72,12 +72,13 @@ public class PoliciesApiController extends AbstractApiController {
 
     public PoliciesApiController(final PolicyDataService policyDataService, final UserService userService,
                                  final ApiKeyDataService apiKeyDataService,
-                                 final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache, final Gson gson) {
+                                 final AuditEventPublisher auditEventPublisher, final ApiKeyCache apiKeyCache,
+                                 final PhiSqlCompileService phiSqlCompileService, final Gson gson) {
         super(apiKeyDataService, apiKeyCache);
         this.policyDataService = policyDataService;
         this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
-        this.phiSqlCompileService = new PhiSqlCompileService();
+        this.phiSqlCompileService = phiSqlCompileService;
         this.gson = gson;
     }
 
@@ -87,7 +88,7 @@ public class PoliciesApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The names of the policies."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -167,7 +168,7 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The policy was saved and is now active. A policy_activated audit event is recorded."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, or the policy is invalid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -237,7 +238,7 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The policy was deleted."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller is not an admin.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.DELETE)

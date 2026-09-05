@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.responses;
 
 import com.google.gson.JsonElement;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * The result of compiling a PhiSQL policy: the policy name and description from the PhiSQL
@@ -25,6 +26,10 @@ public class CompilePolicyResponse {
 
     private final String name;
     private final String description;
+
+    /** Free-form JSON; see the Gson schema replacement in PhilterApplication. */
+    @Schema(description = "The compiled Phileas policy.", type = "object",
+            additionalProperties = Schema.AdditionalPropertiesValue.TRUE)
     private final JsonElement policy;
 
     public CompilePolicyResponse(final String name, final String description, final JsonElement policy) {

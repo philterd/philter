@@ -24,6 +24,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
@@ -35,8 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -51,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
@@ -63,10 +63,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code filteredText} and the {@code explanation} wrapper.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class ExplainApiControllerTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String API_KEY_HASH = EncryptionService.hashSha256(API_KEY);
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
     @Mock private RedactionService redactionService;
@@ -83,8 +83,10 @@ class ExplainApiControllerTest {
         apiKeyEntity.setUserId(new ObjectId());
         apiKeyEntity.setId(new ObjectId());
 
-        when(apiKeyCache.containsApiKey(API_KEY)).thenReturn(false);
-        when(apiKeyDataService.findOneByApiKey(API_KEY)).thenReturn(apiKeyEntity);
+        // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
+        // authenticates nobody and every test in the class fails on a 401.
+        lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
+        lenient().when(apiKeyCache.get(API_KEY_HASH)).thenReturn(apiKeyEntity);
 
         final ExplainApiController controller = new ExplainApiController(
                 redactionService, apiKeyDataService, auditEventPublisher, apiKeyCache, new Gson(), signingService);
@@ -189,7 +191,7 @@ class ExplainApiControllerTest {
 
     @Test
     void unauthorizedExplainResponseDoesNotIncludeSignatureHeader() throws Exception {
-        when(apiKeyCache.containsApiKey("bad-key")).thenReturn(false);
+        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("bad-key"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("bad-key")).thenReturn(null);
 
         final var response = mockMvc.perform(post("/api/explain")

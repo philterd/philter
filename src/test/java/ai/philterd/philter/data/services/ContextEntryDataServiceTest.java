@@ -143,14 +143,15 @@ class ContextEntryDataServiceTest {
         String replacement = "redacted";
         String filterType = "type";
 
-        // Mock containsToken to return false
-        FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(null);
+        when(mongoCollection.findOneAndUpdate(any(Bson.class), any(Bson.class), any()))
+                .thenReturn(storedRow(replacement));
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
 
         contextEntryDataService.putReplacement(userId, contextName, token, replacement, filterType);
 
-        verify(mongoCollection).insertOne(any(Document.class));
+        // One atomic upsert, never a read followed by an insert.
+        verify(mongoCollection).findOneAndUpdate(any(Bson.class), any(Bson.class), any());
+        verify(mongoCollection, never()).insertOne(any(Document.class));
     }
 
     @Test
@@ -201,46 +202,39 @@ class ContextEntryDataServiceTest {
         final ObjectId userId = new ObjectId();
         final String contextName = "ctx";
 
-        // First call is containsToken (returns null = no match); second call is the eviction lookup.
-        final FindIterable<Document> containsFind = mock(FindIterable.class);
-        when(containsFind.first()).thenReturn(null);
-
         final ObjectId victimId = new ObjectId();
         final FindIterable<Document> evictFind = mock(FindIterable.class);
         when(evictFind.sort(any(Bson.class))).thenReturn(evictFind);
         when(evictFind.first()).thenReturn(new Document("_id", victimId).append("reads", 0L));
 
-        when(mongoCollection.find(any(Bson.class)))
-                .thenReturn(containsFind)
-                .thenReturn(evictFind);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(evictFind);
 
         when(mongoCollection.countDocuments(any(Bson.class)))
                 .thenReturn((long) ContextEntryDataService.MAX_CONTEXT_SIZE);
 
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(mock(com.mongodb.client.result.DeleteResult.class));
-        when(mongoCollection.insertOne(any(Document.class))).thenReturn(mock(InsertOneResult.class));
+        // The upsert reports back the row this call created, which is what triggers the trim.
+        when(mongoCollection.findOneAndUpdate(any(Bson.class), any(Bson.class), any()))
+                .thenReturn(storedRow("REPLACEMENT"));
 
         contextEntryDataService.putReplacement(userId, contextName, "tok", "REPLACEMENT", "PERSON");
 
         verify(mongoCollection, times(1)).deleteOne(any(Bson.class));
-        verify(mongoCollection, times(1)).insertOne(any(Document.class));
+        verify(mongoCollection, times(1)).findOneAndUpdate(any(Bson.class), any(Bson.class), any());
     }
 
     @Test
     void putReplacementSkipsEvictionWhenUnderCapacity() {
         final ObjectId userId = new ObjectId();
 
-        final FindIterable<Document> containsFind = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(containsFind);
-        when(containsFind.first()).thenReturn(null);
-
         when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
-        when(mongoCollection.insertOne(any(Document.class))).thenReturn(mock(InsertOneResult.class));
+        when(mongoCollection.findOneAndUpdate(any(Bson.class), any(Bson.class), any()))
+                .thenReturn(storedRow("R"));
 
         contextEntryDataService.putReplacement(userId, "ctx", "tok", "R", "PERSON");
 
         verify(mongoCollection, never()).deleteOne(any(Bson.class));
-        verify(mongoCollection, times(1)).insertOne(any(Document.class));
+        verify(mongoCollection, times(1)).findOneAndUpdate(any(Bson.class), any(Bson.class), any());
     }
 
     @Test
@@ -386,6 +380,17 @@ class ContextEntryDataServiceTest {
         assertEquals(ContextEntryDataService.ImportOutcome.OVERWRITTEN, outcome);
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
         verify(mongoCollection, never()).insertOne(any(Document.class));
+    }
+
+
+    /** A row as the upsert returns it. */
+    private static Document storedRow(final String replacement) {
+        return new Document("_id", new ObjectId())
+                .append("replacement", replacement)
+                .append("reads", 0L)
+                .append("timestamp", new java.util.Date())
+                .append("token_hash", "hash")
+                .append("filter_type", "PERSON");
     }
 
 }

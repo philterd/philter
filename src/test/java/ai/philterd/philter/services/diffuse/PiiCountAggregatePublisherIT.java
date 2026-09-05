@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
+import org.bson.types.ObjectId;
 
 /**
  * Integration tests for {@link PiiCountAggregatePublisher} against a real (in-memory) MongoDB. These
@@ -39,6 +40,8 @@ import static org.mockito.Mockito.mock;
  * setting read and the actual storage writes both run.
  */
 class PiiCountAggregatePublisherIT extends AbstractMongoIT {
+
+    private static final ObjectId ACTING_ADMIN = new ObjectId();
 
     private AdminSettingsDataService adminSettingsDataService;
     private MongoCollection<Document> aggregates;
@@ -50,7 +53,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     }
 
     private PiiCountAggregatePublisher enabledPublisher() {
-        adminSettingsDataService.saveDiffuseCountsEnabled(true);
+        adminSettingsDataService.saveDiffuseCountsEnabled(ACTING_ADMIN, true);
         return new PiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
     }
 

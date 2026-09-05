@@ -65,9 +65,12 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             return new ServiceResponse("List contains too many items. Maximum is " + CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS + ".", false, 400);
         }
         
-        // Remove all blank lines from the list.
-        listItems.removeIf(item -> item == null || item.isEmpty());
-        final List<String> trimmedListItems = listItems.stream().map(String::trim).toList();
+        // Filtered into a new list rather than removed from the caller's: removeIf mutates the
+        // argument, and throws outright on the immutable list any modern caller would pass.
+        final List<String> trimmedListItems = listItems.stream()
+                .filter(item -> item != null && !item.isEmpty())
+                .map(String::trim)
+                .toList();
 
         if(trimmedListItems.isEmpty()) {
             return new ServiceResponse("List items cannot be empty.", false, 400);

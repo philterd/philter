@@ -30,8 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -43,7 +41,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class PolicyVersionDataServiceTest {
 
     @Mock private MongoClient mongoClient;
@@ -252,7 +249,7 @@ class PolicyVersionDataServiceTest {
         final Iterator<Document> it = List.of(docs).iterator();
         final MongoCursor<Document> cursor = mock(MongoCursor.class);
         when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
-        when(cursor.next()).thenAnswer(inv -> it.next());
+        lenient().when(cursor.next()).thenAnswer(inv -> it.next());
         when(fi.iterator()).thenReturn(cursor);
         return fi;
     }

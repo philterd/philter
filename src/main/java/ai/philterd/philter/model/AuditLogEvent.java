@@ -28,8 +28,6 @@ public enum AuditLogEvent {
     CONTEXT_CREATED("context_created"),
     CONTEXT_DELETED("context_deleted"),
 
-    POLICY_RETRIEVED("policy_retrieved"),
-    POLICIES_RETRIEVED("policies_retrieved"),
     POLICY_CREATED("policy_created"),
     POLICY_UPDATED("policy_updated"),
     POLICY_DELETED("policy_deleted"),
@@ -39,19 +37,12 @@ public enum AuditLogEvent {
     POLICY_VERSION_HISTORY_RETRIEVED("policy_version_history_retrieved"),
     POLICY_ROLLED_BACK("policy_rolled_back"),
 
-    LEDGER_RETRIEVED("ledger_retrieved"),
-    LEDGER_DELETED("ledger_deleted"),
 
-    REDACTED_FILE_SUMMARY_DOWNLOAD("redacted_file_summary_download"),
     REDACTED_FILE_DOWNLOAD("redacted_file_download"),
-    REDACTED_DATA_SET_SUBMISSION("redacted_data_set_submission"),
-    REDACTED_FILE_RETRIEVED("redacted_file_retrieved"),
 
-    REDACTED_FILE_UPLOAD("redacted_file_upload"),
     DOCUMENT_REDACTION_INITIATED("document_redaction_initiated", Category.REDACTION_ACTIVITY),
     DOCUMENT_REDACTION_COMPLETED("document_redaction_completed", Category.REDACTION_ACTIVITY),
     REDACTED_FILE_DELETED("redacted_file_deleted"),
-    REDACTED_DATA_SET_DELETED("redacted_data_set_deleted"),
 
     REDACTION_LEDGER_QUERY("redaction_ledger_query"),
     REDACTION_LEDGER_DELETED("redaction_ledger_deleted"),
@@ -79,7 +70,6 @@ public enum AuditLogEvent {
     USER_MFA_LOCKED("user_mfa_locked"),
     USER_MFA_UNLOCKED("user_mfa_unlocked"),
     // Retained for historical events: users are deactivated rather than deleted.
-    USER_DELETED("user_deleted"),
 
     // Account and admin configuration changes.
     WEBHOOK_CONFIGURED("webhook_configured"),

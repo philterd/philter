@@ -48,7 +48,10 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `user_role_changed` | A user's role was changed. |
 | `user_deactivated` | A user account was deactivated: sign-in and API access are revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
 | `user_reactivated` | A previously deactivated user account was reactivated, restoring sign-in and API access. |
-| `user_deleted` | A user account was deleted (legacy event; current versions deactivate users rather than deleting them). |
+| `user_mfa_enabled` | A user completed authenticator enrollment and multi-factor authentication is now required for their sign-in. |
+| `user_mfa_disabled` | Multi-factor authentication was turned off for a user and the enrolled secret was cleared. |
+| `user_mfa_locked` | A user was locked out of multi-factor authentication after repeated failed codes. |
+| `user_mfa_unlocked` | An administrator cleared a user's multi-factor authentication lock. |
 
 ### API keys
 
@@ -143,7 +146,7 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 | `redact_lists_updated` | The account's always-redact / never-redact lists were changed. |
 | `webhook_configured` | A webhook URL and secret were configured. |
 | `webhook_removed` | The webhook was removed. |
-| `settings_updated` | Account settings (such as the redaction ledger toggle) were changed. |
+| `settings_updated` | An administrator changed the deployment settings. The `details` field names which settings changed — the webhook allowlist, MFA, output signing, or the Phield and Diffuse publishing settings — and never their values. |
 
 ## Exporting the audit log
 

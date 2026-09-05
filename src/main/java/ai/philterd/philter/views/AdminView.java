@@ -623,12 +623,12 @@ public class AdminView extends AbstractRestrictedView {
                         + "somewhere else is still refused.");
 
         final Button saveLoggingSettingsButton = new Button("Save", e -> {
-            adminSettingsDataService.saveDiffuseCountsEnabled(diffuseCountsEnabledCheckbox.getValue());
-            adminSettingsDataService.savePhieldSettings(phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
+            adminSettingsDataService.saveDiffuseCountsEnabled(userEntity.getId(), diffuseCountsEnabledCheckbox.getValue());
+            adminSettingsDataService.savePhieldSettings(userEntity.getId(), phieldEnabledCheckbox.getValue(), phieldUrlField.getValue(),
                     phieldSourceIdField.getValue(), phieldOrganizationField.getValue(), phieldApiKeyField.getValue());
-            adminSettingsDataService.saveSigningEnabled(signingEnabledCheckbox.getValue());
-            adminSettingsDataService.saveMfaEnabled(mfaEnabledCheckbox.getValue());
-            adminSettingsDataService.saveWebhookAllowlist(webhookAllowlistField.getValue());
+            adminSettingsDataService.saveSigningEnabled(userEntity.getId(), signingEnabledCheckbox.getValue());
+            adminSettingsDataService.saveMfaEnabled(userEntity.getId(), mfaEnabledCheckbox.getValue());
+            adminSettingsDataService.saveWebhookAllowlist(userEntity.getId(), webhookAllowlistField.getValue());
             showSuccessNotification("Admin settings saved.");
             // The settings are saved either way; sending a credential over cleartext http is the
             // administrator's call to make, but they should know they are making it.

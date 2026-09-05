@@ -90,25 +90,40 @@ public class MongoContextService implements ContextService {
 
     @Override
     public void putReplacement(final String token, final String replacement, final String filterType) {
-
-        contextEntryService.putReplacement(userId, contextName, token, replacement, filterType);
-
-        final ContextEntryEntity entry = contextEntryService.findOneEntryByToken(userId, contextName, token);
-        if (entry != null) {
-            contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement());
-        }
+        storeReplacement(token, replacement, filterType);
 
     }
 
     @Override
     public String computeReplacementIfAbsent(final String token, final String filterType, final Supplier<String> replacementSupplier) {
+
         final String existing = getReplacement(token);
         if (existing != null) {
             return existing;
         }
-        final String replacement = replacementSupplier.get();
-        putReplacement(token, replacement, filterType);
-        return replacement;
+
+        // The stored value, not the proposed one. Two documents redacted at once both find nothing
+        // and both propose; only one is kept, and both must use it or they disagree on the pseudonym.
+        final String stored = storeReplacement(token, replacementSupplier.get(), filterType);
+
+        return stored != null ? stored : getReplacement(token);
+
+    }
+
+    /** Stores the replacement unless one exists, caches whichever is stored, and returns it. */
+    private String storeReplacement(final String token, final String replacement, final String filterType) {
+
+        final ContextEntryEntity entry =
+                contextEntryService.putReplacementIfAbsent(userId, contextName, token, replacement, filterType);
+
+        if (entry == null) {
+            return null;
+        }
+
+        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement());
+
+        return entry.getReplacement();
+
     }
 
 }

@@ -149,6 +149,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         if(validation.isValid()) {
 
+            warnAboutLiteralKeys(policyEntity.getName(), policyJson);
+
             update(policyEntity);
 
             // Retain an immutable snapshot of the new version as governance evidence.
@@ -205,6 +207,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         } else {
 
+            warnAboutLiteralKeys(policyName, policyJson);
+
             final PolicyEntity policyEntity = new PolicyEntity();
             policyEntity.setUserId(userId);
             policyEntity.setPolicy(policyJson);
@@ -256,6 +260,64 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         return allowedValues.contains(value.toLowerCase());
+
+    }
+
+    /** The policy fields that may hold a key, each optional and each able to name an environment variable. */
+    private static final List<String> KEY_BEARING_SECTIONS = List.of("crypto", "fpe");
+
+    /**
+     * Warns when a policy is saved with an encryption key written into it. Policies and their version
+     * snapshots are not encrypted at rest, so a literal key is stored beside the values it encrypted
+     * and database access alone undoes the redaction. Prefixing the value with {@code env:} reads it
+     * from the environment instead and stores only the variable's name.
+     */
+    static void warnAboutLiteralKeys(final String policyName, final String policyJson) {
+
+        for (final String section : keySectionsHoldingALiteralKey(policyJson)) {
+            LOGGER.warn("Policy '{}' stores its {} key in the policy itself. Policies are not encrypted "
+                            + "at rest, so that key is readable by anyone who can read the database, and "
+                            + "the values it encrypted are stored there too. Use \"env:VARIABLE_NAME\" to "
+                            + "read it from the environment instead.",
+                    policyName, section);
+        }
+
+    }
+
+    /** The key-bearing sections of this policy whose key is a literal rather than an {@code env:} reference. */
+    static List<String> keySectionsHoldingALiteralKey(final String policyJson) {
+
+        final List<String> found = new ArrayList<>();
+
+        try {
+
+            final JsonObject policyObject = new Gson().fromJson(policyJson, JsonObject.class);
+            if (policyObject == null) {
+                return found;
+            }
+
+            for (final String section : KEY_BEARING_SECTIONS) {
+                if (!policyObject.has(section) || !policyObject.get(section).isJsonObject()) {
+                    continue;
+                }
+                final JsonObject values = policyObject.getAsJsonObject(section);
+                for (final String field : List.of("key", "tweak")) {
+                    if (values.has(field) && values.get(field).isJsonPrimitive()) {
+                        final String value = values.get(field).getAsString();
+                        if (value != null && !value.isBlank() && !value.startsWith("env:")) {
+                            found.add(section);
+                            break;
+                        }
+                    }
+                }
+            }
+
+        } catch (final RuntimeException notReadable) {
+            // Validation reports malformed policies; this check simply has nothing to say about them.
+            return found;
+        }
+
+        return found;
 
     }
 

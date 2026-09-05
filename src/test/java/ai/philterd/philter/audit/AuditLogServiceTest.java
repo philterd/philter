@@ -30,8 +30,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -46,12 +44,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class AuditLogServiceTest {
 
     private static final String HEADER =
@@ -79,7 +77,7 @@ class AuditLogServiceTest {
         final Iterator<Document> it = documents.iterator();
         final MongoCursor<Document> cursor = mock(MongoCursor.class);
         when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
-        when(cursor.next()).thenAnswer(inv -> it.next());
+        lenient().when(cursor.next()).thenAnswer(inv -> it.next());
         when(findIterable.iterator()).thenReturn(cursor);
         return findIterable;
     }

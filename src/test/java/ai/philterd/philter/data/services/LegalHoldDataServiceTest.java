@@ -33,8 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -45,7 +43,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class LegalHoldDataServiceTest {
 
     @Mock private MongoClient mongoClient;
@@ -172,7 +169,6 @@ class LegalHoldDataServiceTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
         final DeleteResult deleteResult = mock(DeleteResult.class);
-        when(deleteResult.getDeletedCount()).thenReturn(1L);
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
 
         final ServiceResponse r = service.release("req", "REF-1", userId);
@@ -342,13 +338,13 @@ class LegalHoldDataServiceTest {
     @SafeVarargs
     private FindIterable<Document> iterableOf(final Document... docs) {
         final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.sort(any())).thenReturn(fi);
-        when(fi.skip(anyInt())).thenReturn(fi);
-        when(fi.limit(anyInt())).thenReturn(fi);
+        lenient().when(fi.sort(any())).thenReturn(fi);
+        lenient().when(fi.skip(anyInt())).thenReturn(fi);
+        lenient().when(fi.limit(anyInt())).thenReturn(fi);
         final Iterator<Document> it = List.of(docs).iterator();
         final MongoCursor<Document> cursor = mock(MongoCursor.class);
         when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
-        when(cursor.next()).thenAnswer(inv -> it.next());
+        lenient().when(cursor.next()).thenAnswer(inv -> it.next());
         when(fi.iterator()).thenReturn(cursor);
         return fi;
     }

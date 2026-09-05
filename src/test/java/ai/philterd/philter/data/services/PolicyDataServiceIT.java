@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import java.util.ArrayList;
 
 /**
  * Integration tests for {@link PolicyDataService} against a real (in-memory) MongoDB. These cover
@@ -394,6 +395,61 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertNotNull(versionService.findByNameAndRevision("shared-name", first, 0));
         assertNotNull(versionService.findByNameAndRevision("shared-name", second, 0),
                 "the second user's snapshot must not be swallowed by the first's identical content");
+    }
+
+
+    @Test
+    @DisplayName("Saving a policy that carries its own key warns, and saving one that does not is quiet")
+    void savingAPolicyWithALiteralKeyWarns() {
+
+        final ObjectId userId = new ObjectId();
+        final String withKey = "{\"crypto\":{\"key\":\"0011223344556677\"},"
+                + "\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
+
+        final String warned = capturingPolicyLogs(() ->
+                service.create("req", userId, withKey, "d", null, "with-key", "test"));
+
+        assertTrue(warned.contains("with-key"), "the warning must name the policy: " + warned);
+        assertTrue(warned.contains("env:"), "the warning must give the way out: " + warned);
+
+        final String quiet = capturingPolicyLogs(() ->
+                service.create("req", userId, validPolicyJson(), "d", null, "no-key", "test"));
+
+        assertFalse(quiet.contains("not encrypted at rest"),
+                "a policy holding no key must not be warned about: " + quiet);
+
+        // The warning is advice, not a refusal: the policy is still stored.
+        assertNotNull(service.findOne("with-key", userId));
+
+    }
+
+    /** Runs the action with PolicyDataService's logger captured, and returns what it logged. */
+    private String capturingPolicyLogs(final Runnable action) {
+
+        final List<String> messages = new ArrayList<>();
+        final org.apache.logging.log4j.core.appender.AbstractAppender appender =
+                new org.apache.logging.log4j.core.appender.AbstractAppender("capture", null, null, true,
+                        org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY) {
+                    @Override
+                    public void append(final org.apache.logging.log4j.core.LogEvent event) {
+                        messages.add(event.getMessage().getFormattedMessage());
+                    }
+                };
+        appender.start();
+
+        final org.apache.logging.log4j.core.Logger logger = (org.apache.logging.log4j.core.Logger)
+                org.apache.logging.log4j.LogManager.getLogger(PolicyDataService.class);
+        logger.addAppender(appender);
+
+        try {
+            action.run();
+        } finally {
+            logger.removeAppender(appender);
+            appender.stop();
+        }
+
+        return String.join("\n", messages);
+
     }
 
 }

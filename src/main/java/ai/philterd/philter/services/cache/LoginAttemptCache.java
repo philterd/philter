@@ -49,20 +49,7 @@ public class LoginAttemptCache extends Cache {
      */
     public long recordFailure(final String username) {
 
-        final String key = buildKey(username);
-
-        long count = 0;
-        final String existing = backend.get(key);
-        if (existing != null) {
-            try {
-                count = Long.parseLong(existing);
-            } catch (final NumberFormatException ex) {
-                count = 0;
-            }
-        }
-
-        count++;
-        backend.setex(key, lockoutSeconds, Long.toString(count));
+        final long count = backend.incrementAndExpire(buildKey(username), lockoutSeconds);
 
         if (count >= maxAttempts) {
             LOGGER.warn("Username '{}' is now locked out after {} failed login attempts.", username, count);

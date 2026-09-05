@@ -21,6 +21,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.DisplayName;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests the login lockout counting. With no cache host configured the cache uses the shared
@@ -88,6 +93,55 @@ class LoginAttemptCacheTest {
         assertEquals(1, cache.recordFailure(user));
         assertEquals(2, cache.recordFailure(user));
         assertEquals(3, cache.recordFailure(user));
+    }
+
+
+    @Test
+    @DisplayName("Guesses made at the same time all count")
+    void concurrentFailuresAreAllCounted() throws Exception {
+
+        final LoginAttemptCache cache = new LoginAttemptCache(null, 0, null, false);
+        final String username = "victim@example.com";
+
+        final int guesses = 50;
+        final CountDownLatch go = new CountDownLatch(1);
+        final List<Thread> threads = new ArrayList<>();
+
+        for (int i = 0; i < guesses; i++) {
+            final Thread thread = new Thread(() -> {
+                try {
+                    go.await(5, TimeUnit.SECONDS);
+                } catch (final InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                cache.recordFailure(username);
+            });
+            thread.start();
+            threads.add(thread);
+        }
+
+        go.countDown();
+        for (final Thread thread : threads) {
+            thread.join(20_000);
+        }
+
+        // Read-modify-write lost most of these: 20 simultaneous guesses reached a count of 2 and the
+        // account stayed open.
+        assertEquals(guesses, cache.recordFailure(username) - 1,
+                "every failed login must be counted, however many arrive together");
+        assertTrue(cache.isLocked(username), "the account must be locked well before " + guesses + " guesses");
+
+    }
+
+    @Test
+    @DisplayName("The counter survives a value that is not a number")
+    void aCorruptCounterDoesNotUnlockTheAccount() {
+
+        final LoginAttemptCache cache = new LoginAttemptCache(null, 0, null, false);
+
+        cache.recordFailure("someone@example.com");
+        assertEquals(2, cache.recordFailure("someone@example.com"));
+
     }
 
 }

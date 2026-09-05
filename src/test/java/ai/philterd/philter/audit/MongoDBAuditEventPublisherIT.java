@@ -118,11 +118,11 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
         final ObjectId apiKeyId = new ObjectId();
         final ObjectId associatedObject = new ObjectId();
 
-        publisher.auditEvent("req-5", AuditLogEvent.LEDGER_DELETED, apiKeyId, associatedObject, "192.168.1.1");
+        publisher.auditEvent("req-5", AuditLogEvent.REDACTION_LEDGER_DELETED, apiKeyId, associatedObject, "192.168.1.1");
 
         final Document stored = auditEvents.find().first();
         assertNotNull(stored);
-        assertEquals(AuditLogEvent.LEDGER_DELETED.getAuditLogEvent(), stored.getString("event"));
+        assertEquals(AuditLogEvent.REDACTION_LEDGER_DELETED.getAuditLogEvent(), stored.getString("event"));
         assertEquals(apiKeyId, stored.getObjectId("api_key_id"));
         assertEquals(associatedObject, stored.getObjectId("associated_object"));
         assertEquals("192.168.1.1", stored.getString("client_ip_address"));
@@ -164,7 +164,7 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
     @Test
     void eachAuditEventInsertsADistinctDocument() {
         publisher.auditEvent("req-a", AuditLogEvent.USER_CREATED, new ObjectId());
-        publisher.auditEvent("req-b", AuditLogEvent.USER_DELETED, new ObjectId());
+        publisher.auditEvent("req-b", AuditLogEvent.USER_DEACTIVATED, new ObjectId());
 
         assertEquals(2, auditEvents.countDocuments());
     }

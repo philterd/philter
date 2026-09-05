@@ -55,23 +55,24 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
 
     private static final Logger LOGGER = LogManager.getLogger(SigningKeyDataService.class);
 
-    private volatile KeyPair keyPair;
-    private volatile String activeKeyId;
+    /** The key and its id together, so no reader can see half a rotation. */
+    private record ActiveKey(KeyPair keyPair, String keyId) { }
+
+    private volatile ActiveKey active;
 
     public SigningKeyDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                                  final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "signing_keys", encryptionService, auditEventPublisher);
-        this.keyPair = loadOrGenerate();
+        this.active = loadOrGenerate();
     }
 
-    private KeyPair loadOrGenerate() {
+    private ActiveKey loadOrGenerate() {
         final String keyPath = System.getenv("PHILTER_SIGNING_KEY_PATH");
         if (keyPath != null && !keyPath.isBlank()) {
             try {
                 LOGGER.info("Loading signing key from PHILTER_SIGNING_KEY_PATH: {}", keyPath);
                 final KeyPair fromPem = loadFromPemFile(keyPath);
-                this.activeKeyId = keyIdFor(fromPem.getPublic());
-                return fromPem;
+                return new ActiveKey(fromPem, keyIdFor(fromPem.getPublic()));
             } catch (final Exception e) {
                 throw new IllegalStateException("Failed to load signing key from PHILTER_SIGNING_KEY_PATH: " + keyPath, e);
             }
@@ -90,10 +91,9 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
                 rewrapLegacyKey(entity);
             }
             rewrapLegacySupersededKeys();
-            this.activeKeyId = entity.getKeyId() != null
+            return new ActiveKey(loaded, entity.getKeyId() != null
                     ? entity.getKeyId()
-                    : backfillKeyId(entity, loaded);
-            return loaded;
+                    : backfillKeyId(entity, loaded));
         }
 
         LOGGER.info("No signing key found; generating a new ES256 keypair.");
@@ -113,7 +113,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
                 Updates.combine(Updates.set("active", false), Updates.set("superseded_at", new Date())));
         collection.updateMany(Filters.exists("active", false),
                 Updates.combine(Updates.set("active", false), Updates.set("superseded_at", new Date())));
-        this.keyPair = generateAndPersist(false, actingUserId);
+        this.active = generateAndPersist(false, actingUserId);
     }
 
     /** Stable identifier a third party can recompute from the public key alone. */
@@ -169,8 +169,17 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
 
     /** The id of the key new signatures are made with. */
     public String getActiveKeyId() {
-        return activeKeyId;
+        return active.keyId();
     }
+
+    /** The private key and the id that names it, from one read, so a caller cannot mix two keys. */
+    public SigningKey currentSigningKey() {
+        final ActiveKey snapshot = active;
+        return new SigningKey(snapshot.keyPair().getPrivate(), snapshot.keyId());
+    }
+
+    /** A signing key paired with the id an entry must record for it to be verifiable later. */
+    public record SigningKey(PrivateKey privateKey, String keyId) { }
 
     /**
      * Returns the public key with the given id, active or superseded, so a historical signature can
@@ -180,8 +189,9 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         if (keyId == null) {
             return null;
         }
-        if (keyId.equals(activeKeyId)) {
-            return keyPair.getPublic();
+        final ActiveKey snapshot = active;
+        if (keyId.equals(snapshot.keyId())) {
+            return snapshot.keyPair().getPublic();
         }
         final Document doc = collection.find(Filters.eq("key_id", keyId)).first();
         if (doc == null) {
@@ -196,7 +206,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         }
     }
 
-    private KeyPair generateAndPersist(final boolean isFirstGeneration, final ObjectId actingUserId) {
+    private ActiveKey generateAndPersist(final boolean isFirstGeneration, final ObjectId actingUserId) {
         try {
             final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
             kpg.initialize(new ECGenParameterSpec("secp256r1"));
@@ -208,8 +218,8 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
             entity.setPublicKeyEncoded(kp.getPublic().getEncoded());
             entity.setCreatedAt(new Date());
             entity.setActive(true);
-            this.activeKeyId = entity.getKeyId();
 
+            // Stored before it is published: a key that signs must be one a verifier can find.
             collection.insertOne(entity.toDocument(encryptionService));
 
             final AuditLogEvent event = isFirstGeneration
@@ -217,7 +227,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
                     : AuditLogEvent.SIGNING_KEY_REGENERATED;
             auditEventPublisher.auditEvent(null, event, actingUserId, null, null, null);
 
-            return kp;
+            return new ActiveKey(kp, entity.getKeyId());
         } catch (final Exception e) {
             throw new IllegalStateException("Failed to generate signing keypair.", e);
         }
@@ -263,11 +273,11 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
     }
 
     public PublicKey getPublicKey() {
-        return keyPair.getPublic();
+        return active.keyPair().getPublic();
     }
 
     public PrivateKey getPrivateKey() {
-        return keyPair.getPrivate();
+        return active.keyPair().getPrivate();
     }
 
     /** Returns the public key in PEM (BEGIN PUBLIC KEY) format. */
@@ -283,14 +293,14 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
     }
 
     public String getPublicKeyPem() {
-        final byte[] encoded = keyPair.getPublic().getEncoded();
+        final byte[] encoded = active.keyPair().getPublic().getEncoded();
         final String b64 = Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded);
         return "-----BEGIN PUBLIC KEY-----\n" + b64 + "\n-----END PUBLIC KEY-----\n";
     }
 
     /** Returns the public key as a minimal JWK JSON object (kty=EC, crv=P-256 per RFC 7518). */
     public String getPublicKeyJwk() {
-        final ECPublicKey ecKey = (ECPublicKey) keyPair.getPublic();
+        final ECPublicKey ecKey = (ECPublicKey) active.keyPair().getPublic();
         final ECPoint point = ecKey.getW();
         final byte[] x = coordinateToBytes(point.getAffineX());
         final byte[] y = coordinateToBytes(point.getAffineY());
@@ -303,7 +313,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
     public String getPublicKeyFingerprint() {
         try {
             final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-            final byte[] digest = sha256.digest(keyPair.getPublic().getEncoded());
+            final byte[] digest = sha256.digest(active.keyPair().getPublic().getEncoded());
             return HexFormat.ofDelimiter(":").formatHex(digest);
         } catch (final Exception e) {
             return "(unavailable)";

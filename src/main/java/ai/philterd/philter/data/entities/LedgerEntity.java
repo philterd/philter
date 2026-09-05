@@ -20,6 +20,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -185,10 +186,15 @@ public class LedgerEntity extends AbstractEncryptedEntity {
      * Appends one field, length first, so the boundary between fields cannot move. A separator alone
      * would not do: a token and a replacement are arbitrary text and may contain whatever character
      * was chosen as the separator.
+     *
+     * <p>Counted in UTF-8 bytes: "café" is 4 UTF-16 units but 5 bytes, and the recipe is published
+     * for other languages to reimplement.
      */
-    private static void appendField(final StringBuilder buffer, final Object field) {
-        final String value = String.valueOf(field);
-        buffer.append(value.length()).append(':').append(value);
+    private static void appendField(final ByteArrayOutputStream canonical, final Object field) {
+        final byte[] value = String.valueOf(field).getBytes(StandardCharsets.UTF_8);
+        canonical.writeBytes(Integer.toString(value.length).getBytes(StandardCharsets.US_ASCII));
+        canonical.write(':');
+        canonical.writeBytes(value);
     }
 
     public String calculateHash() throws NoSuchAlgorithmException {
@@ -196,7 +202,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         // Every field is length-prefixed. Concatenated plainly, token "ab" with replacement "c" and
         // token "a" with replacement "bc" produce the same digest, and one could be edited into the
         // other without breaking the chain.
-        final StringBuilder canonical = new StringBuilder();
+        final ByteArrayOutputStream canonical = new ByteArrayOutputStream();
 
         for (final Object field : new Object[]{userId, documentId, token, replacement, startPosition,
                 documentHash, hashTimestamp(), previousHash, policyName, policyVersion,
@@ -204,11 +210,9 @@ public class LedgerEntity extends AbstractEncryptedEntity {
             appendField(canonical, field);
         }
 
-        final String dataToHash = canonical.toString();
-
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-        final byte[] bytes = digest.digest(dataToHash.getBytes(StandardCharsets.UTF_8));
+        final byte[] bytes = digest.digest(canonical.toByteArray());
 
         final StringBuilder buffer = new StringBuilder();
 

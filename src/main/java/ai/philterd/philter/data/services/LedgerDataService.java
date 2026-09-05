@@ -98,8 +98,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         // method. The hash chain proves internal consistency; the signature proves origin.
         if (signingService != null && ledgerEntity.getHash() != null) {
             try {
-                ledgerEntity.setSignature(signingService.signLedgerEntry(ledgerEntity.getHash()));
-                ledgerEntity.setSigningKeyId(signingService.getActiveKeyId());
+                final SigningService.LedgerSignature signed =
+                        signingService.signLedgerEntry(ledgerEntity.getHash());
+                ledgerEntity.setSignature(signed.signature());
+                ledgerEntity.setSigningKeyId(signed.keyId());
             } catch (final Exception e) {
                 // A ledger entry that cannot be signed is still better evidence than none, so the
                 // redaction is not failed; the entry simply verifies as unsigned.

@@ -54,6 +54,26 @@ public class InMemoryCacheBackend implements CacheBackend {
     }
 
     @Override
+    public long incrementAndExpire(final String key, final int ttlSeconds) {
+
+        final long now = System.currentTimeMillis();
+        final Entry<String> updated = strings.compute(key, (k, existing) -> {
+            long count = 0;
+            if (existing != null && !existing.isExpired(now)) {
+                try {
+                    count = Long.parseLong(existing.value());
+                } catch (final NumberFormatException notACounter) {
+                    count = 0;
+                }
+            }
+            return new Entry<>(Long.toString(count + 1), expiryFrom(ttlSeconds));
+        });
+
+        return Long.parseLong(updated.value());
+
+    }
+
+    @Override
     public String get(final String key) {
         final Entry<String> entry = strings.get(key);
         if (entry == null) {

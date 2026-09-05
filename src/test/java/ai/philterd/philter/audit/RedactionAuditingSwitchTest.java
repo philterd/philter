@@ -29,8 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.util.Arrays;
 import java.util.List;
@@ -40,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,7 +51,6 @@ import static org.mockito.Mockito.when;
  * a tuning knob.
  */
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class RedactionAuditingSwitchTest {
 
     @Mock private MongoClient mongoClient;
@@ -65,7 +63,7 @@ class RedactionAuditingSwitchTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("audit_events")).thenReturn(collection);
-        when(collection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
+        lenient().when(collection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
         publisher = new MongoDBAuditEventPublisher(mongoClient);
     }
 

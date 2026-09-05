@@ -40,6 +40,10 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.DisplayName;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A hash chain proves only that entries are internally consistent. Anyone with write access to the
@@ -231,6 +235,72 @@ class LedgerSigningIT extends AbstractMongoIT {
 
         assertTrue(ledgerDataService.isChainValid(USER, DOC),
                 "an unsigned chain is unproven, not invalid");
+    }
+
+
+    @Test
+    @DisplayName("An entry recorded while the key is rotating still verifies")
+    void entriesWrittenDuringARotationStillVerify() throws Exception {
+
+        // The other rotation tests write entries and then rotate. This writes them while rotating,
+        // which is the window where the signature and the id it is stamped with could come from
+        // different keys — and an entry like that never verifies again, because verification resolves
+        // each entry against its own id.
+        ledgerDataService.initializeLedger(USER, DOC, "input-hash", "file.txt", "default", 1, "policy-hash");
+
+        final AtomicBoolean writing = new AtomicBoolean(true);
+        final List<String> rotationFailures = Collections.synchronizedList(new ArrayList<>());
+
+        final Thread rotator = new Thread(() -> {
+            while (writing.get()) {
+                try {
+                    signingKeyDataService.regenerate(null);
+                } catch (final RuntimeException ex) {
+                    rotationFailures.add(ex.toString());
+                }
+            }
+        });
+
+        rotator.start();
+        try {
+            for (int i = 0; i < 60; i++) {
+                final LedgerEntity entry = new LedgerEntity();
+                entry.setUserId(USER);
+                entry.setDocumentId(DOC);
+                entry.setToken("token-" + i);
+                entry.setReplacement("{{{REDACTED-ssn}}}");
+                entry.setType("ssn");
+                entry.setDocumentHash("hash-" + i);
+                entry.setPreviousHash(ledgerDataService.getLatestTransaction(USER, DOC).getHash());
+                entry.setTimestamp(new java.util.Date());
+                entry.setFilename("file.txt");
+                entry.setPolicyName("default");
+                entry.setPolicyVersion(1);
+                entry.setPolicyContentHash("policy-hash");
+                entry.setHash(entry.calculateHash());
+                ledgerDataService.addTransaction(entry);
+            }
+        } finally {
+            writing.set(false);
+            rotator.join(60_000);
+        }
+
+        assertEquals(List.of(), rotationFailures, "the rotations themselves must succeed");
+
+        final List<LedgerEntity> chain = ledgerDataService.getChain(USER, DOC);
+        assertEquals(61, chain.size(), "genesis plus every entry written during the rotations");
+
+        final List<String> unverifiable = new ArrayList<>();
+        for (final LedgerEntity entry : chain) {
+            if (!signingService.verifyLedgerEntry(entry.getHash(), entry.getSignature(), entry.getSigningKeyId())) {
+                unverifiable.add(entry.getSigningKeyId());
+            }
+        }
+
+        assertEquals(List.of(), unverifiable,
+                "every entry must verify against the key its own id names, whenever it was written");
+        assertTrue(ledgerDataService.isChainValid(USER, DOC));
+
     }
 
 }

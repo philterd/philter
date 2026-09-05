@@ -67,6 +67,15 @@ public class JedisCacheBackend implements CacheBackend {
     }
 
     @Override
+    public long incrementAndExpire(final String key, final int ttlSeconds) {
+        try (final Jedis jedis = pool.getResource()) {
+            final long count = jedis.incr(key);
+            jedis.expire(key, ttlSeconds);
+            return count;
+        }
+    }
+
+    @Override
     public String get(final String key) {
         try (final Jedis jedis = pool.getResource()) {
             return jedis.get(key);

@@ -37,8 +37,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,7 +46,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class LedgerDataServiceTest {
 
     @Mock private MongoClient mongoClient;
@@ -65,10 +62,10 @@ class LedgerDataServiceTest {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("ledger")).thenReturn(mongoCollection);
         // Default: no holds active. Individual tests override as needed.
-        when(legalHoldDataService.hasAnyHold(any())).thenReturn(false);
-        when(legalHoldDataService.isProtectedDocument(any(), any())).thenReturn(false);
-        when(legalHoldDataService.findAllHoldsForUser(any())).thenReturn(Collections.emptyList());
-        when(legalHoldDataService.findBlockingHoldsForDocument(any(), any())).thenReturn(Collections.emptyList());
+        lenient().when(legalHoldDataService.hasAnyHold(any())).thenReturn(false);
+        lenient().when(legalHoldDataService.isProtectedDocument(any(), any())).thenReturn(false);
+        lenient().when(legalHoldDataService.findAllHoldsForUser(any())).thenReturn(Collections.emptyList());
+        lenient().when(legalHoldDataService.findBlockingHoldsForDocument(any(), any())).thenReturn(Collections.emptyList());
         ledgerDataService = new LedgerDataService(mongoClient, encryptionService, auditEventPublisher,
                 legalHoldDataService, mock(SigningService.class));
     }
@@ -80,7 +77,6 @@ class LedgerDataServiceTest {
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
-        when(findIterable.limit(1)).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
 
         assertTrue(ledgerDataService.isDocumentIdUnique(userId, documentId));
@@ -97,7 +93,6 @@ class LedgerDataServiceTest {
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
-        when(findIterable.limit(1)).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
 
         LedgerEntity result = ledgerDataService.getLatestTransaction(userId, documentId);

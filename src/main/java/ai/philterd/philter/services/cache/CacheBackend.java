@@ -27,6 +27,13 @@ public interface CacheBackend {
     /** Returns the string value for the key, or {@code null} if absent or expired. */
     String get(String key);
 
+    /**
+     * Adds one to the counter at {@code key}, sets its expiry, and returns the new value. Atomic:
+     * counting failed logins with a read, an add and a write loses every increment that overlaps
+     * another, which is the difference between a limit and a suggestion.
+     */
+    long incrementAndExpire(String key, int ttlSeconds);
+
     /** Returns whether a (non-expired) value exists for the key. */
     boolean exists(String key);
 

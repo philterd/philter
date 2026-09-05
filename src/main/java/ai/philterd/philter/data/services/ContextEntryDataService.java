@@ -37,6 +37,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import com.mongodb.MongoCommandException;
+import com.mongodb.MongoWriteException;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.ReturnDocument;
 
 public class ContextEntryDataService extends AbstractService<ContextEntryEntity> {
 
@@ -56,7 +61,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
         // Token lookups during redaction hit (user_id, context_name, token_hash); listing/eviction
         // scans (user_id, context_name) ordered by timestamp/reads.
-        ensureIndex(Indexes.ascending("user_id", "context_name", "token_hash"));
+        ensureUniqueTokenIndex();
         ensureIndex(Indexes.ascending("user_id", "context_name", "timestamp"));
     }
 
@@ -218,31 +223,72 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     }
 
     public void putReplacement(final ObjectId userId, final String contextName, final String token, final String replacement, final String filterType) {
+        putReplacementIfAbsent(userId, contextName, token, replacement, filterType);
+    }
 
-        // The token must be hashed.
+    /**
+     * Records the replacement for a token unless one is already stored, and returns whichever is
+     * stored afterwards. Two documents redacted at once must agree on a pseudonym, so the caller has
+     * to use the returned value rather than the one it proposed: reading, deciding and inserting
+     * separately let both callers decide "absent" and both insert.
+     */
+    public ContextEntryEntity putReplacementIfAbsent(final ObjectId userId, final String contextName,
+                                                     final String token, final String replacement,
+                                                     final String filterType) {
+
         final String tokenHash = ContextTokenHasher.hash(token);
+        final Bson query = Filters.and(
+                Filters.eq("user_id", userId),
+                Filters.eq("context_name", contextName),
+                Filters.eq("token_hash", tokenHash));
 
-        // Check to see if this token already exists in the context.
-        if(!containsToken(userId, contextName, token)) {
+        final Bson insert = Updates.combine(
+                Updates.setOnInsert("user_id", userId),
+                Updates.setOnInsert("context_name", contextName),
+                Updates.setOnInsert("token_hash", tokenHash),
+                Updates.setOnInsert("replacement", replacement),
+                Updates.setOnInsert("reads", 0L),
+                Updates.setOnInsert("timestamp", new Date()),
+                Updates.setOnInsert("filter_type", filterType),
+                Updates.setOnInsert("replacement_uuid", UUID_REGEX_PATTERN.matcher(replacement).matches()));
 
-            evictIfFull(userId, contextName);
+        final FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
+                .upsert(true)
+                .returnDocument(ReturnDocument.AFTER);
 
-            final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
-            contextEntryEntity.setUserId(userId);
-            contextEntryEntity.setContextName(contextName);
-            contextEntryEntity.setTokenHash(tokenHash);
-            contextEntryEntity.setReplacement(replacement);
-            contextEntryEntity.setReads(0L);
-            contextEntryEntity.setTimestamp(new Date());
-            contextEntryEntity.setFilterType(filterType);
-
-            // Does the replacement match the regex for a UUID?
-            contextEntryEntity.setReplacementUuid(UUID_REGEX_PATTERN.matcher(replacement).matches());
-
-            collection.insertOne(contextEntryEntity.toDocument());
-
+        final Document stored;
+        try {
+            stored = collection.findOneAndUpdate(query, insert, options);
+        } catch (final MongoWriteException | MongoCommandException lostTheRace) {
+            // The unique index rejected a second insert; the winner's row is what counts.
+            final Document winner = collection.find(query).first();
+            return winner != null ? ContextEntryEntity.fromDocument(winner) : null;
         }
 
+        if (stored != null && replacement.equals(stored.getString("replacement"))) {
+            // This call is the one that created the entry, so it is the one that may have filled the
+            // context. Trimmed afterwards rather than before: an upsert that changes nothing must not
+            // evict anything.
+            evictIfFull(userId, contextName);
+        }
+
+        return stored != null ? ContextEntryEntity.fromDocument(stored) : null;
+
+    }
+
+    /**
+     * The token index is unique, so a second concurrent insert is refused rather than stored. Unlike
+     * the other indexes this one carries a guarantee the code relies on, so a failure to create it is
+     * fatal instead of a warning: running without it looks identical and silently allows duplicates.
+     */
+    private void ensureUniqueTokenIndex() {
+        try {
+            collection.createIndex(Indexes.ascending("user_id", "context_name", "token_hash"),
+                    new IndexOptions().unique(true));
+        } catch (final Exception ex) {
+            throw new IllegalStateException("Unable to create the unique token index on 'context_entries'. "
+                    + "Duplicate entries for one token may already exist; remove them and restart.", ex);
+        }
     }
 
     private void evictIfFull(final ObjectId userId, final String contextName) {

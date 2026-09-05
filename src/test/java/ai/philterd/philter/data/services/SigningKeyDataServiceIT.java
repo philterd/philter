@@ -31,6 +31,11 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.junit.jupiter.api.DisplayName;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Integration tests for {@link SigningKeyDataService} against a real (in-memory) MongoDB. These
@@ -140,6 +145,49 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(95, fingerprint.length(), "SHA-256 fingerprint must be 95 characters");
         assertTrue(fingerprint.matches("[0-9a-f]{2}(:[0-9a-f]{2}){31}"),
                 "fingerprint must be colon-separated lowercase hex pairs");
+    }
+
+
+    @Test
+    @DisplayName("A key handed out for signing always names a key a verifier can resolve, mid-rotation included")
+    void theSigningKeyAndItsIdNeverComeApart() throws Exception {
+
+        final SigningKeyDataService service = new SigningKeyDataService(
+                mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
+
+        final AtomicBoolean rotating = new AtomicBoolean(true);
+        final List<String> unresolvable = Collections.synchronizedList(new ArrayList<>());
+
+        final Thread rotator = new Thread(() -> {
+            try {
+                for (int i = 0; i < 100; i++) {
+                    service.regenerate(null);
+                }
+            } finally {
+                rotating.set(false);
+            }
+        });
+
+        final Thread signer = new Thread(() -> {
+            while (rotating.get()) {
+                // What signing a ledger entry does: take the key and the id to stamp, together.
+                final SigningKeyDataService.SigningKey key = service.currentSigningKey();
+                if (service.findPublicKeyById(key.keyId()) == null) {
+                    unresolvable.add(key.keyId());
+                }
+            }
+        });
+
+        rotator.start();
+        signer.start();
+        rotator.join(60_000);
+        signer.join(60_000);
+
+        // Superseded keys are retained, so every id ever handed out must still resolve. An id that
+        // does not is one that was published before its key was stored.
+        assertEquals(List.of(), unresolvable,
+                "these ids were given out for signing but name no stored key");
+
     }
 
 }

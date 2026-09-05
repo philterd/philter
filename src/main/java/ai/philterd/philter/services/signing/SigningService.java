@@ -100,12 +100,21 @@ public class SigningService {
      * chain alone proves only internal consistency, not origin. Anyone with write access to the
      * collection can rewrite an entry and recompute every subsequent hash.
      */
-    public String signLedgerEntry(final String entryHash) throws Exception {
+    public LedgerSignature signLedgerEntry(final String entryHash) throws Exception {
+
+        // One read: taken separately, a rotation between them stamps the wrong id.
+        final SigningKeyDataService.SigningKey key = signingKeyDataService.currentSigningKey();
+
         final Signature signer = Signature.getInstance("SHA256withECDSA");
-        signer.initSign(signingKeyDataService.getPrivateKey());
+        signer.initSign(key.privateKey());
         signer.update(entryHash.getBytes(StandardCharsets.UTF_8));
-        return base64url(derToP1363(signer.sign()));
+
+        return new LedgerSignature(base64url(derToP1363(signer.sign())), key.keyId());
+
     }
+
+    /** A ledger entry's signature and the id of the key that made it. */
+    public record LedgerSignature(String signature, String keyId) { }
 
     /** The id of the key {@link #signLedgerEntry} currently signs with. */
     public String getActiveKeyId() {

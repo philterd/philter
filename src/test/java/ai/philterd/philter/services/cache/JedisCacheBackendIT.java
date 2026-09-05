@@ -159,4 +159,20 @@ class JedisCacheBackendIT {
 
     }
 
+
+    @Test
+    @DisplayName("Incrementing counts from nothing, keeps counting, and sets a TTL")
+    void incrementAndExpireCounts() {
+
+        assertEquals(1, backend.incrementAndExpire("philter:attempts", 60));
+        assertEquals(2, backend.incrementAndExpire("philter:attempts", 60));
+        assertEquals(3, backend.incrementAndExpire("philter:attempts", 60));
+
+        assertEquals("3", backend.get("philter:attempts"));
+
+        // Without the expiry a locked account would stay locked forever.
+        assertTrue(backend.exists("philter:attempts"));
+
+    }
+
 }

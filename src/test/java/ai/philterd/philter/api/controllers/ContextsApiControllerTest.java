@@ -34,6 +34,7 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -673,6 +674,26 @@ class ContextsApiControllerTest {
     // one user read another's mapping table here.
 
     @Test
+    @DisplayName("A context reports its true size, not one page of it")
+    void contextSizeIsCountedNotPaged() throws Exception {
+
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(new ContextEntity());
+        when(contextEntryService.countByUserIdAndContext(eq(userId), eq("ctx"))).thenReturn(4210);
+
+        final String body = mockMvc.perform(get("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-size"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"size\":4210"), "the size must be the whole context, was: " + body);
+
+        // Counting by fetching is what capped the answer at one page.
+        verify(contextEntryService, never())
+                .findAllByUserIdAndContext(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+
+    }
+
+    @Test
     void getContextOwnedByAnotherUserReturns404() throws Exception {
         // The context exists, but for a different user; the caller-scoped lookup misses.
         when(contextService.findOne(eq("ctx-owned-by-other"), eq(userId))).thenReturn(null);
@@ -926,8 +947,7 @@ class ContextsApiControllerTest {
         ctx.setUserId(otherUserId);
         ctx.setContextName("ctx");
         when(contextService.findOne(eq("ctx"), eq(otherUserId))).thenReturn(ctx);
-        when(contextEntryService.findAllByUserIdAndContext(eq(otherUserId), eq("ctx"), org.mockito.ArgumentMatchers.anyInt()))
-                .thenReturn(java.util.Collections.emptyList());
+        when(contextEntryService.countByUserIdAndContext(eq(otherUserId), eq("ctx"))).thenReturn(7);
 
         mockMvc.perform(get("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
@@ -935,6 +955,9 @@ class ContextsApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(contextService).findOne("ctx", otherUserId);
+        // Counted for the owner named, never for the calling admin.
+        verify(contextEntryService).countByUserIdAndContext(otherUserId, "ctx");
+        verify(contextEntryService, never()).countByUserIdAndContext(eq(userId), any());
     }
 
     @Test

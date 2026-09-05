@@ -19,6 +19,9 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
 import java.util.TimeZone;
 
@@ -272,6 +275,57 @@ class LedgerEntityTest {
         final LedgerEntity plain = entryWith(userId, "a", "b:c", "file.txt", "PERSON");
 
         assertNotEquals(carried.getHash(), plain.getHash());
+
+    }
+
+
+    @Test
+    @DisplayName("The hash is reproducible from the published recipe, in any language")
+    void theCanonicalFormIsCountedInUtf8Bytes() throws Exception {
+
+        final ObjectId userId = new ObjectId();
+
+        // An accented name is where bytes and UTF-16 units part company, and it is ordinary.
+        final LedgerEntity entry = entryWith(userId, "café", "REDACTED", "dossier.pdf", "PERSON");
+
+        assertEquals(recomputeFromPublishedRecipe(userId, "café"), entry.getHash(),
+                "an independent implementation of the published recipe must get the same digest");
+
+    }
+
+    @Test
+    @DisplayName("The recipe holds for tokens where bytes, code points and UTF-16 units all differ")
+    void theRecipeHoldsForEveryEncodingOfToken() throws Exception {
+
+        // Bytes, code points and UTF-16 units differ for each of these.
+        for (final String token : new String[]{"café", "a🙂b", "\uD835\uDD18\uD835\uDD2B\uD835\uDD26"}) {
+            final ObjectId userId = new ObjectId();
+            final LedgerEntity entry = entryWith(userId, token, "REDACTED", "dossier.pdf", "PERSON");
+            assertEquals(recomputeFromPublishedRecipe(userId, token), entry.getHash(),
+                    "the published recipe must reproduce the hash for token: " + token);
+        }
+
+    }
+
+    /** The recipe as ledgers.md states it, implemented separately from the entity. */
+    private static String recomputeFromPublishedRecipe(final ObjectId userId, final String token) throws Exception {
+
+        final ByteArrayOutputStream canonical = new ByteArrayOutputStream();
+
+        for (final Object field : new Object[]{userId, "doc-1", token, "REDACTED", 0L, "dochash",
+                "1970-01-01T00:00:00.000Z", "prev", "default", 1, "policyhash", "dossier.pdf", "PERSON"}) {
+            final byte[] value = String.valueOf(field).getBytes(StandardCharsets.UTF_8);
+            canonical.writeBytes(Integer.toString(value.length).getBytes(StandardCharsets.US_ASCII));
+            canonical.write(':');
+            canonical.writeBytes(value);
+        }
+
+        final StringBuilder hex = new StringBuilder();
+        for (final byte b : MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray())) {
+            hex.append(String.format("%02x", b));
+        }
+
+        return hex.toString();
 
     }
 

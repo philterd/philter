@@ -30,6 +30,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.services.RequestIdGenerator;
+import java.util.Objects;
+import org.bson.types.ObjectId;
 
 public class AdminSettingsDataService extends AbstractService<AdminSettingsEntity> {
 
@@ -131,46 +135,85 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
 
     }
 
-    public void saveDiffuseCountsEnabled(final boolean diffuseCountsEnabled) {
-        updateSetting("diffuse_counts_enabled", diffuseCountsEnabled);
+    public void saveDiffuseCountsEnabled(final ObjectId actingUserId, final boolean diffuseCountsEnabled) {
+        auditChanged(actingUserId, updateSetting("diffuse_counts_enabled", diffuseCountsEnabled));
     }
 
-    public void saveSigningEnabled(final boolean signingEnabled) {
-        updateSetting("signing_enabled", signingEnabled);
+    public void saveSigningEnabled(final ObjectId actingUserId, final boolean signingEnabled) {
+        auditChanged(actingUserId, updateSetting("signing_enabled", signingEnabled));
     }
 
-    public void saveWebhookAllowlist(final String webhookAllowlist) {
-        updateSetting("webhook_allowlist", webhookAllowlist == null ? "" : webhookAllowlist.trim());
+    public void saveWebhookAllowlist(final ObjectId actingUserId, final String webhookAllowlist) {
+        auditChanged(actingUserId,
+                updateSetting("webhook_allowlist", webhookAllowlist == null ? "" : webhookAllowlist.trim()));
     }
 
-    public void saveMfaEnabled(final boolean mfaEnabled) {
-        updateSetting("mfa_enabled", mfaEnabled);
+    public void saveMfaEnabled(final ObjectId actingUserId, final boolean mfaEnabled) {
+        auditChanged(actingUserId, updateSetting("mfa_enabled", mfaEnabled));
     }
 
-    public void savePhieldSettings(final boolean enabled, final String url, final String sourceId, final String organization, final String apiKey) {
-        updateSetting("phield_enabled", enabled);
-        updateSetting("phield_url", url != null ? url.trim() : "");
-        updateSetting("phield_source_id", sourceId != null && !sourceId.isBlank() ? sourceId.trim() : "philter");
-        updateSetting("phield_organization", organization != null && !organization.isBlank() ? organization.trim() : "philter");
+    public void savePhieldSettings(final ObjectId actingUserId, final boolean enabled, final String url,
+                                   final String sourceId, final String organization, final String apiKey) {
+
+        final List<String> changed = new ArrayList<>();
+
+        changed.addAll(updateSetting("phield_enabled", enabled));
+        changed.addAll(updateSetting("phield_url", url != null ? url.trim() : ""));
+        changed.addAll(updateSetting("phield_source_id",
+                sourceId != null && !sourceId.isBlank() ? sourceId.trim() : "philter"));
+        changed.addAll(updateSetting("phield_organization",
+                organization != null && !organization.isBlank() ? organization.trim() : "philter"));
+
         // Encrypted at rest. The ciphertext and its wrapped data key are one logical value, so they are
         // written in a single update: a partial write would leave a key that cannot be decrypted.
-        updateSettings(encryptPhieldApiKey(apiKey));
+        changed.addAll(updateSettings(encryptPhieldApiKey(apiKey)));
+
+        auditChanged(actingUserId, changed);
+
     }
 
-    private void updateSetting(final String key, final Object value) {
-        updateSettings(new Document(key, value));
+    /**
+     * Records which settings changed, by name. These gate security controls — the webhook allowlist,
+     * multi-factor authentication, output signing — so a change to one has to be answerable later. The
+     * value is never recorded: the Phield API key and the allowlist are what the log should not copy.
+     */
+    private void auditChanged(final ObjectId actingUserId, final List<String> changedKeys) {
+
+        if (changedKeys.isEmpty()) {
+            return;
+        }
+
+        auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.SETTINGS_UPDATED,
+                actingUserId, null, null, "settings: " + String.join(", ", changedKeys));
+
     }
 
-    /** Applies every field of the given document to the settings document in one update. */
-    private void updateSettings(final Document fields) {
-        final Bson filter = new Document();
+    private List<String> updateSetting(final String key, final Object value) {
+        return updateSettings(new Document(key, value));
+    }
+
+    /** Applies every field to the settings document in one update, and reports which ones changed. */
+    private List<String> updateSettings(final Document fields) {
+
+        final Document existing = collection.find(new Document()).first();
+
+        final List<String> changed = new ArrayList<>();
         final List<Bson> updates = new ArrayList<>();
-        fields.forEach((key, value) -> updates.add(Updates.set(key, value)));
-        final UpdateOptions options = new UpdateOptions().upsert(true);
-        collection.updateOne(filter, Updates.combine(updates), options);
+
+        fields.forEach((key, value) -> {
+            updates.add(Updates.set(key, value));
+            if (existing == null || !Objects.equals(existing.get(key), value)) {
+                changed.add(key);
+            }
+        });
+
+        collection.updateOne(new Document(), Updates.combine(updates), new UpdateOptions().upsert(true));
 
         writes.incrementAndGet();
         cachedAt = 0;
+
+        return changed;
+
     }
 
 }

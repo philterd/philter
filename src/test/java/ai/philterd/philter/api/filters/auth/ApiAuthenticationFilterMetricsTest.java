@@ -34,8 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -45,11 +43,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class ApiAuthenticationFilterMetricsTest {
 
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
@@ -86,11 +84,11 @@ class ApiAuthenticationFilterMetricsTest {
                 .append("timestamp", new Date());
 
         final FindIterable<Document> findIterable = org.mockito.Mockito.mock(FindIterable.class);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(apiKeyDocument);
+        lenient().when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
+        lenient().when(findIterable.first()).thenReturn(apiKeyDocument);
 
         // The owning user is active, so the filter authorizes the request.
-        when(userService.isDeactivated(any())).thenReturn(false);
+        lenient().when(userService.isDeactivated(any())).thenReturn(false);
 
         meterRegistry = new SimpleMeterRegistry();
         // No cache host configured, so this uses the in-memory backend; the first lookup misses and

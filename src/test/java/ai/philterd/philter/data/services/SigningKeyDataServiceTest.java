@@ -29,16 +29,16 @@ import org.bson.Document;
 import org.bson.types.Binary;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.PublicKey;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.spec.ECGenParameterSpec;
@@ -47,18 +47,19 @@ import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class SigningKeyDataServiceTest {
 
     /** An empty cursor, so iterating the mocked collection is a no-op rather than a null. */
@@ -108,18 +109,18 @@ class SigningKeyDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("signing_keys")).thenReturn(mongoCollection);
-        when(mongoCollection.find()).thenReturn(findIterable);
+        lenient().when(mongoCollection.find()).thenReturn(findIterable);
         // The service now looks for the active key first, then falls back to any key.
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         // The service iterates this when migrating plaintext keys; an unstubbed mock yields a null
         // iterator and logs a migration error during otherwise-passing tests.
-        when(findIterable.iterator()).thenReturn(new java.util.ArrayList<Document>().stream()
+        lenient().when(findIterable.iterator()).thenReturn(new java.util.ArrayList<Document>().stream()
                 .collect(java.util.stream.Collectors.collectingAndThen(
                         java.util.stream.Collectors.toList(), EmptyCursor::new)));
-        when(mongoCollection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
-        when(mongoCollection.deleteMany(any())).thenReturn(mock(DeleteResult.class));
-        when(mongoCollection.updateMany(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
-        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
+        lenient().when(mongoCollection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
+        lenient().when(mongoCollection.deleteMany(any())).thenReturn(mock(DeleteResult.class));
+        lenient().when(mongoCollection.updateMany(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
+        lenient().when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
     }
 
     @Test
@@ -202,5 +203,32 @@ class SigningKeyDataServiceTest {
         assertArrayEquals(original.getPublic().getEncoded(), loaded.getPublic().getEncoded(),
                 "public key derived from PEM file must match the original — PHILTER_SIGNING_KEY_PATH PEM loading is correct");
     }
+
+
+    @Test
+    @DisplayName("A rotation that cannot be stored leaves the key it was signing with, and says so")
+    void aFailedRotationDoesNotAdvertiseAKeyThatWasNeverStored() {
+
+        when(findIterable.first()).thenReturn(null);
+
+        final SigningKeyDataService service = new SigningKeyDataService(
+                mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
+
+        final String before = service.getActiveKeyId();
+        assertEquals(SigningKeyDataService.keyIdFor(service.getPublicKey()), before);
+
+        // The write of the new key fails, as it would with MongoDB unreachable.
+        when(mongoCollection.insertOne(any())).thenThrow(new RuntimeException("mongo is down"));
+        assertThrows(RuntimeException.class, () -> service.regenerate(null));
+
+        // The id must still name the key that actually signs. Advertising the new one while signing
+        // with the old stamps entries with an id no verifier can resolve after a restart.
+        assertEquals(before, service.getActiveKeyId(),
+                "a rotation that did not persist must not change the advertised key");
+        assertEquals(SigningKeyDataService.keyIdFor(service.getPublicKey()), service.getActiveKeyId(),
+                "the advertised id must name the key that signs");
+
+    }
+
 
 }

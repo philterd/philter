@@ -227,8 +227,9 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<?> entries = contextEntryService.findAllByUserIdAndContext(userId, name, Integer.MAX_VALUE);
-        final GetContextResponse getContextResponse = new GetContextResponse(entries.size());
+        // Counted, not measured: fetching to size it silently returned one page.
+        final GetContextResponse getContextResponse =
+                new GetContextResponse(contextEntryService.countByUserIdAndContext(userId, name));
 
         return new ResponseEntity<>(gson.toJson(getContextResponse), HttpStatus.OK);
 

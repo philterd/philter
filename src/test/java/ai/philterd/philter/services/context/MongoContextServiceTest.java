@@ -103,12 +103,12 @@ class MongoContextServiceTest {
         entry.setId(entryId);
         entry.setReplacement("R");
 
-        when(contextEntryService.findOneEntryByToken(userId, contextName, "tok"))
+        when(contextEntryService.putReplacementIfAbsent(userId, contextName, "tok", "R", "PERSON"))
                 .thenReturn(entry);
 
         service.putReplacement("tok", "R", "PERSON");
 
-        verify(contextEntryService).putReplacement(userId, contextName, "tok", "R", "PERSON");
+        verify(contextEntryService).putReplacementIfAbsent(userId, contextName, "tok", "R", "PERSON");
         verify(contextCache).setTokenReplacement(userId, contextName, "tok", entryId, "R");
     }
 

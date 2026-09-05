@@ -42,9 +42,23 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 | `signing_keys` | The private half of the signing keypair (the public half stays readable, since verifiers need it) |
 | `admin_settings` | The Phield API key |
 
-**Not encrypted**, because the values are not recoverable secrets: API keys (stored as a hash),
-context entries (stored as a token hash, not the original value), policies and their version
-snapshots, contexts, legal holds, the rest of the admin settings, and webhook delivery records.
+The audit log is deliberately readable: it is evidence of who did what, and encrypting it would make
+it unusable for the reporting it exists for. It records event names, the acting API key, an object
+id, a client address and a short detail string — not document content.
+
+**Not encrypted:** API keys (stored as a hash), context entries (stored as a token hash, not the
+original value), policies and their version snapshots, contexts, legal holds, the rest of the admin
+settings, webhook delivery records, and the audit log. These hold no recoverable secret — with one
+exception you control.
+
+> **A policy can hold a secret, and then it is stored in the clear.** The `crypto` and `fpe` sections
+> of a policy may contain an encryption key. Policies and their version snapshots are not encrypted,
+> and the values those keys encrypted are held in `context_entries`, which is not encrypted either —
+> so a key written into a policy can be read by anyone who can read the database, along with
+> everything it encrypted. Prefix the value with `env:` (for example `env:CRYPTO_KEY`) to keep the key
+> in the environment and store only the variable's name. Philter logs a warning when a policy is saved
+> with a key in it. Note that a version snapshot keeps whatever the policy held at the time, so
+> changing an existing policy to use `env:` does not remove the old key from its history.
 
 ## Configuring the connection
 

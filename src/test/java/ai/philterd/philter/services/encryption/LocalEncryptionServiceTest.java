@@ -23,11 +23,13 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Base64;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.nio.charset.StandardCharsets;
 
 class LocalEncryptionServiceTest {
 
@@ -232,6 +234,166 @@ class LocalEncryptionServiceTest {
     void generatedKeyIsValidAes256() {
         final String key = serviceWithKey(OTHER_KEY).generateEncryptionKey();
         assertTrue(Base64.getDecoder().decode(key).length == 32);
+    }
+
+
+    // ----- The byte path. This is what carries the documents themselves: an uploaded PDF is stored
+    // through encryptBytes and read back through decryptBytes, so it holds the PII in its original
+    // form rather than a field of it.
+
+    @Test
+    @DisplayName("Bytes round-trip unchanged, including the shapes a PDF actually takes")
+    void bytesRoundTrip() {
+
+        final LocalEncryptionService service = service();
+
+        final byte[][] payloads = {
+                new byte[0],
+                new byte[]{0x25, 0x50, 0x44, 0x46},                 // %PDF
+                new byte[]{0, 0, 0, 0},                             // all zeroes
+                new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00},  // high bytes and a NUL
+                "text that happens to be bytes".getBytes(StandardCharsets.UTF_8),
+        };
+
+        for (final byte[] payload : payloads) {
+            final EncryptedBytes encrypted = service.encryptBytes(payload, "user-1");
+            assertArrayEquals(payload, service.decryptBytes(encrypted.ciphertext(), encrypted.encryptionKey()),
+                    "a " + payload.length + "-byte payload must come back exactly");
+        }
+
+    }
+
+    @Test
+    @DisplayName("A large payload round-trips, so nothing is truncated at a block boundary")
+    void aLargePayloadRoundTrips() {
+
+        final LocalEncryptionService service = service();
+
+        final byte[] large = new byte[1024 * 512];
+        new java.util.Random(42).nextBytes(large);
+
+        final EncryptedBytes encrypted = service.encryptBytes(large, "user-1");
+
+        assertArrayEquals(large, service.decryptBytes(encrypted.ciphertext(), encrypted.encryptionKey()));
+
+    }
+
+    @Test
+    @DisplayName("The same bytes encrypt differently every time")
+    void byteEncryptionIsNonDeterministic() {
+
+        final LocalEncryptionService service = service();
+        final byte[] payload = "the same document twice".getBytes(StandardCharsets.UTF_8);
+
+        final byte[] first = service.encryptBytes(payload, "user-1").ciphertext();
+        final byte[] second = service.encryptBytes(payload, "user-1").ciphertext();
+
+        assertFalse(java.util.Arrays.equals(first, second),
+                "a repeated IV would leak that two stored documents are identical");
+
+        // The difference is in the IV, which is the leading block.
+        assertFalse(java.util.Arrays.equals(
+                        java.util.Arrays.copyOf(first, 16), java.util.Arrays.copyOf(second, 16)),
+                "the IV must be fresh for each encryption");
+
+    }
+
+    @Test
+    @DisplayName("What is stored is the IV, then the ciphertext, then the tag")
+    void theStoredLayoutIsIvThenCiphertextThenTag() {
+
+        final LocalEncryptionService service = service();
+        final byte[] payload = new byte[100];
+
+        final byte[] stored = service.encryptBytes(payload, "user-1").ciphertext();
+
+        // 16 bytes of IV and a 128-bit GCM tag around the ciphertext. A shorter tag would still
+        // decrypt and would still be called authenticated, so the length is worth pinning.
+        assertEquals(16 + payload.length + 16, stored.length);
+
+    }
+
+    @Test
+    @DisplayName("A tampered document is refused wherever the change was made")
+    void tamperedBytesAreRejected() {
+
+        final LocalEncryptionService service = service();
+        final EncryptedBytes encrypted = service.encryptBytes(new byte[64], "user-1");
+
+        // Every region: the IV, the ciphertext, and the tag. Unauthenticated modes only notice some
+        // of these, and then only sometimes.
+        for (final int position : new int[]{0, 15, 16, 40, encrypted.ciphertext().length - 1}) {
+            final byte[] tampered = encrypted.ciphertext().clone();
+            tampered[position] ^= 0x01;
+            assertThrows(RuntimeException.class,
+                    () -> service.decryptBytes(tampered, encrypted.encryptionKey()),
+                    "a byte flipped at offset " + position + " must be detected");
+        }
+
+    }
+
+    @Test
+    @DisplayName("A truncated document is refused")
+    void truncatedBytesAreRejected() {
+
+        final LocalEncryptionService service = service();
+        final EncryptedBytes encrypted = service.encryptBytes(new byte[64], "user-1");
+
+        final byte[] truncated = java.util.Arrays.copyOf(
+                encrypted.ciphertext(), encrypted.ciphertext().length - 1);
+
+        assertThrows(RuntimeException.class, () -> service.decryptBytes(truncated, encrypted.encryptionKey()));
+
+    }
+
+    @Test
+    @DisplayName("Another key cannot read a document")
+    void bytesDoNotDecryptWithAnotherKey() {
+
+        final LocalEncryptionService service = service();
+        final EncryptedBytes encrypted = service.encryptBytes("secret document".getBytes(StandardCharsets.UTF_8), "user-1");
+
+        assertThrows(RuntimeException.class,
+                () -> service.decryptBytes(encrypted.ciphertext(), OTHER_KEY));
+
+    }
+
+    @Test
+    @DisplayName("A key of the wrong length is refused on the byte path too")
+    void byteEncryptionRejectsWrongLengthKey() {
+
+        final String shortKey = Base64.getEncoder().encodeToString(new byte[16]);
+        final LocalEncryptionService service = serviceWithKey(shortKey);
+
+        assertThrows(IllegalArgumentException.class, () -> service.encryptBytes(new byte[8], "user-1"));
+
+        final LocalEncryptionService valid = service();
+        final EncryptedBytes encrypted = valid.encryptBytes(new byte[8], "user-1");
+        assertThrows(IllegalArgumentException.class, () -> valid.decryptBytes(encrypted.ciphertext(), shortKey));
+
+    }
+
+    @Test
+    @DisplayName("A document and a string are encrypted under the same wrapped key")
+    void bothPathsCarryTheWrappedKeyThatOpensThem() {
+
+        final LocalEncryptionService service = new LocalEncryptionService(
+                new LocalKeyProvider(Base64.getEncoder().encodeToString(new byte[32])));
+
+        final EncryptedBytes bytes = service.encryptBytes("document".getBytes(StandardCharsets.UTF_8), "user-1");
+        final EncryptResult text = service.encrypt("field", "user-1");
+
+        // Each record carries its own wrapped data key, so one record's key opens only that record.
+        assertNotEquals(bytes.encryptionKey(), text.getEncryptionKey(),
+                "each record must get its own data key");
+
+        assertArrayEquals("document".getBytes(StandardCharsets.UTF_8),
+                service.decryptBytes(bytes.ciphertext(), bytes.encryptionKey()));
+        assertEquals("field", service.decrypt(text.getEncryptedText(), text.getEncryptionKey()));
+
+        assertThrows(RuntimeException.class, () -> service.decryptBytes(bytes.ciphertext(), text.getEncryptionKey()),
+                "another record's key must not open this one");
+
     }
 
 }

@@ -22,7 +22,10 @@ services:
       # Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest.
       # Required. Generate one with: openssl rand -base64 32
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?set PHILTER_ENCRYPTION_KEY (e.g. export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32))}
-      ADMIN_CROSS_USER_ACCESS_ENABLED: true
+      # Off, which is the documented default and what the application warns about at startup when
+      # it is on: it lets an administrator read and act on other users' contexts, policies,
+      # lists, documents and ledger through the owner parameter. Uncomment if you need that.
+      # ADMIN_CROSS_USER_ACCESS_ENABLED: true
       # Seeded onto the admin user at first start, and only when that user has no API keys.
       PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-}
       # Philter serves HTTPS on 8080 with a self-signed certificate generated on first start, so

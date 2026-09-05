@@ -34,7 +34,7 @@ public class LocalEncryptionService extends EncryptionService {
     /** Shared: SecureRandom is thread-safe, and seeding a new one per call is the expensive part. */
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    /** AES-CBC: the IV is the first 16 bytes of what was stored. */
+    /** The IV is the first 16 bytes of what was stored. */
     private static final int IV_LENGTH = 16;
 
     public LocalEncryptionService() {

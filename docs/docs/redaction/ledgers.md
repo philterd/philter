@@ -30,19 +30,25 @@ fingerprint, the filename, and the PII type. None can be changed without the ent
 validation. Only the signature and the id of the key that made it sit outside the hash, because the
 signature is taken *over* the hash.
 
-**How the hash is computed.** Each field is written as its length in characters, a colon, then the
-value itself, in this order, and the result is hashed with SHA-256 and rendered as lowercase hex:
+**How the hash is computed.** Each field is written as its length in **UTF-8 bytes**, a colon, then
+the field's UTF-8 bytes, in this order; the result is hashed with SHA-256 and rendered as lowercase
+hex:
 
 ```
 user id, document id, token, replacement, start position, document hash, timestamp,
 previous hash, policy name, policy version, policy content hash, filename, PII type
 ```
 
-An unset field is written as the four characters `null`, and the timestamp as
+An unset field is written as the four bytes `null`, and the timestamp as
 `yyyy-MM-dd'T'HH:mm:ss.SSS'Z'` in UTC. The length prefix is what fixes the boundary between one field
 and the next: joined with a separator alone, a token of `a:b` with a replacement of `c` and a token of
 `a` with a replacement of `b:c` would produce the same digest, and either could be rewritten as the
 other without breaking the chain.
+
+The length is counted in bytes, not characters, because those differ for anything outside ASCII and a
+name with an accent is ordinary in this data. `café` is 5 bytes but 4 characters, and `a🙂b` is 6
+bytes, 3 code points and 4 UTF-16 units — so a verifier counting characters would compute a different
+digest from Philter for exactly the values a redaction ledger is most likely to hold.
 
 One field is not in the export: the owning account's internal user id, which is part of the hash but
 is not a value the export carries. An exported chain can therefore be checked for linkage — each

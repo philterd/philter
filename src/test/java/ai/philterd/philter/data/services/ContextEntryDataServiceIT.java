@@ -22,6 +22,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -183,6 +184,26 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
         final List<ContextEntryEntity> all = service.findAllByUserIdAndContext(user, "ctx");
         assertEquals(5, all.size());
+    }
+
+
+    @Test
+    @DisplayName("A context larger than a page is counted in full, and fetching is still paged")
+    void countingIsNotLimitedByThePageSize() {
+
+        final ObjectId user = new ObjectId();
+        for (int i = 0; i < ContextEntryDataService.MAX_LIMIT + 50; i++) {
+            service.putReplacement(user, "ctx", "token-" + i, "replacement-" + i, "PERSON");
+        }
+
+        assertEquals(ContextEntryDataService.MAX_LIMIT + 50, service.countByUserIdAndContext(user, "ctx"),
+                "the count must be of the whole context");
+
+        // The clamp is right; counting with it was the bug. Pinned so nobody "fixes" the clamp.
+        assertEquals(ContextEntryDataService.MAX_LIMIT,
+                service.findAllByUserIdAndContext(user, "ctx", Integer.MAX_VALUE).size(),
+                "a fetch stays capped at one page however much is asked for");
+
     }
 
 }

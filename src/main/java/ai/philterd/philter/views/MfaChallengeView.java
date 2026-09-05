@@ -132,7 +132,14 @@ public class MfaChallengeView extends VerticalLayout implements BeforeEnterObser
             return;
         }
 
-        userService.recordAcceptedMfaTimeStep(user, timeStep);
+        // Refused if the step was already used, or the account locked meanwhile.
+        if (!userService.recordAcceptedMfaTimeStep(user, timeStep)) {
+            codeField.setInvalid(true);
+            codeField.setErrorMessage("That code could not be accepted. Wait for your authenticator app "
+                    + "to show the next one, or ask an administrator if your account is locked.");
+            return;
+        }
+
         markSatisfiedAndContinue();
     }
 

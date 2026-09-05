@@ -41,6 +41,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import ai.philterd.philter.services.cache.ContextCache;
 
 @ExtendWith(MockitoExtension.class)
 class ContextEntryDataServiceTest {
@@ -63,7 +64,7 @@ class ContextEntryDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("context_entries")).thenReturn(mongoCollection);
-        contextEntryDataService = new ContextEntryDataService(mongoClient, auditEventPublisher);
+        contextEntryDataService = new ContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
     }
 
     @Test
@@ -250,11 +251,20 @@ class ContextEntryDataServiceTest {
 
     @Test
     void deleteByIdAndUserIdReturnsCount() {
-        final com.mongodb.client.result.DeleteResult result = mock(com.mongodb.client.result.DeleteResult.class);
-        when(result.getDeletedCount()).thenReturn(1L);
-        when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(result);
+        // findOneAndDelete rather than deleteOne, because the removed document names what to evict.
+        when(mongoCollection.findOneAndDelete(any(Bson.class)))
+                .thenReturn(new Document("_id", new ObjectId())
+                        .append("context_name", "ctx")
+                        .append("token_hash", "hash"));
 
         assertEquals(1L, contextEntryDataService.deleteByIdAndUserId(new ObjectId(), new ObjectId()));
+    }
+
+    @Test
+    void deleteByIdAndUserIdReturnsZeroWhenNothingMatched() {
+        when(mongoCollection.findOneAndDelete(any(Bson.class))).thenReturn(null);
+
+        assertEquals(0L, contextEntryDataService.deleteByIdAndUserId(new ObjectId(), new ObjectId()));
     }
 
     @Test

@@ -49,6 +49,9 @@ public interface CacheBackend {
     /** Returns whether the field exists within the (non-expired) hash at the key. */
     boolean hexists(String key, String field);
 
+    /** Removes one field from a hash, leaving the rest. */
+    void hdel(String key, String field);
+
     /** Sets a time-to-live, in seconds, on the key. */
     void expire(String key, int ttlSeconds);
 

@@ -20,9 +20,19 @@ When you run more than one Philter instance behind a load balancer, the instance
 
 * **Login lockout is evadable (security).** Failed-login counters are kept per instance, so an attacker who spreads failed logins across instances is never locked out, because each instance only sees a fraction of the attempts. A shared cache enforces the lockout across the whole fleet. See [Login Security](login_security.md).
 * **Stale credentials.** An API key revoked on one instance could remain valid in another instance's cache until that entry expires.
-* **Inconsistent replacements.** Context replacements written by one instance would not be visible to the others, so the same input value could be redacted to different replacements depending on which instance handled the request.
 
-Pointing every instance at the same [Valkey](https://valkey.io/) (or Redis) server gives a durable, shared cache that resolves all three problems.
+Newly created context replacements are **not** in this list, because consistency there is enforced in
+MongoDB by a unique index on the token, an atomic upsert, and concurrent writers being handed the stored
+winner, and because a cache miss reads MongoDB, so instances agree on a replacement whatever their caches
+hold. Separate caches lower the fleet-wide hit rate and add MongoDB traffic rather than changing the answer.
+
+Invalidation is the part that does need a shared cache. When a mapping is overwritten by an import or
+deleted, Philter forgets it in the cache it can reach, which is every instance's when they share one and
+only the local one when they do not. Note that eviction does not make a change instantaneous even with a
+shared cache: a reader that loaded the old value just before the write can still store it again afterwards.
+
+Pointing every instance at the same [Valkey](https://valkey.io/) (or Redis) server gives a durable, shared
+cache that resolves both problems.
 
 ### Horizontal scaling: the API, not the dashboard
 

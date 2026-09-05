@@ -144,6 +144,17 @@ public class ContextCache extends Cache {
      * @param userId  The id of the user that owns the context.
      * @param context The context to delete.
      */
+    /**
+     * Forgets one mapping, by the hash the entry is stored under. Import and deletion work from the
+     * hash: the original token is not available to them.
+     */
+    public void evictTokenHash(final ObjectId userId, final String context, final String tokenHash) {
+        if (tokenHash == null) {
+            return;
+        }
+        backend.hdel(buildKey(userId, context), tokenHash);
+    }
+
     public void deleteContext(final ObjectId userId, final String context) {
 
         LOGGER.info("Deleting context {} for user {} from cache.", context, userId);

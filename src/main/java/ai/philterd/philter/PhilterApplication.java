@@ -353,7 +353,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public ContextEntryDataService contextEntryDataService() {
-        return new ContextEntryDataService(mongoClient(), auditEventPublisher());
+        return new ContextEntryDataService(mongoClient(), auditEventPublisher(), contextCache());
     }
 
     @Bean

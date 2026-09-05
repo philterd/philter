@@ -42,6 +42,7 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReturnDocument;
+import ai.philterd.philter.services.cache.ContextCache;
 
 public class ContextEntryDataService extends AbstractService<ContextEntryEntity> {
 
@@ -56,8 +57,12 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
             "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
     );
 
-    public ContextEntryDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
+    private final ContextCache contextCache;
+
+    public ContextEntryDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher,
+                                   final ContextCache contextCache) {
         super(mongoClient, "context_entries", auditEventPublisher);
+        this.contextCache = contextCache;
 
         // Token lookups during redaction hit (user_id, context_name, token_hash); listing/eviction
         // scans (user_id, context_name) ordered by timestamp/reads.
@@ -149,6 +154,9 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
                     Updates.set("filter_type", filterType),
                     Updates.set("replacement_uuid", replacementUuid)));
 
+            // The stored replacement changed, so anything holding the old one has to forget it.
+            evict(userId, contextName, tokenHash);
+
             return ImportOutcome.OVERWRITTEN;
 
         }
@@ -172,7 +180,20 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     }
 
     public long deleteByIdAndUserId(final ObjectId id, final ObjectId userId) {
-        return collection.deleteOne(Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId))).getDeletedCount();
+
+        // findOneAndDelete rather than deleteOne: the removed document carries the context and token
+        // hash the cache is keyed by, and reading them first would race the delete.
+        final Document deleted = collection.findOneAndDelete(
+                Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId)));
+
+        if (deleted == null) {
+            return 0;
+        }
+
+        evict(userId, deleted.getString("context_name"), deleted.getString("token_hash"));
+
+        return 1;
+
     }
 
     public boolean containsToken(final ObjectId userId, final String contextName, final String token) {
@@ -291,6 +312,13 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         }
     }
 
+    /** Forgets a mapping the store no longer has, or no longer has under that value. */
+    private void evict(final ObjectId userId, final String contextName, final String tokenHash) {
+        if (contextCache != null && contextName != null && tokenHash != null) {
+            contextCache.evictTokenHash(userId, contextName, tokenHash);
+        }
+    }
+
     private void evictIfFull(final ObjectId userId, final String contextName) {
 
         final Bson contextFilter = Filters.and(
@@ -309,6 +337,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
         if (victim != null) {
             collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
+            evict(userId, contextName, victim.getString("token_hash"));
             LOGGER.info("Evicted context entry {} from context {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
                     victim.getObjectId("_id"), contextName, victim.getLong("reads"), MAX_CONTEXT_SIZE);
         }
@@ -319,6 +348,12 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
         final Document filter = new Document("context_name", contextName).append("user_id", userId);
         collection.deleteMany(filter);
+
+        // Here rather than only in the caller, so nothing between the delete and the caller's own
+        // eviction can leave the entries gone and the cache still answering.
+        if (contextCache != null) {
+            contextCache.deleteContext(userId, contextName);
+        }
 
     }
 

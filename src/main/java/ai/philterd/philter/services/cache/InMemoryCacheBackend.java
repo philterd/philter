@@ -115,6 +115,14 @@ public class InMemoryCacheBackend implements CacheBackend {
     }
 
     @Override
+    public void hdel(final String key, final String field) {
+        final Entry<Map<String, String>> entry = hashes.get(key);
+        if (entry != null && !entry.isExpired(System.currentTimeMillis())) {
+            entry.value().remove(field);
+        }
+    }
+
+    @Override
     public boolean hexists(final String key, final String field) {
         final Map<String, String> hash = liveHash(key);
         return hash != null && hash.containsKey(field);

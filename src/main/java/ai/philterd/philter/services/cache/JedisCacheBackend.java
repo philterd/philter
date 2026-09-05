@@ -111,6 +111,13 @@ public class JedisCacheBackend implements CacheBackend {
     }
 
     @Override
+    public void hdel(final String key, final String field) {
+        try (final Jedis jedis = pool.getResource()) {
+            jedis.hdel(key, field);
+        }
+    }
+
+    @Override
     public boolean hexists(final String key, final String field) {
         try (final Jedis jedis = pool.getResource()) {
             return jedis.hexists(key, field);

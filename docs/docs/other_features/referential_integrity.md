@@ -12,7 +12,7 @@ Referential integrity can be done on the document level or on the context level.
 
 Enabling referential integrity on the context level requires a cache to store the sensitive information and the corresponding replacement values. Philter uses a Valkey cache when configured, and otherwise falls back to an in-memory cache. See Philter's [Settings](../settings.md#cache-settings) on how to configure the cache.
 
-**A Valkey cache is required for referential integrity when Philter is deployed in a cluster.** The in-memory fallback is local to a single instance and is not shared across nodes, so a shared Valkey cache must be configured for consistent replacements across all nodes. The in-memory cache is also ephemeral and is lost on restart.
+**Referential integrity does not depend on the cache.** A replacement is created once in MongoDB under a unique index on the token, with concurrent writers handed the stored value, and a cache miss reads MongoDB, so every instance resolves a token to the same replacement whatever its cache holds. A shared [Valkey](https://valkey.io/) cache is still recommended for a multi-instance deployment, for the reasons in [Caching](../caching.md#valkeyredis-cache-distributed-deployments): it raises the fleet-wide hit rate, reduces MongoDB traffic, carries invalidation to every instance when a mapping is overwritten or deleted, and three other behaviours depend on it. The in-memory cache is ephemeral and is lost on restart.
 
 ## Limits and behavior to be aware of
 

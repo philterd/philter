@@ -37,7 +37,7 @@ public class MongoContextService implements ContextService {
     private final String contextName;
 
     public MongoContextService(final MongoClient mongoClient, final ContextCache contextCache, final ObjectId userId, final String contextName, final AuditEventPublisher auditEventPublisher) {
-        this(contextCache, new ContextEntryDataService(mongoClient, auditEventPublisher), userId, contextName);
+        this(contextCache, new ContextEntryDataService(mongoClient, auditEventPublisher, contextCache), userId, contextName);
     }
 
     MongoContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final ObjectId userId, final String contextName) {

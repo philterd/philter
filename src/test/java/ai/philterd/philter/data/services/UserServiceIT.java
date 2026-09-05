@@ -42,6 +42,9 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -50,6 +53,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import ai.philterd.philter.model.AuditLogEvent;
+import org.junit.jupiter.api.DisplayName;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Integration tests for {@link UserService} against a real (in-memory) MongoDB. These exercise the
@@ -551,5 +562,164 @@ class UserServiceIT extends AbstractMongoIT {
                 decrypt(new String(encrypted, java.nio.charset.StandardCharsets.UTF_8), encryptionKey));
     }
 }
+
+
+    // ----- MFA attempt counting and replay prevention -----
+
+    private UserEntity mfaUser() {
+        final String username = "mfa-" + UUID.randomUUID() + "@example.com";
+        service.createUser("req", username, "password", "user", policyDataService, contextDataService, "test");
+        final UserEntity user = service.findByUsername(username);
+        user.setMfaEnabled(true);
+        service.update(user);
+        return service.findByUsername(username);
+    }
+
+    @Test
+    @DisplayName("The limit-th failure locks the account, and earlier ones do not")
+    void failuresLockOnTheLimit() {
+
+        final UserEntity user = mfaUser();
+
+        boolean locked = false;
+        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
+            assertFalse(service.findByUsername(user.getUsername()).isMfaLocked(), "not locked before the limit");
+            locked = service.recordFailedMfaAttempt("req", service.findByUsername(user.getUsername()), "test");
+        }
+
+        assertTrue(locked, "the limit-th failure must report that it locked the account");
+
+        final UserEntity after = service.findByUsername(user.getUsername());
+        assertTrue(after.isMfaLocked());
+        assertEquals(UserService.MAX_MFA_ATTEMPTS, after.getMfaFailedAttempts());
+
+    }
+
+    @Test
+    @DisplayName("Codes submitted together are all counted, and the lock is announced once")
+    void concurrentFailuresAreAllCountedAndLockOnce() throws Exception {
+
+        final UserEntity user = mfaUser();
+        final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
+        final UserService counting = new UserService(mongoClient, new RealLocalEncryptionService(), publisher);
+
+        final int submissions = 25;
+        final CountDownLatch go = new CountDownLatch(1);
+        final List<Thread> threads = new ArrayList<>();
+        final AtomicInteger reportedLocked = new AtomicInteger();
+
+        for (int i = 0; i < submissions; i++) {
+            final Thread thread = new Thread(() -> {
+                try {
+                    go.await(10, TimeUnit.SECONDS);
+                } catch (final InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                // As the challenge page does: load the user, then record the failure.
+                if (counting.recordFailedMfaAttempt("req", counting.findByUsername(user.getUsername()), "test")) {
+                    reportedLocked.incrementAndGet();
+                }
+            });
+            thread.start();
+            threads.add(thread);
+        }
+
+        go.countDown();
+        for (final Thread thread : threads) {
+            thread.join(30_000);
+        }
+
+        final UserEntity after = service.findByUsername(user.getUsername());
+
+        // Read-modify-write recorded one of twenty. Every attempt must now be counted, and the count
+        // stops being interesting once the account is locked, so it is at least the limit.
+        assertTrue(after.getMfaFailedAttempts() >= UserService.MAX_MFA_ATTEMPTS,
+                "every failure must be counted; recorded " + after.getMfaFailedAttempts() + " of " + submissions);
+        assertTrue(after.isMfaLocked(), "the account must end locked");
+
+        assertEquals(1, reportedLocked.get(), "exactly one caller may report that it locked the account");
+        verify(publisher, times(1)).auditEvent(any(), eq(AuditLogEvent.USER_MFA_LOCKED), any(), any(), any(), any());
+
+    }
+
+    @Test
+    @DisplayName("One code submitted twice is accepted once")
+    void aCodeIsAcceptedOnce() {
+
+        final UserEntity user = mfaUser();
+
+        assertTrue(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 100L));
+        assertFalse(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 100L),
+                "the same step must not be accepted again");
+        assertFalse(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 99L),
+                "nor an older one");
+        assertTrue(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 101L),
+                "the next step is accepted");
+
+    }
+
+    @Test
+    @DisplayName("The same code submitted from two sessions at once succeeds once")
+    void oneOfTwoSimultaneousSubmissionsOfOneCodeWins() throws Exception {
+
+        final List<String> outcomes = Collections.synchronizedList(new ArrayList<>());
+
+        for (int round = 0; round < 20; round++) {
+
+            final UserEntity user = mfaUser();
+            final CountDownLatch go = new CountDownLatch(1);
+            final List<Boolean> accepted = Collections.synchronizedList(new ArrayList<>());
+
+            final Runnable submit = () -> {
+                try {
+                    go.await(10, TimeUnit.SECONDS);
+                } catch (final InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                accepted.add(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 500L));
+            };
+
+            final Thread a = new Thread(submit);
+            final Thread b = new Thread(submit);
+            a.start();
+            b.start();
+            go.countDown();
+            a.join(20_000);
+            b.join(20_000);
+
+            final long wins = accepted.stream().filter(Boolean::booleanValue).count();
+            if (wins != 1) {
+                outcomes.add("round " + round + " accepted " + wins + " times");
+            }
+
+        }
+
+        assertEquals(List.of(), outcomes, "a replayed code must be accepted exactly once");
+
+    }
+
+    @Test
+    @DisplayName("A valid code cannot unlock an account that concurrent failures locked")
+    void acceptingACodeCannotClearALock() {
+
+        final UserEntity user = mfaUser();
+
+        // The stale view a request holds while a wave of failures runs.
+        final UserEntity asReadBeforeTheWave = service.findByUsername(user.getUsername());
+
+        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
+            service.recordFailedMfaAttempt("req", service.findByUsername(user.getUsername()), "test");
+        }
+        assertTrue(service.findByUsername(user.getUsername()).isMfaLocked());
+
+        assertFalse(service.recordAcceptedMfaTimeStep(asReadBeforeTheWave, 700L),
+                "a code accepted from a stale read must not be able to reopen a locked account");
+
+        final UserEntity after = service.findByUsername(user.getUsername());
+        assertTrue(after.isMfaLocked(), "the lock must survive");
+        assertEquals(UserService.MAX_MFA_ATTEMPTS, after.getMfaFailedAttempts(),
+                "and so must the count that established it");
+
+    }
 
 }

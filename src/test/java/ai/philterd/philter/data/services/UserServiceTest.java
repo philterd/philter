@@ -217,35 +217,6 @@ class UserServiceTest {
     }
 
     @Test
-    void recordFailedMfaAttemptLocksOnTheLimit() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setMfaEnabled(true);
-
-        boolean locked = false;
-        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
-            assertFalse(user.isMfaLocked(), "must not be locked before the limit");
-            locked = userService.recordFailedMfaAttempt("req", user, "system");
-        }
-
-        assertTrue(locked, "the limit-th failure must lock the account");
-        assertTrue(user.isMfaLocked());
-        assertEquals(UserService.MAX_MFA_ATTEMPTS, user.getMfaFailedAttempts());
-    }
-
-    @Test
-    void recordFailedMfaAttemptBelowLimitDoesNotLock() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-
-        final boolean locked = userService.recordFailedMfaAttempt("req", user, "system");
-
-        assertFalse(locked);
-        assertFalse(user.isMfaLocked());
-        assertEquals(1, user.getMfaFailedAttempts());
-    }
-
-    @Test
     void unlockMfaClearsLockAndCounterButKeepsEnrollment() {
         final UserEntity user = new UserEntity();
         user.setId(new ObjectId());

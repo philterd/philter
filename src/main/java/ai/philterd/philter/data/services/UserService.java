@@ -42,6 +42,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.mongodb.client.result.UpdateResult;
+import com.mongodb.client.model.Updates;
 
 public class UserService extends AbstractEncryptedService<UserEntity> {
 
@@ -415,28 +417,64 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     /** Maximum consecutive failed MFA code attempts before the account is locked and needs an admin unlock. */
     public static final int MAX_MFA_ATTEMPTS = 5;
 
+    /** Compare-and-set retries before falling back to counting without resolving the lock. */
+    private static final int MFA_COUNT_ATTEMPTS = 25;
+
     /**
      * Records a failed MFA code entry. After {@link #MAX_MFA_ATTEMPTS} consecutive failures the account
      * is locked and can only be cleared by an administrator. Returns true if this failure locked it.
      */
     public boolean recordFailedMfaAttempt(final String requestId, final UserEntity userEntity, final String source) {
 
-        userEntity.setMfaFailedAttempts(userEntity.getMfaFailedAttempts() + 1);
+        for (int attempt = 0; attempt < MFA_COUNT_ATTEMPTS; attempt++) {
 
-        boolean nowLocked = false;
-        if (userEntity.getMfaFailedAttempts() >= MAX_MFA_ATTEMPTS && !userEntity.isMfaLocked()) {
-            userEntity.setMfaLocked(true);
-            nowLocked = true;
+            final Document current = collection.find(Filters.eq("_id", userEntity.getId())).first();
+            if (current == null) {
+                return false;
+            }
+            if (current.getBoolean("mfa_locked", false)) {
+                return false;
+            }
+
+            final int counted = current.getInteger("mfa_failed_attempts", 0);
+            final int next = counted + 1;
+            final boolean locks = next >= MAX_MFA_ATTEMPTS;
+
+            // Compare-and-set: the count is in the filter, and the lock moves with it.
+            final UpdateResult result = collection.updateOne(
+                    Filters.and(
+                            Filters.eq("_id", userEntity.getId()),
+                            Filters.eq("mfa_failed_attempts", counted),
+                            Filters.ne("mfa_locked", true)),
+                    Updates.combine(
+                            Updates.set("mfa_failed_attempts", next),
+                            Updates.set("mfa_locked", locks)));
+
+            if (result.getMatchedCount() == 1) {
+
+                userEntity.setMfaFailedAttempts(next);
+                userEntity.setMfaLocked(locks);
+
+                // Exactly one caller performs the transition, so the event is emitted once.
+                if (locks) {
+                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_LOCKED, userEntity.getId(),
+                            userEntity.getId(), source,
+                            "MFA locked after " + MAX_MFA_ATTEMPTS + " failed code attempts; requires an administrator to unlock");
+                }
+
+                return locks;
+
+            }
+
         }
 
-        update(userEntity);
+        // Rather than lose the attempt; the next failure establishes the lock.
+        collection.updateOne(Filters.eq("_id", userEntity.getId()), Updates.inc("mfa_failed_attempts", 1));
+        LOGGER.warn("Recorded a failed MFA attempt without resolving the lock state after {} attempts.",
+                MFA_COUNT_ATTEMPTS);
 
-        if (nowLocked) {
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_LOCKED, userEntity.getId(), userEntity.getId(), source,
-                    "MFA locked after " + MAX_MFA_ATTEMPTS + " failed code attempts; requires an administrator to unlock");
-        }
+        return false;
 
-        return nowLocked;
     }
 
     /** Clears the failed-attempt counter after a successful MFA verification. */
@@ -448,10 +486,30 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     /** Records the step accepted, so that code cannot be presented again. */
-    public void recordAcceptedMfaTimeStep(final UserEntity userEntity, final long timeStep) {
-        userEntity.setMfaFailedAttempts(0);
-        userEntity.setMfaLastUsedTimeStep(timeStep);
-        update(userEntity);
+    public boolean recordAcceptedMfaTimeStep(final UserEntity userEntity, final long timeStep) {
+
+        // Accept only if the stored step is older, in one operation.
+        final UpdateResult result = collection.updateOne(
+                Filters.and(
+                        Filters.eq("_id", userEntity.getId()),
+                        Filters.eq("mfa_enabled", true),
+                        Filters.ne("mfa_locked", true),
+                        Filters.or(
+                                Filters.exists("mfa_last_used_time_step", false),
+                                Filters.lt("mfa_last_used_time_step", timeStep))),
+                Updates.combine(
+                        Updates.set("mfa_last_used_time_step", timeStep),
+                        Updates.set("mfa_failed_attempts", 0)));
+
+        final boolean accepted = result.getMatchedCount() == 1;
+
+        if (accepted) {
+            userEntity.setMfaLastUsedTimeStep(timeStep);
+            userEntity.setMfaFailedAttempts(0);
+        }
+
+        return accepted;
+
     }
 
     /**

@@ -58,7 +58,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
     void setUpServices() {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         service = new ContextDataService(mongoClient, new ContextCache(null, 0, null, false), audit);
-        entryService = new ContextEntryDataService(mongoClient, audit);
+        entryService = new ContextEntryDataService(mongoClient, audit, new ContextCache(null, 0, null, false));
     }
 
     @Test

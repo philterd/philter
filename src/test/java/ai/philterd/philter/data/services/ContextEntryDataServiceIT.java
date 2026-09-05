@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import ai.philterd.philter.services.cache.ContextCache;
 
 /**
  * Integration tests for {@link ContextEntryDataService} against a real (in-memory) MongoDB. These
@@ -47,7 +48,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class));
+        service = new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), new ContextCache(null, 0, null, false));
     }
 
     @Test

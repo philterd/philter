@@ -47,7 +47,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     public ContextDataService(final MongoClient mongoClient, final ContextCache contextCache, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "contexts", auditEventPublisher);
-        this.contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher);
+        this.contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher, contextCache);
         this.contextCache = contextCache;
         this.mongoClient = mongoClient;
 
@@ -316,8 +316,8 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         // clears the training data, leaving no orphaned vectors in MongoDB.
         new MongoVectorService(mongoClient, userId, auditEventPublisher).deleteByContext(contextName);
 
-        // Remove this context from the cache (cache entries are namespaced by the owning user).
-        contextCache.deleteContext(userId, contextName);
+        // Eviction happens in deleteByContextName, beside the delete it belongs to, so a failure in
+        // between cannot leave the entries gone and the cache still answering.
 
         return new ServiceResponse("Context emptied successfully.", true);
 
@@ -361,8 +361,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         // in MongoDB after the context is gone.
         new MongoVectorService(mongoClient, ownerUserId, auditEventPublisher).deleteByContext(contextName);
 
-        // Remove this context from the cache (cache entries are namespaced by the owning user).
-        contextCache.deleteContext(ownerUserId, contextName);
+        // Eviction happens in deleteByContextName, beside the delete it belongs to.
 
         return new ServiceResponse("Context deleted successfully.", true);
 

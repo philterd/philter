@@ -75,7 +75,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         auditEventPublisher = mock(AuditEventPublisher.class);
-        contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher);
+        contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
     }
 
     @Test

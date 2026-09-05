@@ -33,9 +33,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.encryption.ContextTokenHasher;
 
 /**
  * A context exists so one person is replaced by one pseudonym everywhere. Recording that mapping used
@@ -48,7 +51,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class));
+        service = new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), new ContextCache(null, 0, null, false));
     }
 
     @Test
@@ -257,6 +260,98 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
         assertEquals(10, service.countByUserIdAndContext(user, "ctx"), "nothing was stored, so nothing may be evicted");
         assertEquals("replacement-0", service.getReplacement(user, "ctx", "token-0"));
         assertEquals("replacement-9", service.getReplacement(user, "ctx", "token-9"));
+
+    }
+
+
+    // ----- Invalidation: the store changed, so the cache must not keep answering with the old value.
+
+    @Test
+    @DisplayName("An overwriting import forgets the replacement it replaced")
+    void anOverwritingImportEvictsTheOldReplacement() {
+
+        final ContextCache cache = new ContextCache(null, 0, null, false);
+        final ContextEntryDataService cached =
+                new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+
+        final ObjectId user = new ObjectId();
+        cached.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
+
+        // Warm the cache the way a redaction does.
+        cache.setTokenReplacement(user, "ctx", "John Smith",
+                cached.findOneEntryByToken(user, "ctx", "John Smith").getId(), "David Jones");
+        assertTrue(cache.containsToken(user, "ctx", "John Smith"));
+
+        cached.importEntryByHash(user, "ctx", ContextTokenHasher.hash("John Smith"),
+                "Alice Brown", "PERSON", false, true);
+
+        assertFalse(cache.containsToken(user, "ctx", "John Smith"),
+                "the cache must not keep serving the replacement the import replaced");
+        assertEquals("Alice Brown", cached.getReplacement(user, "ctx", "John Smith"));
+
+    }
+
+    @Test
+    @DisplayName("Deleting one mapping forgets it, and leaves the others alone")
+    void deletingOneMappingEvictsOnlyThatOne() {
+
+        final ContextCache cache = new ContextCache(null, 0, null, false);
+        final ContextEntryDataService cached =
+                new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+
+        final ObjectId user = new ObjectId();
+        final ContextEntryEntity doomed = cached.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
+        final ContextEntryEntity kept = cached.putReplacementIfAbsent(user, "ctx", "Jane Doe", "Mary Poe", "PERSON");
+
+        cache.setTokenReplacement(user, "ctx", "John Smith", doomed.getId(), "David Jones");
+        cache.setTokenReplacement(user, "ctx", "Jane Doe", kept.getId(), "Mary Poe");
+
+        assertEquals(1L, cached.deleteByIdAndUserId(doomed.getId(), user));
+
+        assertFalse(cache.containsToken(user, "ctx", "John Smith"), "the deleted mapping must be forgotten");
+        assertTrue(cache.containsToken(user, "ctx", "Jane Doe"), "and only that one");
+
+    }
+
+    @Test
+    @DisplayName("Deleting a mapping that is not there evicts nothing and reports nothing")
+    void deletingSomethingElsesMappingDoesNothing() {
+
+        final ContextCache cache = new ContextCache(null, 0, null, false);
+        final ContextEntryDataService cached =
+                new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+
+        final ObjectId owner = new ObjectId();
+        final ContextEntryEntity entry = cached.putReplacementIfAbsent(owner, "ctx", "John Smith", "David Jones", "PERSON");
+        cache.setTokenReplacement(owner, "ctx", "John Smith", entry.getId(), "David Jones");
+
+        assertEquals(0L, cached.deleteByIdAndUserId(entry.getId(), new ObjectId()));
+
+        assertTrue(cache.containsToken(owner, "ctx", "John Smith"),
+                "another user's delete must not evict this mapping");
+
+    }
+
+    @Test
+    @DisplayName("Emptying a context forgets all of it, beside the delete rather than after it")
+    void emptyingAContextEvictsAllOfIt() {
+
+        final ContextCache cache = new ContextCache(null, 0, null, false);
+        final ContextEntryDataService cached =
+                new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+
+        final ObjectId user = new ObjectId();
+        for (int i = 0; i < 5; i++) {
+            final ContextEntryEntity entry =
+                    cached.putReplacementIfAbsent(user, "ctx", "token-" + i, "replacement-" + i, "PERSON");
+            cache.setTokenReplacement(user, "ctx", "token-" + i, entry.getId(), "replacement-" + i);
+        }
+
+        cached.deleteByContextName("ctx", user);
+
+        for (int i = 0; i < 5; i++) {
+            assertFalse(cache.containsToken(user, "ctx", "token-" + i), "token-" + i + " must be forgotten");
+        }
 
     }
 

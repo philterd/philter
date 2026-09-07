@@ -25,11 +25,11 @@ Philter uses an ES256 (ECDSA P-256 / SHA-256) keypair. The key belongs to the **
 
 ### Auto-generated key
 
-On first start, if no signing key exists in the database and `PHILTER_SIGNING_KEY_PATH` is not set, Philter generates a new ES256 keypair and persists it in the `signing_keys` MongoDB collection. The key is reused across restarts and shared across all instances in a cluster (they all read from the same MongoDB collection).
+On first start, if no active signing-key pointer exists in the database and `PHILTER_SIGNING_KEY_PATH` is not set, Philter generates a new ES256 keypair and persists it in the `signing_keys` MongoDB collection. A single document in the signing_key_state collection selects the active key. Each signing operation reads that pointer from the MongoDB primary; decrypted key material is reused only when its ID still matches. Instances therefore observe rotation on their next key selection, without a restart or cache TTL.
 
 The **private** key is encrypted at rest under `PHILTER_ENCRYPTION_KEY`, so a database dump on its own does not yield the ability to forge signatures: an attacker would need both the database and the deployment's master key. The **public** key is stored in the clear, because it is not a secret and `GET /api/signing-key` serves it without authentication so signatures can be verified.
 
-A key persisted in plaintext by an earlier build is encrypted automatically the first time Philter loads it. Signatures made before that keep verifying, since the key itself does not change.
+New key material is stored with majority write concern before the active pointer is atomically published with majority write concern. Concurrent startup selects one active pointer; unused startup candidates may remain in key history. Concurrent rotations are ordered by pointer publication. If the pointer cannot be read or its key cannot be loaded, signing fails rather than using a cached superseded key. No plaintext-key migration or fallback is supported.
 
 ### User-supplied key (optional)
 
@@ -39,17 +39,19 @@ Set `PHILTER_SIGNING_KEY_PATH` to the absolute path of a PKCS8 PEM file containi
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out my_signing_key.pem
 ```
 
-When this environment variable is set, the key is loaded from the file on startup and the auto-generated MongoDB key (if any) is ignored. The file must remain accessible on every node; it is not imported into MongoDB.
+When this environment variable is set, the key is loaded from the file on startup and the auto-generated MongoDB key (if any) is ignored. Every node must use the same file contents and key-management mode. The private key is not imported into MongoDB; the public key is retained there by ID for historical verification.
 
-This is the strongest configuration: the signing key never enters the database at all, so no amount of database access yields it. Restrict who can read the file. Use it where the signature has to withstand compromise of the database itself, for example when the [redaction ledger](redaction/ledgers.md) is relied on as evidence.
+The private signing key never enters the database, so database access alone does not yield it. Restrict who can read the file. Use it where the signature has to withstand compromise of the database itself, for example when the [redaction ledger](redaction/ledgers.md) is relied on as evidence.
+
+To rotate a file-managed key, replace the PEM on every node and restart all instances. Dashboard regeneration is disabled in this mode, and the service rejects regeneration attempts. During a rolling replacement, nodes may sign with different keys; the signature key ID selects the matching retained public key.
 
 ### Regenerating the key
 
-From the **Admin** → **Admin Settings** page, click **Regenerate Signing Key**. A confirmation dialog warns you that any consumer that cached the old public key will need to re-fetch it. After confirmation, a new keypair is generated and all subsequent responses are signed with it.
+From the **Admin** → **Admin Settings** page, click **Regenerate Signing Key**. A confirmation dialog warns you that any consumer that cached the old public key will need to re-fetch it. For database-managed keys, confirmation stores a new keypair and publishes its ID for all instances. Operations that already selected the previous key may finish with it; subsequent key selections use the published key.
 
 Regeneration is audited as `signing_key_regenerated`.
 
-> **Warning:** regenerating the key invalidates all previously issued signatures. If consumers have saved `X-Philter-Signature` headers to verify later, they must obtain and store the corresponding public key *before* you regenerate.
+Regeneration preserves previous public keys and does not invalidate historical signatures. Each JWT carries a `kid` header; fetch its key from `GET /api/signing-key/{keyId}`. Cache verification keys by ID.
 
 ## The `X-Philter-Signature` Response Header
 
@@ -64,7 +66,7 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 **Header:**
 
 ```json
-{"alg":"ES256","typ":"JWT"}
+{"alg":"ES256","typ":"JWT","kid":"0123456789abcdef"}
 ```
 
 **Payload:**
@@ -98,8 +100,8 @@ Verification is the consumer's responsibility. Philter does not expose a server-
 
 ### Steps to verify
 
-1. Fetch the public key from `GET /api/signing-key` (see [Getting the Public Key](#getting-the-public-key) below).
-2. Decode the JWT from the `X-Philter-Signature` header (split on `.`, base64url-decode each part).
+1. Read the JWT header and its `kid` from `X-Philter-Signature`. Treat it only as a key selector until verification succeeds.
+2. Fetch the matching public key from your trusted Philter server at `GET /api/signing-key/{keyId}` (or use a key cached by that ID).
 3. Verify the JWT signature using the public key and ES256.
 4. Check that the `bodyHash` in the payload matches `SHA-256(response_body)`.
 5. Optionally check `iat` against a clock-skew tolerance and `policyName`/`policyVersion` against your expectations.
@@ -109,11 +111,6 @@ Verification is the consumer's responsibility. Philter does not expose a server-
 ```python
 import hashlib, jwt, requests
 
-# Fetch the public key (once; cache it)
-jwk = requests.get("https://philter.example.com/api/signing-key").json()["jwk"]
-from jwt.algorithms import ECAlgorithm
-pubkey = ECAlgorithm.from_jwk(jwk)
-
 # Verify a response
 response = requests.post(
     "https://philter.example.com/api/filter",
@@ -122,7 +119,12 @@ response = requests.post(
     params={"p": "default"},
 )
 token = response.headers["X-Philter-Signature"]
-claims = jwt.decode(token, pubkey, algorithms=["ES256"])
+key_id = jwt.get_unverified_header(token)["kid"]
+# IDs are hex strings; reject unexpected input before using it in a URL.
+assert len(key_id) == 16 and all(c in "0123456789abcdef" for c in key_id)
+key_response = requests.get(f"https://philter.example.com/api/signing-key/{key_id}")
+key_response.raise_for_status()
+claims = jwt.decode(token, key_response.json()["pem"], algorithms=["ES256"])
 
 body_hash = hashlib.sha256(response.content).hexdigest()
 assert claims["bodyHash"] == body_hash, "body hash mismatch, response was tampered"
@@ -146,8 +148,10 @@ No authentication is required. The response is JSON:
 
 ```json
 {
+  "keyId": "0123456789abcdef",
   "pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQY...\n-----END PUBLIC KEY-----\n",
   "jwk": {
+    "kid": "0123456789abcdef",
     "kty": "EC",
     "crv": "P-256",
     "x": "...",
@@ -159,6 +163,7 @@ No authentication is required. The response is JSON:
 
 | Field | Description |
 |-------|-------------|
+| `keyId` | Stable ID of the advertised key; matches JWK `kid`. |
 | `pem` | X.509 SubjectPublicKeyInfo in PEM format (BEGIN PUBLIC KEY). |
 | `jwk` | EC JWK with `kty=EC`, `crv=P-256`, and the uncompressed public point coordinates. |
 | `fingerprint` | SHA-256 fingerprint of the DER-encoded public key, colon-separated hex. Use this to verify the key has not changed after a regeneration. |

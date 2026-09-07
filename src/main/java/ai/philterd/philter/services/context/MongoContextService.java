@@ -76,13 +76,14 @@ public class MongoContextService implements ContextService {
             return cached.replacement();
         }
 
+        final long observedAt = System.currentTimeMillis();
         final ContextEntryEntity entry = contextEntryService.findOneEntryByToken(userId, contextName, token);
         if (entry == null) {
             return null;
         }
 
         contextEntryService.incrementReads(entry.getId());
-        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement());
+        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement(), observedAt);
 
         return entry.getReplacement();
 
@@ -113,6 +114,7 @@ public class MongoContextService implements ContextService {
     /** Stores the replacement unless one exists, caches whichever is stored, and returns it. */
     private String storeReplacement(final String token, final String replacement, final String filterType) {
 
+        final long observedAt = System.currentTimeMillis();
         final ContextEntryEntity entry =
                 contextEntryService.putReplacementIfAbsent(userId, contextName, token, replacement, filterType);
 
@@ -120,7 +122,7 @@ public class MongoContextService implements ContextService {
             return null;
         }
 
-        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement());
+        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement(), observedAt);
 
         return entry.getReplacement();
 

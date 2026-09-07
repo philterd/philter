@@ -36,16 +36,30 @@ Because the newline method splits text based on the locations of new line charac
 
 In some cases it may be best to split your input text client side prior to sending the text to Philter. This gives you full control over how the text will be split and provides more predictable responses from Philter because you know how the text is split.
 
-An example of splitting text into chunks prior to sending the text to Philter is given in the commands below:
+Choose boundaries that preserve complete records, identifiers, and UTF-8 characters. Arbitrary byte splitting can divide a sensitive value so that neither request detects it. The following example assumes each complete record occupies one line and is short enough for the request limit. It splits by lines and processes every generated segment in order.
 
+Set `API_KEY` to a key with the `redact` scope. Run this Bash example from the directory containing `largefile.txt`:
+
+```bash
+set -euo pipefail
+segment_dir=$(mktemp -d)
+trap 'rm -rf "$segment_dir"' EXIT
+split -l 100 largefile.txt "$segment_dir/segment-"
+
+for segment in "$segment_dir"/segment-*; do
+  [ -f "$segment" ] || continue
+  curl --fail-with-body -sS -k -X POST "https://localhost:8080/api/filter" \
+    -H "Authorization: Bearer $API_KEY" -H "Content-Type: text/plain" \
+    --data-binary "@$segment" > "$segment.redacted"
+done
+
+# Publish the combined output only after every request has succeeded.
+: > "$segment_dir/combined"
+for result in "$segment_dir"/segment-*.redacted; do
+  [ -f "$result" ] || continue
+  cat "$result" >> "$segment_dir/combined"
+done
+cp "$segment_dir/combined" filtered.txt
 ```
-# Given a large file called largefile.txt, split it into 10k pieces.
-$ split -b 10k largefile.txt segment
 
-# Now process the pieces.
-$ curl -s -X POST -k "https://philter:8080/api/filter?d=document1" --data "@/tmp/segmentaa" -H "Content-type: text/plain" > out1
-$ curl -s -X POST -k "https://philter:8080/api/filter?d=document1" --data "@/tmp/segmentab" -H "Content-type: text/plain" > out2
-
-# Now recombine the outputs into a single file.
-$ cat out1 out2 > filtered.txt
-```
+Each request gets its own server-generated document ID. To reuse context-scoped replacements across chunks, create a context first and pass its name with `c`; no `d` parameter is supported. Splitting changes the surrounding text available to detection, so compare chunked results with representative complete inputs. Replace the host as needed and omit `-k` for a trusted certificate.

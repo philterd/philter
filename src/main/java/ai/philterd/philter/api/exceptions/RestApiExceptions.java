@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.exceptions;
 
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
+import ai.philterd.philter.services.policies.PolicyResolutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
@@ -46,6 +47,19 @@ public class RestApiExceptions {
 		LOGGER.error(message, ex);
 		return message;
 	}
+
+    @ExceptionHandler(ai.philterd.philter.data.services.QueueCapacityException.class)
+    public org.springframework.http.ResponseEntity<String> handleQueueCapacity(final ai.philterd.philter.data.services.QueueCapacityException ex) {
+        return org.springframework.http.ResponseEntity.status(ex.getStatus()).header("Retry-After", "5").body(ex.getMessage());
+    }
+
+    @ResponseBody
+    @ExceptionHandler(PolicyResolutionException.class)
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public String handlePolicyResolutionException(final PolicyResolutionException ex) {
+        LOGGER.error("Unable to resolve redaction policy.", ex);
+        return ex.getMessage();
+    }
 
 	@ResponseBody
 	@ExceptionHandler(PolicyNotFoundException.class)
@@ -126,6 +140,20 @@ public class RestApiExceptions {
 		// intentionally removed). This is a client error, so it is reported as 405, not a 500.
 		return "The requested HTTP method is not supported for this endpoint.";
 	}
+
+    @ResponseBody
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    @ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
+    public String handleUnacceptableMediaType(Exception ex) {
+        return "No representation matches the requested Accept header.";
+    }
+
+    @ResponseBody
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+    public String handleUnsupportedRequestMediaType(Exception ex) {
+        return "The request Content-Type is not supported for this endpoint.";
+    }
 
 	@ResponseBody
 	@ExceptionHandler({IOException.class, Exception.class})

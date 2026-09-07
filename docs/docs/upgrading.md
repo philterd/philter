@@ -86,7 +86,7 @@ Philter 3.x has moved away from `.properties` files for most configurations, fav
 2.  **Launch Philter 3.x:** Deploy a new Philter 3.x instance. Ensure you have MongoDB, Valkey, and OpenSearch available as required.
 3.  **Configure 3.x:** Use environment variables to configure your new Philter instance. Refer to the [Settings](settings.md) documentation for a full list of available variables.
 4.  **Recreate Policies:**
-    *   **Via Dashboard:** Open the Philter dashboard (default port 8080), log in (default admin/admin), and use the policy editor to recreate your policies. You can copy and paste the JSON from your old policies into the editor.
+    *   **Via Dashboard:** Open the Philter dashboard (default port 8080), log in (username `admin`, with your configured bootstrap password on first login), and use the policy editor to recreate your policies. You can copy and paste the JSON from your old policies into the editor.
     *   **Via API:** Use the [Policies API](api_and_sdks/api/policies_api.md) to upload your old policy JSON files to the new instance. Note that you will need to provide an API token.
 5.  **Update your clients:** Ensure your client applications are updated to use the new Bearer token authentication and point to the correct Philter 3.x endpoints.
 6.  **Test:** Thoroughly test your redaction workflows to ensure they are performing as expected with the new version.

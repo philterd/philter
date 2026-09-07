@@ -55,23 +55,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
         this.passwordEncoder = new BCryptPasswordEncoder();
 
-        // Users are looked up by username at login.
-        ensureIndex(Indexes.ascending("username"));
+        ensureIndex(Indexes.ascending("username"), new com.mongodb.client.model.IndexOptions().unique(true));
 
-        // Migrate legacy accounts: before the username field existed, the login id was stored under
-        // "email". Copy it into "username" for any document that lacks one so those accounts can still
-        // be found by username (and can log in). Done as a per-document classic update rather than an
-        // aggregation-pipeline update so it works on any MongoDB-compatible server.
-        final FindIterable<Document> legacyAccounts = collection.find(Filters.exists("username", false));
-        if (legacyAccounts != null) {
-            for (final Document legacy : legacyAccounts) {
-                final Object email = legacy.get("email");
-                if (email != null) {
-                    collection.updateOne(Filters.eq("_id", legacy.get("_id")),
-                            new Document("$set", new Document("username", email)));
-                }
-            }
-        }
     }
 
     /**
@@ -172,6 +157,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
+        authorizeDashboardMutation(null, source, true);
 
         final UserEntity existing = findAnyByUsername(username);
         if(existing != null) {
@@ -273,6 +259,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     public ServiceResponse changePassword(final String requestId, final UserEntity userEntity, final String newPassword, final String source) {
+        authorizeDashboardMutation(userEntity, source, false);
 
         if(userEntity == null) {
 
@@ -283,7 +270,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             userEntity.setPassword(passwordEncoder.encode(newPassword));
             // Changing the password satisfies any forced-reset requirement.
             userEntity.setPasswordChangeRequired(false);
-            update(userEntity);
+            updateFields(userEntity, true, "password", "password_change_required");
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_CHANGED, userEntity.getId(), userEntity.getId(), source, null);
 
@@ -294,13 +281,14 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source) {
+        authorizeDashboardMutation(userEntity, source, true);
 
         if (userEntity == null) {
             return ServiceResponse.failure("User does not exist.");
 
         } else {
             userEntity.setRole(newRole);
-            update(userEntity);
+            updateFields(userEntity, true, "role");
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_ROLE_CHANGED, userEntity.getId(), userEntity.getId(), source, "role: " + newRole);
 
@@ -309,24 +297,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    /**
-     * Returns the user's FPE key, generating and persisting one if it is missing. This lazily backfills
-     * users created before per-user FPE keys existed, guaranteeing the {@code FPE_ENCRYPT_REPLACE}
-     * strategy always has a usable key. The key is assigned once and then stable, so format-preserving
-     * encryption stays deterministic for the user across requests.
-     */
+    /** Returns the key assigned at account creation; missing key material is a configuration error. */
     public String ensureFpeKey(final UserEntity userEntity) {
 
-        String fpeKey = userEntity.getFpeKey();
-
-        if (fpeKey == null || fpeKey.isBlank()) {
-            fpeKey = EncryptionService.generateFpeKey();
-            userEntity.setFpeKey(fpeKey);
-            update(userEntity);
-            LOGGER.info("Backfilled a missing FPE key for user {}.", userEntity.getId());
+        if (userEntity.getFpeKey() == null || userEntity.getFpeKey().isBlank()) {
+            throw new IllegalStateException("Account FPE key is missing.");
         }
-
-        return fpeKey;
+        return userEntity.getFpeKey();
 
     }
 
@@ -348,14 +325,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * record, so no admin action can silently destroy it. The audit event records that retention.
      */
     public void deactivateUser(final String requestId, final UserEntity userEntity, final String source) {
-
-        if (userEntity.isDeactivated()) {
-            return;
-        }
+        authorizeDashboardMutation(userEntity, source, true);
 
         userEntity.setDeactivated(true);
         userEntity.setDeactivatedAt(new Date());
-        update(userEntity);
+        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) return;
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DEACTIVATED, userEntity.getId(), userEntity.getId(), source,
                 "account deactivated; user data retained, including policies and redaction ledger (evidence preserved)");
@@ -367,14 +341,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * never removed on deactivation, so reactivation returns the account to exactly its prior state.
      */
     public void reactivateUser(final String requestId, final UserEntity userEntity, final String source) {
-
-        if (!userEntity.isDeactivated()) {
-            return;
-        }
+        authorizeDashboardMutation(userEntity, source, true);
 
         userEntity.setDeactivated(false);
         userEntity.setDeactivatedAt(null);
-        update(userEntity);
+        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) return;
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_REACTIVATED, userEntity.getId(), userEntity.getId(), source, null);
 
@@ -386,12 +357,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * generate a valid code from the secret.
      */
     public void enableMfa(final String requestId, final UserEntity userEntity, final String secret, final String source) {
+        authorizeDashboardMutation(userEntity, source, false);
 
         userEntity.setMfaSecret(secret);
         userEntity.setMfaEnabled(true);
         userEntity.setMfaFailedAttempts(0);
         userEntity.setMfaLocked(false);
-        update(userEntity);
+        updateFields(userEntity, true, "mfa_secret", "mfa_secret_key", "mfa_enabled", "mfa_failed_attempts", "mfa_locked");
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_ENABLED, userEntity.getId(), userEntity.getId(), source, "MFA enabled via authenticator enrollment");
 
@@ -403,12 +375,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * case the user can enroll again from scratch. No-op (but still safe to call) when no MFA is enrolled.
      */
     public void disableMfa(final String requestId, final UserEntity userEntity, final String source) {
+        authorizeDashboardMutation(userEntity, source, false);
 
         userEntity.setMfaEnabled(false);
         userEntity.setMfaSecret(null);
         userEntity.setMfaFailedAttempts(0);
         userEntity.setMfaLocked(false);
-        update(userEntity);
+        updateFields(userEntity, true, "mfa_secret", "mfa_secret_key", "mfa_enabled", "mfa_failed_attempts", "mfa_locked");
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_DISABLED, userEntity.getId(), userEntity.getId(), source, "MFA disabled and enrolled secret cleared");
 
@@ -428,7 +401,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         for (int attempt = 0; attempt < MFA_COUNT_ATTEMPTS; attempt++) {
 
-            final Document current = collection.find(Filters.eq("_id", userEntity.getId())).first();
+            final Document current = collection.find(Filters.and(Filters.eq("_id", userEntity.getId()),
+                    Filters.eq("security_version", userEntity.getSecurityVersion()))).first();
             if (current == null) {
                 return false;
             }
@@ -445,6 +419,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                     Filters.and(
                             Filters.eq("_id", userEntity.getId()),
                             Filters.eq("mfa_failed_attempts", counted),
+                            Filters.eq("security_version", userEntity.getSecurityVersion()),
                             Filters.ne("mfa_locked", true)),
                     Updates.combine(
                             Updates.set("mfa_failed_attempts", next),
@@ -469,7 +444,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         }
 
         // Rather than lose the attempt; the next failure establishes the lock.
-        collection.updateOne(Filters.eq("_id", userEntity.getId()), Updates.inc("mfa_failed_attempts", 1));
+        collection.updateOne(Filters.and(Filters.eq("_id", userEntity.getId()),
+                Filters.eq("security_version", userEntity.getSecurityVersion())), Updates.inc("mfa_failed_attempts", 1));
         LOGGER.warn("Recorded a failed MFA attempt without resolving the lock state after {} attempts.",
                 MFA_COUNT_ATTEMPTS);
 
@@ -481,7 +457,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public void resetMfaAttempts(final UserEntity userEntity) {
         if (userEntity.getMfaFailedAttempts() != 0) {
             userEntity.setMfaFailedAttempts(0);
-            update(userEntity);
+            collection.updateOne(Filters.and(Filters.eq("_id", userEntity.getId()),
+                    Filters.eq("security_version", userEntity.getSecurityVersion()), Filters.ne("mfa_locked", true)),
+                    Updates.set("mfa_failed_attempts", 0));
         }
     }
 
@@ -493,6 +471,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                 Filters.and(
                         Filters.eq("_id", userEntity.getId()),
                         Filters.eq("mfa_enabled", true),
+                        Filters.ne("deactivated", true),
+                        Filters.eq("security_version", userEntity.getSecurityVersion()),
                         Filters.ne("mfa_locked", true),
                         Filters.or(
                                 Filters.exists("mfa_last_used_time_step", false),
@@ -517,12 +497,51 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * administrator action that recovers a locked account; the user's enrollment is unchanged.
      */
     public void unlockMfa(final String requestId, final UserEntity userEntity, final String source) {
+        authorizeDashboardMutation(userEntity, source, true);
 
         userEntity.setMfaLocked(false);
         userEntity.setMfaFailedAttempts(0);
-        update(userEntity);
+        updateFields(userEntity, true, "mfa_locked", "mfa_failed_attempts");
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_UNLOCKED, userEntity.getId(), userEntity.getId(), source, "MFA lock cleared by administrator");
+    }
+
+    /** Whole-record saves must never restore security state from a dashboard snapshot. */
+    @Override
+    public void update(final UserEntity user) {
+        throw new UnsupportedOperationException("Use a field-specific account mutation.");
+    }
+
+    public void updateWebhook(final UserEntity user) {
+        authorizeDashboardMutation(user, "webui", false);
+        updateFields(user, false, "webhook_url", "webhook_secret", "webhook_secret_key");
+    }
+
+    private boolean updateFields(final UserEntity user, final boolean securityChange, final String... fields) {
+        final Document serialized = user.toDocument(encryptionService);
+        final Document selected = new Document();
+        for (final String field : fields) selected.put(field, serialized.get(field));
+        final Document update = new Document("$set", selected);
+        if (securityChange) update.append("$inc", new Document("security_version", 1L));
+        org.bson.conversions.Bson predicate = Filters.eq("_id", user.getId());
+        if (selected.containsKey("deactivated")) {
+            predicate = Filters.and(predicate, Filters.ne("deactivated", user.isDeactivated()));
+        }
+        return collection.updateOne(predicate, update).getMatchedCount() == 1;
+    }
+
+    private void authorizeDashboardMutation(final UserEntity target, final String source, final boolean adminOnly) {
+        if (!"webui".equals(source)) return;
+        final var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        final UserEntity actor = auth == null ? null : findByUsername(auth.getName());
+        if (actor == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof ai.philterd.philter.api.security.DashboardPrincipal principal)
+                || !principal.matches(actor)
+                || actor.isMfaEnabled() && !ai.philterd.philter.views.MfaChallengeView.isSatisfied(
+                        com.vaadin.flow.server.VaadinSession.getCurrent(), actor)
+                || (adminOnly || target != null && !actor.getId().equals(target.getId()))
+                    && !"admin".equalsIgnoreCase(actor.getRole())) {
+            throw new org.springframework.security.access.AccessDeniedException("Current account authorization required.");
+        }
     }
 
 }

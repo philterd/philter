@@ -4,12 +4,7 @@ Redaction is a complex process with many variables. To ensure you get the best r
 
 ## Document Metadata is Not Redacted
 
-Philterd focuses on the content of the documents and datasets provided. It does not inspect or redact document metadata, such as:
-
-*   File properties (Author, Title, Created Date).
-*   Revision history or "Track Changes" in word processing documents.
-*   EXIF data in images embedded within documents.
-*   Hidden spreadsheet rows, columns, or comments.
+Philter supports text and PDF redaction. Do not rely on sensitive-information detection to scrub file properties, embedded-image metadata, or other non-text surfaces. Review those surfaces with appropriate tools. Philter does not process Office documents; revision history, tracked changes, and spreadsheet content require external conversion and review.
 
 Ensure you scrub metadata using specialized tools before or after the redaction process if your security policy requires it.
 
@@ -17,16 +12,16 @@ Ensure you scrub metadata using specialized tools before or after the redaction 
 
 The accuracy of redaction is highly dependent on the quality of the input text.
 
-*   **OCR Accuracy:** If you are redacting scanned documents, the quality of the Optical Character Recognition (OCR) is critical. If the OCR engine misreads "Jane Doe" as "J4ne D0e," the redaction engine may not recognize it as a name.
+*   **External OCR:** Philter does not implement OCR or redact image-only PDFs. If you extract text with an external OCR tool, review its accuracy before submitting that text to Philter. Redacting extracted text does not redact the original scanned image. For PDFs with annotations, also review the [PDF limitations](redacting_documents.md#supported-file-formats).
 *   **Context:** Redaction engines use surrounding text to determine if a word is sensitive. Fragmented text or lists of data without context can be harder to redact accurately than full sentences.
 
 ## Combination of Techniques
 
 Philterd uses a combination of techniques to redact text. See [Mistakes](../mistakes.md) for more information.
 
-## Redaction is One-Way
+## Reversibility Depends on the Strategy
 
-Philter does not provide a way to reverse redaction. The [redaction ledger](ledgers.md) and redaction summaries let you see the changes made to documents, but they do not provide a way to undo the changes.
+`CRYPTO_REPLACE` and `FPE_ENCRYPT_REPLACE` produce encrypted values that authorized callers can decrypt through the [Re-identification API](re-identification.md). Strategies such as `REDACT` and `MASK` do not encode the original value in their output, but a context with the [redaction ledger](ledgers.md) enabled retains encrypted original values as evidence. Protect the keys, ledger access, and context mappings when assessing whether a dataset can be re-identified. Re-identification of supported encrypted values does not reconstruct a redacted PDF.
 
 ## Regulatory Compliance
 

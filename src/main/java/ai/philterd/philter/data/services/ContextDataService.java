@@ -51,22 +51,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         this.contextCache = contextCache;
         this.mongoClient = mongoClient;
 
-        // Context names are unique PER USER (not globally). Migrate any installation created under the
-        // previous global-uniqueness scheme by dropping the old indexes before (re)creating the
-        // per-user unique index:
-        //   - "context_name_1": the legacy global-unique index on the name alone. Left in place it would
-        //     keep rejecting two users sharing a name (e.g. the auto-created "default" context).
-        //   - "user_id_1_context_name_1": the previous non-unique compound index, recreated below as
-        //     unique (MongoDB rejects createIndex on the same keys with differing options).
-        dropIndexIfExists("context_name_1");
-        dropIndexIfExists("user_id_1_context_name_1");
-
-        // Contexts are listed by user and looked up by (user_id, context_name); the name is unique
-        // within a user. This index also backs the per-user uniqueness check in create(). It is given an
-        // explicit name (distinct from the dropped legacy index's default name) so subsequent startups
-        // are idempotent no-ops rather than dropping and rebuilding it each time. It will not build if
-        // existing data violates it, in which case the failure is logged and the application still
-        // starts (see AbstractService#ensureIndex).
+        // Context names are unique within an owner. Incompatible schemas fail startup.
         ensureIndex(Indexes.ascending("user_id", "context_name"),
                 new IndexOptions().unique(true).name("user_id_context_name_unique"));
     }

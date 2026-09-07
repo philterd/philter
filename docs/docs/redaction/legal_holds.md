@@ -139,39 +139,54 @@ Every hold lifecycle action is recorded in the audit log. See [Auditing](../audi
 
 The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md) page: `POST /api/holds`, `GET /api/holds`, `GET /api/holds/{reference}`, and `DELETE /api/holds/{reference}`, including the admin `owner` parameter.
 
+## Concurrent operations and recovery
+
+Hold creation, hold release, individual-chain deletion, age purge, and bulk owner-evidence deletion
+share one persistent guard per evidence owner in MongoDB. If deletion acquires it first, a competing
+hold request returns HTTP 409 and has not established a hold. If hold creation acquires it first,
+deletion cannot proceed until the hold is visible; subsequent protected deletion returns HTTP 423.
+Unrelated owners proceed independently. A busy guard also returns HTTP 409 for release requests.
+
+The guard has no timeout or automatic takeover. Expiring it could let a delayed server-side deletion
+continue after a new hold has been acknowledged. Successful operations release it; an exception,
+process crash, or uncertain database result leaves it held. Normal redaction and reads do not acquire
+this guard. It coordinates hold/deletion ordering; it does not make multi-row deletion transactional.
+
+If an owner's operations keep returning 409 after an interruption:
+
+1. Inspect that owner's record in the evidence_operation_guards collection. Its _id is the owner's
+   ObjectId; token, operation, and started_at identify the retained operation.
+2. Stop all application instances that could resume the operation. Confirm on MongoDB that the
+   corresponding command is no longer running and that its outcome is known. A process restart or
+   elapsed time alone does not establish this.
+3. Review the affected holds and ledger evidence, including any partial deletion, and preserve the
+   recovery decision in the operator's audit records.
+4. Only after establishing that no previous operation can resume, clear token, operation, and
+   started_at from that owner's guard with a conditional update matching its observed token.
+   Restart the instances and retry the intended operation.
+
+Do not add a TTL index to this collection or clear guards automatically. Such a takeover would
+invalidate the hold/deletion ordering guarantee.
+
 ## Evidence Types and Retention
 
-Philter produces two distinct categories of governance evidence, and they have different retention obligations.
+Philter retains configuration history and redaction evidence separately. Their contents and retention controls differ.
 
-### Retained policy versions
+### Retained policy versions and execution snapshots
 
-Retained policy versions are snapshots of redaction *rules*: which filter types to apply, what replacement strategies to use, and so on. They contain no personal data: no original tokens, no document content, no user identifiers beyond the policy owner. Because they are pure configuration records, no data-minimization or erasure obligation applies to them under GDPR or similar frameworks.
+Policy versions preserve the supplied policy JSON. That JSON can contain personal data in literal dictionary entries or ignored terms, as well as encryption keys. Raw policies and their version history are not encrypted. Use environment references for keys and review policy contents before saving them; changing a policy does not remove values from its history. See [Database](../database.md#what-is-encrypted-at-rest).
 
-Policy version snapshots are **append-only and cannot be deleted**. The `PolicyVersionDataService` intentionally exposes no delete method. This means a legal hold has no effect on policy versions (there is nothing to block), and a GDPR erasure request does not apply to them.
+Policy version snapshots are append-only through Philter: there is no API for deleting them. Expanded execution snapshots capture the effective configuration used by a queued job, are encrypted, and remain after the job is deleted. A legal hold is not what preserves these snapshots; they have no application deletion path. Neither their configuration role nor their retention behavior establishes an exemption from your organization's data-handling obligations.
 
 ### Redaction ledger entries
 
-Ledger entries are different. Each entry records the encrypted replacement token alongside the original value in a hash, the document processed, the policy applied, and the timestamp. Depending on your redaction strategy, the entry may hold enough context to allow re-identification of the original value. Ledger entries therefore *may* constitute personal data under GDPR and similar frameworks, and a data subject's right to erasure (GDPR Art. 17) could apply to them.
+Ledger entries retain encrypted original values and replacements, along with document and policy metadata and the hash-chain evidence. Treat this as sensitive information even when the redacted output no longer reveals the original values.
 
-### Reconciling erasure with evidence retention
+### Coordinating retention and deletion
 
-These two obligations can appear to conflict: you may need to preserve ledger evidence for a legal matter (hold), but also be required to erase it under a data subject request.
+Determine which records your retention or erasure process must address before using the deletion controls. Deleting a ledger chain does not delete policy history, execution snapshots, context mappings, or every other record associated with a request.
 
-**The general rule:** a legal obligation to preserve evidence takes precedence over a data subject's right to erasure. GDPR Art. 17(3)(b) explicitly carves out retention "for the establishment, exercise or defence of legal claims." When a legal hold is active, the evidence must be preserved regardless of an erasure request, and that preserved status should be communicated to the data subject together with the legal basis.
-
-**When no hold is active:** ledger entries are removable via the standard purge or delete paths, so an erasure request is fulfilled by deleting the relevant document chains or purging the user's entire ledger. Both require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is `false` by default. Confirm your deployment has deletion enabled before committing to an erasure timeline, because a deployment that has not opted in has no way to erase ledger entries through Philter.
-
-**When a hold is active:** a deletion or purge attempt returns HTTP 423, which is the signal that evidence is preserved under hold. Your process should:
-1. Inform the data subject that erasure is temporarily deferred under a legal hold.
-2. Record the deferral and its legal basis in your own records.
-3. Release the hold and delete the entries once the legal matter is resolved.
-
-**Policy versions and erasure:** policy versions contain no personal data and are therefore outside the scope of any erasure request. They do not need to be deleted to satisfy a right-to-erasure obligation.
-
-**Practical guidance:**
-- Set holds with a specific reference (case number, DSAR reference) so the legal basis is clear in the audit log.
-- Use `document_chain` scope when only a specific document is at issue; use `user` scope only when the entire user's evidence needs to be preserved.
-- Release holds promptly once the matter is resolved, and then fulfill any outstanding erasure requests.
+Ledger deletion requires an administrator and `LEDGER_DELETION_ENABLED=true`. A covering hold blocks deletion with HTTP 423; active or uncertain chains also have completion/recovery restrictions. Releasing a hold does not delete the evidence. Once release is authorized under your organization's process, use the [ledger deletion controls](ledgers.md) for eligible chains and handle other retained records separately. Philter's controls do not determine the legal basis for retaining or erasing a record.
 
 ## Frequently Asked Questions
 

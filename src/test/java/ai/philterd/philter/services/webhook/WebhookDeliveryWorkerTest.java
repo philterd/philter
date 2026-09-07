@@ -50,6 +50,7 @@ class WebhookDeliveryWorkerTest {
         delivery.setId(new ObjectId());
         delivery.setUrl(url);
         delivery.setAttempts(1);
+        delivery.setClaimToken("claim-" + delivery.getId());
         return delivery;
     }
 
@@ -60,8 +61,8 @@ class WebhookDeliveryWorkerTest {
         worker.poll();
 
         verify(webhookService, never()).deliver(any());
-        verify(webhookDeliveryDataService, never()).markDelivered(any());
-        verify(webhookDeliveryDataService, never()).rescheduleOrFail(any(), org.mockito.ArgumentMatchers.anyInt(), any());
+        verify(webhookDeliveryDataService, never()).markDelivered(any(), any());
+        verify(webhookDeliveryDataService, never()).rescheduleOrFail(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 
     @Test
@@ -71,11 +72,12 @@ class WebhookDeliveryWorkerTest {
         // One due delivery, then the queue drains.
         when(webhookDeliveryDataService.claimNextDue(any())).thenReturn(delivery, (WebhookDeliveryEntity) null);
 
+        when(webhookDeliveryDataService.markDelivered(delivery.getId(), delivery.getClaimToken())).thenReturn(true);
         worker.poll();
 
         verify(webhookService).deliver(delivery);
-        verify(webhookDeliveryDataService).markDelivered(delivery.getId());
-        verify(webhookDeliveryDataService, never()).rescheduleOrFail(any(), org.mockito.ArgumentMatchers.anyInt(), any());
+        verify(webhookDeliveryDataService).markDelivered(delivery.getId(), delivery.getClaimToken());
+        verify(webhookDeliveryDataService, never()).rescheduleOrFail(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 
     @Test
@@ -84,11 +86,13 @@ class WebhookDeliveryWorkerTest {
 
         when(webhookDeliveryDataService.claimNextDue(any())).thenReturn(delivery, (WebhookDeliveryEntity) null);
         doThrow(new RuntimeException("connection refused")).when(webhookService).deliver(delivery);
+        when(webhookDeliveryDataService.rescheduleOrFail(delivery.getId(), delivery.getClaimToken(), 1, "connection refused"))
+                .thenReturn(true);
 
         worker.poll();
 
-        verify(webhookDeliveryDataService, never()).markDelivered(any());
-        verify(webhookDeliveryDataService).rescheduleOrFail(eq(delivery.getId()), eq(1), eq("connection refused"));
+        verify(webhookDeliveryDataService, never()).markDelivered(any(), any());
+        verify(webhookDeliveryDataService).rescheduleOrFail(eq(delivery.getId()), eq(delivery.getClaimToken()), eq(1), eq("connection refused"));
     }
 
     @Test
@@ -99,11 +103,12 @@ class WebhookDeliveryWorkerTest {
         when(webhookDeliveryDataService.claimNextDue(any()))
                 .thenReturn(first, second, (WebhookDeliveryEntity) null);
 
+        when(webhookDeliveryDataService.markDelivered(any(), any())).thenReturn(true);
         worker.poll();
 
         verify(webhookService).deliver(first);
         verify(webhookService).deliver(second);
-        verify(webhookDeliveryDataService, times(2)).markDelivered(any());
+        verify(webhookDeliveryDataService, times(2)).markDelivered(any(), any());
     }
 
     @Test
@@ -114,4 +119,14 @@ class WebhookDeliveryWorkerTest {
         worker.poll(); // must not throw
     }
 
+
+    @Test
+    void staleSuccessDoesNotScheduleAnotherAttempt() throws Exception {
+        final var delivery = delivery("https://example.com/hook");
+        when(webhookDeliveryDataService.claimNextDue(any())).thenReturn(delivery, (WebhookDeliveryEntity) null);
+        when(webhookDeliveryDataService.markDelivered(delivery.getId(), delivery.getClaimToken())).thenReturn(false);
+        worker.poll();
+        verify(webhookDeliveryDataService, never()).rescheduleOrFail(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
+        verify(webhookService).deliver(delivery);
+    }
 }

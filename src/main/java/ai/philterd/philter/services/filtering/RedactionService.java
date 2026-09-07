@@ -204,6 +204,14 @@ public class RedactionService {
      * null generates one. Either way it comes back on the {@link RedactionOutcome}.
      */
     public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {});
+    }
+
+    /** The async publication fence runs after computation and before any completed-result publication. */
+    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName,
+                                   final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
+                                   final String filename, final String requestedDocumentId,
+                                   final Runnable beforePublication) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -246,66 +254,15 @@ public class RedactionService {
                 : PolicyVersionDataService.contentHash(policyJson);
         final AppliedPolicy appliedPolicy = new AppliedPolicy(policyName, policyRevision, policyContentHash);
 
-        // Resolve the user's stable FPE key (generating one if absent) and derive its tweak. FF3-1
-        // requires a hex key and hex tweak; a stable key+tweak makes format-preserving encryption
-        // deterministic for the user so the FPE_ENCRYPT_REPLACE strategy preserves referential integrity.
-        // The key is injected into the policy as a fallback when the policy supplies no fpe object. It is
-        // resolved fresh per request and never cached, so no key material lives in the cache.
-        final String fpeKey = userService.ensureFpeKey(userEntity);
-        final String fpeTweak = EncryptionService.deriveFpeTweak(fpeKey);
-
-        // Deserialize the stored native Phileas policy and apply Philter-specific resolution
-        // (custom list references and the managed FPE key fallback).
-        final Policy phileasPolicy = new PolicyResolver(gson, customListService)
-                .resolve(policyJson, userEntity.getId(), fpeKey, fpeTweak);
-
-        // Get the always/never redact lists, from the in-process cache when warm, else the database.
-        RedactionCache.CachedRedactLists cachedRedactLists = redactionCache.getRedactLists(userEntity.getId());
-        if (cachedRedactLists == null) {
-            final RedactListsEntity entity = redactListsService.find(userEntity.getId());
-            final List<String> alwaysRedact = entity != null ? entity.getTermsToAlwaysRedact() : List.of();
-            final List<String> neverRedact = entity != null ? entity.getTermsToNeverRedact() : List.of();
-            redactionCache.putRedactLists(userEntity.getId(), alwaysRedact, neverRedact);
-            cachedRedactLists = new RedactionCache.CachedRedactLists(alwaysRedact, neverRedact);
-        }
-
-        // Reconstruct the entity shape the rest of this method expects (never null; lists may be empty).
-        final RedactListsEntity redactListsEntity = new RedactListsEntity();
-        redactListsEntity.setTermsToAlwaysRedact(cachedRedactLists.getAlwaysRedact());
-        redactListsEntity.setTermsToNeverRedact(cachedRedactLists.getNeverRedact());
-
-        // Add in the never-redact (ignore) list.
-        if(!redactListsEntity.getTermsToNeverRedact().isEmpty()) {
-            final Ignored neverRedactIgnored = new Ignored("never-redact-list", redactListsEntity.getTermsToNeverRedact(), Collections.emptyList(), false);
-            phileasPolicy.getIgnored().add(neverRedactIgnored);
-        }
-
-        // Add in the always-redact list.
-        if(!redactListsEntity.getTermsToAlwaysRedact().isEmpty()) {
-
-            // Break the terms into exact and fuzzy lists.
-            final SeparatedTermLists separatedTermLists = redactListsEntity.breakAlwaysRedactIntoSeparateLists();
-
-            // Add exact terms.
-            final CustomDictionary exactCustomDictionary = new CustomDictionary();
-            exactCustomDictionary.setTerms(separatedTermLists.getExact());
-            exactCustomDictionary.setFuzzy(false);
-            exactCustomDictionary.setCustomDictionaryFilterStrategies(List.of(new CustomDictionaryFilterStrategy()));
-
-            // Add fuzzy terms.
-            final CustomDictionary fuzzyCustomDictionary = new CustomDictionary();
-            fuzzyCustomDictionary.setTerms(separatedTermLists.getFuzzy());
-            fuzzyCustomDictionary.setFuzzy(true);
-            fuzzyCustomDictionary.setCustomDictionaryFilterStrategies(List.of(new CustomDictionaryFilterStrategy()));
-
-            if(phileasPolicy.getIdentifiers().getCustomDictionaries() != null) {
-                phileasPolicy.getIdentifiers().getCustomDictionaries().add(exactCustomDictionary);
-                phileasPolicy.getIdentifiers().getCustomDictionaries().add(fuzzyCustomDictionary);
-            } else {
-                phileasPolicy.getIdentifiers().setCustomDictionaries(List.of(exactCustomDictionary, fuzzyCustomDictionary));
+        final EffectiveConfiguration effective;
+        if (pinnedPolicy != null && pinnedPolicy.effectiveJson() != null) {
+            if (!java.util.Objects.equals(pinnedPolicy.effectiveHash(), PolicyVersionDataService.contentHash(pinnedPolicy.effectiveJson()))) {
+                throw new IllegalStateException("Effective configuration fingerprint mismatch.");
             }
-
-        }
+            effective = gson.fromJson(pinnedPolicy.effectiveJson(), EffectiveConfiguration.class);
+        } else effective = null;
+        final Policy phileasPolicy = effective == null ? resolveEffectivePolicy(policyJson, userEntity)
+                : gson.fromJson(effective.policyJson(), Policy.class);
 
         // Initialize the contextCache. It is created per request and must be closed before returning
         // so that, when backed by Valkey/Redis, its connection pool is released rather than leaked.
@@ -345,7 +302,8 @@ public class RedactionService {
         } else {
 
             // Find the context by its name.
-            final ContextEntity contextEntity = contextService.findOneByNameAndUserId(contextName, userEntity.getId());
+            final ContextEntity contextEntity = effective == null ? contextService.findOneByNameAndUserId(contextName, userEntity.getId())
+                    : effective.contextJson() == null ? null : ContextEntity.fromDocument(org.bson.Document.parse(effective.contextJson()));
 
             if(contextEntity == null) {
 
@@ -406,6 +364,7 @@ public class RedactionService {
 
         } else if(mimeType == MimeType.APPLICATION_PDF) {
 
+            PdfInputValidator.validate(body);
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
             filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.APPLICATION_PDF);
 
@@ -420,6 +379,8 @@ public class RedactionService {
 
         }
 
+        beforePublication.run();
+
         // Store the ledger from the redaction, but only when the request's context has the
         // redaction ledger enabled. The flag is per context and defaults to off.
         if (ledgerEnabled) {
@@ -430,8 +391,13 @@ public class RedactionService {
             LOGGER.info("Initializing the ledger");
             // The genesis entry records the governing policy so the whole chain reflects which policy
             // version applied.
-            ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), ledgerFilename,
-                    appliedPolicy.name(), appliedPolicy.version(), appliedPolicy.contentHash());
+            if (effective == null) {
+                ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), ledgerFilename,
+                        appliedPolicy.name(), appliedPolicy.version(), appliedPolicy.contentHash());
+            } else {
+                ledgerService.initializeLedger(userEntity.getId(), documentId, DigestUtils.sha256Hex(body), ledgerFilename,
+                        appliedPolicy.name(), appliedPolicy.version(), appliedPolicy.contentHash(), pinnedPolicy.effectiveHash());
+            }
 
             LOGGER.info("Persisting ledger entries: " + filterResult.getIncrementalRedactions().size());
             for (final IncrementalRedaction incrementalRedaction : filterResult.getIncrementalRedactions()) {
@@ -451,6 +417,7 @@ public class RedactionService {
                 ledgerEntity.setPolicyName(appliedPolicy.name());
                 ledgerEntity.setPolicyVersion(appliedPolicy.version());
                 ledgerEntity.setPolicyContentHash(appliedPolicy.contentHash());
+                ledgerEntity.setEffectiveHash(effective == null ? null : pinnedPolicy.effectiveHash());
 
                 // Compute and set this entry's hash so the chain is actually formed (previous -> current)
                 // and validates; previousHash above links it to the prior entry.
@@ -459,6 +426,7 @@ public class RedactionService {
                 ledgerService.addTransaction(ledgerEntity);
 
             }
+            ledgerService.completeChain(userEntity.getId(), documentId);
 
         } else {
             LOGGER.debug("Redaction ledger disabled for user; skipping ledger write.");
@@ -510,6 +478,104 @@ public class RedactionService {
         // Philter Diffuse. No-op unless enabled by the admin; best-effort so it cannot affect redaction.
         piiCountAggregatePublisher.record(filterResult.getContext(), filterTypeCounts.keySet());
 
+    }
+
+    private Policy resolveEffectivePolicy(final String policyJson, final UserEntity userEntity) {
+        // Resolve the account FPE key and derive its tweak. FF3-1
+        // requires a hex key and hex tweak; a stable key+tweak makes format-preserving encryption
+        // deterministic for the user so the FPE_ENCRYPT_REPLACE strategy preserves referential integrity.
+        // The key is injected into the policy as a fallback when the policy supplies no fpe object. It is
+        // resolved fresh per request and never cached, so no key material lives in the cache.
+        final String fpeKey = userService.ensureFpeKey(userEntity);
+        final String fpeTweak = EncryptionService.deriveFpeTweak(fpeKey);
+
+        // Deserialize the stored native Phileas policy and apply Philter-specific resolution
+        // (custom list references and the managed FPE key fallback).
+        final Policy phileasPolicy = new PolicyResolver(gson, customListService)
+                .resolve(policyJson, userEntity.getId(), fpeKey, fpeTweak);
+
+        // Get the always/never redact lists, from the in-process cache when warm, else the database.
+        RedactionCache.CachedRedactLists cachedRedactLists = redactionCache.getRedactLists(userEntity.getId());
+        if (cachedRedactLists == null) {
+            final RedactListsEntity entity = redactListsService.find(userEntity.getId());
+            final List<String> alwaysRedact = entity != null ? entity.getTermsToAlwaysRedact() : List.of();
+            final List<String> neverRedact = entity != null ? entity.getTermsToNeverRedact() : List.of();
+            redactionCache.putRedactLists(userEntity.getId(), alwaysRedact, neverRedact);
+            cachedRedactLists = new RedactionCache.CachedRedactLists(alwaysRedact, neverRedact);
+        }
+
+        // Reconstruct the entity shape the rest of this method expects (never null; lists may be empty).
+        final RedactListsEntity redactListsEntity = new RedactListsEntity();
+        redactListsEntity.setTermsToAlwaysRedact(cachedRedactLists.getAlwaysRedact());
+        redactListsEntity.setTermsToNeverRedact(cachedRedactLists.getNeverRedact());
+
+        // Add in the never-redact (ignore) list.
+        if(!redactListsEntity.getTermsToNeverRedact().isEmpty()) {
+            final Ignored neverRedactIgnored = new Ignored("never-redact-list", redactListsEntity.getTermsToNeverRedact(), Collections.emptyList(), false);
+            final var ignored = new java.util.ArrayList<>(phileasPolicy.getIgnored());
+            ignored.add(neverRedactIgnored);
+            phileasPolicy.setIgnored(ignored);
+        }
+
+        // Add in the always-redact list.
+        if(!redactListsEntity.getTermsToAlwaysRedact().isEmpty()) {
+
+            // Break the terms into exact and fuzzy lists.
+            final SeparatedTermLists separatedTermLists = redactListsEntity.breakAlwaysRedactIntoSeparateLists();
+
+            // Add exact terms.
+            final CustomDictionary exactCustomDictionary = new CustomDictionary();
+            exactCustomDictionary.setTerms(separatedTermLists.getExact());
+            exactCustomDictionary.setFuzzy(false);
+            exactCustomDictionary.setCustomDictionaryFilterStrategies(List.of(new CustomDictionaryFilterStrategy()));
+
+            // Add fuzzy terms.
+            final CustomDictionary fuzzyCustomDictionary = new CustomDictionary();
+            fuzzyCustomDictionary.setTerms(separatedTermLists.getFuzzy());
+            fuzzyCustomDictionary.setFuzzy(true);
+            fuzzyCustomDictionary.setCustomDictionaryFilterStrategies(List.of(new CustomDictionaryFilterStrategy()));
+
+            if(phileasPolicy.getIdentifiers().getCustomDictionaries() != null) {
+                phileasPolicy.getIdentifiers().getCustomDictionaries().add(exactCustomDictionary);
+                phileasPolicy.getIdentifiers().getCustomDictionaries().add(fuzzyCustomDictionary);
+            } else {
+                phileasPolicy.getIdentifiers().setCustomDictionaries(List.of(exactCustomDictionary, fuzzyCustomDictionary));
+            }
+
+        }
+
+        ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(gson.toJson(phileasPolicy));
+        return phileasPolicy;
+    }
+
+    public String captureEffectiveConfiguration(final PolicyEntity policy, final String contextName) {
+        final UserEntity user = userService.findOneById(policy.getUserId());
+        if (user == null) throw new IllegalStateException("Account no longer exists.");
+        final Policy resolved = resolveEffectivePolicy(policy.getPolicy(), user);
+        final ContextEntity context = contextName == null || contextName.isBlank() ? null
+                : contextService.findOneByNameAndUserId(contextName, user.getId());
+        if (contextName != null && !contextName.isBlank() && context == null) {
+            throw new ai.philterd.philter.services.policies.PolicyResolutionException("Context does not exist.");
+        }
+        final com.google.gson.JsonElement json = gson.toJsonTree(resolved);
+        freezeEnvironmentKeys(json);
+        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json), context == null ? null : context.toDocument().toJson()));
+        ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(captured);
+        return captured;
+    }
+
+    private void freezeEnvironmentKeys(com.google.gson.JsonElement element) {
+        if (element.isJsonArray()) { element.getAsJsonArray().forEach(this::freezeEnvironmentKeys); return; }
+        if (!element.isJsonObject()) return;
+        for (var entry : element.getAsJsonObject().entrySet()) {
+            var value = entry.getValue();
+            if ((entry.getKey().equals("key") || entry.getKey().equals("tweak")) && value.isJsonPrimitive()
+                    && value.getAsJsonPrimitive().isString() && value.getAsString().startsWith("env:")) {
+                final String resolved = System.getenv(value.getAsString().substring(4));
+                if (resolved == null || resolved.isBlank()) throw new ai.philterd.philter.services.policies.PolicyResolutionException("Required environment key is unavailable.");
+                entry.setValue(new com.google.gson.JsonPrimitive(resolved));
+            } else freezeEnvironmentKeys(value);
+        }
     }
 
 }

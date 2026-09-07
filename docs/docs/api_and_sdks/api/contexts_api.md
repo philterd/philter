@@ -201,7 +201,7 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 |--------|-----------------------------------------|-------------------------------------------------------------|
 | `GET`  | `/api/contexts/{name}/entries/export`   | Export the complete mapping table for a context as JSON.    |
 
-Exports every token-to-replacement mapping in the context in a portable JSON form that can be re-imported into another context, account, or environment (see [Import](#import-a-mapping-table-into-a-context) below) to keep pseudonymization consistent across runs.
+Exports every token-to-replacement mapping in the context in a JSON form that can be re-imported into another context or account, or an environment using the same `PHILTER_ENCRYPTION_KEY` (see [Import](#import-a-mapping-table-into-a-context) below). Imports into an environment with a different key will not match the original tokens during redaction.
 
 **Authorization:** only the user that **created** the context or an **admin** may export it. Any other caller receives `404 Not Found`, which is also returned when the context does not exist. The endpoint does not reveal the existence of a context you are not allowed to access.
 
@@ -294,3 +294,5 @@ Example response:
 ## Capacity
 
 Each context is bounded by `MAX_CONTEXT_SIZE` (default 10,000 entries; overridable via the [`MAX_CONTEXT_SIZE` environment variable](../../settings.md)). When the limit is reached, the least-read entry is evicted before a new one is inserted (ties broken by oldest). Disambiguation vector storage is similarly bounded by `MAX_VECTORS_PER_CONTEXT` (default 100,000, FIFO eviction).
+
+Deleting `/api/contexts/{name}/entries/{entryId}` requires both the named context and entry ID to match within the target owner. Using an entry ID from a different context returns 404 and leaves the mapping intact. JSON resource responses use `Content-Type: application/json`.

@@ -59,12 +59,11 @@ class SigningApiControllerTest {
 
     @Test
     void getSigningKeyReturns200WithPemJwkAndFingerprint() throws Exception {
-        when(signingKeyDataService.getPublicKeyPem())
-                .thenReturn("-----BEGIN PUBLIC KEY-----\nMFkw...\n-----END PUBLIC KEY-----\n");
-        when(signingKeyDataService.getPublicKeyJwk())
-                .thenReturn("{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"abc\",\"y\":\"def\"}");
-        when(signingKeyDataService.getPublicKeyFingerprint())
-                .thenReturn("aa:bb:cc:dd");
+        when(signingKeyDataService.getPublicKeyInfo()).thenReturn(
+                new SigningKeyDataService.PublicKeyInfo("key-1",
+                        "-----BEGIN PUBLIC KEY-----\nMFkw...\n-----END PUBLIC KEY-----\n",
+                        "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"abc\",\"y\":\"def\"}",
+                        "aa:bb:cc:dd"));
 
         final String body = mockMvc.perform(get("/api/signing-key").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -79,12 +78,11 @@ class SigningApiControllerTest {
 
     @Test
     void getSigningKeyResponseIsJson() throws Exception {
-        when(signingKeyDataService.getPublicKeyPem())
-                .thenReturn("-----BEGIN PUBLIC KEY-----\nMFkw...\n-----END PUBLIC KEY-----\n");
-        when(signingKeyDataService.getPublicKeyJwk())
-                .thenReturn("{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"abc\",\"y\":\"def\"}");
-        when(signingKeyDataService.getPublicKeyFingerprint())
-                .thenReturn("aa:bb:cc:dd");
+        when(signingKeyDataService.getPublicKeyInfo()).thenReturn(
+                new SigningKeyDataService.PublicKeyInfo("key-1",
+                        "-----BEGIN PUBLIC KEY-----\nMFkw...\n-----END PUBLIC KEY-----\n",
+                        "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"abc\",\"y\":\"def\"}",
+                        "aa:bb:cc:dd"));
 
         final String contentType = mockMvc.perform(get("/api/signing-key").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())

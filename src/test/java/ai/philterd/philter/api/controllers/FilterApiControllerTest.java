@@ -189,7 +189,7 @@ class FilterApiControllerTest {
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
                         .accept(MediaType.APPLICATION_PDF)
-                        .content("%PDF-1.7 fake".getBytes()))
+                        .content(validPdf()))
                 .andExpect(status().isAccepted())
                 .andExpect(header().exists("Location"))
                 .andReturn().getResponse();
@@ -230,7 +230,7 @@ class FilterApiControllerTest {
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
                         .accept(MediaType.parseMediaType("application/zip"))
-                        .content("%PDF-1.7 fake".getBytes()))
+                        .content(validPdf()))
                 .andExpect(status().isAccepted())
                 .andExpect(header().exists("Location"))
                 .andReturn().getResponse().getContentAsString();
@@ -258,11 +258,12 @@ class FilterApiControllerTest {
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
                         .accept(MediaType.APPLICATION_PDF)
-                        .content("%PDF-1.7 fake".getBytes()))
+                        .content(validPdf()))
                 .andExpect(status().isOk())
                 .andReturn().getResponse();
 
         org.junit.jupiter.api.Assertions.assertArrayEquals(redacted, response.getContentAsByteArray());
+        org.junit.jupiter.api.Assertions.assertNotNull(response.getHeader(FilterApiController.DOCUMENT_ID_HEADER));
         org.junit.jupiter.api.Assertions.assertEquals("default", response.getHeader("X-Philter-Policy-Name"));
         org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
 
@@ -353,7 +354,7 @@ class FilterApiControllerTest {
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF)
                         .accept(MediaType.APPLICATION_PDF)
-                        .content("%PDF-1.7 fake".getBytes()))
+                        .content(validPdf()))
                 .andExpect(status().isNotFound());
 
         verify(pendingDocumentDataService, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
@@ -372,6 +373,74 @@ class FilterApiControllerTest {
                         .accept(MediaType.TEXT_PLAIN)
                         .content("anything"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void missingCustomListReturnsConfigurationErrorWithoutRedactedOutput() throws Exception {
+        final String message = "Policy references unavailable custom lists: required-names.";
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class),
+                eq(MimeType.TEXT_PLAIN), any()))
+                .thenThrow(new ai.philterd.philter.services.policies.PolicyResolutionException(message));
+        mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Sensitive original text"))
+                .andExpect(status().isBadRequest())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(message))
+                .andExpect(header().doesNotExist("X-Document-Id"));
+    }
+
+    @Test
+    void synchronousZipContainsTheRedactedPdf() throws Exception {
+        byte[] pdf = "%PDF-1.7 redacted".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any()))
+                .thenReturn(outcome(binaryResult(pdf)));
+        var response = mockMvc.perform(post("/api/filter?async=false").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_PDF).accept("application/zip").content(validPdf()))
+                .andExpect(status().isOk()).andExpect(header().exists(FilterApiController.DOCUMENT_ID_HEADER))
+                .andReturn().getResponse();
+        try (var zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(response.getContentAsByteArray()))) {
+            org.junit.jupiter.api.Assertions.assertEquals("redacted.pdf", zip.getNextEntry().getName());
+            org.junit.jupiter.api.Assertions.assertArrayEquals(pdf, zip.readAllBytes());
+            org.junit.jupiter.api.Assertions.assertNull(zip.getNextEntry());
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {429, 503})
+    void queueCapacityPreservesStatusAndRetryAfter(int statusCode) throws Exception {
+        var policy = new PolicyEntity(); policy.setName("default"); policy.setPolicy("{}");
+        when(policyDataService.findOne("default", userId)).thenReturn(policy);
+        when(pendingDocumentDataService.save(any())).thenThrow(new ai.philterd.philter.data.services.QueueCapacityException("Queue full.", statusCode));
+        mockMvc.perform(post("/api/filter").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_PDF).accept(MediaType.APPLICATION_PDF).content(validPdf()))
+                .andExpect(status().is(statusCode)).andExpect(header().string("Retry-After", "5"));
+    }
+
+    private static byte[] validPdf() throws Exception {
+        try (var pdf = new org.apache.pdfbox.pdmodel.PDDocument(); var out = new java.io.ByteArrayOutputStream()) {
+            pdf.addPage(new org.apache.pdfbox.pdmodel.PDPage()); pdf.save(out); return out.toByteArray();
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"application/pdf", "application/zip"})
+    void malformedAsyncPdfReturns400BeforeAdmission(String accept) throws Exception {
+        mockMvc.perform(post("/api/filter").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_PDF).accept(accept)
+                        .content("%PDF-1.7\ninvalid truncated document"))
+                .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(pendingDocumentDataService, policyVersionDataService);
+    }
+
+    @Test
+    void downstreamPdfIoFailureRemains500() throws Exception {
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any()))
+                .thenThrow(new java.io.IOException("storage unavailable"));
+        mockMvc.perform(post("/api/filter").param("async", "false")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_PDF).accept(MediaType.APPLICATION_PDF).content(validPdf()))
+                .andExpect(status().isInternalServerError());
     }
 
 }

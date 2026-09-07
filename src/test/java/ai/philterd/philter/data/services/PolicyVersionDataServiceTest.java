@@ -52,6 +52,7 @@ class PolicyVersionDataServiceTest {
 
     @BeforeEach
     void setUp() {
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("policy_versions")).thenReturn(mongoCollection);
         // ensureIndex calls createIndex; Mockito returns null by default — fine, AbstractService wraps in try/catch.

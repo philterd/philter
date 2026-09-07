@@ -115,11 +115,11 @@ Retries use this backoff schedule, regenerating the timestamp and signature on e
 |     5   | 30m                       |
 |     6   | 1h                        |
 |     7   | 2h                        |
-|     8   | 4h                        |
+|     8   | No retry                  |
 
 Each attempt is bounded: Philter waits `WEBHOOK_CONNECT_TIMEOUT_SECONDS` (default 5) to connect and `WEBHOOK_RESPONSE_TIMEOUT_SECONDS` (default 10) for your response. Exceeding either counts as a failed attempt and is retried on the schedule above, so **acknowledge the delivery promptly and do your processing asynchronously** — holding the connection open while you work will time out. See [Settings](../../settings.md#asynchronous-documents-and-webhooks).
 
-After the 8th failure, the delivery is marked `FAILED` and no further attempts are made. Delivered records expire from the `webhook_deliveries` collection after `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days).
+After the 8th failure, the delivery is marked `FAILED` and no further attempts are made. Both delivered and failed records receive `completed_at` and expire after `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days). This includes exhausted abandoned claims; pending retries do not expire.
 
 ## Where a webhook may point
 
@@ -135,6 +135,12 @@ The rule is applied when a URL is saved, again before each delivery, and once mo
 
 ## Operational notes
 
-* Webhooks fire from the same Philter instance that processes the async job. Multiple Philter instances coordinate via MongoDB; only one instance will deliver a given attempt.
+* Any Philter instance can deliver a queued webhook. Workers claim attempts atomically through MongoDB; an active claim excludes other workers. Each attempt has a fresh claim token and a lease controlled by `WEBHOOK_CLAIM_LEASE_SECONDS` (default 300 seconds).
+* If a worker stops or exceeds its lease, another worker can recover the delivery. Results from an expired or superseded claim cannot overwrite a newer attempt. Abandoned claims count toward the eight-attempt limit; an expired final attempt is marked `FAILED`.
+* Delivery is at least once: a receiver may accept a request just before the worker loses its claim or its connection. Deduplicate using `X-Philter-Delivery-Id`. Set the lease longer than the configured HTTP timeouts plus processing overhead; lease recovery cannot cancel a request already sent to the receiver.
 * The worker poll interval is configurable via `philter.webhook.poll-interval-ms` (default 5,000ms). Each poll delivers everything that is due rather than one delivery, so the interval is how long an idle worker waits, not a rate limit.
 * The redacted document bytes are *not* included in the payload. Fetch them via [`GET /api/documents/{documentId}`](documents_api.md#download) once you see a `COMPLETE` event.
+
+## Durable notification intent
+
+Job completion and failure atomically persist notification intent. Reconciliation retries after enqueue errors and restarts, rotating failed intents so they do not block others. The job ID is the stable delivery ID; enqueue is idempotent, while HTTP delivery remains at least once. The reconciler reads the current account URL and secret at dispatch. With no configured URL it acknowledges the intent without a delivery; a URL without a secret retains the intent for retry. Once enqueued, a delivery retains its encrypted secret and URL. Undispatched jobs neither expire nor allow deletion until reconciliation acknowledges the intent.

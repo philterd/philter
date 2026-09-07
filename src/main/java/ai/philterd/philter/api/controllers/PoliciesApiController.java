@@ -128,8 +128,8 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "A policy with the given name does not exist.")
     })
     @RequiresScope(ApiKeyScope.POLICIES_READ)
-    @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET)
-    public @ResponseBody ResponseEntity<Policy> get(
+    @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<String> get(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable(name = "policyName") String policyName,
             final @RequestParam(value = "owner", required = false) String owner) throws IOException {
@@ -153,10 +153,8 @@ public class PoliciesApiController extends AbstractApiController {
         if (policyEntity == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-        final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
-
         return ResponseEntity.status(HttpStatus.OK)
-                .body(policy);
+                .body(policyEntity.getPolicy());
 
     }
 
@@ -176,7 +174,7 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
-            @RequestBody Policy policy) throws IOException {
+            @RequestBody String policyJson) throws IOException {
 
         if (StringUtils.isBlank(name)) {
             throw new BadRequestException("The policy name is missing.");
@@ -195,7 +193,6 @@ public class PoliciesApiController extends AbstractApiController {
 
         // Validate the policy before persisting it so an invalid policy is rejected at creation rather
         // than failing later at redaction time.
-        final String policyJson = gson.toJson(policy);
         final PolicyValidation validation = policyDataService.validatePolicy(policyJson);
         if (!validation.isValid()) {
             throw new BadRequestException(validation.getMessage());

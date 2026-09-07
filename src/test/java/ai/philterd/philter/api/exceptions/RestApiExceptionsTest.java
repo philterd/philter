@@ -73,7 +73,7 @@ class RestApiExceptionsTest {
     /** Minimal controller whose single endpoint requires the Authorization header. */
     @RestController
     static class StubController {
-        @GetMapping("/stub/auth")
+        @GetMapping(value = "/stub/auth", produces = "text/plain")
         public String requiresAuth(
                 final @RequestHeader(HttpHeaders.AUTHORIZATION) String auth) {
             return "ok";
@@ -96,6 +96,20 @@ class RestApiExceptionsTest {
         public String wrongType() {
             throw new UnsupportedMediaTypeException("The request declares text/plain but the body is PDF.");
         }
+    }
+
+    @RestController
+    static class JsonOnlyController {
+        @org.springframework.web.bind.annotation.PostMapping(value = "/stub/json", consumes = "application/json")
+        public String acceptJson(@org.springframework.web.bind.annotation.RequestBody String body) { return body; }
+    }
+
+    @Test
+    void unsupportedRequestContentTypeReturns415() throws Exception {
+        MockMvcBuilders.standaloneSetup(new JsonOnlyController()).setControllerAdvice(handler).build()
+                .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/stub/json")
+                        .contentType("text/plain").content("text"))
+                .andExpect(status().isUnsupportedMediaType());
     }
 
     private MockMvc buildMockMvc() {
@@ -142,6 +156,21 @@ class RestApiExceptionsTest {
                 .andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
         assertEquals("A required header is missing.", body);
+    }
+
+    @Test
+    void incompatibleAcceptReturns406() throws Exception {
+        buildMockMvc().perform(get("/stub/auth").header("Authorization", "Bearer test").accept("image/png"))
+                .andExpect(status().isNotAcceptable());
+    }
+
+    @Test
+    void admissionRejectionsPreserveStatusAndRetryGuidance() {
+        for (int status : new int[] {429, 503}) {
+            var response = handler.handleQueueCapacity(new ai.philterd.philter.data.services.QueueCapacityException("busy", status));
+            assertEquals(status, response.getStatusCode().value());
+            assertEquals("5", response.getHeaders().getFirst("Retry-After"));
+        }
     }
 
 }

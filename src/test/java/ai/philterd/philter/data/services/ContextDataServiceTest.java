@@ -69,6 +69,7 @@ class ContextDataServiceTest {
 
     @BeforeEach
     void setUp() {
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection(anyString())).thenReturn(mongoCollection);
         contextDataService = new ContextDataService(mongoClient, contextCache, auditEventPublisher);

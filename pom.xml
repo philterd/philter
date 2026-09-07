@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.0</version>
+        <version>4.1.1</version>
     </parent>
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
@@ -39,6 +39,11 @@
     </developers>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>1.23.1</version>
+            </dependency>
             <dependency>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-bom</artifactId>
@@ -100,8 +105,12 @@
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.test.redirectTestOutputToFile>true</maven.test.redirectTestOutputToFile>
         <!-- Project dependency versions -->
         <bouncycastle.version>1.85</bouncycastle.version>
+        <httpcore5.version>5.4.3</httpcore5.version>
+        <!-- Security fixes newer than the Spring Boot managed Tomcat release. -->
+        <tomcat.version>11.0.25</tomcat.version>
         <jedis-mock.version>1.1.11</jedis-mock.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <mongodb.version>5.9.1</mongodb.version>
@@ -209,6 +218,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- Keep application logs in per-test reports; Maven still prints test failures. -->
+                    <redirectTestOutputToFile>${maven.test.redirectTestOutputToFile}</redirectTestOutputToFile>
                     <excludes>
                         <exclude>**/*IT.java</exclude>
                     </excludes>
@@ -218,6 +229,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
+                    <!-- Keep application logs in per-test reports; Maven still prints test failures. -->
+                    <redirectTestOutputToFile>${maven.test.redirectTestOutputToFile}</redirectTestOutputToFile>
+                    <!-- Isolated integration-test applications must not depend on operator credentials
+                         or inherit TLS settings from the developer's deployment environment. These
+                         values apply only to the test JVM, never to the packaged application. -->
+                    <environmentVariables>
+                        <PHILTER_BOOTSTRAP_ADMIN_PASSWORD>integration-test-admin-password</PHILTER_BOOTSTRAP_ADMIN_PASSWORD>
+                        <PHILTER_BOOTSTRAP_API_KEY></PHILTER_BOOTSTRAP_API_KEY>
+                        <SSL_ENABLED>false</SSL_ENABLED>
+                    </environmentVariables>
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
@@ -521,7 +542,7 @@
                         <version>${dependency-check-maven.version}</version>
                         <configuration>
                             <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
-                            <failOnError>false</failOnError>
+                            <failOnError>true</failOnError>
                             <failBuildOnCVSS>0</failBuildOnCVSS>
                             <format>xml</format>
                             <skipProvidedScope>true</skipProvidedScope>

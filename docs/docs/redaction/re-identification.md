@@ -32,7 +32,7 @@ Send a `POST` request to `/api/reidentify` with a JSON body:
 |---|---|---|
 | `values` | Yes | One or more replacement values to reverse. |
 | `strategy` | Yes | `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE`. |
-| `policyName` | Required for `CRYPTO_REPLACE`; optional for `FPE_ENCRYPT_REPLACE` | The policy whose key was used during redaction. For `FPE_ENCRYPT_REPLACE`, omit this field to use your account's default FPE key; supply it only if the policy specified a custom FPE key. |
+| `policyName` | Required for `CRYPTO_REPLACE`; optional for `FPE_ENCRYPT_REPLACE` | The policy whose cryptographic parameters were used during redaction. For `FPE_ENCRYPT_REPLACE`, omit this field to use your account's default key and derived tweak; supply it when the policy specified its own `fpe` configuration. |
 | `reason` | Yes | A free-text statement of why the reversal is authorized. Recorded verbatim in the audit log. |
 
 ### Example: `CRYPTO_REPLACE`
@@ -62,9 +62,13 @@ curl -s -X POST https://philter:8080/api/reidentify \
   }'
 ```
 
-### Example: `FPE_ENCRYPT_REPLACE` (policy key override)
+### Example: `FPE_ENCRYPT_REPLACE` (policy key and tweak)
 
-If the policy that produced the redaction specified its own FPE key, pass `policyName` so Philter loads the matching key:
+If the policy that produced the redaction specified its own `fpe` configuration, pass `policyName` so Philter uses its key and tweak unchanged. Account defaults apply only when the policy has no `fpe` object. An incomplete policy configuration does not fall back to account defaults.
+
+Reversal requires the same key and tweak used for the original redaction. FPE does not authenticate ciphertext: different valid parameters can yield incorrect plaintext without a decryption error.
+
+For example:
 
 ```bash
 curl -s -X POST https://philter:8080/api/reidentify \

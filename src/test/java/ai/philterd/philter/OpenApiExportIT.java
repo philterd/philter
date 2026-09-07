@@ -63,6 +63,11 @@ class OpenApiExportIT {
     @Autowired
     private Environment environment;
 
+    @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("requestMappingHandlerMapping")
+    private org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping mappings;
+
+
 
     @Test
     void exportOpenApiSpecification() throws Exception {
@@ -98,6 +103,46 @@ class OpenApiExportIT {
             assertTrue(getOneList.has("404"), "A missing list is a 404, and the spec must say so.");
             assertFalse(getOneList.has("409"), "This endpoint never answers 409.");
 
+            final JsonObject paths = specification.getAsJsonObject("paths");
+            final java.util.Set<String> live = new java.util.TreeSet<>();
+            mappings.getHandlerMethods().forEach((mapping, handler) -> {
+                if (!handler.getBeanType().getPackageName().equals("ai.philterd.philter.api.controllers")) return;
+                for (String path : mapping.getPatternValues()) {
+                    for (var method : mapping.getMethodsCondition().getMethods()) {
+                        live.add(method.name().toLowerCase(java.util.Locale.ROOT) + " " + path);
+                    }
+                }
+            });
+            final java.util.Set<String> documented = new java.util.TreeSet<>();
+            paths.entrySet().forEach(path -> path.getValue().getAsJsonObject().entrySet().forEach(operation -> {
+                if (java.util.Set.of("get", "post", "put", "delete", "patch").contains(operation.getKey())) {
+                    documented.add(operation.getKey() + " " + path.getKey());
+                }
+            }));
+            assertEquals(live, documented, "Every live operation must be documented, with no nonexistent operations.");
+            final String inventory = Files.readString(Path.of("docs/docs/api_and_sdks/api/endpoint_inventory.md"));
+            for (String endpoint : live) {
+                final int separator = endpoint.indexOf(' ');
+                assertTrue(inventory.contains("| " + endpoint.substring(0, separator).toUpperCase(java.util.Locale.ROOT)
+                        + " | `" + endpoint.substring(separator + 1) + "` |"), "Missing inventory entry: " + endpoint);
+            }
+            final java.util.Set<String> normalizedPaths = new java.util.HashSet<>();
+            paths.keySet().forEach(path -> assertTrue(normalizedPaths.add(path.replaceAll("\\{[^}]+}", "{}")),
+                    "Equivalent path templates must use the same parameter name: " + path));
+
+            for (String path : java.util.List.of("/api/contexts", "/api/documents", "/api/ledger", "/api/redact-lists", "/api/signing-key")) {
+                final JsonObject schema = paths.getAsJsonObject(path).getAsJsonObject("get")
+                        .getAsJsonObject("responses").getAsJsonObject("200").getAsJsonObject("content")
+                        .getAsJsonObject("application/json").getAsJsonObject("schema");
+                assertFalse(schema.has("type") && "string".equals(schema.get("type").getAsString()), path);
+            }
+            final JsonObject filtering = paths.getAsJsonObject("/api/filter").getAsJsonObject("post");
+            assertEquals(java.util.Set.of("application/pdf", "application/zip", "text/plain"), filtering
+                    .getAsJsonObject("responses").getAsJsonObject("200").getAsJsonObject("content").keySet());
+            assertTrue(filtering.getAsJsonObject("responses").getAsJsonObject("202").getAsJsonObject("content").has("application/json"));
+            assertTrue(schemas.getAsJsonObject("GetRedactionStatusResponse").getAsJsonObject("properties").has("effectiveConfigurationHash"));
+            assertTrue(schemas.getAsJsonObject("LedgerEntryView").getAsJsonObject("properties").has("effectiveHash"));
+
             // Make the published artifact reproducible: identical code must produce a byte-identical
             // spec so the committed file only changes when the API actually changes. Two sources of
             // run-to-run noise are removed here.
@@ -118,6 +163,12 @@ class OpenApiExportIT {
             final Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
             final Path output = Path.of("target", "openapi.json");
             Files.writeString(output, gson.toJson(canonicalize(specification)));
+            if (!Boolean.getBoolean("philter.test.updateOpenApi")) {
+                assertEquals(canonicalize(specification), canonicalize(JsonParser.parseString(Files.readString(
+                        Path.of("docs/docs/api_and_sdks/openapi.json")))),
+                        "Committed OpenAPI drifted. Inspect target/openapi.json and refresh the published artifact.");
+            }
+
 
         }
 

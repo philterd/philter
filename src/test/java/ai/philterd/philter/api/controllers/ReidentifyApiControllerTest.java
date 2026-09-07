@@ -20,6 +20,8 @@ import ai.philterd.phileas.policy.FPE;
 import ai.philterd.phileas.utils.Encryption;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.api.requests.ReidentifyRequest;
+import ai.philterd.philter.api.responses.ReidentifyResponse;
+import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
@@ -46,6 +48,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -439,31 +443,70 @@ class ReidentifyApiControllerTest {
     }
 
     @Test
-    void fpeDecryptsUsingPolicyKeyWhenPolicyNameSupplied() throws Exception {
-        final String fpeTweak = EncryptionService.deriveFpeTweak(FPE_HEX_KEY);
-        final String plaintext = "1234567890";
-        final String encrypted = Encryption.formatPreservingEncrypt(new FPE(FPE_HEX_KEY, fpeTweak), plaintext);
+    void fpeRoundTripUsesExplicitPolicyKeyAndTweak() throws Exception {
+        final String policyJson = "{\"name\":\"p\",\"fpe\":{\"key\":\"" + FPE_HEX_KEY
+                + "\",\"tweak\":\"1234567890abcdef\"},\"identifiers\":{}}";
+        assertFpePolicyRoundTrip(policyJson, false);
+    }
 
-        final String policyJson = "{\"name\":\"p\",\"fpe\":{\"key\":\"" + FPE_HEX_KEY + "\",\"tweak\":\"ignored\"},\"identifiers\":{}}";
+    @Test
+    void fpeRoundTripUsesAccountDefaultsWhenPolicyHasNoFpe() throws Exception {
+        assertFpePolicyRoundTrip("{\"name\":\"p\",\"identifiers\":{}}", true);
+    }
+
+    private void assertFpePolicyRoundTrip(final String policyJson, final boolean usesAccountDefaults)
+            throws Exception {
+        // Encrypt with the effective configuration used by the redaction path.
+        final FPE resolvedFpe = new PolicyResolver(gson, null)
+                .resolve(policyJson, userId, CRYPTO_HEX_KEY,
+                        EncryptionService.deriveFpeTweak(CRYPTO_HEX_KEY)).getFpe();
+        final String plaintext = "1234567890";
+        final String encrypted = Encryption.formatPreservingEncrypt(resolvedFpe, plaintext);
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
         when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
-
         final UserEntity userEntity = new UserEntity();
         userEntity.setId(userId);
         when(userService.findOneById(userId)).thenReturn(userEntity);
-
-        final ReidentifyRequest req = request(List.of(encrypted), "FPE_ENCRYPT_REPLACE", "p", "test");
+        if (usesAccountDefaults) {
+            when(userService.ensureFpeKey(userEntity)).thenReturn(CRYPTO_HEX_KEY);
+        }
 
         final String body = mockMvc.perform(post("/api/reidentify")
                         .header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(gson.toJson(req))
-                        .requestAttr("requestId", "req-fpe-policy-key"))
+                        .content(gson.toJson(request(List.of(encrypted), "FPE_ENCRYPT_REPLACE", "p", "test")))
+                        .requestAttr("requestId", "req-fpe-policy"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
+        final var result = gson.fromJson(body, ReidentifyResponse.class).getResults().getFirst();
+        assertEquals(encrypted, result.getEncrypted());
+        assertEquals(plaintext, result.getDecrypted());
+        assertNull(result.getError());
+        if (usesAccountDefaults) {
+            verify(userService).ensureFpeKey(userEntity);
+        } else {
+            verify(userService, never()).ensureFpeKey(any());
+        }
+    }
 
-        assertTrue(body.contains(plaintext));
+    @Test
+    void fpeIncompletePolicyDoesNotFallBackToAccountDefaults() throws Exception {
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setPolicy("{\"name\":\"p\",\"fpe\":{\"tweak\":\"1234567890abcdef\"}}");
+        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(userService.findOneById(userId)).thenReturn(new UserEntity());
+
+        final String body = mockMvc.perform(post("/api/reidentify")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(gson.toJson(request(List.of("1234567890"), "FPE_ENCRYPT_REPLACE", "p", "test")))
+                        .requestAttr("requestId", "req-fpe-incomplete"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        final var result = gson.fromJson(body, ReidentifyResponse.class).getResults().getFirst();
+        assertNull(result.getDecrypted());
+        assertEquals("Decryption failed.", result.getError());
         verify(userService, never()).ensureFpeKey(any());
     }
 

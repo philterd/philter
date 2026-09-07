@@ -35,13 +35,14 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class RedactionWorker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedactionWorker.class);
 
-    private static final long STUCK_JOB_THRESHOLD_MS = 10L * 60L * 1000L;
 
     private final PendingDocumentDataService pendingDocumentDataService;
     private final RedactionService redactionService;
@@ -49,14 +50,26 @@ public class RedactionWorker {
     private final WebhookDeliveryDataService webhookDeliveryDataService;
     private final PolicyVersionDataService policyVersionDataService;
     private final Gson gson;
+    private final long heartbeatIntervalMs;
     private final String workerId = "philter-worker-" + UUID.randomUUID();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RedactionWorker(final PendingDocumentDataService pendingDocumentDataService,
                            final RedactionService redactionService,
                            final UserService userService,
                            final WebhookDeliveryDataService webhookDeliveryDataService,
                            final PolicyVersionDataService policyVersionDataService,
                            final Gson gson) {
+        this(pendingDocumentDataService, redactionService, userService, webhookDeliveryDataService,
+                policyVersionDataService, gson, 60_000);
+    }
+
+    RedactionWorker(final PendingDocumentDataService pendingDocumentDataService,
+                    final RedactionService redactionService, final UserService userService,
+                    final WebhookDeliveryDataService webhookDeliveryDataService,
+                    final PolicyVersionDataService policyVersionDataService, final Gson gson,
+                    final long heartbeatIntervalMs) {
+        this.heartbeatIntervalMs = heartbeatIntervalMs;
         this.pendingDocumentDataService = pendingDocumentDataService;
         this.redactionService = redactionService;
         this.userService = userService;
@@ -72,7 +85,8 @@ public class RedactionWorker {
     public void poll() {
 
         try {
-            final Date stuckCutoff = new Date(System.currentTimeMillis() - STUCK_JOB_THRESHOLD_MS);
+            reconcileNotifications();
+            final Date stuckCutoff = new Date();
             final long reclaimed = pendingDocumentDataService.reclaimStuckJobs(stuckCutoff, MAX_RECLAIMS);
             if (reclaimed > 0) {
                 LOGGER.warn("Reclaimed {} stuck job(s) older than {}", reclaimed, stuckCutoff);
@@ -95,21 +109,32 @@ public class RedactionWorker {
 
         LOGGER.info("Processing pending document {} for user {}", job.getDocumentId(), job.getUserId());
 
+        final var heartbeat = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            final Thread thread = new Thread(runnable, "philter-job-heartbeat");
+            thread.setDaemon(true);
+            return thread;
+        });
+        heartbeat.scheduleWithFixedDelay(() -> {
+            try {
+                pendingDocumentDataService.renewClaim(job.getId(), job.getClaimToken());
+            } catch (Exception ex) {
+                LOGGER.warn("Could not renew claim for document {}", job.getDocumentId(), ex);
+            }
+        }, heartbeatIntervalMs, heartbeatIntervalMs, TimeUnit.MILLISECONDS);
+
         try {
             final MimeType inputMimeType = MimeType.valueOf(job.getInputMimeType());
 
             // Redact with the policy version pinned when the request was accepted, so the deferred job
-            // is governed by the version in force at request time. If the pinned snapshot is somehow
-            // missing, fall back to resolving the policy live by name.
+            // is governed by the version in force at request time. A missing explicit pin fails the job.
             PinnedPolicy pinnedPolicy = null;
             if (job.getPolicyContentHash() != null) {
                 final var snapshot = policyVersionDataService.findByContentHash(job.getPolicyContentHash());
                 if (snapshot != null) {
                     pinnedPolicy = new PinnedPolicy(job.getPolicyName(), job.getPolicyVersion(),
-                            job.getPolicyContentHash(), snapshot.getPolicy());
+                            job.getPolicyContentHash(), snapshot.getPolicy(), job.getEffectiveJson(), job.getEffectiveHash());
                 } else {
-                    LOGGER.warn("Pinned policy snapshot {} for document {} is missing; resolving the policy live.",
-                            job.getPolicyContentHash(), job.getDocumentId());
+                    throw new IllegalStateException("Pinned policy snapshot is missing: " + job.getPolicyContentHash());
                 }
             }
 
@@ -122,77 +147,93 @@ public class RedactionWorker {
                     pinnedPolicy,
                     job.getFileName(),
                     // The id already returned with the 202, so the job and its ledger chain match.
-                    job.getDocumentId()
+                    job.getDocumentId(),
+                    () -> {
+                        if (!pendingDocumentDataService.beginPublication(job.getId(), job.getClaimToken())) {
+                            throw new IllegalStateException("Redaction job claim expired or was superseded.");
+                        }
+                    }
             ).result();
 
             final byte[] output;
             if (result instanceof BinaryDocumentFilterResult binaryResult) {
-                output = binaryResult.getDocument();
+                output = BinaryOutput.encode(binaryResult.getDocument(), job.getOutputMimeType());
             } else {
                 throw new IllegalStateException("Async worker received non-binary filter result for document " + job.getDocumentId());
             }
 
-            pendingDocumentDataService.markComplete(job.getId(), job.getUserId(), output);
+            if (!pendingDocumentDataService.markComplete(job.getId(), job.getUserId(), job.getClaimToken(), output)) {
+                LOGGER.warn("Discarding stale completion for document {}", job.getDocumentId());
+                return;
+            }
             LOGGER.info("Completed pending document {}", job.getDocumentId());
 
             // markComplete writes the database, not this copy, which still reads PROCESSING.
             job.setStatus(PendingDocumentEntity.STATUS_COMPLETE);
 
-            enqueueWebhook(job, WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE, null);
+            reconcileNotifications();
 
         } catch (Exception ex) {
             LOGGER.error("Redaction failed for document {}", job.getDocumentId(), ex);
-            pendingDocumentDataService.markFailed(job.getId(), ex.getMessage());
+            if (!pendingDocumentDataService.markFailed(job.getId(), job.getClaimToken(), ex.getMessage())) {
+                LOGGER.warn("Discarding stale failure for document {}", job.getDocumentId());
+                return;
+            }
 
             job.setStatus(PendingDocumentEntity.STATUS_FAILED);
 
-            enqueueWebhook(job, WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_FAILED, ex.getMessage());
+            reconcileNotifications();
+        } finally {
+            heartbeat.shutdownNow();
         }
 
     }
 
-    private void enqueueWebhook(final PendingDocumentEntity job, final String eventType, final String errorMessage) {
 
+    @Scheduled(fixedDelayString = "${philter.worker.notification-interval-ms:5000}")
+    public void reconcileNotifications() {
         try {
-            final UserEntity user = userService.findOneById(job.getUserId());
-            if (user == null || user.getWebhookUrl() == null || user.getWebhookUrl().isBlank()) {
-                return;
+            for (final PendingDocumentEntity job : pendingDocumentDataService.pendingNotifications(100)) {
+                try {
+                    pendingDocumentDataService.recordNotificationAttempt(job.getId());
+                    enqueueWebhook(job);
+                    pendingDocumentDataService.acknowledgeNotification(job.getId());
+                } catch (Exception ex) {
+                    LOGGER.error("Notification intent retained for document {}", job.getDocumentId(), ex);
+                }
             }
-            if (user.getWebhookSecret() == null || user.getWebhookSecret().isBlank()) {
-                LOGGER.warn("Skipping webhook for user {}: URL configured but no secret set.", user.getId());
-                return;
-            }
-
-            final Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("event", eventType);
-            payload.put("documentId", job.getDocumentId());
-            payload.put("fileName", job.getFileName());
-            payload.put("status", job.getStatus());
-            payload.put("timestamp", new Date().toInstant().toString());
-            if (errorMessage != null) {
-                payload.put("error", errorMessage);
-            }
-
-            final WebhookDeliveryEntity delivery = new WebhookDeliveryEntity();
-            delivery.setUserId(job.getUserId());
-            delivery.setDocumentId(job.getDocumentId());
-            delivery.setEventType(eventType);
-            delivery.setStatus(WebhookDeliveryEntity.STATUS_PENDING);
-            delivery.setUrl(user.getWebhookUrl());
-            delivery.setSecret(user.getWebhookSecret());
-            delivery.setPayload(gson.toJson(payload));
-            delivery.setAttempts(0);
-            final Date now = new Date();
-            delivery.setCreatedAt(now);
-            delivery.setUpdatedAt(now);
-            delivery.setNextAttemptAt(now);
-
-            webhookDeliveryDataService.save(delivery);
-
         } catch (Exception ex) {
-            LOGGER.error("Failed to enqueue webhook for document {}", job.getDocumentId(), ex);
+            LOGGER.error("Notification reconciliation failed", ex);
         }
-
     }
 
+    private void enqueueWebhook(final PendingDocumentEntity job) {
+        final UserEntity user = userService.findOneById(job.getUserId());
+        if (user == null || user.getWebhookUrl() == null || user.getWebhookUrl().isBlank()) return;
+        if (user.getWebhookSecret() == null || user.getWebhookSecret().isBlank()) {
+            throw new IllegalStateException("Webhook URL is configured without a secret.");
+        }
+        final String event = PendingDocumentEntity.STATUS_COMPLETE.equals(job.getStatus())
+                ? WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE : WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_FAILED;
+        final Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("event", event);
+        payload.put("documentId", job.getDocumentId());
+        payload.put("fileName", job.getFileName());
+        payload.put("status", job.getStatus());
+        payload.put("timestamp", job.getCompletedAt().toInstant().toString());
+        if (job.getErrorMessage() != null) payload.put("error", job.getErrorMessage());
+        final WebhookDeliveryEntity delivery = new WebhookDeliveryEntity();
+        delivery.setId(job.getId());
+        delivery.setUserId(job.getUserId());
+        delivery.setDocumentId(job.getDocumentId());
+        delivery.setEventType(event);
+        delivery.setStatus(WebhookDeliveryEntity.STATUS_PENDING);
+        delivery.setUrl(user.getWebhookUrl());
+        delivery.setSecret(user.getWebhookSecret());
+        delivery.setPayload(gson.toJson(payload));
+        delivery.setCreatedAt(job.getCompletedAt());
+        delivery.setUpdatedAt(new Date());
+        delivery.setNextAttemptAt(new Date());
+        webhookDeliveryDataService.enqueueOnce(delivery);
+    }
 }

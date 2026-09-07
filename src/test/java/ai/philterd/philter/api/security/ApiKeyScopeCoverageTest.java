@@ -62,7 +62,7 @@ class ApiKeyScopeCoverageTest {
         for (final Class<?> controller : controllerClasses()) {
             for (final Method method : controller.getDeclaredMethods()) {
 
-                if (method.getAnnotation(RequestMapping.class) == null) {
+                if (org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class) == null) {
                     continue;
                 }
 

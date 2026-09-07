@@ -24,6 +24,11 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.signing.SigningService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
+import com.mongodb.ReadPreference;
+import com.mongodb.WriteConcern;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
@@ -54,36 +59,32 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     // The ledger is never expired automatically: it is governance evidence, so every deletion is a
     // deliberate, admin-only, hold-checked, audited act. Retention is enforced by scheduling the
     // purge endpoint, which has all of those properties; a MongoDB TTL index has none of them.
-    // This is the name of the TTL index earlier builds created, dropped at startup below.
-    private static final String LEGACY_TTL_INDEX_NAME = "timestamp_1";
-
     private final LegalHoldDataService legalHoldDataService;
     private final SigningService signingService;
+    private final MongoCollection<Document> chainStates;
+    private final EvidenceOperationGuard evidenceGuard;
+    private final MongoCollection<Document> evidence;
 
     public LedgerDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                               final AuditEventPublisher auditEventPublisher,
                               final LegalHoldDataService legalHoldDataService,
                               final SigningService signingService) {
         super(mongoClient, "ledger", encryptionService, auditEventPublisher);
+        this.evidenceGuard = new EvidenceOperationGuard(mongoClient);
+        this.evidence = collection.withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
+        this.chainStates = mongoClient.getDatabase("philter").getCollection("ledger_chains")
+                .withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
+        chainStates.createIndex(Indexes.ascending("user_id", "state", "completed_at"));
         this.legalHoldDataService = legalHoldDataService;
-        this.signingService = signingService;
+        this.signingService = Objects.requireNonNull(signingService, "Ledger signing service is required.");
 
         // Chain-head listing queries (user_id, previous_hash) ordered by timestamp; per-document
         // chain retrieval and deletion query (user_id, document_id).
         ensureIndex(Indexes.ascending("user_id", "previous_hash", "timestamp"));
         ensureIndex(Indexes.ascending("user_id", "document_id", "timestamp"));
 
-        // Drop the TTL index earlier builds created from REDACTION_LEDGER_TTL_DAYS, so a deployment
-        // that configured expiry stops silently deleting evidence after upgrading.
-        try {
-            collection.dropIndex(LEGACY_TTL_INDEX_NAME);
-            LOGGER.warn("Dropped the ledger TTL index '{}' left by an earlier build. Ledger entries no "
-                    + "longer expire automatically; schedule DELETE /api/ledger to enforce retention.",
-                    LEGACY_TTL_INDEX_NAME);
-        } catch (final Exception ex) {
-            // No such index (the common case).
-            LOGGER.debug("No legacy ledger TTL index '{}' to drop: {}", LEGACY_TTL_INDEX_NAME, ex.getMessage());
-        }
+        RequiredSchema.rejectAutomaticExpiry(collection);
+
     }
 
     public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename,
@@ -92,35 +93,91 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 policyName, policyVersion, policyContentHash));
     }
 
+    public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename,
+                                 final String policyName, final int policyVersion, final String policyContentHash, final String effectiveHash) throws Exception {
+        final LedgerEntity entry = new LedgerEntity(userId, documentId, EMPTY_ENTRY, EMPTY_ENTRY, 0, inputDocumentHash, GENESIS, filename, "",
+                policyName, policyVersion, policyContentHash);
+        entry.setEffectiveHash(effectiveHash);
+        entry.setHash(entry.calculateHash());
+        addTransaction(entry);
+    }
+
     public void addTransaction(final LedgerEntity ledgerEntity) {
+        save(ledgerEntity);
+    }
 
-        // Signed here because every entry, genesis and redaction alike, is written through this
-        // method. The hash chain proves internal consistency; the signature proves origin.
-        if (signingService != null && ledgerEntity.getHash() != null) {
-            try {
-                final SigningService.LedgerSignature signed =
-                        signingService.signLedgerEntry(ledgerEntity.getHash());
-                ledgerEntity.setSignature(signed.signature());
-                ledgerEntity.setSigningKeyId(signed.keyId());
-            } catch (final Exception e) {
-                // A ledger entry that cannot be signed is still better evidence than none, so the
-                // redaction is not failed; the entry simply verifies as unsigned.
-                LOGGER.error("Unable to sign a ledger entry; it will be recorded unsigned.", e);
-            }
+    /** Every insert must be signed, including callers of the inherited persistence API. */
+    @Override
+    public ObjectId save(final LedgerEntity ledgerEntity) {
+        if (ledgerEntity.getHash() == null || ledgerEntity.getHash().isBlank()) {
+            throw new IllegalArgumentException("A ledger entry must have a hash before signing.");
         }
+        final SigningService.LedgerSignature signed;
+        try {
+            signed = signingService.signLedgerEntry(ledgerEntity.getHash());
+        } catch (final Exception e) {
+            throw new IllegalStateException("Unable to sign ledger entry; it was not saved.", e);
+        }
+        if (signed == null || signed.signature() == null || signed.signature().isBlank()
+                || signed.keyId() == null || signed.keyId().isBlank()) {
+            throw new IllegalStateException("Ledger signing returned no signature or key ID; entry was not saved.");
+        }
+        ledgerEntity.setSignature(signed.signature());
+        ledgerEntity.setSigningKeyId(signed.keyId());
+        final String chainId = chainId(ledgerEntity.getUserId(), ledgerEntity.getDocumentId());
+        chainStates.updateOne(Filters.eq("_id", chainId),
+                new Document("$setOnInsert", new Document("user_id", ledgerEntity.getUserId())
+                        .append("document_id", ledgerEntity.getDocumentId()).append("state", "open")),
+                new UpdateOptions().upsert(true));
+        // A database CAS fences sealing/purging against appends across all instances.
+        if (chainStates.updateOne(Filters.and(Filters.eq("_id", chainId), Filters.eq("state", "open")),
+                Updates.set("state", "writing")).getModifiedCount() != 1) {
+            throw new IllegalStateException("Ledger chain is not open for writing.");
+        }
+        try {
+            final ObjectId id = super.save(ledgerEntity);
+            chainStates.updateOne(Filters.eq("_id", chainId), Updates.combine(
+                    Updates.max("latest_entry_at", ledgerEntity.getTimestamp()),
+                    Updates.set("state", "open")));
+            return id;
+        } catch (RuntimeException ex) {
+            // An uncertain/failed insert cannot turn into a completed, purgeable chain.
+            chainStates.updateOne(Filters.eq("_id", chainId), Updates.set("state", "failed"));
+            throw ex;
+        }
+    }
 
-        collection.insertOne(ledgerEntity.toDocument(encryptionService));
+    private static String chainId(final ObjectId userId, final String documentId) {
+        if (userId == null || documentId == null || documentId.isBlank()) {
+            throw new IllegalArgumentException("A ledger chain requires an owner and document ID.");
+        }
+        return userId.toHexString() + ":" + documentId;
+    }
+
+    /** Seals successfully recorded evidence. Further appends to this document ID are rejected. */
+    public void completeChain(final ObjectId userId, final String documentId) {
+        if (chainStates.updateOne(Filters.and(Filters.eq("_id", chainId(userId, documentId)),
+                        Filters.eq("state", "open")),
+                Updates.combine(Updates.set("state", "complete"), Updates.set("completed_at", new Date())))
+                .getModifiedCount() != 1) {
+            throw new IllegalStateException("Ledger chain could not be completed.");
+        }
+    }
+
+    /** Evidence is append-only; an inherited update must not bypass signed insertion. */
+    @Override
+    public void update(final LedgerEntity ledgerEntity) {
+        throw new UnsupportedOperationException("Ledger entries cannot be updated.");
     }
 
     /**
-     * The outcome of validating a chain. A reviewer needs these apart: a broken hash chain means the
-     * entries contradict each other, an invalid signature means something outside Philter wrote them,
-     * and an unsigned entry means only that it predates signing.
+     * Hash-chain consistency and signature authenticity are separate checks. An unsigned entry is
+     * unauthenticated and makes the chain invalid, even when every hash and link is consistent.
      */
     public record ChainValidation(boolean hashChainValid, boolean signaturesValid,
                                   int signedEntries, int unsignedEntries) {
         public boolean valid() {
-            return hashChainValid && signaturesValid;
+            return hashChainValid && signaturesValid && unsignedEntries == 0;
         }
     }
 
@@ -152,14 +209,14 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             final LedgerEntity previousRedaction = chain.get(i - 1);
 
             // Identify the entry, never its token: that is the decrypted PII.
-            if (!currentRedaction.getHash().equals(currentRedaction.calculateHash())) {
+            if (!Objects.equals(currentRedaction.getHash(), currentRedaction.calculateHash())) {
                 LOGGER.warn("Ledger entry {} (document {}, position {}) does not match its recomputed hash.",
                         currentRedaction.getId(), documentId, i);
                 hashChainValid = false;
                 break;
             }
 
-            if (!currentRedaction.getPreviousHash().equals(previousRedaction.getHash())) {
+            if (!Objects.equals(currentRedaction.getPreviousHash(), previousRedaction.getHash())) {
                 LOGGER.warn("Ledger entry {} (document {}, position {}) does not link to the previous entry.",
                         currentRedaction.getId(), documentId, i);
                 hashChainValid = false;
@@ -175,14 +232,14 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         int unsigned = 0;
 
         for (final LedgerEntity entry : chain) {
-            if (entry.getSignature() == null) {
-                // Written before entries were signed. Not a failure: it cannot be signed after the
-                // fact, and reporting history as tampered would be wrong.
+            if (entry.getSignature() == null || entry.getSignature().isBlank()) {
                 unsigned++;
+                signaturesValid = false;
                 continue;
             }
             signed++;
-            if (!signingService.verifyLedgerEntry(entry.getHash(), entry.getSignature(), entry.getSigningKeyId())) {
+            if (entry.getSigningKeyId() == null || entry.getSigningKeyId().isBlank()
+                    || !signingService.verifyLedgerEntry(entry.getHash(), entry.getSignature(), entry.getSigningKeyId())) {
                 LOGGER.warn("Ledger entry signature does not verify for document {}.", documentId);
                 signaturesValid = false;
             }
@@ -239,7 +296,8 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     }
 
     /**
-     * Purges ledger entries older than {@code daysToKeep} days for the given user.
+     * Purges complete chains whose completion and newest entry precede the retention cutoff.
+     * Open, writing, and failed chains are retained for review; manual deletion also requires a sealed chain.
      *
      * <p><strong>Hold enforcement:</strong> if any active legal hold exists for this user (whether
      * a {@code user}-scoped hold or any {@code document_chain} hold), the purge is blocked in its
@@ -254,35 +312,49 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                                                              final ObjectId userId,
                                                              final int daysToKeep) {
 
-        if (legalHoldDataService.hasAnyHold(userId)) {
-            final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
-            final String refs = holds.stream().map(LegalHoldEntity::getReference)
-                    .reduce((a, b) -> a + ", " + b).orElse("unknown");
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
-                    userId, null, null,
-                    "operation: purge_by_age, daysToKeep: " + daysToKeep + ", blocking holds: " + refs);
-            return new ServiceResponse(
-                    "Purge blocked by legal hold(s): " + refs + ". Release all holds before purging.",
-                    false, 423);
+        if (daysToKeep < 0) {
+            return new ServiceResponse("daysToKeep must be zero or greater.", false, 400);
         }
+        return evidenceGuard.execute(userId, "purge_by_age", () -> {
+            if (legalHoldDataService.hasAnyHold(userId)) {
+                final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
+                final String refs = holds.stream().map(LegalHoldEntity::getReference)
+                        .reduce((a, b) -> a + ", " + b).orElse("unknown");
+                auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
+                        userId, null, null,
+                        "operation: purge_by_age, daysToKeep: " + daysToKeep + ", blocking holds: " + refs);
+                return new ServiceResponse(
+                        "Purge blocked by legal hold(s): " + refs + ". Release all holds before purging.",
+                        false, 423);
+            }
 
-        final Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_MONTH, -daysToKeep);
-        final Date cutoffDate = cal.getTime();
+            final Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_MONTH, -daysToKeep);
+            final Date cutoffDate = cal.getTime();
 
-        final Document query = new Document("user_id", userId)
-                .append("timestamp", new Document("$lt", cutoffDate));
+            final Bson eligible = Filters.and(Filters.eq("user_id", userId), Filters.eq("state", "complete"),
+                    Filters.lt("completed_at", cutoffDate), Filters.lt("latest_entry_at", cutoffDate));
+            long deletedCount = 0;
+            long deletedChains = 0;
+            try (var cursor = chainStates.find(eligible).iterator()) {
+                while (cursor.hasNext()) {
+                    final Document chain = cursor.next();
+                    // Sealed chains cannot acquire another writer. Delete by owner and document,
+                    // never by individual entry timestamp. On failure the marker remains retryable.
+                    deletedCount += evidence.deleteMany(Filters.and(Filters.eq("user_id", userId),
+                            Filters.eq("document_id", chain.getString("document_id")))).getDeletedCount();
+                    chainStates.updateOne(Filters.eq("_id", chain.getString("_id")), Updates.set("state", "purged"));
+                    deletedChains++;
+                }
+            }
 
-        final DeleteResult deleteResult = collection.deleteMany(query);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
+                    null, null, "deletedCount: " + deletedCount + ", deletedChains: " + deletedChains
+                            + ", daysToKeep: " + daysToKeep);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
-                null, null,
-                "deletedCount: " + deleteResult.getDeletedCount() + ", daysToKeep: " + daysToKeep);
-
-        return new ServiceResponse(
-                "Deleted " + deleteResult.getDeletedCount() + " ledger entries older than "
-                        + daysToKeep + " days.",
-                true, 200);
+            return new ServiceResponse("Deleted " + deletedCount + " ledger entries in " + deletedChains
+                    + " completed chains older than " + daysToKeep + " days.", true, 200);
+        });
     }
 
     public List<LedgerEntity> findChainsByUserId(final String requestId, final ObjectId userId, final int offset, final int limit, final String source) {
@@ -426,30 +498,36 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public ServiceResponse deleteByDocumentId(final String requestId, final ObjectId userId,
                                                final String documentId, final String source) {
 
-        if (legalHoldDataService.isProtectedDocument(userId, documentId)) {
-            final List<LegalHoldEntity> holds =
-                    legalHoldDataService.findBlockingHoldsForDocument(userId, documentId);
-            final String refs = holds.stream().map(LegalHoldEntity::getReference)
-                    .reduce((a, b) -> a + ", " + b).orElse("unknown");
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
-                    userId, null, null,
-                    "operation: delete_document_chain, documentId: " + documentId
-                            + ", blocking holds: " + refs);
-            return new ServiceResponse(
-                    "Deletion blocked by legal hold(s): " + refs
-                            + ". Release the hold(s) before deleting this chain.",
-                    false, 423);
-        }
+        return evidenceGuard.execute(userId, "delete_document_chain", () -> {
+            if (legalHoldDataService.isProtectedDocument(userId, documentId)) {
+                final List<LegalHoldEntity> holds =
+                        legalHoldDataService.findBlockingHoldsForDocument(userId, documentId);
+                final String refs = holds.stream().map(LegalHoldEntity::getReference)
+                        .reduce((a, b) -> a + ", " + b).orElse("unknown");
+                auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
+                        userId, null, null,
+                        "operation: delete_document_chain, documentId: " + documentId
+                                + ", blocking holds: " + refs);
+                return new ServiceResponse(
+                        "Deletion blocked by legal hold(s): " + refs
+                                + ". Release the hold(s) before deleting this chain.",
+                        false, 423);
+            }
 
-        final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
-                Filters.eq("document_id", documentId));
+            final Document chain = chainStates.find(Filters.eq("_id", chainId(userId, documentId))).first();
+            if (chain == null) return new ServiceResponse("Ledger chain not found.", false, 404);
+            if (!deletableChain(chain)) return publicationConflict();
+            markDeleted(chain);
+            final Bson query = Filters.and(
+                    Filters.eq("user_id", userId),
+                    Filters.eq("document_id", documentId));
 
-        collection.deleteMany(query);
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
-                null, source, "documentId: " + documentId);
+            evidence.deleteMany(query);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
+                    null, source, "documentId: " + documentId);
 
-        return ServiceResponse.success();
+            return ServiceResponse.success();
+        });
     }
 
     /**
@@ -460,28 +538,56 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      */
     public ServiceResponse deleteAllByUserId(final String requestId, final ObjectId userId) {
 
-        if (legalHoldDataService.hasAnyHold(userId)) {
-            final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
-            final String refs = holds.stream().map(LegalHoldEntity::getReference)
-                    .reduce((a, b) -> a + ", " + b).orElse("unknown");
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
-                    userId, null, null,
-                    "operation: delete_all_by_user, blocking holds: " + refs);
-            return new ServiceResponse(
-                    "Deletion blocked by legal hold(s): " + refs
-                            + ". Release all holds before deleting user evidence.",
-                    false, 423);
+        return evidenceGuard.execute(userId, "delete_all_by_user", () -> {
+            if (legalHoldDataService.hasAnyHold(userId)) {
+                final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
+                final String refs = holds.stream().map(LegalHoldEntity::getReference)
+                        .reduce((a, b) -> a + ", " + b).orElse("unknown");
+                auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
+                        userId, null, null,
+                        "operation: delete_all_by_user, blocking holds: " + refs);
+                return new ServiceResponse(
+                        "Deletion blocked by legal hold(s): " + refs
+                                + ". Release all holds before deleting user evidence.",
+                        false, 423);
+            }
+
+            // Freeze the deletion set. A chain created after this read must not be swept up
+            // by an owner-wide delete while its genesis or subsequent entries are being written.
+            final List<Document> chains = chainStates.find(Filters.eq("user_id", userId)).into(new ArrayList<>());
+            if (chains.stream().anyMatch(chain -> !deletableChain(chain))) return publicationConflict();
+            long deletedCount = 0;
+            for (final Document chain : chains) {
+                markDeleted(chain);
+                deletedCount += evidence.deleteMany(Filters.and(Filters.eq("user_id", userId),
+                        Filters.eq("document_id", chain.getString("document_id")))).getDeletedCount();
+            }
+
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
+                    null, null, "operation: delete_all_by_user, deletedCount: " + deletedCount);
+
+            return new ServiceResponse("Deleted " + deletedCount + " ledger entries from the selected completed chains.",
+                    true, 200);
+        });
+    }
+
+    private static boolean deletableChain(final Document chain) {
+        return "complete".equals(chain.getString("state")) || "purged".equals(chain.getString("state"));
+    }
+
+    private static ServiceResponse publicationConflict() {
+        return new ServiceResponse("Ledger publication is active or requires recovery. Only completed chains can be deleted.",
+                false, 409);
+    }
+
+    private void markDeleted(final Document chain) {
+        // Preserve the tombstone even when deleting entries fails. Neither a delayed writer
+        // nor a new genesis can reopen this document ID; retrying deletion remains safe.
+        if (chainStates.updateOne(Filters.and(Filters.eq("_id", chain.getString("_id")),
+                        Filters.in("state", "complete", "purged")), Updates.set("state", "purged"))
+                .getMatchedCount() != 1) {
+            throw new IllegalStateException("Ledger chain deletion state could not be established.");
         }
-
-        final Document query = new Document("user_id", userId);
-        final DeleteResult deleteResult = collection.deleteMany(query);
-
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
-                null, null,
-                "operation: delete_all_by_user, deletedCount: " + deleteResult.getDeletedCount());
-
-        return new ServiceResponse("Deleted " + deleteResult.getDeletedCount() + " ledger entries.",
-                true, 200);
     }
 
 }

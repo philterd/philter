@@ -65,7 +65,8 @@ class SigningServiceTest {
         kpg.initialize(new ECGenParameterSpec("secp256r1"));
         keyPair = kpg.generateKeyPair();
 
-        lenient().when(signingKeyDataService.getPrivateKey()).thenReturn(keyPair.getPrivate());
+        lenient().when(signingKeyDataService.currentSigningKey()).thenReturn(
+                new SigningKeyDataService.SigningKey(keyPair.getPrivate(), "test-key"));
 
         signingService = new SigningService(signingKeyDataService, adminSettingsDataService);
     }

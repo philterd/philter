@@ -21,6 +21,9 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.ReadPreference;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
@@ -43,19 +46,23 @@ import java.util.List;
  * Multiple holds may protect the same evidence simultaneously; releasing one hold never
  * unblocks evidence still covered by another.
  *
- * <p>Hold enforcement: call {@link #isProtectedDocument} or {@link #hasAnyHold} before any
- * delete or purge operation on ledger entries. Both methods return quickly via an indexed
- * {@code find().first()} query so the overhead on the hot path is minimal.
+ * <p>Hold changes and ledger deletions share an owner-scoped EvidenceOperationGuard.
+ * Hold checks alone are read-only observations and do not serialize a later deletion.
  */
 public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LegalHoldDataService.class);
+    private final EvidenceOperationGuard guard;
+    private final MongoCollection<Document> holds;
 
     public LegalHoldDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "legal_holds", auditEventPublisher);
 
+        guard = new EvidenceOperationGuard(mongoClient);
+        holds = collection.withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
+
         // Fast lookup by owner + reference (uniqueness constraint).
-        ensureIndex(Indexes.ascending("user_id", "reference"), new IndexOptions().unique(true));
+        holds.createIndex(Indexes.ascending("user_id", "reference"), new IndexOptions().unique(true));
         // Hold-check queries: is any hold active for this user?
         ensureIndex(Indexes.ascending("user_id", "scope_type", "scope_value"));
     }
@@ -82,26 +89,28 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
             return new ServiceResponse("Scope value is required.", false, 400);
         }
 
-        if (findByReference(reference, userId) != null) {
-            return new ServiceResponse("A hold with reference '" + reference + "' already exists.", false, 409);
-        }
+        return guard.execute(userId, "create_hold", () -> {
+            if (findByReference(reference, userId) != null) {
+                return new ServiceResponse("A hold with reference '" + reference + "' already exists.", false, 409);
+            }
 
-        final LegalHoldEntity hold = new LegalHoldEntity();
-        hold.setUserId(userId);
-        hold.setReference(reference);
-        hold.setScopeType(scopeType);
-        hold.setScopeValue(scopeValue);
-        hold.setReason(reason);
-        hold.setSetAt(new Date());
-        hold.setSetByUserId(setByUserId);
+            final LegalHoldEntity hold = new LegalHoldEntity();
+            hold.setUserId(userId);
+            hold.setReference(reference);
+            hold.setScopeType(scopeType);
+            hold.setScopeValue(scopeValue);
+            hold.setReason(reason);
+            hold.setSetAt(new Date());
+            hold.setSetByUserId(setByUserId);
 
-        save(hold);
+            holds.insertOne(hold.toDocument());
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_SET, userId, null,
-                null, "reference: " + reference + ", scopeType: " + scopeType
-                        + ", scopeValue: " + scopeValue);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_SET, userId, null,
+                    null, "reference: " + reference + ", scopeType: " + scopeType
+                            + ", scopeValue: " + scopeValue);
 
-        return new ServiceResponse("Legal hold '" + reference + "' set.", true, 201);
+            return new ServiceResponse("Legal hold '" + reference + "' set.", true, 201);
+        });
     }
 
     /**
@@ -112,26 +121,39 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
     public ServiceResponse release(final String requestId, final String reference,
                                     final ObjectId userId) {
 
-        final LegalHoldEntity hold = findByReference(reference, userId);
-        if (hold == null) {
-            return new ServiceResponse("Hold '" + reference + "' not found.", false, 404);
-        }
+        return guard.execute(userId, "release_hold", () -> {
+            final LegalHoldEntity hold = findByReference(reference, userId);
+            if (hold == null) {
+                return new ServiceResponse("Hold '" + reference + "' not found.", false, 404);
+            }
 
-        collection.deleteOne(Filters.and(
-                Filters.eq("user_id", userId),
-                Filters.eq("reference", reference)));
+            holds.deleteOne(Filters.and(
+                    Filters.eq("user_id", userId),
+                    Filters.eq("reference", reference)));
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_RELEASED, userId, null,
-                null, "reference: " + reference);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_RELEASED, userId, null,
+                    null, "reference: " + reference);
 
-        return new ServiceResponse("Legal hold '" + reference + "' released.", true, 200);
+            return new ServiceResponse("Legal hold '" + reference + "' released.", true, 200);
+        });
+    }
+
+    /** Hold mutations must participate in owner coordination and auditing. */
+    @Override
+    public ObjectId save(final LegalHoldEntity entity) {
+        throw new UnsupportedOperationException("Use create to set a legal hold.");
+    }
+
+    @Override
+    public void update(final LegalHoldEntity entity) {
+        throw new UnsupportedOperationException("Use create/release to change legal holds.");
     }
 
     /**
      * Returns the hold with the given reference for the given owner, or {@code null} if none exists.
      */
     public LegalHoldEntity findByReference(final String reference, final ObjectId userId) {
-        final Document doc = collection.find(Filters.and(
+        final Document doc = holds.find(Filters.and(
                 Filters.eq("user_id", userId),
                 Filters.eq("reference", reference))).first();
         return doc != null ? LegalHoldEntity.fromDocument(doc) : null;
@@ -141,7 +163,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
      * Returns a page of all holds owned by the given user, most recently set first.
      */
     public List<LegalHoldEntity> findAllByUserId(final ObjectId userId, final int offset, final int limit) {
-        final FindIterable<Document> docs = collection.find(Filters.eq("user_id", userId))
+        final FindIterable<Document> docs = holds.find(Filters.eq("user_id", userId))
                 .sort(Sorts.descending("set_at"))
                 .skip(offset)
                 .limit(limit);
@@ -152,7 +174,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
      * Returns a page of all holds across all users, most recently set first. Admin use only.
      */
     public List<LegalHoldEntity> findAll(final int offset, final int limit) {
-        final FindIterable<Document> docs = collection.find()
+        final FindIterable<Document> docs = holds.find()
                 .sort(Sorts.descending("set_at"))
                 .skip(offset)
                 .limit(limit);
@@ -161,12 +183,12 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
 
     /** Returns the total number of holds owned by the given user. */
     public int countByUserId(final ObjectId userId) {
-        return (int) collection.countDocuments(Filters.eq("user_id", userId));
+        return (int) holds.countDocuments(Filters.eq("user_id", userId));
     }
 
     /** Returns the total number of holds across all users. Admin use only. */
     public int countAll() {
-        return (int) collection.countDocuments();
+        return (int) holds.countDocuments();
     }
 
     /**
@@ -190,7 +212,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
                                 Filters.eq("scope_type", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN),
                                 Filters.eq("scope_value", documentId)),
                         Filters.eq("scope_type", LegalHoldEntity.SCOPE_USER)));
-        return collection.find(query).first() != null;
+        return holds.find(query).first() != null;
     }
 
     /**
@@ -201,7 +223,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
      * because the age-based query does not know which documents are covered by document_chain holds.
      */
     public boolean hasAnyHold(final ObjectId userId) {
-        return collection.find(Filters.eq("user_id", userId)).first() != null;
+        return holds.find(Filters.eq("user_id", userId)).first() != null;
     }
 
     /**
@@ -217,7 +239,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
                                 Filters.eq("scope_type", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN),
                                 Filters.eq("scope_value", documentId)),
                         Filters.eq("scope_type", LegalHoldEntity.SCOPE_USER)));
-        return toList(collection.find(query));
+        return toList(holds.find(query));
     }
 
     /**
@@ -225,7 +247,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
      * the error message shown to the operator when a purge is refused.
      */
     public List<LegalHoldEntity> findAllHoldsForUser(final ObjectId userId) {
-        return toList(collection.find(Filters.eq("user_id", userId)));
+        return toList(holds.find(Filters.eq("user_id", userId)));
     }
 
     private static List<LegalHoldEntity> toList(final Iterable<Document> docs) {

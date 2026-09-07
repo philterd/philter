@@ -42,6 +42,7 @@ public class LoginAttemptCache extends Cache {
         super(host, port, password, ssl);
         this.maxAttempts = EnvUtils.getInt("LOGIN_MAX_ATTEMPTS", 5);
         this.lockoutSeconds = EnvUtils.getInt("LOGIN_LOCKOUT_SECONDS", 900);
+        if (maxAttempts <= 0 || lockoutSeconds <= 0) throw new IllegalArgumentException("Login limits must be positive.");
     }
 
     /**
@@ -66,6 +67,7 @@ public class LoginAttemptCache extends Cache {
 
     /** Returns whether the username is currently locked out. */
     public boolean isLocked(final String username) {
+        if (backend.counterCapacityExceeded()) return true;
 
         final String existing = backend.get(buildKey(username));
         if (existing == null) {

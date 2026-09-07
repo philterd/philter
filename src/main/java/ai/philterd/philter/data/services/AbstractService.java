@@ -64,39 +64,9 @@ public class AbstractService<T extends AbstractEntity> {
         }
     }
 
-    /**
-     * Creates an index with the given options (for example, a unique index) if it does not already
-     * exist. As with {@link #ensureIndex(Bson)}, a failure is logged but never propagated, so it
-     * cannot prevent the application from starting. Note that a unique index will fail to build if
-     * the collection already contains documents that violate it.
-     *
-     * @param keys    The index key specification (see {@code com.mongodb.client.model.Indexes}).
-     * @param options The index options (see {@code com.mongodb.client.model.IndexOptions}).
-     */
+    /** Required constraints and retention indexes must be established before startup succeeds. */
     protected void ensureIndex(final Bson keys, final IndexOptions options) {
-        try {
-            collection.createIndex(keys, options);
-        } catch (final Exception ex) {
-            ABSTRACT_SERVICE_LOGGER.warn("Unable to create index {} on collection '{}': {}",
-                    keys, collection.getNamespace().getCollectionName(), ex.getMessage());
-        }
-    }
-
-    /**
-     * Drops the named index if it exists. Used to migrate away from a superseded index definition (for
-     * example, changing a unique index's key set) before recreating it. A failure — including the index
-     * simply not existing — is logged at debug level and never propagated, so it cannot prevent startup.
-     *
-     * @param indexName The name of the index to drop (the auto-generated name, e.g. {@code context_name_1}).
-     */
-    protected void dropIndexIfExists(final String indexName) {
-        try {
-            collection.dropIndex(indexName);
-            ABSTRACT_SERVICE_LOGGER.info("Dropped legacy index '{}'.", indexName);
-        } catch (final Exception ex) {
-            // The index does not exist (nothing to migrate) or could not be dropped; either way, continue.
-            ABSTRACT_SERVICE_LOGGER.debug("No legacy index '{}' to drop: {}", indexName, ex.getMessage());
-        }
+        RequiredSchema.ensureIndex(collection, keys, options);
     }
 
     public ObjectId save(T entity) {

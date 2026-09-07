@@ -37,6 +37,9 @@ public class LedgerEntryView {
     private String policyName;
     private int policyVersion;
     private String policyContentHash;
+    private String effectiveHash;
+    public String getEffectiveHash() { return effectiveHash; }
+    public void setEffectiveHash(String value) { effectiveHash = value; }
     /** ES256 signature over {@code hash}, and the id of the key that produced it. */
     private String signature;
     private String signingKeyId;

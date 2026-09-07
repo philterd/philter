@@ -12,7 +12,7 @@ Philter's API has the following sections:
 
 ## OpenAPI Specification
 
-Philter's API is described by an OpenAPI specification generated from the application's source. It is regenerated on every build, so it always matches the code. You can always find it in any of these places:
+Philter's API is described by an OpenAPI specification generated from the application's source. The OpenAPI export integration test regenerates it and checks it against the registered routes and the committed copy. Run that test when changing an endpoint; a successful ordinary compilation alone does not refresh the published artifact. You can always find it in any of these places:
 
 * **In this documentation:** [openapi.json](openapi.json). This matches the released version of Philter and needs no running instance.
 * **In the GitHub repository:** [`docs/docs/api_and_sdks/openapi.json`](https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.json). This is the committed copy, reflecting the latest code on `main`.
@@ -35,3 +35,7 @@ Philter serves its API over HTTPS, using a self-signed certificate generated on 
 ## SDKs
 
 The Philter [Java SDK](sdks.md) provides convenient methods for using Philter's API. For other languages, generate a client from the OpenAPI specification above. See [Client SDKs](sdks.md) for more information.
+
+## Complete endpoint inventory
+
+The [endpoint inventory](api/endpoint_inventory.md) lists every HTTP operation, its required scope, and its detailed reference. Additional API sections include the [Redaction Ledger API](api/ledger_api.md), [Legal Holds API](api/legal_holds_api.md), [policy history and rollback](api/policies_api.md#policy-version-history), [re-identification](../redaction/re-identification.md), and [public health and signing keys](api/public_api.md).

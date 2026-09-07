@@ -88,8 +88,8 @@ class RedactionWorkerIT extends AbstractMongoIT {
     private void stubRedactionReturns(final byte[] output) throws Exception {
         final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
         when(result.getDocument()).thenReturn(output);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(new RedactionOutcome("doc-worker", result, new AppliedPolicy("default", 0, "hash")));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return new RedactionOutcome("doc-worker", result, new AppliedPolicy("default", 0, "hash")); });
     }
 
     @Test
@@ -110,7 +110,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         // The job's policy, input, filename and document id all reach the service.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
         verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(),
-                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"), eq("doc-1"));
+                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"), eq("doc-1"), any());
         assertArrayEquals(new byte[]{1, 2, 3}, body.getValue());
     }
 
@@ -119,7 +119,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final ObjectId user = new ObjectId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
 
         worker.poll();
 
@@ -132,7 +132,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     void pollDoesNothingWhenQueueIsEmpty() throws Exception {
         worker.poll();
-        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -143,6 +143,8 @@ class RedactionWorkerIT extends AbstractMongoIT {
         // (older than the worker's 10-minute stuck threshold).
         final PendingDocumentEntity stuck = newPending(user, "doc-1");
         stuck.setStatus(PendingDocumentEntity.STATUS_PROCESSING);
+        stuck.setClaimToken("dead-attempt");
+        stuck.setClaimExpiresAt(new Date(0));
         stuck.setClaimedBy("dead-worker");
         stuck.setClaimedAt(new Date(System.currentTimeMillis() - (11L * 60L * 1000L)));
         stuck.setStartedAt(stuck.getClaimedAt());
@@ -172,7 +174,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     private String enqueuedPayload() {
         final ArgumentCaptor<WebhookDeliveryEntity> delivery =
                 ArgumentCaptor.forClass(WebhookDeliveryEntity.class);
-        verify(webhookDeliveryDataService).save(delivery.capture());
+        verify(webhookDeliveryDataService).enqueueOnce(delivery.capture());
         return delivery.getValue().getPayload();
     }
 
@@ -198,7 +200,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final ObjectId user = new ObjectId();
         userWithWebhook(user);
         pendingDocumentDataService.save(newPending(user, "doc-1"));
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
 
         worker.poll();
@@ -235,10 +237,10 @@ class RedactionWorkerIT extends AbstractMongoIT {
         pendingDocumentDataService.save(newPending(user, "doc-bad"));
         pendingDocumentDataService.save(newPending(user, "doc-good"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"))
-                .thenReturn(new RedactionOutcome("doc-good", binaryResultReturning(new byte[]{7}),
-                        new AppliedPolicy("default", 0, "hash")));
+                .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return new RedactionOutcome("doc-good", binaryResultReturning(new byte[]{7}),
+                        new AppliedPolicy("default", 0, "hash")); });
 
         worker.poll();
 
@@ -253,6 +255,99 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
         when(result.getDocument()).thenReturn(output);
         return result;
+    }
+
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void pausedWorkerCannotPublishOrNotifyAfterNewWorkerCompletes(final boolean lateFailure) throws Exception {
+        final ObjectId user = new ObjectId();
+        userWithWebhook(user);
+        pendingDocumentDataService.save(newPending(user, "race-doc"));
+        final var entered = new java.util.concurrent.CountDownLatch(1);
+        final var resume = new java.util.concurrent.CountDownLatch(1);
+        final var publications = new java.util.concurrent.atomic.AtomicInteger();
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    entered.countDown();
+                    assertTrue(resume.await(10, java.util.concurrent.TimeUnit.SECONDS));
+                    if (lateFailure) throw new IllegalStateException("old failure");
+                    invocation.getArgument(8, Runnable.class).run();
+                    publications.incrementAndGet();
+                    return new RedactionOutcome("race-doc", binaryResultReturning(new byte[]{0}),
+                            new AppliedPolicy("default", 0, "hash"));
+                });
+        try (final var executor = java.util.concurrent.Executors.newSingleThreadExecutor()) {
+            final var oldWorker = executor.submit(worker::poll);
+            try {
+                assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                mongoClient.getDatabase("philter").getCollection("pending_documents").updateOne(
+                        new org.bson.Document("document_id", "race-doc"),
+                        new org.bson.Document("$set", new org.bson.Document("claim_expires_at", new Date(0))));
+                final var newPipeline = mock(RedactionService.class);
+                when(newPipeline.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                        .thenAnswer(invocation -> {
+                            invocation.getArgument(8, Runnable.class).run();
+                            publications.incrementAndGet();
+                            return new RedactionOutcome("race-doc", binaryResultReturning(new byte[]{9}),
+                                    new AppliedPolicy("default", 0, "hash"));
+                        });
+                final var newService = new PendingDocumentDataService(mongoClient,
+                        new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
+                new RedactionWorker(newService, newPipeline, userService, webhookDeliveryDataService,
+                        mock(PolicyVersionDataService.class), new Gson()).poll();
+            } finally {
+                resume.countDown();
+            }
+            oldWorker.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        final var result = pendingDocumentDataService.findOneByDocumentIdAndUserId("race-doc", user);
+        assertEquals(PendingDocumentEntity.STATUS_COMPLETE, result.getStatus());
+        assertArrayEquals(new byte[]{9}, result.getOutput());
+        assertEquals(1, publications.get());
+        verify(webhookDeliveryDataService, org.mockito.Mockito.times(1)).enqueueOnce(any());
+        assertTrue(enqueuedPayload().contains(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE));
+    }
+
+    @Test
+    void heartbeatRunsWhileFilteringIsBlocked() throws Exception {
+        final ObjectId user = new ObjectId();
+        pendingDocumentDataService.save(newPending(user, "slow"));
+        final var service = org.mockito.Mockito.spy(pendingDocumentDataService);
+        final var renewed = new java.util.concurrent.CountDownLatch(1);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            final boolean accepted = (boolean) invocation.callRealMethod();
+            if (accepted) renewed.countDown();
+            return accepted;
+        }).when(service).renewClaim(any(), any());
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    assertTrue(renewed.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                    invocation.getArgument(8, Runnable.class).run();
+                    return new RedactionOutcome("slow", binaryResultReturning(new byte[]{9}),
+                            new AppliedPolicy("default", 0, "hash"));
+                });
+        new RedactionWorker(service, redactionService, userService, webhookDeliveryDataService,
+                mock(PolicyVersionDataService.class), new Gson(), 10).poll();
+        assertEquals(PendingDocumentEntity.STATUS_COMPLETE,
+                service.findOneByDocumentIdAndUserId("slow", user).getStatus());
+    }
+    @Test
+    void queuedZipResultContainsTheRedactedPdf() throws Exception {
+        final ObjectId owner = new ObjectId();
+        final var job = newPending(owner, "zip-result");
+        job.setOutputMimeType("application/zip");
+        pendingDocumentDataService.save(job);
+        byte[] pdf = "%PDF-1.7 redacted".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        stubRedactionReturns(pdf);
+        worker.poll();
+        final var result = pendingDocumentDataService.findOneByDocumentIdAndUserId("zip-result", owner);
+        assertEquals(PendingDocumentEntity.STATUS_COMPLETE, result.getStatus());
+        try (var zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(result.getOutput()))) {
+            assertEquals("redacted.pdf", zip.getNextEntry().getName());
+            assertArrayEquals(pdf, zip.readAllBytes());
+            assertNull(zip.getNextEntry());
+        }
     }
 
 }

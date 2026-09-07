@@ -27,6 +27,8 @@ services:
       # lists, documents and ledger through the owner parameter. Uncomment if you need that.
       # ADMIN_CROSS_USER_ACCESS_ENABLED: true
       # Seeded onto the admin user at first start, and only when that user has no API keys.
+      # Required only when creating the initial administrator; compose.sh generates a private value.
+      PHILTER_BOOTSTRAP_ADMIN_PASSWORD: ${PHILTER_BOOTSTRAP_ADMIN_PASSWORD:-}
       PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-}
       # Philter serves HTTPS on 8080 with a self-signed certificate generated on first start, so
       # curl needs -k. To use your own certificate, mount a PKCS12 keystore and set SSL_KEYSTORE

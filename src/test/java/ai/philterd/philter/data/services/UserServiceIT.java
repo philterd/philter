@@ -225,20 +225,13 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void ensureFpeKeyBackfillsAndPersistsForALegacyUserWithoutOne() {
-        // Simulate a user created before per-user FPE keys existed by saving one with no key.
-        final UserEntity legacy = new UserEntity();
-        legacy.setEmail("legacy@example.com");
-        legacy.setRole("user");
-        final ObjectId id = service.save(legacy);
+    void missingFpeKeyFailsWithoutChangingAccount() {
+        final UserEntity user = new UserEntity();
+        user.setUsername("missing-key"); user.setRole("user");
+        final ObjectId id = service.save(user);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> service.ensureFpeKey(service.findOneById(id)));
         assertNull(service.findOneById(id).getFpeKey());
-
-        final String key = service.ensureFpeKey(service.findOneById(id));
-        assertTrue(key.matches("[0-9a-f]{64}"));
-
-        // The backfilled key is persisted and stable on subsequent calls.
-        assertEquals(key, service.findOneById(id).getFpeKey());
-        assertEquals(key, service.ensureFpeKey(service.findOneById(id)));
     }
 
     @Test
@@ -261,7 +254,7 @@ class UserServiceIT extends AbstractMongoIT {
         final UserEntity user = service.findByUsername("dave@example.com");
         assertTrue(service.passwordMatches(user, "old-password"));
 
-        assertTrue(service.changePassword("req", user, "new-password", "webui").isSuccessful());
+        assertTrue(service.changePassword("req", user, "new-password", "system").isSuccessful());
 
         // Re-read from Mongo: the persisted hash now matches the new password, not the old one.
         final UserEntity reread = service.findByUsername("dave@example.com");
@@ -276,7 +269,7 @@ class UserServiceIT extends AbstractMongoIT {
                 .isSuccessful());
 
         final UserEntity user = service.findByUsername("erin@example.com");
-        assertTrue(service.setUserRole("req", user, "admin", "webui").isSuccessful());
+        assertTrue(service.setUserRole("req", user, "admin", "system").isSuccessful());
 
         assertEquals("admin", service.findByUsername("erin@example.com").getRole());
     }
@@ -292,7 +285,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
         assertEquals(2, contextDataService.findAll(user.getId()).size());
 
-        service.deactivateUser("req", user, "webui");
+        service.deactivateUser("req", user, "system");
 
         // A deactivated user cannot sign in or be looked up by email...
         assertNull(service.findByUsername("frank@example.com"));
@@ -330,13 +323,15 @@ class UserServiceIT extends AbstractMongoIT {
         when(noOpHoldService.isProtectedDocument(any(), any())).thenReturn(false);
         when(noOpHoldService.findAllHoldsForUser(any())).thenReturn(java.util.Collections.emptyList());
         when(noOpHoldService.findBlockingHoldsForDocument(any(), any())).thenReturn(java.util.Collections.emptyList());
+        final SigningService ledgerSigner = mock(SigningService.class);
+        when(ledgerSigner.signLedgerEntry(any())).thenReturn(new SigningService.LedgerSignature("signature", "key"));
         final LedgerDataService ledgerDataService = new LedgerDataService(
                 mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class),
-                noOpHoldService, mock(SigningService.class));
+                noOpHoldService, ledgerSigner);
         ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt", "default", 0, "policy-hash");
         assertEquals(1, ledgerDataService.countChainsByUserId(userId));
 
-        service.deactivateUser("req", user, "webui");
+        service.deactivateUser("req", user, "system");
 
         // Deactivation must not cascade: the policies and the ledger are retained ...
         assertTrue(policyDataService.count(userId) >= 1, "policies must survive user deactivation");
@@ -357,10 +352,10 @@ class UserServiceIT extends AbstractMongoIT {
         final UserEntity user = service.findByUsername("henry@example.com");
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
 
-        service.deactivateUser("req", user, "webui");
+        service.deactivateUser("req", user, "system");
         assertNull(service.findByUsername("henry@example.com"));
 
-        service.reactivateUser("req", user, "webui");
+        service.reactivateUser("req", user, "system");
 
         // Sign-in resolves again and the account is active.
         final UserEntity reactivated = service.findByUsername("henry@example.com");
@@ -380,7 +375,7 @@ class UserServiceIT extends AbstractMongoIT {
                 .isSuccessful());
         final UserEntity first = service.findByUsername("reuse@example.com");
 
-        service.deactivateUser("req", first, "webui");
+        service.deactivateUser("req", first, "system");
 
         // The email stays reserved by the deactivated account: a duplicate cannot be created.
         assertFalse(service.createUser(
@@ -403,10 +398,10 @@ class UserServiceIT extends AbstractMongoIT {
         final UserEntity user = service.findByUsername("grace@example.com");
 
         // The user has global always-redact / never-redact terms (which can hold sensitive values).
-        redactListsDataService.saveOrUpdate("req", user.getId(), List.of("ssn", "secret"), List.of("public"), "webui");
+        redactListsDataService.saveOrUpdate("req", user.getId(), List.of("ssn", "secret"), List.of("public"), "system");
         assertNotNull(redactListsDataService.find(user.getId()));
 
-        service.deactivateUser("req", user, "webui");
+        service.deactivateUser("req", user, "system");
 
         // Deactivation retains the user's data, including their redact lists, so they are restored on
         // reactivation.
@@ -570,8 +565,7 @@ class UserServiceIT extends AbstractMongoIT {
         final String username = "mfa-" + UUID.randomUUID() + "@example.com";
         service.createUser("req", username, "password", "user", policyDataService, contextDataService, "test");
         final UserEntity user = service.findByUsername(username);
-        user.setMfaEnabled(true);
-        service.update(user);
+        service.enableMfa("req", user, "TESTSECRET", "system");
         return service.findByUsername(username);
     }
 

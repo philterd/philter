@@ -97,7 +97,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         // stay verifiable. Exactly one is active.
         final var keys = mongoClient.getDatabase("philter").getCollection("signing_keys");
         assertEquals(2, keys.countDocuments(), "the superseded keypair must be retained, not deleted");
-        assertEquals(1, keys.countDocuments(com.mongodb.client.model.Filters.eq("active", true)),
+        assertEquals(1, mongoClient.getDatabase("philter").getCollection("signing_key_state").countDocuments(),
                 "exactly one key may be active");
 
         verify(publisher).auditEvent(isNull(), eq(AuditLogEvent.SIGNING_KEY_REGENERATED), eq(actingUser), isNull(), isNull(), isNull());

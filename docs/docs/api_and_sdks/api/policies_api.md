@@ -282,3 +282,7 @@ Example response:
 ```json
 { "revision": 4 }
 ```
+
+## Native JSON and concurrent changes
+
+Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Policy names are supplied in the `name` query parameter. Concurrent saves or rollback operations can return 409 if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.

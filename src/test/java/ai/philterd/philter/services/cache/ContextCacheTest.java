@@ -70,4 +70,32 @@ class ContextCacheTest {
         // A genuine user id namespaces the key and must not throw.
         assertDoesNotThrow(() -> cache.containsToken(new ObjectId(), "default", "token"));
     }
+    @Test
+    void unrelatedWritesCannotExtendAnOldMappingsAge() {
+        final var now = new java.util.concurrent.atomic.AtomicLong(1000);
+        final var cache = new ContextCache("", 0, "", false, now::get);
+        final var owner = new ObjectId();
+        cache.setTokenReplacement(owner, "context", "old", new ObjectId(), "old-value");
+        now.set(3_600_000);
+        cache.setTokenReplacement(owner, "context", "new", new ObjectId(), "new-value");
+        now.set(3_601_000);
+        org.junit.jupiter.api.Assertions.assertNull(cache.getReplacement(owner, "context", "old"));
+        org.junit.jupiter.api.Assertions.assertFalse(cache.containsToken(owner, "context", "old"));
+        org.junit.jupiter.api.Assertions.assertEquals("new-value", cache.getReplacement(owner, "context", "new").replacement());
+        cache.deleteContext(owner, "context");
+    }
+
+    @Test
+    void aFillThatLosesToMutationCannotRenewItsObservationTime() {
+        final var now = new java.util.concurrent.atomic.AtomicLong(1000);
+        final var cache = new ContextCache("", 0, "", false, now::get);
+        final var owner = new ObjectId();
+        final long readStarted = now.get();
+        now.set(3_601_000);
+        cache.deleteContext(owner, "context");
+        // The old database read resumes after mutation and cache invalidation.
+        cache.setTokenReplacement(owner, "context", "token", new ObjectId(), "stale", readStarted);
+        org.junit.jupiter.api.Assertions.assertNull(cache.getReplacement(owner, "context", "token"));
+        cache.deleteContext(owner, "context");
+    }
 }

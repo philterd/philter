@@ -172,6 +172,17 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
     }
 
     @Test
+    void deleteEntryMustMatchTheContextInTheRoute() {
+        final ObjectId owner = new ObjectId();
+        service.putReplacement(owner, "actual", "John", "David", "PERSON");
+        final ObjectId id = service.findOneEntryByToken(owner, "actual", "John").getId();
+        assertEquals(0, service.deleteByIdAndUserIdAndContext(id, owner, "different"));
+        org.junit.jupiter.api.Assertions.assertNotNull(service.findOneEntryByToken(owner, "actual", "John"));
+        assertEquals(1, service.deleteByIdAndUserIdAndContext(id, owner, "actual"));
+        org.junit.jupiter.api.Assertions.assertNull(service.findOneEntryByToken(owner, "actual", "John"));
+    }
+
+    @Test
     void findAllSupportsPagingAndUnboundedReads() {
         final ObjectId user = new ObjectId();
         for (int i = 0; i < 5; i++) {

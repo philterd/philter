@@ -11,7 +11,7 @@ Every redaction is governed by a user-defined [redaction policy](policies.md) an
 Philter redacts the following content types, selected by the request's `Content-Type`:
 
 *   **Plain Text (`text/plain`)**: Identified information is replaced according to the [filter strategy](../policies/filter_strategies.md) in your policy, for example redaction, masking, or encryption.
-*   **PDF (`application/pdf`)**: Sensitive text is obscured with opaque boxes so it can be neither read nor extracted. PDF redaction is [asynchronous by default](../api_and_sdks/api/documents_api.md).
+*   **PDF (`application/pdf`)**: The engine detects supported page text and obscures matched regions in the output. PDF redaction is [asynchronous by default](../api_and_sdks/api/documents_api.md). Sensitive content in FreeText annotations can survive processing; a successful response does not certify that every PDF surface has been redacted. Review both rendered output and extractable text, including annotations. Philter does not implement OCR or redact image-only PDFs.
 
 Philter does not redact Microsoft Word (`.docx`), other Office formats, or images.
 
@@ -24,13 +24,14 @@ When you submit a document to Philter for redaction:
 3.  **Redacted output**: A redacted copy is produced. Text is returned in the response; PDFs are queued and retrieved from the [Documents API](../api_and_sdks/api/documents_api.md) when processing finishes.
 4.  **Ledgering**: If the [redaction ledger](ledgers.md) is enabled for the context, each redaction is recorded as a hash-chained entry stamped with the policy version that governed it.
 
-Queued PDF jobs hold the submitted document only until redaction completes, after which the input is
-discarded. Text redaction stores nothing.
+Queued PDF jobs retain encrypted input while pending or processing and remove it when the job reaches a terminal state. Results and job records have a separate [retention period](../settings.md#asynchronous-documents-and-webhooks); captured execution configurations are retained separately.
+
+Synchronous text redaction does not retain the complete submitted document as a queued job. Depending on the context and configuration, it can persist token-to-replacement mappings, encrypted original and replacement values in the ledger, and audit or usage records. See [Database](../database.md) for what is stored and encrypted.
 
 ## How to Redact a Document via the Dashboard
 
 The dashboard redacts a document directly, for testing a policy before you use the API. It is not a
-document management surface: nothing is queued and nothing is stored.
+document management surface: it processes input synchronously without a context, so it does not queue a document or create context mappings or a context ledger. The input and downloadable result are held in memory for the test. Redaction metrics and configured usage reporting can still be emitted.
 
 1.  **Open the Dashboard.** Log in and select **Dashboard** in the left-hand navigation. The
     **Redaction Test** tab is where redaction runs.

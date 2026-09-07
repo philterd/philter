@@ -37,6 +37,8 @@ import org.bson.types.ObjectId;
 
 public class AdminSettingsDataService extends AbstractService<AdminSettingsEntity> {
 
+    private final MongoClient mongoClient;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AdminSettingsDataService.class);
 
     /** The Phield API key belongs to the instance, not a user; the key provider ignores this value. */
@@ -57,6 +59,7 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
     public AdminSettingsDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                                     final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "admin_settings", auditEventPublisher);
+        this.mongoClient = mongoClient;
         this.encryptionService = encryptionService;
     }
 
@@ -136,24 +139,29 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
     }
 
     public void saveDiffuseCountsEnabled(final ObjectId actingUserId, final boolean diffuseCountsEnabled) {
+        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
         auditChanged(actingUserId, updateSetting("diffuse_counts_enabled", diffuseCountsEnabled));
     }
 
     public void saveSigningEnabled(final ObjectId actingUserId, final boolean signingEnabled) {
+        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
         auditChanged(actingUserId, updateSetting("signing_enabled", signingEnabled));
     }
 
     public void saveWebhookAllowlist(final ObjectId actingUserId, final String webhookAllowlist) {
+        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
         auditChanged(actingUserId,
                 updateSetting("webhook_allowlist", webhookAllowlist == null ? "" : webhookAllowlist.trim()));
     }
 
     public void saveMfaEnabled(final ObjectId actingUserId, final boolean mfaEnabled) {
+        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
         auditChanged(actingUserId, updateSetting("mfa_enabled", mfaEnabled));
     }
 
     public void savePhieldSettings(final ObjectId actingUserId, final boolean enabled, final String url,
                                    final String sourceId, final String organization, final String apiKey) {
+        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
 
         final List<String> changed = new ArrayList<>();
 

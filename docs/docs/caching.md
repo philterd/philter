@@ -14,6 +14,13 @@ Philter supports two cache backends.
 
 When no cache host is configured, Philter uses a built-in, in-process cache. It requires no extra infrastructure and is the right choice for a single Philter instance. Because it lives inside the JVM, the cached data is ephemeral (it is lost on restart) and is **not shared between instances**. The Docker Compose configuration shipped with Philter runs this way, and Philter logs a warning at startup noting that the cache is in-memory.
 
+Expired string entries, login counters, and context hashes are reclaimed by a process-wide background
+task, with a one-second delay between cleanup passes, even if those keys are never read again.
+Reads also reject expired values immediately. Closing an individual cache wrapper does not stop
+cleanup for other users of the shared store.
+
+The in-memory backend bounds live and non-expiring entries by entry count and accounted bytes. At capacity, ordinary writes become cache misses; counter overflow blocks login for the failure window. See the capacity settings below.
+
 ## Valkey/Redis cache (distributed deployments)
 
 When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, which causes:
@@ -89,3 +96,9 @@ The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache
       retries: 5
       start_period: 10s
 ```
+
+The in-memory backend bounds both entry count (including every hash field) and accounted retained bytes. Defaults are 100,000 entries and 64 MiB; configure `IN_MEMORY_CACHE_MAX_ENTRIES` and `IN_MEMORY_CACHE_MAX_BYTES` with positive values. Ordinary overflow becomes a cache miss. Login counters are preserved, and counter overflow blocks dashboard login for the failure window. Increasing capacity does not make the in-memory backend suitable for multiple instances; those still require a shared cache.
+
+## Context mapping freshness
+
+Every cached mapping has a fixed maximum age of 3,600 seconds, measured from the start of the database observation that populated it. Reads reject expired mappings even if unrelated writes keep the containing context hash alive. A delayed cache fill cannot restart that age. This bounds stale mappings after import/deletion or a concurrent fill; it does not provide immediate consistency after mutation. The bound assumes reasonably synchronized instance clocks.

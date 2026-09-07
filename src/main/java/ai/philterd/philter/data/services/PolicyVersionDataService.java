@@ -57,10 +57,14 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     private static final Logger LOGGER = LoggerFactory.getLogger(PolicyVersionDataService.class);
 
     /** Serializes canonicalized policy JSON compactly for hashing. */
+    private final com.mongodb.client.MongoCollection<Document> contents;
+
     private static final Gson CANONICAL_GSON = new Gson();
 
     public PolicyVersionDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "policy_versions", auditEventPublisher);
+
+        contents = mongoClient.getDatabase("philter").getCollection("policy_contents");
 
         // A snapshot is identified by the revision it was taken at, not by its content: the same
         // content legitimately reappears at a later revision, through a rollback or an edit that
@@ -124,11 +128,8 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     }
 
     /**
-     * Records an immutable snapshot of the policy's current content, if one does not already exist for
-     * that content. Idempotent and keyed by content hash, so calling it repeatedly (or for unchanged
-     * content) is safe and cheap. A policy with no JSON body is skipped.
-     *
-     * @return the content hash of the snapshot, or {@code null} if there was nothing to snapshot.
+     * Retains content by hash and an immutable owner/name/revision reference. Repeated identical
+     * snapshots are idempotent; conflicting content for an existing revision is rejected.
      */
     public String snapshot(final PolicyEntity policyEntity) {
 
@@ -142,8 +143,21 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
             return null;
         }
 
-        // Idempotent per revision. The unique index is the backstop against a race.
-        if (findByNameAndRevision(policyEntity.getName(), policyEntity.getUserId(), policyEntity.getRevision()) != null) {
+        // Persist the content independently of the revision reference. Only duplicate-key errors
+        // are idempotent; authorization, validation and storage failures must reach the caller.
+        try {
+            contents.insertOne(new Document("_id", hash).append("policy", policyJson));
+        } catch (final com.mongodb.MongoWriteException e) {
+            if (e.getError().getCode() != 11000) throw e;
+            final Document existing = contents.find(Filters.eq("_id", hash)).first();
+            if (existing == null || !hash.equals(contentHash(existing.getString("policy")))) throw e;
+        }
+        final PolicyVersionEntity existing = findByNameAndRevision(policyEntity.getName(),
+                policyEntity.getUserId(), policyEntity.getRevision());
+        if (existing != null) {
+            if (!hash.equals(existing.getContentHash())) {
+                throw new IllegalStateException("Policy revision already refers to different content.");
+            }
             return hash;
         }
 
@@ -158,8 +172,10 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         try {
             save(version);
         } catch (final com.mongodb.MongoWriteException e) {
-            // A concurrent snapshot of the same revision won the race; it is retained either way.
-            LOGGER.debug("Policy version snapshot for hash {} already exists: {}", hash, e.getMessage());
+            if (e.getError().getCode() != 11000) throw e;
+            final PolicyVersionEntity winner = findByNameAndRevision(policyEntity.getName(),
+                    policyEntity.getUserId(), policyEntity.getRevision());
+            if (winner == null || !hash.equals(winner.getContentHash())) throw e;
         }
 
         return hash;
@@ -170,8 +186,15 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         if (contentHash == null) {
             return null;
         }
-        final Document document = collection.find(Filters.eq("content_hash", contentHash)).first();
-        return document != null ? PolicyVersionEntity.fromDocument(document) : null;
+        final Document document = contents.find(Filters.eq("_id", contentHash)).first();
+        if (document == null) return null;
+        if (!contentHash.equals(contentHash(document.getString("policy")))) {
+            throw new IllegalStateException("Policy content does not match its fingerprint.");
+        }
+        final PolicyVersionEntity result = new PolicyVersionEntity();
+        result.setContentHash(contentHash);
+        result.setPolicy(document.getString("policy"));
+        return result;
     }
 
     /**
@@ -216,4 +239,8 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         return findAllByName(name, userId, 0, 2);
     }
 
+    @Override
+    public void update(PolicyVersionEntity version) {
+        throw new UnsupportedOperationException("Policy versions are immutable.");
+    }
 }

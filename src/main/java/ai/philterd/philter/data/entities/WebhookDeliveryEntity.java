@@ -15,14 +15,17 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.encryption.EncryptResult;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import java.util.Date;
 
-public class WebhookDeliveryEntity extends AbstractEntity {
+public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
 
     public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_PROCESSING = "PROCESSING";
     public static final String STATUS_DELIVERED = "DELIVERED";
     public static final String STATUS_FAILED = "FAILED";
 
@@ -38,13 +41,18 @@ public class WebhookDeliveryEntity extends AbstractEntity {
     private String secret;
     private String payload;
     private int attempts;
+    private String claimToken;
+    private Date claimExpiresAt;
     private String lastError;
     private Date nextAttemptAt;
     private Date createdAt;
     private Date updatedAt;
     private Date deliveredAt;
+    private Date completedAt;
+    public Date getCompletedAt() { return completedAt; }
+    public void setCompletedAt(Date value) { completedAt = value; }
 
-    public static WebhookDeliveryEntity fromDocument(final Document document) {
+    public static WebhookDeliveryEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
         entity.setId(document.getObjectId("_id"));
         entity.setUserId(document.getObjectId("user_id"));
@@ -52,19 +60,31 @@ public class WebhookDeliveryEntity extends AbstractEntity {
         entity.setEventType(document.getString("event_type"));
         entity.setStatus(document.getString("status"));
         entity.setUrl(document.getString("url"));
-        entity.setSecret(document.getString("secret"));
+        final String storedSecret = document.getString("secret");
+        if (storedSecret != null && !storedSecret.isEmpty()) {
+            final String encryptedKey = document.getString("secret_encrypted_key");
+            if (encryptedKey == null || encryptedKey.isBlank()) {
+                throw new IllegalStateException("Webhook signing secret has not been encrypted.");
+            }
+            entity.setSecret(encryptionService.decrypt(storedSecret, encryptedKey));
+        } else {
+            entity.setSecret(storedSecret);
+        }
         entity.setPayload(document.getString("payload"));
         entity.setAttempts(document.getInteger("attempts", 0));
+        entity.setClaimToken(document.getString("claim_token"));
+        entity.setClaimExpiresAt(document.getDate("claim_expires_at"));
         entity.setLastError(document.getString("last_error"));
         entity.setNextAttemptAt(document.getDate("next_attempt_at"));
         entity.setCreatedAt(document.getDate("created_at"));
         entity.setUpdatedAt(document.getDate("updated_at"));
         entity.setDeliveredAt(document.getDate("delivered_at"));
+        entity.setCompletedAt(document.getDate("completed_at"));
         return entity;
     }
 
     @Override
-    public Document toDocument() {
+    public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if (id != null) {
             document.put("_id", id);
@@ -74,14 +94,24 @@ public class WebhookDeliveryEntity extends AbstractEntity {
         document.put("event_type", eventType);
         document.put("status", status);
         document.put("url", url);
-        document.put("secret", secret);
+        if (secret != null && !secret.isEmpty()) {
+            final EncryptResult encrypted = encryptionService.encrypt(secret, userId.toHexString());
+            document.put("secret", encrypted.getEncryptedText());
+            document.put("secret_encrypted_key", encrypted.getEncryptionKey());
+        } else {
+            document.put("secret", secret);
+            document.put("secret_encrypted_key", null);
+        }
         document.put("payload", payload);
         document.put("attempts", attempts);
+        document.put("claim_token", claimToken);
+        document.put("claim_expires_at", claimExpiresAt);
         document.put("last_error", lastError);
         document.put("next_attempt_at", nextAttemptAt);
         document.put("created_at", createdAt);
         document.put("updated_at", updatedAt);
         document.put("delivered_at", deliveredAt);
+        document.put("completed_at", completedAt);
         return document;
     }
 
@@ -148,6 +178,22 @@ public class WebhookDeliveryEntity extends AbstractEntity {
 
     public void setPayload(final String payload) {
         this.payload = payload;
+    }
+
+    public String getClaimToken() {
+        return claimToken;
+    }
+
+    public void setClaimToken(final String claimToken) {
+        this.claimToken = claimToken;
+    }
+
+    public Date getClaimExpiresAt() {
+        return claimExpiresAt;
+    }
+
+    public void setClaimExpiresAt(final Date claimExpiresAt) {
+        this.claimExpiresAt = claimExpiresAt;
     }
 
     public int getAttempts() {

@@ -313,7 +313,7 @@ class LedgerEntityTest {
         final ByteArrayOutputStream canonical = new ByteArrayOutputStream();
 
         for (final Object field : new Object[]{userId, "doc-1", token, "REDACTED", 0L, "dochash",
-                "1970-01-01T00:00:00.000Z", "prev", "default", 1, "policyhash", "dossier.pdf", "PERSON"}) {
+                "1970-01-01T00:00:00.000Z", "prev", "default", 1, "policyhash", null, "dossier.pdf", "PERSON"}) {
             final byte[] value = String.valueOf(field).getBytes(StandardCharsets.UTF_8);
             canonical.writeBytes(Integer.toString(value.length).getBytes(StandardCharsets.US_ASCII));
             canonical.write(':');

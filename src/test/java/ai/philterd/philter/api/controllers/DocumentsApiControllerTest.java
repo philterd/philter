@@ -262,4 +262,16 @@ class DocumentsApiControllerTest {
                 any(), any(), any(), any());
     }
 
+    @Test
+    void failedStatusExposesErrorAndCapturedConfigurationHash() throws Exception {
+        var job = new PendingDocumentEntity(); job.setDocumentId("failed");
+        job.setStatus(PendingDocumentEntity.STATUS_FAILED); job.setErrorMessage("Unable to parse PDF.");
+        job.setEffectiveHash("config-hash");
+        when(pendingDocumentDataService.findOneByDocumentIdAndUserId("failed", userId)).thenReturn(job);
+        mockMvc.perform(get("/api/documents/failed/status").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.error").value("Unable to parse PDF."))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.effectiveConfigurationHash").value("config-hash"));
+    }
+
 }

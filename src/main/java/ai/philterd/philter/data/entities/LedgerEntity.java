@@ -51,6 +51,9 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     private String policyName;
     private int policyVersion;
     private String policyContentHash;
+    private String effectiveHash;
+    public String getEffectiveHash() { return effectiveHash; }
+    public void setEffectiveHash(String value) { effectiveHash = value; }
 
     public LedgerEntity() {
 
@@ -97,6 +100,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         ledgerEntity.policyName = document.getString("policy_name");
         ledgerEntity.policyVersion = document.getInteger("policy_version", 0);
         ledgerEntity.policyContentHash = document.getString("policy_content_hash");
+        ledgerEntity.effectiveHash = document.getString("effective_hash");
         ledgerEntity.signature = document.getString("signature");
         ledgerEntity.signingKeyId = document.getString("signing_key_id");
 
@@ -141,6 +145,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         document.put("policy_name", policyName);
         document.put("policy_version", policyVersion);
         document.put("policy_content_hash", policyContentHash);
+        document.put("effective_hash", effectiveHash);
         document.put("signature", signature);
         document.put("signing_key_id", signingKeyId);
 
@@ -206,7 +211,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
         for (final Object field : new Object[]{userId, documentId, token, replacement, startPosition,
                 documentHash, hashTimestamp(), previousHash, policyName, policyVersion,
-                policyContentHash, filename, type}) {
+                policyContentHash, effectiveHash, filename, type}) {
             appendField(canonical, field);
         }
 

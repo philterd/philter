@@ -25,11 +25,8 @@ import java.util.Date;
  * evidence so that the policy version stamped onto a redaction ledger entry can be resolved back to
  * the exact policy content that governed the redaction.
  *
- * <p>Snapshots are content-addressed by {@code contentHash} (a SHA-256 of the policy JSON): identical
- * content yields one snapshot regardless of name or revision, so a deleted-then-recreated policy that
- * reuses a name never collides with prior evidence. The {@code name} and {@code revision} recorded
- * here are those in force when the content was first captured; the authoritative name and version for
- * any given redaction live inline on the ledger entry.
+ * <p>This is a revision reference. Content is also retained independently in policy_contents,
+ * keyed by SHA-256. Owner/name revision numbers continue across deletion and name reuse.
  */
 public class PolicyVersionEntity extends AbstractEntity {
 

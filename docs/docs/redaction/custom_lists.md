@@ -77,6 +77,15 @@ For example, if you have a custom list named `my-custom-list`, you would referen
 
 When the policy is processed, `list:my-custom-list` will be replaced with the actual terms contained within that list.
 
+Every `list:` reference must name an existing list owned by the user whose policy is being applied.
+A missing, deleted, or inaccessible list stops redaction before any output is produced. Synchronous
+filter requests return `400 Bad Request` identifying the unavailable list names; asynchronous jobs
+are marked failed with that reason. This applies to both dictionary terms and ignored terms.
+An existing list with no items resolves to no terms; it is distinct from a missing list.
+
+References are checked when redaction runs, including for pinned policy versions. Before deleting
+a list used by a policy, update the policy's references or expect subsequent redaction to fail.
+
 ## Programmatic Management via API
 
 For developers and organizations with dynamic data protection needs, Philter provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with the Philterd platform, among other use-cases.

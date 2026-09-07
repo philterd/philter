@@ -159,25 +159,19 @@ curl -k -X DELETE -H "Authorization: Bearer <token>" \
   "https://localhost:8080/api/ledger?older_than_days=90"
 ```
 
-Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that created a MongoDB TTL index. It was removed: MongoDB expires documents itself, so that path could not check legal holds and produced no audit record. If a deployment set it, Philter drops the leftover index at startup and logs that it has done so.
+Ledger collections must have no TTL indexes. Startup rejects incompatible schemas; it does not drop indexes or migrate data.
 
 ## Asynchronous Documents and Webhooks
 
 Records for asynchronous (PDF) redactions and outbound webhook deliveries are expired automatically by MongoDB TTL indexes.
 
-**Changing a retention period on an existing deployment takes an extra step.** MongoDB fixes a TTL index's expiry when the index is created and rejects a later change to it. Philter logs a warning and carries on rather than failing to start, so setting a new value on a deployment that has already run has no effect: the old retention period stays in force. Drop the index once and restart, which recreates it with the new value.
-
-```
-db.pending_documents.dropIndex("completed_at_1")
-db.webhook_deliveries.dropIndex("delivered_at_1")
-```
-
-Dropping a TTL index does not delete any records. A fresh deployment, where the collection does not exist yet, needs none of this.
+Required TTL indexes are verified at startup. Conflicting options or unexpected expiry fields prevent startup. The unreleased 4.0 schema is created directly without migrations. Job retention uses `retention_at` after notification acknowledgement; webhook retention uses `completed_at` for either terminal outcome.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep completed asynchronous redaction records (including the input and redacted output bytes) before MongoDB expires them. | `604800` (7 days) |
-| `WEBHOOK_DELIVERIES_TTL_SECONDS` | How long to keep delivered webhook records before MongoDB expires them. | `2592000` (30 days) |
+| `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep terminal asynchronous records after notification acknowledgement. | `604800` (7 days) |
+| `WEBHOOK_DELIVERIES_TTL_SECONDS` | How long to keep delivered or failed webhook records after completion. | `2592000` (30 days) |
+| `WEBHOOK_CLAIM_LEASE_SECONDS` | How long a worker owns a webhook attempt before another worker may recover it. Must be positive; allow enough time for the configured HTTP timeouts and processing overhead. Abandoned claims count toward the eight-attempt limit. | `300` (5 minutes) |
 | `WEBHOOK_RESPONSE_TIMEOUT_SECONDS` | How long to wait for your endpoint to respond after the request is sent. A receiver that exceeds this is treated as a failed attempt and retried. Your endpoint should acknowledge quickly and do its work asynchronously. | `10` |
 | `WEBHOOK_CONNECT_TIMEOUT_SECONDS` | How long to wait to establish the TCP connection (and TLS handshake) to your endpoint. | `5` |
 | `WEBHOOK_POOL_TIMEOUT_SECONDS` | How long to wait for a free connection from the outbound connection pool. | `5` |
@@ -211,3 +205,28 @@ Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses wit
 ## PII Drift Monitoring (Phield)
 
 Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured in the dashboard **Admin** settings (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with `PHIELD_API_KEY` set), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).
+
+### Bootstrap and in-memory capacity
+
+| Setting | Behavior | Default |
+|---|---|---|
+| `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` | Private first-login password; required when the `admin` account does not exist. Minimum 16 characters, maximum 72 UTF-8 bytes. `compose.sh` generates it in `.env`. | None |
+| `IN_MEMORY_CACHE_MAX_ENTRIES` | Positive maximum across strings, hash containers, and hash fields. | `100000` |
+| `IN_MEMORY_CACHE_MAX_BYTES` | Positive maximum accounted retained cache size, including conservative object overhead and UTF-16 string data. This is not a JVM heap limit. | `67108864` |
+
+At capacity, ordinary cache insertions are skipped and unsuccessful refreshes discard stale values. Live login-failure counters are never evicted to admit new entries. Counter overflow blocks all dashboard logins for the failure window, including users whose counters could not be retained. Expiry and deletion release capacity. `LOGIN_MAX_ATTEMPTS` and `LOGIN_LOCKOUT_SECONDS` must be positive.
+
+## Async queue admission
+
+All limits must be positive and identical across instances. Limits count PENDING and PROCESSING jobs and their input bytes; terminal jobs release capacity.
+
+| Variable | Default | Limit |
+|----------|---------|-------|
+| `ASYNC_QUEUE_MAX_JOBS` | `256` | Global active jobs |
+| `ASYNC_QUEUE_MAX_USER_JOBS` | `32` | Active jobs per account |
+| `ASYNC_QUEUE_MAX_BYTES` | `2147483648` | Global active input bytes |
+| `ASYNC_QUEUE_MAX_USER_BYTES` | `268435456` | Active input bytes per account |
+
+Owner capacity returns HTTP 429; global capacity and admission contention return HTTP 503. Both include `Retry-After: 5`. Shared MongoDB admission serialization prevents concurrent instances exceeding limits. Claims interleave account scheduling rounds, with submission time breaking ties. Micrometer exposes `philter.async.queue.jobs`, `philter.async.queue.bytes`, and `philter.async.queue.oldest.seconds`. Retained results and execution snapshots are separate from active queue capacity.
+
+An interrupted or ambiguous admission retains its guard and blocks further submissions with 503. It does not expire automatically. For recovery, quiesce **all admission writers and their outstanding database operations**, inspect the job insertion outcome, then conditionally unset `token` and `started_at` in `queue_admission` for `_id: "queue"`, matching the observed token. Never clear a guard while its writer may still insert. Resume writers only after resolving that operation; capacity is recomputed from stored active jobs.

@@ -15,6 +15,11 @@
  */
 package ai.philterd.philter.services.signing;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
@@ -197,44 +202,31 @@ class LedgerSigningIT extends AbstractMongoIT {
     }
 
     @Test
-    void entriesSignedBeforeTheKeyWasEncryptedStillVerify() throws Exception {
-        // The upgrade path: a chain signed while the private key was stored in plaintext must still
-        // verify once that key has been encrypted at rest, since it is the same key.
+    void ledgerSignaturesStillVerifyAfterReloadingEncryptedKey() throws Exception {
         writeChain();
-        assertTrue(ledgerDataService.isChainValid(USER, DOC));
-
-        // Strip the wrapping, as a pre-encryption deployment's record would look.
-        final Document stored = mongoClient.getDatabase("philter").getCollection("signing_keys").find().first();
-        final byte[] plaintextPrivate = signingKeyDataService.getPrivateKey().getEncoded();
-        mongoClient.getDatabase("philter").getCollection("signing_keys").updateOne(
-                Filters.eq("_id", stored.getObjectId("_id")),
-                Updates.combine(
-                        Updates.set("private_key", new org.bson.types.Binary(plaintextPrivate)),
-                        Updates.unset("private_key_encrypted_key")));
-
-        // A restart loads it, re-wraps it, and the existing chain still verifies.
         final SigningKeyDataService reloaded = new SigningKeyDataService(mongoClient,
                 new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         final SigningService reloadedSigning = new SigningService(reloaded, adminSettings);
         final LedgerDataService reloadedLedger = new LedgerDataService(mongoClient,
                 new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class),
                 mock(LegalHoldDataService.class), reloadedSigning);
-
-        assertTrue(reloadedLedger.isChainValid(USER, DOC),
-                "entries signed before the key was encrypted must still verify");
+        assertTrue(reloadedLedger.isChainValid(USER, DOC));
     }
 
     @Test
-    void unsignedLegacyEntriesDoNotFailValidation() throws Exception {
+    void strippedSignaturesInvalidateAnOtherwiseIntactChain() throws Exception {
         writeChain();
 
-        // Entries written before signing existed carry no signature and cannot be signed after the
-        // fact. Treating them as tampered would misreport existing deployments' history.
+        // Removing authentication must not downgrade evidence to an accepted unsigned format.
         mongoClient.getDatabase("philter").getCollection("ledger").updateMany(new Document(),
                 Updates.combine(Updates.unset("signature"), Updates.unset("signing_key_id")));
 
-        assertTrue(ledgerDataService.isChainValid(USER, DOC),
-                "an unsigned chain is unproven, not invalid");
+        final var validation = ledgerDataService.validateChain(USER, DOC);
+        assertTrue(validation.hashChainValid());
+        assertFalse(validation.signaturesValid());
+        assertFalse(validation.valid());
+        assertEquals(0, validation.signedEntries());
+        assertEquals(3, validation.unsignedEntries());
     }
 
 
@@ -303,4 +295,113 @@ class LedgerSigningIT extends AbstractMongoIT {
 
     }
 
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1})
+    void strippingOneSignatureRejectsMixedChain(final int index) throws Exception {
+        writeChain();
+        final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(index);
+        mongoClient.getDatabase("philter").getCollection("ledger").updateOne(
+                Filters.eq("_id", target.getId()), Updates.unset("signature"));
+        final var result = ledgerDataService.validateChain(USER, DOC);
+        assertTrue(result.hashChainValid());
+        assertFalse(result.signaturesValid());
+        assertFalse(result.valid());
+        assertEquals(2, result.signedEntries());
+        assertEquals(1, result.unsignedEntries());
+    }
+
+    @Test
+    void blankSignatureIsCountedAsUnsigned() throws Exception {
+        writeChain();
+        mongoClient.getDatabase("philter").getCollection("ledger").updateOne(
+                Filters.eq("previous_hash", LedgerDataService.GENESIS), Updates.set("signature", "  "));
+        final var result = ledgerDataService.validateChain(USER, DOC);
+        assertFalse(result.valid());
+        assertFalse(result.signaturesValid());
+        assertEquals(1, result.unsignedEntries());
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"unknown-key"})
+    void missingOrUnknownKeyIdInvalidatesSignature(final String keyId) throws Exception {
+        writeChain();
+        mongoClient.getDatabase("philter").getCollection("ledger").updateOne(
+                Filters.eq("previous_hash", LedgerDataService.GENESIS), Updates.set("signing_key_id", keyId));
+        final var result = ledgerDataService.validateChain(USER, DOC);
+        assertTrue(result.hashChainValid());
+        assertFalse(result.signaturesValid());
+        assertFalse(result.valid());
+    }
+
+    @Test
+    void rewrittenRehashedAndStrippedChainCannotPassValidation() throws Exception {
+        writeChain();
+        String previousHash = LedgerDataService.GENESIS;
+        for (final LedgerEntity entry : ledgerDataService.getChain(USER, DOC)) {
+            entry.setFilename("forged.txt");
+            entry.setPreviousHash(previousHash);
+            entry.setHash(entry.calculateHash());
+            entry.setSignature(null);
+            entry.setSigningKeyId(null);
+            mongoClient.getDatabase("philter").getCollection("ledger").replaceOne(
+                    Filters.eq("_id", entry.getId()), entry.toDocument(new TestEncryptionService()));
+            previousHash = entry.getHash();
+        }
+        final var result = ledgerDataService.validateChain(USER, DOC);
+        assertTrue(result.hashChainValid(), "Attacker recomputed all hashes and links correctly");
+        assertFalse(result.signaturesValid());
+        assertFalse(result.valid());
+    }
+
+    @Test
+    void signingFailureRejectsBothInsertionPathsWithoutSavingUnsignedEvidence() throws Exception {
+        final SigningService brokenSigner = mock(SigningService.class);
+        when(brokenSigner.signLedgerEntry(anyString()))
+                .thenThrow(new IllegalStateException("signer unavailable"));
+        final var service = new LedgerDataService(mongoClient, new TestEncryptionService(),
+                mock(AuditEventPublisher.class), mock(LegalHoldDataService.class), brokenSigner);
+        final LedgerEntity entry = new LedgerEntity(USER, DOC, "", "", 0, "input-hash",
+                LedgerDataService.GENESIS, "file", "", "default", 1, "policy-hash");
+        // A previously attached signature must not be reused after signing fails.
+        entry.setSignature("old-signature");
+        entry.setSigningKeyId("old-key");
+        assertThrows(IllegalStateException.class, () -> service.addTransaction(entry));
+        assertThrows(IllegalStateException.class, () -> service.save(entry));
+        assertEquals(0, mongoClient.getDatabase("philter").getCollection("ledger").countDocuments());
+    }
+
+    @Test
+    void incompleteSigningResultAndMissingHashCannotBeSaved() throws Exception {
+        final SigningService brokenSigner = mock(SigningService.class);
+        final var service = new LedgerDataService(mongoClient, new TestEncryptionService(),
+                mock(AuditEventPublisher.class), mock(LegalHoldDataService.class), brokenSigner);
+        final LedgerEntity entry = new LedgerEntity(USER, DOC, "", "", 0, "input-hash",
+                LedgerDataService.GENESIS, "file", "", "default", 1, "policy-hash");
+        for (final var result : java.util.Arrays.asList(null,
+                new SigningService.LedgerSignature(null, "key"),
+                new SigningService.LedgerSignature("", "key"),
+                new SigningService.LedgerSignature("signature", null),
+                new SigningService.LedgerSignature("signature", ""))) {
+            when(brokenSigner.signLedgerEntry(entry.getHash())).thenReturn(result);
+            assertThrows(IllegalStateException.class, () -> service.save(entry));
+        }
+        entry.setHash(null);
+        assertThrows(IllegalArgumentException.class, () -> service.save(entry));
+        assertEquals(0, mongoClient.getDatabase("philter").getCollection("ledger").countDocuments());
+    }
+
+    @Test
+    void directSaveSignsAndGenericUpdateCannotRewriteEvidence() throws Exception {
+        final LedgerEntity entry = new LedgerEntity(USER, DOC, "", "", 0, "input-hash",
+                LedgerDataService.GENESIS, "file", "", "default", 1, "policy-hash");
+        assertNotNull(ledgerDataService.save(entry));
+        assertTrue(ledgerDataService.isChainValid(USER, DOC));
+        final LedgerEntity stored = ledgerDataService.getChain(USER, DOC).getFirst();
+        stored.setSignature(null);
+        assertThrows(UnsupportedOperationException.class,
+                () -> ledgerDataService.update(stored));
+        assertTrue(ledgerDataService.isChainValid(USER, DOC));
+    }
 }

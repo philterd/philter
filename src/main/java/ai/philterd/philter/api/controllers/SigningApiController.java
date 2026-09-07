@@ -62,11 +62,12 @@ public class SigningApiController extends AbstractApiController {
     @RequestMapping(value = "/api/signing-key", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<String> getSigningKey() {
 
-        final String pem = signingKeyDataService.getPublicKeyPem();
-        final String jwk = signingKeyDataService.getPublicKeyJwk();
-        final String fingerprint = signingKeyDataService.getPublicKeyFingerprint();
+        final var key = signingKeyDataService.getPublicKeyInfo();
+        final String pem = key.pem();
+        final String jwk = key.jwk();
+        final String fingerprint = key.fingerprint();
 
-        final String json = "{\"keyId\":\"" + escapePem(signingKeyDataService.getActiveKeyId())
+        final String json = "{\"keyId\":\"" + escapePem(key.keyId())
                 + "\",\"pem\":\"" + escapePem(pem) + "\",\"jwk\":" + jwk + ",\"fingerprint\":\"" + fingerprint + "\"}";
 
         return ResponseEntity.status(HttpStatus.OK)

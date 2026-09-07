@@ -76,14 +76,16 @@ public class SigningService {
         final String bodyHash = sha256Hex(responseBody.getBytes(StandardCharsets.UTF_8));
         final long iat = System.currentTimeMillis() / 1000L;
 
-        final String header = base64url("{\"alg\":\"ES256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+        final SigningKeyDataService.SigningKey key = signingKeyDataService.currentSigningKey();
+        final String header = base64url(("{\"alg\":\"ES256\",\"typ\":\"JWT\",\"kid\":\""
+                + escape(key.keyId()) + "\"}").getBytes(StandardCharsets.UTF_8));
         final String payload = base64url(buildPayload(bodyHash, policyName, policyVersion, documentId, iat)
                 .getBytes(StandardCharsets.UTF_8));
 
         final String signingInput = header + "." + payload;
 
         final Signature signer = Signature.getInstance("SHA256withECDSA");
-        signer.initSign(signingKeyDataService.getPrivateKey());
+        signer.initSign(key.privateKey());
         signer.update(signingInput.getBytes(StandardCharsets.UTF_8));
         final byte[] derSig = signer.sign();
         final byte[] p1363Sig = derToP1363(derSig);

@@ -49,8 +49,10 @@ You can enable or disable entity type disambiguation and the redaction ledger fo
 To verify how information is being mapped within a context:
 
 1.  Click the **View Context** (eye) icon for a specific row.
-2.  A preview dialog will open, displaying up to 20 recent mapping entries. Each entry shows the **Token Hash** (a secure representation of the original data) and its corresponding **Replacement**.
+2.  A dialog will show **Filter Type** and **Count** totals for the context, or indicate that no entries were found.
 3.  Click **Close** to return to the main list.
+
+For individual mappings, use the [context entries API](../api_and_sdks/api/contexts_api.md). Listing returns replacement metadata; exports include keyed token hashes and require the same deployment encryption key when imported elsewhere.
 
 ### Clearing a Context
 

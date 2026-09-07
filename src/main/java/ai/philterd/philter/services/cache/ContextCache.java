@@ -37,6 +37,7 @@ public class ContextCache extends Cache {
      * Storing the id lets the caller increment the entry's read count on a cache hit without a DB lookup.
      */
     private static final int ENTRY_ID_HEX_LENGTH = 24;
+    private final java.util.function.LongSupplier clock;
 
     /**
      * Creates a new context cache.
@@ -47,7 +48,12 @@ public class ContextCache extends Cache {
      * @param ssl      Whether to use SSL for the connection.
      */
     public ContextCache(final String host, final int port, final String password, final boolean ssl) {
+        this(host, port, password, ssl, System::currentTimeMillis);
+    }
+
+    ContextCache(String host, int port, String password, boolean ssl, java.util.function.LongSupplier clock) {
         super(host, port, password, ssl);
+        this.clock = clock;
     }
 
     /**
@@ -70,6 +76,11 @@ public class ContextCache extends Cache {
      * increment the entry's read count on a cache hit.
      */
     public void setTokenReplacement(final ObjectId userId, final String context, final String token, final ObjectId entryId, final String replacement) {
+        setTokenReplacement(userId, context, token, entryId, replacement, clock.getAsLong());
+    }
+
+    public void setTokenReplacement(final ObjectId userId, final String context, final String token,
+                                    final ObjectId entryId, final String replacement, final long observedAt) {
 
         // The token must be hashed.
         final String tokenHash = ContextTokenHasher.hash(token);
@@ -81,7 +92,7 @@ public class ContextCache extends Cache {
         }
 
         final String key = buildKey(userId, context);
-        final String encoded = entryId.toHexString() + replacement;
+        final String encoded = (observedAt + CONTEXT_CACHE_TTL_SECONDS * 1000L) + ":" + entryId.toHexString() + replacement;
 
         backend.hset(key, tokenHash, encoded);
         // Set TTL of 60 minutes on the cache entry.
@@ -99,7 +110,14 @@ public class ContextCache extends Cache {
 
         final String tokenHash = ContextTokenHasher.hash(token);
 
-        final String raw = backend.hget(buildKey(userId, context), tokenHash);
+        final String value = backend.hget(buildKey(userId, context), tokenHash);
+        if (value == null) return null;
+        final int separator = value.indexOf(':');
+        if (separator < 0) return null;
+        try {
+            if (clock.getAsLong() >= Long.parseLong(value.substring(0, separator))) return null;
+        } catch (NumberFormatException invalid) { return null; }
+        final String raw = value.substring(separator + 1);
 
         if (raw == null || raw.length() < ENTRY_ID_HEX_LENGTH) {
             return null;
@@ -130,11 +148,7 @@ public class ContextCache extends Cache {
      */
     public boolean containsToken(final ObjectId userId, final String context, final String token) {
 
-        // The token needs to be encrypted.
-
-        final String tokenHash = ContextTokenHasher.hash(token);
-
-        return backend.hexists(buildKey(userId, context), tokenHash);
+        return getReplacement(userId, context, token) != null;
 
     }
 

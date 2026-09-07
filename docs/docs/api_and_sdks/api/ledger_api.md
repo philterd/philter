@@ -126,7 +126,7 @@ The ledger is kept indefinitely by default (see [How and When Ledger Entries Are
 
 ### Query Parameters
 
-* `older_than_days` (required) - Delete chains whose entries are older than this many days. Must be zero or greater (`0` deletes everything).
+* `older_than_days` (required) - Delete complete chains whose completion time and newest entry are older than this many days. Must be zero or greater (`0` purges completed chains; unfinished chains remain).
 * `owner` - Optional. Admin only. The username of the user whose entries to purge. Defaults to the caller.
 
 Returns `200 OK` with the number of entries deleted, or `400 Bad Request` if `older_than_days` is missing, is not a number, or is negative.
@@ -147,3 +147,9 @@ Deletion is the only destructive operation in this API, and it is gated more tig
 * **Every deletion is audited** as `redaction_ledger_deleted`, and every hold-blocked attempt as `legal_hold_blocked_deletion`. Deletion removes ledger entries; it never removes the audit record that the deletion happened.
 
 Deletion always operates on whole document chains, never on individual entries within a chain, so a chain that remains is always complete and still verifies.
+
+Concurrent hold/evidence operations for the same owner return HTTP 409. Interrupted operations retain a guard until [safe recovery](../../redaction/legal_holds.md#concurrent-operations-and-recovery); active holds continue to block deletion with HTTP 423.
+
+Async entries expose `effectiveHash`, which binds the captured resolved configuration into each entry hash. See the [canonical field order](../../redaction/ledgers.md#what-the-ledger-proves) when implementing independent verification. Entries without a captured configuration encode this field as unset.
+
+Manual chain deletion returns `409 Conflict` while publication is open, writing, or failed and requires recovery. Completed chains retain a deletion marker, preventing later appends or reuse of the document ID. A missing chain returns 404.

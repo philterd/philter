@@ -41,6 +41,13 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     // the version in force at request time (-1 when the policy could not be resolved at enqueue).
     private int policyVersion = -1;
     private String policyContentHash;
+    private String effectiveJson;
+    private String effectiveHash;
+    public String getEffectiveJson() { return effectiveJson; }
+    public void setEffectiveJson(String value) { effectiveJson = value; }
+    public String getEffectiveHash() { return effectiveHash; }
+    public void setEffectiveHash(String value) { effectiveHash = value; }
+
     private String contextName;
     private String status;
     private String errorMessage;
@@ -51,6 +58,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     private Date completedAt;
     private String claimedBy;
     private Date claimedAt;
+    private String claimToken;
+    private Date claimExpiresAt;
     /** How many times this job has been reclaimed after a worker failed to finish it. */
     private int reclaimCount;
 
@@ -66,6 +75,10 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         entity.setPolicyVersion(document.getInteger("policy_version", -1));
         entity.setPolicyContentHash(document.getString("policy_content_hash"));
         entity.setContextName(document.getString("context_name"));
+        entity.effectiveHash = document.getString("effective_hash");
+        if (document.getString("effective_json") != null) {
+            entity.effectiveJson = encryptionService.decrypt(document.getString("effective_json"), document.getString("effective_key"));
+        }
         entity.setStatus(document.getString("status"));
         entity.setErrorMessage(document.getString("error_message"));
 
@@ -89,6 +102,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         entity.setCompletedAt(document.getDate("completed_at"));
         entity.setClaimedBy(document.getString("claimed_by"));
         entity.setClaimedAt(document.getDate("claimed_at"));
+        entity.setClaimToken(document.getString("claim_token"));
+        entity.setClaimExpiresAt(document.getDate("claim_expires_at"));
         entity.setReclaimCount(document.getInteger("reclaim_count", 0));
         return entity;
     }
@@ -108,6 +123,13 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         document.put("policy_version", policyVersion);
         document.put("policy_content_hash", policyContentHash);
         document.put("context_name", contextName);
+        document.put("input_size", input == null ? 0L : (long) input.length);
+        document.put("effective_hash", effectiveHash);
+        if (effectiveJson != null) {
+            final var encrypted = encryptionService.encrypt(effectiveJson, userId.toHexString());
+            document.put("effective_json", encrypted.getEncryptedText());
+            document.put("effective_key", encrypted.getEncryptionKey());
+        }
         document.put("status", status);
         document.put("error_message", errorMessage);
         if (input != null) {
@@ -125,6 +147,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         document.put("completed_at", completedAt);
         document.put("claimed_by", claimedBy);
         document.put("claimed_at", claimedAt);
+        document.put("claim_token", claimToken);
+        document.put("claim_expires_at", claimExpiresAt);
         document.put("reclaim_count", reclaimCount);
         return document;
     }
@@ -281,6 +305,14 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     public void setReclaimCount(final int reclaimCount) {
         this.reclaimCount = reclaimCount;
     }
+
+    public String getClaimToken() { return claimToken; }
+
+    public void setClaimToken(final String claimToken) { this.claimToken = claimToken; }
+
+    public Date getClaimExpiresAt() { return claimExpiresAt; }
+
+    public void setClaimExpiresAt(final Date claimExpiresAt) { this.claimExpiresAt = claimExpiresAt; }
 
     public Date getClaimedAt() {
         return claimedAt;

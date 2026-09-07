@@ -23,12 +23,11 @@ import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
+import java.util.concurrent.TimeUnit;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -68,8 +67,8 @@ class TtlIndexChangeIT extends AbstractMongoIT {
     }
 
     @Test
-    @DisplayName("Index creation with options really can fail, and the guard swallows it")
-    void ensureIndexWithOptionsSwallowsAFailure() {
+    @DisplayName("Required index failures stop service initialization")
+    void ensureIndexWithOptionsPropagatesFailure() {
 
         final ProbeService service = probeServiceOverDuplicateData();
         final Bson keys = Indexes.ascending("k");
@@ -78,24 +77,22 @@ class TtlIndexChangeIT extends AbstractMongoIT {
         // So the assertion below is not vacuous.
         assertThrows(Exception.class, () -> service.createIndexUnguarded(keys, unique));
 
-        assertDoesNotThrow(() -> service.createIndexGuarded(keys, unique),
-                "a failed index build must not propagate out of a service constructor");
+        assertThrows(Exception.class, () -> service.createIndexGuarded(keys, unique));
 
     }
 
     @Test
-    @DisplayName("Both TTL-indexed services build against an already-indexed collection")
-    void bothTtlServicesBuildOverAnExistingIndex() {
+    @DisplayName("Both TTL-indexed services reject incompatible retention")
+    void bothTtlServicesRejectIncompatibleIndexes() {
 
         mongoClient.getDatabase("philter").getCollection("pending_documents").createIndex(
-                Indexes.ascending("completed_at"), new IndexOptions().expireAfter(1L, TimeUnit.SECONDS));
+                Indexes.ascending("retention_at"), new IndexOptions().expireAfter(1L, TimeUnit.SECONDS));
         mongoClient.getDatabase("philter").getCollection("webhook_deliveries").createIndex(
-                Indexes.ascending("delivered_at"), new IndexOptions().expireAfter(1L, TimeUnit.SECONDS));
+                Indexes.ascending("completed_at"), new IndexOptions().expireAfter(1L, TimeUnit.SECONDS));
 
-        assertDoesNotThrow(() -> new PendingDocumentDataService(
+        assertThrows(Exception.class, () -> new PendingDocumentDataService(
                 mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class)));
-        assertDoesNotThrow(() -> new WebhookDeliveryDataService(
-                mongoClient, mock(AuditEventPublisher.class)));
+        assertThrows(Exception.class, () -> new WebhookDeliveryDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class)));
 
     }
 

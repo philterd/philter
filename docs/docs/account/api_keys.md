@@ -65,7 +65,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `policies:read` | `GET /api/policies`<br>`GET /api/policies/{policyName}`<br>`GET /api/policies/{policyName}/diff`<br>`GET /api/policies/{policyName}/versions`<br>`GET /api/policies/{policyName}/versions/{revision}`<br>`POST /api/policies/compile` |
 | `policies:write` | `DELETE /api/policies/{policyName}`<br>`POST /api/policies`<br>`POST /api/policies/{policyName}/rollback` |
 | `lists:read` | `GET /api/lists`<br>`GET /api/lists/{name}`<br>`GET /api/redact-lists` |
-| `lists:write` | `DELETE /api/lists/{list}`<br>`POST /api/lists/{list}`<br>`POST /api/redact-lists`<br>`PUT /api/redact-lists` |
+| `lists:write` | `DELETE /api/lists/{name}`<br>`POST /api/lists/{name}`<br>`POST /api/redact-lists`<br>`PUT /api/redact-lists` |
 | `documents:read` | `GET /api/documents`<br>`GET /api/documents/{documentId}`<br>`GET /api/documents/{documentId}/status` |
 | `documents:write` | `DELETE /api/documents/{documentId}` |
 | `ledger:read` | `GET /api/ledger`<br>`GET /api/ledger/{documentId}`<br>`GET /api/ledger/{documentId}/valid` |

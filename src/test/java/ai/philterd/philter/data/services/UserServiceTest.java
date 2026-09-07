@@ -75,6 +75,9 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(1, 1L, null));
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("users")).thenReturn(mongoCollection);
         userService = new UserService(mongoClient, encryptionService, auditEventPublisher);
@@ -172,15 +175,11 @@ class UserServiceTest {
     }
 
     @Test
-    void ensureFpeKeyGeneratesAndPersistsWhenMissing() {
+    void ensureFpeKeyFailsWhenMissing() {
         final UserEntity user = new UserEntity();
         user.setId(new ObjectId());
-
-        final String key = userService.ensureFpeKey(user);
-
-        assertTrue(key.matches("[0-9a-f]{64}"), "a generated FPE key must be 256-bit hex");
-        assertEquals(key, user.getFpeKey(), "the generated key must be set on the entity");
-        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
+        assertThrows(IllegalStateException.class, () -> userService.ensureFpeKey(user));
+        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
     }
 
     @Test
@@ -254,7 +253,7 @@ class UserServiceTest {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
                 .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
 
-        userService.changePassword("req", user, "a-new-password", "webui");
+        userService.changePassword("req", user, "a-new-password", "system");
 
         assertFalse(user.isPasswordChangeRequired());
     }
@@ -321,6 +320,8 @@ class UserServiceTest {
 
     @Test
     void deactivateUserIsIdempotent() {
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(0, 0L, null));
         final UserEntity user = new UserEntity();
         user.setId(new ObjectId());
         user.setDeactivated(true);
@@ -328,7 +329,7 @@ class UserServiceTest {
         userService.deactivateUser("req", user, "source");
 
         // Already deactivated: nothing is written and nothing is audited again.
-        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
         verify(auditEventPublisher, never()).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.USER_DEACTIVATED),
                 any(), any(), any(), any());
     }
@@ -356,13 +357,15 @@ class UserServiceTest {
 
     @Test
     void reactivateUserIsIdempotent() {
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(0, 0L, null));
         final UserEntity user = new UserEntity();
         user.setId(new ObjectId());
         // Not deactivated.
 
         userService.reactivateUser("req", user, "source");
 
-        verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
+        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
         verify(auditEventPublisher, never()).auditEvent(any(), eq(ai.philterd.philter.model.AuditLogEvent.USER_REACTIVATED),
                 any(), any(), any(), any());
     }

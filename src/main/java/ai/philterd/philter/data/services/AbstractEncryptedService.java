@@ -69,20 +69,9 @@ public class AbstractEncryptedService<T extends AbstractEncryptedEntity> {
         }
     }
 
-    /**
-     * Creates an index with the given options, logging rather than propagating a failure: MongoDB
-     * rejects a changed {@code expireAfterSeconds}, which would otherwise stop startup.
-     *
-     * @param keys    The index key specification (see {@code com.mongodb.client.model.Indexes}).
-     * @param options The index options (see {@code com.mongodb.client.model.IndexOptions}).
-     */
+    /** Required constraints and retention indexes must be established before startup succeeds. */
     protected void ensureIndex(final Bson keys, final IndexOptions options) {
-        try {
-            collection.createIndex(keys, options);
-        } catch (final Exception ex) {
-            ABSTRACT_ENCRYPTED_SERVICE_LOGGER.warn("Unable to create index {} on collection '{}': {}",
-                    keys, collection.getNamespace().getCollectionName(), ex.getMessage());
-        }
+        RequiredSchema.ensureIndex(collection, keys, options);
     }
 
     public ObjectId save(T entity) {

@@ -17,218 +17,129 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.model.AuditLogEvent;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.result.DeleteResult;
-import com.mongodb.client.result.InsertOneResult;
-import com.mongodb.client.result.UpdateResult;
-import org.bson.conversions.Bson;
+import ai.philterd.philter.testutil.AbstractMongoIT;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.Binary;
 import org.bson.types.ObjectId;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.PublicKey;
-import java.security.KeyPair;
+import java.nio.file.Files;
 import java.security.KeyPairGenerator;
 import java.security.spec.ECGenParameterSpec;
 import java.util.Base64;
-import java.util.Date;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+class SigningKeyDataServiceTest extends AbstractMongoIT {
+    @TempDir Path tempDir;
 
-@ExtendWith(MockitoExtension.class)
-class SigningKeyDataServiceTest {
-
-    /** An empty cursor, so iterating the mocked collection is a no-op rather than a null. */
-    private static final class EmptyCursor implements com.mongodb.client.MongoCursor<Document> {
-        EmptyCursor(final java.util.List<Document> ignored) {
-        }
-
-        @Override public void close() {
-        }
-
-        @Override public boolean hasNext() {
-            return false;
-        }
-
-        @Override public Document next() {
-            throw new java.util.NoSuchElementException();
-        }
-
-        @Override public int available() {
-            return 0;
-        }
-
-        @Override public Document tryNext() {
-            return null;
-        }
-
-        @Override public com.mongodb.ServerCursor getServerCursor() {
-            return null;
-        }
-
-        @Override public com.mongodb.ServerAddress getServerAddress() {
-            return new com.mongodb.ServerAddress();
-        }
-    }
-
-
-    @Mock private MongoClient mongoClient;
-    @Mock private MongoDatabase mongoDatabase;
-    @Mock private MongoCollection<Document> mongoCollection;
-    @Mock private AuditEventPublisher auditEventPublisher;
-    @Mock private FindIterable<Document> findIterable;
-
-    @TempDir
-    Path tempDir;
-
-    @BeforeEach
-    void setUp() {
-        when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
-        when(mongoDatabase.getCollection("signing_keys")).thenReturn(mongoCollection);
-        lenient().when(mongoCollection.find()).thenReturn(findIterable);
-        // The service now looks for the active key first, then falls back to any key.
-        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
-        // The service iterates this when migrating plaintext keys; an unstubbed mock yields a null
-        // iterator and logs a migration error during otherwise-passing tests.
-        lenient().when(findIterable.iterator()).thenReturn(new java.util.ArrayList<Document>().stream()
-                .collect(java.util.stream.Collectors.collectingAndThen(
-                        java.util.stream.Collectors.toList(), EmptyCursor::new)));
-        lenient().when(mongoCollection.insertOne(any())).thenReturn(mock(InsertOneResult.class));
-        lenient().when(mongoCollection.deleteMany(any())).thenReturn(mock(DeleteResult.class));
-        lenient().when(mongoCollection.updateMany(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
-        lenient().when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
+    private SigningKeyDataService service() {
+        return new SigningKeyDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
     @Test
-    void autoGeneratesKeyAndEmitsAuditEventWhenMongoIsEmpty() {
-        when(findIterable.first()).thenReturn(null);
-
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
-
-        assertNotNull(service.getPrivateKey(), "private key must be populated after auto-generation");
-        assertNotNull(service.getPublicKey(), "public key must be populated after auto-generation");
-        verify(mongoCollection).insertOne(any());
-        verify(auditEventPublisher).auditEvent(
-                isNull(), eq(AuditLogEvent.SIGNING_KEY_GENERATED), isNull(), isNull(), isNull(), isNull());
+    void startupPublishesOneKeyAndAuditsGeneration() {
+        final var audit = mock(AuditEventPublisher.class);
+        final var first = new SigningKeyDataService(mongoClient, new TestEncryptionService(), audit);
+        assertEquals(first.getActiveKeyId(), service().getActiveKeyId());
+        assertEquals(1, mongoClient.getDatabase("philter").getCollection("signing_key_state").countDocuments());
+        verify(audit).auditEvent(null, AuditLogEvent.SIGNING_KEY_GENERATED, null, null, null, null);
     }
 
     @Test
-    void loadsExistingKeyFromMongoOnStartupWithoutAuditEvent() throws Exception {
-        final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(new ECGenParameterSpec("secp256r1"));
-        final KeyPair existing = kpg.generateKeyPair();
-
-        final Document doc = new Document("_id", new ObjectId())
-                .append("private_key", new Binary(existing.getPrivate().getEncoded()))
-                .append("public_key", new Binary(existing.getPublic().getEncoded()))
-                .append("created_at", new Date());
-
-        when(findIterable.first()).thenReturn(doc);
-
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
-
-        assertArrayEquals(existing.getPublic().getEncoded(), service.getPublicKey().getEncoded(),
-                "public key loaded from MongoDB must match the persisted key — same keypair across restarts");
-        verify(mongoCollection, never()).insertOne(any());
-        verify(auditEventPublisher, never()).auditEvent(any(), any(AuditLogEvent.class), any(), any(), any(), any());
+    void rotationRetainsOldKeyAndAuditsActor() {
+        final var audit = mock(AuditEventPublisher.class);
+        final var first = new SigningKeyDataService(mongoClient, new TestEncryptionService(), audit);
+        final String old = first.getActiveKeyId();
+        final var second = service();
+        final var actor = new ObjectId();
+        first.regenerate(actor);
+        assertNotEquals(old, first.getActiveKeyId());
+        assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
+        assertNotNull(second.findPublicKeyById(old));
+        verify(audit).auditEvent(null, AuditLogEvent.SIGNING_KEY_REGENERATED, actor, null, null, null);
     }
 
     @Test
-    void regenerateRetainsTheOldKeyAndEmitsAuditEventWithCorrectActingUser() {
-        when(findIterable.first()).thenReturn(null);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
-
-        final ObjectId actingUserId = new ObjectId();
-        service.regenerate(actingUserId);
-
-        // Superseded keys are marked inactive, never deleted: ledger entries signed with them must
-        // stay verifiable, so deleting the key would destroy the provenance of existing evidence.
-        verify(mongoCollection, never()).deleteMany(any());
-        verify(mongoCollection, atLeastOnce()).updateMany(any(Bson.class), any(Bson.class));
-        verify(auditEventPublisher).auditEvent(
-                isNull(), eq(AuditLogEvent.SIGNING_KEY_REGENERATED), eq(actingUserId), isNull(), isNull(), isNull());
+    void failedCandidatePersistenceLeavesSharedPointerUnchanged() {
+        final var encryption = spy(new TestEncryptionService());
+        final var first = new SigningKeyDataService(mongoClient, encryption, mock(AuditEventPublisher.class));
+        final String before = first.getActiveKeyId();
+        doThrow(new IllegalStateException("encryption unavailable")).when(encryption).encryptBytes(any(), anyString());
+        assertThrows(IllegalStateException.class, () -> first.regenerate(null));
+        assertEquals(before, service().getActiveKeyId());
+        assertEquals(before, first.getActiveKeyId());
     }
 
     @Test
-    void everyGeneratedKeyGetsAStableIdDerivedFromItsPublicKey() {
-        when(findIterable.first()).thenReturn(null);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
-
-        assertNotNull(service.getActiveKeyId(), "a key must be identifiable so entries can name it");
-        // A third party can recompute the id from the public key alone.
-        assertEquals(SigningKeyDataService.keyIdFor(service.getPublicKey()), service.getActiveKeyId());
+    void missingPointerDoesNotFallBackToCachedSigningKey() {
+        final var first = service();
+        mongoClient.getDatabase("philter").getCollection("signing_key_state").deleteMany(new Document());
+        assertThrows(IllegalStateException.class, first::currentSigningKey);
+        assertThrows(IllegalStateException.class, first::getPublicKeyInfo);
+        assertThrows(IllegalStateException.class, () -> first.regenerate(null));
     }
 
     @Test
-    void loadFromPemFileDerivesPublicKeyMatchingOriginal() throws Exception {
-        when(findIterable.first()).thenReturn(null);
-        final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
-
-        final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(new ECGenParameterSpec("secp256r1"));
-        final KeyPair original = kpg.generateKeyPair();
-
-        final String pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(original.getPrivate().getEncoded())
-                + "\n-----END PRIVATE KEY-----\n";
-        final Path pemFile = tempDir.resolve("test-signing-key.pem");
-        Files.writeString(pemFile, pem);
-
-        final KeyPair loaded = service.loadFromPemFile(pemFile.toString());
-
-        assertArrayEquals(original.getPublic().getEncoded(), loaded.getPublic().getEncoded(),
-                "public key derived from PEM file must match the original — PHILTER_SIGNING_KEY_PATH PEM loading is correct");
+    void pointerToMissingKeyDoesNotFallBackToCachedSigningKey() {
+        final var first = service();
+        mongoClient.getDatabase("philter").getCollection("signing_key_state")
+                .updateOne(new Document("_id", "active"), new Document("$set", new Document("key_id", "missing")));
+        assertThrows(IllegalStateException.class, first::currentSigningKey);
     }
-
 
     @Test
-    @DisplayName("A rotation that cannot be stored leaves the key it was signing with, and says so")
-    void aFailedRotationDoesNotAdvertiseAKeyThatWasNeverStored() {
-
-        when(findIterable.first()).thenReturn(null);
-
-        final SigningKeyDataService service = new SigningKeyDataService(
-                mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
-
-        final String before = service.getActiveKeyId();
-        assertEquals(SigningKeyDataService.keyIdFor(service.getPublicKey()), before);
-
-        // The write of the new key fails, as it would with MongoDB unreachable.
-        when(mongoCollection.insertOne(any())).thenThrow(new RuntimeException("mongo is down"));
-        assertThrows(RuntimeException.class, () -> service.regenerate(null));
-
-        // The id must still name the key that actually signs. Advertising the new one while signing
-        // with the old stamps entries with an id no verifier can resolve after a restart.
-        assertEquals(before, service.getActiveKeyId(),
-                "a rotation that did not persist must not change the advertised key");
-        assertEquals(SigningKeyDataService.keyIdFor(service.getPublicKey()), service.getActiveKeyId(),
-                "the advertised id must name the key that signs");
-
+    void stableIdAndPublicResponseDescribeSameKey() {
+        final var first = service();
+        final var info = first.getPublicKeyInfo();
+        assertEquals(SigningKeyDataService.keyIdFor(first.getPublicKey()), info.keyId());
+        assertTrue(info.jwk().contains(info.keyId()));
+        assertEquals(first.getPublicKeyPem(), info.pem());
+        assertEquals(first.getPublicKeyFingerprint(), info.fingerprint());
     }
 
+    @Test
+    void pemModeIsExplicitAndRetainsOnlyPublicKey() throws Exception {
+        final var generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(new ECGenParameterSpec("secp256r1"));
+        final var pair = generator.generateKeyPair();
+        final var path = tempDir.resolve("key.pem");
+        Files.writeString(path, "-----BEGIN PRIVATE KEY-----\n"
+                + Base64.getEncoder().encodeToString(pair.getPrivate().getEncoded())
+                + "\n-----END PRIVATE KEY-----\n");
+        final var first = new SigningKeyDataService(mongoClient, new TestEncryptionService(),
+                mock(AuditEventPublisher.class), path.toString());
+        final var second = new SigningKeyDataService(mongoClient, new TestEncryptionService(),
+                mock(AuditEventPublisher.class), path.toString());
+        assertTrue(first.isExternallyManaged());
+        assertArrayEquals(pair.getPublic().getEncoded(), first.getPublicKey().getEncoded());
+        assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
+        assertThrows(IllegalStateException.class, () -> first.regenerate(null));
+        final var stored = mongoClient.getDatabase("philter").getCollection("signing_keys").find().first();
+        assertFalse(stored.containsKey("private_key"));
+        assertEquals(0, mongoClient.getDatabase("philter").getCollection("signing_key_state").countDocuments());
+    }
+    @Test
+    void failedPointerPublicationLeavesEveryInstanceOnPreviousKey() {
+        final var first = service();
+        final String before = first.getActiveKeyId();
+        final var realDb = mongoClient.getDatabase("philter");
+        final var state = spy(realDb.getCollection("signing_key_state"));
+        doReturn(state).when(state).withReadPreference(any());
+        doReturn(state).when(state).withWriteConcern(any());
+        final var client = mock(com.mongodb.client.MongoClient.class);
+        final var db = mock(com.mongodb.client.MongoDatabase.class);
+        when(client.getDatabase("philter")).thenReturn(db);
+        when(db.getCollection("signing_keys")).thenReturn(realDb.getCollection("signing_keys"));
+        when(db.getCollection("signing_key_state")).thenReturn(state);
+        final var rotating = new SigningKeyDataService(client, new TestEncryptionService(), mock(AuditEventPublisher.class));
+        doThrow(new IllegalStateException("publication failed")).when(state)
+                .updateOne(any(org.bson.conversions.Bson.class), any(org.bson.conversions.Bson.class));
+        assertThrows(IllegalStateException.class, () -> rotating.regenerate(null));
+        assertEquals(before, first.getActiveKeyId());
+        assertEquals(before, rotating.currentSigningKey().keyId());
+        assertEquals(before, service().getActiveKeyId());
+    }
 
 }

@@ -66,12 +66,13 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {
         super(mongoClient, "policies", auditEventPublisher);
+        revisionCounters = mongoClient.getDatabase("philter").getCollection("policy_revision_counters");
         this.gson = gson;
         this.policyVersionDataService = policyVersionDataService;
         this.redactionCache = redactionCache;
 
         // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
-        ensureIndex(Indexes.ascending("user_id", "name"));
+        ensureIndex(Indexes.ascending("user_id", "name"), new com.mongodb.client.model.IndexOptions().unique(true));
         ensureIndex(Indexes.ascending("managed", "name"));
         // Listing a user's policies also matches shared policies via an OR branch on shared=true, so
         // index shared so that branch uses an index instead of scanning the collection.
@@ -101,14 +102,15 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return new ServiceResponse("You cannot update a managed policy.", false, 409);
         }
 
-        // Only a content change is a new revision. The snapshot store is content-addressed, so an
-        // unchanged save retains nothing and would leave the revision pointing at no snapshot.
+        final int expectedRevision = policyEntity.getRevision();
+
+        // Metadata-only saves retain the current content revision.
         final boolean contentChanged = !Objects.equals(
                 PolicyVersionDataService.contentHash(policyEntity.getPolicy()),
                 PolicyVersionDataService.contentHash(policyJson));
 
         if (contentChanged) {
-            policyEntity.incrementRevision();
+            policyEntity.setRevision(reserveRevision(policyEntity, expectedRevision + 1));
         }
 
         policyEntity.setPolicy(policyJson);
@@ -151,10 +153,10 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             warnAboutLiteralKeys(policyEntity.getName(), policyJson);
 
-            update(policyEntity);
-
-            // Retain an immutable snapshot of the new version as governance evidence.
             policyVersionDataService.snapshot(policyEntity);
+            if (!replaceRevision(policyEntity, expectedRevision)) {
+                return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409);
+            }
 
             redactionCache.evictPolicy(userId, policyEntity.getName());
 
@@ -241,9 +243,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             final ObjectId policyId = save(policyEntity);
 
-            // Retain an immutable snapshot of the initial version as governance evidence.
             policyEntity.setId(policyId);
-            policyVersionDataService.snapshot(policyEntity);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, policyId, source);
 
@@ -667,12 +667,9 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         policyEntity.setId(null);
         policyEntity.setUserId(userId);
 
-        final ObjectId objectId = collection.insertOne(policyEntity.toDocument()).getInsertedId().asObjectId().getValue();
+        final ObjectId objectId = save(policyEntity);
 
-        // Retain an immutable snapshot of the duplicated policy as governance evidence (the content is
-        // identical to the source, so this is a no-op when the source was already snapshotted).
         policyEntity.setId(objectId);
-        policyVersionDataService.snapshot(policyEntity);
 
         redactionCache.evictPolicy(userId, newName);
 
@@ -711,13 +708,16 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return new ServiceResponse("Revision " + targetRevision + " does not exist.", false, 404);
         }
 
+        final int expectedRevision = live.getRevision();
         live.setPolicy(targetVersion.getPolicy());
-        live.incrementRevision();
+        live.setRevision(reserveRevision(live, expectedRevision + 1));
         live.setLastUpdatedTimestamp(new Date());
 
         final int newRevision = live.getRevision();
-        update(live);
         policyVersionDataService.snapshot(live);
+        if (!replaceRevision(live, expectedRevision)) {
+            return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409);
+        }
 
         redactionCache.evictPolicy(userId, policyName);
 
@@ -796,21 +796,23 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
                 // Update existing managed policy
                 final PolicyEntity existingPolicy = PolicyEntity.fromDocument(existingDocument);
+                final int expectedRevision = existingPolicy.getRevision();
                 existingPolicy.setPolicy(managedPolicy.getPolicy());
                 existingPolicy.setDescription(managedPolicy.getDescription());
                 existingPolicy.setLastUpdatedTimestamp(new Date());
-                existingPolicy.incrementRevision();
+                existingPolicy.setRevision(reserveRevision(existingPolicy, expectedRevision + 1));
 
-                collection.replaceOne(Filters.eq("_id", existingPolicy.getId()), existingPolicy.toDocument());
                 policyVersionDataService.snapshot(existingPolicy);
+                if (!replaceRevision(existingPolicy, expectedRevision)) {
+                    throw new IllegalStateException("Managed policy changed concurrently; restart initialization.");
+                }
                 LOGGER.info("Updated managed policy: {}", managedPolicy.getName());
 
             } else {
 
                 // Insert new managed policy
-                final ObjectId managedId = collection.insertOne(managedPolicy.toDocument()).getInsertedId().asObjectId().getValue();
+                final ObjectId managedId = save(managedPolicy);
                 managedPolicy.setId(managedId);
-                policyVersionDataService.snapshot(managedPolicy);
                 LOGGER.info("Inserted managed policy: {}", managedPolicy.getName());
 
             }
@@ -821,4 +823,41 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
+    private final com.mongodb.client.MongoCollection<Document> revisionCounters;
+
+    /** Sequence survives deletion/name reuse. Gaps are expected for failed/conflicting attempts. */
+    private int reserveRevision(PolicyEntity policy, int minimum) {
+        final Document identity = new Document("user_id", policy.getUserId()).append("name", policy.getName());
+        // Reserve above the observed head, even when a competing candidate consumed a revision.
+        try {
+            revisionCounters.updateOne(Filters.eq("_id", identity),
+                    new Document("$max", new Document("next", minimum)),
+                    new com.mongodb.client.model.UpdateOptions().upsert(true));
+        } catch (com.mongodb.MongoWriteException race) {
+            if (race.getError().getCode() != 11000) throw race;
+            revisionCounters.updateOne(Filters.eq("_id", identity), new Document("$max", new Document("next", minimum)));
+        }
+        final Document result = revisionCounters.findOneAndUpdate(Filters.eq("_id", identity),
+                new Document("$inc", new Document("next", 1)),
+                new com.mongodb.client.model.FindOneAndUpdateOptions().upsert(true)
+                        .returnDocument(com.mongodb.client.model.ReturnDocument.AFTER));
+        return result.getInteger("next") - 1;
+    }
+
+    @Override
+    public ObjectId save(PolicyEntity policy) {
+        policy.setRevision(reserveRevision(policy, 0));
+        policyVersionDataService.snapshot(policy);
+        return super.save(policy);
+    }
+
+    private boolean replaceRevision(PolicyEntity policy, int expectedRevision) {
+        return collection.replaceOne(Filters.and(Filters.eq("_id", policy.getId()),
+                Filters.eq("revision", expectedRevision)), policy.toDocument()).getMatchedCount() == 1;
+    }
+
+    @Override
+    public void update(PolicyEntity policy) {
+        throw new UnsupportedOperationException("Use a revision-checked policy update.");
+    }
 }

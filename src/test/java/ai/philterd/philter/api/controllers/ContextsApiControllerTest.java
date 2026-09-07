@@ -783,7 +783,7 @@ class ContextsApiControllerTest {
     @Test
     void deleteEntryRemovesTheEntryScopedToTheOwningUser() throws Exception {
         final ObjectId entryId = new ObjectId();
-        when(contextEntryService.deleteByIdAndUserId(eq(entryId), eq(userId))).thenReturn(1L);
+        when(contextEntryService.deleteByIdAndUserIdAndContext(eq(entryId), eq(userId), eq("my-context"))).thenReturn(1L);
 
         mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId.toHexString())
                         .header("Authorization", AUTH_HEADER)
@@ -791,7 +791,7 @@ class ContextsApiControllerTest {
                 .andExpect(status().isOk());
 
         // Scoped by user id, so one user cannot delete another user's entry by guessing its id.
-        verify(contextEntryService).deleteByIdAndUserId(entryId, userId);
+        verify(contextEntryService).deleteByIdAndUserIdAndContext(entryId, userId, "my-context");
         verify(auditEventPublisher).auditEvent(eq("req-del-entry"), eq(AuditLogEvent.CONTEXT_ENTRY_DELETED),
                 eq(userId), isNull(), any(), contains(entryId.toHexString()));
     }
@@ -799,7 +799,7 @@ class ContextsApiControllerTest {
     @Test
     void deleteEntryReturns404WhenNothingWasDeleted() throws Exception {
         final ObjectId entryId = new ObjectId();
-        when(contextEntryService.deleteByIdAndUserId(eq(entryId), eq(userId))).thenReturn(0L);
+        when(contextEntryService.deleteByIdAndUserIdAndContext(eq(entryId), eq(userId), eq("my-context"))).thenReturn(0L);
 
         mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId.toHexString())
                         .header("Authorization", AUTH_HEADER)
@@ -817,7 +817,7 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-del-bad-id"))
                 .andExpect(status().isBadRequest());
 
-        verify(contextEntryService, never()).deleteByIdAndUserId(any(), any());
+        verify(contextEntryService, never()).deleteByIdAndUserIdAndContext(any(), any(), any());
     }
 
     // ----- Admin cross-user access via the owner parameter on the context-scoped endpoints -----
@@ -913,7 +913,7 @@ class ContextsApiControllerTest {
     void adminCanDeleteAnEntryFromAnotherUsersContextViaOwner() throws Exception {
         final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
         final ObjectId entryId = new ObjectId();
-        when(contextEntryService.deleteByIdAndUserId(eq(entryId), eq(otherUserId))).thenReturn(1L);
+        when(contextEntryService.deleteByIdAndUserIdAndContext(eq(entryId), eq(otherUserId), eq("ctx"))).thenReturn(1L);
 
         mockMvc.perform(delete("/api/contexts/ctx/entries/" + entryId.toHexString())
                         .header("Authorization", AUTH_HEADER)
@@ -921,8 +921,8 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-x-entry"))
                 .andExpect(status().isOk());
 
-        verify(contextEntryService).deleteByIdAndUserId(entryId, otherUserId);
-        verify(contextEntryService, never()).deleteByIdAndUserId(any(), eq(userId));
+        verify(contextEntryService).deleteByIdAndUserIdAndContext(entryId, otherUserId, "ctx");
+        verify(contextEntryService, never()).deleteByIdAndUserIdAndContext(any(), eq(userId), any());
     }
 
     @Test

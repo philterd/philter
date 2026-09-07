@@ -15,16 +15,18 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.testutil.TestEncryptionService;
+import java.util.Date;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
-
-import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class WebhookDeliveryEntityTest {
+
+    private final TestEncryptionService encryption = new TestEncryptionService();
 
     @Test
     void roundTripPreservesAllFields() {
@@ -45,14 +47,16 @@ class WebhookDeliveryEntityTest {
         original.setSecret("super-secret-value-1234");
         original.setPayload("{\"event\":\"x\"}");
         original.setAttempts(3);
+        original.setClaimToken("claim");
+        original.setClaimExpiresAt(next);
         original.setLastError("HTTP 500");
         original.setNextAttemptAt(next);
         original.setCreatedAt(created);
         original.setUpdatedAt(updated);
         original.setDeliveredAt(delivered);
 
-        final Document doc = original.toDocument();
-        final WebhookDeliveryEntity restored = WebhookDeliveryEntity.fromDocument(doc);
+        final Document doc = original.toDocument(encryption);
+        final WebhookDeliveryEntity restored = WebhookDeliveryEntity.fromDocument(doc, encryption);
 
         assertEquals(id, restored.getId());
         assertEquals(userId, restored.getUserId());
@@ -63,6 +67,8 @@ class WebhookDeliveryEntityTest {
         assertEquals("super-secret-value-1234", restored.getSecret());
         assertEquals("{\"event\":\"x\"}", restored.getPayload());
         assertEquals(3, restored.getAttempts());
+        assertEquals("claim", restored.getClaimToken());
+        assertEquals(next, restored.getClaimExpiresAt());
         assertEquals("HTTP 500", restored.getLastError());
         assertEquals(next, restored.getNextAttemptAt());
         assertEquals(created, restored.getCreatedAt());
@@ -75,7 +81,7 @@ class WebhookDeliveryEntityTest {
         final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
         entity.setStatus(WebhookDeliveryEntity.STATUS_PENDING);
 
-        final Document doc = entity.toDocument();
+        final Document doc = entity.toDocument(encryption);
 
         assertNull(doc.get("_id"));
     }
@@ -83,7 +89,7 @@ class WebhookDeliveryEntityTest {
     @Test
     void attemptsDefaultToZero() {
         final Document doc = new Document();
-        final WebhookDeliveryEntity restored = WebhookDeliveryEntity.fromDocument(doc);
+        final WebhookDeliveryEntity restored = WebhookDeliveryEntity.fromDocument(doc, encryption);
         assertEquals(0, restored.getAttempts());
     }
 

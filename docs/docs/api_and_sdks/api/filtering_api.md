@@ -36,6 +36,8 @@ The types of sensitive information found and how each type is redacted is determ
 
 The request body may be up to `MAX_FILE_SIZE_BYTES` (10 MB by default; see [Settings](../../settings.md#redaction-engine)). A larger body is rejected with `413 Payload Too Large` and a message stating the limit.
 
+Resolved execution configuration is limited to 1 MiB of UTF-8 JSON, independently of the uploaded policy size. Custom-list expansion is bounded across all dictionaries and ignored terms; captured async configuration also includes account defaults and context settings. Exceeding this limit returns `413 Payload Too Large`. Async jobs whose complete encrypted record exceeds the storage limit (16 MiB minus a 16 KiB metadata reserve) also return 413 before queue admission. These rejections do not block subsequent submissions.
+
 ### Content Type Verification
 
 The body is checked against the declared `Content-Type` before redaction begins. A body that
@@ -214,3 +216,15 @@ Example response:
 `status` is `UP` when Philter is healthy, and the response code is `200`. Treat any other status
 value, or any non-`200` response, as unhealthy. This is the health response shape shared across
 Philterd products.
+
+## Response formats and evidence identifiers
+
+Text requests use `Content-Type: text/plain` and `Accept: text/plain`. PDF requests use `Content-Type: application/pdf` and select `Accept: application/pdf` or `Accept: application/zip`. A ZIP contains one entry named `redacted.pdf`. Both synchronous responses and completed asynchronous downloads contain actual ZIP bytes when ZIP is selected. PDF async acceptance returns JSON regardless of the selected download format. Set `async=false` for an inline PDF or ZIP.
+
+Synchronous text, PDF, and ZIP responses expose `X-Document-Id`, allowing lookup of the corresponding ledger when the context records one. All filtering responses report raw policy identity through `X-Philter-Policy-Name`, `X-Philter-Policy-Version`, and `X-Philter-Policy-Hash`. Async acceptance additionally reports `X-Effective-Configuration-SHA256`; see [captured configuration](documents_api.md#configuration-captured-at-submission).
+
+Account async capacity returns 429; global capacity, admission contention, or required recovery returns 503, with `Retry-After: 5`. An incompatible `Accept` returns 406 and an unsupported `Content-Type` returns 415. `/api/explain` returns a JSON object containing `filteredText`, `explanation`, and governing-policy metadata; it does not return plain text.
+
+Malformed, unparseable, and password-protected PDFs return `400 Bad Request`. This applies to PDF and ZIP output, including asynchronous submissions, which are validated before queue admission. A PDF must contain at least one page. Storage, signing, and other infrastructure failures remain server errors. PDF validation does not perform OCR; image-only PDFs are outside the supported redaction scope.
+
+Async PDF admission (including ZIP output) retries acknowledged guard contention for up to 500 ms, with randomized 5–25 ms pauses. This bounds contention waiting, not database/network operation timeouts. Once the guard is acquired, account and global capacity checks still apply. An exhausted wait returns 503; account capacity returns 429. Both responses include `Retry-After: 5`. Database exceptions do not trigger application-level acquisition retries, guard release, or job-insert replay. Plain text and `async=false` requests bypass queue admission.

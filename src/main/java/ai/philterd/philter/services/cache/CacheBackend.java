@@ -20,6 +20,9 @@ package ai.philterd.philter.services.cache;
  * Valkey/Redis server or by an in-process, ephemeral store.
  */
 public interface CacheBackend {
+    /** True when failure counters could not be retained; authentication must fail closed. */
+    default boolean counterCapacityExceeded() { return false; }
+
 
     /** Stores a string value with a time-to-live, in seconds. */
     void setex(String key, int ttlSeconds, String value);

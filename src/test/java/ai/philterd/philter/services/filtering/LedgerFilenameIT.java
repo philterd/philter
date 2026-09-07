@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -66,9 +67,12 @@ class LedgerFilenameIT extends AbstractMongoIT {
     private ObjectId userId;
     private LedgerDataService ledgerDataService;
     private RedactionService redactionService;
+    private final PhieldPublisher phield = mock(PhieldPublisher.class);
+    private final PiiCountAggregatePublisher aggregates = mock(PiiCountAggregatePublisher.class);
+    private final AuditEventPublisher completionAudit = mock(AuditEventPublisher.class);
 
     @BeforeEach
-    void setUpServices() {
+    void setUpServices() throws Exception {
 
         userId = new ObjectId();
 
@@ -96,14 +100,19 @@ class LedgerFilenameIT extends AbstractMongoIT {
         when(contextService.findOneByNameAndUserId(CONTEXT, userId)).thenReturn(context);
 
         final LegalHoldDataService legalHoldDataService = mock(LegalHoldDataService.class);
+        final SigningService signer = mock(SigningService.class);
+        when(signer.signLedgerEntry(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new SigningService.LedgerSignature("signature", "key"));
+        when(signer.verifyLedgerEntry(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
         ledgerDataService = new LedgerDataService(mongoClient, new TestEncryptionService(),
-                mock(AuditEventPublisher.class), legalHoldDataService, mock(SigningService.class));
+                mock(AuditEventPublisher.class), legalHoldDataService, signer);
 
         redactionService = new RedactionService(mongoClient, policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,
-                mock(AuditEventPublisher.class), ledgerDataService, userService,
-                new SimpleMeterRegistry(), mock(PhieldPublisher.class),
-                mock(PiiCountAggregatePublisher.class), new RedactionCache());
+                completionAudit, ledgerDataService, userService,
+                new SimpleMeterRegistry(), phield,
+                aggregates, new RedactionCache());
 
     }
 
@@ -114,6 +123,12 @@ class LedgerFilenameIT extends AbstractMongoIT {
                 MimeType.TEXT_PLAIN, "invoice-42.txt");
 
         assertEquals("invoice-42.txt", chainHead().getFilename());
+        final var state = mongoClient.getDatabase("philter").getCollection("ledger_chains")
+                .find(new org.bson.Document("user_id", userId)
+                        .append("document_id", chainHead().getDocumentId())).first();
+        assertNotNull(state);
+        assertEquals("complete", state.getString("state"));
+        assertNotNull(state.getDate("completed_at"));
 
     }
 
@@ -249,4 +264,16 @@ class LedgerFilenameIT extends AbstractMongoIT {
         return heads.getFirst();
     }
 
+
+    @Test
+    void rejectedPublicationFenceWritesNoLedgerOrCompletionEvents() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                redactionService.filter(POLICY_NAME, userId, CONTEXT, TEXT.getBytes(), MimeType.TEXT_PLAIN,
+                        null, "stale.txt", "stale-document", () -> {
+                            throw new IllegalStateException("claim superseded");
+                        }));
+        assertEquals(0, mongoClient.getDatabase("philter").getCollection("ledger").countDocuments());
+        assertEquals(0, mongoClient.getDatabase("philter").getCollection("ledger_chains").countDocuments());
+        org.mockito.Mockito.verifyNoInteractions(phield, aggregates, completionAudit);
+    }
 }

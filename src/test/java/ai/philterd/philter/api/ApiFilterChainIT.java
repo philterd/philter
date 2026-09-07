@@ -347,7 +347,7 @@ class ApiFilterChainIT {
         // failure into the worker, where the caller learns about it by polling.
         final HttpResponse<String> response = send(authenticated(baseUrl + "/api/filter?p=no-such-policy")
                 .header("Content-Type", "application/pdf")
-                .POST(HttpRequest.BodyPublishers.ofByteArray("%PDF-1.4 fake".getBytes()))
+                .POST(HttpRequest.BodyPublishers.ofByteArray(onePagePdf()))
                 .build());
 
         assertEquals(404, response.statusCode(), "an unknown policy must be refused up front: " + response.body());
@@ -632,6 +632,104 @@ class ApiFilterChainIT {
 
         }
 
+    }
+
+    private HttpResponse<String> apiRequest(String method, String path, String body) throws Exception {
+        return send(HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json").header("Accept", "application/json")
+                .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body)).build());
+    }
+
+    @Test
+    void policyRetrievalPreservesNativeDictionaryFieldNames() throws Exception {
+        String policy = """
+                {"identifiers":{"dictionaries":[{"terms":["sensitive-name"],"customDictionaryFilterStrategies":[{"strategy":"REDACT"}]}]}}
+                """;
+        assertEquals(201, apiRequest("POST", "/api/policies?name=native-dictionary", policy).statusCode());
+        var result = apiRequest("GET", "/api/policies/native-dictionary", null);
+        assertEquals(200, result.statusCode());
+        var identifiers = com.google.gson.JsonParser.parseString(result.body()).getAsJsonObject().getAsJsonObject("identifiers");
+        assertTrue(identifiers.has("dictionaries"), "Retrieval must return the native field accepted by policy upload: " + result.body());
+        assertFalse(identifiers.has("customDictionaries"));
+    }
+
+    @Test
+    void customListLifecycleUsesJsonAndPersistsChanges() throws Exception {
+        assertEquals(201, apiRequest("POST", "/api/lists/audit-list", "[\"one\",\"two\"]").statusCode());
+        var fetched = apiRequest("GET", "/api/lists/audit-list", null);
+        assertEquals(200, fetched.statusCode());
+        assertTrue(fetched.headers().firstValue("Content-Type").orElse("").startsWith("application/json"));
+        assertTrue(fetched.body().contains("one"));
+        assertEquals(200, apiRequest("POST", "/api/lists/audit-list", "[\"three\"]").statusCode());
+        fetched = apiRequest("GET", "/api/lists/audit-list", null);
+        assertTrue(fetched.body().contains("three"));
+        assertFalse(fetched.body().contains("one"));
+        assertEquals(204, apiRequest("DELETE", "/api/lists/audit-list", null).statusCode());
+        assertEquals(404, apiRequest("GET", "/api/lists/audit-list", null).statusCode());
+    }
+
+    @Test
+    void contextImportExportAndDeletionRespectTheContextRoute() throws Exception {
+        assertEquals(200, apiRequest("POST", "/api/contexts?name=api-audit", null).statusCode());
+        String payload = "{\"version\":1,\"entries\":[{\"tokenHash\":\"" + "a".repeat(64) + "\",\"replacement\":\"replacement\",\"filterType\":\"PERSON\"}]}";
+        var imported = apiRequest("POST", "/api/contexts/api-audit/entries/import", payload);
+        assertEquals(200, imported.statusCode(), imported.body());
+        var exported = apiRequest("GET", "/api/contexts/api-audit/entries/export", null);
+        assertEquals(200, exported.statusCode());
+        assertTrue(exported.body().contains("tokenHash"));
+        var entries = com.google.gson.JsonParser.parseString(apiRequest("GET", "/api/contexts/api-audit/entries", null).body()).getAsJsonObject().getAsJsonArray("entries");
+        String id = entries.get(0).getAsJsonObject().get("id").getAsString();
+        assertEquals(404, apiRequest("DELETE", "/api/contexts/wrong/entries/" + id, null).statusCode());
+        assertEquals(200, apiRequest("DELETE", "/api/contexts/api-audit/entries/" + id, null).statusCode());
+        assertEquals(200, apiRequest("DELETE", "/api/contexts/api-audit", null).statusCode());
+        assertEquals(404, apiRequest("GET", "/api/contexts/api-audit", null).statusCode());
+    }
+
+    @Test
+    void malformedAndPasswordProtectedPdfsReturn400ForBothFormatsAndModes() throws Exception {
+        byte[] encrypted;
+        try (var pdf = new PDDocument(); var out = new java.io.ByteArrayOutputStream()) {
+            pdf.addPage(new PDPage());
+            pdf.protect(new org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy("owner-password", "user-password",
+                    new org.apache.pdfbox.pdmodel.encryption.AccessPermission()));
+            pdf.save(out); encrypted = out.toByteArray();
+        }
+        for (byte[] input : new byte[][] {"%PDF-1.7\ninvalid truncated document".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                java.util.Arrays.copyOf(onePagePdf(), 20), encrypted}) {
+            for (String format : new String[] {"application/pdf", "application/zip"}) {
+                for (boolean async : new boolean[] {false, true}) {
+                    var response = send(authenticated(baseUrl + "/api/filter?p=ssn-only&async=" + async)
+                            .header("Content-Type", "application/pdf").header("Accept", format)
+                            .POST(HttpRequest.BodyPublishers.ofByteArray(input)).build());
+                    assertEquals(400, response.statusCode(), format + " async=" + async + ": " + response.body());
+                }
+            }
+        }
+    }
+
+    @Test
+    void auditExpansionReturns413AndNormalPdfCanStillBeAdmitted() throws Exception {
+        var gson = new com.google.gson.Gson();
+        var items = java.util.stream.IntStream.range(0, 100)
+                .mapToObj(n -> String.format("%03d-", n) + "x".repeat(46)).toList();
+        var listResponse = send(authenticated(baseUrl + "/api/lists/audit-expansion")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(items))).build());
+        assertEquals(201, listResponse.statusCode());
+        var policy = gson.toJson(java.util.Map.of("identifiers", java.util.Map.of("dictionaries", java.util.List.of(
+                java.util.Map.of("terms", java.util.Collections.nCopies(3500, "list:audit-expansion"),
+                        "customDictionaryFilterStrategies", java.util.List.of(java.util.Map.of("strategy", "REDACT")))))));
+        assertTrue(policy.length() < 256 * 1024);
+        assertEquals(201, savePolicy("audit-expansion", policy).statusCode());
+        var rejected = send(authenticated(baseUrl + "/api/filter?p=audit-expansion")
+                .header("Content-Type", "application/pdf")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(onePagePdf())).build());
+        assertEquals(413, rejected.statusCode(), rejected.body());
+        var accepted = send(authenticated(baseUrl + "/api/filter?p=ssn-only")
+                .header("Content-Type", "application/pdf")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(onePagePdf())).build());
+        assertEquals(202, accepted.statusCode(), accepted.body());
     }
 
 }

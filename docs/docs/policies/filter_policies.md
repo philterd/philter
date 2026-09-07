@@ -1,6 +1,6 @@
 # Filter Policies
 
-The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. A policy is a file stored under Philter’s `policies` directory, which by default is located at `/opt/philter/policies/`. You can have an unlimited number of policies.
+The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. Policies are JSON configurations stored in MongoDB. Create or update them through the dashboard or [Policies API](../api_and_sdks/api/policies_api.md).
 
 Each policy has a `name` that is used by Philter to apply the appropriate de-identification methods. The `name` is passed to Philter’s [API](../api_and_sdks/api/filtering_api.md) along with the text to be filtered when submitting text to Philter. This provides flexibility and allows you to de-identify different types of documents in differing manners with a single instance of Philter. For example, you may have a policy for bankruptcy documents and a separate policy for financial documents.
 
@@ -11,7 +11,7 @@ Each policy has a `name` that is used by Philter to apply the appropriate de-ide
 
 A policy:
 
-* Is identified by its filename without the `.json` extension. This filename is the policy name you pass to the API, so it must be unique. Philter does not read a `name` field from inside the JSON; the `name` shown in the examples below is for readability only.
+* Has a name unique within its owning account. Set the name in the dashboard or in the required `name` query parameter when saving through the API; the local filename does not set the policy name.
 * Must have a list of `identifiers` that are filters for sensitive information.
     * Each `identifier` , or filter, can have zero or more [filter strategies](filter_strategies.md). A filter strategy tells Philter how to manipulate that type of sensitive information when it is identified.
 * Can have an optional list of terms or patterns of information to [ignore](ignoring_specific_information.md).
@@ -23,7 +23,6 @@ The following is an example policy. In the example below you can see the [types 
 
 ```
 {
-   "name": "email-and-phone-numbers",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -47,16 +46,27 @@ The following is an example policy. In the example below you can see the [types 
 
 When an email address is identified by this policy, the email address is replaced with the text `{{{REDACTED-email-address}}}`. The `%t` gets replaced by the type of the filter. Likewise, when a phone number is found it is replaced with the text `{{{REDACTED-phone-number}}}`. You are free to change the redaction formats to whatever fits your use-case. See [Filter Strategies](filter_strategies.md) for all replacement options.
 
-The name of this policy is `email-and-phone-numbers`, which comes from its filename: the policy must be saved as `email-and-phone-numbers.json`. Filenames must be unique across all policies, since the filename (without the `.json` extension) is the name you pass to Philter when filtering. The `name` field inside the JSON is not read by Philter.
+Save this JSON locally as `email-and-phone-numbers.json` for the upload below. The API query parameter assigns the stored name; another account can use the same name independently.
 
 ### Applying a Policy to Text
 
-To use this policy we will save it as `/opt/philter/profiles/email-and-phone-numbers.json`. We must restart Philter for the new profile to be available for use. To apply the policy we will pass the policy's name to Philter when making a filter request, as shown in the example request below.
+Create an API key with `policies:write` and `redact` scopes on the dashboard's [API Keys](../account/api_keys.md) tab. Set `API_KEY` in your shell to that key. Upload the policy:
 
+```bash
+curl --fail-with-body -k -X POST "https://localhost:8080/api/policies?name=email-and-phone-numbers" \
+  -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+  --data-binary @email-and-phone-numbers.json
 ```
-curl -k -X POST "https://localhost:8080/api/filter?c=context&p=email-and-phone-numbers" \
-  -d @file.txt -H "Content-Type: text/plain"
+
+A successful save returns 201. Saving the same name updates that account's policy. The policy is available immediately; no restart is needed. Apply it to a text file:
+
+```bash
+curl --fail-with-body -k -X POST "https://localhost:8080/api/filter?p=email-and-phone-numbers" \
+  -H "Authorization: Bearer $API_KEY" -H "Content-Type: text/plain" \
+  --data-binary @file.txt
 ```
+
+These examples use the Docker image's self-signed certificate. Use your deployment's host and omit `-k` when using a trusted certificate.
 
 In this command, we have provided the parameter `p` along with a value that is the name of the policy we want to use for this request. If we had multiple policies in Philter we could choose a different policy for this request simply by changing the name given to the parameter `p`. For more details see Philter’s [API](../api_and_sdks/api.md).
 

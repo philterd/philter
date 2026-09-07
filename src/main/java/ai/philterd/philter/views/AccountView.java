@@ -558,7 +558,7 @@ public class AccountView extends AbstractRestrictedView {
 
             accountUser.setWebhookUrl(url);
             accountUser.setWebhookSecret(secret);
-            userService.update(accountUser);
+            userService.updateWebhook(accountUser);
 
             // Audit the webhook configuration, but never record the URL or secret themselves.
             auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.WEBHOOK_CONFIGURED,
@@ -573,7 +573,7 @@ public class AccountView extends AbstractRestrictedView {
             secretField.setValue("");
             accountUser.setWebhookUrl(null);
             accountUser.setWebhookSecret(null);
-            userService.update(accountUser);
+            userService.updateWebhook(accountUser);
 
             auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.WEBHOOK_REMOVED,
                     accountUser.getId(), accountUser.getId(), Source.WEBUI.getSource(), null);

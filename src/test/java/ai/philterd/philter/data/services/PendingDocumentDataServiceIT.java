@@ -149,10 +149,11 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         // The multi-instance coordination guarantee: many workers polling at once must never both claim
         // the same job. This exercises the atomic findOneAndUpdate under real parallelism.
         final ObjectId user = new ObjectId();
+        final ObjectId secondUser = new ObjectId();
         final int jobCount = 60;
         final long base = System.currentTimeMillis();
         for (int i = 0; i < jobCount; i++) {
-            service.save(newPending(user, "doc-" + i, "default", new Date(base + i)));
+            service.save(newPending(i % 2 == 0 ? user : secondUser, "doc-" + i, "default", new Date(base + i)));
         }
 
         final int workers = 8;
@@ -210,7 +211,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
                 service.findOneByDocumentIdAndUserId("stuck", user).getStatus());
 
         // A cutoff in the future reclaims every PROCESSING job (the "stuck" branch).
-        final Date future = new Date(System.currentTimeMillis() + 60_000);
+        final Date future = new Date(System.currentTimeMillis() + PendingDocumentDataService.CLAIM_LEASE_MS + 60_000);
         assertEquals(2L, service.reclaimStuckJobs(future, 3));
 
         final PendingDocumentEntity reclaimed = service.findOneByDocumentIdAndUserId("stuck", user);
@@ -231,7 +232,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         assertNotNull(claimed.getInput());
 
         final byte[] output = new byte[]{9, 8, 7};
-        service.markComplete(claimed.getId(), claimed.getUserId(), output);
+        assertTrue(service.beginPublication(claimed.getId(), claimed.getClaimToken()));
+        service.markComplete(claimed.getId(), claimed.getUserId(), claimed.getClaimToken(), output);
 
         final PendingDocumentEntity completed = service.findOneByDocumentIdAndUserId("doc-1", user);
         assertEquals(PendingDocumentEntity.STATUS_COMPLETE, completed.getStatus());
@@ -246,7 +248,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         service.save(newPending(user, "doc-1"));
         final PendingDocumentEntity claimed = service.claimNextPending("w");
 
-        service.markFailed(claimed.getId(), "boom");
+        service.markFailed(claimed.getId(), claimed.getClaimToken(), "boom");
 
         final PendingDocumentEntity failed = service.findOneByDocumentIdAndUserId("doc-1", user);
         assertEquals(PendingDocumentEntity.STATUS_FAILED, failed.getStatus());
@@ -293,7 +295,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         // Move one to PROCESSING and one to COMPLETE.
         final PendingDocumentEntity processing = service.claimNextPending("w");
         final PendingDocumentEntity c = service.claimNextPending("w");
-        service.markComplete(c.getId(), c.getUserId(), new byte[]{1});
+        assertTrue(service.beginPublication(c.getId(), c.getClaimToken()));
+        service.markComplete(c.getId(), c.getUserId(), c.getClaimToken(), new byte[]{1});
         assertNotNull(processing);
 
         // One PENDING + one PROCESSING are counted; the COMPLETE one is not.
@@ -316,7 +319,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         assertTrue(service.hasOpenJobsForContext(user, "ctx"));
 
         // Once terminal (COMPLETE), the context has no open jobs.
-        service.markComplete(claimed.getId(), claimed.getUserId(), new byte[]{1});
+        assertTrue(service.beginPublication(claimed.getId(), claimed.getClaimToken()));
+        service.markComplete(claimed.getId(), claimed.getUserId(), claimed.getClaimToken(), new byte[]{1});
         assertFalse(service.hasOpenJobsForContext(user, "ctx"));
     }
 

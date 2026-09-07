@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Resolves a stored redaction policy into a ready-to-use Phileas {@link Policy}.
@@ -98,13 +99,28 @@ public class PolicyResolver {
                         ? customListService.findItemsByNames(userId, referencedListNames)
                         : Collections.emptyMap();
 
+        // Validate every dependency before changing the policy. An empty list is valid;
+        // an absent list (including one belonging to another user) must not reduce coverage.
+        final Set<String> missing = new TreeSet<>();
+        for (final String name : referencedListNames) {
+            if (listItems.get(name) == null) {
+                missing.add(name);
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new PolicyResolutionException("Policy references unavailable custom lists: "
+                    + String.join(", ", missing) + ".");
+        }
+
+        final ExpansionBudget budget = new ExpansionBudget();
+
         // Second pass: expand the references using the prefetched items (no further queries).
         for (final Ignored ignored : policy.getIgnored()) {
-            ignored.setTerms(expandCustomListReferences(ignored.getTerms(), listItems));
+            ignored.setTerms(expandCustomListReferences(ignored.getTerms(), listItems, budget));
         }
         if (identifiers != null && identifiers.getCustomDictionaries() != null) {
             for (final CustomDictionary customDictionary : identifiers.getCustomDictionaries()) {
-                customDictionary.setTerms(expandCustomListReferences(customDictionary.getTerms(), listItems));
+                customDictionary.setTerms(expandCustomListReferences(customDictionary.getTerms(), listItems, budget));
             }
         }
 
@@ -114,6 +130,7 @@ public class PolicyResolver {
             policy.setFpe(new FPE(fpeKey, fpeTweak));
         }
 
+        EffectiveConfigurationLimits.requireSize(gson.toJson(policy));
         return policy;
 
     }
@@ -125,16 +142,21 @@ public class PolicyResolver {
         }
         for (final String term : terms) {
             if (term != null && term.startsWith(CUSTOM_LIST_PREFIX)) {
-                out.add(term.substring(CUSTOM_LIST_PREFIX.length()));
+                final String name = term.substring(CUSTOM_LIST_PREFIX.length());
+                if (name.isBlank()) {
+                    throw new PolicyResolutionException("A custom list reference must include a list name.");
+                }
+                out.add(name);
             }
         }
     }
 
     /**
      * Replaces any {@code list:<name>} references in the given terms with the items from the prefetched
-     * {@code listItems} map, leaving plain terms unchanged. Never returns null.
+     * {@code listItems} map, leaving plain terms unchanged. References must have been validated before expansion.
      */
-    private static List<String> expandCustomListReferences(final List<String> terms, final Map<String, List<String>> listItems) {
+    private List<String> expandCustomListReferences(final List<String> terms, final Map<String, List<String>> listItems,
+                                                    final ExpansionBudget budget) {
 
         if (terms == null || terms.isEmpty()) {
             return terms;
@@ -146,19 +168,30 @@ public class PolicyResolver {
             if (term != null && term.startsWith(CUSTOM_LIST_PREFIX)) {
                 final String listName = term.substring(CUSTOM_LIST_PREFIX.length());
                 final List<String> items = listItems.get(listName);
-                if (items != null) {
-                    LOGGER.info("Resolved custom list reference '{}' to {} items", term, items.size());
-                    resolvedTerms.addAll(items);
-                } else {
-                    LOGGER.warn("Custom list '{}' not found for user. Reference will be ignored.", listName);
+                LOGGER.info("Resolved custom list reference '{}' to {} items", term, items.size());
+                for (final String item : items) {
+                    budget.add(item);
+                    resolvedTerms.add(item);
                 }
             } else {
+                budget.add(term);
                 resolvedTerms.add(term);
             }
         }
 
         return resolvedTerms;
 
+    }
+
+    /** Shared across ignored terms and every dictionary; charge JSON escaping and separators too. */
+    private final class ExpansionBudget {
+        private long bytes;
+        void add(final String term) {
+            bytes += gson.toJson(term).getBytes(java.nio.charset.StandardCharsets.UTF_8).length + 1L;
+            if (bytes > EffectiveConfigurationLimits.MAX_BYTES) {
+                throw EffectiveConfigurationLimits.exceeded();
+            }
+        }
     }
 
 }

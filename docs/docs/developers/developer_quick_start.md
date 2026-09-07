@@ -87,10 +87,12 @@ Two query parameters control the request:
 * `p` (optional, default `default`) is the policy to apply.
 * `c` (optional) is the [context](../redaction/contexts.md). Documents sharing a context receive consistent replacements for the same value, so the same person can be tracked across documents without exposing their identity.
 
+The examples use the `default` context created for a new account. If you deleted it, recreate it through the [Contexts API](../api_and_sdks/api/contexts_api.md) or choose an existing context before continuing.
+
 ### Using curl
 
 ```bash
-curl -k -X POST "https://localhost:8080/api/filter?c=my-context&p=my-custom-policy" \
+curl -k -X POST "https://localhost:8080/api/filter?c=default&p=my-custom-policy" \
      -H "Authorization: Bearer YOUR_API_KEY" \
      -H "Content-Type: text/plain" \
      -d "Send the results to jdoe@example.com and reference SSN 123-45-6789."
@@ -114,7 +116,7 @@ base_url = "https://localhost:8080"
 
 response = requests.post(
     f"{base_url}/api/filter",
-    params={"c": "my-context", "p": "my-custom-policy"},
+    params={"c": "default", "p": "my-custom-policy"},
     headers={
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "text/plain",
@@ -136,7 +138,7 @@ The body may be up to `MAX_FILE_SIZE_BYTES` (10 MB by default); a larger body is
 ### Submit
 
 ```bash
-curl -k -X POST "https://localhost:8080/api/filter?c=my-context&p=my-custom-policy" \
+curl -k -X POST "https://localhost:8080/api/filter?c=default&p=my-custom-policy" \
      -H "Authorization: Bearer YOUR_API_KEY" \
      -H "Content-Type: application/pdf" \
      --data-binary @sample_document.pdf
@@ -183,7 +185,7 @@ headers = {"Authorization": f"Bearer {api_key}"}
 with open("sample_document.pdf", "rb") as f:
     submit = requests.post(
         f"{base_url}/api/filter",
-        params={"c": "my-context", "p": "my-custom-policy"},
+        params={"c": "default", "p": "my-custom-policy"},
         headers={**headers, "Content-Type": "application/pdf"},
         data=f,
         verify=False,

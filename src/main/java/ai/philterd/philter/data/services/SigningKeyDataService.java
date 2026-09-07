@@ -20,6 +20,12 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.data.entities.SigningKeyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.ReadPreference;
+import com.mongodb.WriteConcern;
+import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.UpdateOptions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.x9.X9ECParameters;
@@ -53,67 +59,106 @@ import java.util.HexFormat;
 
 public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEntity> {
 
+    private final MongoClient mongoClient;
+
     private static final Logger LOGGER = LogManager.getLogger(SigningKeyDataService.class);
 
     /** The key and its id together, so no reader can see half a rotation. */
     private record ActiveKey(KeyPair keyPair, String keyId) { }
 
     private volatile ActiveKey active;
+    private final MongoCollection<Document> keys;
+    private final MongoCollection<Document> keyState;
+    private final boolean externallyManaged;
 
     public SigningKeyDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                                  final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "signing_keys", encryptionService, auditEventPublisher);
-        this.active = loadOrGenerate();
+        this(mongoClient, encryptionService, auditEventPublisher, System.getenv("PHILTER_SIGNING_KEY_PATH"));
     }
 
-    private ActiveKey loadOrGenerate() {
-        final String keyPath = System.getenv("PHILTER_SIGNING_KEY_PATH");
-        if (keyPath != null && !keyPath.isBlank()) {
+    SigningKeyDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                          final AuditEventPublisher auditEventPublisher, final String keyPath) {
+        super(mongoClient, "signing_keys", encryptionService, auditEventPublisher);
+        this.mongoClient = mongoClient;
+        keys = collection.withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
+        keyState = mongoClient.getDatabase("philter").getCollection("signing_key_state")
+                .withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
+        keys.createIndex(Indexes.ascending("key_id"), new IndexOptions().unique(true));
+        externallyManaged = keyPath != null && !keyPath.isBlank();
+        if (externallyManaged) {
             try {
-                LOGGER.info("Loading signing key from PHILTER_SIGNING_KEY_PATH: {}", keyPath);
-                final KeyPair fromPem = loadFromPemFile(keyPath);
-                return new ActiveKey(fromPem, keyIdFor(fromPem.getPublic()));
-            } catch (final Exception e) {
+                final KeyPair pair = loadFromPemFile(keyPath);
+                active = new ActiveKey(pair, keyIdFor(pair.getPublic()));
+                // Retain only the public half so old PEM signatures remain verifiable after restart.
+                keys.updateOne(Filters.eq("key_id", active.keyId()),
+                        new Document("$setOnInsert", new Document("key_id", active.keyId())
+                                .append("public_key", pair.getPublic().getEncoded()).append("created_at", new Date())),
+                        new UpdateOptions().upsert(true));
+            } catch (Exception e) {
                 throw new IllegalStateException("Failed to load signing key from PHILTER_SIGNING_KEY_PATH: " + keyPath, e);
             }
-        }
-
-        Document doc = collection.find(Filters.eq("active", true)).first();
-        if (doc == null) {
-            // Written before rotation history existed: no flag, and it is the only key.
-            doc = collection.find().first();
-        }
-        if (doc != null) {
-            LOGGER.info("Loaded existing signing key from MongoDB.");
-            final SigningKeyEntity entity = SigningKeyEntity.fromDocument(doc, encryptionService);
-            final KeyPair loaded = fromEntity(entity);
-            if (SigningKeyEntity.isLegacyPlaintext(doc)) {
-                rewrapLegacyKey(entity);
+        } else {
+            if (keyState.find(Filters.eq("_id", "active")).first() == null) {
+                final ActiveKey candidate = generateAndPersist();
+                // Concurrent bootstraps may retain unused candidates, but only one pointer wins.
+                final var result = keyState.updateOne(Filters.eq("_id", "active"),
+                        new Document("$setOnInsert", new Document("key_id", candidate.keyId())),
+                        new UpdateOptions().upsert(true));
+                if (result.getUpsertedId() != null) {
+                    auditEventPublisher.auditEvent(null, AuditLogEvent.SIGNING_KEY_GENERATED,
+                            null, null, null, null);
+                }
             }
-            rewrapLegacySupersededKeys();
-            return new ActiveKey(loaded, entity.getKeyId() != null
-                    ? entity.getKeyId()
-                    : backfillKeyId(entity, loaded));
+            currentActiveKey();
         }
+    }
 
-        LOGGER.info("No signing key found; generating a new ES256 keypair.");
-        return generateAndPersist(true, null);
+    public boolean isExternallyManaged() {
+        return externallyManaged;
     }
 
     /**
-     * Generates a new ES256 keypair, replaces any existing key in MongoDB, and updates the
-     * in-memory keypair. Called from the admin UI "Regenerate Key" action.
-     *
-     * @param actingUserId the id of the admin who triggered the regeneration, for audit
+     * Persist the candidate first, then atomically publish it. Failed publication leaves the
+     * previous pointer intact; retained keys keep in-flight and historical signatures verifiable.
      */
     public void regenerate(final ObjectId actingUserId) {
-        LOGGER.info("Regenerating signing keypair; the superseded key is retained for verification.");
-        // Retained, not deleted: ledger entries signed with it must stay verifiable forever.
-        collection.updateMany(Filters.eq("active", true),
-                Updates.combine(Updates.set("active", false), Updates.set("superseded_at", new Date())));
-        collection.updateMany(Filters.exists("active", false),
-                Updates.combine(Updates.set("active", false), Updates.set("superseded_at", new Date())));
-        this.active = generateAndPersist(false, actingUserId);
+        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
+        if (externallyManaged) {
+            throw new IllegalStateException("Signing key is managed by PHILTER_SIGNING_KEY_PATH; replace the file and restart all instances.");
+        }
+        final ActiveKey candidate = generateAndPersist();
+        if (keyState.updateOne(Filters.eq("_id", "active"), Updates.set("key_id", candidate.keyId()))
+                .getMatchedCount() != 1) {
+            throw new IllegalStateException("Active signing-key pointer is missing; rotation was not published.");
+        }
+        auditEventPublisher.auditEvent(null, AuditLogEvent.SIGNING_KEY_REGENERATED,
+                actingUserId, null, null, null);
+    }
+
+    private ActiveKey currentActiveKey() {
+        if (externallyManaged) {
+            return active;
+        }
+        final Document pointer = keyState.find(Filters.eq("_id", "active")).first();
+        if (pointer == null || pointer.getString("key_id") == null) {
+            throw new IllegalStateException("Active signing-key pointer is missing.");
+        }
+        final String keyId = pointer.getString("key_id");
+        final ActiveKey cached = active;
+        if (cached != null && keyId.equals(cached.keyId())) {
+            return cached;
+        }
+        final Document document = keys.find(Filters.eq("key_id", keyId)).first();
+        if (document == null) {
+            throw new IllegalStateException("Active signing key is missing: " + keyId);
+        }
+        final KeyPair pair = fromEntity(SigningKeyEntity.fromDocument(document, encryptionService));
+        if (!keyId.equals(keyIdFor(pair.getPublic()))) {
+            throw new IllegalStateException("Active signing-key ID does not match its public key.");
+        }
+        final ActiveKey loaded = new ActiveKey(pair, keyId);
+        active = loaded;
+        return loaded;
     }
 
     /** Stable identifier a third party can recompute from the public key alone. */
@@ -126,55 +171,14 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         }
     }
 
-    /** Gives a pre-existing key its id on first load, so entries signed from now on can name it. */
-    private String backfillKeyId(final SigningKeyEntity entity, final KeyPair loaded) {
-        final String keyId = keyIdFor(loaded.getPublic());
-        if (entity.getId() != null) {
-            collection.updateOne(Filters.eq("_id", entity.getId()), Updates.set("key_id", keyId));
-        }
-        return keyId;
-    }
-
-    /**
-     * Encrypts a key that was persisted before the private half was protected. Done on load so an
-     * existing deployment is migrated on its next start without an operator step.
-     */
-    private void rewrapLegacyKey(final SigningKeyEntity entity) {
-        try {
-            final Document rewrapped = entity.toDocument(encryptionService);
-            collection.updateOne(Filters.eq("_id", entity.getId()), Updates.combine(
-                    Updates.set("private_key", rewrapped.get("private_key")),
-                    Updates.set("private_key_encrypted_key", rewrapped.getString("private_key_encrypted_key"))));
-            LOGGER.info("Encrypted a signing key that was stored in plaintext by an earlier build.");
-        } catch (final Exception e) {
-            // Not fatal: the key still works, it is simply still in the clear.
-            LOGGER.error("Unable to encrypt the stored signing key; it remains in plaintext.", e);
-        }
-    }
-
-    /**
-     * Encrypts any superseded key still held in plaintext. A superseded key is retained so entries it
-     * signed stay verifiable, which also means it can still forge signatures for those entries, so it
-     * needs the same protection as the active one.
-     */
-    private void rewrapLegacySupersededKeys() {
-        try {
-            for (final Document doc : collection.find(Filters.exists("private_key_encrypted_key", false))) {
-                rewrapLegacyKey(SigningKeyEntity.fromDocument(doc, encryptionService));
-            }
-        } catch (final Exception e) {
-            LOGGER.error("Unable to encrypt one or more superseded signing keys.", e);
-        }
-    }
-
     /** The id of the key new signatures are made with. */
     public String getActiveKeyId() {
-        return active.keyId();
+        return currentActiveKey().keyId();
     }
 
     /** The private key and the id that names it, from one read, so a caller cannot mix two keys. */
     public SigningKey currentSigningKey() {
-        final ActiveKey snapshot = active;
+        final ActiveKey snapshot = currentActiveKey();
         return new SigningKey(snapshot.keyPair().getPrivate(), snapshot.keyId());
     }
 
@@ -190,10 +194,10 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
             return null;
         }
         final ActiveKey snapshot = active;
-        if (keyId.equals(snapshot.keyId())) {
+        if (snapshot != null && keyId.equals(snapshot.keyId())) {
             return snapshot.keyPair().getPublic();
         }
-        final Document doc = collection.find(Filters.eq("key_id", keyId)).first();
+        final Document doc = keys.find(Filters.eq("key_id", keyId)).first();
         if (doc == null) {
             return null;
         }
@@ -206,7 +210,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         }
     }
 
-    private ActiveKey generateAndPersist(final boolean isFirstGeneration, final ObjectId actingUserId) {
+    private ActiveKey generateAndPersist() {
         try {
             final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
             kpg.initialize(new ECGenParameterSpec("secp256r1"));
@@ -217,15 +221,9 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
             entity.setPrivateKeyEncoded(kp.getPrivate().getEncoded());
             entity.setPublicKeyEncoded(kp.getPublic().getEncoded());
             entity.setCreatedAt(new Date());
-            entity.setActive(true);
 
             // Stored before it is published: a key that signs must be one a verifier can find.
-            collection.insertOne(entity.toDocument(encryptionService));
-
-            final AuditLogEvent event = isFirstGeneration
-                    ? AuditLogEvent.SIGNING_KEY_GENERATED
-                    : AuditLogEvent.SIGNING_KEY_REGENERATED;
-            auditEventPublisher.auditEvent(null, event, actingUserId, null, null, null);
+            keys.insertOne(entity.toDocument(encryptionService));
 
             return new ActiveKey(kp, entity.getKeyId());
         } catch (final Exception e) {
@@ -273,11 +271,11 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
     }
 
     public PublicKey getPublicKey() {
-        return active.keyPair().getPublic();
+        return currentActiveKey().keyPair().getPublic();
     }
 
     public PrivateKey getPrivateKey() {
-        return active.keyPair().getPrivate();
+        return currentActiveKey().keyPair().getPrivate();
     }
 
     /** Returns the public key in PEM (BEGIN PUBLIC KEY) format. */
@@ -293,27 +291,42 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
     }
 
     public String getPublicKeyPem() {
-        final byte[] encoded = active.keyPair().getPublic().getEncoded();
-        final String b64 = Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded);
-        return "-----BEGIN PUBLIC KEY-----\n" + b64 + "\n-----END PUBLIC KEY-----\n";
+        return toPem(currentActiveKey().keyPair().getPublic().getEncoded());
+    }
+
+    public record PublicKeyInfo(String keyId, String pem, String jwk, String fingerprint) { }
+
+    /** All advertised fields come from one key selection even if rotation overlaps this request. */
+    public PublicKeyInfo getPublicKeyInfo() {
+        final ActiveKey snapshot = currentActiveKey();
+        return new PublicKeyInfo(snapshot.keyId(), toPem(snapshot.keyPair().getPublic().getEncoded()),
+                toJwk(snapshot), fingerprint(snapshot));
     }
 
     /** Returns the public key as a minimal JWK JSON object (kty=EC, crv=P-256 per RFC 7518). */
     public String getPublicKeyJwk() {
-        final ECPublicKey ecKey = (ECPublicKey) active.keyPair().getPublic();
+        return toJwk(currentActiveKey());
+    }
+
+    private static String toJwk(final ActiveKey snapshot) {
+        final ECPublicKey ecKey = (ECPublicKey) snapshot.keyPair().getPublic();
         final ECPoint point = ecKey.getW();
         final byte[] x = coordinateToBytes(point.getAffineX());
         final byte[] y = coordinateToBytes(point.getAffineY());
         final String xEnc = Base64.getUrlEncoder().withoutPadding().encodeToString(x);
         final String yEnc = Base64.getUrlEncoder().withoutPadding().encodeToString(y);
-        return "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"" + xEnc + "\",\"y\":\"" + yEnc + "\"}";
+        return "{\"kid\":\"" + snapshot.keyId() + "\",\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"" + xEnc + "\",\"y\":\"" + yEnc + "\"}";
     }
 
     /** Returns the SHA-256 fingerprint of the public key (colon-separated hex bytes). */
     public String getPublicKeyFingerprint() {
+        return fingerprint(currentActiveKey());
+    }
+
+    private static String fingerprint(final ActiveKey snapshot) {
         try {
             final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-            final byte[] digest = sha256.digest(active.keyPair().getPublic().getEncoded());
+            final byte[] digest = sha256.digest(snapshot.keyPair().getPublic().getEncoded());
             return HexFormat.ofDelimiter(":").formatHex(digest);
         } catch (final Exception e) {
             return "(unavailable)";

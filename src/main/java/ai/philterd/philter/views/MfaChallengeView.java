@@ -99,7 +99,7 @@ public class MfaChallengeView extends VerticalLayout implements BeforeEnterObser
 
         // Defensive: if the account no longer requires MFA, treat the gate as satisfied and continue.
         if (user == null || !user.isMfaEnabled()) {
-            markSatisfiedAndContinue();
+            UI.getCurrent().navigate(user == null ? "login" : "dashboard");
             return;
         }
 
@@ -140,11 +140,11 @@ public class MfaChallengeView extends VerticalLayout implements BeforeEnterObser
             return;
         }
 
-        markSatisfiedAndContinue();
+        markSatisfiedAndContinue(user);
     }
 
-    private void markSatisfiedAndContinue() {
-        VaadinSession.getCurrent().setAttribute(MFA_SATISFIED_ATTRIBUTE, Boolean.TRUE);
+    private void markSatisfiedAndContinue(final UserEntity user) {
+        VaadinSession.getCurrent().setAttribute(MFA_SATISFIED_ATTRIBUTE, satisfactionToken(user));
         UI.getCurrent().navigate("dashboard");
     }
 
@@ -161,17 +161,22 @@ public class MfaChallengeView extends VerticalLayout implements BeforeEnterObser
         // If the user lands here but does not actually need to verify (already satisfied this session, or
         // not enrolled), send them on to the dashboard rather than showing an unnecessary prompt.
         final VaadinSession session = VaadinSession.getCurrent();
-        if (session != null && Boolean.TRUE.equals(session.getAttribute(MFA_SATISFIED_ATTRIBUTE))) {
+        final UserEntity user = currentUser();
+        if (isSatisfied(session, user)) {
             event.forwardTo("dashboard");
             return;
         }
-        final UserEntity user = currentUser();
         if (user == null || !user.isMfaEnabled()) {
-            if (session != null) {
-                session.setAttribute(MFA_SATISFIED_ATTRIBUTE, Boolean.TRUE);
-            }
             event.forwardTo("dashboard");
         }
     }
 
+    private static String satisfactionToken(UserEntity user) {
+        return user.getId().toHexString() + ":" + user.getSecurityVersion();
+    }
+
+    public static boolean isSatisfied(VaadinSession session, UserEntity user) {
+        return session != null && user != null && !user.isMfaLocked()
+                && satisfactionToken(user).equals(session.getAttribute(MFA_SATISFIED_ATTRIBUTE));
+    }
 }

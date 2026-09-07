@@ -70,9 +70,9 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
         final PolicyVersionEntity resolved = versionService.findByContentHash(hash);
         assertNotNull(resolved);
         assertEquals(json, resolved.getPolicy());
-        assertEquals("p", resolved.getName());
-        // The first capture's revision is retained.
-        assertEquals(1, resolved.getRevision());
+        assertEquals(1, versionService.findByNameAndRevision("p", user, 1).getRevision());
+        assertEquals(2, versionService.findByNameAndRevision("p", user, 2).getRevision());
+        assertEquals(1, mongoClient.getDatabase("philter").getCollection("policy_contents").countDocuments());
     }
 
     @Test

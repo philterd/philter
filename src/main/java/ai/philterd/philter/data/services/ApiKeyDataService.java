@@ -25,6 +25,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -315,7 +316,10 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         final Set<String> previousScopes = new LinkedHashSet<>(stored.getScopes());
 
         stored.setScopes(scopes);
-        update(stored);
+        final var result = collection.updateOne(Filters.and(Filters.eq("_id", stored.getId()),
+                Filters.eq("user_id", callerUserId), Filters.ne("deleted", true)),
+                new Document("$set", new Document("scopes", new java.util.ArrayList<>(scopes))));
+        if (result.getMatchedCount() != 1) return new ServiceResponse("API key not found.", false, 404);
 
         // Keep the caller's copy consistent with what was stored, so a UI holding the old object shows
         // the change without re-reading.
@@ -349,7 +353,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // stored key, so persisting caller-supplied fields would let a tampered copy through the guard.
         owned.setDeleted(true);
         owned.setDeletedAt(new Date());
-        update(owned);
+        collection.updateOne(Filters.and(Filters.eq("_id", owned.getId()), Filters.eq("user_id", callerUserId)),
+                new Document("$set", new Document("deleted", true).append("deleted_at", owned.getDeletedAt())));
 
         // Keep the caller's copy consistent with what was stored, so a UI holding the old object
         // reflects the deletion without re-reading.
@@ -394,4 +399,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    @Override
+    public void update(final ApiKeyEntity key) {
+        throw new UnsupportedOperationException("Use scope or revocation operations.");
+    }
 }

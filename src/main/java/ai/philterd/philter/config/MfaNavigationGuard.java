@@ -34,9 +34,8 @@ import org.springframework.stereotype.Component;
  * on the Vaadin session). Users who are not enrolled are never gated.
  *
  * <p>This runs at the Vaadin routing layer rather than in Spring Security, so the existing form login and
- * its CSRF handling are untouched. The dashboard's only privileged surface is its routes, every one of
- * which passes through this {@code BeforeEnterListener}; the API is separately protected by API keys and
- * is unaffected.
+ * its CSRF handling are untouched. The request filter also checks the account security version on component RPCs, so
+ * a newly enrolled account cannot keep using components from an older session. The API uses API keys.
  */
 @Component
 public class MfaNavigationGuard implements VaadinServiceInitListener {
@@ -57,11 +56,6 @@ public class MfaNavigationGuard implements VaadinServiceInitListener {
 
         final VaadinSession session = VaadinSession.getCurrent();
 
-        // Already satisfied this session (verified, or determined not to need MFA): allow.
-        if (session != null && Boolean.TRUE.equals(session.getAttribute(MfaChallengeView.MFA_SATISFIED_ATTRIBUTE))) {
-            return;
-        }
-
         // Always let the challenge view itself through so the user can enter a code.
         if (event.getNavigationTarget() == MfaChallengeView.class) {
             return;
@@ -75,11 +69,7 @@ public class MfaNavigationGuard implements VaadinServiceInitListener {
 
         final UserEntity user = userService.findByUsername(auth.getName());
 
-        if (user == null || !user.isMfaEnabled()) {
-            // Not enrolled: nothing to gate. Cache it so we do not re-query on every navigation.
-            if (session != null) {
-                session.setAttribute(MfaChallengeView.MFA_SATISFIED_ATTRIBUTE, Boolean.TRUE);
-            }
+        if (user != null && (!user.isMfaEnabled() || MfaChallengeView.isSatisfied(session, user))) {
             return;
         }
 

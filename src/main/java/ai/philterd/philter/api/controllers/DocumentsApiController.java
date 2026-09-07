@@ -140,6 +140,8 @@ public class DocumentsApiController extends AbstractApiController {
         }
 
         final GetRedactionStatusResponse response = new GetRedactionStatusResponse(entity.getStatus(), entity.getDocumentId());
+        response.setEffectiveConfigurationHash(entity.getEffectiveHash());
+        response.setError(entity.getErrorMessage());
         return new ResponseEntity<>(gson.toJson(response), HttpStatus.OK);
 
     }

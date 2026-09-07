@@ -327,6 +327,15 @@ class LegalHoldsApiControllerTest {
     }
 
     @Test
+    void releaseHoldReturns409WhenOperationActive() throws Exception {
+        when(legalHoldDataService.release(anyString(), eq("MISSING"), eq(userId)))
+                .thenReturn(new ServiceResponse("Not found.", false, 409));
+
+        mockMvc.perform(delete("/api/holds/MISSING").header("Authorization", AUTH))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void releaseHoldReturns200OnSuccess() throws Exception {
         when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId)))
                 .thenReturn(new ServiceResponse("Released.", true, 200));

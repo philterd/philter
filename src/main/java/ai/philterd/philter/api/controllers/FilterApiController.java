@@ -139,7 +139,8 @@ public class FilterApiController extends AbstractApiController {
 
         return ResponseEntity.status(HttpStatus.OK)
                 .headers(policyHeaders(outcome.appliedPolicy()))
-                .body(binaryDocumentFilterResult.getDocument());
+                .header(DOCUMENT_ID_HEADER, outcome.documentId())
+                .body(ai.philterd.philter.services.filtering.BinaryOutput.encode(binaryDocumentFilterResult.getDocument(), "application/zip"));
 
     }
 
@@ -183,6 +184,7 @@ public class FilterApiController extends AbstractApiController {
 
         return ResponseEntity.status(HttpStatus.OK)
                 .headers(policyHeaders(outcome.appliedPolicy()))
+                .header(DOCUMENT_ID_HEADER, outcome.documentId())
                 .body(binaryDocumentFilterResult.getDocument());
 
     }
@@ -244,6 +246,8 @@ public class FilterApiController extends AbstractApiController {
                                                  final String outputMimeType, final String policyName, final String contextName,
                                                  final String filename) throws PolicyNotFoundException {
 
+        ai.philterd.philter.services.filtering.PdfInputValidator.validate(body);
+
         final String documentId = UUID.randomUUID().toString();
 
         final PendingDocumentEntity entity = new PendingDocumentEntity();
@@ -273,6 +277,9 @@ public class FilterApiController extends AbstractApiController {
         entity.setPolicyVersion(policyVersion);
         entity.setPolicyContentHash(policyContentHash);
 
+        final String effectiveJson = redactionService.captureEffectiveConfiguration(policyEntity, contextName);
+        entity.setEffectiveJson(effectiveJson);
+        entity.setEffectiveHash(PolicyVersionDataService.contentHash(effectiveJson));
         pendingDocumentDataService.save(entity);
 
         // Audit that a document was submitted for asynchronous redaction. The documentId is the
@@ -287,6 +294,7 @@ public class FilterApiController extends AbstractApiController {
                 .location(URI.create("/api/documents/" + documentId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(POLICY_NAME_HEADER, policyName)
+                .header("X-Effective-Configuration-SHA256", entity.getEffectiveHash())
                 .header(POLICY_VERSION_HEADER, Integer.toString(policyVersion))
                 .header(POLICY_HASH_HEADER, policyContentHash)
                 .body(json.getBytes(StandardCharsets.UTF_8));

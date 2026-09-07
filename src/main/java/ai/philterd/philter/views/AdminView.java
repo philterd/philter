@@ -576,14 +576,15 @@ public class AdminView extends AbstractRestrictedView {
         fingerprintField.setWidth("640px");
 
         final Button regenerateKeyButton = new Button("Regenerate Signing Key", VaadinIcon.REFRESH.create());
+        regenerateKeyButton.setEnabled(!signingKeyDataService.isExternallyManaged());
         regenerateKeyButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
         regenerateKeyButton.addClickListener(event -> {
             final Dialog confirmDialog = new Dialog();
             confirmDialog.setHeaderTitle("Regenerate Signing Key");
             confirmDialog.add(new Paragraph(
-                    "This will generate a new ES256 keypair and discard the current one. "
-                            + "Any consumer that cached the old public key will no longer be able to "
-                            + "verify signatures until they fetch the new key from GET /api/signing-key. "
+                    "This will publish a new ES256 signing key for all database-managed instances. "
+                            + "Previous public keys remain available for verification. Consumers should "
+                            + "use each signature's key ID to fetch its matching public key. "
                             + "Continue?"));
             final Button confirmButton = new Button("Regenerate", e -> {
                 final ai.philterd.philter.data.entities.UserEntity adminUser = getCurrentUser();

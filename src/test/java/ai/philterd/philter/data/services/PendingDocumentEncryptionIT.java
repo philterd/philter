@@ -129,7 +129,8 @@ class PendingDocumentEncryptionIT extends AbstractMongoIT {
         final PendingDocumentEntity claimed = service.claimNextPending("w1");
 
         final byte[] redacted = "Patient {{{REDACTED-name}}}, SSN {{{REDACTED-ssn}}}.".getBytes(StandardCharsets.UTF_8);
-        service.markComplete(claimed.getId(), USER, redacted);
+        assertTrue(service.beginPublication(claimed.getId(), claimed.getClaimToken()));
+        service.markComplete(claimed.getId(), USER, claimed.getClaimToken(), redacted);
 
         // markComplete is a partial update that never passes through toDocument, so it has to
         // encrypt on its own; without that it wrote the redacted document in the clear.
@@ -150,6 +151,8 @@ class PendingDocumentEncryptionIT extends AbstractMongoIT {
         poison.setStatus(PendingDocumentEntity.STATUS_PROCESSING);
         poison.setClaimedBy("dead-worker");
         poison.setClaimedAt(new Date(0));
+        poison.setClaimToken("dead-attempt");
+        poison.setClaimExpiresAt(new Date(0));
         poison.setReclaimCount(3);
         service.save(poison);
 
@@ -170,6 +173,8 @@ class PendingDocumentEncryptionIT extends AbstractMongoIT {
         stuck.setStatus(PendingDocumentEntity.STATUS_PROCESSING);
         stuck.setClaimedBy("dead-worker");
         stuck.setClaimedAt(new Date(0));
+        stuck.setClaimToken("dead-attempt");
+        stuck.setClaimExpiresAt(new Date(0));
         stuck.setReclaimCount(1);
         service.save(stuck);
 

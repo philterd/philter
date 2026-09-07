@@ -120,7 +120,9 @@ final class HeadlessDashboard implements AutoCloseable {
 
     /** A Mongo client answering mocks, so a view's data services can be constructed. */
     static MongoClient mongoClient() {
-        return mock(MongoClient.class, RETURNS_DEEP_STUBS);
+        final MongoClient client = mock(MongoClient.class, RETURNS_DEEP_STUBS);
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(client.getDatabase("philter").getCollection("users"));
+        return client;
     }
 
     /**
@@ -139,6 +141,7 @@ final class HeadlessDashboard implements AutoCloseable {
                 .append("role", user.getRole())
                 .append("password_change_required", user.isPasswordChangeRequired());
 
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(client.getDatabase(anyString()).getCollection(anyString()));
         when(client.getDatabase(anyString()).getCollection(anyString()).find(any(Bson.class)).first())
                 .thenReturn(document);
 

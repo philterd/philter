@@ -142,7 +142,10 @@ nav:
   - 'API and SDKs':
     - 'API Overview': 'api_and_sdks/api.md'
     - 'API Keys and Authentication': 'account/api_keys.md'
+    - 'Endpoint Inventory': 'api_and_sdks/api/endpoint_inventory.md'
     - 'API Methods':
+      - 'Public Health and Signing Keys': 'api_and_sdks/api/public_api.md'
+      - 'Re-identification API': 'redaction/re-identification.md'
       - 'Filtering API': 'api_and_sdks/api/filtering_api.md'
       - 'Documents API': 'api_and_sdks/api/documents_api.md'
       - 'Webhooks': 'api_and_sdks/api/webhooks.md'

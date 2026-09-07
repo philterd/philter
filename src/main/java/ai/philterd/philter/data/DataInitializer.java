@@ -65,12 +65,12 @@ public class DataInitializer {
     public void init() throws IOException {
 
         // Check for the admin user.
-        if (userService.findByUsername("admin") == null) {
+        if (userService.findAnyByUsername("admin") == null) {
 
-            LOGGER.info("Creating default admin user");
-            // Seed with the default password but require it to be changed on first login. The admin has
-            // no email address by default (username "admin", null email).
-            userService.createUser(RequestIdGenerator.generate(), "admin", null, "admin", "admin", policyDataService, contextDataService, Source.SYSTEM.getSource(), true);
+            final String bootstrapPassword = requireBootstrapPassword(System.getenv("PHILTER_BOOTSTRAP_ADMIN_PASSWORD"));
+            LOGGER.info("Creating initial admin user");
+            // The operator supplies a private bootstrap credential; never log its value.
+            userService.createUser(RequestIdGenerator.generate(), "admin", null, bootstrapPassword, "admin", policyDataService, contextDataService, Source.SYSTEM.getSource(), true);
 
 
         }
@@ -151,4 +151,10 @@ public class DataInitializer {
 
     }
 
+    static String requireBootstrapPassword(final String password) {
+        if (password == null || password.length() < 16 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalStateException("Set PHILTER_BOOTSTRAP_ADMIN_PASSWORD to a private password of at least 16 characters (at most 72 UTF-8 bytes) before first startup.");
+        }
+        return password;
+    }
 }

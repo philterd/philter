@@ -58,6 +58,9 @@ class RedactionWorkerTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(pendingDocumentDataService.beginPublication(any(), any())).thenReturn(true);
+        org.mockito.Mockito.lenient().when(pendingDocumentDataService.markComplete(any(), any(), any(), any())).thenReturn(true);
+        org.mockito.Mockito.lenient().when(pendingDocumentDataService.markFailed(any(), any(), any())).thenReturn(true);
         worker = new RedactionWorker(pendingDocumentDataService, redactionService,
                 userService, webhookDeliveryDataService, policyVersionDataService, new Gson());
     }
@@ -69,6 +72,7 @@ class RedactionWorkerTest {
     private PendingDocumentEntity pdfJob() {
         final PendingDocumentEntity job = new PendingDocumentEntity();
         job.setId(new ObjectId());
+        job.setClaimToken("attempt");
         job.setUserId(new ObjectId());
         job.setDocumentId("doc-1");
         job.setInputMimeType(MimeType.APPLICATION_PDF.name());
@@ -90,9 +94,9 @@ class RedactionWorkerTest {
 
         worker.poll();
 
-        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any());
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any());
-        verify(pendingDocumentDataService, never()).markFailed(any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        verify(pendingDocumentDataService, never()).markFailed(any(), any(), any());
     }
 
     @Test
@@ -101,16 +105,15 @@ class RedactionWorkerTest {
         final byte[] redacted = "redacted-pdf".getBytes();
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(eq("default"), eq(job.getUserId()), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(), any()))
-                .thenReturn(outcome(binaryResult(redacted)));
-        when(userService.findOneById(job.getUserId())).thenReturn(null); // no webhook configured
+        when(redactionService.filter(eq("default"), eq(job.getUserId()), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(), any(), any()))
+                .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return outcome(binaryResult(redacted)); });
 
         worker.poll();
 
         final ArgumentCaptor<byte[]> outputCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(pendingDocumentDataService).markComplete(eq(job.getId()), any(), outputCaptor.capture());
+        verify(pendingDocumentDataService).markComplete(eq(job.getId()), any(), eq(job.getClaimToken()), outputCaptor.capture());
         assertEquals("redacted-pdf", new String(outputCaptor.getValue()));
-        verify(pendingDocumentDataService, never()).markFailed(any(), any());
+        verify(pendingDocumentDataService, never()).markFailed(any(), any(), any());
     }
 
     @Test
@@ -118,14 +121,13 @@ class RedactionWorkerTest {
         final PendingDocumentEntity job = pdfJob();
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
-        when(userService.findOneById(job.getUserId())).thenReturn(null);
 
         worker.poll();
 
-        verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq("boom"));
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any());
+        verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), eq("boom"));
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
     }
 
     @Test
@@ -137,13 +139,12 @@ class RedactionWorkerTest {
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(outcome(textResult));
-        when(userService.findOneById(job.getUserId())).thenReturn(null);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return outcome(textResult); });
 
         worker.poll();
 
-        verify(pendingDocumentDataService).markFailed(eq(job.getId()), any());
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any());
+        verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
     }
 
     @Test
@@ -155,14 +156,15 @@ class RedactionWorkerTest {
         user.setWebhookUrl("https://example.com/hook");
         user.setWebhookSecret("a-secret-value");
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(outcome(binaryResult("ok".getBytes())));
         when(userService.findOneById(job.getUserId())).thenReturn(user);
 
-        worker.poll();
+        job.setStatus(PendingDocumentEntity.STATUS_COMPLETE);
+        job.setCompletedAt(new java.util.Date());
+        when(pendingDocumentDataService.pendingNotifications(100)).thenReturn(java.util.List.of(job));
+        worker.reconcileNotifications();
 
         final ArgumentCaptor<WebhookDeliveryEntity> captor = ArgumentCaptor.forClass(WebhookDeliveryEntity.class);
-        verify(webhookDeliveryDataService).save(captor.capture());
+        verify(webhookDeliveryDataService).enqueueOnce(captor.capture());
         final WebhookDeliveryEntity delivery = captor.getValue();
         assertEquals(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE, delivery.getEventType());
         assertEquals("https://example.com/hook", delivery.getUrl());
@@ -178,13 +180,14 @@ class RedactionWorkerTest {
         user.setWebhookUrl("https://example.com/hook");
         // no secret
 
-        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(outcome(binaryResult("ok".getBytes())));
         when(userService.findOneById(job.getUserId())).thenReturn(user);
 
-        worker.poll();
+        job.setStatus(PendingDocumentEntity.STATUS_COMPLETE);
+        job.setCompletedAt(new java.util.Date());
+        when(pendingDocumentDataService.pendingNotifications(100)).thenReturn(java.util.List.of(job));
+        worker.reconcileNotifications();
 
-        verify(webhookDeliveryDataService, never()).save(any());
+        verify(webhookDeliveryDataService, never()).enqueueOnce(any());
     }
 
     @Test
@@ -206,4 +209,29 @@ class RedactionWorkerTest {
         worker.poll(); // must not throw
     }
 
+    @Test
+    void missingCustomListMarksJobFailedWithoutPublishingOutput() throws Exception {
+        final PendingDocumentEntity job = pdfJob();
+        final String message = "Policy references unavailable custom lists: required-names.";
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new ai.philterd.philter.services.policies.PolicyResolutionException(message));
+
+        worker.poll();
+
+        verify(pendingDocumentDataService).markFailed(job.getId(), job.getClaimToken(), message);
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+    }
+
+    @Test
+    void missingExplicitPinFailsWithoutLivePolicyFallback() throws Exception {
+        final PendingDocumentEntity job = pdfJob();
+        job.setPolicyContentHash("missing-snapshot");
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
+        worker.poll();
+        verify(pendingDocumentDataService).markFailed(job.getId(), job.getClaimToken(),
+                "Pinned policy snapshot is missing: missing-snapshot");
+        org.mockito.Mockito.verifyNoInteractions(redactionService);
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+    }
 }

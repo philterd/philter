@@ -33,10 +33,6 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
     private byte[] privateKeyEncoded;
     private byte[] publicKeyEncoded;
     private Date createdAt;
-    /** Superseded keys are retained, not deleted, so entries they signed stay verifiable. */
-    private boolean active = true;
-    private Date supersededAt;
-
     /** Reads the record without touching the private key, for callers that only need the public half. */
     public static SigningKeyEntity publicPartFromDocument(final Document doc) {
         final SigningKeyEntity e = new SigningKeyEntity();
@@ -44,14 +40,7 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
         e.setKeyId(doc.getString("key_id"));
         e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
         e.setCreatedAt(doc.getDate("created_at"));
-        e.setActive(doc.getBoolean("active", true));
-        e.setSupersededAt(doc.getDate("superseded_at"));
         return e;
-    }
-
-    /** True when the record predates private-key encryption and still holds the key in the clear. */
-    public static boolean isLegacyPlaintext(final Document doc) {
-        return doc.getString("private_key_encrypted_key") == null;
     }
 
     public static SigningKeyEntity fromDocument(final Document doc, final EncryptionService encryptionService) {
@@ -64,14 +53,12 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
         // encrypted, so a database dump alone no longer yields the ability to forge signatures.
         final byte[] storedPrivate = doc.get("private_key", Binary.class).getData();
         final String wrappedKey = doc.getString("private_key_encrypted_key");
-        e.setPrivateKeyEncoded(wrappedKey == null
-                ? storedPrivate
-                : encryptionService.decryptBytes(storedPrivate, wrappedKey));
+        if (wrappedKey == null || wrappedKey.isBlank()) {
+            throw new IllegalStateException("Signing private key is missing its encryption key.");
+        }
+        e.setPrivateKeyEncoded(encryptionService.decryptBytes(storedPrivate, wrappedKey));
         e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
         e.setCreatedAt(doc.getDate("created_at"));
-        // Keys written before rotation history existed carry no flag and are the active key.
-        e.setActive(doc.getBoolean("active", true));
-        e.setSupersededAt(doc.getDate("superseded_at"));
         return e;
     }
 
@@ -89,8 +76,6 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
 
         doc.put("public_key", publicKeyEncoded);
         doc.put("created_at", createdAt);
-        doc.put("active", active);
-        doc.put("superseded_at", supersededAt);
         return doc;
     }
 
@@ -125,22 +110,6 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
 
     public void setKeyId(final String keyId) {
         this.keyId = keyId;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(final boolean active) {
-        this.active = active;
-    }
-
-    public Date getSupersededAt() {
-        return supersededAt;
-    }
-
-    public void setSupersededAt(final Date supersededAt) {
-        this.supersededAt = supersededAt;
     }
 
     public Date getCreatedAt() {

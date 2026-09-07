@@ -61,8 +61,13 @@ class PendingDocumentDataServiceTest {
 
     @BeforeEach
     void setUp() {
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("pending_documents")).thenReturn(mongoCollection);
+        when(mongoCollection.withReadPreference(any())).thenReturn(mongoCollection);
+        when(mongoCollection.withWriteConcern(any())).thenReturn(mongoCollection);
+        org.mockito.Mockito.lenient().when(mongoDatabase.getCollection("queue_admission"))
+                .thenReturn(org.mockito.Mockito.mock(com.mongodb.client.MongoCollection.class, org.mockito.Mockito.RETURNS_SELF));
         service = new PendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
     }
 
@@ -119,7 +124,7 @@ class PendingDocumentDataServiceTest {
         final byte[] output = new byte[]{1, 2, 3};
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
-        service.markComplete(id, new ObjectId(), output);
+        service.markComplete(id, new ObjectId(), "attempt", output);
 
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
     }
@@ -129,7 +134,7 @@ class PendingDocumentDataServiceTest {
         final ObjectId id = new ObjectId();
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
-        service.markFailed(id, "boom");
+        service.markFailed(id, "attempt", "boom");
 
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
     }

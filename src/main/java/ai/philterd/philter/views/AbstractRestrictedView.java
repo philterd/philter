@@ -146,6 +146,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
     public UserEntity getCurrentUser() {
 
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return null;
         final String email = authentication.getName();
 
         return userService.findByUsername(email);
@@ -158,7 +159,8 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
      * so the role string is not duplicated across views.
      */
     public boolean isAdmin() {
-        return userEntity != null && "admin".equalsIgnoreCase(userEntity.getRole());
+        final UserEntity current = getCurrentUser();
+        return current != null && "admin".equalsIgnoreCase(current.getRole());
     }
 
     public HorizontalLayout getTitle(final String name) {

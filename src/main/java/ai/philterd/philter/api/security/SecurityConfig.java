@@ -112,7 +112,8 @@ public class SecurityConfig {
     @Bean
     @Order(2)
     public SecurityFilterChain filterChain(final HttpSecurity http,
-                                           final SizeLimitingFilter sizeLimitingFilter) throws Exception {
+                                           final SizeLimitingFilter sizeLimitingFilter,
+                                           final ai.philterd.philter.data.services.UserService userService) throws Exception {
 
         http
                 // CSRF protection is left enabled for the Vaadin UI (Vaadin's security configurer
@@ -132,6 +133,8 @@ public class SecurityConfig {
                 )
 
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new DashboardSessionFilter(userService), org.springframework.security.web.access.intercept.AuthorizationFilter.class)
+                .sessionManagement(session -> session.sessionFixation(fixation -> fixation.newSession()))
                 .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/dashboard", true))
                 .with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
 

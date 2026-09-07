@@ -95,7 +95,7 @@ public class ReidentifyApiController extends AbstractApiController {
                     + "by supplying that user's email via the owner parameter. "
                     + "CRYPTO_REPLACE requires policyName so the key can be resolved from the stored policy. "
                     + "FPE_ENCRYPT_REPLACE uses the user's per-account FPE key; if the policy specified a "
-                    + "custom FPE key, also pass policyName so that key is used instead."
+                    + "custom FPE configuration, also pass policyName so its key and tweak are used instead."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Request processed; inspect each result for per-value errors."),
@@ -104,7 +104,7 @@ public class ReidentifyApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "Named policy not found, or owner not found.")
     })
     @RequiresScope(ApiKeyScope.REIDENTIFY)
-    @RequestMapping(value = "/api/reidentify", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/reidentify", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> reidentify(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestBody ReidentifyRequest request,
@@ -213,26 +213,22 @@ public class ReidentifyApiController extends AbstractApiController {
             throw new IllegalStateException("User not found.");
         }
 
-        // Prefer a policy-level FPE key when a policyName is supplied; fall back to the user's
-        // account-level key (the same fallback path as during redaction).
-        String fpeKey = null;
+        // Preserve the complete policy FPE configuration, as PolicyResolver does for redaction.
+        // Account defaults apply only when the policy supplies no FPE object.
+        FPE fpe = null;
         if (request.getPolicyName() != null && !request.getPolicyName().isBlank()) {
             final PolicyEntity policyEntity = policyDataService.findOne(request.getPolicyName(), userId);
             if (policyEntity == null) {
                 throw new PolicyNotFoundException("Policy '" + request.getPolicyName() + "' not found.");
             }
             final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
-            if (policy.getFpe() != null && policy.getFpe().getKey() != null) {
-                fpeKey = policy.getFpe().getKey();
-            }
+            fpe = policy.getFpe();
         }
 
-        if (fpeKey == null) {
-            fpeKey = userService.ensureFpeKey(userEntity);
+        if (fpe == null) {
+            final String fpeKey = userService.ensureFpeKey(userEntity);
+            fpe = new FPE(fpeKey, EncryptionService.deriveFpeTweak(fpeKey));
         }
-
-        final String fpeTweak = EncryptionService.deriveFpeTweak(fpeKey);
-        final FPE fpe = new FPE(fpeKey, fpeTweak);
 
         final List<ReidentifyResponse.ReidentifyResult> results = new ArrayList<>(request.getValues().size());
 

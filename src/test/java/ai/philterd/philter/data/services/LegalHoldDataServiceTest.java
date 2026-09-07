@@ -59,6 +59,14 @@ class LegalHoldDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("legal_holds")).thenReturn(mongoCollection);
+        lenient().when(mongoCollection.withReadPreference(any())).thenReturn(mongoCollection);
+        lenient().when(mongoCollection.withWriteConcern(any())).thenReturn(mongoCollection);
+        final MongoCollection<Document> guards = mock(MongoCollection.class);
+        when(mongoDatabase.getCollection("evidence_operation_guards")).thenReturn(guards);
+        when(guards.withReadPreference(any())).thenReturn(guards);
+        when(guards.withWriteConcern(any())).thenReturn(guards);
+        lenient().when(guards.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(1, 1L, null));
         service = new LegalHoldDataService(mongoClient, auditEventPublisher);
     }
 
@@ -107,7 +115,6 @@ class LegalHoldDataServiceTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
         final com.mongodb.client.result.InsertOneResult insertResult = mock(com.mongodb.client.result.InsertOneResult.class);
-        when(insertResult.getInsertedId()).thenReturn(new org.bson.BsonObjectId(new ObjectId()));
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertResult);
 
         final ServiceResponse r = service.create("req", "REF-1", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN, "doc123", "reason", userId, setByUserId);
@@ -125,7 +132,6 @@ class LegalHoldDataServiceTest {
         when(fi.first()).thenReturn(null);
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
         final com.mongodb.client.result.InsertOneResult insertResult = mock(com.mongodb.client.result.InsertOneResult.class);
-        when(insertResult.getInsertedId()).thenReturn(new org.bson.BsonObjectId(new ObjectId()));
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertResult);
 
         final ServiceResponse r = service.create("req", "REF-2", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN,
@@ -139,7 +145,6 @@ class LegalHoldDataServiceTest {
         when(fi.first()).thenReturn(null);
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
         final com.mongodb.client.result.InsertOneResult insertResult = mock(com.mongodb.client.result.InsertOneResult.class);
-        when(insertResult.getInsertedId()).thenReturn(new org.bson.BsonObjectId(new ObjectId()));
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertResult);
 
         final ServiceResponse r = service.create("req", "REF-3", LegalHoldEntity.SCOPE_USER,

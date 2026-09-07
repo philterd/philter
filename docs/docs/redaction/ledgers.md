@@ -36,7 +36,7 @@ hex:
 
 ```
 user id, document id, token, replacement, start position, document hash, timestamp,
-previous hash, policy name, policy version, policy content hash, filename, PII type
+previous hash, policy name, policy version, policy content hash, effective configuration hash, filename, PII type
 ```
 
 An unset field is written as the four bytes `null`, and the timestamp as
@@ -81,8 +81,13 @@ The validity response reports both, plus how many entries carry a signature:
 }
 ```
 
-`unsignedEntries` counts entries written before signing existed. They cannot be signed after the
-fact, so they are reported as unproven rather than treated as tampered.
+`unsignedEntries` counts entries with a missing or blank signature. Any such entry makes
+`signaturesValid` and `valid` false, even if `hashChainValid` is true. A missing, unknown, or invalid
+signing key ID also prevents signature validation. There is no unsigned compatibility mode.
+
+Every new ledger entry must be signed before it is saved. If signing fails, Philter fails the
+redaction rather than returning success with unsigned evidence. Earlier signed entries from that
+request may already have been saved; this does not make the whole chain write atomic.
 
 **Verifying independently.** Each entry names the key that signed it in `signingKeyId`. Fetch that
 key from `GET /api/signing-key/{keyId}`, which needs no authentication, then verify the ES256
@@ -128,8 +133,19 @@ Deletion always operates on **whole document chains**, never on individual entri
 
 An administrator can prune old entries at any time. This is how you enforce a retention policy: schedule this call and you get time-based retention that is still admin-only, hold-aware, and audited.
 
-* **Dashboard**: on the **Redaction Ledgers** page, use **Purge old entries** and enter a number of days. Every chain of yours older than that is deleted.
+* **Dashboard**: on the **Redaction Ledgers** page, use **Purge old entries** and enter a number of days. Eligible completed chains of yours older than that are deleted.
 * **API**: `DELETE /api/ledger?older_than_days={n}` deletes the calling user's chains older than `n` days. See the [Ledger API](../api_and_sdks/api/ledger_api.md#purge-old-ledger-entries).
+
+Age retention applies to a whole chain. Philter seals the chain after its ledger entries have been
+recorded, and further appends to that document ID are rejected. Both the completion time and the
+newest entry timestamp must precede the cutoff. A chain spanning the cutoff is retained in full.
+Open, interrupted, and failed chains are retained for review or explicit deletion.
+With `older_than_days=0`, completed chains are eligible immediately; unfinished chains remain.
+
+The `ledger_chains` collection keeps lifecycle metadata, including a small marker after purge so
+a late writer cannot recreate the chain. Purge deletes entries by owner and document ID. If a
+database deletion fails partway through, the completion marker remains eligible for a retry;
+multi-row deletion is not a MongoDB transaction. An interrupted operation also retains its owner guard; follow the [legal-hold recovery procedure](legal_holds.md#concurrent-operations-and-recovery) before retrying.
 
 ### 2. Deleting a single document's chain
 
@@ -138,7 +154,7 @@ An administrator can prune old entries at any time. This is how you enforce a re
 
 ### There is no automatic expiry
 
-Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that had MongoDB expire old entries. It was removed. Because MongoDB performs that deletion itself, it could not check legal holds and left no audit record, which is the opposite of what evidence retention requires. Schedule the purge above instead. If a deployment set the variable, Philter drops the leftover index at startup and logs that it has done so.
+Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that had MongoDB expire old entries. It was removed. Because MongoDB performs that deletion itself, it could not check legal holds and left no audit record, which is the opposite of what evidence retention requires. Schedule the purge above instead. Startup rejects any ledger TTL index; it does not drop indexes or migrate data.
 
 ### Ledger entries survive user deactivation
 
@@ -188,3 +204,9 @@ For organizations processing a high volume of documents, you can quickly locate 
 *   **Dashboard Listing**: The main dashboard view shows the most recent documents (up to 100). All ledger data, including older chains beyond that listing, remains accessible via the [Ledger API](../api_and_sdks/api/ledger_api.md) for historical reporting. Entries are retained until you remove them (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
 *   **Data Privacy**: Ledgers record the original sensitive information (the "Identified Token"), so treat access to them as access to the underlying data. Reading and validating a chain returns the replacements but not the original values; the originals come only from an export, which needs the separate `ledger:export` scope. Within that, the API key is the credential and no additional role is required for an account's own ledger. Reaching **another** user's ledger requires an administrator **and** `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, supplied through the `owner` parameter on the [Ledger API](../api_and_sdks/api/ledger_api.md); every such access is audited. Scope and rotate API keys accordingly, and see [Deletion is restricted](#how-and-when-ledger-entries-are-deleted) for the separate, administrator-only deletion path.
 
+
+## Effective configuration evidence
+
+Async ledger entries include `effectiveHash`, the SHA-256 of the resolved configuration captured at submission. It is included in every entry hash after the raw policy content hash. The encrypted configuration is retained in `execution_snapshots`, independently of job expiry or deletion. Synchronous entries without a captured configuration use the normal unset-field encoding (`4:null`). The snapshot freezes policy dependencies and context flags; context mappings, vector contents, and software remain live. It does not guarantee byte-identical replay.
+
+Manual document-chain deletion requires a completed chain. Open, writing, or failed publication returns `409 Conflict` and retains the evidence for completion or recovery. A deletion marker prevents later appends or reuse of the deleted document ID. Internal owner-wide deletion operates on a fixed set of completed chains; chains created afterward are retained.

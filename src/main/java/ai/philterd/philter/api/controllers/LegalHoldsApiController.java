@@ -83,7 +83,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "Required fields are missing or the scope type is invalid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."),
-            @ApiResponse(responseCode = "409", description = "A hold with the given reference already exists for this user.")
+            @ApiResponse(responseCode = "409", description = "A hold with this reference exists, or an evidence/hold operation is active or requires recovery.")
     })
     @RequiresScope(ApiKeyScope.HOLDS_WRITE)
     @RequestMapping(value = "/api/holds", method = RequestMethod.POST,
@@ -211,6 +211,7 @@ public class LegalHoldsApiController extends AbstractApiController {
                     + "Releasing a hold is audited. Admins may release another user's hold via the owner parameter.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The hold was released."),
+            @ApiResponse(responseCode = "409", description = "An evidence or hold operation is active or requires recovery."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user.")
     })
@@ -238,7 +239,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final ServiceResponse response = legalHoldDataService.release(requestId, reference, userId);
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(response.getStatusCode()).build();
         }
 
         return ResponseEntity.ok().build();

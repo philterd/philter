@@ -18,6 +18,12 @@ package ai.philterd.philter.api.responses;
 public class GetRedactionStatusResponse {
 
     private final String status;
+    private String error;
+    public String getError() { return error; }
+    public void setError(String value) { error = value; }
+    private String effectiveConfigurationHash;
+    public String getEffectiveConfigurationHash() { return effectiveConfigurationHash; }
+    public void setEffectiveConfigurationHash(String value) { effectiveConfigurationHash = value; }
     private final String documentId;
 
     public GetRedactionStatusResponse(final String status, final String documentId) {

@@ -368,4 +368,25 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
     }
 
+    @Test
+    void deletingRequiredListPreventsPolicyResolutionEvenWhenAnotherUserHasThatName() {
+        final ObjectId owner = new ObjectId();
+        final ObjectId other = new ObjectId();
+        assertTrue(save(owner, "names", List.of("Alice")).isSuccessful());
+        assertTrue(save(other, "names", List.of("Bob")).isSuccessful());
+        final var resolver = new ai.philterd.philter.services.policies.PolicyResolver(new com.google.gson.Gson(), service);
+        final String json = "{\"identifiers\":{\"dictionaries\":[{\"terms\":[\"list:names\"]}]}}";
+        assertEquals(List.of("Alice"), resolver.resolve(json, owner, null, null)
+                .getIdentifiers().getCustomDictionaries().getFirst().getTerms());
+
+        service.deleteByName("names", owner);
+
+        final var error = org.junit.jupiter.api.Assertions.assertThrows(
+                ai.philterd.philter.services.policies.PolicyResolutionException.class,
+                () -> resolver.resolve(json, owner, null, null));
+        assertEquals("Policy references unavailable custom lists: names.", error.getMessage());
+        assertEquals(List.of("Bob"), resolver.resolve(json, other, null, null)
+                .getIdentifiers().getCustomDictionaries().getFirst().getTerms());
+    }
+
 }

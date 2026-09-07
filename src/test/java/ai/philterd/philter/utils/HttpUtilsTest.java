@@ -30,15 +30,20 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.KeyManagerFactory;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** A real TLS handshake against a self-signed server, rather than inspecting the builder. */
 class HttpUtilsTest {
+
+    private static final byte[] EMPTY_OK =
+            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".getBytes(StandardCharsets.US_ASCII);
 
     @AfterEach
     void clearOverride() {
@@ -64,13 +69,23 @@ class HttpUtilsTest {
         return (SSLServerSocket) factory.createServerSocket(0);
     }
 
-    /** Completes the handshake, so the client's own trust decision decides. */
+    /**
+     * Completes the handshake, so the client's own trust decision decides.
+     *
+     * <p>Every attempt is served, not just the first. A rejected certificate is an
+     * {@link IOException}, which sends the client on to the next address the host resolved to, and a
+     * host that answers only once leaves that attempt hanging until the socket times out.
+     */
     private static Thread accept(final SSLServerSocket server) {
         final Thread thread = new Thread(() -> {
-            try (final Socket socket = server.accept()) {
-                socket.getInputStream().read();
-            } catch (final IOException ignored) {
-                // The client rejecting our certificate closes the socket. That is the point.
+            while (!server.isClosed()) {
+                try (final Socket socket = server.accept()) {
+                    socket.getInputStream().read();
+                    socket.getOutputStream().write(EMPTY_OK);
+                    socket.getOutputStream().flush();
+                } catch (final IOException ignored) {
+                    // The client rejecting our certificate closes the socket. That is the point.
+                }
             }
         });
         thread.setDaemon(true);
@@ -90,8 +105,10 @@ class HttpUtilsTest {
 
         TlsVerificationConfig.setOverrideForTesting(false);
 
-        try (final SSLServerSocket server = selfSignedServer()) {
-            final Thread acceptor = accept(server);
+        final SSLServerSocket server = selfSignedServer();
+        final Thread acceptor = accept(server);
+
+        try {
             final String url = "https://localhost:" + server.getLocalPort() + "/";
 
             try (final CloseableHttpClient httpClient = client()) {
@@ -100,7 +117,8 @@ class HttpUtilsTest {
                                 response -> null),
                         "a self-signed certificate must not be trusted by default");
             }
-
+        } finally {
+            server.close();
             acceptor.join(TimeUnit.SECONDS.toMillis(5));
         }
 
@@ -112,19 +130,22 @@ class HttpUtilsTest {
 
         TlsVerificationConfig.setOverrideForTesting(true);
 
-        try (final SSLServerSocket server = selfSignedServer()) {
-            final Thread acceptor = accept(server);
+        final SSLServerSocket server = selfSignedServer();
+        final Thread acceptor = accept(server);
+
+        try {
             final String url = "https://localhost:" + server.getLocalPort() + "/";
 
             try (final CloseableHttpClient httpClient = client()) {
-                // Anything but an SSLException means the handshake succeeded.
-                final Exception thrown = assertThrows(Exception.class,
-                        () -> httpClient.execute(new org.apache.hc.client5.http.classic.methods.HttpGet(url),
-                                response -> null));
-                org.junit.jupiter.api.Assertions.assertFalse(thrown instanceof SSLException,
-                        "the certificate must be trusted when the switch is on, but got: " + thrown);
+                // A status only comes back over a completed handshake, which is the claim under test.
+                final Integer status = httpClient.execute(
+                        new org.apache.hc.client5.http.classic.methods.HttpGet(url),
+                        response -> response.getCode());
+                assertEquals(200, status,
+                        "the certificate must be trusted when the switch is on");
             }
-
+        } finally {
+            server.close();
             acceptor.join(TimeUnit.SECONDS.toMillis(5));
         }
 

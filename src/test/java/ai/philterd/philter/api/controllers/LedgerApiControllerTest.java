@@ -457,6 +457,18 @@ class LedgerApiControllerTest {
     }
 
     @Test
+    void activeEvidenceOperationBlocksDeleteWith409() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteByDocumentId(any(), eq(userId), eq("doc-1"), any()))
+                .thenReturn(new ServiceResponse("Deletion blocked by legal hold(s): LIT-1.", false, 409));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-del-held"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void legalHoldBlocksPurgeWith423() throws Exception {
         makeCallerAdmin();
         LedgerDeletionConfig.setOverrideForTesting(true);
@@ -467,6 +479,19 @@ class LedgerApiControllerTest {
                         .param("older_than_days", "30")
                         .requestAttr("requestId", "req-purge-held"))
                 .andExpect(status().isLocked());
+    }
+
+    @Test
+    void activeEvidenceOperationBlocksPurgeWith409() throws Exception {
+        makeCallerAdmin();
+        LedgerDeletionConfig.setOverrideForTesting(true);
+        when(ledgerService.deleteChainsByUserIdAndOlderThan(any(), eq(userId), eq(30)))
+                .thenReturn(new ServiceResponse("Purge blocked by legal hold(s): LIT-1.", false, 409));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("older_than_days", "30")
+                        .requestAttr("requestId", "req-purge-held"))
+                .andExpect(status().isConflict());
     }
 
     @Test

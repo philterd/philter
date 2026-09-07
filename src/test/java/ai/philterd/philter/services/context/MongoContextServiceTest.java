@@ -79,7 +79,7 @@ class MongoContextServiceTest {
 
         assertEquals("FROM-DB", replacement);
         verify(contextEntryService).incrementReads(entryId);
-        verify(contextCache).setTokenReplacement(userId, contextName, "token", entryId, "FROM-DB");
+        verify(contextCache).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(contextName), org.mockito.ArgumentMatchers.eq("token"), org.mockito.ArgumentMatchers.eq(entryId), org.mockito.ArgumentMatchers.eq("FROM-DB"), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -109,7 +109,7 @@ class MongoContextServiceTest {
         service.putReplacement("tok", "R", "PERSON");
 
         verify(contextEntryService).putReplacementIfAbsent(userId, contextName, "tok", "R", "PERSON");
-        verify(contextCache).setTokenReplacement(userId, contextName, "tok", entryId, "R");
+        verify(contextCache).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(contextName), org.mockito.ArgumentMatchers.eq("tok"), org.mockito.ArgumentMatchers.eq(entryId), org.mockito.ArgumentMatchers.eq("R"), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test

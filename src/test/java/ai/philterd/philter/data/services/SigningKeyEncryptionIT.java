@@ -94,61 +94,12 @@ class SigningKeyEncryptionIT extends AbstractMongoIT {
     }
 
     @Test
-    void aKeyStoredInPlaintextByAnEarlierBuildIsEncryptedOnLoad() throws Exception {
-        // Write a record in the pre-encryption shape: private key in the clear, no wrapped key.
-        final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(new ECGenParameterSpec("secp256r1"));
-        final KeyPair legacy = kpg.generateKeyPair();
-
-        mongoClient.getDatabase("philter").getCollection("signing_keys").insertOne(new Document()
-                .append("key_id", "legacy-key")
-                .append("private_key", new Binary(legacy.getPrivate().getEncoded()))
-                .append("public_key", new Binary(legacy.getPublic().getEncoded()))
-                .append("created_at", new Date())
-                .append("active", true));
-
-        final SigningKeyDataService service = newService();
-
-        // The key still works, unchanged.
-        assertArrayEquals(legacy.getPrivate().getEncoded(), service.getPrivateKey().getEncoded(),
-                "an existing key must keep working after upgrade");
-
-        // ...and it is no longer stored in the clear.
-        final Document stored = rawKey();
-        assertNotNull(stored.getString("private_key_encrypted_key"), "the key must be encrypted on load");
-        assertFalse(Arrays.equals(legacy.getPrivate().getEncoded(), ((Binary) stored.get("private_key")).getData()),
-                "the plaintext private key must not remain in the database");
-    }
-
-    @Test
-    void aSupersededKeyStoredInPlaintextIsAlsoEncrypted() throws Exception {
-        // A superseded key is retained so entries it signed stay verifiable, which also means it can
-        // still forge signatures for those entries. Leaving it in the clear would defeat the point.
-        final KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(new ECGenParameterSpec("secp256r1"));
-        final KeyPair old = kpg.generateKeyPair();
-
-        mongoClient.getDatabase("philter").getCollection("signing_keys").insertOne(new Document()
-                .append("key_id", "old-key")
-                .append("private_key", new Binary(old.getPrivate().getEncoded()))
-                .append("public_key", new Binary(old.getPublic().getEncoded()))
-                .append("created_at", new Date())
-                .append("active", false)
-                .append("superseded_at", new Date()));
-
-        final SigningKeyDataService service = newService();
-
-        final Document supersededDoc = mongoClient.getDatabase("philter").getCollection("signing_keys")
-                .find(new Document("key_id", "old-key")).first();
-        assertNotNull(supersededDoc.getString("private_key_encrypted_key"),
-                "a superseded plaintext key must be encrypted too");
-        assertFalse(Arrays.equals(old.getPrivate().getEncoded(),
-                        ((Binary) supersededDoc.get("private_key")).getData()),
-                "the superseded private key must not remain in the clear");
-
-        // ...and it is still usable for verifying what it signed.
-        assertNotNull(service.findPublicKeyById("old-key"));
-        assertArrayEquals(old.getPublic().getEncoded(), service.findPublicKeyById("old-key").getEncoded());
+    void unprotectedPrivateKeyIsRejectedInsteadOfMigrated() {
+        final var first = newService();
+        mongoClient.getDatabase("philter").getCollection("signing_keys").updateOne(
+                new Document("key_id", first.getActiveKeyId()),
+                new Document("$unset", new Document("private_key_encrypted_key", "")));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, this::newService);
     }
 
     @Test

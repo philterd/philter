@@ -31,6 +31,12 @@ mvn clean install
 `mvn verify` also writes a test coverage report to `target/site/jacoco/index.html`, covering the unit
 tests and the integration tests together.
 
+Test application output (including expected error logs from failure-path tests) is saved to
+`target/surefire-reports/*-output.txt` for unit tests and
+`target/failsafe-reports/*-output.txt` for integration tests. Maven still prints test results,
+failures, and failure stack traces in the build output. To stream application logs to the console
+while debugging, add `-Dmaven.test.redirectTestOutputToFile=false` to your Maven command.
+
 To run Philter:
 
 ```
@@ -40,7 +46,7 @@ To run Philter:
 
 `compose.sh` passes its arguments through to `docker compose`, defaulting to `build`.
 
-On its first run the script generates two secrets into `.env` and reuses them afterwards:
+On its first run the script generates private credentials into `.env` and reuses them afterwards:
 
 * `PHILTER_ENCRYPTION_KEY` encrypts sensitive data at rest. Keep it safe and use the same
   value across restarts and instances: Philter refuses to start without it, and data
@@ -49,7 +55,9 @@ On its first run the script generates two secrets into `.env` and reuses them af
   works without visiting the dashboard. Revoke it in the dashboard when you no longer
   need it.
 
-To supply either yourself, put it in `.env` before the first run and the script keeps it.
+The script also generates `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` for the first dashboard login and `MONGODB_PASSWORD` for the database. It stores these in an owner-readable `.env` file.
+
+To supply these yourself, put it in `.env` before the first run and the script keeps it.
 
 Once the containers are running, submit text to Philter's API for redaction:
 
@@ -59,7 +67,7 @@ API_KEY=$(grep PHILTER_BOOTSTRAP_API_KEY .env | cut -d= -f2)
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
-You can also access the UI at https://localhost:8080. Sign in as `admin` / `admin`; you are
+You can also access the UI at https://localhost:8080. Sign in as `admin` using `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` from `.env`; you are
 required to set a new password before you can use the dashboard.
 
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.

@@ -70,8 +70,16 @@ class PoliciesViewPolicyEditingTest {
 
     @BeforeEach
     void setUp() {
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("policies")).thenReturn(mongoCollection);
+        final MongoCollection<Document> counters = org.mockito.Mockito.mock(MongoCollection.class);
+        org.mockito.Mockito.lenient().when(mongoDatabase.getCollection("policy_revision_counters")).thenReturn(counters);
+        final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger();
+        org.mockito.Mockito.lenient().when(counters.updateOne(any(Bson.class), any(Bson.class), any(com.mongodb.client.model.UpdateOptions.class)))
+                .thenAnswer(call -> { next.accumulateAndGet(((Document) call.getArgument(1)).get("$max", Document.class).getInteger("next"), Math::max); return null; });
+        org.mockito.Mockito.lenient().when(counters.findOneAndUpdate(any(Bson.class), any(Bson.class), any(com.mongodb.client.model.FindOneAndUpdateOptions.class)))
+                .thenAnswer(call -> new Document("next", next.incrementAndGet()));
         policyDataService = new PolicyDataService(mongoClient, auditEventPublisher, gson, org.mockito.Mockito.mock(ai.philterd.philter.data.services.PolicyVersionDataService.class), new ai.philterd.philter.services.cache.RedactionCache());
     }
 

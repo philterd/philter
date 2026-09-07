@@ -56,14 +56,19 @@ public class WebhookDeliveryWorker {
 
         try {
             webhookService.deliver(delivery);
-            webhookDeliveryDataService.markDelivered(delivery.getId());
-            LOGGER.info("Delivered webhook {} to {} (attempt {})",
-                    delivery.getId(), delivery.getUrl(), delivery.getAttempts());
+            if (webhookDeliveryDataService.markDelivered(delivery.getId(), delivery.getClaimToken())) {
+                LOGGER.info("Delivered webhook {} to {} (attempt {})",
+                        delivery.getId(), delivery.getUrl(), delivery.getAttempts());
+            } else {
+                LOGGER.info("Ignoring delivery result for webhook {}: its claim is no longer current.", delivery.getId());
+            }
         } catch (Exception ex) {
             final String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
             LOGGER.warn("Webhook delivery {} to {} failed on attempt {}: {}",
                     delivery.getId(), delivery.getUrl(), delivery.getAttempts(), message);
-            webhookDeliveryDataService.rescheduleOrFail(delivery.getId(), delivery.getAttempts(), message);
+            if (!webhookDeliveryDataService.rescheduleOrFail(delivery.getId(), delivery.getClaimToken(), delivery.getAttempts(), message)) {
+                LOGGER.info("Ignoring failed attempt for webhook {}: its claim is no longer current.", delivery.getId());
+            }
         }
 
     }

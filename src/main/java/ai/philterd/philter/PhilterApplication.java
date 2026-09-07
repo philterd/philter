@@ -174,7 +174,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public Gson gson() {
-        return new Gson();
+        return new com.google.gson.GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").create();
     }
 
     // Sets the title and version shown in the generated OpenAPI specification (and Swagger UI),
@@ -378,7 +378,7 @@ public class PhilterApplication implements AppShellConfigurator {
 
     @Bean
     public WebhookDeliveryDataService webhookDeliveryDataService() {
-        return new WebhookDeliveryDataService(mongoClient(), auditEventPublisher());
+        return new WebhookDeliveryDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
@@ -449,13 +449,16 @@ public class PhilterApplication implements AppShellConfigurator {
             // When the account is locked out (too many recent failed logins), build it as locked so
             // Spring Security rejects the attempt with a LockedException before checking the password.
             final boolean locked = loginAttemptCache.isLocked(email);
-            return org.springframework.security.core.userdetails.User
-                    .withUsername(user.getUsername())
-                    .password(user.getPassword())
-                    .roles(user.getRole() != null ? user.getRole().toUpperCase() : "USER")
-                    .accountLocked(locked)
-                    .build();
+            return new ai.philterd.philter.api.security.DashboardPrincipal(user, locked);
         };
     }
 
+    @Bean
+    public io.micrometer.core.instrument.binder.MeterBinder asyncQueueMetrics(final PendingDocumentDataService jobs) {
+        return registry -> {
+            io.micrometer.core.instrument.Gauge.builder("philter.async.queue.jobs", jobs, service -> service.queueStats(null).jobs()).register(registry);
+            io.micrometer.core.instrument.Gauge.builder("philter.async.queue.bytes", jobs, service -> service.queueStats(null).bytes()).register(registry);
+            io.micrometer.core.instrument.Gauge.builder("philter.async.queue.oldest.seconds", jobs, service -> service.queueStats(null).oldestAgeSeconds()).register(registry);
+        };
+    }
 }

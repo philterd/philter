@@ -24,6 +24,10 @@ import java.util.Date;
 
 public class UserEntity extends AbstractEncryptedEntity {
 
+    private long securityVersion;
+    public long getSecurityVersion() { return securityVersion; }
+    public void setSecurityVersion(long value) { securityVersion = value; }
+
     private ObjectId id;
     private String username;
     private String email;
@@ -53,6 +57,7 @@ public class UserEntity extends AbstractEncryptedEntity {
     public static UserEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final UserEntity userEntity = new UserEntity();
         userEntity.setId(document.getObjectId("_id"));
+        userEntity.setSecurityVersion(document.getLong("security_version") == null ? 0L : document.getLong("security_version"));
         // The login identifier is the username. Accounts created before the username field existed
         // stored the login id under "email", so fall back to that when "username" is absent.
         userEntity.setUsername(document.getString("username") != null
@@ -97,6 +102,7 @@ public class UserEntity extends AbstractEncryptedEntity {
         if (id != null) {
             document.put("_id", id);
         }
+        document.put("security_version", securityVersion);
         document.put("username", username);
         document.put("email", email);
         document.put("password", password);

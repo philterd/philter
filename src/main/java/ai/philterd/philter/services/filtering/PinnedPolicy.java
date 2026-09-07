@@ -21,5 +21,8 @@ package ai.philterd.philter.services.filtering;
  * accepted, rather than whatever is current when the job later runs. Unlike {@link AppliedPolicy},
  * this carries the policy JSON so the worker can redact with the pinned content.
  */
-public record PinnedPolicy(String name, int version, String contentHash, String policyJson) {
+public record PinnedPolicy(String name, int version, String contentHash, String policyJson, String effectiveJson, String effectiveHash) {
+    public PinnedPolicy(String name, int version, String contentHash, String policyJson) {
+        this(name, version, contentHash, policyJson, null, null);
+    }
 }

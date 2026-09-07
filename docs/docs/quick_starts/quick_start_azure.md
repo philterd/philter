@@ -24,6 +24,8 @@ Congratulations! You have deployed Philter in Azure. You are now ready to filter
 
 ## Try it out!
 
+Sign in to the dashboard with your configured administrator credentials, complete the required password change, and create an [API key](../account/api_keys.md) with the `redact` scope. Set `API_KEY` in your shell to that key. See [bootstrap settings](../settings.md#bootstrap-and-in-memory-capacity) for first-start credentials. Every filtering request below authenticates with this key.
+
 With Philter now running we can take it for a spin. We will send some text to Philter and inspect at the response we get back. The Philter virtual machine running in your cloud account should have a public IP address (unless you customized the deployment). We will use that public IP address to interact with Philter.
 
 Philter, by default, will be configured with an HTTPS listener on port 8080 using a self-signed certificate. It is recommended that prior to use in a production environment the self-signed certificate is replaced by a valid certificate owned by your organization.
@@ -31,23 +33,23 @@ Philter, by default, will be configured with an HTTPS listener on port 8080 usin
 In the command below, replace `<PUBLIC_IP>` with the virtual machine’s public IP address or public host name.
 
 ```
-curl -k -X POST https://<PUBLIC_IP>:8080/api/filter --data "George Washington was a patient and his SSN is 123-45-6789." -H "Content-type: text/plain"
+curl -k -X POST https://<PUBLIC_IP>:8080/api/filter --data "George Washington was a patient and his SSN is 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
-With this command we are sending the text in the command to Philter for filtering. Philter will identify the patient name (George Washington) and the SSN (123-45-6789) and redact those values in the response. You can always use curl to send text to Philter as in these examples but there are also [SDKs](../api_and_sdks/sdks.md) you can use, too, to integrate Philter with your applications.
+With this command we are sending the text in the command to Philter for filtering. The selected policy controls which values are detected. The default policy includes person-name, SSN, and email filters; name detection requires a reachable PhEye service. Confirm that service is configured before expecting names to be removed. You can always use curl to send text to Philter as in these examples but there are also [SDKs](../api_and_sdks/sdks.md) you can use, too, to integrate Philter with your applications.
 
 ### Redacting Sensitive Information from Text
 
 The types of sensitive information that Philter identifies and removes is controlled by policies. By default, Philter includes a filter profile that includes many of the types of sensitive information, such as names and social security numbers. We can send text to filter to Philter for filtering using this default filter profile with the following command:
 
 ```
-curl -k -X POST https://localhost:8080/api/filter -d @file.txt -H "Content-Type: text/plain"
+curl -k -X POST https://localhost:8080/api/filter --data-binary @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
 This command sends the contents of the file `file.txt` to Philter. Philter will apply the enabled filters and return a plain-text response consisting of the filtered text. (Replace localhost with the IP address or host name of Philter if you are not running the command where Philter is running.) You can also send text directly in the request instead of sending it as a file:
 
 ```
-curl -k -X POST https://localhost:8080/api/filter --data "Your text goes here..." -H "Content-type: text/plain"
+curl -k -X POST https://localhost:8080/api/filter --data "Your text goes here..." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
 ## Next Steps

@@ -50,6 +50,7 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -152,7 +153,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_READ)
-    @RequestMapping(value = "/api/contexts", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/contexts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getContexts(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -199,7 +200,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "A context with the given name does not exist."),
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_READ)
-    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -242,7 +243,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "409", description = "A context with this name already exists.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts", method = RequestMethod.POST)
+    @RequestMapping(value = "/api/contexts", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> createContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam("name") String name,
@@ -290,7 +291,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> deleteContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -346,7 +347,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.PUT)
+    @RequestMapping(value = "/api/contexts/{name}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> updateContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -380,7 +381,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_READ)
-    @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> listEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -425,7 +426,7 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Empty all entries from a context.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> emptyEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -461,7 +462,7 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Delete a single context entry by id.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts/{name}/entries/{entryId}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/api/contexts/{name}/entries/{entryId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> deleteEntry(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -487,7 +488,7 @@ public class ContextsApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "delete entry " + entryId + " in context '" + name + "'");
 
-        final long deleted = contextEntryService.deleteByIdAndUserId(new ObjectId(entryId), userId);
+        final long deleted = contextEntryService.deleteByIdAndUserIdAndContext(new ObjectId(entryId), userId, name);
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getUserId(), null,
@@ -508,7 +509,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_READ)
-    @RequestMapping(value = "/api/contexts/{name}/entries/export", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/contexts/{name}/entries/export", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> exportEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -566,7 +567,7 @@ public class ContextsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts/{name}/entries/import", method = RequestMethod.POST)
+    @RequestMapping(value = "/api/contexts/{name}/entries/import", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> importEntries(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,

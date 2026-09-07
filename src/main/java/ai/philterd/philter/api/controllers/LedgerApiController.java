@@ -44,6 +44,7 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -105,7 +106,7 @@ public class LedgerApiController extends AbstractApiController {
     }
 
     private static LedgerEntryView buildView(final LedgerEntity entry, final String token) {
-        return new LedgerEntryView(
+        final LedgerEntryView view = new LedgerEntryView(
                 entry.getDocumentId(),
                 entry.getFilename(),
                 entry.getType(),
@@ -119,6 +120,8 @@ public class LedgerApiController extends AbstractApiController {
                 entry.getPolicyName(),
                 entry.getPolicyVersion(),
                 entry.getPolicyContentHash());
+        view.setEffectiveHash(entry.getEffectiveHash());
+        return view;
     }
 
     @Operation(summary = "List redaction-ledger chains.",
@@ -131,7 +134,7 @@ public class LedgerApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LEDGER_READ)
-    @RequestMapping(value = "/api/ledger", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/ledger", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getLedger(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "q", required = false) String query,
@@ -179,7 +182,7 @@ public class LedgerApiController extends AbstractApiController {
                     + "hash chain currently verifies.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.LEDGER_READ)
-    @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("documentId") String documentId,
@@ -223,7 +226,7 @@ public class LedgerApiController extends AbstractApiController {
                     + "altered and every link is intact).")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.LEDGER_READ)
-    @RequestMapping(value = "/api/ledger/{documentId}/valid", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/ledger/{documentId}/valid", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> validateChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("documentId") String documentId,
@@ -257,7 +260,7 @@ public class LedgerApiController extends AbstractApiController {
                     + "as sensitive.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.LEDGER_EXPORT)
-    @RequestMapping(value = "/api/ledger/{documentId}/export", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/ledger/{documentId}/export", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> exportChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("documentId") String documentId,
@@ -311,7 +314,7 @@ public class LedgerApiController extends AbstractApiController {
             "Ledger deletion is disabled. Set LEDGER_DELETION_ENABLED=true to enable it.";
 
     @Operation(summary = "Delete a document's ledger chain.",
-            description = "Permanently deletes every ledger entry for the given document. Requires an administrator "
+            description = "Permanently deletes every ledger entry for a completed document chain. Active or failed publication returns 409. Requires an administrator "
                     + "and LEDGER_DELETION_ENABLED=true. Admins may delete another user's chain by passing that "
                     + "user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true.")
     @ApiResponses(value = {
@@ -319,10 +322,11 @@ public class LedgerApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The caller is not an administrator, or ledger deletion is disabled for this deployment."),
             @ApiResponse(responseCode = "404", description = "No ledger chain for that document exists for this user."),
+            @ApiResponse(responseCode = "409", description = "An evidence or hold operation is active or requires recovery."),
             @ApiResponse(responseCode = "423", description = "The chain is protected by an active legal hold. Release the hold before deleting.")
     })
     @RequiresScope(ApiKeyScope.LEDGER_DELETE)
-    @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> deleteChain(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("documentId") String documentId,
@@ -353,8 +357,7 @@ public class LedgerApiController extends AbstractApiController {
                 requestId, userId, documentId, getClientIpAddress(httpServletRequest));
 
         if (!deleteResponse.isSuccessful()) {
-            final HttpStatus status = deleteResponse.getStatusCode() == 423
-                    ? HttpStatus.LOCKED : HttpStatus.BAD_REQUEST;
+            final HttpStatus status = HttpStatus.valueOf(deleteResponse.getStatusCode());
             return new ResponseEntity<>(new GenericResponse(deleteResponse.getMessage()), status);
         }
 
@@ -363,7 +366,7 @@ public class LedgerApiController extends AbstractApiController {
     }
 
     @Operation(summary = "Purge old ledger entries.",
-            description = "Deletes ledger entries older than the given number of days. The ledger is kept "
+            description = "Deletes whole completed chains whose completion and newest entry are older than the given number of days. The ledger is kept "
                     + "indefinitely by default, so this is how stale entries are pruned on demand. Requires an "
                     + "administrator and LEDGER_DELETION_ENABLED=true. Admins may purge another user's entries by "
                     + "passing that user's username as owner, which additionally requires "
@@ -374,10 +377,11 @@ public class LedgerApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The caller is not an administrator, or ledger deletion is disabled for this deployment."),
             @ApiResponse(responseCode = "404"),
+            @ApiResponse(responseCode = "409", description = "An evidence or hold operation is active or requires recovery."),
             @ApiResponse(responseCode = "423", description = "One or more active legal holds protect entries in this user's ledger. Release all holds before purging.")
     })
     @RequiresScope(ApiKeyScope.LEDGER_DELETE)
-    @RequestMapping(value = "/api/ledger", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/api/ledger", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> purge(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam("older_than_days") int olderThanDays,
@@ -411,8 +415,7 @@ public class LedgerApiController extends AbstractApiController {
                 ledgerService.deleteChainsByUserIdAndOlderThan(requestId, userId, olderThanDays);
 
         if (!purgeResponse.isSuccessful()) {
-            final HttpStatus status = purgeResponse.getStatusCode() == 423
-                    ? HttpStatus.LOCKED : HttpStatus.BAD_REQUEST;
+            final HttpStatus status = HttpStatus.valueOf(purgeResponse.getStatusCode());
             return new ResponseEntity<>(new GenericResponse(purgeResponse.getMessage()), status);
         }
 

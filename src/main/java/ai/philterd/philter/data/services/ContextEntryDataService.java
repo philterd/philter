@@ -181,10 +181,18 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     public long deleteByIdAndUserId(final ObjectId id, final ObjectId userId) {
 
+        return deleteMatching(userId, Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId)));
+    }
+
+    public long deleteByIdAndUserIdAndContext(final ObjectId id, final ObjectId userId, final String contextName) {
+        return deleteMatching(userId, Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId),
+                Filters.eq("context_name", contextName)));
+    }
+
+    private long deleteMatching(final ObjectId userId, final Bson predicate) {
         // findOneAndDelete rather than deleteOne: the removed document carries the context and token
         // hash the cache is keyed by, and reading them first would race the delete.
-        final Document deleted = collection.findOneAndDelete(
-                Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId)));
+        final Document deleted = collection.findOneAndDelete(predicate);
 
         if (deleted == null) {
             return 0;

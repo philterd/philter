@@ -51,6 +51,7 @@ class LedgerDataServiceTest {
     @Mock private MongoClient mongoClient;
     @Mock private MongoDatabase mongoDatabase;
     @Mock private MongoCollection<Document> mongoCollection;
+    @Mock private MongoCollection<Document> chainStates;
     @Mock private EncryptionService encryptionService;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private LegalHoldDataService legalHoldDataService;
@@ -59,8 +60,22 @@ class LedgerDataServiceTest {
 
     @BeforeEach
     void setUp() {
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("ledger")).thenReturn(mongoCollection);
+        lenient().when(mongoCollection.withReadPreference(any())).thenReturn(mongoCollection);
+        lenient().when(mongoCollection.withWriteConcern(any())).thenReturn(mongoCollection);
+        final MongoCollection<Document> guards = mock(MongoCollection.class);
+        when(mongoDatabase.getCollection("evidence_operation_guards")).thenReturn(guards);
+        when(guards.withReadPreference(any())).thenReturn(guards);
+        when(guards.withWriteConcern(any())).thenReturn(guards);
+        lenient().when(guards.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(1, 1L, null));
+        when(mongoDatabase.getCollection("ledger_chains")).thenReturn(chainStates);
+        when(chainStates.withReadPreference(any())).thenReturn(chainStates);
+        when(chainStates.withWriteConcern(any())).thenReturn(chainStates);
+        lenient().when(chainStates.updateOne(any(Bson.class), any(Bson.class)))
+                .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(1, 1L, null));
         // Default: no holds active. Individual tests override as needed.
         lenient().when(legalHoldDataService.hasAnyHold(any())).thenReturn(false);
         lenient().when(legalHoldDataService.isProtectedDocument(any(), any())).thenReturn(false);
@@ -107,6 +122,11 @@ class LedgerDataServiceTest {
         final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(10L);
+
+        final FindIterable<Document> chains = mock(FindIterable.class);
+        when(chainStates.find(any(Bson.class))).thenReturn(chains);
+        when(chains.into(any())).thenReturn(new java.util.ArrayList<>(List.of(
+                new Document("_id", userId + ":doc123").append("document_id", "doc123").append("state", "complete"))));
 
         final ServiceResponse response = ledgerDataService.deleteAllByUserId("req", userId);
 
@@ -195,6 +215,12 @@ class LedgerDataServiceTest {
     @Test
     void deleteChainsByUserIdAndOlderThanSucceedsWhenNoHoldsActive() {
         final ObjectId userId = new ObjectId();
+        final FindIterable<Document> eligible = mock(FindIterable.class);
+        final com.mongodb.client.MongoCursor<Document> cursor = mock(com.mongodb.client.MongoCursor.class);
+        when(chainStates.find(any(Bson.class))).thenReturn(eligible);
+        when(eligible.iterator()).thenReturn(cursor);
+        when(cursor.hasNext()).thenReturn(true, false);
+        when(cursor.next()).thenReturn(new Document("_id", userId + ":doc").append("document_id", "doc"));
         final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(7L);
@@ -245,6 +271,10 @@ class LedgerDataServiceTest {
         final ObjectId userId = new ObjectId();
         final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        final FindIterable<Document> chains = mock(FindIterable.class);
+        when(chainStates.find(any(Bson.class))).thenReturn(chains);
+        when(chains.first()).thenReturn(new Document("_id", userId + ":doc123").append("state", "complete"));
 
         final ServiceResponse response = ledgerDataService.deleteByDocumentId("req", userId, "doc123", "API");
 

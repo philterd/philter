@@ -19,13 +19,13 @@ Passwords are stored only as bcrypt hashes, never in plaintext, and every change
 
 ## Forced password change on first login
 
-Philter seeds a default administrator account (`admin` / `admin`) the first time it starts. Because that password is well known, the account is flagged so that the password must be changed before the dashboard can be used.
+Philter creates the `admin` account on first startup using the private password supplied through `PHILTER_BOOTSTRAP_ADMIN_PASSWORD`. It must contain at least 16 characters and at most 72 UTF-8 bytes. First startup fails if it is absent or invalid; there is no public default password. `compose.sh` generates a random credential in its owner-readable `.env` file. The account still requires a password change on first login.
 
-When you sign in with the default password, Philter redirects you to a "Set a New Password" screen. You cannot reach any other dashboard page until you set a new password that meets the [password requirements](#password-requirements) above.
+When you sign in with the bootstrap password, Philter redirects you to a "Set a New Password" screen. You cannot reach any other dashboard page until you set a new password that meets the [password requirements](#password-requirements) above.
 
-Once changed, the requirement is cleared and you continue to the dashboard normally.
+Once changed, sign in again with your new password to continue to the dashboard.
 
-> The default credentials still allow the first sign-in, so cloud marketplace images continue to boot without extra configuration. The forced change ensures the well-known default password cannot remain in use.
+The bootstrap password is only used when the account does not exist. Restarting does not reset an existing administrator or reactivate a deactivated one. Remove the bootstrap value from the deployment environment after setup.
 
 ## Failed-login lockout
 
@@ -82,3 +82,9 @@ Turning the feature off later does not remove existing enrollments: already-enro
 * [Auditing](auditing.md)
 * [Caching](caching.md)
 * [API Keys and Authentication](account/api_keys.md)
+
+## Revoking dashboard sessions
+
+Password, role, activation, and MFA enrollment/reset changes advance the account's stored security version. Every dashboard request, including a click in an already-open view, checks the current account and version. Old sessions receive HTTP 401 and must sign in again; reactivation or promotion does not restore them. A fresh login starts a fresh dashboard session. Privileged account, settings, and signing mutations also recheck current administrator authorization.
+
+MFA satisfaction is tied to the verified account and security version. Non-enrollment is never cached as successful verification. An MFA lock also blocks existing sessions.

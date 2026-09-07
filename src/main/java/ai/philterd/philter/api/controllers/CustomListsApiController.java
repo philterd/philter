@@ -39,6 +39,7 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -84,7 +85,7 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
-    @RequestMapping(value = "/api/lists", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/lists", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -122,7 +123,7 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "The list does not exist, or the owner does not exist or may not be reached. The API does not distinguish these, so a name or owner cannot be used to discover what exists."),
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
-    @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListsResponse> getLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
@@ -168,10 +169,10 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "412", description = "The maximum number of lists already exists.")
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)
-    @RequestMapping(value = "/api/lists/{list}", method = RequestMethod.POST)
+    @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> createList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("list") String list,
+            final @PathVariable("name") String list,
             final @RequestParam(value = "description", defaultValue="", required = false) String description,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody List<String> listItems,
@@ -204,10 +205,10 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "404", description = "The given list does not exist.")
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)
-    @RequestMapping(value = "/api/lists/{list}", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> deleteList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @PathVariable("list") String list,
+            final @PathVariable("name") String list,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {

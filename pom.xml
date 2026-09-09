@@ -5,7 +5,7 @@
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
     <packaging>pom</packaging>
-    <version>3.4.1</version>
+    <version>3.4.2</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>
@@ -55,15 +55,15 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Project dependency versions -->
-        <commons.io.version>2.20.0</commons.io.version>
-        <equals.verifier.version>3.16.1</equals.verifier.version>
+        <commons.io.version>2.22.0</commons.io.version>
+        <equals.verifier.version>4.5.2</equals.verifier.version>
         <httpclient.version>4.5.14</httpclient.version>
         <jaxb.version>2.4.0-b180830.0359</jaxb.version>
         <mockito.version>1.10.19</mockito.version>
         <phileas.version>3.3.0</phileas.version>
-        <philter.sdk.version>1.4.0</philter.sdk.version>
-        <spring.boot.version>4.0.6</spring.boot.version>
-        <tomcat.version>11.0.22</tomcat.version>
+        <philter.sdk.version>1.6.0</philter.sdk.version>
+        <spring.boot.version>4.1.1</spring.boot.version>
+        <tomcat.version>11.0.25</tomcat.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
@@ -239,12 +239,13 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>12.1.0</version>
+                        <version>13.0.0</version>
                         <configuration>
                             <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
                             <failOnError>false</failOnError>
                             <failBuildOnCVSS>0</failBuildOnCVSS>
                             <format>xml</format>
+				<nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
                             <skipProvidedScope>true</skipProvidedScope>
                             <skipTestScope>true</skipTestScope>
                         </configuration>

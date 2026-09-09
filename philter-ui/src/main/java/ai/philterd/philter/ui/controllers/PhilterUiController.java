@@ -79,9 +79,10 @@ public class PhilterUiController {
     }
 
     @RequestMapping(method = RequestMethod.POST, value = "/newpolicy")
-    public ModelAndView newFilterProfile(@RequestParam(name = "json") String json) throws IOException {
+    public ModelAndView newFilterProfile(@RequestParam(name = "name") String name,
+                                        @RequestParam(name = "json") String json) throws IOException {
 
-        philterClient.savePolicy(json);
+        philterClient.savePolicy(name, json);
 
         ModelAndView modelAndView = new ModelAndView("index");
         modelAndView.addObject("policies", getFilterProfiles());
@@ -113,7 +114,7 @@ public class PhilterUiController {
 
         LOGGER.info("Using policy: {}", profile);
 
-        final ExplainResponse explainResponse = philterClient.explain(context, "", profile, text);
+        final ExplainResponse explainResponse = philterClient.explain(context, profile, text);
 
         modelAndView.addObject("explainResponse", explainResponse);
         modelAndView.addObject("explanation", gson.toJson(explainResponse.getExplanation()));
@@ -135,7 +136,7 @@ public class PhilterUiController {
         LOGGER.info("Using policy: {}", profile);
         LOGGER.info("Uploading file with length: {}", file.length());
 
-        final BinaryFilterResponse binaryFilterResponse = philterClient.filter(context, "", profile, file);
+        final BinaryFilterResponse binaryFilterResponse = philterClient.filter(context, profile, file);
 
         // TODO: Don't write this to disk. Write it to memory instead.
         final File tempFile = File.createTempFile("philter", ".zip");

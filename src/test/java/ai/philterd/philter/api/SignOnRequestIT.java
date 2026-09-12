@@ -175,7 +175,7 @@ class SignOnRequestIT {
 
     @Test
     @DisplayName("The parameter applies to /api/explain as well")
-    void explainHonoursTheParameter() throws Exception {
+    void explainHonorsTheParameter() throws Exception {
 
         assertNull(explain("").headers().firstValue(SIGNATURE_HEADER).orElse(null));
         assertNotNull(explain("&sign=true").headers().firstValue(SIGNATURE_HEADER).orElse(null));

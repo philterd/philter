@@ -148,6 +148,12 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 | `webhook_removed` | The webhook was removed. |
 | `settings_updated` | An administrator changed the deployment settings. The `details` field names which settings changed — the webhook allowlist, MFA, output signing, or the Phield and Diffuse publishing settings — and never their values. |
 
+### Audit log access
+
+| Event | When it is recorded |
+|-------|---------------------|
+| `audit_log_retrieved` | The audit log was read through `GET /api/audit`. The `details` field records the filters applied and how many events matched. Reading the log is audited like any other access to evidence. |
+
 ## Exporting the audit log
 
 Administrators can export the audit log as a CSV file from the dashboard: open **Admin → Audit Log**, choose a date range, and click **Download Audit Log (CSV)**. This is an admin-only feature.
@@ -156,6 +162,13 @@ Administrators can export the audit log as a CSV file from the dashboard: open *
 * **Server time zone.** The **From** and **To** values are whole calendar days interpreted in the **server's time zone** (the JVM default), not the browser's. The **To** day is included in full, so the export covers `From 00:00` up to, but not including, the start of the day after `To`, in server-local time.
 * **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, and `details` (the same fields described above; timestamps are written in ISO-8601). As with the stored events, no sensitive values are included.
 * **Size cap.** An export contains at most 100,000 events within the selected range (newest first). Narrow the range if you need to be sure you have captured everything in a busy period.
+
+## Reading the audit log over the API
+
+`GET /api/audit` returns audit events as JSON so the log can be shipped to a SIEM, pulled for a
+compliance review, or alerted on without a database connection. It requires an administrator and an
+API key holding the `audit:read` scope, and each read records an `audit_log_retrieved` event of its
+own. See the [Audit Log API](api_and_sdks/api/audit_api.md) for parameters and examples.
 
 ## Reviewing the audit log
 

@@ -33,6 +33,10 @@ import java.util.Set;
  * they belong to because they are the two capabilities that return the original sensitive values in
  * the clear. Splitting them out is what lets a key read and validate a ledger without being able to
  * dump its plaintext.
+ *
+ * <p>{@link #AUDIT_READ} is its own scope for the opposite reason: the audit log spans the whole
+ * deployment, naming principals and actions across every account, so it is not reachable with the
+ * read scope of any one resource.
  */
 public enum ApiKeyScope {
 
@@ -56,6 +60,8 @@ public enum ApiKeyScope {
 
     HOLDS_READ("holds:read", "List and read legal holds."),
     HOLDS_WRITE("holds:write", "Place and release legal holds."),
+
+    AUDIT_READ("audit:read", "Read the audit log. Also requires an administrator."),
 
     REIDENTIFY("reidentify", "Reverse a replacement to its original value.");
 

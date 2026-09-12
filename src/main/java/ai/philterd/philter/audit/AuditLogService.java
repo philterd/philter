@@ -21,17 +21,20 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
- * Read-only access to the audit log ({@code audit_events}), used by the admin dashboard to export the
- * log for offline review. Writing of audit events is handled by {@link MongoDBAuditEventPublisher}.
+ * Read-only access to the audit log ({@code audit_events}): the dashboard's CSV export and the
+ * {@code GET /api/audit} listing. Writing is handled by {@link MongoDBAuditEventPublisher}.
  */
 public class AuditLogService {
 
@@ -104,6 +107,51 @@ public class AuditLogService {
         }
 
         return csv.toString().getBytes(StandardCharsets.UTF_8);
+
+    }
+
+    /**
+     * A page of audit events, most recent first. A null filter does not narrow the result;
+     * {@code principalId} matches {@code api_key_id} and {@code event} the wire name.
+     */
+    public List<Document> find(final ObjectId principalId, final String event, final Date from,
+                               final Date toExclusive, final int offset, final int limit) {
+
+        final List<Document> events = new ArrayList<>();
+
+        collection.find(filter(principalId, event, from, toExclusive))
+                .sort(Sorts.descending("timestamp"))
+                .skip(offset)
+                .limit(limit)
+                .forEach(events::add);
+
+        return events;
+
+    }
+
+    /** How many events match the filters, so a caller can page through them. */
+    public long count(final ObjectId principalId, final String event, final Date from, final Date toExclusive) {
+        return collection.countDocuments(filter(principalId, event, from, toExclusive));
+    }
+
+    private static Bson filter(final ObjectId principalId, final String event, final Date from, final Date toExclusive) {
+
+        final List<Bson> conditions = new ArrayList<>();
+
+        if (principalId != null) {
+            conditions.add(Filters.eq("api_key_id", principalId));
+        }
+        if (event != null && !event.isBlank()) {
+            conditions.add(Filters.eq("event", event));
+        }
+        if (from != null) {
+            conditions.add(Filters.gte("timestamp", from));
+        }
+        if (toExclusive != null) {
+            conditions.add(Filters.lt("timestamp", toExclusive));
+        }
+
+        return conditions.isEmpty() ? Filters.empty() : Filters.and(conditions);
 
     }
 

@@ -55,6 +55,8 @@ Two scopes are separated from the resources they belong to because they return t
 * `ledger:export` is separate from `ledger:read`, so a key can list and validate ledger chains without being able to export their plaintext.
 * `reidentify` is its own scope rather than part of `redact`, so a key that redacts text cannot reverse a replacement.
 
+`audit:read` stands apart for a different reason: the audit log spans the whole deployment rather than one resource, so it is not reachable with any resource's read scope. Reading it also requires an administrator.
+
 ### Scopes and the endpoints they cover
 
 | Scope | Endpoints |
@@ -73,6 +75,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `ledger:delete` | `DELETE /api/ledger`<br>`DELETE /api/ledger/{documentId}` |
 | `holds:read` | `GET /api/holds`<br>`GET /api/holds/{reference}` |
 | `holds:write` | `DELETE /api/holds/{reference}`<br>`POST /api/holds` |
+| `audit:read` | `GET /api/audit` |
 | `reidentify` | `POST /api/reidentify` |
 
 `/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).

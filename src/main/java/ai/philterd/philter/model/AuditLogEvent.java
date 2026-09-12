@@ -95,6 +95,9 @@ public enum AuditLogEvent {
     LEGAL_HOLD_RELEASED("legal_hold_released"),
     LEGAL_HOLD_BLOCKED_DELETION("legal_hold_blocked_deletion"),
 
+    // Reading the audit log is itself audited, like any other evidence access.
+    AUDIT_LOG_RETRIEVED("audit_log_retrieved"),
+
     // Settings
     SETTINGS_UPDATED("settings_updated"),
 

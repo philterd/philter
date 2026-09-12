@@ -153,6 +153,7 @@ nav:
       - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
       - 'Always/Never Redact Lists API': 'api_and_sdks/api/redact_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'
+      - 'Audit Log API': 'api_and_sdks/api/audit_api.md'
       - 'Redaction Ledger API': 'api_and_sdks/api/ledger_api.md'
       - 'Legal Holds API': 'api_and_sdks/api/legal_holds_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'

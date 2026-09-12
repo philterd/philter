@@ -22,6 +22,7 @@ public class ApiDocumentationConfig {
                     content("application/json", new ObjectSchema().additionalProperties(true)));
             op(api, "/api/policies", "post").getRequestBody().setContent(content("application/json",
                     new ObjectSchema().additionalProperties(true).description("Native Phileas policy. identifiers is required; custom dictionaries use dictionaries.")));
+            json(api, "/api/audit", "get", GetAuditResponse.class);
             json(api, "/api/contexts", "get", GetContextsResponse.class);
             json(api, "/api/contexts/{name}", "get", GetContextResponse.class);
             json(api, "/api/contexts/{name}/entries", "get", GetContextEntriesResponse.class);

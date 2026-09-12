@@ -186,6 +186,13 @@ public abstract class AbstractApiController {
         return limit <= 0 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
     }
 
+    /** Authorizes an admin-only operation that has no kill switch of its own. */
+    protected ResponseEntity<GenericResponse> authorizeAdminOnly(final UserService userService,
+                                                                 final ObjectId callerUserId,
+                                                                 final String operation) {
+        return authorizeAdminOnly(userService, callerUserId, true, operation, null);
+    }
+
     /**
      * Authorizes an admin-only operation, returning the refusal to send or {@code null} when allowed.
      *

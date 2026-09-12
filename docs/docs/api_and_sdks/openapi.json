@@ -11,6 +11,173 @@
     }
   ],
   "paths": {
+    "/api/audit": {
+      "get": {
+        "tags": [
+          "Audit Log"
+        ],
+        "summary": "List audit events.",
+        "description": "Returns audit events, most recent first, paginated. Filter by event type with event, by time with from and to (ISO-8601 instants; from is inclusive, to is exclusive), and by acting principal with owner. Reading the audit log is itself audited. The log covers the whole deployment, so this requires an administrator as well as the audit:read scope. Requires the `audit:read` scope.",
+        "operationId": "getAuditLog",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAuditResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A timestamp could not be parsed, the range is reversed, or the event type is not one Philter emits.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold audit:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/contexts": {
       "get": {
         "tags": [
@@ -6245,6 +6412,32 @@
   },
   "components": {
     "schemas": {
+      "AuditEventView": {
+        "properties": {
+          "apiKeyId": {
+            "type": "string"
+          },
+          "associatedObject": {
+            "type": "string"
+          },
+          "clientIpAddress": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ContextEntriesExport": {
         "properties": {
           "version": {
@@ -6308,6 +6501,20 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "GetAuditResponse": {
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -6744,6 +6951,10 @@
     {
       "description": "Operations for creating, retrieving, deleting, and compiling redaction policies.",
       "name": "Policies"
+    },
+    {
+      "description": "Read-only access to the audit log.",
+      "name": "Audit Log"
     },
     {
       "description": "Redact text and return a detailed explanation of what was redacted and why.",

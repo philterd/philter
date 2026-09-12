@@ -87,7 +87,7 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 |----------|---------|-------|
 | `POST /api/filter` (text/plain) | Yes (200 only) | Signed when enabled. |
 | `POST /api/explain` | Yes (200 only) | Signed when enabled. |
-| `POST /api/filter` (PDF) | No | PDF paths are async; signing is planned for a future release (see [#256](https://github.com/philterd/philterd-website/issues/256)). |
+| `POST /api/filter` (PDF) | No | PDF paths are async; signing is planned for a future release (see [#72](https://github.com/philterd/philter/issues/72)). |
 | Error responses (4xx, 5xx) | Never | Error bodies are never signed. |
 
 ### Signing failure

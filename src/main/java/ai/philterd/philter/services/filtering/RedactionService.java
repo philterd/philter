@@ -107,7 +107,7 @@ public class RedactionService {
 
     // Warm filter services, built once per span-disambiguation variant and reused across requests so
     // their per-policy filter caches stay populated instead of being rebuilt every request. Each
-    // request passes its own context and vector service to filter(...). See philterd-website#413.
+    // request passes its own context and vector service to filter(...).
     private final ConcurrentMap<Boolean, PlainTextFilterService> plainTextFilterServices = new ConcurrentHashMap<>();
     private final ConcurrentMap<Boolean, PdfFilterService> pdfFilterServices = new ConcurrentHashMap<>();
 
@@ -348,7 +348,7 @@ public class RedactionService {
         // The disambiguation flag is the single switch for the span-disambiguation engine and the only
         // per-request config input, so the warm filter services (with their populated per-policy filter
         // caches) are kept per flag and reused. This request's context and vector services are passed
-        // per call rather than baked into the service. See philterd-website#413.
+        // per call rather than baked into the service.
         final PlainTextFilterService plainTextFilterService = plainTextFilterService(disambiguationEnabled);
 
         LOGGER.info("Processing text with Phileas");

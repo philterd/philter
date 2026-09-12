@@ -84,7 +84,7 @@ public class DataInitializer {
         // Ensure indexes for the vectors collection. Unlike the other collections, the vector service
         // is constructed per request (it is scoped to a user), so its indexes are created here at
         // startup instead. A follow-up to make the vector service a singleton factory is tracked at
-        // https://github.com/philterd/philterd-website/issues/201.
+        // https://github.com/philterd/philter/issues/73.
         ensureVectorIndexes();
 
     }

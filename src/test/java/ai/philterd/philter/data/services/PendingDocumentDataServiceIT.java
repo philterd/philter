@@ -211,7 +211,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
                 service.findOneByDocumentIdAndUserId("stuck", user).getStatus());
 
         // A cutoff in the future reclaims every PROCESSING job (the "stuck" branch).
-        final Date future = new Date(System.currentTimeMillis() + PendingDocumentDataService.CLAIM_LEASE_MS + 60_000);
+        final Date future = new Date(System.currentTimeMillis() + service.getClaimLeaseMillis() + 60_000);
         assertEquals(2L, service.reclaimStuckJobs(future, 3));
 
         final PendingDocumentEntity reclaimed = service.findOneByDocumentIdAndUserId("stuck", user);

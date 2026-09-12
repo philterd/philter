@@ -53,7 +53,10 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     private static final long DEFAULT_TTL_SECONDS = 7L * 24L * 60L * 60L;
 
-    public static final long CLAIM_LEASE_MS = 10L * 60L * 1000L;
+    /** Preserves the ten minute lease deployments had before it became configurable. */
+    private static final int DEFAULT_CLAIM_LEASE_SECONDS = 600;
+
+    private final long claimLeaseMillis;
     private final MongoCollection<Document> jobs;
     private final LongSupplier clock;
     private final QueueAdmission admission;
@@ -72,8 +75,23 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     PendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
                                final AuditEventPublisher auditEventPublisher, final LongSupplier clock) {
+        this(mongoClient, encryptionService, auditEventPublisher, clock,
+                EnvUtils.getInt("DOCUMENT_CLAIM_LEASE_SECONDS", DEFAULT_CLAIM_LEASE_SECONDS));
+    }
+
+    /**
+     * The lease is a parameter so a test can use a few seconds and watch a real takeover, which the
+     * environment variable exists to make possible for a deployment too.
+     */
+    PendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                               final AuditEventPublisher auditEventPublisher, final LongSupplier clock,
+                               final int claimLeaseSeconds) {
         super(mongoClient, "pending_documents", encryptionService, auditEventPublisher);
         this.clock = clock;
+        if (claimLeaseSeconds <= 0) {
+            throw new IllegalArgumentException("DOCUMENT_CLAIM_LEASE_SECONDS must be positive.");
+        }
+        this.claimLeaseMillis = claimLeaseSeconds * 1000L;
         if (maxJobs <= 0 || maxUserJobs <= 0 || maxBytes <= 0 || maxUserBytes <= 0) {
             throw new IllegalArgumentException("Async queue limits must be positive.");
         }
@@ -97,6 +115,11 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         ensureIndex(Indexes.ascending("status", "submitted_at"));
         ensureIndex(Indexes.ascending("status", "claim_expires_at"));
         ensureIndex(Indexes.ascending("user_id", "context_name", "status"));
+    }
+
+    /** How long a worker owns a claim, in milliseconds. */
+    public long getClaimLeaseMillis() {
+        return claimLeaseMillis;
     }
 
     @Override
@@ -215,7 +238,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
                 Updates.set("claimed_by", workerId),
                 Updates.set("claimed_at", now),
                 Updates.set("claim_token", UUID.randomUUID().toString()),
-                Updates.set("claim_expires_at", new Date(now.getTime() + CLAIM_LEASE_MS)),
+                Updates.set("claim_expires_at", new Date(now.getTime() + claimLeaseMillis)),
                 Updates.unset("publication_started_at"),
                 Updates.set("started_at", now)
         );
@@ -302,7 +325,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     public boolean renewClaim(final ObjectId id, final String claimToken) {
         return jobs.updateOne(liveComputation(id, claimToken),
-                Updates.set("claim_expires_at", new Date(clock.getAsLong() + CLAIM_LEASE_MS)))
+                Updates.set("claim_expires_at", new Date(clock.getAsLong() + claimLeaseMillis)))
                 .getMatchedCount() == 1;
     }
 

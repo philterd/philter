@@ -61,7 +61,16 @@ public class RedactionWorker {
                            final PolicyVersionDataService policyVersionDataService,
                            final Gson gson) {
         this(pendingDocumentDataService, redactionService, userService, webhookDeliveryDataService,
-                policyVersionDataService, gson, 60_000);
+                policyVersionDataService, gson, heartbeatFor(pendingDocumentDataService.getClaimLeaseMillis()));
+    }
+
+    /**
+     * A third of the lease, capped at the 60 seconds used before the lease became configurable. Tying
+     * the two together means a shortened DOCUMENT_CLAIM_LEASE_SECONDS cannot leave a healthy worker
+     * renewing too slowly to keep the job it is still working on.
+     */
+    static long heartbeatFor(final long claimLeaseMillis) {
+        return Math.max(250L, Math.min(60_000L, claimLeaseMillis / 3));
     }
 
     RedactionWorker(final PendingDocumentDataService pendingDocumentDataService,

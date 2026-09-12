@@ -59,7 +59,7 @@ class PendingDocumentFencingIT extends AbstractMongoIT {
     @Test
     void supersededAttemptCannotPublishCompleteFailOrRenewEvenWithSameWorkerId() {
         final var old = claim();
-        time.addAndGet(PendingDocumentDataService.CLAIM_LEASE_MS);
+        time.addAndGet(first.getClaimLeaseMillis());
         assertFalse(first.beginPublication(old.getId(), old.getClaimToken()));
         assertFalse(first.renewClaim(old.getId(), old.getClaimToken()));
         assertFalse(first.markFailed(old.getId(), old.getClaimToken(), "expired"));
@@ -96,7 +96,7 @@ class PendingDocumentFencingIT extends AbstractMongoIT {
         assertFalse(first.markComplete(job.getId(), user, job.getClaimToken(), new byte[]{9}));
         assertTrue(first.beginPublication(job.getId(), job.getClaimToken()));
         assertFalse(first.beginPublication(job.getId(), job.getClaimToken()));
-        time.addAndGet(100 * PendingDocumentDataService.CLAIM_LEASE_MS);
+        time.addAndGet(100 * first.getClaimLeaseMillis());
         assertEquals(0, service().reclaimStuckJobs(new Date(time.get()), 0));
         assertNull(second.claimNextPending("other"));
         assertFalse(second.markFailed(job.getId(), "other-token", "failure"));

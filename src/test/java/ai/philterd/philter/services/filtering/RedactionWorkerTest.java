@@ -29,6 +29,7 @@ import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -38,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -233,5 +235,21 @@ class RedactionWorkerTest {
                 "Pinned policy snapshot is missing: missing-snapshot");
         org.mockito.Mockito.verifyNoInteractions(redactionService);
         verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("The renewal heartbeat tracks the lease so a short lease cannot lose a live job")
+    void theHeartbeatIsDerivedFromTheLease() {
+        // Unchanged at the default lease, so existing deployments renew exactly as before.
+        assertEquals(60_000L, RedactionWorker.heartbeatFor(600_000L));
+
+        // A shortened lease renews proportionally, three times per lease.
+        assertEquals(1_000L, RedactionWorker.heartbeatFor(3_000L));
+        assertEquals(333L, RedactionWorker.heartbeatFor(1_000L));
+
+        for (final long lease : new long[]{1_000L, 3_000L, 30_000L, 600_000L, 3_600_000L}) {
+            assertTrue(RedactionWorker.heartbeatFor(lease) < lease,
+                    "a worker must renew before its own lease expires; lease " + lease);
+        }
     }
 }

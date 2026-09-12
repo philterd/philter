@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The truth table from #96 over real HTTP: the admin setting is a floor, so a request can add
+ * The signing truth table over real HTTP: the admin setting is a floor, so a request can add
  * signing but never remove it. The controller unit tests mock the decision away, so only this
  * exercises the real composition of setting, parameter, and signature.
  */

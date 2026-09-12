@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * The configurable claim lease (philterd/philter#97). The fencing tests inject a clock, which no
+ * The configurable claim lease. The fencing tests inject a clock, which no
  * deployment can do; this uses a lease short enough to wait out for real, which is what the
  * environment variable makes possible outside the process.
  */

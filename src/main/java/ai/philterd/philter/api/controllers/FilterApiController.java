@@ -257,7 +257,7 @@ public class FilterApiController extends AbstractApiController {
     }
 
     /**
-     * PDF responses are not signed yet (philterd/philter#72), so a request asking for a signature is
+     * PDF responses are not signed yet, so a request asking for a signature is
      * refused rather than answered with an unsigned response the caller believes is signed.
      */
     private static void rejectSigningRequest(final boolean sign) {

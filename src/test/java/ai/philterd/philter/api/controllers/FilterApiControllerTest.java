@@ -286,6 +286,11 @@ class FilterApiControllerTest {
 
             org.junit.jupiter.api.Assertions.assertEquals(400, response.getStatus(),
                     "Accept: " + accept + " must refuse sign=true");
+
+            // The refusal has to say it is about signing, not report a missing parameter.
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    response.getContentAsString().contains("cannot be signed"),
+                    "Accept: " + accept + " must say why: " + response.getContentAsString());
         }
 
         // Refused before any work is done, so nothing is enqueued or filtered.

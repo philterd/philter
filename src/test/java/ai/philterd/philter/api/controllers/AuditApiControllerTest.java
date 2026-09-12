@@ -247,10 +247,11 @@ class AuditApiControllerTest {
     void returns400ForAnEventTypePhilterDoesNotEmit() throws Exception {
         makeCallerAdmin();
 
-        // The handler returns a generic message for every BadRequestException, so only the status
-        // and the fact that nothing was queried are assertable here.
-        perform("/api/audit?event=not_an_event").andExpect(status().isBadRequest());
+        final String body = perform("/api/audit?event=not_an_event")
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
 
+        assertTrue(body.contains("event parameter"), "the error must say which parameter: " + body);
         verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
     }
 

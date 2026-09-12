@@ -170,7 +170,8 @@ public class AuditApiController extends AbstractApiController {
             }
         }
 
-        throw new BadRequestException("Not an audit event type: " + event);
+        // Named, not echoed, matching how a bad parameter value is reported elsewhere.
+        throw new BadRequestException("The event parameter is not an audit event type.");
 
     }
 

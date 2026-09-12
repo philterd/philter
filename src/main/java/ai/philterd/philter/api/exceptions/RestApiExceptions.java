@@ -39,13 +39,27 @@ public class RestApiExceptions {
 
 	private static final Logger LOGGER = LogManager.getLogger(RestApiExceptions.class);
 
+	/** The message describes what the caller sent and is written for the caller to read. */
 	@ResponseBody
-	@ExceptionHandler({BadRequestException.class, FileNotFoundException.class, HttpMessageNotReadableException.class})
+	@ExceptionHandler(BadRequestException.class)
 	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-	public String handleBadRequestException(Exception ex) {
-		final String message = "A required parameter is missing or contains an invalid value.";
-		LOGGER.error(message, ex);
-		return message;
+	public String handleBadRequestException(final BadRequestException ex) {
+		LOGGER.error("Bad request: {}", ex.getMessage());
+		return ex.getMessage() == null || ex.getMessage().isBlank()
+				? "A required parameter is missing or contains an invalid value."
+				: ex.getMessage();
+	}
+
+	/**
+	 * Not thrown by Philter, so the message is a filesystem path or a parser trace rather than
+	 * anything the caller wrote. A fixed message is returned and the detail stays in the log.
+	 */
+	@ResponseBody
+	@ExceptionHandler({FileNotFoundException.class, HttpMessageNotReadableException.class})
+	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
+	public String handleUnreadableRequest(final Exception ex) {
+		LOGGER.error("The request could not be read.", ex);
+		return "The request body is missing or could not be read.";
 	}
 
     @ExceptionHandler(ai.philterd.philter.data.services.QueueCapacityException.class)

@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -96,6 +97,23 @@ class RestApiExceptionsTest {
         public String wrongType() {
             throw new UnsupportedMediaTypeException("The request declares text/plain but the body is PDF.");
         }
+
+        /** Stands in for any validation that rejects what the caller sent. */
+        @GetMapping("/stub/badrequest")
+        public String badRequest() {
+            throw new BadRequestException("Password-protected PDF input is not supported.");
+        }
+
+        @GetMapping("/stub/badrequest-nomessage")
+        public String badRequestWithoutMessage() {
+            throw new BadRequestException(null);
+        }
+
+        /** Its message is a filesystem path, which must not reach the caller. */
+        @GetMapping("/stub/notfound")
+        public String fileNotFound() throws java.io.FileNotFoundException {
+            throw new java.io.FileNotFoundException("/srv/philter/secret/models/config.json (No such file or directory)");
+        }
     }
 
     @RestController
@@ -110,6 +128,46 @@ class RestApiExceptionsTest {
                 .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/stub/json")
                         .contentType("text/plain").content("text"))
                 .andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
+    void aBadRequestIsAnsweredWithTheMessageItWasConstructedWith() throws Exception {
+        final String body = buildMockMvc()
+                .perform(get("/stub/badrequest"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("Password-protected PDF input is not supported.", body);
+    }
+
+    @Test
+    void aBadRequestWithNoMessageStillSaysSomethingUseful() throws Exception {
+        final String body = buildMockMvc()
+                .perform(get("/stub/badrequest-nomessage"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("A required parameter is missing or contains an invalid value.", body);
+    }
+
+    @Test
+    void aFileNotFoundLeaksNeitherThePathNorTheCause() throws Exception {
+        final String body = buildMockMvc()
+                .perform(get("/stub/notfound"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("The request body is missing or could not be read.", body);
+        assertFalse(body.contains("/srv/philter"), "a server path must not reach the caller: " + body);
+    }
+
+    @Test
+    void anUnreadableBodyLeaksNoParserDetail() throws Exception {
+        final String body = MockMvcBuilders.standaloneSetup(new JsonOnlyController()).setControllerAdvice(handler).build()
+                .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/stub/json")
+                        .contentType("application/json").content(""))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("The request body is missing or could not be read.", body);
+        assertFalse(body.toLowerCase(java.util.Locale.ROOT).contains("jackson"), body);
+        assertFalse(body.contains("nested exception"), body);
     }
 
     private MockMvc buildMockMvc() {

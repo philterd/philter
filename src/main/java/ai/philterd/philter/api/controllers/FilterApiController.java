@@ -24,6 +24,7 @@ import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -124,6 +125,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as ZIP. async={}", async);
@@ -133,6 +135,8 @@ public class FilterApiController extends AbstractApiController {
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
+
+        rejectSigningRequest(sign);
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
@@ -169,6 +173,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as PDF. async={}", async);
@@ -178,6 +183,8 @@ public class FilterApiController extends AbstractApiController {
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
+
+        rejectSigningRequest(sign);
 
         final ObjectId userId = apiKeyEntity.getUserId();
 
@@ -247,6 +254,17 @@ public class FilterApiController extends AbstractApiController {
                 .headers(headers)
                 .body(textFilterResult.getFilteredText());
 
+    }
+
+    /**
+     * PDF responses are not signed yet (philterd/philter#72), so a request asking for a signature is
+     * refused rather than answered with an unsigned response the caller believes is signed.
+     */
+    private static void rejectSigningRequest(final boolean sign) {
+        if (sign) {
+            throw new BadRequestException(
+                    "PDF responses cannot be signed. Omit sign, or use the text/plain endpoint.");
+        }
     }
 
     private ResponseEntity<byte[]> enqueueBinary(final ObjectId userId, final byte[] body, final MimeType inputMimeType,

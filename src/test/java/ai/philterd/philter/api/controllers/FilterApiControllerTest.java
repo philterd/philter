@@ -274,6 +274,43 @@ class FilterApiControllerTest {
     }
 
     @Test
+    void pdfEndpointRefusesSignTrueRatherThanAnsweringUnsigned() throws Exception {
+        // Two separate handlers, so each is asserted by name rather than through a bare andExpect.
+        for (final MediaType accept : new MediaType[]{MediaType.APPLICATION_PDF, MediaType.valueOf("application/zip")}) {
+            final var response = mockMvc.perform(post("/api/filter?sign=true")
+                            .header("Authorization", AUTH_HEADER)
+                            .contentType(MediaType.APPLICATION_PDF)
+                            .accept(accept)
+                            .content(validPdf()))
+                    .andReturn().getResponse();
+
+            org.junit.jupiter.api.Assertions.assertEquals(400, response.getStatus(),
+                    "Accept: " + accept + " must refuse sign=true");
+        }
+
+        // Refused before any work is done, so nothing is enqueued or filtered.
+        verify(pendingDocumentDataService, never()).save(any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(byte[].class), any(), any());
+    }
+
+    @Test
+    void pdfEndpointAcceptsSignFalseWhichAsksForNothing() throws Exception {
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setName("default");
+        policyEntity.setRevision(7);
+        policyEntity.setPolicy("{\"identifiers\":{}}");
+        when(policyDataService.findOne("default", userId)).thenReturn(policyEntity);
+        when(policyVersionDataService.snapshot(policyEntity)).thenReturn("hash7");
+
+        mockMvc.perform(post("/api/filter?sign=false")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_PDF)
+                        .accept(MediaType.APPLICATION_PDF)
+                        .content(validPdf()))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
     void textEndpointAsksForSigningWhenTheRequestSetsSignTrue() throws Exception {
         when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))

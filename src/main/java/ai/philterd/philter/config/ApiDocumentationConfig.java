@@ -66,7 +66,7 @@ public class ApiDocumentationConfig {
                             "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema()).additionalProperties(true)));
             op(api, "/api/documents", "get").getResponses().putIfAbsent("404", new ApiResponse().description("Owner unavailable or inaccessible."));
             final Operation filter = op(api, "/api/filter", "post");
-            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, or PDF without pages.");
+            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, or sign=true on a PDF request.");
             filter.getResponses().get("413").setDescription("Request body, resolved configuration (1 MiB), or encrypted async record exceeds its size limit.");
             filter.setOperationId("filter");
             filter.setSummary("Redact text or a PDF.");
@@ -75,7 +75,8 @@ public class ApiDocumentationConfig {
                     + "returning application/json with documentId regardless of the selected download format. "
                     + "Set async=false for inline binary output. Async submission captures resolved configuration. "
                     + ai.philterd.philter.api.controllers.FilterApiController.SIGN_PARAMETER
-                    + " It applies to the text path, which is the one that is signed.");
+                    + " It applies to the text path, which is the one that is signed; sign=true on a PDF"
+                    + " request is refused with 400 rather than answered unsigned.");
             filter.getRequestBody().setContent(content("text/plain", new StringSchema())
                     .addMediaType("application/pdf", new MediaType().schema(new BinarySchema())));
             response(filter, "200", "Redacted text or synchronous binary result.", content("text/plain", new StringSchema())

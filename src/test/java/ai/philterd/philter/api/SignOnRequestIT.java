@@ -24,6 +24,8 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +36,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.core.env.Environment;
 
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -181,6 +184,43 @@ class SignOnRequestIT {
         assertNotNull(explain("&sign=false").headers().firstValue(SIGNATURE_HEADER).orElse(null),
                 "the floor applies to explain too");
 
+    }
+
+    @Test
+    @DisplayName("A PDF request asking to be signed is refused, not answered unsigned")
+    void aPdfRequestAskingForASignatureIsRefused() throws Exception {
+
+        // The control: the same request without the parameter is accepted, so the 400 below is
+        // attributable to the refusal and not to the document.
+        assertEquals(202, pdf("").statusCode(), "the PDF itself must be acceptable");
+
+        assertEquals(400, pdf("&sign=true").statusCode(),
+                "an unsigned response to a caller that asked for a signature is the failure this avoids");
+
+        // Even with the setting on, since PDF responses are not signed either way.
+        signingEnabled(true);
+        assertEquals(400, pdf("&sign=true").statusCode());
+        assertEquals(202, pdf("&sign=false").statusCode(), "sign=false asks for nothing");
+
+    }
+
+    private HttpResponse<String> pdf(final String query) throws Exception {
+        return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/filter?p=ssn-only" + query))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/pdf")
+                .header("Accept", "application/pdf")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(onePagePdf()))
+                .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** A real one-page PDF, so a rejected request is rejected for the reason under test. */
+    private static byte[] onePagePdf() throws Exception {
+        try (final PDDocument document = new PDDocument();
+             final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            document.addPage(new PDPage());
+            document.save(out);
+            return out.toByteArray();
+        }
     }
 
     // ----- the signature is the same signature -----

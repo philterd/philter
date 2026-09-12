@@ -87,7 +87,7 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 |----------|---------|-------|
 | `POST /api/filter` (text/plain) | Yes (200 only) | Signed when enabled, or when the request passes `sign=true`. |
 | `POST /api/explain` | Yes (200 only) | Signed when enabled, or when the request passes `sign=true`. |
-| `POST /api/filter` (PDF) | No | PDF paths are async; signing is planned for a future release (see [#72](https://github.com/philterd/philter/issues/72)). |
+| `POST /api/filter` (PDF) | No | PDF paths are async; signing is planned for a future release (see [#72](https://github.com/philterd/philter/issues/72)). `sign=true` is refused with `400`, never answered unsigned. |
 | Error responses (4xx, 5xx) | Never | Error bodies are never signed. |
 
 ### Requesting a signature per request
@@ -119,6 +119,11 @@ attested.
 
 A signature produced by `sign=true` is identical in form to one produced by the admin setting and
 verifies the same way against `GET /api/signing-key`.
+
+The parameter is accepted only where a signature can actually be produced. `sign=true` on a PDF
+request returns `400 Bad Request`, because silently returning an unsigned response to a caller that
+asked for a signed one is the failure mode this feature exists to avoid. `sign=false` is accepted
+everywhere, since it asks for nothing.
 
 ### Signing failure
 

@@ -2242,7 +2242,7 @@
           "Filter"
         ],
         "summary": "Redact text or a PDF.",
-        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed.",
+        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed; sign=true on a PDF request is refused with 400 rather than answered unsigned.",
         "operationId": "filter",
         "parameters": [
           {
@@ -2402,7 +2402,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, or PDF without pages.",
+            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, or sign=true on a PDF request.",
             "content": {
               "*/*": {
                 "schema": {

@@ -155,7 +155,7 @@ class Release400AuditTest extends AbstractMongoIT {
         final var first = new SigningKeyDataService(mongoClient, encryption, audit);
         final var second = new SigningKeyDataService(mongoClient, encryption, audit);
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
-        first.regenerate(new ObjectId());
+        first.regenerate("req", new ObjectId(), null, "source: test");
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId(),
                 "The second instance must select the newly published key");
     }

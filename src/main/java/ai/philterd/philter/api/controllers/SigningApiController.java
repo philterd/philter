@@ -15,8 +15,14 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
+import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.signing.SigningService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,28 +30,35 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-@Tag(name = "Signing", description = "Retrieve the public signing key used to verify Philter output signatures.")
+@Tag(name = "Signing", description = "Retrieve the public signing key used to verify Philter output signatures, and rotate it.")
 @Controller
 public class SigningApiController extends AbstractApiController {
 
     private final SigningKeyDataService signingKeyDataService;
+    private final UserService userService;
 
     @Autowired
     public SigningApiController(final ApiKeyDataService apiKeyDataService,
                                 final ApiKeyCache apiKeyCache,
-                                final SigningKeyDataService signingKeyDataService) {
+                                final SigningKeyDataService signingKeyDataService,
+                                final UserService userService) {
         super(apiKeyDataService, apiKeyCache);
         this.signingKeyDataService = signingKeyDataService;
+        this.userService = userService;
     }
 
     @Operation(
@@ -101,6 +114,58 @@ public class SigningApiController extends AbstractApiController {
                 + "\",\"active\":" + active + "}";
 
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body(json);
+    }
+
+    @Operation(
+            summary = "Rotate the output signing key.",
+            description = "Generates a new ES256 keypair and makes it the active signing key. The superseded "
+                    + "key is retained and stays retrievable through GET /api/signing-key/{keyId}, so "
+                    + "signatures and ledger entries made with it remain verifiable; consumers should resolve "
+                    + "each signature's key id rather than caching one key. Rotation is the response to a "
+                    + "suspected key compromise, so it requires an administrator as well as the signing:write "
+                    + "scope, and is recorded as a signing_key_regenerated audit event.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The key was rotated. The body names the key that is now active."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold signing:write, or the caller is not an administrator."),
+            @ApiResponse(responseCode = "409", description = "The signing key is managed by PHILTER_SIGNING_KEY_PATH and cannot be rotated through the API.")
+    })
+    @RequiresScope(ApiKeyScope.SIGNING_WRITE)
+    @RequestMapping(value = "/api/signing-key/regenerate", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<String> regenerateSigningKey(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ResponseEntity<GenericResponse> refusal =
+                authorizeAdminOnly(userService, apiKeyEntity.getUserId(), "Rotating the signing key");
+        if (refusal != null) {
+            return ResponseEntity.status(refusal.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"message\":\"" + escapePem(refusal.getBody().getMessage()) + "\"}");
+        }
+
+        // Checked here so the refusal is a 409 naming the cause rather than the service's
+        // IllegalStateException reaching the catch-all as a 500.
+        if (signingKeyDataService.isExternallyManaged()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"message\":\"The signing key is managed by PHILTER_SIGNING_KEY_PATH; "
+                            + "replace the file and restart all instances.\"}");
+        }
+
+        // The principal recorded is always the user; the key that carried the request goes in details.
+        final String keyId = signingKeyDataService.regenerate(requestId, apiKeyEntity.getUserId(),
+                getClientIpAddress(httpServletRequest), "source: api, api_key: " + apiKeyEntity.getId());
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"keyId\":\"" + escapePem(keyId) + "\"}");
     }
 
     private static String escapePem(final String pem) {

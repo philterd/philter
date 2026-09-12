@@ -49,7 +49,28 @@ To rotate a file-managed key, replace the PEM on every node and restart all inst
 
 From the **Admin** → **Admin Settings** page, click **Regenerate Signing Key**. A confirmation dialog warns you that any consumer that cached the old public key will need to re-fetch it. For database-managed keys, confirmation stores a new keypair and publishes its ID for all instances. Operations that already selected the previous key may finish with it; subsequent key selections use the published key.
 
-Regeneration is audited as `signing_key_regenerated`.
+Rotation is also available over the API, so it can go in a runbook or be driven across a fleet
+without a browser on each deployment:
+
+```bash
+curl -k -X POST -H "Authorization: Bearer <token>" \
+  "https://localhost:8080/api/signing-key/regenerate"
+```
+
+```json
+{ "keyId": "a1b2c3d4e5f60718" }
+```
+
+The response names the key that is now active, so no second request is needed to confirm which one
+took effect. The endpoint requires an administrator as well as an API key holding the
+`signing:write` scope; a caller missing either is refused with `403` and the key is not rotated. When
+the key is managed by `PHILTER_SIGNING_KEY_PATH` the endpoint returns `409` and names the cause,
+matching what the dashboard does.
+
+Regeneration is audited as `signing_key_regenerated`, whether it came from the dashboard or the API.
+The recorded principal is always the **user** who rotated the key, never an API key id; when the API
+was used, the key that carried the request is named in the event's `details` alongside
+`source: api`. Read the events through [`GET /api/audit`](api_and_sdks/api/audit_api.md).
 
 Regeneration preserves previous public keys and does not invalidate historical signatures. Each JWT carries a `kid` header; fetch its key from `GET /api/signing-key/{keyId}`. Cache verification keys by ID.
 

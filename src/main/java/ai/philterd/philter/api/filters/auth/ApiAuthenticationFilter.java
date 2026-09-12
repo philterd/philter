@@ -96,10 +96,11 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             LOGGER.trace("Request to health endpoint, allowing without authorization: {}", path);
             chain.doFilter(request, response);
 
-        } else if (path.equals("/api/signing-key") || path.startsWith("/api/signing-key/")) {
+        } else if (isPublicSigningKeyRead(path, ((HttpServletRequest) request).getMethod())) {
 
             // Public keys, and only public keys. A recipient verifying a signed response or an
-            // exported ledger chain is not the operator and holds no API key of theirs.
+            // exported ledger chain is not the operator and holds no API key of theirs. Reads only:
+            // rotation lives under the same prefix and must be authenticated like any other write.
             LOGGER.trace("Request for a public signing key, allowing without authorization: {}", path);
             chain.doFilter(request, response);
 
@@ -216,4 +217,16 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
     }
 
+
+    /**
+     * A read of a public key. Anything else under the prefix, such as rotation, is authenticated.
+     * Shared with the scope interceptor so the two cannot come to different conclusions about which
+     * signing-key requests are public.
+     */
+    public static boolean isPublicSigningKeyRead(final String path, final String method) {
+        if (!"GET".equals(method) && !"HEAD".equals(method)) {
+            return false;
+        }
+        return path.equals("/api/signing-key") || path.startsWith("/api/signing-key/");
+    }
 }

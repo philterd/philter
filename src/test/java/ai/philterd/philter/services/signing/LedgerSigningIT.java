@@ -155,7 +155,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         writeChain();
         final String originalKeyId = signingKeyDataService.getActiveKeyId();
 
-        signingKeyDataService.regenerate(USER);
+        signingKeyDataService.regenerate("req", USER, null, "source: test");
 
         assertNotEquals(originalKeyId, signingKeyDataService.getActiveKeyId(), "rotation must change the key");
         assertNotNull(signingKeyDataService.findPublicKeyById(originalKeyId),
@@ -191,7 +191,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         writeChain();
         final String keyIdUsed = ledgerDataService.getChain(USER, DOC).getFirst().getSigningKeyId();
 
-        signingKeyDataService.regenerate(USER);
+        signingKeyDataService.regenerate("req", USER, null, "source: test");
 
         // What an export recipient needs: the PEM of the key named in the entries, even though a
         // different key is now active.
@@ -246,7 +246,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         final Thread rotator = new Thread(() -> {
             while (writing.get()) {
                 try {
-                    signingKeyDataService.regenerate(null);
+                    signingKeyDataService.regenerate("req", null, null, "source: test");
                 } catch (final RuntimeException ex) {
                     rotationFailures.add(ex.toString());
                 }

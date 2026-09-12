@@ -87,7 +87,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final String fingerprintBefore = service.getPublicKeyFingerprint();
 
         final ObjectId actingUser = new ObjectId();
-        service.regenerate(actingUser);
+        service.regenerate("req", actingUser, null, "source: test");
 
         final String fingerprintAfter = service.getPublicKeyFingerprint();
         assertNotEquals(fingerprintBefore, fingerprintAfter,
@@ -100,14 +100,15 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(1, mongoClient.getDatabase("philter").getCollection("signing_key_state").countDocuments(),
                 "exactly one key may be active");
 
-        verify(publisher).auditEvent(isNull(), eq(AuditLogEvent.SIGNING_KEY_REGENERATED), eq(actingUser), isNull(), isNull(), isNull());
+        verify(publisher).auditEvent(eq("req"), eq(AuditLogEvent.SIGNING_KEY_REGENERATED), eq(actingUser),
+                isNull(), isNull(), eq("source: test"));
     }
 
     @Test
     void newInstanceAfterRegenerationLoadsRegeneratedKey() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
-        service.regenerate(new ObjectId());
+        service.regenerate("req", new ObjectId(), null, "source: test");
         final String fingerprintAfterRegenerate = service.getPublicKeyFingerprint();
 
         // New instance (simulating restart after regeneration) must load the regenerated key
@@ -161,7 +162,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final Thread rotator = new Thread(() -> {
             try {
                 for (int i = 0; i < 100; i++) {
-                    service.regenerate(null);
+                    service.regenerate("req", null, null, "source: test");
                 }
             } finally {
                 rotating.set(false);

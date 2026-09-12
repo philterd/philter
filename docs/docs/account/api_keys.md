@@ -57,6 +57,8 @@ Two scopes are separated from the resources they belong to because they return t
 
 `audit:read` stands apart for a different reason: the audit log spans the whole deployment rather than one resource, so it is not reachable with any resource's read scope. Reading it also requires an administrator.
 
+`signing:write` covers rotating the output signing key, which affects every instance in the deployment. It also requires an administrator. The two signing-key read endpoints take no API key at all.
+
 ### Scopes and the endpoints they cover
 
 | Scope | Endpoints |
@@ -76,6 +78,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `holds:read` | `GET /api/holds`<br>`GET /api/holds/{reference}` |
 | `holds:write` | `DELETE /api/holds/{reference}`<br>`POST /api/holds` |
 | `audit:read` | `GET /api/audit` |
+| `signing:write` | `POST /api/signing-key/regenerate` |
 | `reidentify` | `POST /api/reidentify` |
 
 `/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).

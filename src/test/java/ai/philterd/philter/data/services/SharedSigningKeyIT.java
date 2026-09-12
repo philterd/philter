@@ -69,7 +69,7 @@ class SharedSigningKeyIT extends AbstractMongoIT {
         final var signing = new SigningService(second, mock(AdminSettingsDataService.class));
         final var old = signing.signLedgerEntry("old");
         final String oldJwt = signing.sign("before", "p", 1, "doc");
-        first.regenerate(null);
+        first.regenerate("req", null, null, "source: test");
         assertEquals(first.getActiveKeyId(), signing.signLedgerEntry("new").keyId());
         assertTrue(signing.verifyLedgerEntry("old", old.signature(), old.keyId()));
         final String jwt = signing.sign("after", "p", 1, "doc");
@@ -90,12 +90,12 @@ class SharedSigningKeyIT extends AbstractMongoIT {
         try (var pool = Executors.newFixedThreadPool(3)) {
             final Future<?> a = pool.submit(() -> {
                 start.await(5, TimeUnit.SECONDS);
-                for (int i = 0; i < 12; i++) first.regenerate(null);
+                for (int i = 0; i < 12; i++) first.regenerate("req", null, null, "source: test");
                 return null;
             });
             final Future<?> b = pool.submit(() -> {
                 start.await(5, TimeUnit.SECONDS);
-                for (int i = 0; i < 12; i++) second.regenerate(null);
+                for (int i = 0; i < 12; i++) second.regenerate("req", null, null, "source: test");
                 return null;
             });
             final Future<?> c = pool.submit(() -> {

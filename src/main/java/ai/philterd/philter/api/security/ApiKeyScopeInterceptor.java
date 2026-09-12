@@ -18,6 +18,7 @@ package ai.philterd.philter.api.security;
 import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.ApiKeyScope;
+import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -62,7 +63,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
 
         final String path = request.getRequestURI();
 
-        if (!path.startsWith("/api/") || isUnauthenticated(path)) {
+        if (!path.startsWith("/api/") || isUnauthenticated(path, request.getMethod())) {
             return true;
         }
 
@@ -100,9 +101,13 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
 
     }
 
-    private static boolean isUnauthenticated(final String path) {
+    /**
+     * Reads of a public signing key need no key and so no scope. Rotation lives under the same prefix
+     * and is not a read, so it is scope-checked like every other write.
+     */
+    private static boolean isUnauthenticated(final String path, final String method) {
         return UNAUTHENTICATED_PATHS.contains(path)
-                || path.equals(SIGNING_KEY_PATH) || path.startsWith(SIGNING_KEY_PATH + "/");
+                || ApiAuthenticationFilter.isPublicSigningKeyRead(path, method);
     }
 
     private static boolean refuse(final HttpServletResponse response, final String message) throws Exception {

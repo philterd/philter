@@ -6310,6 +6310,126 @@
         }
       }
     },
+    "/api/signing-key/regenerate": {
+      "post": {
+        "tags": [
+          "Signing"
+        ],
+        "summary": "Rotate the output signing key.",
+        "description": "Generates a new ES256 keypair and makes it the active signing key. The superseded key is retained and stays retrievable through GET /api/signing-key/{keyId}, so signatures and ledger entries made with it remain verifiable; consumers should resolve each signature's key id rather than caching one key. Rotation is the response to a suspected key compromise, so it requires an administrator as well as the signing:write scope, and is recorded as a signing_key_regenerated audit event. Requires the `signing:write` scope.",
+        "operationId": "regenerateSigningKey",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The key that is now active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keyId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold signing:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The signing key is managed by PHILTER_SIGNING_KEY_PATH and cannot be rotated through the API.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/signing-key/{keyId}": {
       "get": {
         "security": [],
@@ -6991,7 +7111,7 @@
       "name": "Contexts"
     },
     {
-      "description": "Retrieve the public signing key used to verify Philter output signatures.",
+      "description": "Retrieve the public signing key used to verify Philter output signatures, and rotate it.",
       "name": "Signing"
     }
   ]

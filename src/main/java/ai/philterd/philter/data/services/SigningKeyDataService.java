@@ -120,8 +120,16 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
     /**
      * Persist the candidate first, then atomically publish it. Failed publication leaves the
      * previous pointer intact; retained keys keep in-flight and historical signatures verifiable.
+     *
+     * @param actingUserId    The user who rotated the key. Always a user id, never an API key id, so a
+     *                        reader of the audit log knows what the recorded principal is.
+     * @param clientIpAddress Where the request came from, or null when unavailable.
+     * @param details         How the rotation was requested, which is what names the API key when one
+     *                        was used.
+     * @return The id of the key that is now active.
      */
-    public void regenerate(final ObjectId actingUserId) {
+    public String regenerate(final String requestId, final ObjectId actingUserId,
+                             final String clientIpAddress, final String details) {
         ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
         if (externallyManaged) {
             throw new IllegalStateException("Signing key is managed by PHILTER_SIGNING_KEY_PATH; replace the file and restart all instances.");
@@ -131,8 +139,9 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
                 .getMatchedCount() != 1) {
             throw new IllegalStateException("Active signing-key pointer is missing; rotation was not published.");
         }
-        auditEventPublisher.auditEvent(null, AuditLogEvent.SIGNING_KEY_REGENERATED,
-                actingUserId, null, null, null);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGNING_KEY_REGENERATED,
+                actingUserId, null, clientIpAddress, details);
+        return candidate.keyId();
     }
 
     private ActiveKey currentActiveKey() {

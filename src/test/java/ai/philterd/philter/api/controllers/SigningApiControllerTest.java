@@ -17,8 +17,13 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.SigningKeyDataService;
+import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,8 +35,15 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,12 +58,27 @@ class SigningApiControllerTest {
     @Mock
     private SigningKeyDataService signingKeyDataService;
 
+    @Mock
+    private UserService userService;
+
+    private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
+    private static final String AUTH_HEADER = "Bearer " + API_KEY;
+
+    private ObjectId userId;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        userId = new ObjectId();
+        final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
+        apiKeyEntity.setUserId(userId);
+        apiKeyEntity.setId(new ObjectId());
+        lenient().when(apiKeyCache.containsApiKey(EncryptionService.hashSha256(API_KEY))).thenReturn(true);
+        lenient().when(apiKeyCache.get(EncryptionService.hashSha256(API_KEY))).thenReturn(apiKeyEntity);
+
         final SigningApiController controller = new SigningApiController(
-                apiKeyDataService, apiKeyCache, signingKeyDataService);
+                apiKeyDataService, apiKeyCache, signingKeyDataService, userService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new RestApiExceptions())
                 .build();
@@ -146,4 +173,82 @@ class SigningApiControllerTest {
         assertTrue(body.contains("\\n"), "newlines must be escaped; was: " + body);
     }
 
+
+    // ----- rotation -----
+
+    private void callerIsAdministrator(final boolean admin) {
+        final UserEntity user = new UserEntity();
+        user.setId(userId);
+        user.setRole(admin ? "admin" : "user");
+        when(userService.findOneById(userId)).thenReturn(user);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions rotate() throws Exception {
+        return mockMvc.perform(post("/api/signing-key/regenerate")
+                .header("Authorization", AUTH_HEADER)
+                .requestAttr("requestId", "req-rotate"));
+    }
+
+    @Test
+    void regenerateReturnsTheKeyThatIsNowActive() throws Exception {
+        callerIsAdministrator(true);
+        when(signingKeyDataService.isExternallyManaged()).thenReturn(false);
+        when(signingKeyDataService.regenerate(eq("req-rotate"), eq(userId), any(), anyString()))
+                .thenReturn("a1b2c3d4e5f60718");
+
+        final String body = rotate()
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"keyId\":\"a1b2c3d4e5f60718\""),
+                "the response must name the new key so a caller needs no second request: " + body);
+    }
+
+    @Test
+    void regenerateRecordsTheUserAsThePrincipalAndTheKeyInTheDetails() throws Exception {
+        callerIsAdministrator(true);
+        when(signingKeyDataService.isExternallyManaged()).thenReturn(false);
+        when(signingKeyDataService.regenerate(anyString(), any(), any(), anyString())).thenReturn("k");
+
+        rotate().andExpect(status().isOk());
+
+        // The principal is always a user id; the API key that carried the request is named separately,
+        // so a reader of the audit log is never left guessing which kind of id it is looking at.
+        verify(signingKeyDataService).regenerate(eq("req-rotate"), eq(userId), any(),
+                org.mockito.ArgumentMatchers.contains("source: api, api_key: "));
+    }
+
+    @Test
+    void regenerateIsRefusedForANonAdministratorAndDoesNotRotate() throws Exception {
+        callerIsAdministrator(false);
+
+        final String body = rotate()
+                .andExpect(status().isForbidden())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("administrator"), "the refusal must say what is required: " + body);
+        verify(signingKeyDataService, never()).regenerate(any(), any(), any(), any());
+    }
+
+    @Test
+    void regenerateIsRefusedWithNoCredentials() throws Exception {
+        mockMvc.perform(post("/api/signing-key/regenerate").requestAttr("requestId", "req-rotate"))
+                .andExpect(status().isUnauthorized());
+
+        verify(signingKeyDataService, never()).regenerate(any(), any(), any(), any());
+    }
+
+    @Test
+    void regenerateIsRefusedWhenTheKeyIsManagedByAPath() throws Exception {
+        callerIsAdministrator(true);
+        when(signingKeyDataService.isExternallyManaged()).thenReturn(true);
+
+        final String body = rotate()
+                .andExpect(status().isConflict())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("PHILTER_SIGNING_KEY_PATH"),
+                "the refusal must name the cause: " + body);
+        verify(signingKeyDataService, never()).regenerate(any(), any(), any(), any());
+    }
 }

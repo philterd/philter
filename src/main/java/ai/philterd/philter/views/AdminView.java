@@ -588,7 +588,8 @@ public class AdminView extends AbstractRestrictedView {
                             + "Continue?"));
             final Button confirmButton = new Button("Regenerate", e -> {
                 final ai.philterd.philter.data.entities.UserEntity adminUser = getCurrentUser();
-                signingKeyDataService.regenerate(adminUser != null ? adminUser.getId() : null);
+                signingKeyDataService.regenerate(RequestIdGenerator.generate(),
+                        adminUser != null ? adminUser.getId() : null, getClientIpAddress(), "source: webui");
                 fingerprintField.setValue(signingKeyDataService.getPublicKeyFingerprint());
                 confirmDialog.close();
                 showSuccessNotification("Signing key regenerated.");

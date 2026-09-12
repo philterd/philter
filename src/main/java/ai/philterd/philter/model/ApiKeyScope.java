@@ -63,6 +63,8 @@ public enum ApiKeyScope {
 
     AUDIT_READ("audit:read", "Read the audit log. Also requires an administrator."),
 
+    SIGNING_WRITE("signing:write", "Rotate the output signing key. Also requires an administrator."),
+
     REIDENTIFY("reidentify", "Reverse a replacement to its original value.");
 
     private final String scope;

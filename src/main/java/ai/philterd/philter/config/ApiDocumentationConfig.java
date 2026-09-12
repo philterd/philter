@@ -57,6 +57,8 @@ public class ApiDocumentationConfig {
             response(op(api, "/api/signing-key", "get"), "200", "Active public signing key.",
                     content("application/json", object("keyId", new StringSchema(), "pem", new StringSchema(),
                             "jwk", new ObjectSchema().additionalProperties(true), "fingerprint", new StringSchema())));
+            response(op(api, "/api/signing-key/regenerate", "post"), "200", "The key that is now active.",
+                    content("application/json", object("keyId", new StringSchema())));
             response(op(api, "/api/signing-key/{keyId}", "get"), "200", "Retained public signing key.",
                     content("application/json", object("keyId", new StringSchema(), "pem", new StringSchema(), "active", new BooleanSchema())));
             // Explanation details are the Phileas result, with Philter's governing-policy metadata.

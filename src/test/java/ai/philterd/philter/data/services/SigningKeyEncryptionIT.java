@@ -108,7 +108,7 @@ class SigningKeyEncryptionIT extends AbstractMongoIT {
         final String originalKeyId = service.getActiveKeyId();
         final PublicKey originalPublic = service.getPublicKey();
 
-        service.regenerate(null);
+        service.regenerate("req", null, null, "source: test");
 
         // Retention from #638 must survive encryption: entries signed with the old key still verify.
         final PublicKey retained = service.findPublicKeyById(originalKeyId);

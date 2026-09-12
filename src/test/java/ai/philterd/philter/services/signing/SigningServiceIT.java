@@ -94,7 +94,7 @@ class SigningServiceIT extends AbstractMongoIT {
     void signatureDoesNotVerifyWithNewPublicKeyAfterRegeneration() throws Exception {
         final String jwt = signingService.sign("Redacted.", "default", 1, UUID.randomUUID().toString());
 
-        keyService.regenerate(new ObjectId());
+        keyService.regenerate("req", new ObjectId(), null, "source: test");
 
         assertFalse(verifyJwt(jwt, keyService.getPublicKey()),
                 "JWT signed with the old key must not verify with the new public key after regeneration");
@@ -102,7 +102,7 @@ class SigningServiceIT extends AbstractMongoIT {
 
     @Test
     void newSignatureVerifiesWithNewKeyAfterRegeneration() throws Exception {
-        keyService.regenerate(new ObjectId());
+        keyService.regenerate("req", new ObjectId(), null, "source: test");
 
         final String jwt = signingService.sign("Redacted.", "default", 1, UUID.randomUUID().toString());
 

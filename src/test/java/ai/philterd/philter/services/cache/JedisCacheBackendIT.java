@@ -137,7 +137,7 @@ class JedisCacheBackendIT {
 
     @Test
     @DisplayName("A ContextCache reaches a server on a non-default port")
-    void contextCacheHonoursTheConfiguredPort() {
+    void contextCacheHonorsTheConfiguredPort() {
 
         // The server is on an ephemeral port, so a ContextCache ignoring it could not read its
         // own write. RedactionService used to pass a hardcoded 6379 here.

@@ -353,7 +353,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void theScopeChangeEventIsASecurityEventAndCannotBeSwitchedOff() {
-        // Security events are always recorded; only REDACTION_ACTIVITY events honour
+        // Security events are always recorded; only REDACTION_ACTIVITY events honor
         // AUDIT_REDACTION_EVENTS_ENABLED. A key's permissions changing is exactly what an auditor asks for.
         assertEquals(AuditLogEvent.Category.SECURITY, AuditLogEvent.API_KEY_SCOPES_CHANGED.getCategory());
     }

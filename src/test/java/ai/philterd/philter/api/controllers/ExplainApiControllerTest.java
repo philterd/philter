@@ -48,9 +48,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
@@ -130,9 +132,47 @@ class ExplainApiControllerTest {
         assertTrue(body.contains("\"policyVersion\":9"), "response must include policyVersion; was: " + body);
     }
 
+    private void stubFilter() throws Exception {
+        final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
+                new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
+    }
+
+    @Test
+    void explainEndpointAsksForSigningWhenTheRequestSetsSignTrue() throws Exception {
+        when(signingService.shouldSign(anyBoolean())).thenReturn(true);
+        when(signingService.sign(any(), any(), anyInt(), any())).thenReturn("mock.jwt.token");
+        stubFilter();
+
+        final var response = mockMvc.perform(post("/api/explain?sign=true")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        verify(signingService).shouldSign(true);
+        assertEquals("mock.jwt.token", response.getHeader("X-Philter-Signature"));
+    }
+
+    @Test
+    void explainEndpointDoesNotAskForSigningWhenTheParameterIsAbsent() throws Exception {
+        when(signingService.shouldSign(anyBoolean())).thenReturn(false);
+        stubFilter();
+
+        mockMvc.perform(post("/api/explain")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk());
+
+        verify(signingService).shouldSign(false);
+    }
+
     @Test
     void explainEndpointIncludesSignatureHeaderWhenSigningEnabled() throws Exception {
-        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), anyInt(), any())).thenReturn("mock.jwt.token");
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
@@ -153,7 +193,7 @@ class ExplainApiControllerTest {
 
     @Test
     void explainEndpointDoesNotIncludeSignatureHeaderWhenSigningDisabled() throws Exception {
-        when(signingService.isSigningEnabled()).thenReturn(false);
+        when(signingService.shouldSign(anyBoolean())).thenReturn(false);
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
@@ -173,7 +213,7 @@ class ExplainApiControllerTest {
 
     @Test
     void explainEndpointReturns500WhenSigningFails() throws Exception {
-        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), anyInt(), any()))
                 .thenThrow(new RuntimeException("key unavailable"));
 

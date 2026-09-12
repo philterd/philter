@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -273,8 +274,45 @@ class FilterApiControllerTest {
     }
 
     @Test
+    void textEndpointAsksForSigningWhenTheRequestSetsSignTrue() throws Exception {
+        when(signingService.shouldSign(anyBoolean())).thenReturn(true);
+        when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn("mock.jwt.token");
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+                .thenReturn(outcome(textResult("Redacted.")));
+
+        final var response = mockMvc.perform(post("/api/filter?sign=true")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        verify(signingService).shouldSign(true);
+        org.junit.jupiter.api.Assertions.assertEquals("mock.jwt.token",
+                response.getHeader("X-Philter-Signature"));
+    }
+
+    @Test
+    void textEndpointDoesNotAskForSigningWhenTheParameterIsAbsent() throws Exception {
+        when(signingService.shouldSign(anyBoolean())).thenReturn(false);
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+                .thenReturn(outcome(textResult("Redacted.")));
+
+        mockMvc.perform(post("/api/filter")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .content("Original."))
+                .andExpect(status().isOk());
+
+        verify(signingService).shouldSign(false);
+    }
+
+    @Test
     void textEndpointIncludesSignatureHeaderWhenSigningEnabled() throws Exception {
-        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenReturn("mock.jwt.token");
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
@@ -295,7 +333,7 @@ class FilterApiControllerTest {
 
     @Test
     void textEndpointDoesNotIncludeSignatureHeaderWhenSigningDisabled() throws Exception {
-        when(signingService.isSigningEnabled()).thenReturn(false);
+        when(signingService.shouldSign(anyBoolean())).thenReturn(false);
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
                 .thenReturn(outcome(textResult("Redacted.")));
 
@@ -313,7 +351,7 @@ class FilterApiControllerTest {
 
     @Test
     void textEndpointReturns500WhenSigningFails() throws Exception {
-        when(signingService.isSigningEnabled()).thenReturn(true);
+        when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenThrow(new RuntimeException("key unavailable"));
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))

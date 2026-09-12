@@ -74,9 +74,10 @@ public class ExplainApiController extends AbstractApiController {
                     + "When output signing is enabled in Admin Settings, the response includes an "
                     + "`X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 hash of the "
                     + "response body, the applied policy name and version, a per-response UUID, and an issue "
-                    + "timestamp. Verify the signature using the public key from `GET /api/signing-key`.")
+                    + "timestamp. Verify the signature using the public key from `GET /api/signing-key`. "
+                    + FilterApiController.SIGN_PARAMETER)
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Filtered text with explanation. Includes `X-Philter-Signature` JWT header when output signing is enabled."),
+            @ApiResponse(responseCode = "200", description = "Filtered text with explanation. Includes `X-Philter-Signature` JWT header when output signing is enabled or the request asked for it with sign=true."),
             @ApiResponse(responseCode = "401", description = "Unauthorized."),
             @ApiResponse(responseCode = "500", description = "Signing is enabled but the signing operation failed.")
     })
@@ -87,6 +88,7 @@ public class ExplainApiController extends AbstractApiController {
             @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @RequestBody String body) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -115,7 +117,7 @@ public class ExplainApiController extends AbstractApiController {
         final String responseBody = gson.toJson(json);
         final HttpHeaders headers = new HttpHeaders();
         headers.set(FilterApiController.DOCUMENT_ID_HEADER, documentId);
-        if (signingService.isSigningEnabled()) {
+        if (signingService.shouldSign(sign)) {
             headers.set(SigningService.SIGNATURE_HEADER, signingService.sign(
                     responseBody,
                     outcome.appliedPolicy().name(),

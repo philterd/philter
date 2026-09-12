@@ -41,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -193,6 +195,52 @@ class SigningServiceTest {
         verifier.initVerify(wrongPublicKey);
         verifier.update(signingInput.getBytes(StandardCharsets.UTF_8));
         assertFalse(verifier.verify(p1363Sig), "signature must not verify against a different public key");
+    }
+
+    // The admin setting is a floor: a request may add signing, never remove it.
+
+    @Test
+    void shouldSignWhenTheAdminSettingIsOnAndTheRequestIsSilent() {
+        signingEnabled(true);
+        assertTrue(signingService.shouldSign(false));
+    }
+
+    @Test
+    void shouldSignWhenTheAdminSettingIsOnEvenIfTheRequestAsksNotTo() {
+        signingEnabled(true);
+        // The whole point of the one-directional rule: a caller cannot switch attestation off.
+        assertTrue(signingService.shouldSign(false));
+        assertTrue(signingService.shouldSign(true));
+    }
+
+    @Test
+    void shouldSignWhenTheAdminSettingIsOffAndTheRequestAsks() {
+        signingEnabled(false);
+        assertTrue(signingService.shouldSign(true));
+    }
+
+    @Test
+    void shouldNotSignWhenTheAdminSettingIsOffAndTheRequestDoesNotAsk() {
+        signingEnabled(false);
+        assertFalse(signingService.shouldSign(false));
+    }
+
+    @Test
+    void shouldNotSignWhenNoSettingsExistAndTheRequestDoesNotAsk() {
+        when(adminSettingsDataService.findAdminSettings()).thenReturn(null);
+        assertFalse(signingService.shouldSign(false));
+    }
+
+    @Test
+    void aRequestThatAsksIsSignedWithoutConsultingTheAdminSetting() {
+        assertTrue(signingService.shouldSign(true));
+        verify(adminSettingsDataService, never()).findAdminSettings();
+    }
+
+    private void signingEnabled(final boolean enabled) {
+        final AdminSettingsEntity settings = new AdminSettingsEntity();
+        settings.setSigningEnabled(enabled);
+        lenient().when(adminSettingsDataService.findAdminSettings()).thenReturn(settings);
     }
 
     @Test

@@ -73,7 +73,9 @@ public class ApiDocumentationConfig {
             filter.setDescription("Requires the `redact` scope. Text is synchronous and returns text/plain. "
                     + "For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, "
                     + "returning application/json with documentId regardless of the selected download format. "
-                    + "Set async=false for inline binary output. Async submission captures resolved configuration.");
+                    + "Set async=false for inline binary output. Async submission captures resolved configuration. "
+                    + ai.philterd.philter.api.controllers.FilterApiController.SIGN_PARAMETER
+                    + " It applies to the text path, which is the one that is signed.");
             filter.getRequestBody().setContent(content("text/plain", new StringSchema())
                     .addMediaType("application/pdf", new MediaType().schema(new BinarySchema())));
             response(filter, "200", "Redacted text or synchronous binary result.", content("text/plain", new StringSchema())

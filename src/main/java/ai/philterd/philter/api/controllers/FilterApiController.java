@@ -81,6 +81,12 @@ public class FilterApiController extends AbstractApiController {
     private final AuditEventPublisher auditEventPublisher;
     private final PendingDocumentDataService pendingDocumentDataService;
     private final Gson gson;
+    /** Shared with ExplainApiController: the same parameter, documented the same way. */
+    public static final String SIGN_PARAMETER =
+            "Pass sign=true to request a signature when the deployment has not enabled signing. The "
+                    + "admin setting is a floor: with it on every response is signed and sign=false "
+                    + "does not change that.";
+
     private final SigningService signingService;
 
     @Autowired
@@ -196,10 +202,10 @@ public class FilterApiController extends AbstractApiController {
                     + "`X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 "
                     + "hash of the response body, the applied policy name and version, a per-response "
                     + "UUID, and an issue timestamp. Verify the signature using the public key from "
-                    + "`GET /api/signing-key`."
+                    + "`GET /api/signing-key`. " + SIGN_PARAMETER
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Redacted plain text. Includes `X-Philter-Signature` JWT header when output signing is enabled."),
+            @ApiResponse(responseCode = "200", description = "Redacted plain text. Includes `X-Philter-Signature` JWT header when output signing is enabled or the request asked for it with sign=true."),
             @ApiResponse(responseCode = "401", description = "Unauthorized."),
             @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
             @ApiResponse(responseCode = "500", description = "Signing is enabled but the signing operation failed.")
@@ -211,6 +217,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "c", defaultValue = "") String context,
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @RequestBody String body) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -228,7 +235,7 @@ public class FilterApiController extends AbstractApiController {
         final String documentId = outcome.documentId();
         final HttpHeaders headers = policyHeaders(outcome.appliedPolicy());
         headers.set(DOCUMENT_ID_HEADER, documentId);
-        if (signingService.isSigningEnabled()) {
+        if (signingService.shouldSign(sign)) {
             headers.set(SigningService.SIGNATURE_HEADER, signingService.sign(
                     textFilterResult.getFilteredText(),
                     outcome.appliedPolicy().name(),

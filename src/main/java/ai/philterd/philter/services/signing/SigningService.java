@@ -62,6 +62,14 @@ public class SigningService {
     }
 
     /**
+     * Whether to sign a response the caller asked about. The admin setting is a floor: a request can
+     * add signing, never remove it, so a caller cannot weaken what the operator is attesting to.
+     */
+    public boolean shouldSign(final boolean requested) {
+        return requested || isSigningEnabled();
+    }
+
+    /**
      * Produces a compact ES256 JWT that attests the response body and its governance context.
      *
      * @param responseBody  the exact bytes that were written to the HTTP response body

@@ -2049,7 +2049,7 @@
           "Explain"
         ],
         "summary": "Redact text and explain the redactions.",
-        "description": "Redacts the plain-text request body using the given policy and context, returning the filtered text together with an explanation of every span that was redacted (type, position, and applied filter). Use the c query parameter to select a context and p to select a policy. When output signing is enabled in Admin Settings, the response includes an `X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 hash of the response body, the applied policy name and version, a per-response UUID, and an issue timestamp. Verify the signature using the public key from `GET /api/signing-key`. Requires the `redact` scope.",
+        "description": "Redacts the plain-text request body using the given policy and context, returning the filtered text together with an explanation of every span that was redacted (type, position, and applied filter). Use the c query parameter to select a context and p to select a policy. When output signing is enabled in Admin Settings, the response includes an `X-Philter-Signature` header containing an ES256 JWT that binds the SHA-256 hash of the response body, the applied policy name and version, a per-response UUID, and an issue timestamp. Verify the signature using the public key from `GET /api/signing-key`. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. Requires the `redact` scope.",
         "operationId": "explainTextPlainAsApplicationJson",
         "parameters": [
           {
@@ -2084,6 +2084,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           }
         ],
@@ -2233,7 +2242,7 @@
           "Filter"
         ],
         "summary": "Redact text or a PDF.",
-        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration.",
+        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed.",
         "operationId": "filter",
         "parameters": [
           {
@@ -2268,6 +2277,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {

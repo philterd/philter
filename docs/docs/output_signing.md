@@ -85,10 +85,40 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 
 | Endpoint | Signed? | Notes |
 |----------|---------|-------|
-| `POST /api/filter` (text/plain) | Yes (200 only) | Signed when enabled. |
-| `POST /api/explain` | Yes (200 only) | Signed when enabled. |
+| `POST /api/filter` (text/plain) | Yes (200 only) | Signed when enabled, or when the request passes `sign=true`. |
+| `POST /api/explain` | Yes (200 only) | Signed when enabled, or when the request passes `sign=true`. |
 | `POST /api/filter` (PDF) | No | PDF paths are async; signing is planned for a future release (see [#72](https://github.com/philterd/philter/issues/72)). |
 | Error responses (4xx, 5xx) | Never | Error bodies are never signed. |
+
+### Requesting a signature per request
+
+A caller can ask for a signature on an individual request by passing `sign=true` to
+`POST /api/filter` (text) or `POST /api/explain`, without an operator enabling signing for the whole
+deployment. This is useful when one integration needs attested output and the rest does not.
+
+| Admin setting | Request asks | Result |
+|---|---|---|
+| On | anything | Signed |
+| Off | no | Unsigned |
+| Off | yes | Signed |
+
+**The admin setting is a floor, and a request can only add signing, never remove it.** With signing
+enabled, every response is signed regardless of what the request asks, and `sign=false` does not
+change that. An operator who has enabled signing keeps the claim that every response the deployment
+returned was attested.
+
+The direction is deliberate. The signature protects the recipient of the redacted output and the
+operator who has to demonstrate compliance, not the caller, so the caller is the wrong party to be
+able to switch it off. If a request could suppress signing, the guarantee would weaken from "every
+response was attested under a named policy" to "attested when the caller asked", and the failure
+would be silent: an unsigned response looks the same whether it was suppressed or never requested.
+
+For the same reason this is a request parameter rather than a policy field. Policies are writable by
+any user holding `policies:write`, so putting the switch there would hand it to the party being
+attested.
+
+A signature produced by `sign=true` is identical in form to one produced by the admin setting and
+verifies the same way against `GET /api/signing-key`.
 
 ### Signing failure
 
@@ -136,7 +166,10 @@ assert claims["bodyHash"] == body_hash, "body hash mismatch, response was tamper
 2. Check **Enable output signing (ES256 JWT on X-Philter-Signature response header)**.
 3. Click **Save**.
 
-Signing is applied immediately on the next request.
+Signing is applied immediately on the next request, and applies to every response from then on: once
+enabled, it cannot be turned off by a caller. To sign only some requests instead, leave the setting
+off and pass `sign=true` on the requests that need it (see
+[Requesting a signature per request](#requesting-a-signature-per-request)).
 
 ## Getting the Public Key
 

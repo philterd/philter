@@ -286,7 +286,8 @@ public class PoliciesView extends AbstractRestrictedView {
 
             deletePolicyButton.addClickListener(event -> {
 
-                final ServiceResponse serviceResponse = policyService.deleteByName("", policy.getName(), userEntity.getId(), Source.WEBUI);
+                final ServiceResponse serviceResponse = policyService.deleteByName(RequestIdGenerator.generate(),
+                        policy.getName(), userEntity.getId(), Source.WEBUI, userEntity.getId(), getClientIpAddress());
 
                 if(serviceResponse.isSuccessful()) {
                     policiesDataProvider.refreshAll();
@@ -759,7 +760,8 @@ public class PoliciesView extends AbstractRestrictedView {
 
         final Button confirmButton = new Button("Roll Back", e -> {
             final ServiceResponse response = policyService.rollback(
-                    RequestIdGenerator.generate(), policy.getName(), userEntity.getId(), targetRevision);
+                    RequestIdGenerator.generate(), policy.getName(), userEntity.getId(), targetRevision,
+                    userEntity.getId(), getClientIpAddress());
             confirmDialog.close();
             if (response.isSuccessful()) {
                 policiesDataProvider.refreshAll();

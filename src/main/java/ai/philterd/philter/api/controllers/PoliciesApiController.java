@@ -265,7 +265,8 @@ public class PoliciesApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "delete policy '" + policyName + "'");
 
-        policyDataService.deleteByName(requestId, policyName, userId, Source.API);
+        policyDataService.deleteByName(requestId, policyName, userId, Source.API,
+                apiKeyEntity.getUserId(), getClientIpAddress(request));
 
         return ResponseEntity.ok().build();
 

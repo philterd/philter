@@ -41,6 +41,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -101,7 +102,8 @@ public class PolicyVersionsApiController extends AbstractApiController {
             @PathVariable("policyName") final String policyName,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
-            final @RequestParam(value = "limit", defaultValue = "25") int limit) {
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
+            final HttpServletRequest httpServletRequest) {
 
         if (policyName == null || policyName.isBlank()) {
             throw new BadRequestException("The policy name is missing.");
@@ -117,7 +119,10 @@ public class PolicyVersionsApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
+        // One correlation ID per request, so both events below tie together.
+        final String requestId = RequestIdGenerator.generate();
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "list versions of policy '" + policyName + "'");
 
         final List<PolicyVersionEntity> versions =
@@ -127,9 +132,10 @@ public class PolicyVersionsApiController extends AbstractApiController {
                 .map(v -> new PolicyVersionSummary(v.getRevision(), v.getCapturedTimestamp(), v.getContentHash()))
                 .toList();
 
-        auditEventPublisher.auditEvent(RequestIdGenerator.generate(),
-                AuditLogEvent.POLICY_VERSION_HISTORY_RETRIEVED, null, null,
-                "policy: " + policyName + ", versions returned: " + summaries.size(), null);
+        auditEventPublisher.auditEvent(requestId,
+                AuditLogEvent.POLICY_VERSION_HISTORY_RETRIEVED, apiKeyEntity.getUserId(), null,
+                getClientIpAddress(httpServletRequest),
+                "policy: " + policyName + ", versions returned: " + summaries.size());
 
         return ResponseEntity.ok(summaries);
     }
@@ -279,7 +285,8 @@ public class PolicyVersionsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable("policyName") final String policyName,
             @RequestParam("revision") final int targetRevision,
-            final @RequestParam(value = "owner", required = false) String owner) {
+            final @RequestParam(value = "owner", required = false) String owner,
+            final HttpServletRequest httpServletRequest) {
 
         if (policyName == null || policyName.isBlank()) {
             throw new BadRequestException("The policy name is missing.");
@@ -295,12 +302,15 @@ public class PolicyVersionsApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
+        final String requestId = RequestIdGenerator.generate();
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId,
                 "rollback policy '" + policyName + "' to revision " + targetRevision);
 
         final ServiceResponse response = policyDataService.rollback(
-                RequestIdGenerator.generate(), policyName, userId, targetRevision);
+                requestId, policyName, userId, targetRevision,
+                apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
 
         if (response.getStatusCode() == 404) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

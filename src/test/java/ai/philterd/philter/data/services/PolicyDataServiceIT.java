@@ -217,14 +217,14 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final ObjectId user = new ObjectId();
         assertTrue(create(user, "delete-me").isSuccessful());
 
-        final ServiceResponse response = service.deleteByName("req", "delete-me", user, Source.API);
+        final ServiceResponse response = service.deleteByName("req", "delete-me", user, Source.API, user, "10.0.0.1");
         assertTrue(response.isSuccessful());
         assertNull(service.findOne("delete-me", user));
     }
 
     @Test
     void deleteByNameReturns404ForUnknownPolicy() {
-        final ServiceResponse response = service.deleteByName("req", "nope", new ObjectId(), Source.API);
+        final ServiceResponse response = service.deleteByName("req", "nope", new ObjectId(), Source.API, new ObjectId(), "10.0.0.1");
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
     }
@@ -346,7 +346,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final int revision = service.findOne("p", userId).getRevision();
 
         // The symptom of D-12: a policy that could not be rolled back to the revision it was on.
-        assertTrue(service.rollback("req", "p", userId, revision).isSuccessful(),
+        assertTrue(service.rollback("req", "p", userId, revision, userId, "10.0.0.1").isSuccessful(),
                 "the policy must be able to roll back to its own revision " + revision);
     }
 
@@ -360,11 +360,11 @@ class PolicyDataServiceIT extends AbstractMongoIT {
                 validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
 
         // Rollback restores content that is already snapshotted at an earlier revision.
-        assertTrue(service.rollback("req", "p", userId, 0).isSuccessful());
+        assertTrue(service.rollback("req", "p", userId, 0, userId, "10.0.0.1").isSuccessful());
 
         final int afterRollback = service.findOne("p", userId).getRevision();
 
-        assertTrue(service.rollback("req", "p", userId, afterRollback).isSuccessful(),
+        assertTrue(service.rollback("req", "p", userId, afterRollback, userId, "10.0.0.1").isSuccessful(),
                 "the revision a rollback lands on must itself be resolvable");
     }
 
@@ -379,7 +379,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
         final int revision = service.findOne("p", userId).getRevision();
 
-        assertTrue(service.rollback("req", "p", userId, revision).isSuccessful(),
+        assertTrue(service.rollback("req", "p", userId, revision, userId, "10.0.0.1").isSuccessful(),
                 "A -> B -> A must leave revision " + revision + " resolvable");
     }
 

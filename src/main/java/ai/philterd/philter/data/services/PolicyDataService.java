@@ -683,15 +683,19 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * Restores a prior revision of a policy as a new revision. History is never rewritten: the target
      * revision's content becomes the new head revision, and a snapshot of that new head is retained.
      *
-     * @param requestId      Correlation ID for audit events.
-     * @param policyName     Name of the policy to roll back.
-     * @param userId         Owner of the policy.
-     * @param targetRevision The revision whose content should become the new head.
+     * @param requestId       Correlation ID for audit events.
+     * @param policyName      Name of the policy to roll back.
+     * @param userId          Owner of the policy.
+     * @param targetRevision  The revision whose content should become the new head.
+     * @param principalId     The caller, recorded in the audit event. Not necessarily {@code userId}:
+     *                        an admin may roll back another user's policy.
+     * @param clientIpAddress The client IP address, or null when unavailable.
      * @return A {@link ServiceResponse} whose {@code object} field carries the new revision number on
      *         success (HTTP 200), or an error code on failure.
      */
     public ServiceResponse rollback(final String requestId, final String policyName,
-                                    final ObjectId userId, final int targetRevision) {
+                                    final ObjectId userId, final int targetRevision,
+                                    final ObjectId principalId, final String clientIpAddress) {
 
         final PolicyEntity live = findOne(policyName, userId);
         if (live == null) {
@@ -721,17 +725,32 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         redactionCache.evictPolicy(userId, policyName);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ROLLED_BACK, null, null,
-                "policy: " + policyName + ", rolled back to revision: " + targetRevision
-                        + ", new revision: " + newRevision, null);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ROLLED_BACK, principalId, live.getId(),
+                clientIpAddress, "policy: " + policyName + ", rolled back to revision: " + targetRevision
+                        + ", new revision: " + newRevision);
 
         return new ServiceResponse("Policy rolled back to revision " + targetRevision
                 + ". New revision: " + newRevision, true, 200);
     }
 
-    public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId, final Source source) {
+    /**
+     * Deletes a policy by name.
+     *
+     * @param requestId       Correlation ID for audit events.
+     * @param policyName      Name of the policy to delete.
+     * @param userId          Owner of the policy.
+     * @param source          Whether the deletion came from the API or the dashboard.
+     * @param principalId     The caller, recorded in the audit event. Not necessarily {@code userId}:
+     *                        an admin may delete another user's policy.
+     * @param clientIpAddress The client IP address, or null when unavailable.
+     * @return A {@link ServiceResponse} indicating the result of the operation.
+     */
+    public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId,
+                                        final Source source, final ObjectId principalId, final String clientIpAddress) {
 
-        if(findOne(policyName, userId) == null) {
+        final PolicyEntity policyEntity = findOne(policyName, userId);
+
+        if(policyEntity == null) {
             return new ServiceResponse("Policy does not exist.", false, 404);
         }
 
@@ -747,7 +766,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             redactionCache.evictPolicy(userId, policyName);
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, null, null,"Policy Name: " + policyName, source.getSource());
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, principalId, policyEntity.getId(),
+                    clientIpAddress, "policy: " + policyName + ", source: " + source.getSource());
 
             return new ServiceResponse("Policy deleted.", true, 200);
 

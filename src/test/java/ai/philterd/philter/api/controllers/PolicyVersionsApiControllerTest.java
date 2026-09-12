@@ -26,6 +26,7 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -49,7 +50,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -183,6 +186,25 @@ class PolicyVersionsApiControllerTest {
         assertTrue(body.contains("\"contentHash\":\"hash-2\""), "should include content hash");
         // Full policy JSON must NOT appear in the list endpoint.
         assertTrue(!body.contains("ssnFilterStrategies"), "list should not include full policy JSON");
+    }
+
+    @Test
+    void listVersionsAuditsTheCallerAndTheClientIpAddress() throws Exception {
+        when(policyVersionDataService.findAllByName(eq(POLICY_NAME), eq(userId), anyInt(), anyInt()))
+                .thenReturn(List.of(version(1, POLICY_JSON_V1)));
+
+        mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
+                        .header("Authorization", AUTH_HEADER)
+                        .with(request -> {
+                            request.setRemoteAddr("203.0.113.7");
+                            return request;
+                        }))
+                .andExpect(status().isOk());
+
+        verify(auditEventPublisher).auditEvent(
+                anyString(), eq(AuditLogEvent.POLICY_VERSION_HISTORY_RETRIEVED),
+                eq(userId), isNull(), eq("203.0.113.7"),
+                contains("policy: " + POLICY_NAME));
     }
 
     @Test
@@ -429,7 +451,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackSucceedsAndReturnsNewRevision() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1)))
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
                 .thenReturn(new ServiceResponse("Policy rolled back to revision 1. New revision: 3", true, 200));
 
         final PolicyEntity live = new PolicyEntity();
@@ -454,12 +476,12 @@ class PolicyVersionsApiControllerTest {
 
         assertTrue(body.contains("revision"), "the response should name the missing parameter: " + body);
 
-        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt());
+        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt(), any(), any());
     }
 
     @Test
     void rollbackReturns404WhenPolicyDoesNotExist() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1)))
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
                 .thenReturn(new ServiceResponse("Policy does not exist.", false, 404));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
@@ -470,7 +492,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns404WhenTargetRevisionDoesNotExist() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(99)))
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(99), eq(userId), anyString()))
                 .thenReturn(new ServiceResponse("Revision 99 does not exist.", false, 404));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
@@ -481,7 +503,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns409ForManagedPolicy() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1)))
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
                 .thenReturn(new ServiceResponse("Managed policies cannot be rolled back.", false, 409));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
@@ -506,7 +528,7 @@ class PolicyVersionsApiControllerTest {
                 .andExpect(status().isNotFound());
 
         // The rollback must NOT be attempted when the owner resolution fails.
-        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt());
+        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -515,7 +537,7 @@ class PolicyVersionsApiControllerTest {
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
 
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1)))
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1), eq(userId), anyString()))
                 .thenReturn(new ServiceResponse("Policy rolled back to revision 1. New revision: 2", true, 200));
 
         final PolicyEntity live = new PolicyEntity();
@@ -528,7 +550,7 @@ class PolicyVersionsApiControllerTest {
                         .param("owner", "other@example.com"))
                 .andExpect(status().isCreated());
 
-        verify(policyDataService).rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1));
+        verify(policyDataService).rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1), eq(userId), anyString());
     }
 
 }

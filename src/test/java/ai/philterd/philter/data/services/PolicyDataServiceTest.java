@@ -133,10 +133,16 @@ class PolicyDataServiceTest {
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(1L);
 
-        ServiceResponse response = policyDataService.deleteByName("req", policyName, userId, Source.API);
+        ServiceResponse response = policyDataService.deleteByName("req", policyName, userId, Source.API, userId, "10.0.0.1");
 
         assertTrue(response.isSuccessful());
         verify(mongoCollection).deleteOne(any(Bson.class));
+
+        // Who deleted it, which policy, and from where.
+        verify(auditEventPublisher).auditEvent(
+                eq("req"), eq(AuditLogEvent.POLICY_DELETED),
+                eq(userId), eq(doc.getObjectId("_id")), eq("10.0.0.1"),
+                contains("policy: " + policyName));
     }
 
     @Test
@@ -346,7 +352,7 @@ class PolicyDataServiceTest {
         when(fi.first()).thenReturn(null);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "missing-policy", new ObjectId(), 1);
+                policyDataService.rollback("req", "missing-policy", new ObjectId(), 1, new ObjectId(), "10.0.0.1");
 
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
@@ -365,7 +371,7 @@ class PolicyDataServiceTest {
         when(fi.first()).thenReturn(managedDoc);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "managed-policy", userId, 1);
+                policyDataService.rollback("req", "managed-policy", userId, 1, userId, "10.0.0.1");
 
         assertFalse(response.isSuccessful());
         assertEquals(409, response.getStatusCode());
@@ -384,7 +390,7 @@ class PolicyDataServiceTest {
                 .thenReturn(null);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "my-policy", userId, 99);
+                policyDataService.rollback("req", "my-policy", userId, 99, userId, "10.0.0.1");
 
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
@@ -408,7 +414,7 @@ class PolicyDataServiceTest {
                 .thenReturn(targetVersion);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "my-policy", userId, 1);
+                policyDataService.rollback("req", "my-policy", userId, 1, userId, "10.0.0.1");
 
         assertTrue(response.isSuccessful());
         assertEquals(200, response.getStatusCode());
@@ -416,10 +422,12 @@ class PolicyDataServiceTest {
         verify(mongoCollection).replaceOne(any(Bson.class), any(Document.class));
         // A new snapshot of the rolled-back content was taken.
         verify(policyVersionDataService).snapshot(any(PolicyEntity.class));
-        // The rollback was audited.
+        // Audited against the principal, the policy, and the client IP.
+        final ObjectId policyId = policyDoc.getObjectId("_id");
         verify(auditEventPublisher).auditEvent(
                 eq("req"), eq(AuditLogEvent.POLICY_ROLLED_BACK),
-                isNull(), isNull(), any(String.class), isNull());
+                eq(userId), eq(policyId), eq("10.0.0.1"),
+                contains("policy: my-policy"));
     }
 
     @Test
@@ -440,7 +448,7 @@ class PolicyDataServiceTest {
                 .thenReturn(targetVersion);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "my-policy", userId, 2);
+                policyDataService.rollback("req", "my-policy", userId, 2, userId, "10.0.0.1");
 
         // Revision 5 increments to 6 after rollback.
         assertTrue(response.getMessage().contains("2"),  "message should reference target revision 2");

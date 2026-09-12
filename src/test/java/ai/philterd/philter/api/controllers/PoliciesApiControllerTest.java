@@ -175,7 +175,7 @@ class PoliciesApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(policyDataService).deleteByName(anyString(),
-                eq("my-policy"), eq(userId), eq(Source.API));
+                eq("my-policy"), eq(userId), eq(Source.API), eq(userId), anyString());
     }
 
     private static final String VALID_POLICY_BODY =

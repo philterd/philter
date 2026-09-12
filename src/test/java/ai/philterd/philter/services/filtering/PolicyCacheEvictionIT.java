@@ -137,7 +137,7 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
         assertTrue(((TextFilterResult) redact().result()).getFilteredText().contains("{{{SECOND-"),
                 "the edited policy must be the one cached before the rollback");
 
-        assertTrue(policyDataService.rollback("req", POLICY_NAME, userId, original).isSuccessful(),
+        assertTrue(policyDataService.rollback("req", POLICY_NAME, userId, original, userId, "10.0.0.1").isSuccessful(),
                 "the rollback must succeed");
 
         final RedactionOutcome after = redact();
@@ -153,7 +153,7 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
 
         redact();
 
-        assertTrue(policyDataService.deleteByName("req", POLICY_NAME, userId, Source.API).isSuccessful());
+        assertTrue(policyDataService.deleteByName("req", POLICY_NAME, userId, Source.API, userId, "10.0.0.1").isSuccessful());
 
         final Exception thrown = assertThrows(Exception.class, this::redact,
                 "a deleted policy must not keep redacting from the cache");

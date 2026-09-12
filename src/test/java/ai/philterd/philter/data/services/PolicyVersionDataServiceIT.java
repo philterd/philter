@@ -105,7 +105,7 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
         final String hash = PolicyVersionDataService.contentHash(json);
         assertNotNull(versionService.findByContentHash(hash), "create must retain a version snapshot");
 
-        assertTrue(policyService.deleteByName("req", "evidence-policy", user, Source.WEBUI).isSuccessful());
+        assertTrue(policyService.deleteByName("req", "evidence-policy", user, Source.WEBUI, user, "10.0.0.1").isSuccessful());
 
         // The live policy is gone, but the retained evidence remains resolvable.
         assertNotNull(versionService.findByContentHash(hash), "deleting the live policy must not remove retained versions");

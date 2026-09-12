@@ -124,7 +124,7 @@ class RemainingP1IT extends AbstractMongoIT {
         ObjectId owner = new ObjectId();
         assertTrue(service.create("req", owner, json("old"), "", "", "reused", "test").isSuccessful());
         var old = service.findOne("reused", owner);
-        assertTrue(service.deleteByName("req", "reused", owner, Source.API).isSuccessful());
+        assertTrue(service.deleteByName("req", "reused", owner, Source.API, owner, "10.0.0.1").isSuccessful());
         assertTrue(service.create("req", owner, json("new"), "", "", "reused", "test").isSuccessful());
         var latest = service.findOne("reused", owner);
         assertTrue(latest.getRevision() > old.getRevision());

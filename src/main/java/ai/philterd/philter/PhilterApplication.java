@@ -37,6 +37,7 @@ import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
+import ai.philterd.philter.config.ProvisioningConfig;
 import ai.philterd.philter.config.TlsVerificationConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
@@ -158,6 +159,15 @@ public class PhilterApplication implements AppShellConfigurator {
             LOGGER.warn("* certificate from ANY host, so those connections are interceptable by anything on    *");
             LOGGER.warn("* the path. Use this only for a self-signed service on a private network, and prefer  *");
             LOGGER.warn("* adding its issuer to the JVM truststore instead.                                    *");
+            LOGGER.warn("****************************************************************************************");
+        }
+
+        if (ProvisioningConfig.isProvisioningApiEnabled()) {
+            LOGGER.warn("****************************************************************************************");
+            LOGGER.warn("* PROVISIONING_API_ENABLED is ON: an administrator's API key can create users and mint *");
+            LOGGER.warn("* API keys for other users through POST /api/users and                                 *");
+            LOGGER.warn("* POST /api/users/{username}/api-keys, without the dashboard login and its MFA. Every  *");
+            LOGGER.warn("* creation is audited. Disable this unless you provision deployments with automation.  *");
             LOGGER.warn("****************************************************************************************");
         }
 

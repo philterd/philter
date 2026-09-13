@@ -87,7 +87,9 @@ class ApiKeyDataServiceTest {
         assertTrue(response.isSuccessful());
         assertNotNull(response.getMessage());
         verify(mongoCollection).insertOne(any(Document.class));
-        verify(auditEventPublisher).auditEvent(eq("requestId"), eq(AuditLogEvent.API_KEY_CREATED), eq(apiKeyId), eq("source"));
+        // The owning user is on the event too, so a reader can tell whose access was created.
+        verify(auditEventPublisher).auditEvent(eq("requestId"), eq(AuditLogEvent.API_KEY_CREATED), eq(apiKeyId),
+                eq(userId), eq("source"), eq(null));
     }
 
     @Test

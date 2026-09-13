@@ -18,18 +18,31 @@ services:
       # CACHE_PORT: "6379"
       # CACHE_PASSWORD: ""
       # CACHE_SSL: "false"
-      MONGODB_CONNECTION_STRING: mongodb://philter:${MONGODB_PASSWORD}@mongodb:27017/philter?authSource=admin
-      # Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest.
-      # Required. Generate one with: openssl rand -base64 32
-      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?set PHILTER_ENCRYPTION_KEY (e.g. export PHILTER_ENCRYPTION_KEY=$(openssl rand -base64 32))}
+      MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin
+      # Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest. Written here so
+      # this stack comes up with nothing to set first. It is a known value in a public file, so it
+      # protects nothing: a deployment holding real data needs its own, generated with
+      # openssl rand -base64 32. Changing it makes everything already encrypted unreadable, so
+      # choose it before the first start rather than after.
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
       # Off, which is the documented default and what the application warns about at startup when
       # it is on: it lets an administrator read and act on other users' contexts, policies,
       # lists, documents and ledger through the owner parameter. Uncomment if you need that.
       # ADMIN_CROSS_USER_ACCESS_ENABLED: true
-      # Seeded onto the admin user at first start, and only when that user has no API keys.
-      # Required only when creating the initial administrator; compose.sh generates a private value.
-      PHILTER_BOOTSTRAP_ADMIN_PASSWORD: ${PHILTER_BOOTSTRAP_ADMIN_PASSWORD:-}
-      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-}
+      # On here, unlike the documented default, so this stack can be provisioned without a browser:
+      # an administrator's API key can create users and mint keys for them through POST /api/users
+      # and POST /api/users/{username}/api-keys. It is what philter-test needs to get the second
+      # account and the narrowed keys its suites run with. The application prints a startup warning
+      # while it is on, because it is the way around the dashboard login and its MFA. A deployment
+      # holding real data should remove this line unless automation provisions it.
+      PROVISIONING_API_ENABLED: "true"
+      # Seeded onto the admin user at first start, and only when that user has never had an API key,
+      # archived ones included. Fixed values so this stack comes up usable with nothing set. They
+      # are development placeholders, not secrets: the key grants every scope and the password is
+      # the dashboard login, so a deployment holding real data must set its own. compose.sh
+      # generates private values, and a .env takes precedence over these.
+      PHILTER_BOOTSTRAP_ADMIN_PASSWORD: ${PHILTER_BOOTSTRAP_ADMIN_PASSWORD:-philter-development-only}
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
       # Philter serves HTTPS on 8080 with a self-signed certificate generated on first start, so
       # curl needs -k. To use your own certificate, mount a PKCS12 keystore and set SSL_KEYSTORE
       # (and SSL_KEYSTORE_PASSWORD). Set SSL_ENABLED=false to serve plain HTTP when a load
@@ -53,18 +66,19 @@ services:
 
   mongodb:
     image: mongo:8.2.12
-    # Not published to the host. This database holds the ledger, the audit log and the encrypted
-    # PII, and Philter reaches it over the compose network by service name, so nothing needs a host
-    # port. Uncomment to attach mongosh or Philter Diffuse from your machine, which also exposes it
-    # to anything else running there.
-    # ports:
-    #   - "27017:27017"
+    # Published so philter-test can run the checks that read this database directly, and so
+    # mongosh or Philter Diffuse can attach. This holds the ledger, the audit log and the encrypted
+    # PII, and with the password above it is readable by anything that can reach this port.
+    ports:
+      - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: philter
-      # Authentication is on. The password is read from the environment rather than written here,
-      # generate one with: openssl rand -hex 24
+      # Authentication is on with a password written here, so this stack comes up with nothing
+      # to export first. It is a known value in a public file and the port below is published, so
+      # this is a development and testing arrangement. A deployment holding real data wants a
+      # generated password supplied from outside this file.
       MONGO_INITDB_ROOT_USERNAME: philter
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:?set MONGODB_PASSWORD (e.g. export MONGODB_PASSWORD=$(openssl rand -hex 24))}
+      MONGO_INITDB_ROOT_PASSWORD: philter
     networks:
       - philter
     healthcheck:

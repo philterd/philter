@@ -167,7 +167,7 @@ class ApiKeyScopeAssignmentTest {
     private static Map<String, String> documentedScopes() throws IOException {
 
         final Map<String, String> scopes = new LinkedHashMap<>();
-        final Pattern row = Pattern.compile("^\\| `([a-z:]+)` \\| (.+) \\|$");
+        final Pattern row = Pattern.compile("^\\| `([a-z:-]+)` \\| (.+) \\|$");
         final Pattern endpoint = Pattern.compile("`([A-Z]+) (/api/[^`]*)`");
 
         for (final String line : Files.readAllLines(SCOPE_TABLE)) {

@@ -105,6 +105,17 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      */
     public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source,
                                         final Set<String> scopes) {
+        return createApiKey(requestId, userId, source, scopes, null);
+    }
+
+    /**
+     * Creates a key limited to the given scopes, appending {@code auditDetails} to the
+     * {@code api_key_created} event. Pass the acting principal there when the key is minted for a
+     * user other than the one asking for it, so the audit log says who did it and not only that a
+     * key appeared.
+     */
+    public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source,
+                                        final Set<String> scopes, final String auditDetails) {
 
         // Generate an API key.
         final String apiKey = generateApiKey();
@@ -124,7 +135,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setScopes(scopes);
         final ObjectId apiKeyId = save(apiKeyEntity);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, source);
+        // The key is the subject and the user it belongs to is the object: an event naming only the
+        // key leaves a reader unable to say whose access was just created.
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, userId, source, auditDetails);
 
         return new ServiceResponse(apiKey, true, 200);
 

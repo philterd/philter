@@ -156,6 +156,7 @@ nav:
       - 'Audit Log API': 'api_and_sdks/api/audit_api.md'
       - 'Redaction Ledger API': 'api_and_sdks/api/ledger_api.md'
       - 'Legal Holds API': 'api_and_sdks/api/legal_holds_api.md'
+      - 'Provisioning API': 'api_and_sdks/api/provisioning_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
     - 'Developers':
       - 'Overview': 'developers/developers.md'

@@ -6546,6 +6546,260 @@
           }
         }
       }
+    },
+    "/api/users": {
+      "post": {
+        "tags": [
+          "Provisioning"
+        ],
+        "summary": "Create a user.",
+        "description": "Creates a non-administrator user with a default policy and context, as the dashboard does. The role is not a parameter: this endpoint cannot create an administrator, because an administrator account is made in the dashboard where the caller has passed the login and its MFA. Requires an administrator as well as the scope, and is present only when PROVISIONING_API_ENABLED=true. Recorded as a user_created audit event naming the calling administrator as the principal. Requires the `users:write` scope.",
+        "operationId": "createUser",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The user was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The username is missing, or the password is missing or shorter than 16 characters.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PROVISIONING_API_ENABLED is not set, so the endpoint is not present."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "A user with that username already exists, active or deactivated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/api-keys": {
+      "post": {
+        "tags": [
+          "Provisioning"
+        ],
+        "summary": "Create an API key for a user.",
+        "description": "Mints a key for the named user with the scopes given in the body, and returns its value once: only the hash is stored, so the response is the one chance to capture it. The scopes must be a subset of those the calling key holds, so this cannot be used to widen access beyond the credential making the request. Requires an administrator as well as the scope, and is present only when PROVISIONING_API_ENABLED=true. Recorded as an api_key_created audit event naming the calling administrator. Requires the `api-keys:write` scope.",
+        "operationId": "createApiKey",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The key was created. The value is returned here and nowhere else.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No scopes were given, or one of them is not a scope.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:write, the caller is not an administrator, or a requested scope is not held by the calling key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PROVISIONING_API_ENABLED is not set, so the endpoint is not present, or there is no active user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6631,6 +6885,59 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatedApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatedUserResponse": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
           }
         }
       },
@@ -7085,6 +7392,10 @@
     {
       "description": "Governed, audited reversal of cryptographically-redacted values.",
       "name": "Re-identification"
+    },
+    {
+      "description": "Create users and API keys without the dashboard, for automation that stands up a deployment. Present only when PROVISIONING_API_ENABLED=true; otherwise both endpoints answer 404.",
+      "name": "Provisioning"
     },
     {
       "description": "Operations for creating, retrieving, deleting, and compiling redaction policies.",

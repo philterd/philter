@@ -55,9 +55,11 @@ On its first run the script generates private credentials into `.env` and reuses
   works without visiting the dashboard. Revoke it in the dashboard when you no longer
   need it.
 
-The script also generates `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` for the first dashboard login and `MONGODB_PASSWORD` for the database. It stores these in an owner-readable `.env` file.
+The script also generates `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` for the first dashboard login. It stores these in an owner-readable `.env` file. The MongoDB password is written in `docker-compose.yml` rather than generated, so the stack comes up with nothing to set first; change it for a deployment holding real data.
 
 To supply these yourself, put it in `.env` before the first run and the script keeps it.
+
+The bundled `docker-compose.yml` also sets `PROVISIONING_API_ENABLED`, so the bootstrap key can create further users and mint API keys for them over the API (`POST /api/users`, `POST /api/users/{username}/api-keys`) without visiting the dashboard. It is off by default in Philter itself and the application warns at startup while it is on, since it is the way around the dashboard login and its MFA; remove the line for a deployment holding real data unless automation provisions it. See [Provisioning API](docs/docs/api_and_sdks/api/provisioning_api.md).
 
 Once the containers are running, submit text to Philter's API for redaction:
 

@@ -157,6 +157,16 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
+        return createUser(requestId, username, email, plainPassword, role, policyService, contextService, source, passwordChangeRequired, null);
+    }
+
+    /**
+     * Creates a user, recording {@code actingUserId} as the principal of the {@code user_created}
+     * audit event and the new user as the object it acted on. Pass null where the acting principal is
+     * the dashboard session or startup, which the {@code source} already names; the new user is then
+     * the subject, as it was before there was any other caller.
+     */
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired, final ObjectId actingUserId) {
         authorizeDashboardMutation(null, source, true);
 
         final UserEntity existing = findAnyByUsername(username);
@@ -180,7 +190,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         userEntity.setFpeKey(EncryptionService.generateFpeKey());
         final ObjectId userId = save(userEntity);
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED, userId, userId, source, "role: " + role);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED,
+                actingUserId == null ? userId : actingUserId, userId, source, "role: " + role);
 
         // Create the default policy.
         LOGGER.info("Inserting the default policy");

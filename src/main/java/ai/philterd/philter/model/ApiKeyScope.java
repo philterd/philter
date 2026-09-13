@@ -37,6 +37,10 @@ import java.util.Set;
  * <p>{@link #AUDIT_READ} is its own scope for the opposite reason: the audit log spans the whole
  * deployment, naming principals and actions across every account, so it is not reachable with the
  * read scope of any one resource.
+ *
+ * <p>{@link #USERS_WRITE} and {@link #API_KEYS_WRITE} carry a further condition: the endpoints they
+ * cover exist only where {@code PROVISIONING_API_ENABLED} is set, so a key holding either scope can
+ * call nothing with it in a deployment that has not opted in.
  */
 public enum ApiKeyScope {
 
@@ -64,6 +68,9 @@ public enum ApiKeyScope {
     AUDIT_READ("audit:read", "Read the audit log. Also requires an administrator."),
 
     SIGNING_WRITE("signing:write", "Rotate the output signing key. Also requires an administrator."),
+
+    USERS_WRITE("users:write", "Create a non-administrator user. Also requires an administrator and PROVISIONING_API_ENABLED."),
+    API_KEYS_WRITE("api-keys:write", "Create an API key for a user. Also requires an administrator and PROVISIONING_API_ENABLED."),
 
     REIDENTIFY("reidentify", "Reverse a replacement to its original value.");
 

@@ -40,15 +40,13 @@ chmod 600 "${ENV_FILE}"
 
 if ! grep -q '^PHILTER_ENCRYPTION_KEY=.' "${ENV_FILE}" \
         || ! grep -q '^PHILTER_BOOTSTRAP_API_KEY=.' "${ENV_FILE}" \
-        || ! grep -q '^PHILTER_BOOTSTRAP_ADMIN_PASSWORD=.' "${ENV_FILE}" \
-        || ! grep -q '^MONGODB_PASSWORD=.' "${ENV_FILE}"; then
+        || ! grep -q '^PHILTER_BOOTSTRAP_ADMIN_PASSWORD=.' "${ENV_FILE}"; then
     if ! command -v openssl > /dev/null 2>&1; then
         echo "openssl is needed to generate the keys in ${ENV_FILE} but was not found." >&2
         echo "Install it, or add these lines yourself:" >&2
         echo "  PHILTER_ENCRYPTION_KEY=<base64-encoded 32 bytes>" >&2
         echo "  PHILTER_BOOTSTRAP_API_KEY=sk_<32 alphanumeric characters>" >&2
         echo "  PHILTER_BOOTSTRAP_ADMIN_PASSWORD=<a private password, at least 16 characters>" >&2
-        echo "  MONGODB_PASSWORD=<a password, url-safe>" >&2
         exit 1
     fi
 fi
@@ -69,13 +67,6 @@ fi
 if ! grep -q '^PHILTER_BOOTSTRAP_ADMIN_PASSWORD=.' "${ENV_FILE}"; then
     printf 'PHILTER_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 24)" >> "${ENV_FILE}"
     echo "Generated PHILTER_BOOTSTRAP_ADMIN_PASSWORD in ${ENV_FILE}. Use it for the first admin login."
-fi
-
-# Hex so it needs no URL-encoding: it goes into MONGODB_CONNECTION_STRING as-is. Set once, because
-# MongoDB only reads it when it initialises an empty data directory.
-if ! grep -q '^MONGODB_PASSWORD=.' "${ENV_FILE}"; then
-    printf 'MONGODB_PASSWORD=%s\n' "$(openssl rand -hex 24)" >> "${ENV_FILE}"
-    echo "Generated MONGODB_PASSWORD in ${ENV_FILE}."
 fi
 
 # The image copies the jar rather than building it, so Maven has to have run first. Checking here

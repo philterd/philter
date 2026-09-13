@@ -43,7 +43,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `user_created` | A user account was created. |
+| `user_created` | A user account was created. Created through the [provisioning API](api_and_sdks/api/provisioning_api.md), the subject is the calling administrator and the associated object is the new user; created in the dashboard or at startup, the new user is both. |
 | `user_password_changed` | A user's password was changed. |
 | `user_role_changed` | A user's role was changed. |
 | `user_deactivated` | A user account was deactivated: sign-in and API access are revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
@@ -57,7 +57,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `api_key_created` | An API key was created. |
+| `api_key_created` | An API key was created. The subject is the key and the associated object is the user it belongs to. Created through the [provisioning API](api_and_sdks/api/provisioning_api.md), the detail names the administrator and the API key that asked for it. |
 | `api_key_deleted` | An API key was deleted (soft-deleted): it is revoked and can no longer authenticate, but the key record is retained so audit entries that reference its id still resolve. |
 | `api_key_scopes_changed` | An API key's [scopes](account/api_keys.md#scopes) were changed. The entry records the scopes the key held before and after, so it shows whether the key was widened or narrowed. |
 

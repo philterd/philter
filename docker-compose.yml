@@ -9,44 +9,26 @@ services:
     build:
       context: .
     environment:
-      # No CACHE_HOSTNAME is set, so Philter uses its built-in in-memory cache. This is
-      # appropriate for a single-instance deployment. To run multiple Philter instances behind
-      # a load balancer, point them all at a shared Valkey (or Redis) server by setting
-      # CACHE_HOSTNAME (and optionally CACHE_PORT, CACHE_PASSWORD, CACHE_SSL). See README.md.
-      # To use a shared Valkey (or Redis) cache, uncomment and configure these.
+      # In-memory cache unless these are set. Several instances need a shared one. See README.md.
       # CACHE_HOSTNAME: valkey
       # CACHE_PORT: "6379"
       # CACHE_PASSWORD: ""
       # CACHE_SSL: "false"
       MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin
-      # Base64-encoded 32-byte (AES-256) key for encrypting sensitive data at rest. Written here so
-      # this stack comes up with nothing to set first. It is a known value in a public file, so it
-      # protects nothing: a deployment holding real data needs its own, generated with
-      # openssl rand -base64 32. Changing it makes everything already encrypted unreadable, so
-      # choose it before the first start rather than after.
+      # Development key. Real data needs its own (openssl rand -base64 32); changing it later orphans everything encrypted.
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
-      # Off, which is the documented default and what the application warns about at startup when
-      # it is on: it lets an administrator read and act on other users' contexts, policies,
-      # lists, documents and ledger through the owner parameter. Uncomment if you need that.
+      # Lets an administrator act on other users' data through the owner parameter. Off by default.
       # ADMIN_CROSS_USER_ACCESS_ENABLED: true
-      # On here, unlike the documented default, so this stack can be provisioned without a browser:
-      # an administrator's API key can create users and mint keys for them through POST /api/users
-      # and POST /api/users/{username}/api-keys. It is what philter-test needs to get the second
-      # account and the narrowed keys its suites run with. The application prints a startup warning
-      # while it is on, because it is the way around the dashboard login and its MFA. A deployment
-      # holding real data should remove this line unless automation provisions it.
+      # On here, not by default: an API key can create users and keys, bypassing the dashboard login and its MFA.
       PROVISIONING_API_ENABLED: "true"
-      # Seeded onto the admin user at first start, and only when that user has never had an API key,
-      # archived ones included. Fixed values so this stack comes up usable with nothing set. They
-      # are development placeholders, not secrets: the key grants every scope and the password is
-      # the dashboard login, so a deployment holding real data must set its own. compose.sh
-      # generates private values, and a .env takes precedence over these.
+      # On here, not by default: ledger entries are evidence. philter-test needs it to test legal holds.
+      LEDGER_DELETION_ENABLED: ${LEDGER_DELETION_ENABLED:-true}
+      # 1 MB rather than the 10 MB default, so philter-test can test the limit without a large request.
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-1048576}
+      # Seeded onto the admin user at first start only. Development placeholders: real data needs its own.
       PHILTER_BOOTSTRAP_ADMIN_PASSWORD: ${PHILTER_BOOTSTRAP_ADMIN_PASSWORD:-philter-development-only}
       PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
-      # Philter serves HTTPS on 8080 with a self-signed certificate generated on first start, so
-      # curl needs -k. To use your own certificate, mount a PKCS12 keystore and set SSL_KEYSTORE
-      # (and SSL_KEYSTORE_PASSWORD). Set SSL_ENABLED=false to serve plain HTTP when a load
-      # balancer terminates TLS in front of Philter. See docs/docs/settings.md.
+      # HTTPS with a self-signed certificate, so curl needs -k. See docs/docs/settings.md to use your own.
       # SSL_KEYSTORE: /opt/philter/ssl/philter-cert.p12
       # SSL_KEYSTORE_PASSWORD: ""
     ports:
@@ -66,17 +48,12 @@ services:
 
   mongodb:
     image: mongo:8.2.12
-    # Published so philter-test can run the checks that read this database directly, and so
-    # mongosh or Philter Diffuse can attach. This holds the ledger, the audit log and the encrypted
-    # PII, and with the password above it is readable by anything that can reach this port.
+    # Published so philter-test, mongosh and Philter Diffuse can reach it. Holds the ledger and encrypted PII.
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: philter
-      # Authentication is on with a password written here, so this stack comes up with nothing
-      # to export first. It is a known value in a public file and the port below is published, so
-      # this is a development and testing arrangement. A deployment holding real data wants a
-      # generated password supplied from outside this file.
+      # Development password, published port. Real data wants a generated one supplied from outside this file.
       MONGO_INITDB_ROOT_USERNAME: philter
       MONGO_INITDB_ROOT_PASSWORD: philter
     networks:

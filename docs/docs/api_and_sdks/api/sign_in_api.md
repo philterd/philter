@@ -54,7 +54,7 @@ curl -k -X POST "https://localhost:8080/api/sign-in" \
 | 401 | The username or password is not valid. |
 | 403 | The password is right, but the user's MFA is locked after repeated bad codes. An administrator must unlock it. |
 | 404 | Password sign-in is not enabled. |
-| 429 | The username is locked after repeated failures, or the client address is over the rate limit. `Retry-After` gives the most seconds to wait. |
+| 429 | The username is locked after repeated failures, or the client address is over the rate limit. `Retry-After` gives the most seconds to wait, and `reason` says which; see [Lockout and rate limiting](#lockout-and-rate-limiting). |
 
 A wrong password, an unknown username, a user without a password, and a deactivated user all get the same `401` response, and take about as long, so the endpoint does not reveal which usernames exist. Repeated failures lock the username, and requests are rate-limited per client address; see [Lockout and rate limiting](#lockout-and-rate-limiting).
 
@@ -95,7 +95,7 @@ A challenge expires after five minutes and is used up by any attempt, right or w
 | 401 | The challenge is unknown, used, or expired, or the code is not valid. The response does not say which. |
 | 403 | The user's MFA is locked. |
 | 404 | Password sign-in is not enabled. |
-| 429 | The client address is over the rate limit. |
+| 429 | The client address is over the rate limit. `reason` is `rate_limited`. |
 
 ## Lockout and rate limiting
 
@@ -103,6 +103,15 @@ Two limits protect sign-in against password guessing:
 
 * **Username lockout.** After [`SIGN_IN_MAX_FAILURES`](../../settings.md#api-access) (default 5) failed sign-ins for a username within [`SIGN_IN_LOCKOUT_MINUTES`](../../settings.md#api-access) (default 15), the username is locked for that many minutes. While it is locked, sign-in is refused with `429 Too Many Requests` and `Retry-After` set to the lockout period, before the password is checked, even if it is right, and those attempts are not counted, so the lock ends on time. Attempts are counted before their passwords are checked, so a burst of parallel guesses gets no more checks than the limit. The lock then clears on its own. A sign-in with the right password resets the count. A username that does not exist locks the same way, so a lock says nothing about which usernames exist.
 * **Rate limiting.** Each client address may make [`SIGN_IN_RATE_LIMIT_PER_MINUTE`](../../settings.md#api-access) (default 20) sign-in requests a minute, counting both `POST /api/sign-in` and `POST /api/sign-in/mfa`. Further requests in the minute are refused with `429 Too Many Requests` and `Retry-After: 60`. The address is the one the [audit log](../../auditing.md) records: the connection's, or, for a request from a [trusted proxy](../../settings.md#api-access), the client address its `X-Forwarded-For` header names. `TRUSTED_PROXIES` defaults to the private and loopback ranges, so if clients reach Philter directly from a private network, set it to your actual proxies; otherwise those clients can choose the address they are counted under. The username lockout does not depend on the address.
+
+Both refusals have the same status and header, so the body's `reason` tells them apart: `locked` for a username lockout and `rate_limited` for the per-address limit. Use `reason` rather than the message, which is written for people and may change.
+
+```json
+{
+  "message": "Too many failed sign-ins for this username. Try again later.",
+  "reason": "locked"
+}
+```
 
 Both are counted in the cache. With a shared [Valkey/Redis cache](../../caching.md), the counts are shared across every instance. With the default in-memory cache they are **per instance**, so behind a load balancer that spreads requests across instances, an attacker gets each instance's allowance and can evade them. Use a shared cache for any deployment with more than one instance. If the in-memory cache is full, sign-in is refused until counters can be stored again, rather than letting attempts go uncounted.
 

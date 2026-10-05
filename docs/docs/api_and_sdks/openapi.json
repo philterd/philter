@@ -7812,11 +7812,11 @@
             }
           },
           "429": {
-            "description": "The username is locked after repeated failures (POST /api/sign-in only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+            "description": "The username is locked after repeated failures (POST /api/sign-in only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait, and reason says which: locked or rate_limited.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
+                  "$ref": "#/components/schemas/SignInThrottledResponse"
                 }
               }
             }
@@ -7931,11 +7931,11 @@
             }
           },
           "429": {
-            "description": "The username is locked after repeated failures (POST /api/sign-in only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+            "description": "The username is locked after repeated failures (POST /api/sign-in only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait, and reason says which: locked or rate_limited.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
+                  "$ref": "#/components/schemas/SignInThrottledResponse"
                 }
               }
             }
@@ -11680,6 +11680,22 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "SignInThrottledResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the sign-in was refused: locked (the username is locked after repeated failures) or rate_limited (the client address is over the rate limit).",
+            "type": "string",
+            "enum": [
+              "locked",
+              "rate_limited"
+            ]
           }
         }
       },

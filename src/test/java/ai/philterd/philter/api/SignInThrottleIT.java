@@ -159,6 +159,7 @@ class SignInThrottleIT {
         final HttpResponse<String> locked = signIn(username, PASSWORD);
         assertEquals(429, locked.statusCode(), "refused before the password is checked");
         assertEquals(String.valueOf(LOCKOUT_SECONDS), locked.headers().firstValue("Retry-After").orElse(null));
+        assertEquals("locked", reason(locked), "a client can tell a lockout from rate limiting");
         assertEquals(429, signIn(username, PASSWORD).statusCode());
         assertEquals(1, audited("sign_in_locked", "username: " + username), "the lock is audited once");
         assertTrue(audited("sign_in_locked", clientIp) >= 1, "with the client address");
@@ -243,13 +244,22 @@ class SignInThrottleIT {
         final HttpResponse<String> refused = signIn(username, PASSWORD);
         assertEquals(429, refused.statusCode());
         assertEquals("60", refused.headers().firstValue("Retry-After").orElse(null));
-        assertEquals(429, post("/api/sign-in/mfa", "{\"challenge\":\"none\",\"code\":\"000000\"}").statusCode());
+        assertEquals("rate_limited", reason(refused), "a client can tell rate limiting from a lockout");
+        final HttpResponse<String> refusedMfa = post("/api/sign-in/mfa", "{\"challenge\":\"none\",\"code\":\"000000\"}");
+        assertEquals(429, refusedMfa.statusCode());
+        assertEquals("rate_limited", reason(refusedMfa));
         assertEquals(429, signIn(username, PASSWORD).statusCode());
         assertEquals(1, audited("sign_in_rate_limited", clientIp), "only the first refusal in the window is audited");
 
         clientIp = "203.0.113.250";
         assertEquals(200, signIn(username, PASSWORD).statusCode(), "another address has its own limit");
 
+    }
+
+
+    /** The reason a 429 gives, which a client uses to tell a lockout from rate limiting. */
+    private String reason(final HttpResponse<String> response) {
+        return gson.fromJson(response.body(), JsonObject.class).get("reason").getAsString();
     }
 
 }

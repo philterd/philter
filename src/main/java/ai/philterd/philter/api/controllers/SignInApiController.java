@@ -20,6 +20,7 @@ import ai.philterd.philter.api.requests.SignInRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.SignInChallengeResponse;
 import ai.philterd.philter.api.responses.SignInResponse;
+import ai.philterd.philter.api.responses.SignInThrottledResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.SignInConfig;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
@@ -116,9 +117,10 @@ public class SignInApiController extends AbstractApiController {
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content),
             @ApiResponse(responseCode = "429", description = "The username is locked after repeated failures (POST /api/sign-in "
-                    + "only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+                    + "only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait, "
+                    + "and reason says which: locked or rate_limited.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
+                            schema = @Schema(implementation = SignInThrottledResponse.class)))
     })
     @SecurityRequirements
     @RequestMapping(value = "/api/sign-in", method = RequestMethod.POST,
@@ -202,9 +204,10 @@ public class SignInApiController extends AbstractApiController {
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content),
             @ApiResponse(responseCode = "429", description = "The username is locked after repeated failures (POST /api/sign-in "
-                    + "only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+                    + "only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait, "
+                    + "and reason says which: locked or rate_limited.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
+                            schema = @Schema(implementation = SignInThrottledResponse.class)))
     })
     @SecurityRequirements
     @RequestMapping(value = "/api/sign-in/mfa", method = RequestMethod.POST,
@@ -274,13 +277,15 @@ public class SignInApiController extends AbstractApiController {
         }
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(SignInThrottle.RATE_WINDOW_SECONDS))
-                .body(new GenericResponse("Too many sign-in requests. Try again later."));
+                .body(new SignInThrottledResponse("Too many sign-in requests. Try again later.",
+                        SignInThrottledResponse.REASON_RATE_LIMITED));
     }
 
     private ResponseEntity<Object> lockedOut() {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(throttle.getLockoutSeconds()))
-                .body(new GenericResponse("Too many failed sign-ins for this username. Try again later."));
+                .body(new SignInThrottledResponse("Too many failed sign-ins for this username. Try again later.",
+                        SignInThrottledResponse.REASON_LOCKED));
     }
 
     private ResponseEntity<Object> locked(final String requestId, final UserEntity user, final String clientIp) {

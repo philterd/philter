@@ -79,7 +79,8 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   5) within `SIGN_IN_LOCKOUT_MINUTES` (default 15) lock it for that long, refusing even the right
   password until the lock lapses; a success resets the count. Each client address, as read through
   the trusted-proxy rules, may make `SIGN_IN_RATE_LIMIT_PER_MINUTE` sign-in requests a minute (default
-  20). Both answer `429` with `Retry-After`, are shared across instances through a Valkey/Redis cache,
+  20). Both answer `429` with `Retry-After` and a `reason` of `locked` or `rate_limited`, so a client
+  can tell them apart, are shared across instances through a Valkey/Redis cache,
   and are per instance with the in-memory cache. Audited as `sign_in_locked` and
   `sign_in_rate_limited`.
 - **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's

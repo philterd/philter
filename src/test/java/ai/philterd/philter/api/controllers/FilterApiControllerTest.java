@@ -466,7 +466,7 @@ class FilterApiControllerTest {
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("Sensitive original text"))
                 .andExpect(status().isBadRequest())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(message))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").value(message))
                 .andExpect(header().doesNotExist("X-Document-Id"));
     }
 

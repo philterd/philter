@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -40,28 +42,28 @@ class RestApiExceptionsTest {
     // ----- Unit tests: handler logic -----
 
     @Test
-    void missingAuthorizationHeaderReturnsUnauthorizedMessage() {
+    void missingAuthorizationHeaderReturnsUnauthorizedMessage() throws Exception {
         final MissingRequestHeaderException ex = mock(MissingRequestHeaderException.class);
         when(ex.getHeaderName()).thenReturn(HttpHeaders.AUTHORIZATION);
 
-        assertEquals("Unauthorized.", handler.handleMissingRequestHeaderException(ex));
+        assertEquals("Unauthorized.", written(response -> handler.handleMissingRequestHeaderException(ex, response)));
     }
 
     @Test
-    void missingAuthorizationHeaderMatchIsCaseInsensitive() {
+    void missingAuthorizationHeaderMatchIsCaseInsensitive() throws Exception {
         // The header name from Spring is lowercase in some servlet containers.
         final MissingRequestHeaderException ex = mock(MissingRequestHeaderException.class);
         when(ex.getHeaderName()).thenReturn("authorization");
 
-        assertEquals("Unauthorized.", handler.handleMissingRequestHeaderException(ex));
+        assertEquals("Unauthorized.", written(response -> handler.handleMissingRequestHeaderException(ex, response)));
     }
 
     @Test
-    void missingOtherRequiredHeaderReturnsGenericMessage() {
+    void missingOtherRequiredHeaderReturnsGenericMessage() throws Exception {
         final MissingRequestHeaderException ex = mock(MissingRequestHeaderException.class);
         when(ex.getHeaderName()).thenReturn("X-Custom-Header");
 
-        assertEquals("A required header is missing.", handler.handleMissingRequestHeaderException(ex));
+        assertEquals("A required header is missing.", written(response -> handler.handleMissingRequestHeaderException(ex, response)));
     }
 
     // ----- MockMvc tests: HTTP status mapping -----
@@ -136,7 +138,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/badrequest"))
                 .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("Password-protected PDF input is not supported.", body);
+        assertEquals("Password-protected PDF input is not supported.", messageOf(body));
     }
 
     @Test
@@ -145,7 +147,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/badrequest-nomessage"))
                 .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("A required parameter is missing or contains an invalid value.", body);
+        assertEquals("A required parameter is missing or contains an invalid value.", messageOf(body));
     }
 
     @Test
@@ -154,7 +156,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/notfound"))
                 .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("The request body is missing or could not be read.", body);
+        assertEquals("The request body is missing or could not be read.", messageOf(body));
         assertFalse(body.contains("/srv/philter"), "a server path must not reach the caller: " + body);
     }
 
@@ -165,7 +167,7 @@ class RestApiExceptionsTest {
                         .contentType("application/json").content(""))
                 .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("The request body is missing or could not be read.", body);
+        assertEquals("The request body is missing or could not be read.", messageOf(body));
         assertFalse(body.toLowerCase(java.util.Locale.ROOT).contains("jackson"), body);
         assertFalse(body.contains("nested exception"), body);
     }
@@ -182,7 +184,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/auth"))
                 .andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("Unauthorized.", body);
+        assertEquals("Unauthorized.", messageOf(body));
     }
 
     @Test
@@ -193,7 +195,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/wrongtype"))
                 .andExpect(status().isUnsupportedMediaType())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("The request declares text/plain but the body is PDF.", body);
+        assertEquals("The request declares text/plain but the body is PDF.", messageOf(body));
     }
 
     @Test
@@ -204,7 +206,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/toolarge"))
                 .andExpect(status().isPayloadTooLarge())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("The request body exceeds the maximum allowed size of 10240 bytes.", body);
+        assertEquals("The request body exceeds the maximum allowed size of 10240 bytes.", messageOf(body));
     }
 
     @Test
@@ -213,7 +215,7 @@ class RestApiExceptionsTest {
                 .perform(get("/stub/custom"))
                 .andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
-        assertEquals("A required header is missing.", body);
+        assertEquals("A required header is missing.", messageOf(body));
     }
 
     @Test
@@ -223,12 +225,44 @@ class RestApiExceptionsTest {
     }
 
     @Test
-    void admissionRejectionsPreserveStatusAndRetryGuidance() {
+    void admissionRejectionsPreserveStatusAndRetryGuidance() throws Exception {
         for (int status : new int[] {429, 503}) {
-            var response = handler.handleQueueCapacity(new ai.philterd.philter.data.services.QueueCapacityException("busy", status));
-            assertEquals(status, response.getStatusCode().value());
-            assertEquals("5", response.getHeaders().getFirst("Retry-After"));
+            final MockHttpServletResponse response = new MockHttpServletResponse();
+            handler.handleQueueCapacity(new ai.philterd.philter.data.services.QueueCapacityException("busy", status), response);
+            assertEquals(status, response.getStatus());
+            assertEquals("5", response.getHeader("Retry-After"));
+            assertEquals("busy", messageOf(response.getContentAsString()));
         }
+    }
+
+    @Test
+    void anErrorIsJsonEvenWhenTheCallerAcceptsOnlyText() throws Exception {
+        // The endpoint produces text/plain and the caller accepts only text/plain, as the text filter's
+        // callers do. The error is written directly, so content negotiation cannot refuse it.
+        final org.springframework.mock.web.MockHttpServletResponse response = buildMockMvc()
+                .perform(get("/stub/auth").accept("text/plain"))
+                .andExpect(status().isUnauthorized())
+                .andReturn().getResponse();
+        assertTrue(response.getContentType().startsWith("application/json"), response.getContentType());
+        assertEquals("Unauthorized.", messageOf(response.getContentAsString()));
+    }
+
+    /** The message of an error body, which every handler writes as {@code {"message": ...}}. */
+    private static String messageOf(final String body) {
+        return com.google.gson.JsonParser.parseString(body).getAsJsonObject().get("message").getAsString();
+    }
+
+    @FunctionalInterface
+    private interface HandlerCall {
+        void handle(MockHttpServletResponse response) throws Exception;
+    }
+
+    /** Calls a handler directly and returns the message it wrote, checking that it wrote JSON. */
+    private static String written(final HandlerCall call) throws Exception {
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        call.handle(response);
+        assertTrue(response.getContentType().startsWith("application/json"), response.getContentType());
+        return messageOf(response.getContentAsString());
     }
 
 }

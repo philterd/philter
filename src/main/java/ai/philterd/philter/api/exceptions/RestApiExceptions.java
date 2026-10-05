@@ -15,176 +15,178 @@
  */
 package ai.philterd.philter.api.exceptions;
 
+import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.policies.PolicyResolutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.google.gson.Gson;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @ControllerAdvice
 public class RestApiExceptions {
 
 	private static final Logger LOGGER = LogManager.getLogger(RestApiExceptions.class);
 
+	private static final Gson GSON = new com.google.gson.GsonBuilder().disableHtmlEscaping().create();
+
+	/**
+	 * Writes an error as {@code {"message": ...}}, the same shape as every other error Philter returns, so a
+	 * client can read the message the same way whichever endpoint or handler refused it. Written to the
+	 * response directly rather than returned, so it is sent whatever the request's {@code Accept} header
+	 * asked for: content negotiation would otherwise refuse a JSON error to a caller that accepts only
+	 * text/plain or a PDF.
+	 */
+	private static void write(final HttpServletResponse response, final HttpStatus status, final String message)
+			throws IOException {
+		response.setStatus(status.value());
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+		response.getWriter().write(GSON.toJson(new GenericResponse(message)));
+	}
+
 	/** The message describes what the caller sent and is written for the caller to read. */
-	@ResponseBody
 	@ExceptionHandler(BadRequestException.class)
-	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-	public String handleBadRequestException(final BadRequestException ex) {
+	public void handleBadRequestException(final BadRequestException ex, final HttpServletResponse response)
+			throws IOException {
 		LOGGER.error("Bad request: {}", ex.getMessage());
-		return ex.getMessage() == null || ex.getMessage().isBlank()
+		write(response, HttpStatus.BAD_REQUEST, ex.getMessage() == null || ex.getMessage().isBlank()
 				? "A required parameter is missing or contains an invalid value."
-				: ex.getMessage();
+				: ex.getMessage());
 	}
 
 	/**
 	 * Not thrown by Philter, so the message is a filesystem path or a parser trace rather than
 	 * anything the caller wrote. A fixed message is returned, and only the exception type is logged.
 	 */
-	@ResponseBody
 	@ExceptionHandler({FileNotFoundException.class, HttpMessageNotReadableException.class})
-	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-	public String handleUnreadableRequest(final Exception ex) {
+	public void handleUnreadableRequest(final Exception ex, final HttpServletResponse response) throws IOException {
 		// Only the type: a parser's message can quote the request body, such as a password.
 		LOGGER.warn("The request could not be read: {}", ex.getClass().getSimpleName());
-		return "The request body is missing or could not be read.";
+		write(response, HttpStatus.BAD_REQUEST, "The request body is missing or could not be read.");
 	}
 
-    @ExceptionHandler(ai.philterd.philter.data.services.QueueCapacityException.class)
-    public org.springframework.http.ResponseEntity<String> handleQueueCapacity(final ai.philterd.philter.data.services.QueueCapacityException ex) {
-        return org.springframework.http.ResponseEntity.status(ex.getStatus()).header("Retry-After", "5").body(ex.getMessage());
-    }
+	@ExceptionHandler(ai.philterd.philter.data.services.QueueCapacityException.class)
+	public void handleQueueCapacity(final ai.philterd.philter.data.services.QueueCapacityException ex,
+	                                final HttpServletResponse response) throws IOException {
+		response.setHeader("Retry-After", "5");
+		write(response, HttpStatus.valueOf(ex.getStatus()), ex.getMessage());
+	}
 
-    @ResponseBody
-    @ExceptionHandler(PolicyResolutionException.class)
-    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-    public String handlePolicyResolutionException(final PolicyResolutionException ex) {
-        LOGGER.error("Unable to resolve redaction policy.", ex);
-        return ex.getMessage();
-    }
+	@ExceptionHandler(PolicyResolutionException.class)
+	public void handlePolicyResolutionException(final PolicyResolutionException ex, final HttpServletResponse response)
+			throws IOException {
+		LOGGER.error("Unable to resolve redaction policy.", ex);
+		write(response, HttpStatus.BAD_REQUEST, ex.getMessage());
+	}
 
-	@ResponseBody
 	@ExceptionHandler(PolicyNotFoundException.class)
-	@ResponseStatus(value = HttpStatus.NOT_FOUND)
-	public String handlePolicyNotFoundException(Exception ex) {
+	public void handlePolicyNotFoundException(final Exception ex, final HttpServletResponse response) throws IOException {
 		LOGGER.error("The named policy does not exist.", ex);
-		return ex.getMessage();
+		write(response, HttpStatus.NOT_FOUND, ex.getMessage());
 	}
 
-	@ResponseBody
 	@ExceptionHandler(UnsupportedMediaTypeException.class)
-	@ResponseStatus(value = HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-	public String handleUnsupportedMediaTypeException(final UnsupportedMediaTypeException ex) {
+	public void handleUnsupportedMediaTypeException(final UnsupportedMediaTypeException ex,
+	                                                final HttpServletResponse response) throws IOException {
 		// The body contradicts the declared type. Refusing beats redacting a document that was
 		// never parsed and returning a clean-looking response.
-		return ex.getMessage();
+		write(response, HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage());
 	}
 
-	@ResponseBody
 	@ExceptionHandler(PayloadTooLargeException.class)
-	@ResponseStatus(value = HttpStatus.PAYLOAD_TOO_LARGE)
-	public String handlePayloadTooLargeException(final PayloadTooLargeException ex) {
+	public void handlePayloadTooLargeException(final PayloadTooLargeException ex, final HttpServletResponse response)
+			throws IOException {
 		// The caller sent too much data, which is a client error. Without this it reached the
 		// catch-all below and came back as a 500 that named nothing.
-		return ex.getMessage();
+		write(response, HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage());
 	}
 
-	@ResponseBody
 	@ExceptionHandler(MissingServletRequestParameterException.class)
-	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-	public String handleMissingRequestParameterException(final MissingServletRequestParameterException ex) {
+	public void handleMissingRequestParameterException(final MissingServletRequestParameterException ex,
+	                                                   final HttpServletResponse response) throws IOException {
 		// Spring throws this before the handler method runs, so nothing has been read or written.
 		// It is a client error, so it is reported as 400 naming the parameter rather than falling
 		// through to the catch-all below, which would report a 500 and say nothing useful.
-		return "The required parameter '" + ex.getParameterName() + "' is missing.";
+		write(response, HttpStatus.BAD_REQUEST, "The required parameter '" + ex.getParameterName() + "' is missing.");
 	}
 
-	@ResponseBody
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
-	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
-	public String handleParameterTypeMismatchException(final MethodArgumentTypeMismatchException ex) {
+	public void handleParameterTypeMismatchException(final MethodArgumentTypeMismatchException ex,
+	                                                 final HttpServletResponse response) throws IOException {
 		// The parameter name is declared in the controller; the submitted value is not echoed back.
-		return "The parameter '" + ex.getName() + "' has an invalid value.";
+		write(response, HttpStatus.BAD_REQUEST, "The parameter '" + ex.getName() + "' has an invalid value.");
 	}
 
-	@ResponseBody
 	@ExceptionHandler(ServiceUnavailableException.class)
-	@ResponseStatus(value = HttpStatus.SERVICE_UNAVAILABLE)
-	public String handleServiceUnavailableException(ServiceUnavailableException ex) {
+	public void handleServiceUnavailableException(final ServiceUnavailableException ex,
+	                                              final HttpServletResponse response) throws IOException {
 		LOGGER.error("Unable to determine model service status - indicates service initialization or failure if status persists.", ex);
-	    return ex.getMessage();
+		write(response, HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
 	}
 
-	@ResponseBody
 	@ExceptionHandler(UnauthorizedException.class)
-	@ResponseStatus(value = HttpStatus.UNAUTHORIZED)
-	public String handleUnauthorizedException(UnauthorizedException ex) {
+	public void handleUnauthorizedException(final UnauthorizedException ex, final HttpServletResponse response)
+			throws IOException {
 		LOGGER.error("Unauthorized access.", ex);
-		return ex.getMessage();
+		write(response, HttpStatus.UNAUTHORIZED, ex.getMessage());
 	}
 
-	@ResponseBody
 	@ExceptionHandler(MissingRequestHeaderException.class)
-	@ResponseStatus(value = HttpStatus.UNAUTHORIZED)
-	public String handleMissingRequestHeaderException(MissingRequestHeaderException ex) {
+	public void handleMissingRequestHeaderException(final MissingRequestHeaderException ex,
+	                                                final HttpServletResponse response) throws IOException {
 		if (HttpHeaders.AUTHORIZATION.equalsIgnoreCase(ex.getHeaderName())) {
-			return "Unauthorized.";
+			write(response, HttpStatus.UNAUTHORIZED, "Unauthorized.");
+			return;
 		}
 		LOGGER.error("A required header is missing: {}", ex.getHeaderName(), ex);
-		return "A required header is missing.";
+		write(response, HttpStatus.UNAUTHORIZED, "A required header is missing.");
 	}
 
-	@ResponseBody
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-	@ResponseStatus(value = HttpStatus.METHOD_NOT_ALLOWED)
-	public String handleMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+	public void handleMethodNotSupportedException(final HttpRequestMethodNotSupportedException ex,
+	                                              final HttpServletResponse response) throws IOException {
 		// A client used an HTTP method this endpoint does not support (for example, a method that was
 		// intentionally removed). This is a client error, so it is reported as 405, not a 500.
-		return "The requested HTTP method is not supported for this endpoint.";
+		write(response, HttpStatus.METHOD_NOT_ALLOWED, "The requested HTTP method is not supported for this endpoint.");
 	}
 
-    @ResponseBody
-    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
-    @ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
-    public String handleUnacceptableMediaType(Exception ex) {
-        return "No representation matches the requested Accept header.";
-    }
+	@ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+	public void handleUnacceptableMediaType(final Exception ex, final HttpServletResponse response) throws IOException {
+		write(response, HttpStatus.NOT_ACCEPTABLE, "No representation matches the requested Accept header.");
+	}
 
-    @ResponseBody
-    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
-    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-    public String handleUnsupportedRequestMediaType(Exception ex) {
-        return "The request Content-Type is not supported for this endpoint.";
-    }
+	@ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+	public void handleUnsupportedRequestMediaType(final Exception ex, final HttpServletResponse response)
+			throws IOException {
+		write(response, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "The request Content-Type is not supported for this endpoint.");
+	}
 
-	@ResponseBody
 	@ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
 			org.springframework.web.servlet.NoHandlerFoundException.class})
-	@ResponseStatus(HttpStatus.NOT_FOUND)
-	public String handleNotFound(Exception ex) {
+	public void handleNotFound(final Exception ex, final HttpServletResponse response) throws IOException {
 		// No endpoint or static resource at this path. Without this, the catch-all below made it a 500.
-		return "Not found.";
+		write(response, HttpStatus.NOT_FOUND, "Not found.");
 	}
 
-	@ResponseBody
 	@ExceptionHandler({IOException.class, Exception.class})
-	@ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR)
-	public String handleUnknownException(Exception ex) {
+	public void handleUnknownException(final Exception ex, final HttpServletResponse response) throws IOException {
 		LOGGER.error("An unknown error has occurred.", ex);
-	    return "An unknown error has occurred.";
+		write(response, HttpStatus.INTERNAL_SERVER_ERROR, "An unknown error has occurred.");
 	}
-	
+
 }

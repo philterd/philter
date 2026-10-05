@@ -34,11 +34,11 @@ class PdfInputValidatorTest {
     @Test void theThreeCasesAreDistinguishableInTheResponse() throws Exception {
         final var handler = new ai.philterd.philter.api.exceptions.RestApiExceptions();
 
-        final String noPages = handler.handleBadRequestException(
+        final String noPages = handled(handler,
                 assertThrows(BadRequestException.class, () -> PdfInputValidator.validate(emptyPdf())));
-        final String protectedPdf = handler.handleBadRequestException(
+        final String protectedPdf = handled(handler,
                 assertThrows(BadRequestException.class, () -> PdfInputValidator.validate(pdf(true))));
-        final String malformed = handler.handleBadRequestException(
+        final String malformed = handled(handler,
                 assertThrows(BadRequestException.class, () -> PdfInputValidator.validate(new byte[]{1, 2, 3})));
 
         assertEquals("PDF input must contain at least one page.", noPages);
@@ -60,4 +60,16 @@ class PdfInputValidatorTest {
             doc.save(out); return out.toByteArray();
         }
     }
+
+    /** The message the real handler writes for a refusal. */
+    private static String handled(final ai.philterd.philter.api.exceptions.RestApiExceptions handler,
+                                  final BadRequestException ex) throws Exception {
+        final org.springframework.mock.web.MockHttpServletResponse response =
+                new org.springframework.mock.web.MockHttpServletResponse();
+        handler.handleBadRequestException(ex, response);
+        assertEquals(400, response.getStatus());
+        return com.google.gson.JsonParser.parseString(response.getContentAsString())
+                .getAsJsonObject().get("message").getAsString();
+    }
+
 }

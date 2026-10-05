@@ -90,7 +90,7 @@ curl -k -o audit.csv -D - \
 
 Events are ordered newest first, then by ID, so the order is the same on every request. When a range holds more events than `limit`, request it again with `offset` set to `X-Philter-Export-Next-Offset` until `X-Philter-Export-Truncated` is `false`. For a range that is no longer receiving events, such as earlier days, the pages hold each event exactly once. For a range that includes the current day, events recorded between requests move older events to later pages, so a page can repeat events from the one before it; it never skips one. Export complete days to avoid this.
 
-A `400`, or a `403` because the caller is not an administrator, is returned as a plain-text message. A `401`, or a `403` because the key lacks `audit:read`, is a JSON object, as on every endpoint.
+A `403` because the caller is not an administrator is returned as a plain-text message. Every other error, including a `400`, a `401`, and a `403` because the key lacks `audit:read`, is a JSON object with a `message` field, as on every endpoint.
 
 | Status | When |
 |--------|------|

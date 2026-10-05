@@ -4,7 +4,7 @@ Philter 4.0 exposes 70 HTTP operations implemented by 72 handlers. The three `/a
 
 Send `Authorization: Bearer <api key>` unless the scope is Public. "Any key" accepts any valid key, whatever its scopes. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
-JSON responses use `application/json`; dates in API response objects use ISO 8601 strings with an offset. Empty responses have no JSON body. Bad parameter values return 400, unsupported request media types 415, incompatible Accept headers 406, and oversized bodies 413. Inspect the response Content-Type before decoding an error; errors may be plain text or a JSON message object.
+JSON responses use `application/json`; dates in API response objects use ISO 8601 strings with an offset. Empty responses have no JSON body. Bad parameter values return 400, unsupported request media types 415, incompatible Accept headers 406, and oversized bodies 413. Error responses are a JSON object whose `message` field explains the error, whatever the request's `Accept` header asked for. The one exception is a `403` from `GET /api/audit/export` for a caller who is not an administrator, which is plain text.
 
 | Method | Endpoint | Success format | Required scope | Reference |
 |--------|----------|----------------|----------------|-----------|

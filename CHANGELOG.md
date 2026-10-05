@@ -44,6 +44,9 @@ for migration steps.
   in development, is a separate application.
 - **PDF redaction is asynchronous by default.** Append `?async=false` for the previous behavior.
 - **`/api/health` is the only health endpoint** and reports `"status": "UP"`.
+- **Errors are JSON.** Every error response is a JSON object with a `message` field, whatever the
+  request's `Accept` header asked for; errors from the exception handler were plain text. The one
+  exception is the `403` from `GET /api/audit/export` for a caller who is not an administrator.
 - **Outbound HTTPS verifies certificates.** Trust a private issuer in the JVM truststore, or set
   `TLS_TRUST_ALL_ENABLED=true`.
 - **Context names are unique per user**, and **users are deactivated rather than deleted**, so their

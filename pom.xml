@@ -37,15 +37,6 @@
             <organizationUrl>https://www.philterd.ai</organizationUrl>
         </developer>
     </developers>
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.jsoup</groupId>
-                <artifactId>jsoup</artifactId>
-                <version>1.23.1</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <distributionManagement>
         <snapshotRepository>
             <id>philterd-repository-snapshots</id>

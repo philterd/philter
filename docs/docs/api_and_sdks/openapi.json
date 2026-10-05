@@ -11,6 +11,489 @@
     }
   ],
   "paths": {
+    "/api/api-keys": {
+      "get": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "List the calling key's user's API keys.",
+        "description": "Lists the active keys belonging to the calling key's user, oldest first, with the total. Returns each key's ID, prefix, scopes, creation time, and whether it is the bootstrap key, never the key itself. Requires the `api-keys:read` scope.",
+        "operationId": "getApiKeys",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Create an API key for the calling key's user.",
+        "description": "Mints a key for the calling key's user, so a key can be rotated without an administrator. The scopes must be a subset of those the calling key holds. The key is returned once: only its hash is stored. Recorded as an api_key_created audit event naming the calling user and API key. Requires the `api-keys:write` scope.",
+        "operationId": "createOwnApiKey",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The key was created. The value is returned here and nowhere else.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No scopes were given, or one of them is not a scope.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:write, or a requested scope is not held by the calling key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/api-keys/{keyId}": {
+      "delete": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Revoke an API key.",
+        "description": "Revokes a key: it stops authenticating at once and cannot be restored. The key making the request cannot revoke itself; revoke it with another key. The calling key cannot revoke a key holding a scope it does not hold. A caller can revoke its own user's keys; an administrator can revoke any user's. Recorded as an api_key_deleted audit event naming the calling user and API key. Requires the `api-keys:write` scope.",
+        "operationId": "revokeApiKey",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The key was revoked."
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:write, or the key being revoked holds a scope the calling key does not.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no active key with that ID that the caller may manage."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The key is the one making the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/api-keys/{keyId}/scopes": {
+      "put": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Replace an API key's scopes.",
+        "description": "Replaces the scopes on a key. The key value does not change. The new scopes must be a subset of those the calling key holds, and the calling key cannot change a key holding a scope it does not hold. A caller can change its own user's keys; an administrator can change any user's. Recorded as an api_key_scopes_changed audit event with the scopes before and after and the calling user and API key. Requires the `api-keys:write` scope.",
+        "operationId": "setApiKeyScopes",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetApiKeyScopesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The scopes were replaced.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No scopes were given, or one of them is not a scope.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:write, a requested scope is not held by the calling key, or the key being changed holds a scope the calling key does not.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no active key with that ID that the caller may manage."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/audit": {
       "get": {
         "tags": [
@@ -7017,12 +7500,146 @@
       }
     },
     "/api/users/{username}/api-keys": {
+      "get": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "List a user's API keys.",
+        "description": "Lists the named user's active keys, oldest first, with the total. Requires an administrator as well as the scope. Requires the `api-keys:read` scope.",
+        "operationId": "getUserApiKeys",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
-          "Users"
+          "API Keys"
         ],
         "summary": "Create an API key for a user.",
-        "description": "Mints a key for the named user with the scopes given in the body, and returns its value once: only the hash is stored, so the response is the one chance to capture it. The scopes must be a subset of those the calling key holds, so this cannot be used to widen access beyond the credential making the request. Requires an administrator as well as the scope. Recorded as an api_key_created audit event naming the calling administrator. Requires the `api-keys:write` scope.",
+        "description": "Mints a key for the named user with the scopes given in the body, and returns its value once: only the hash is stored, so the response is the one chance to capture it. The scopes must be a subset of those the calling key holds, so this cannot be used to widen access beyond the credential making the request. Requires an administrator as well as the scope. Recorded as an api_key_created audit event naming the calling user and API key. Requires the `api-keys:write` scope.",
         "operationId": "createApiKey",
         "parameters": [
           {
@@ -7533,6 +8150,30 @@
   },
   "components": {
     "schemas": {
+      "ApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "bootstrap": {
+            "type": "boolean"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "AuditEventView": {
         "properties": {
           "apiKeyId": {
@@ -7649,6 +8290,9 @@
           "apiKey": {
             "type": "string"
           },
+          "id": {
+            "type": "string"
+          },
           "scopes": {
             "type": "array",
             "items": {
@@ -7676,6 +8320,21 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "GetApiKeysResponse": {
+        "type": "object",
+        "properties": {
+          "apiKeys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -8078,6 +8737,17 @@
           }
         }
       },
+      "SetApiKeyScopesRequest": {
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "SetUserRoleRequest": {
         "type": "object",
         "properties": {
@@ -8169,6 +8839,10 @@
       "name": "Always/Never Redact Lists"
     },
     {
+      "description": "List, create, re-scope, and revoke API keys. A caller manages its own keys; an administrator can also manage other users' keys.",
+      "name": "API Keys"
+    },
+    {
       "description": "Governed, audited reversal of cryptographically-redacted values.",
       "name": "Re-identification"
     },
@@ -8179,10 +8853,6 @@
     {
       "description": "Read-only access to the audit log.",
       "name": "Audit Log"
-    },
-    {
-      "description": "Create and manage users, and create API keys for them. Requires an administrator, except for reading the calling key's own user.",
-      "name": "Users"
     },
     {
       "description": "Redact text and return a detailed explanation of what was redacted and why.",
@@ -8199,6 +8869,10 @@
     {
       "description": "Operations for creating and managing contexts.",
       "name": "Contexts"
+    },
+    {
+      "description": "Create and manage users. Requires an administrator, except for reading the calling key's own user.",
+      "name": "Users"
     },
     {
       "description": "Retrieve the public signing key used to verify Philter output signatures, and rotate it.",

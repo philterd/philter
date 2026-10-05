@@ -51,6 +51,11 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   the new `users:read` scope or `users:write`/`api-keys:write`, refuse to demote or deactivate the
   last active administrator, and cannot grant a key a scope the calling key does not hold. Every
   change is audited with the acting administrator and API key.
+- **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's
+  keys, so a key can be rotated without an administrator; `GET /api/users/{username}/api-keys` lets
+  an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does
+  not hold, change or revoke a key holding a scope it does not hold, or revoke itself. New
+  `api-keys:read` scope. Changes are audited with the acting user and API key.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

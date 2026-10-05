@@ -33,7 +33,7 @@ A request with a missing, malformed, or unknown key is rejected with `401 Unauth
 
 ## Managing API keys
 
-API keys are created and removed in the dashboard, under **My Account** → **API Keys**:
+API keys are created and removed in the dashboard, under **My Account** → **API Keys**, or with the [API Keys API](../api_and_sdks/api/api_keys_api.md):
 
 * **Create a key.** Choose the key's [scopes](#scopes), then Philter generates the key and shows it once. Use the **Copy** button to copy it to your clipboard, then store it securely; it cannot be retrieved again afterward.
 * **Delete a key.** Deleting a key immediately revokes it: subsequent requests using that key are rejected with `401 Unauthorized`. Deletion is permanent and a key cannot be reactivated. The key record itself is retained (marked deleted) so that audit entries which reference the key id still resolve to it; deleted keys are not shown in the list. Generate a new key if you need access again.
@@ -59,7 +59,9 @@ Two scopes are separated from the resources they belong to because they return t
 
 `signing:write` covers rotating the output signing key, which affects every instance in the deployment. It also requires an administrator. The two signing-key read endpoints take no API key at all.
 
-`users:read`, `users:write`, and `api-keys:write` cover the [Users API](../api_and_sdks/api/users_api.md), which lists, creates, and manages users and mints keys for them. All three require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`. A key minted this way can carry only scopes the calling key already holds.
+`users:read` and `users:write` cover the [Users API](../api_and_sdks/api/users_api.md). Both require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`.
+
+`api-keys:read` and `api-keys:write` cover the [API Keys API](../api_and_sdks/api/api_keys_api.md). A key can list, create, re-scope, and revoke its own user's keys; an administrator can also manage other users' keys. A key cannot grant a scope it does not hold, cannot change or revoke a key holding a scope it does not hold, and cannot revoke itself.
 
 ### Scopes and the endpoints they cover
 
@@ -83,7 +85,8 @@ Two scopes are separated from the resources they belong to because they return t
 | `signing:write` | `POST /api/signing-key/regenerate` |
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
 | `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role` |
-| `api-keys:write` | `POST /api/users/{username}/api-keys` |
+| `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
+| `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
 | `reidentify` | `POST /api/reidentify` |
 
 `/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).

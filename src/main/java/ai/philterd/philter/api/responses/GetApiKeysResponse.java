@@ -13,22 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.api.requests;
+package ai.philterd.philter.api.responses;
 
 import java.util.List;
 
-/**
- * Request body for {@code POST /api/api-keys} and {@code POST /api/users/{username}/api-keys}.
- *
- * <p>The scopes are required rather than defaulted. A key minted without the caller saying what it
- * is for would carry whatever the default happened to be, which for a credential is the wrong way
- * round.
- */
-public class CreateApiKeyRequest {
+/** A page of a user's active API keys together with the total, so a client can page through them. */
+public class GetApiKeysResponse {
 
-    private List<String> scopes;
+    private final List<ApiKeyResponse> apiKeys;
+    private final long total;
 
-    public List<String> getScopes() { return scopes; }
-    public void setScopes(final List<String> scopes) { this.scopes = scopes; }
+    public GetApiKeysResponse(final List<ApiKeyResponse> apiKeys, final long total) {
+        this.apiKeys = apiKeys;
+        this.total = total;
+    }
+
+    public List<ApiKeyResponse> getApiKeys() { return apiKeys; }
+
+    public long getTotal() { return total; }
 
 }

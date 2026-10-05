@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
@@ -184,6 +185,23 @@ public abstract class AbstractApiController {
      */
     protected int normalizeLimit(final int limit) {
         return limit <= 0 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
+    }
+
+    /** The calling key, or a 401 when the request carries none that is recognized. */
+    protected ApiKeyEntity requireApiKey(final String authorizationHeader) {
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+        return apiKeyEntity;
+    }
+
+    /** The 403 to send when the calling key's user is not an administrator, or {@code null} when it is. */
+    protected ResponseEntity<Object> refuseNonAdmin(final UserService userService, final ApiKeyEntity apiKeyEntity,
+                                                    final String operation) {
+        final ResponseEntity<GenericResponse> refusal =
+                authorizeAdminOnly(userService, apiKeyEntity.getUserId(), operation);
+        return refusal == null ? null : ResponseEntity.status(refusal.getStatusCode()).body(refusal.getBody());
     }
 
     /** Authorizes an admin-only operation that has no kill switch of its own. */

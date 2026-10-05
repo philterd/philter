@@ -17,10 +17,8 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
-import ai.philterd.philter.api.requests.CreateApiKeyRequest;
 import ai.philterd.philter.api.requests.CreateUserRequest;
 import ai.philterd.philter.api.requests.SetUserRoleRequest;
-import ai.philterd.philter.api.responses.CreatedApiKeyResponse;
 import ai.philterd.philter.api.responses.CreatedUserResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetUsersResponse;
@@ -57,20 +55,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 /**
- * Manages users and creates API keys for them. Every endpoint requires an administrator as well as
+ * Manages users. Every endpoint requires an administrator as well as
  * its scope, except {@code GET /api/users/me}, which any key holding {@code users:read} may call.
  *
  * <p>Users have no password here: they authenticate with API keys, so no endpoint accepts or returns
  * a password, password hash, or MFA secret.
  */
 @Tag(name = "Users",
-        description = "Create and manage users, and create API keys for them. Requires an administrator, "
+        description = "Create and manage users. Requires an administrator, "
                 + "except for reading the calling key's own user.")
 @Controller
 public class UsersApiController extends AbstractApiController {
@@ -115,7 +111,7 @@ public class UsersApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Listing users");
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Listing users");
         if (refusal != null) {
             return refusal;
         }
@@ -180,7 +176,7 @@ public class UsersApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Reading a user");
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Reading a user");
         if (refusal != null) {
             return refusal;
         }
@@ -224,7 +220,7 @@ public class UsersApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Creating a user");
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Creating a user");
         if (refusal != null) {
             return refusal;
         }
@@ -286,7 +282,7 @@ public class UsersApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Setting a user's role");
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Setting a user's role");
         if (refusal != null) {
             return refusal;
         }
@@ -341,7 +337,7 @@ public class UsersApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Deactivating a user");
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Deactivating a user");
         if (refusal != null) {
             return refusal;
         }
@@ -395,7 +391,7 @@ public class UsersApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Reactivating a user");
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Reactivating a user");
         if (refusal != null) {
             return refusal;
         }
@@ -413,114 +409,6 @@ public class UsersApiController extends AbstractApiController {
 
         return ResponseEntity.ok(new UserResponse(user));
 
-    }
-
-    @Operation(
-            summary = "Create an API key for a user.",
-            description = "Mints a key for the named user with the scopes given in the body, and returns its value "
-                    + "once: only the hash is stored, so the response is the one chance to capture it. The scopes "
-                    + "must be a subset of those the calling key holds, so this cannot be used to widen access "
-                    + "beyond the credential making the request. Requires an administrator as well as the scope. "
-                    + "Recorded as an api_key_created audit event naming the calling administrator.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The key was created. The value is returned here and nowhere else.",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = CreatedApiKeyResponse.class))),
-            @ApiResponse(responseCode = "400", description = "No scopes were given, or one of them is not a scope."),
-            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, the caller is not an administrator, or a requested scope is not held by the calling key.",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "404", description = "There is no active user with that username.",
-                    content = @Content)
-    })
-    @RequiresScope(ApiKeyScope.API_KEYS_WRITE)
-    @RequestMapping(value = "/api/users/{username}/api-keys", method = RequestMethod.POST,
-            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<Object> createApiKey(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @RequestAttribute("requestId") String requestId,
-            final @PathVariable("username") String username,
-            final @RequestBody CreateApiKeyRequest request) {
-
-        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
-
-        final ResponseEntity<Object> refusal = refuseNonAdmin(apiKeyEntity, "Creating an API key");
-        if (refusal != null) {
-            return refusal;
-        }
-
-        final Set<String> scopes = requestedScopes(request);
-
-        // Checked before the user is resolved: a caller who could not grant these scopes anyway must
-        // not learn from the status code whether a username exists.
-        final List<String> notHeld = new ArrayList<>();
-        for (final String scope : scopes) {
-            if (!apiKeyEntity.hasScope(ApiKeyScope.fromScope(scope))) {
-                notHeld.add(scope);
-            }
-        }
-        if (!notHeld.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
-                    "The calling API key does not hold: " + String.join(", ", notHeld)
-                            + ". A key cannot grant a scope it does not carry."));
-        }
-
-        final UserEntity user = userService.findByUsername(username);
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-
-        // The principal recorded is the new key and the object is the user it belongs to, as for a key
-        // made in the dashboard; the administrator who asked for it goes in the details, because that
-        // is the part a dashboard-created key does not have.
-        final ServiceResponse response = apiKeyService.createApiKey(requestId, user.getId(),
-                Source.API.getSource(), scopes,
-                "created by user: " + apiKeyEntity.getUserId() + ", api_key: " + apiKeyEntity.getId()
-                        + ", scopes: [" + String.join(", ", scopes) + "]");
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                new CreatedApiKeyResponse(user.getUsername(), response.getMessage(), new ArrayList<>(scopes)));
-
-    }
-
-    /**
-     * The requested scopes, in the order given and without duplicates. An unrecognized name is refused
-     * rather than dropped: a key silently narrower than the one that was asked for fails later, in the
-     * integration it was minted for, rather than here.
-     */
-    private static Set<String> requestedScopes(final CreateApiKeyRequest request) {
-
-        if (request.getScopes() == null || request.getScopes().isEmpty()) {
-            throw new BadRequestException("scopes is required and must name at least one scope. "
-                    + "A key with no scopes can call nothing.");
-        }
-
-        final Set<String> scopes = new LinkedHashSet<>();
-
-        for (final String scope : request.getScopes()) {
-            if (scope == null || ApiKeyScope.fromScope(scope.trim()) == null) {
-                throw new BadRequestException("'" + scope + "' is not a scope.");
-            }
-            scopes.add(scope.trim());
-        }
-
-        return scopes;
-
-    }
-
-    private ApiKeyEntity requireApiKey(final String authorizationHeader) {
-        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
-        if (apiKeyEntity == null) {
-            throw new UnauthorizedException("Unauthorized.");
-        }
-        return apiKeyEntity;
-    }
-
-    private ResponseEntity<Object> refuseNonAdmin(final ApiKeyEntity apiKeyEntity, final String operation) {
-        final ResponseEntity<GenericResponse> refusal =
-                authorizeAdminOnly(userService, apiKeyEntity.getUserId(), operation);
-        return refusal == null ? null : ResponseEntity.status(refusal.getStatusCode()).body(refusal.getBody());
     }
 
     private static String normalizeRole(final String role) {

@@ -17,14 +17,8 @@ package ai.philterd.philter.api.requests;
 
 import java.util.List;
 
-/**
- * Request body for {@code POST /api/api-keys} and {@code POST /api/users/{username}/api-keys}.
- *
- * <p>The scopes are required rather than defaulted. A key minted without the caller saying what it
- * is for would carry whatever the default happened to be, which for a credential is the wrong way
- * round.
- */
-public class CreateApiKeyRequest {
+/** Request body for {@code PUT /api/api-keys/{keyId}/scopes}. The scopes replace the key's current set. */
+public class SetApiKeyScopesRequest {
 
     private List<String> scopes;
 

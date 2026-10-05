@@ -1,8 +1,8 @@
 # Users API
 
-These endpoints create and manage users and create API keys for them, so a deployment can be administered without the dashboard: by automation such as CI, a marketplace image, or an infrastructure-as-code run, or by a separate user interface.
+These endpoints create and manage users, so a deployment can be administered without the dashboard: by automation such as CI, a marketplace image, or an infrastructure-as-code run, or by a separate user interface.
 
-Users have no password. They authenticate with [API keys](../../account/api_keys.md), so no endpoint here accepts or returns a password, password hash, or MFA secret.
+Users have no password. They authenticate with [API keys](../../account/api_keys.md), so no endpoint here accepts or returns a password, password hash, or MFA secret. Create and manage a user's keys with the [API Keys API](api_keys_api.md).
 
 Every endpoint requires an administrator in addition to its [scope](../../account/api_keys.md#scopes), except `GET /api/users/me`, which any key holding `users:read` can call. A request that lacks the scope and a request from a non-administrator are both refused with `403 Forbidden`; the message says which.
 
@@ -147,49 +147,6 @@ Reactivates a deactivated user, restoring its API keys, and returns the user. Re
 | 404 | There is no user with that username. |
 | 409 | The user is already active. |
 
-## Create an API key for a user
-
-```
-POST /api/users/{username}/api-keys
-```
-
-Mints a key for the named user with the scopes given in the body. Requires the `api-keys:write` scope and an administrator.
-
-The requested scopes must be a subset of those the calling key holds. A key cannot grant a scope it does not carry, so the credential making the request bounds every credential it can create.
-
-The key value is returned once, in this response. Philter stores only its SHA-256 hash and cannot recover it afterwards.
-
-```json
-{
-  "scopes": ["redact"]
-}
-```
-
-* `scopes` (required) - At least one [scope](../../account/api_keys.md#scopes). There is no default: a key carries what is asked for here and nothing else.
-
-`201 Created`:
-
-```json
-{
-  "username": "ci",
-  "apiKey": "sk_abcdefghijklmnopqrstuvwxyz012345",
-  "scopes": ["redact"]
-}
-```
-
-| Status | Meaning |
-|--------|---------|
-| 400 | No scopes were given, or one of them is not a scope. |
-| 403 | The key does not hold `api-keys:write`, the caller is not an administrator, or a requested scope is not held by the calling key. The message says which. |
-| 404 | There is no active user with that username. |
-
-```
-curl -k "https://localhost:8080/api/users/ci/api-keys" \
-  -H "Authorization: Bearer sk_abcdefghijklmnopqrstuvwxyz012345" \
-  -H "Content-Type: application/json" \
-  --data '{"scopes":["redact"]}'
-```
-
 ## Errors common to every endpoint
 
 | Status | Meaning |
@@ -205,11 +162,11 @@ curl -k "https://localhost:8080/api/users/ci/api-keys" \
 | `user_role_changed` | A role was set. The principal is the calling administrator, the associated object is the user, and the details name the calling API key. |
 | `user_deactivated` | A user was deactivated. The principal is the calling administrator, the associated object is the user, and the details name the calling API key. |
 | `user_reactivated` | A user was reactivated. The principal is the calling administrator, the associated object is the user, and the details name the calling API key. |
-| `api_key_created` | A key was created. The principal is the key, the associated object is the user it belongs to, and the details name the administrator and the API key that asked for it. |
 
 These are security events, so they cannot be switched off. They are readable through [`GET /api/audit`](audit_api.md). See [Auditing](../../auditing.md).
 
 ## See also
 
 * [API Keys and Authentication](../../account/api_keys.md)
+* [API Keys API](api_keys_api.md)
 * [Audit Log API](audit_api.md)

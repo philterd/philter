@@ -15,34 +15,37 @@
  */
 package ai.philterd.philter.api.responses;
 
+import ai.philterd.philter.data.entities.ApiKeyEntity;
+
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
-/**
- * Response body for a successful key creation. The key value is
- * returned here and nowhere else: only its hash is stored, so this response is the one chance to
- * capture it.
- */
-public class CreatedApiKeyResponse {
+/** An API key as the API lists it. Carries the prefix only, never the key or its hash. */
+public class ApiKeyResponse {
 
     private final String id;
-    private final String username;
-    private final String apiKey;
+    private final String prefix;
     private final List<String> scopes;
+    private final Date created;
+    private final boolean bootstrap;
 
-    public CreatedApiKeyResponse(final String id, final String username, final String apiKey, final List<String> scopes) {
-        this.id = id;
-        this.username = username;
-        this.apiKey = apiKey;
-        this.scopes = scopes;
+    public ApiKeyResponse(final ApiKeyEntity apiKeyEntity) {
+        this.id = apiKeyEntity.getId().toHexString();
+        this.prefix = apiKeyEntity.getApiKeyPrefix();
+        this.scopes = new ArrayList<>(apiKeyEntity.getScopes());
+        this.created = apiKeyEntity.getTimestamp();
+        this.bootstrap = apiKeyEntity.isBootstrap();
     }
 
-    /** The key's ID, used to change its scopes or revoke it. */
     public String getId() { return id; }
 
-    public String getUsername() { return username; }
-
-    public String getApiKey() { return apiKey; }
+    public String getPrefix() { return prefix; }
 
     public List<String> getScopes() { return scopes; }
+
+    public Date getCreated() { return created; }
+
+    public boolean isBootstrap() { return bootstrap; }
 
 }

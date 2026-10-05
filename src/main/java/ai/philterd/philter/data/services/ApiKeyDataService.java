@@ -317,6 +317,14 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     public ServiceResponse updateScopes(final String requestId, final ObjectId callerUserId,
                                         final ApiKeyEntity apiKeyEntity,
                                         final Set<String> scopes, final String source) {
+        return updateScopes(requestId, callerUserId, apiKeyEntity, scopes, source, null);
+    }
+
+    /** As above, appending {@code auditDetails} (such as the acting principal) to the audit event. */
+    public ServiceResponse updateScopes(final String requestId, final ObjectId callerUserId,
+                                        final ApiKeyEntity apiKeyEntity,
+                                        final Set<String> scopes, final String source,
+                                        final String auditDetails) {
 
         final ApiKeyEntity stored = requireOwnedKey(callerUserId, apiKeyEntity, "change the scopes of");
 
@@ -344,7 +352,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_SCOPES_CHANGED, stored.getId(),
                 stored.getId(), source,
-                "from: [" + String.join(", ", previousScopes) + "], to: [" + String.join(", ", stored.getScopes()) + "]");
+                "from: [" + String.join(", ", previousScopes) + "], to: [" + String.join(", ", stored.getScopes()) + "]"
+                        + (auditDetails == null ? "" : ", " + auditDetails));
 
         return ServiceResponse.success();
 
@@ -352,6 +361,13 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     public ServiceResponse deleteByApiKey(final String requestId, final ObjectId callerUserId,
                                           final ApiKeyEntity apiKeyEntity, final String source) {
+        return deleteByApiKey(requestId, callerUserId, apiKeyEntity, source, null);
+    }
+
+    /** As above, recording {@code auditDetails} (such as the acting principal) on the audit event. */
+    public ServiceResponse deleteByApiKey(final String requestId, final ObjectId callerUserId,
+                                          final ApiKeyEntity apiKeyEntity, final String source,
+                                          final String auditDetails) {
 
         final ApiKeyEntity owned = requireOwnedKey(callerUserId, apiKeyEntity, "delete");
 
@@ -378,7 +394,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // cache TTL. The cache is keyed by the key's hash, which the entity carries.
         apiKeyCache.delete(owned.getApiKeyHash());
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, owned.getId(), owned.getId(), source);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, owned.getId(), owned.getId(), source, auditDetails);
 
         return ServiceResponse.success();
 

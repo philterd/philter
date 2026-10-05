@@ -156,7 +156,7 @@ class ApiKeyDataServiceTest {
         // The deletion is stamped with a time so audit entries can be correlated.
         assertNotNull(entity.getDeletedAt());
         verify(mongoCollection).updateOne(any(Bson.class), any(Document.class));
-        verify(auditEventPublisher).auditEvent(eq("requestId"), eq(AuditLogEvent.API_KEY_DELETED), eq(entity.getId()), eq(entity.getId()), eq("source"));
+        verify(auditEventPublisher).auditEvent(eq("requestId"), eq(AuditLogEvent.API_KEY_DELETED), eq(entity.getId()), eq(entity.getId()), eq("source"), isNull());
     }
 
     @Test

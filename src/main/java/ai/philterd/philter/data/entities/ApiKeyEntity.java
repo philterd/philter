@@ -44,6 +44,12 @@ public class ApiKeyEntity extends AbstractEntity {
     // True for a key issued when a person signs in, as opposed to a long-lived key. Changing or resetting
     // the user's password revokes these.
     private boolean session;
+    // Session keys only: the end of the maximum lifetime, the idle timeout, the end of the current idle
+    // window (moved forward by each request), and the last request. All null or zero on long-lived keys.
+    private Date expiresAt;
+    private int idleTimeoutSeconds;
+    private Date idleExpiresAt;
+    private Date lastUsedAt;
 
     /** The scopes this key carries. Empty means the key can call nothing. */
     private Set<String> scopes = new LinkedHashSet<>();
@@ -62,6 +68,10 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setTimestamp(document.getDate("timestamp"));
         apiKeyEntity.setBootstrap(document.getBoolean("bootstrap", false));
         apiKeyEntity.setSession(document.getBoolean("session", false));
+        apiKeyEntity.setExpiresAt(document.getDate("expires_at"));
+        apiKeyEntity.setIdleTimeoutSeconds(document.getInteger("idle_timeout_seconds", 0));
+        apiKeyEntity.setIdleExpiresAt(document.getDate("idle_expires_at"));
+        apiKeyEntity.setLastUsedAt(document.getDate("last_used_at"));
 
         // A key with no scopes recorded can call nothing: scopes are always written at
         // creation, so their absence is a malformed key rather than a legacy one.
@@ -85,6 +95,12 @@ public class ApiKeyEntity extends AbstractEntity {
         document.put("timestamp", timestamp);
         document.put("bootstrap", bootstrap);
         document.put("session", session);
+        if (session) {
+            document.put("expires_at", expiresAt);
+            document.put("idle_timeout_seconds", idleTimeoutSeconds);
+            document.put("idle_expires_at", idleExpiresAt);
+            document.put("last_used_at", lastUsedAt);
+        }
         document.put("scopes", new ArrayList<>(scopes));
         return document;
     }
@@ -167,6 +183,38 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public void setSession(final boolean session) {
         this.session = session;
+    }
+
+    public Date getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(final Date expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public int getIdleTimeoutSeconds() {
+        return idleTimeoutSeconds;
+    }
+
+    public void setIdleTimeoutSeconds(final int idleTimeoutSeconds) {
+        this.idleTimeoutSeconds = idleTimeoutSeconds;
+    }
+
+    public Date getIdleExpiresAt() {
+        return idleExpiresAt;
+    }
+
+    public void setIdleExpiresAt(final Date idleExpiresAt) {
+        this.idleExpiresAt = idleExpiresAt;
+    }
+
+    public Date getLastUsedAt() {
+        return lastUsedAt;
+    }
+
+    public void setLastUsedAt(final Date lastUsedAt) {
+        this.lastUsedAt = lastUsedAt;
     }
 
     public Set<String> getScopes() {

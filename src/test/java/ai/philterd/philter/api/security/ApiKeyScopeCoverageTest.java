@@ -52,6 +52,9 @@ class ApiKeyScopeCoverageTest {
             "SigningApiController.getSigningKey",
             "SigningApiController.getSigningKeyById");
 
+    /** Endpoints any authenticated key may call ({@link AnyApiKey}), because they only end the caller's own access. */
+    private static final Set<String> ANY_KEY = Set.of("ApiKeysApiController.signOut");
+
     @Test
     @DisplayName("Every API handler declares a required scope")
     void everyHandlerDeclaresAScope() throws Exception {
@@ -74,7 +77,13 @@ class ApiKeyScopeCoverageTest {
 
                 checked++;
 
-                if (method.getAnnotation(RequiresScope.class) == null) {
+                final boolean anyKey = method.getAnnotation(AnyApiKey.class) != null;
+                if (anyKey != ANY_KEY.contains(name)) {
+                    fail(name + (anyKey ? " admits any key but is not listed in ANY_KEY"
+                            : " is listed in ANY_KEY but is not annotated @AnyApiKey"));
+                }
+
+                if (method.getAnnotation(RequiresScope.class) == null && !anyKey) {
                     unannotated.add(name);
                 }
 

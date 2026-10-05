@@ -26,9 +26,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,9 +84,6 @@ class UserPasswordsApiIT {
     @Autowired
     private ContextDataService contextDataService;
 
-    @Autowired
-    private MongoClient mongoClient;
-
     private final Gson gson = new Gson();
 
     private HttpClient httpClient;
@@ -118,15 +112,13 @@ class UserPasswordsApiIT {
         return userService.findByUsername(username).getId();
     }
 
-    /** Session keys are only issued by sign-in, which does not exist yet, so the flag is set directly. */
+    /** Sign-in does not exist yet, so session keys are issued directly. */
     private String seedKey(final ObjectId userId, final Set<String> scopes, final boolean session) {
+        if (session) {
+            return apiKeyDataService.createSessionKey("req", userId, scopes, "test", null).getApiKey();
+        }
         final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", scopes);
         assertTrue(response.isSuccessful(), "the API key must be created");
-        if (session) {
-            mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(
-                    Filters.eq("_id", apiKeyDataService.findOneByApiKey(response.getMessage()).getId()),
-                    Updates.set("session", true));
-        }
         return response.getMessage();
     }
 

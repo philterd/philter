@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.responses;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -29,6 +30,10 @@ public class ApiKeyResponse {
     private final List<String> scopes;
     private final Date created;
     private final boolean bootstrap;
+    private final boolean session;
+    private final Date expiresAt;
+    private final Date idleExpiresAt;
+    private final Date lastUsedAt;
 
     public ApiKeyResponse(final ApiKeyEntity apiKeyEntity) {
         this.id = apiKeyEntity.getId().toHexString();
@@ -36,6 +41,10 @@ public class ApiKeyResponse {
         this.scopes = new ArrayList<>(apiKeyEntity.getScopes());
         this.created = apiKeyEntity.getTimestamp();
         this.bootstrap = apiKeyEntity.isBootstrap();
+        this.session = apiKeyEntity.isSession();
+        this.expiresAt = apiKeyEntity.getExpiresAt();
+        this.idleExpiresAt = apiKeyEntity.getIdleExpiresAt();
+        this.lastUsedAt = apiKeyEntity.getLastUsedAt();
     }
 
     public String getId() { return id; }
@@ -47,5 +56,17 @@ public class ApiKeyResponse {
     public Date getCreated() { return created; }
 
     public boolean isBootstrap() { return bootstrap; }
+
+    @Schema(description = "Whether this is a session key, issued when a person signed in, rather than a long-lived key.")
+    public boolean isSession() { return session; }
+
+    @Schema(description = "Session keys only: when the key's maximum lifetime ends. Null for a long-lived key.")
+    public Date getExpiresAt() { return expiresAt; }
+
+    @Schema(description = "Session keys only: when the key expires unless it is used first. Null for a long-lived key.")
+    public Date getIdleExpiresAt() { return idleExpiresAt; }
+
+    @Schema(description = "Session keys only: when the key was last used. Null for a long-lived key.")
+    public Date getLastUsedAt() { return lastUsedAt; }
 
 }

@@ -16,10 +16,13 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.config.SessionKeyConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.model.Source;
+import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
@@ -58,6 +61,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // Authentication looks keys up by hash; listing is scoped to a user and sorted by timestamp.
         ensureIndex(Indexes.ascending("api_key_hash", "deleted"));
         ensureIndex(Indexes.ascending("user_id", "deleted", "timestamp"));
+        // The expiry sweep looks for live session keys.
+        ensureIndex(Indexes.ascending("session", "deleted"));
     }
 
     private String generateApiKey() {
@@ -425,6 +430,106 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
         return affected.size();
 
+    }
+
+    /**
+     * Issues a session key: an API key for a person who signed in, which expires after
+     * {@code SESSION_KEY_IDLE_TIMEOUT_MINUTES} without a request or {@code SESSION_KEY_MAX_LIFETIME_MINUTES}
+     * after issue, whichever comes first. Audited as {@code api_key_created} with {@code auditDetails}.
+     *
+     * @return the stored key, carrying the plaintext in {@link ApiKeyEntity#getApiKey()}, which is shown once.
+     */
+    public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
+                                         final String source, final String auditDetails) {
+
+        final String apiKey = generateApiKey();
+        final Date now = new Date();
+        final int idleSeconds = SessionKeyConfig.idleTimeoutMinutes() * 60;
+        final Date expiresAt = new Date(now.getTime() + SessionKeyConfig.maxLifetimeMinutes() * 60_000L);
+
+        final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
+        apiKeyEntity.setUserId(userId);
+        apiKeyEntity.setApiKey(apiKey);
+        apiKeyEntity.setApiKeyHash(EncryptionService.hashSha256(apiKey));
+        apiKeyEntity.setApiKeyPrefix(apiKey.substring(0, 12) + "...");
+        apiKeyEntity.setDeleted(false);
+        apiKeyEntity.setTimestamp(now);
+        apiKeyEntity.setScopes(scopes);
+        apiKeyEntity.setSession(true);
+        apiKeyEntity.setExpiresAt(expiresAt);
+        apiKeyEntity.setIdleTimeoutSeconds(idleSeconds);
+        apiKeyEntity.setIdleExpiresAt(idleExpiry(now, idleSeconds, expiresAt));
+        apiKeyEntity.setLastUsedAt(now);
+        apiKeyEntity.setId(save(apiKeyEntity));
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyEntity.getId(), userId,
+                source, auditDetails == null ? "session: true" : "session: true, " + auditDetails);
+
+        return apiKeyEntity;
+
+    }
+
+    /**
+     * Records a request made with a session key and reports whether the key is still valid. One
+     * conditional update, against the database rather than a cache, so every node agrees: it matches
+     * only a live session key whose idle window and lifetime have not passed, and moves the idle window
+     * forward from now.
+     */
+    public boolean touchSessionKey(final ApiKeyEntity sessionKey) {
+
+        final Date now = new Date();
+
+        return collection.updateOne(
+                Filters.and(Filters.eq("_id", sessionKey.getId()), Filters.eq("session", true),
+                        Filters.eq("deleted", false), Filters.gt("expires_at", now), Filters.gt("idle_expires_at", now)),
+                new Document("$set", new Document("last_used_at", now)
+                        .append("idle_expires_at", idleExpiry(now, sessionKey.getIdleTimeoutSeconds(), sessionKey.getExpiresAt()))))
+                .getMatchedCount() == 1;
+
+    }
+
+    /**
+     * Marks session keys whose idle window or lifetime has passed as deleted, evicts them, and
+     * audits each as {@code api_key_expired}. Each key is claimed with a conditional update, so when
+     * several nodes sweep at once, each expiry is recorded once.
+     *
+     * @param sessionKeyId one key to check, or {@code null} for every session key.
+     * @return how many keys were expired.
+     */
+    public long expireSessionKeys(final ObjectId sessionKeyId) {
+
+        final Date now = new Date();
+        final org.bson.conversions.Bson due = Filters.and(Filters.eq("session", true), Filters.eq("deleted", false),
+                Filters.or(Filters.lte("expires_at", now), Filters.lte("idle_expires_at", now)));
+
+        long expired = 0;
+        for (final Document document : collection.find(sessionKeyId == null ? due : Filters.and(Filters.eq("_id", sessionKeyId), due))) {
+
+            final ApiKeyEntity key = ApiKeyEntity.fromDocument(document);
+            // The claim repeats the expiry condition: a request on another node may have moved the idle
+            // window forward since the read, and that key is not expired.
+            final boolean claimed = collection.updateOne(Filters.and(Filters.eq("_id", key.getId()), due),
+                    new Document("$set", new Document("deleted", true).append("deleted_at", now))).getMatchedCount() == 1;
+
+            if (claimed) {
+                apiKeyCache.delete(key.getApiKeyHash());
+                final boolean lifetime = key.getExpiresAt() != null && !key.getExpiresAt().after(now);
+                auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.API_KEY_EXPIRED, key.getId(),
+                        key.getUserId(), Source.SYSTEM.getSource(),
+                        lifetime ? "reason: maximum lifetime reached" : "reason: idle timeout");
+                expired++;
+            }
+
+        }
+
+        return expired;
+
+    }
+
+    /** The end of the idle window starting at {@code from}, never later than the key's lifetime. */
+    private static Date idleExpiry(final Date from, final int idleSeconds, final Date expiresAt) {
+        final Date idle = new Date(from.getTime() + idleSeconds * 1000L);
+        return expiresAt != null && expiresAt.before(idle) ? expiresAt : idle;
     }
 
     /**

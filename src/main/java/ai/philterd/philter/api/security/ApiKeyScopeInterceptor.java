@@ -73,6 +73,14 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
 
         final RequiresScope requiresScope = handlerMethod.getMethodAnnotation(RequiresScope.class);
 
+        if (requiresScope == null && handlerMethod.hasMethodAnnotation(AnyApiKey.class)) {
+            if (request.getAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE) == null) {
+                LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), path);
+                return refuse(response, "Unauthorized.");
+            }
+            return true;
+        }
+
         if (requiresScope == null) {
             LOGGER.error("Refusing {} {}: the handler declares no required scope. Annotate it with @RequiresScope.",
                     request.getMethod(), path);

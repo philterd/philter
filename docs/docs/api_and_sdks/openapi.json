@@ -249,6 +249,104 @@
         }
       }
     },
+    "/api/api-keys/current": {
+      "delete": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Sign out: revoke the calling session key.",
+        "description": "Revokes the session key making the request, so a person can sign out without an administrator. Any key may call it, whatever its scopes, because it can only end the caller's own access. A long-lived key cannot revoke itself; revoke it with another key. Recorded as an api_key_deleted audit event with the reason signed out.",
+        "operationId": "signOut",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The session key was revoked."
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The calling key is a long-lived key, not a session key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/api-keys/{keyId}": {
       "delete": {
         "tags": [
@@ -9322,6 +9420,122 @@
         }
       }
     },
+    "/api/users/{username}/session-keys": {
+      "delete": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Revoke all of a user's session keys.",
+        "description": "Revokes every session key the user holds, signing the person out everywhere. Long-lived keys are unaffected. Requires an administrator as well as the scope. Each key is recorded as an api_key_deleted audit event naming the calling administrator and API key. Requires the `api-keys:write` scope.",
+        "operationId": "revokeUserSessionKeys",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many session keys were revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedSessionKeysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/webhook": {
       "delete": {
         "tags": [
@@ -9682,8 +9896,23 @@
             "type": "string",
             "format": "date-time"
           },
+          "expiresAt": {
+            "description": "Session keys only: when the key's maximum lifetime ends. Null for a long-lived key.",
+            "type": "string",
+            "format": "date-time"
+          },
           "id": {
             "type": "string"
+          },
+          "idleExpiresAt": {
+            "description": "Session keys only: when the key expires unless it is used first. Null for a long-lived key.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "description": "Session keys only: when the key was last used. Null for a long-lived key.",
+            "type": "string",
+            "format": "date-time"
           },
           "prefix": {
             "type": "string"
@@ -9693,6 +9922,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "session": {
+            "description": "Whether this is a session key, issued when a person signed in, rather than a long-lived key.",
+            "type": "boolean"
           }
         }
       },
@@ -10426,6 +10659,15 @@
           },
           "error": {
             "type": "string"
+          }
+        }
+      },
+      "RevokedSessionKeysResponse": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

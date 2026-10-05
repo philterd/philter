@@ -176,6 +176,100 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertNull(service.findOneByApiKey(apiKey));
     }
 
+    private void setSessionTimes(final ObjectId keyId, final java.util.Date expiresAt, final java.util.Date idleExpiresAt) {
+        mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(new org.bson.Document("_id", keyId),
+                new org.bson.Document("$set", new org.bson.Document("expires_at", expiresAt).append("idle_expires_at", idleExpiresAt)));
+    }
+
+    @Test
+    void createSessionKeyRecordsItsLimitsFromTheDefaults() {
+        final ObjectId user = new ObjectId();
+        final ApiKeyEntity issued = service.createSessionKey("req", user, Set.of("redact"), "api", null);
+
+        final ApiKeyEntity stored = service.findOneByApiKey(issued.getApiKey());
+        assertTrue(stored.isSession());
+        assertEquals(30 * 60, stored.getIdleTimeoutSeconds());
+        final long lifetime = stored.getExpiresAt().getTime() - stored.getTimestamp().getTime();
+        assertEquals(720L * 60_000, lifetime, "a 12-hour maximum lifetime by default");
+        assertEquals(stored.getTimestamp().getTime() + 30 * 60_000L, stored.getIdleExpiresAt().getTime());
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.API_KEY_CREATED), eq(stored.getId()), eq(user),
+                eq("api"), eq("session: true"));
+    }
+
+    @Test
+    void aRequestMovesTheIdleWindowButNeverPastTheLifetime() throws Exception {
+        final ApiKeyEntity issued = service.createSessionKey("req", new ObjectId(), Set.of("redact"), "api", null);
+        final ApiKeyEntity stored = service.findOneByApiKey(issued.getApiKey());
+        final java.util.Date before = stored.getIdleExpiresAt();
+
+        Thread.sleep(5);
+        assertTrue(service.touchSessionKey(stored));
+        assertTrue(service.findOneByApiKey(issued.getApiKey()).getIdleExpiresAt().after(before));
+
+        // A minute of lifetime left: the idle window stops there rather than running its full 30 minutes.
+        final java.util.Date soon = new java.util.Date(System.currentTimeMillis() + 60_000);
+        setSessionTimes(stored.getId(), soon, soon);
+        final ApiKeyEntity nearEnd = service.findOneByApiKey(issued.getApiKey());
+        assertTrue(service.touchSessionKey(nearEnd));
+        assertEquals(soon, service.findOneByApiKey(issued.getApiKey()).getIdleExpiresAt());
+    }
+
+    @Test
+    void anIdleOrOutlivedSessionKeyIsRejectedAndExpiredOnce() {
+        final ObjectId user = new ObjectId();
+        final ApiKeyEntity idle = service.findOneByApiKey(service.createSessionKey("req", user, Set.of("redact"), "api", null).getApiKey());
+        final ApiKeyEntity outlived = service.findOneByApiKey(service.createSessionKey("req", user, Set.of("redact"), "api", null).getApiKey());
+        final String longLived = service.createApiKey("req", user, "src").getMessage();
+        final java.util.Date past = new java.util.Date(System.currentTimeMillis() - 1000);
+        final java.util.Date future = new java.util.Date(System.currentTimeMillis() + 3_600_000);
+        setSessionTimes(idle.getId(), future, past);
+        setSessionTimes(outlived.getId(), past, past);
+        apiKeyCache.insert(idle.getApiKeyHash(), idle);
+
+        assertFalse(service.touchSessionKey(idle), "past its idle window");
+        assertFalse(service.touchSessionKey(outlived), "past its lifetime");
+
+        assertEquals(2L, service.expireSessionKeys(null));
+        assertEquals(0L, service.expireSessionKeys(null), "a second sweep, as another node would run, records nothing");
+
+        assertTrue(service.findAll(user, 0, 10, true).stream().filter(ApiKeyEntity::isSession).allMatch(ApiKeyEntity::isDeleted));
+        assertNotNull(service.findOneByApiKey(longLived), "a long-lived key never expires");
+        assertFalse(apiKeyCache.containsApiKey(idle.getApiKeyHash()), "an expired key is evicted");
+        verify(auditEventPublisher).auditEvent(any(), eq(AuditLogEvent.API_KEY_EXPIRED), eq(idle.getId()), eq(user),
+                eq("system"), eq("reason: idle timeout"));
+        verify(auditEventPublisher).auditEvent(any(), eq(AuditLogEvent.API_KEY_EXPIRED), eq(outlived.getId()), eq(user),
+                eq("system"), eq("reason: maximum lifetime reached"));
+    }
+
+    @Test
+    void theSweepDoesNotExpireAKeyRefreshedBetweenItsReadAndItsClaim() {
+        final com.mongodb.client.MongoCollection<org.bson.Document> stored =
+                mongoClient.getDatabase("philter").getCollection("api_keys");
+        final com.mongodb.client.MongoCollection<org.bson.Document> racing = org.mockito.Mockito.spy(stored);
+        final com.mongodb.client.MongoClient client = org.mockito.Mockito.mock(com.mongodb.client.MongoClient.class);
+        final com.mongodb.client.MongoDatabase database = org.mockito.Mockito.mock(com.mongodb.client.MongoDatabase.class);
+        org.mockito.Mockito.when(client.getDatabase("philter")).thenReturn(database);
+        org.mockito.Mockito.when(database.getCollection("api_keys")).thenReturn(racing);
+        final ApiKeyDataService sweeper = new ApiKeyDataService(client, auditEventPublisher, apiKeyCache);
+
+        final String plaintext = service.createSessionKey("req", new ObjectId(), Set.of("redact"), "api", null).getApiKey();
+        final ApiKeyEntity key = service.findOneByApiKey(plaintext);
+        final java.util.Date future = new java.util.Date(System.currentTimeMillis() + 3_600_000);
+        setSessionTimes(key.getId(), future, new java.util.Date(System.currentTimeMillis() - 1000));
+
+        // A request on another node, whose clock runs behind, refreshes the key after the sweep has read
+        // it as idle and before the sweep claims it.
+        org.mockito.Mockito.doAnswer(invocation -> {
+            stored.updateOne(new org.bson.Document("_id", key.getId()),
+                    new org.bson.Document("$set", new org.bson.Document("idle_expires_at", future)));
+            return invocation.callRealMethod();
+        }).when(racing).updateOne(any(org.bson.conversions.Bson.class), any(org.bson.conversions.Bson.class));
+
+        assertEquals(0L, sweeper.expireSessionKeys(null), "the refreshed key is no longer due");
+        assertNotNull(service.findOneByApiKey(plaintext), "and is still valid");
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.API_KEY_EXPIRED), any(), any(), any(), any());
+    }
+
     @Test
     void revokeSessionKeysRevokesOnlyThatUsersSessionKeysAndEvictsThem() {
         final ObjectId user = new ObjectId();

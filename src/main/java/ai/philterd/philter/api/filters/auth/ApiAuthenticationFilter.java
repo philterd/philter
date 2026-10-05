@@ -168,6 +168,27 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 }
 
+                // A session key expires, so it is checked against the database on every request rather
+                // than trusted from the cache, and the request moves its idle window forward. Long-lived
+                // keys skip this.
+                if (apiKeyEntity.isSession() && !apiKeyService.touchSessionKey(apiKeyEntity)) {
+
+                    LOGGER.warn("Rejecting request: the session key has expired or was revoked.");
+
+                    apiKeyService.expireSessionKeys(apiKeyEntity.getId());
+                    apiKeyCache.delete(apiKeyEntity.getApiKeyHash());
+
+                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, apiKeyEntity.getUserId(), null,
+                            AbstractApiController.getClientIpAddress(httpRequest), "reason: session key expired or revoked");
+
+                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+                    httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Invalid or missing credentials\"}");
+                    return;
+
+                }
+
                 // Hand the resolved key to the downstream controllers so they do not look it up again.
                 httpRequest.setAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE, apiKeyEntity);
 

@@ -22,6 +22,8 @@ import ai.philterd.philter.api.responses.ApiKeyResponse;
 import ai.philterd.philter.api.responses.CreatedApiKeyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetApiKeysResponse;
+import ai.philterd.philter.api.responses.RevokedSessionKeysResponse;
+import ai.philterd.philter.api.security.AnyApiKey;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
@@ -345,6 +347,81 @@ public class ApiKeysApiController extends AbstractApiController {
         }
 
         return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(
+            summary = "Sign out: revoke the calling session key.",
+            description = "Revokes the session key making the request, so a person can sign out without an "
+                    + "administrator. Any key may call it, whatever its scopes, because it can only end the "
+                    + "caller's own access. A long-lived key cannot revoke itself; revoke it with another key. "
+                    + "Recorded as an api_key_deleted audit event with the reason signed out.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "The session key was revoked.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "409", description = "The calling key is a long-lived key, not a session key.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @AnyApiKey
+    @RequestMapping(value = "/api/api-keys/current", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> signOut(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId) {
+
+        final ApiKeyEntity caller = requireApiKey(authorizationHeader);
+
+        if (!caller.isSession()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "Only a session key can revoke itself. Revoke a long-lived key with another key."));
+        }
+
+        apiKeyService.deleteByApiKey(requestId, caller.getUserId(), caller, Source.API.getSource(), "reason: signed out");
+
+        return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(
+            summary = "Revoke all of a user's session keys.",
+            description = "Revokes every session key the user holds, signing the person out everywhere. Long-lived "
+                    + "keys are unaffected. Requires an administrator as well as the scope. Each key is recorded as "
+                    + "an api_key_deleted audit event naming the calling administrator and API key.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "How many session keys were revoked.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = RevokedSessionKeysResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, or the caller is not an administrator.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content)
+    })
+    @RequiresScope(ApiKeyScope.API_KEYS_WRITE)
+    @RequestMapping(value = "/api/users/{username}/session-keys", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> revokeUserSessionKeys(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @PathVariable("username") String username) {
+
+        final ApiKeyEntity caller = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, caller, "Revoking another user's session keys");
+        if (refusal != null) {
+            return refusal;
+        }
+
+        final UserEntity user = userService.findAnyByUsername(username);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final long revoked = apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(),
+                "reason: revoked " + actingPrincipal(caller));
+
+        return ResponseEntity.ok(new RevokedSessionKeysResponse(revoked));
 
     }
 

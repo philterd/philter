@@ -16,15 +16,21 @@ A key is bounded by the key calling the endpoint:
   "prefix": "sk_AbCdEfGhI...",
   "scopes": ["redact", "policies:read"],
   "created": "2026-10-05T14:03:11.000Z",
-  "bootstrap": false
+  "bootstrap": false,
+  "session": false,
+  "expiresAt": null,
+  "idleExpiresAt": null,
+  "lastUsedAt": null
 }
 ```
 
 * `id` - Used to change the key's scopes or revoke it.
 * `prefix` - The first characters of the key, to tell keys apart. The key itself is never returned after it is created.
 * `bootstrap` - `true` for the key seeded from [`PHILTER_BOOTSTRAP_API_KEY`](../../account/api_keys.md#bootstrapping-an-api-key-for-automation).
-
-Philter does not record when a key was last used.
+* `session` - `true` for a [session key](../../account/api_keys.md#session-keys), issued when a person signs in; `false` for a long-lived key.
+* `expiresAt` - Session keys only: when the key's maximum lifetime ends. `null` for a long-lived key.
+* `idleExpiresAt` - Session keys only: when the key expires unless it is used before then. Each request moves it forward. `null` for a long-lived key.
+* `lastUsedAt` - Session keys only: the last request made with the key. Philter does not record when a long-lived key was last used.
 
 ## List your keys
 
@@ -127,9 +133,41 @@ Revokes the key and returns `204 No Content`. A revoked key cannot be restored. 
 | 404 | There is no active key with that ID that the caller may manage. A non-administrator gets this for another user's key. |
 | 409 | The key is the one making the request. |
 
+## Sign out
+
+```
+DELETE /api/api-keys/current
+```
+
+Revokes the [session key](../../account/api_keys.md#session-keys) making the request and returns `204 No Content`. Any key can call it, whatever its scopes, because it can only end the caller's own access; no administrator is needed.
+
+| Status | Meaning |
+|--------|---------|
+| 409 | The calling key is a long-lived key. A long-lived key cannot revoke itself; revoke it with another key. |
+
+## Revoke a user's session keys
+
+```
+DELETE /api/users/{username}/session-keys
+```
+
+Revokes every session key the user holds, signing the person out everywhere. Long-lived keys are not affected. Requires `api-keys:write` and an administrator.
+
+`200 OK`:
+
+```json
+{
+  "revoked": 2
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| 404 | There is no user with that username. |
+
 ### When revocation and scope changes take effect
 
-Philter caches each resolved key for up to [`API_KEY_CACHE_TTL_SECONDS`](../../caching.md) (default 60). Revoking a key or changing its scopes evicts it from the cache, so the change applies to the next request on the instance that handled it, and on every instance that shares the same [Valkey/Redis cache](../../caching.md). Where instances do not share a cache, or a request on another instance races the change, another instance can accept the old key or scopes until its cache entry expires, at most `API_KEY_CACHE_TTL_SECONDS` later.
+Philter caches each resolved key for up to [`API_KEY_CACHE_TTL_SECONDS`](../../caching.md) (default 60). Revoking a key or changing its scopes evicts it from the cache, so the change applies to the next request on the instance that handled it, and on every instance that shares the same [Valkey/Redis cache](../../caching.md). Where instances do not share a cache, or a request on another instance races the change, another instance can accept the old key or scopes until its cache entry expires, at most `API_KEY_CACHE_TTL_SECONDS` later. Session keys are checked against the database on every request, so their revocation and expiry apply at once on every instance.
 
 ## Errors common to every endpoint
 
@@ -144,7 +182,8 @@ Philter caches each resolved key for up to [`API_KEY_CACHE_TTL_SECONDS`](../../c
 |-------|---------------|
 | `api_key_created` | A key was created. The principal is the new key, the associated object is the user it belongs to, and the details name the calling user and API key and the scopes. |
 | `api_key_scopes_changed` | A key's scopes were changed. The details record the scopes before and after and name the calling user and API key. |
-| `api_key_deleted` | A key was revoked. The details name the calling user and API key. |
+| `api_key_deleted` | A key was revoked. The details name the calling user and API key, or give the reason, such as `signed out` or a password change. |
+| `api_key_expired` | A session key passed its idle timeout or maximum lifetime. The principal is the key, the associated object is its user, and the details give the reason. |
 
 These are security events, so they cannot be switched off. They are readable through [`GET /api/audit`](audit_api.md).
 

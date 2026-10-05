@@ -59,6 +59,9 @@ class ApiKeyScopeAssignmentTest {
             "GET /api/signing-key",
             "GET /api/signing-key/{keyId}");
 
+    /** Callable with any key ({@link AnyApiKey}). Documented under "Endpoints any key can call". */
+    private static final Set<String> ANY_KEY = Set.of("DELETE /api/api-keys/current");
+
     @Test
     @DisplayName("Every handler requires the scope the documentation promises")
     void annotatedScopesMatchTheDocumentedTable() throws Exception {
@@ -92,6 +95,15 @@ class ApiKeyScopeAssignmentTest {
                     + "\nChange whichever is wrong. A widened scope here is a widened API key.");
         }
 
+    }
+
+    @Test
+    @DisplayName("Every endpoint any key can call is documented as such")
+    void anyKeyEndpointsAreDocumented() throws Exception {
+        final String section = Files.readString(SCOPE_TABLE).split("### Endpoints any key can call", 2)[1].split("\n#", 2)[0];
+        for (final String endpoint : ANY_KEY) {
+            assertTrue(section.contains("`" + endpoint + "`"), endpoint + " must be listed under \"Endpoints any key can call\"");
+        }
     }
 
     @Test
@@ -142,6 +154,10 @@ class ApiKeyScopeAssignmentTest {
                 final String endpoint = mapping.method()[0].name() + " " + mapping.value()[0];
                 final RequiresScope required = method.getAnnotation(RequiresScope.class);
 
+                if (required == null && method.getAnnotation(AnyApiKey.class) != null) {
+                    assertTrue(ANY_KEY.contains(endpoint), endpoint + " admits any key but is not listed in ANY_KEY");
+                    continue;
+                }
                 if (required == null) {
                     assertTrue(UNAUTHENTICATED.contains(endpoint),
                             endpoint + " declares no scope and is not a documented unauthenticated endpoint");

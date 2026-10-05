@@ -86,7 +86,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
 | `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password` |
 | `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
-| `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
+| `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`DELETE /api/users/{username}/session-keys`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
 | `settings:read` | `GET /api/settings` |
 | `settings:write` | `PATCH /api/settings` |
 | `webhooks:read` | `GET /api/webhook` |
@@ -95,6 +95,10 @@ Two scopes are separated from the resources they belong to because they return t
 
 `/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).
 
+### Endpoints any key can call
+
+`DELETE /api/api-keys/current` signs out a [session key](#session-keys). Any key can call it, whatever its scopes, because it can only end the caller's own access.
+
 ### Choosing and changing scopes
 
 Scopes are named when a key is created. Change them on an existing key with [`PUT /api/api-keys/{keyId}/scopes`](../api_and_sdks/api/api_keys_api.md#change-a-keys-scopes): the key value itself does not change, so integrations keep working with the same credential, and the change takes effect on the next request.
@@ -102,6 +106,17 @@ Scopes are named when a key is created. Change them on an existing key with [`PU
 A key must have at least one scope. A key with none can call nothing.
 
 Every scope change is recorded in the [audit log](../auditing.md) as a security event, including the scopes the key held before and after, so the record shows whether a key was widened or narrowed.
+
+## Session keys
+
+A session key is an API key issued when a person signs in through a user interface, as opposed to a long-lived key used by automation. Password sign-in is not available yet; session keys are the credential it will issue. A session key works like any other key until it expires:
+
+* **Idle timeout.** It expires after [`SESSION_KEY_IDLE_TIMEOUT_MINUTES`](../settings.md#api-access) (default 30) without a request. Each request starts the timeout again.
+* **Maximum lifetime.** It expires [`SESSION_KEY_MAX_LIFETIME_MINUTES`](../settings.md#api-access) (default 720, 12 hours) after it was issued, however active it is.
+
+Each key records both limits when it is issued, so changing the settings applies to keys issued afterwards. Every request with a session key is checked against the database, not a cache, so a session key that has expired or been revoked is refused on every instance at once, with or without a shared cache. An expired key is revoked and recorded as `api_key_expired` in the [audit log](../auditing.md), whether it is presented again or found by a sweep that runs every minute; until then it is still listed, with its expiry in the past. Expiry is measured with each instance's clock, so keep the instances' clocks synchronized.
+
+The holder signs out with [`DELETE /api/api-keys/current`](../api_and_sdks/api/api_keys_api.md#sign-out). An administrator revokes all of a user's session keys with [`DELETE /api/users/{username}/session-keys`](../api_and_sdks/api/api_keys_api.md#revoke-a-users-session-keys). Setting, changing, or resetting a user's password also revokes them. Key listings mark session keys with `"session": true` and give their expiry. Long-lived keys never expire.
 
 ## Bootstrapping an API key for automation
 

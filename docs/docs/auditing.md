@@ -58,6 +58,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `api_key_created` | An API key was created. The subject is the key and the associated object is the user it belongs to. Created through the [API Keys API](api_and_sdks/api/api_keys_api.md), the detail names the user and the API key that asked for it. |
 | `api_key_deleted` | An API key was deleted (soft-deleted): it is revoked and can no longer authenticate, but the key record is retained so audit entries that reference its id still resolve. Revoked through the [API Keys API](api_and_sdks/api/api_keys_api.md), the detail names the calling user and API key. |
 | `api_key_scopes_changed` | An API key's [scopes](account/api_keys.md#scopes) were changed. The entry records the scopes the key held before and after, so it shows whether the key was widened or narrowed. Changed through the [API Keys API](api_and_sdks/api/api_keys_api.md), the detail also names the calling user and API key. |
+| `api_key_expired` | A [session key](account/api_keys.md#session-keys) passed its idle timeout or maximum lifetime and was revoked. The subject is the key, the associated object is its user, and the detail gives the reason. Recorded once, by whichever instance notices first. |
 
 ### Policies
 

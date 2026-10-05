@@ -2,7 +2,7 @@
 
 Philter 4.0 exposes 70 HTTP operations implemented by 72 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
 
-Send `Authorization: Bearer <api key>` unless the scope is Public. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
+Send `Authorization: Bearer <api key>` unless the scope is Public. "Any key" accepts any valid key, whatever its scopes. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
 JSON responses use `application/json`; dates in API response objects use ISO 8601 strings with an offset. Empty responses have no JSON body. Bad parameter values return 400, unsupported request media types 415, incompatible Accept headers 406, and oversized bodies 413. Inspect the response Content-Type before decoding an error; errors may be plain text or a JSON message object.
 
@@ -10,6 +10,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 |--------|----------|----------------|----------------|-----------|
 | GET | `/api/api-keys` | application/json | `api-keys:read` | [Details](api_keys_api.md) |
 | POST | `/api/api-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
+| DELETE | `/api/api-keys/current` | See reference | Any key | [Details](api_keys_api.md#sign-out) |
 | DELETE | `/api/api-keys/{keyId}` | See reference | `api-keys:write` | [Details](api_keys_api.md) |
 | PUT | `/api/api-keys/{keyId}/scopes` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
 | GET | `/api/audit` | application/json | `audit:read` | [Details](audit_api.md) |
@@ -78,6 +79,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/users/{username}/deactivate` | application/json | `users:write` | [Details](users_api.md) |
 | PUT | `/api/users/{username}/password` | application/json | `users:write` | [Details](users_api.md) |
 | POST | `/api/users/{username}/reactivate` | application/json | `users:write` | [Details](users_api.md) |
+| DELETE | `/api/users/{username}/session-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md#revoke-a-users-session-keys) |
 | PUT | `/api/users/{username}/role` | application/json | `users:write` | [Details](users_api.md) |
 | DELETE | `/api/webhook` | See reference | `webhooks:write` | [Details](webhooks.md) |
 | GET | `/api/webhook` | application/json | `webhooks:read` | [Details](webhooks.md) |

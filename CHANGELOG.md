@@ -56,6 +56,14 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   at next sign-in. Passwords must be 16 characters to 72 UTF-8 bytes. A change or reset revokes the
   user's session keys. The `admin` user's first password is set with the bootstrap API key. Audited
   as `user_password_set`, `user_password_changed`, and `user_password_reset`, never with the password.
+- **Session keys.** API keys for a person who signs in through a user interface, which expire after
+  `SESSION_KEY_IDLE_TIMEOUT_MINUTES` without a request (default 30) or `SESSION_KEY_MAX_LIFETIME_MINUTES`
+  after issue (default 720), and are checked against the database on every request so expiry and
+  revocation apply on every instance at once. The holder signs out with `DELETE /api/api-keys/current`,
+  which any key may call; an administrator revokes a user's session keys with
+  `DELETE /api/users/{username}/session-keys`. Listings mark session keys and give their expiry.
+  Expiry is audited as `api_key_expired`. Long-lived keys are unchanged. Password sign-in, which
+  issues them, is not available yet.
 - **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's
   keys, so a key can be rotated without an administrator; `GET /api/users/{username}/api-keys` lets
   an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does

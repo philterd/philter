@@ -51,6 +51,8 @@ public enum AuditLogEvent {
     API_KEY_CREATED("api_key_created"),
     API_KEY_DELETED("api_key_deleted"),
     API_KEY_SCOPES_CHANGED("api_key_scopes_changed"),
+    // A session key passed its idle timeout or maximum lifetime.
+    API_KEY_EXPIRED("api_key_expired"),
 
     // Authentication outcomes recorded by the API authentication filter.
     API_AUTHENTICATION_FAILED("api_authentication_failed"),

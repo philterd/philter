@@ -81,7 +81,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `ledger:delete` | `DELETE /api/ledger`<br>`DELETE /api/ledger/{documentId}` |
 | `holds:read` | `GET /api/holds`<br>`GET /api/holds/{reference}` |
 | `holds:write` | `DELETE /api/holds/{reference}`<br>`POST /api/holds` |
-| `audit:read` | `GET /api/audit` |
+| `audit:read` | `GET /api/audit`<br>`GET /api/audit/export` |
 | `signing:write` | `POST /api/signing-key/regenerate` |
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
 | `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role` |

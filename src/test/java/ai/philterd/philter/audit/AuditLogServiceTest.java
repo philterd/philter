@@ -167,9 +167,9 @@ class AuditLogServiceTest {
         assertTrue(json.contains("$gte"), json);
         assertTrue(json.contains("$lt"), json);
 
-        // Newest first, capped at the export limit.
+        // Newest first, capped at the export limit; one more is read to tell whether the cap was hit.
         verify(fi).sort(any());
-        verify(fi).limit(AuditLogService.MAX_EXPORT_ROWS);
+        verify(fi).limit(AuditLogService.MAX_EXPORT_ROWS + 1);
     }
 
     // ----- Window validation (enforced in the service) -----

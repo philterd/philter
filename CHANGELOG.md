@@ -64,6 +64,11 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   counted by filter type (`filterTypes`, plus `untyped`) alongside `size`, computed in the database.
   The counts now include entries with UUID replacements, so they sum to `size`; the dashboard's
   counts change to match.
+- **Audit log CSV export over the API.** `GET /api/audit/export` returns the audit log for a date
+  range as CSV, with an optional `zone` for the range and response headers giving the row count,
+  whether the 100,000-event cap truncated it, and the zone used. Each export is audited as
+  `audit_log_exported`. In both the API and dashboard exports, a cell that a spreadsheet would run as
+  a formula is prefixed with an apostrophe.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

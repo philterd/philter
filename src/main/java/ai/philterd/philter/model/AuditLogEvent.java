@@ -97,6 +97,7 @@ public enum AuditLogEvent {
 
     // Reading the audit log is itself audited, like any other evidence access.
     AUDIT_LOG_RETRIEVED("audit_log_retrieved"),
+    AUDIT_LOG_EXPORTED("audit_log_exported"),
 
     // Settings
     SETTINGS_UPDATED("settings_updated"),

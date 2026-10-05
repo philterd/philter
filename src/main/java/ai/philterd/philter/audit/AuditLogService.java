@@ -55,23 +55,43 @@ public class AuditLogService {
     public static final int MAX_EXPORT_WINDOW_DAYS = 30;
 
     private final MongoCollection<Document> collection;
+    private final int maxExportRows;
 
     public AuditLogService(final MongoClient mongoClient) {
+        this(mongoClient, MAX_EXPORT_ROWS);
+    }
+
+    /** With a smaller row cap, so a test can reach it. */
+    AuditLogService(final MongoClient mongoClient, final int maxExportRows) {
         this.collection = mongoClient.getDatabase(DATABASE).getCollection(COLLECTION);
+        this.maxExportRows = maxExportRows;
     }
 
     /**
-     * Renders the audit log for the inclusive date range {@code [fromInclusive, toInclusive]} as CSV
-     * bytes, most recent first, capped at {@link #MAX_EXPORT_ROWS}.
+     * An export: the CSV, how many events it holds, whether {@link #MAX_EXPORT_ROWS} cut it short, and
+     * the time zone its dates were read in.
+     */
+    public record CsvExport(byte[] csv, int rows, boolean truncated, ZoneId zone) {
+    }
+
+    /** As {@link #export}, in the server's time zone, returning only the CSV. */
+    public byte[] exportCsv(final LocalDate fromInclusive, final LocalDate toInclusive) {
+        return export(fromInclusive, toInclusive, null).csv();
+    }
+
+    /**
+     * Renders the audit log for the inclusive date range {@code [fromInclusive, toInclusive]} as CSV,
+     * most recent first, capped at {@link #MAX_EXPORT_ROWS}.
      *
-     * <p>The dates are whole calendar days in the <strong>server's time zone</strong> (the JVM
-     * default); the {@code toInclusive} day is included in full. The range is validated here: it must
-     * have both dates, be ordered, and span no more than {@link #MAX_EXPORT_WINDOW_DAYS} days.
+     * <p>The dates are whole calendar days in {@code zone}, or the server's time zone (the JVM default)
+     * when it is null; the {@code toInclusive} day is included in full. The range must have both dates,
+     * be ordered, and span no more than {@link #MAX_EXPORT_WINDOW_DAYS} days. Timestamps in the CSV are
+     * UTC whatever the zone.
      *
      * @throws IllegalArgumentException if a date is missing, the range is reversed, or it exceeds the
      *                                  maximum window.
      */
-    public byte[] exportCsv(final LocalDate fromInclusive, final LocalDate toInclusive) {
+    public CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone) {
 
         if (fromInclusive == null || toInclusive == null) {
             throw new IllegalArgumentException("Both a from and a to date are required.");
@@ -83,11 +103,10 @@ public class AuditLogService {
             throw new IllegalArgumentException("The date range cannot exceed " + MAX_EXPORT_WINDOW_DAYS + " days.");
         }
 
-        // Whole calendar days in the server's time zone; the 'to' day is included in full by using the
-        // start of the following day as the (exclusive) upper bound.
-        final ZoneId zone = ZoneId.systemDefault();
-        final Date from = Date.from(fromInclusive.atStartOfDay(zone).toInstant());
-        final Date toExclusive = Date.from(toInclusive.plusDays(1).atStartOfDay(zone).toInstant());
+        // The 'to' day is included in full by using the start of the following day as the upper bound.
+        final ZoneId effectiveZone = zone == null ? ZoneId.systemDefault() : zone;
+        final Date from = Date.from(fromInclusive.atStartOfDay(effectiveZone).toInstant());
+        final Date toExclusive = Date.from(toInclusive.plusDays(1).atStartOfDay(effectiveZone).toInstant());
 
         final Bson query = Filters.and(
                 Filters.gte("timestamp", from),
@@ -96,7 +115,14 @@ public class AuditLogService {
         final StringBuilder csv = new StringBuilder();
         csv.append(String.join(",", COLUMNS)).append('\n');
 
-        for (final Document document : collection.find(query).sort(Sorts.descending("timestamp")).limit(MAX_EXPORT_ROWS)) {
+        // One more than the cap is read, only to learn whether the cap cut the export short.
+        int rows = 0;
+        boolean truncated = false;
+        for (final Document document : collection.find(query).sort(Sorts.descending("timestamp")).limit(maxExportRows + 1)) {
+            if (rows == maxExportRows) {
+                truncated = true;
+                break;
+            }
             for (int i = 0; i < COLUMNS.length; i++) {
                 if (i > 0) {
                     csv.append(',');
@@ -104,9 +130,10 @@ public class AuditLogService {
                 csv.append(csvEscape(format(document.get(COLUMNS[i]))));
             }
             csv.append('\n');
+            rows++;
         }
 
-        return csv.toString().getBytes(StandardCharsets.UTF_8);
+        return new CsvExport(csv.toString().getBytes(StandardCharsets.UTF_8), rows, truncated, effectiveZone);
 
     }
 
@@ -167,11 +194,24 @@ public class AuditLogService {
     }
 
     /** Quotes a CSV field when it contains a comma, quote, or newline, doubling embedded quotes. */
-    private static String csvEscape(final String value) {
+    /**
+     * Writes a value as one CSV cell. A value a spreadsheet would run as a formula is prefixed with an
+     * apostrophe first: the client IP column comes from a request header, so a caller controls it.
+     */
+    private static String csvEscape(final String raw) {
+        final String value = startsLikeAFormula(raw) ? "'" + raw : raw;
         if (value.indexOf(',') < 0 && value.indexOf('"') < 0 && value.indexOf('\n') < 0 && value.indexOf('\r') < 0) {
             return value;
         }
         return '"' + value.replace("\"", "\"\"") + '"';
+    }
+
+    private static boolean startsLikeAFormula(final String value) {
+        if (value.isEmpty()) {
+            return false;
+        }
+        final char first = value.charAt(0);
+        return first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r';
     }
 
 }

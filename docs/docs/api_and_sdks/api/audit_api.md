@@ -53,7 +53,47 @@ curl -k -H "Authorization: Bearer <token>" \
 
 Every field except `timestamp` and `event` may be absent for an event that did not record it. `apiKeyId` is the acting principal, `associatedObject` the entity the action concerned, and `details` a short, non-sensitive description. Audit events never carry the redacted values themselves; see [Auditing](../../auditing.md) for the full field reference and the list of events.
 
+## Export audit events as CSV
+
+```
+GET /api/audit/export?from=2026-10-01&to=2026-10-05&zone=UTC
+```
+
+Returns the audit log for a range of whole days as a CSV file (`text/csv`), newest first, with the same columns as the dashboard export. Requires an administrator and the `audit:read` scope. Each export records an `audit_log_exported` event.
+
+### Query Parameters
+
+* `from` (required) - The first day, as `YYYY-MM-DD`. Included in full.
+* `to` (required) - The last day, as `YYYY-MM-DD`. Included in full. It may be at most 30 days after `from`, so an export covers at most 31 days.
+* `zone` (optional) - The IANA time zone the days are read in, such as `UTC` or `America/New_York`. Defaults to the server's time zone.
+
+Timestamps in the CSV are UTC (ISO-8601), whatever `zone` is. A value beginning with `=`, `+`, `-`, `@`, a tab, or a carriage return is prefixed with an apostrophe so a spreadsheet does not run it as a formula; see [Exporting the audit log](../../auditing.md#exporting-the-audit-log).
+
+### Response headers
+
+| Header | Value |
+|--------|-------|
+| `X-Philter-Export-Rows` | The number of events in the file. |
+| `X-Philter-Export-Truncated` | `true` when more events matched than the 100,000-event cap, so the file holds only the newest 100,000. Narrow the range and export again to get the rest. |
+| `X-Philter-Export-Time-Zone` | The time zone `from` and `to` were read in. |
+
+```
+curl -k -o audit.csv -D - \
+  "https://localhost:8080/api/audit/export?from=2026-10-01&to=2026-10-05&zone=UTC" \
+  -H "Authorization: Bearer <administrator key>"
+```
+
+A `400`, or a `403` because the caller is not an administrator, is returned as a plain-text message. A `401`, or a `403` because the key lacks `audit:read`, is a JSON object, as on every endpoint.
+
+| Status | When |
+|--------|------|
+| `400 Bad Request` | `from` or `to` is missing or not `YYYY-MM-DD`, `from` is after `to`, `to` is more than 30 days after `from`, or `zone` is not a time zone. |
+| `401 Unauthorized` | The `Authorization` header is absent or the API key is not recognized. |
+| `403 Forbidden` | The key does not hold `audit:read`, or the caller is not an administrator. |
+
 ## Errors
+
+The errors returned by `GET /api/audit`:
 
 | Status | When |
 |--------|------|

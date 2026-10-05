@@ -153,15 +153,16 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 | Event | When it is recorded |
 |-------|---------------------|
 | `audit_log_retrieved` | The audit log was read through `GET /api/audit`. The `details` field records the filters applied and how many events matched. Reading the log is audited like any other access to evidence. |
+| `audit_log_exported` | The audit log was exported as CSV through `GET /api/audit/export`. The `details` field records the date range, time zone, how many events were exported, whether the export was truncated, and the calling API key. |
 
 ## Exporting the audit log
 
-Administrators can export the audit log as a CSV file from the dashboard: open **Admin → Audit Log**, choose a date range, and click **Download Audit Log (CSV)**. This is an admin-only feature.
+Administrators can export the audit log as a CSV file with [`GET /api/audit/export`](api_and_sdks/api/audit_api.md#export-audit-events-as-csv), or from the dashboard: open **Admin → Audit Log**, choose a date range, and click **Download Audit Log (CSV)**. Both require an administrator.
 
-* **Date range with a 30-day limit.** Pick a **From** and a **To** date. The range may span at most **30 days**; a wider range (or a From date after the To date) disables the download and shows an error. The default range is the last 30 days.
-* **Server time zone.** The **From** and **To** values are whole calendar days interpreted in the **server's time zone** (the JVM default), not the browser's. The **To** day is included in full, so the export covers `From 00:00` up to, but not including, the start of the day after `To`, in server-local time.
-* **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, and `details` (the same fields described above; timestamps are written in ISO-8601). As with the stored events, no sensitive values are included.
-* **Size cap.** An export contains at most 100,000 events within the selected range (newest first). Narrow the range if you need to be sure you have captured everything in a busy period.
+* **Date range with a 30-day limit.** Pick a **From** and a **To** date. The **To** date may be at most **30 days** after the **From** date; a wider range (or a From date after the To date) disables the download and shows an error. The default range is the last 30 days.
+* **Time zone.** The **From** and **To** values are whole calendar days. The dashboard reads them in the **server's time zone** (the JVM default), not the browser's. The API reads them in the time zone given by its `zone` parameter, defaulting to the server's, and reports the zone it used. The **To** day is included in full, so the export covers `From 00:00` up to, but not including, the start of the day after `To`, in that time zone.
+* **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, and `details` (the same fields described above; timestamps are written in ISO-8601, in UTC). As with the stored events, no sensitive values are included. A value beginning with `=`, `+`, `-`, `@`, a tab, or a carriage return is written with a leading apostrophe, so a spreadsheet shows it as text instead of running it as a formula; the client IP address comes from a request header, so a caller can choose it.
+* **Size cap.** An export contains at most 100,000 events within the selected range (newest first). The API's `X-Philter-Export-Truncated` response header is `true` when more events matched; narrow the range and export again to get the rest. The dashboard does not report this, so narrow the range if you need to be sure you have captured everything in a busy period.
 
 ## Reading the audit log over the API
 

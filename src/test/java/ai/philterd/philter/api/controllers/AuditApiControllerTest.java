@@ -31,6 +31,7 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -311,6 +312,88 @@ class AuditApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"total\":5000000000"), body);
+    }
+
+    // ----- CSV export -----
+
+    private static AuditLogService.CsvExport csv(final int rows, final boolean truncated, final String zone) {
+        return new AuditLogService.CsvExport("timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                rows, truncated, java.time.ZoneId.of(zone));
+    }
+
+    @Test
+    @DisplayName("An administrator exports CSV, with the row count, truncation, and zone in headers, and it is audited")
+    void exportsCsv() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-05"),
+                java.time.ZoneId.of("America/New_York"))).thenReturn(csv(42, true, "America/New_York"));
+
+        final var response = perform("/api/audit/export?from=2026-10-01&to=2026-10-05&zone=America/New_York")
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        assertTrue(response.getContentType().startsWith("text/csv"), response.getContentType());
+        assertEquals("timestamp,event\n", response.getContentAsString());
+        assertEquals("42", response.getHeader(AuditApiController.EXPORT_ROWS_HEADER));
+        assertEquals("true", response.getHeader(AuditApiController.EXPORT_TRUNCATED_HEADER));
+        assertEquals("America/New_York", response.getHeader(AuditApiController.EXPORT_TIME_ZONE_HEADER));
+        assertTrue(response.getHeader("Content-Disposition").contains("audit-2026-10-01-to-2026-10-05.csv"));
+
+        verify(auditEventPublisher).auditEvent(eq("req-1"), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), eq(userId), isNull(),
+                any(), contains("rows: 42, truncated: true"));
+    }
+
+    @Test
+    @DisplayName("Without a zone the service is asked for the server's, and the header names it")
+    void exportDefaultsTheZone() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(any(), any(), isNull())).thenReturn(csv(0, false, "UTC"));
+
+        final var response = perform("/api/audit/export?from=2026-10-01&to=2026-10-01")
+                .andExpect(status().isOk()).andReturn().getResponse();
+
+        assertEquals("false", response.getHeader(AuditApiController.EXPORT_TRUNCATED_HEADER));
+        assertEquals("UTC", response.getHeader(AuditApiController.EXPORT_TIME_ZONE_HEADER));
+    }
+
+    @Test
+    @DisplayName("A non-administrator cannot export, and nothing is read or audited")
+    void exportRefusesANonAdministrator() throws Exception {
+        makeCallerRegularUser();
+
+        perform("/api/audit/export?from=2026-10-01&to=2026-10-01").andExpect(status().isForbidden());
+
+        verify(auditLogService, never()).export(any(), any(), any());
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Missing or malformed dates and unknown zones are a 400 with the reason")
+    void exportRejectsBadParameters() throws Exception {
+        makeCallerAdmin();
+
+        assertTrue(perform("/api/audit/export?to=2026-10-01").andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString().contains("from is required"));
+        assertTrue(perform("/api/audit/export?from=10/01/2026&to=2026-10-01").andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString().contains("YYYY-MM-DD"));
+        assertTrue(perform("/api/audit/export?from=2026-10-01&to=2026-10-01&zone=Mars/Olympus").andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString().contains("time zone"));
+
+        verify(auditLogService, never()).export(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("The service's own range validation comes back as a 400 with its message")
+    void exportReportsTheServicesRangeValidation() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("The date range cannot exceed 30 days."));
+
+        final String body = perform("/api/audit/export?from=2026-01-01&to=2026-10-01")
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("cannot exceed 30 days"), body);
+        verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), any(), any(), any(), any());
     }
 
 }

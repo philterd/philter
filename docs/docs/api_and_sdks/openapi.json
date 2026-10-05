@@ -661,6 +661,135 @@
         }
       }
     },
+    "/api/audit/export": {
+      "get": {
+        "tags": [
+          "Audit Log"
+        ],
+        "summary": "Export the audit log as CSV.",
+        "description": "Returns the audit log for a range of whole days as CSV, most recent first, with the same columns as the dashboard export. from and to are dates (YYYY-MM-DD), both inclusive, read in zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when zone is omitted. to may be at most 30 days after from. At most 100000 events are returned; the X-Philter-Export-Truncated header is true when more matched. Timestamps in the CSV are UTC. The export is itself audited. Requires an administrator as well as the audit:read scope. Requires the `audit:read` scope.",
+        "operationId": "exportAuditLog",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "zone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The CSV. Headers give the row count, whether it was truncated, and the time zone used.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, or the zone is not a time zone. The body says which.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold audit:read, or the caller is not an administrator.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/contexts": {
       "get": {
         "tags": [

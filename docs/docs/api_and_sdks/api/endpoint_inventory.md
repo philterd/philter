@@ -1,6 +1,6 @@
 # Endpoint inventory
 
-Philter 4.0 exposes 64 HTTP operations implemented by 66 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
+Philter 4.0 exposes 65 HTTP operations implemented by 67 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
 
 Send `Authorization: Bearer <api key>` unless the scope is Public. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
@@ -13,6 +13,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | DELETE | `/api/api-keys/{keyId}` | See reference | `api-keys:write` | [Details](api_keys_api.md) |
 | PUT | `/api/api-keys/{keyId}/scopes` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
 | GET | `/api/audit` | application/json | `audit:read` | [Details](audit_api.md) |
+| GET | `/api/audit/export` | text/csv | `audit:read` | [Details](audit_api.md) |
 | GET | `/api/contexts` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | POST | `/api/contexts` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | DELETE | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |

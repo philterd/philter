@@ -228,4 +228,52 @@ class AuditApiIT {
         assertEquals(400, get(baseUrl + "/api/audit?event=not_an_event", adminKey).statusCode());
     }
 
+    @Test
+    @DisplayName("An administrator exports today's events as CSV, and the export is itself audited")
+    void exportsCsvOverHttp() throws Exception {
+
+        final String today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+        final HttpResponse<String> export = get(baseUrl + "/api/audit/export?from=" + today + "&to=" + today
+                + "&zone=UTC", adminKey);
+
+        assertEquals(200, export.statusCode(), export.body());
+        assertTrue(export.headers().firstValue("Content-Type").orElse("").startsWith("text/csv"), export.headers().toString());
+        assertTrue(export.body().startsWith(
+                "timestamp,event,request_id,api_key_id,associated_object,client_ip_address,details\n"), export.body());
+        // The users created for this test were created today, so the export has rows.
+        assertTrue(Integer.parseInt(export.headers().firstValue("X-Philter-Export-Rows").orElseThrow()) > 0);
+        assertEquals("false", export.headers().firstValue("X-Philter-Export-Truncated").orElseThrow());
+        assertEquals("UTC", export.headers().firstValue("X-Philter-Export-Time-Zone").orElseThrow());
+
+        final HttpResponse<String> audit = get(baseUrl + "/api/audit?event=audit_log_exported", adminKey);
+        assertTrue(audit.body().contains("\"event\":\"audit_log_exported\""), audit.body());
+        assertTrue(audit.body().contains("zone: UTC"), audit.body());
+
+    }
+
+    @Test
+    @DisplayName("Export errors come back readable, and only an administrator with audit:read may export")
+    void exportRefusals() throws Exception {
+
+        final String today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+
+        final HttpResponse<String> badZone = get(baseUrl + "/api/audit/export?from=" + today + "&to=" + today
+                + "&zone=Mars/Olympus", adminKey);
+        assertEquals(400, badZone.statusCode());
+        assertTrue(badZone.body().contains("time zone"), badZone.body());
+
+        final HttpResponse<String> tooLong = get(baseUrl + "/api/audit/export?from=2026-01-01&to=2026-03-01", adminKey);
+        assertEquals(400, tooLong.statusCode());
+        assertTrue(tooLong.body().contains("cannot exceed"), tooLong.body());
+
+        final String regular = createKey(userId(createUser("audit-regular-", "user")), ApiKeyScope.all());
+        assertEquals(403, get(baseUrl + "/api/audit/export?from=" + today + "&to=" + today, regular).statusCode());
+
+        final String noScope = createKey(adminUserId, Set.of(ApiKeyScope.REDACT.getScope()));
+        final HttpResponse<String> scopeRefused = get(baseUrl + "/api/audit/export?from=" + today + "&to=" + today, noScope);
+        assertEquals(403, scopeRefused.statusCode());
+        assertTrue(scopeRefused.body().contains("audit:read"), scopeRefused.body());
+
+    }
+
 }

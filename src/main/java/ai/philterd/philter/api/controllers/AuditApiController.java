@@ -50,6 +50,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -203,6 +206,96 @@ public class AuditApiController extends AbstractApiController {
 
     private static String asString(final Object value) {
         return value == null ? null : value.toString();
+    }
+
+    /** Response header saying how many events the export holds. */
+    public static final String EXPORT_ROWS_HEADER = "X-Philter-Export-Rows";
+
+    /** Response header saying whether the row cap cut the export short. */
+    public static final String EXPORT_TRUNCATED_HEADER = "X-Philter-Export-Truncated";
+
+    /** Response header naming the time zone the from and to dates were read in. */
+    public static final String EXPORT_TIME_ZONE_HEADER = "X-Philter-Export-Time-Zone";
+
+    @Operation(summary = "Export the audit log as CSV.",
+            description = "Returns the audit log for a range of whole days as CSV, most recent first, with the same "
+                    + "columns as the dashboard export. from and to are dates (YYYY-MM-DD), both inclusive, read in "
+                    + "zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when "
+                    + "zone is omitted. to may be at most " + AuditLogService.MAX_EXPORT_WINDOW_DAYS
+                    + " days after from. At most " + AuditLogService.MAX_EXPORT_ROWS + " events are returned; the "
+                    + EXPORT_TRUNCATED_HEADER + " header is true when more matched. Timestamps in the CSV are UTC. "
+                    + "The export is itself audited. Requires an administrator as well as the audit:read scope.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The CSV. Headers give the row count, whether it was truncated, and the time zone used."),
+            @ApiResponse(responseCode = "400", description = "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, or the zone is not a time zone. The body says which."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold audit:read, or the caller is not an administrator.")
+    })
+    @RequiresScope(ApiKeyScope.AUDIT_READ)
+    @RequestMapping(value = "/api/audit/export", method = RequestMethod.GET, produces = "text/csv")
+    public ResponseEntity<Object> exportAuditLog(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam(value = "from", required = false) String from,
+            final @RequestParam(value = "to", required = false) String to,
+            final @RequestParam(value = "zone", required = false) String zone,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<GenericResponse> refusal =
+                authorizeAdminOnly(userService, apiKeyEntity.getUserId(), "Exporting the audit log");
+        if (refusal != null) {
+            return ResponseEntity.status(refusal.getStatusCode()).body(refusal.getBody().getMessage());
+        }
+
+        final LocalDate fromDate = parseDate(from, "from");
+        final LocalDate toDate = parseDate(to, "to");
+
+        final AuditLogService.CsvExport export;
+        try {
+            export = auditLogService.export(fromDate, toDate, parseZone(zone));
+        } catch (final IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.AUDIT_LOG_EXPORTED, apiKeyEntity.getUserId(), null,
+                getClientIpAddress(httpServletRequest),
+                "from: " + fromDate + ", to: " + toDate + ", zone: " + export.zone().getId()
+                        + ", rows: " + export.rows() + ", truncated: " + export.truncated()
+                        + ", api_key: " + apiKeyEntity.getId());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-" + fromDate + "-to-" + toDate + ".csv\"")
+                .header(EXPORT_ROWS_HEADER, String.valueOf(export.rows()))
+                .header(EXPORT_TRUNCATED_HEADER, String.valueOf(export.truncated()))
+                .header(EXPORT_TIME_ZONE_HEADER, export.zone().getId())
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(export.csv());
+
+    }
+
+    private static LocalDate parseDate(final String value, final String name) {
+        if (value == null || value.isBlank()) {
+            throw new BadRequestException(name + " is required, as a date (YYYY-MM-DD).");
+        }
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (final DateTimeParseException ex) {
+            throw new BadRequestException(name + " must be a date (YYYY-MM-DD): '" + value + "'.");
+        }
+    }
+
+    /** The named zone, or {@code null} for the server's. */
+    private static ZoneId parseZone(final String zone) {
+        if (zone == null || zone.isBlank()) {
+            return null;
+        }
+        try {
+            return ZoneId.of(zone.trim());
+        } catch (final DateTimeException ex) {
+            throw new BadRequestException("zone must be a time zone, such as UTC or America/New_York: '" + zone + "'.");
+        }
     }
 
 }

@@ -240,9 +240,12 @@ class AuditApiIT {
         assertTrue(export.headers().firstValue("Content-Type").orElse("").startsWith("text/csv"), export.headers().toString());
         assertTrue(export.body().startsWith(
                 "timestamp,event,request_id,api_key_id,associated_object,client_ip_address,details\n"), export.body());
-        // The users created for this test were created today, so the export has rows.
-        assertTrue(Integer.parseInt(export.headers().firstValue("X-Philter-Export-Rows").orElseThrow()) > 0);
-        assertEquals("false", export.headers().firstValue("X-Philter-Export-Truncated").orElseThrow());
+        // The users created for this test were created today, so the export has rows: at most the default
+        // page of 100, and a next offset exactly when other tests' events today filled more than one page.
+        final int rows = Integer.parseInt(export.headers().firstValue("X-Philter-Export-Rows").orElseThrow());
+        assertTrue(rows > 0 && rows <= 100, "rows: " + rows);
+        final boolean truncated = Boolean.parseBoolean(export.headers().firstValue("X-Philter-Export-Truncated").orElseThrow());
+        assertEquals(truncated, export.headers().firstValue("X-Philter-Export-Next-Offset").isPresent());
         assertEquals("UTC", export.headers().firstValue("X-Philter-Export-Time-Zone").orElseThrow());
 
         final HttpResponse<String> audit = get(baseUrl + "/api/audit?event=audit_log_exported", adminKey);

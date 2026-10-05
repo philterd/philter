@@ -52,6 +52,8 @@ public class MongoDBAuditEventPublisher implements AuditEventPublisher {
         // idempotent and must never prevent auditing (or startup) from working.
         try {
             collection.createIndex(Indexes.descending("timestamp"));
+            // The CSV export pages in (timestamp, _id) order; without this it would sort in memory.
+            collection.createIndex(Indexes.descending("timestamp", "_id"));
             collection.createIndex(Indexes.ascending("event", "timestamp"));
         } catch (final Exception ex) {
             LOGGER.warn("Unable to create indexes on the audit_events collection: {}", ex.getMessage());

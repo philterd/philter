@@ -214,6 +214,15 @@ public class AuditApiController extends AbstractApiController {
     /** Response header saying whether the row cap cut the export short. */
     public static final String EXPORT_TRUNCATED_HEADER = "X-Philter-Export-Truncated";
 
+    /** Events per export page when the caller gives no limit. */
+    public static final int EXPORT_DEFAULT_LIMIT = 100;
+
+    /** The most events one export page may hold. */
+    public static final int EXPORT_MAX_LIMIT = 1000;
+
+    /** Response header giving the offset of the next page, present only when the export was truncated. */
+    public static final String EXPORT_NEXT_OFFSET_HEADER = "X-Philter-Export-Next-Offset";
+
     /** Response header naming the time zone the from and to dates were read in. */
     public static final String EXPORT_TIME_ZONE_HEADER = "X-Philter-Export-Time-Zone";
 
@@ -222,12 +231,16 @@ public class AuditApiController extends AbstractApiController {
                     + "columns as the dashboard export. from and to are dates (YYYY-MM-DD), both inclusive, read in "
                     + "zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when "
                     + "zone is omitted. to may be at most " + AuditLogService.MAX_EXPORT_WINDOW_DAYS
-                    + " days after from. At most " + AuditLogService.MAX_EXPORT_ROWS + " events are returned; the "
-                    + EXPORT_TRUNCATED_HEADER + " header is true when more matched. Timestamps in the CSV are UTC. "
+                    + " days after from. Returns up to limit events (default " + EXPORT_DEFAULT_LIMIT + ", at most "
+                    + EXPORT_MAX_LIMIT + "; a larger value is treated as the maximum, and zero or less as the default), starting "
+                    + "offset events into the range; the " + EXPORT_TRUNCATED_HEADER + " header is true when more remain, and "
+                    + EXPORT_NEXT_OFFSET_HEADER + " gives the offset to request next. Events are ordered by timestamp "
+                    + "and then id, so paging a range that is no longer receiving events returns each exactly once; a "
+                    + "range that includes the current day can repeat events across pages. Timestamps in the CSV are UTC. "
                     + "The export is itself audited. Requires an administrator as well as the audit:read scope.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The CSV. Headers give the row count, whether it was truncated, and the time zone used."),
-            @ApiResponse(responseCode = "400", description = "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, or the zone is not a time zone. The body says which."),
+            @ApiResponse(responseCode = "400", description = "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, the zone is not a time zone, offset is negative or not a number, or limit is not a number. The body says which."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold audit:read, or the caller is not an administrator.")
     })
@@ -238,6 +251,8 @@ public class AuditApiController extends AbstractApiController {
             final @RequestParam(value = "from", required = false) String from,
             final @RequestParam(value = "to", required = false) String to,
             final @RequestParam(value = "zone", required = false) String zone,
+            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "limit", defaultValue = "" + EXPORT_DEFAULT_LIMIT) int limit,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -254,7 +269,7 @@ public class AuditApiController extends AbstractApiController {
 
         final AuditLogService.CsvExport export;
         try {
-            export = auditLogService.export(fromDate, toDate, parseZone(zone));
+            export = auditLogService.export(fromDate, toDate, parseZone(zone), offset, exportLimit(limit));
         } catch (final IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
         }
@@ -262,10 +277,15 @@ public class AuditApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.AUDIT_LOG_EXPORTED, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest),
                 "from: " + fromDate + ", to: " + toDate + ", zone: " + export.zone().getId()
-                        + ", rows: " + export.rows() + ", truncated: " + export.truncated()
+                        + ", offset: " + export.offset() + ", limit: " + exportLimit(limit) + ", rows: " + export.rows() + ", truncated: " + export.truncated()
                         + ", api_key: " + apiKeyEntity.getId());
 
-        return ResponseEntity.ok()
+        final ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+        if (export.truncated()) {
+            response.header(EXPORT_NEXT_OFFSET_HEADER, String.valueOf(export.nextOffset()));
+        }
+
+        return response
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-" + fromDate + "-to-" + toDate + ".csv\"")
                 .header(EXPORT_ROWS_HEADER, String.valueOf(export.rows()))
                 .header(EXPORT_TRUNCATED_HEADER, String.valueOf(export.truncated()))
@@ -273,6 +293,11 @@ public class AuditApiController extends AbstractApiController {
                 .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
                 .body(export.csv());
 
+    }
+
+    /** Clamps a page size as the other listings do: the default when not positive, the maximum above it. */
+    private static int exportLimit(final int limit) {
+        return limit <= 0 ? EXPORT_DEFAULT_LIMIT : Math.min(limit, EXPORT_MAX_LIMIT);
     }
 
     private static LocalDate parseDate(final String value, final String name) {

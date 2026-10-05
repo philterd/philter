@@ -65,10 +65,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   The counts now include entries with UUID replacements, so they sum to `size`; the dashboard's
   counts change to match.
 - **Audit log CSV export over the API.** `GET /api/audit/export` returns the audit log for a date
-  range as CSV, with an optional `zone` for the range and response headers giving the row count,
-  whether the 100,000-event cap truncated it, and the zone used. Each export is audited as
-  `audit_log_exported`. In both the API and dashboard exports, a cell that a spreadsheet would run as
-  a formula is prefixed with an apostrophe.
+  range as CSV, one page at a time (`limit`, default 100, at most 1,000; `offset`), with an optional
+  `zone` for the range and response headers giving the row count, whether more remain, the next
+  offset, and the zone used. Each export is audited as `audit_log_exported`. In both the API and
+  dashboard exports, a cell that a spreadsheet would run as a formula is prefixed with an apostrophe.
 - **Listings across all users.** `all_users=true` on `GET /api/policies`, `/api/contexts`,
   `/api/lists`, `/api/ledger`, and `/api/holds` lists every user's resources, each naming its owner,
   for administrators with `ADMIN_CROSS_USER_ACCESS_ENABLED`. Per-user responses are unchanged.

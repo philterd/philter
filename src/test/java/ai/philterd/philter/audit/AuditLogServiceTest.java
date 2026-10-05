@@ -68,11 +68,12 @@ class AuditLogServiceTest {
         auditLogService = new AuditLogService(mongoClient);
     }
 
-    /** Stubs the find().sort().limit() chain to iterate the given documents; returns the iterable mock. */
+    /** Stubs the find().sort().skip().limit() chain to iterate the given documents; returns the iterable mock. */
     private FindIterable<Document> stubFind(final List<Document> documents) {
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(collection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
+        lenient().when(findIterable.skip(anyInt())).thenReturn(findIterable);
         when(findIterable.limit(anyInt())).thenReturn(findIterable);
         final Iterator<Document> it = documents.iterator();
         final MongoCursor<Document> cursor = mock(MongoCursor.class);
@@ -167,8 +168,11 @@ class AuditLogServiceTest {
         assertTrue(json.contains("$gte"), json);
         assertTrue(json.contains("$lt"), json);
 
-        // Newest first, capped at the export limit; one more is read to tell whether the cap was hit.
-        verify(fi).sort(any());
+        // Newest first, then by id so the order is total and pages never skip or repeat; capped at the
+        // export limit, with one more read to tell whether the cap was hit.
+        verify(fi).sort(org.mockito.ArgumentMatchers.argThat(sort ->
+                sort.toBsonDocument().toJson().equals("{\"timestamp\": -1, \"_id\": -1}")));
+        verify(fi).skip(0);
         verify(fi).limit(AuditLogService.MAX_EXPORT_ROWS + 1);
     }
 

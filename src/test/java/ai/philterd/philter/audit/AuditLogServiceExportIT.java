@@ -24,10 +24,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The CSV export against a real (in-memory) MongoDB: the day boundaries, the zone, and the row cap. */
@@ -67,24 +71,23 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
     }
 
     @Test
-    @DisplayName("The cap keeps the newest events and says it cut the export short")
+    @DisplayName("The limit keeps the newest events and says it cut the export short")
     void reportsTruncation() {
         event("oldest", "2026-10-01T01:00:00Z");
         event("middle", "2026-10-01T02:00:00Z");
         event("newest", "2026-10-01T03:00:00Z");
 
-        final AuditLogService service = new AuditLogService(mongoClient, 2);
-        final AuditLogService.CsvExport capped = service
-                .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC"));
+        final AuditLogService.CsvExport capped = new AuditLogService(mongoClient)
+                .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC"), 0, 2);
 
         assertEquals(2, capped.rows());
         assertTrue(capped.truncated());
         final String csv = new String(capped.csv(), StandardCharsets.UTF_8);
         assertTrue(csv.contains("newest") && csv.contains("middle") && !csv.contains("oldest"), csv);
 
-        // Exactly at the cap is complete, not truncated.
-        final AuditLogService.CsvExport exact = new AuditLogService(mongoClient, 3)
-                .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC"));
+        // Exactly at the limit is complete, not truncated.
+        final AuditLogService.CsvExport exact = new AuditLogService(mongoClient)
+                .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC"), 0, 3);
         assertEquals(3, exact.rows());
         assertFalse(exact.truncated());
     }
@@ -118,6 +121,82 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
         assertEquals("2026-10-01T12:00:00Z,api_authentication_failed,'-1+1,,'\tcmd,"
                 + "\"'=HYPERLINK(\"\"https://attacker.example\"\",\"\"x\"\")\",'@SUM(1)", lines[1]);
         assertEquals("2026-10-01T11:00:00Z,ordinary,,,,,\"detail, with a comma\"", lines[2]);
+    }
+
+    @Test
+    @DisplayName("Paging a closed range returns each event exactly once, in one order, even with shared timestamps")
+    void pagesEachEventExactlyOnce() {
+        // Three events share one millisecond and three share another, so only the id orders them.
+        for (final String name : List.of("a1", "a2", "a3")) {
+            event(name, "2026-10-01T10:00:00Z");
+        }
+        for (final String name : List.of("b1", "b2", "b3")) {
+            event(name, "2026-10-01T11:00:00Z");
+        }
+        event("c", "2026-10-01T09:00:00Z");
+        event("d", "2026-10-01T12:00:00Z");
+
+        final LocalDate day = LocalDate.parse("2026-10-01");
+        final ZoneId utc = ZoneId.of("UTC");
+        final List<String> whole = eventNames(new AuditLogService(mongoClient).export(day, day, utc));
+        assertEquals(8, whole.size());
+
+        final AuditLogService service = new AuditLogService(mongoClient);
+        final List<String> paged = new ArrayList<>();
+        int offset = 0;
+        int pages = 0;
+        AuditLogService.CsvExport page;
+        do {
+            page = service.export(day, day, utc, offset, 3);
+            paged.addAll(eventNames(page));
+            offset = page.nextOffset();
+            pages++;
+        } while (page.truncated());
+
+        assertEquals(3, pages, "8 events at 3 a page");
+        assertEquals(whole, paged, "the pages, in order, are the whole export");
+        assertEquals(8, new HashSet<>(paged).size(), "no event repeats");
+        assertEquals(2, page.rows());
+        assertFalse(page.truncated());
+
+        // The next offset counts the events returned, so pages need not share a limit.
+        final List<String> mixed = new ArrayList<>();
+        offset = 0;
+        int call = 0;
+        do {
+            page = service.export(day, day, utc, offset, call++ % 2 == 0 ? 2 : 5);
+            mixed.addAll(eventNames(page));
+            offset = page.nextOffset();
+        } while (page.truncated());
+        assertEquals(whole, mixed, "pages of differing limits, in order, are the whole export");
+    }
+
+    @Test
+    @DisplayName("An offset past the end is an empty, complete page; a negative offset is refused")
+    void offsetBounds() {
+        event("only", "2026-10-01T10:00:00Z");
+        final LocalDate day = LocalDate.parse("2026-10-01");
+
+        final AuditLogService.CsvExport past = new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 5);
+        assertEquals(0, past.rows());
+        assertFalse(past.truncated());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), -1));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, AuditLogService.MAX_EXPORT_ROWS + 1));
+    }
+
+    /** The event column of each data row. */
+    private static List<String> eventNames(final AuditLogService.CsvExport export) {
+        final List<String> names = new ArrayList<>();
+        final String[] lines = lines(export);
+        for (int i = 1; i < lines.length; i++) {
+            names.add(lines[i].split(",", -1)[1]);
+        }
+        return names;
     }
 
 }

@@ -29,6 +29,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration tests for {@link MongoDBAuditEventPublisher} against a real (in-memory) MongoDB. These
@@ -167,6 +168,19 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
         publisher.auditEvent("req-b", AuditLogEvent.USER_DEACTIVATED, new ObjectId());
 
         assertEquals(2, auditEvents.countDocuments());
+    }
+
+    @Test
+    void createsTheIndexTheExportSortsBy() {
+        // The CSV export sorts by timestamp and then id; without an index on both, a large range is
+        // sorted in memory and can exceed MongoDB's sort memory limit.
+        boolean found = false;
+        for (final Document index : mongoClient.getDatabase("philter").getCollection("audit_events").listIndexes()) {
+            if (new Document("timestamp", -1).append("_id", -1).equals(index.get("key", Document.class))) {
+                found = true;
+            }
+        }
+        assertTrue(found, "audit_events must have a {timestamp: -1, _id: -1} index");
     }
 
 }

@@ -44,6 +44,7 @@ import java.util.Date;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -318,7 +319,7 @@ class AuditApiControllerTest {
 
     private static AuditLogService.CsvExport csv(final int rows, final boolean truncated, final String zone) {
         return new AuditLogService.CsvExport("timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                rows, truncated, java.time.ZoneId.of(zone));
+                rows, truncated, java.time.ZoneId.of(zone), 0);
     }
 
     @Test
@@ -326,7 +327,7 @@ class AuditApiControllerTest {
     void exportsCsv() throws Exception {
         makeCallerAdmin();
         when(auditLogService.export(java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-05"),
-                java.time.ZoneId.of("America/New_York"))).thenReturn(csv(42, true, "America/New_York"));
+                java.time.ZoneId.of("America/New_York"), 0, 100)).thenReturn(csv(42, true, "America/New_York"));
 
         final var response = perform("/api/audit/export?from=2026-10-01&to=2026-10-05&zone=America/New_York")
                 .andExpect(status().isOk())
@@ -347,7 +348,7 @@ class AuditApiControllerTest {
     @DisplayName("Without a zone the service is asked for the server's, and the header names it")
     void exportDefaultsTheZone() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.export(any(), any(), isNull())).thenReturn(csv(0, false, "UTC"));
+        when(auditLogService.export(any(), any(), isNull(), eq(0), eq(100))).thenReturn(csv(0, false, "UTC"));
 
         final var response = perform("/api/audit/export?from=2026-10-01&to=2026-10-01")
                 .andExpect(status().isOk()).andReturn().getResponse();
@@ -363,7 +364,7 @@ class AuditApiControllerTest {
 
         perform("/api/audit/export?from=2026-10-01&to=2026-10-01").andExpect(status().isForbidden());
 
-        verify(auditLogService, never()).export(any(), any(), any());
+        verify(auditLogService, never()).export(any(), any(), any(), anyInt(), anyInt());
         verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), any(), any(), any(), any());
     }
 
@@ -379,14 +380,14 @@ class AuditApiControllerTest {
         assertTrue(perform("/api/audit/export?from=2026-10-01&to=2026-10-01&zone=Mars/Olympus").andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString().contains("time zone"));
 
-        verify(auditLogService, never()).export(any(), any(), any());
+        verify(auditLogService, never()).export(any(), any(), any(), anyInt(), anyInt());
     }
 
     @Test
     @DisplayName("The service's own range validation comes back as a 400 with its message")
     void exportReportsTheServicesRangeValidation() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.export(any(), any(), any()))
+        when(auditLogService.export(any(), any(), any(), anyInt(), anyInt()))
                 .thenThrow(new IllegalArgumentException("The date range cannot exceed 30 days."));
 
         final String body = perform("/api/audit/export?from=2026-01-01&to=2026-10-01")
@@ -394,6 +395,56 @@ class AuditApiControllerTest {
 
         assertTrue(body.contains("cannot exceed 30 days"), body);
         verify(auditEventPublisher, never()).auditEvent(any(), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A truncated export says where the next page starts; a complete one does not")
+    void exportGivesTheNextOffset() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(any(), any(), any(), eq(200), anyInt())).thenReturn(new AuditLogService.CsvExport(
+                "timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), 100, true, java.time.ZoneId.of("UTC"), 200));
+        when(auditLogService.export(any(), any(), any(), eq(300), anyInt())).thenReturn(new AuditLogService.CsvExport(
+                "timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), 7, false, java.time.ZoneId.of("UTC"), 300));
+
+        final var truncated = perform("/api/audit/export?from=2026-10-01&to=2026-10-01&offset=200")
+                .andExpect(status().isOk()).andReturn().getResponse();
+        assertEquals("300", truncated.getHeader(AuditApiController.EXPORT_NEXT_OFFSET_HEADER));
+        verify(auditEventPublisher).auditEvent(eq("req-1"), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), eq(userId), isNull(),
+                any(), contains("offset: 200, limit: 100, rows: 100, truncated: true"));
+
+        final var last = perform("/api/audit/export?from=2026-10-01&to=2026-10-01&offset=300")
+                .andExpect(status().isOk()).andReturn().getResponse();
+        assertNull(last.getHeader(AuditApiController.EXPORT_NEXT_OFFSET_HEADER));
+    }
+
+    @Test
+    @DisplayName("A negative or non-numeric offset is a 400")
+    void exportRejectsABadOffset() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(any(), any(), any(), eq(-1), anyInt()))
+                .thenThrow(new IllegalArgumentException("offset must be zero or greater."));
+
+        assertTrue(perform("/api/audit/export?from=2026-10-01&to=2026-10-01&offset=-1").andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString().contains("offset must be zero or greater"));
+        assertTrue(perform("/api/audit/export?from=2026-10-01&to=2026-10-01&offset=ten").andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString().contains("'offset' has an invalid value"));
+    }
+
+    @Test
+    @DisplayName("limit defaults to 100, is capped at 1000, and a non-positive value means the default")
+    void exportClampsTheLimit() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(any(), any(), any(), anyInt(), anyInt())).thenReturn(csv(0, false, "UTC"));
+
+        for (final String[] call : new String[][]{{"", "100"}, {"&limit=250", "250"}, {"&limit=5000", "1000"},
+                {"&limit=0", "100"}, {"&limit=-3", "100"}}) {
+            perform("/api/audit/export?from=2026-10-01&to=2026-10-01" + call[0]).andExpect(status().isOk());
+            verify(auditLogService).export(any(), any(), any(), eq(0), eq(Integer.parseInt(call[1])));
+            org.mockito.Mockito.clearInvocations(auditLogService);
+        }
+
+        assertTrue(perform("/api/audit/export?from=2026-10-01&to=2026-10-01&limit=many").andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString().contains("'limit' has an invalid value"));
     }
 
 }

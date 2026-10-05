@@ -55,23 +55,22 @@ public class AuditLogService {
     public static final int MAX_EXPORT_WINDOW_DAYS = 30;
 
     private final MongoCollection<Document> collection;
-    private final int maxExportRows;
 
     public AuditLogService(final MongoClient mongoClient) {
-        this(mongoClient, MAX_EXPORT_ROWS);
-    }
-
-    /** With a smaller row cap, so a test can reach it. */
-    AuditLogService(final MongoClient mongoClient, final int maxExportRows) {
         this.collection = mongoClient.getDatabase(DATABASE).getCollection(COLLECTION);
-        this.maxExportRows = maxExportRows;
     }
 
     /**
-     * An export: the CSV, how many events it holds, whether {@link #MAX_EXPORT_ROWS} cut it short, and
-     * the time zone its dates were read in.
+     * An export: the CSV, how many events it holds, whether more remain after it, the time zone its dates
+     * were read in, and the offset it started at.
      */
-    public record CsvExport(byte[] csv, int rows, boolean truncated, ZoneId zone) {
+    public record CsvExport(byte[] csv, int rows, boolean truncated, ZoneId zone, int offset) {
+
+        /** The offset of the next page. Meaningful only when {@link #truncated()}. */
+        public int nextOffset() {
+            return offset + rows;
+        }
+
     }
 
     /** As {@link #export}, in the server's time zone, returning only the CSV. */
@@ -92,6 +91,36 @@ public class AuditLogService {
      *                                  maximum window.
      */
     public CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone) {
+        return export(fromInclusive, toInclusive, zone, 0);
+    }
+
+    /**
+     * As above, starting {@code offset} events into the range, so an export cut short by the cap can be
+     * continued. The order is total (timestamp, then id), so pages of a range no longer receiving events
+     * hold each event exactly once.
+     *
+     * @throws IllegalArgumentException as above, or if {@code offset} is negative.
+     */
+    public CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone,
+                            final int offset) {
+        return export(fromInclusive, toInclusive, zone, offset, MAX_EXPORT_ROWS);
+    }
+
+    /**
+     * As above, returning at most {@code limit} events, which may not exceed {@link #MAX_EXPORT_ROWS}.
+     *
+     * @throws IllegalArgumentException as above, or if {@code limit} is not between 1 and
+     *                                  {@link #MAX_EXPORT_ROWS}.
+     */
+    public CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone,
+                            final int offset, final int limit) {
+
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset must be zero or greater.");
+        }
+        if (limit < 1 || limit > MAX_EXPORT_ROWS) {
+            throw new IllegalArgumentException("limit must be between 1 and " + MAX_EXPORT_ROWS + ".");
+        }
 
         if (fromInclusive == null || toInclusive == null) {
             throw new IllegalArgumentException("Both a from and a to date are required.");
@@ -118,8 +147,8 @@ public class AuditLogService {
         // One more than the cap is read, only to learn whether the cap cut the export short.
         int rows = 0;
         boolean truncated = false;
-        for (final Document document : collection.find(query).sort(Sorts.descending("timestamp")).limit(maxExportRows + 1)) {
-            if (rows == maxExportRows) {
+        for (final Document document : collection.find(query).sort(Sorts.descending("timestamp", "_id")).skip(offset).limit(limit + 1)) {
+            if (rows == limit) {
                 truncated = true;
                 break;
             }
@@ -133,7 +162,7 @@ public class AuditLogService {
             rows++;
         }
 
-        return new CsvExport(csv.toString().getBytes(StandardCharsets.UTF_8), rows, truncated, effectiveZone);
+        return new CsvExport(csv.toString().getBytes(StandardCharsets.UTF_8), rows, truncated, effectiveZone, offset);
 
     }
 

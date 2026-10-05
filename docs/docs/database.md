@@ -109,10 +109,10 @@ Philter creates the indexes it needs automatically at startup. Each data service
 * `api_keys` by `api_key_hash` (the authentication lookup) and by user.
 * `policies`, `contexts`, `custom_lists`, and `redact_lists` by user (and name where applicable).
 * `context_entries` by `(user_id, context_name, token_hash)` for the redaction hot path.
-* `ledger` by chain head and by document.
+* `ledger` by chain head and by document for each user, and by chain head across users.
 * `pending_documents` by status and by document, with a TTL index that expires finished records (`PENDING_DOCUMENTS_TTL_SECONDS`, default 7 days).
 * `webhook_deliveries` by delivery status, with a TTL index (`WEBHOOK_DELIVERIES_TTL_SECONDS`, default 30 days).
-* `users` by `email`, and `audit_events` by `timestamp` and `event`.
+* `users` by `username`, and `audit_events` by `timestamp`, by `timestamp` and `_id` (for paging the CSV export), and by `event`.
 
 Required uniqueness and retention indexes must be created and their options verified; a failure prevents startup. Incompatible TTL settings also fail startup. Only optional performance-index failures are logged and tolerated. Ledger collections must have no automatic TTL index, regardless of its name. Philter rejects incompatible schemas without dropping indexes or migrating data. Provision the required schema and privileges before starting the application.
 

@@ -82,6 +82,9 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         // chain retrieval and deletion query (user_id, document_id).
         ensureIndex(Indexes.ascending("user_id", "previous_hash", "timestamp"));
         ensureIndex(Indexes.ascending("user_id", "document_id", "timestamp"));
+        // Chain heads across users (previous_hash) newest first, with _id as the paging tie-breaker. The
+        // indexes above begin with user_id, so a query across users cannot use them.
+        ensureIndex(Indexes.compoundIndex(Indexes.ascending("previous_hash"), Indexes.descending("timestamp", "_id")));
 
         RequiredSchema.rejectAutomaticExpiry(collection);
 

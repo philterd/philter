@@ -84,6 +84,8 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   only when the request arrives from a trusted proxy (`TRUSTED_PROXIES`, defaulting to private and
   loopback ranges), read from the right so a client cannot choose it, and only when it is an IP
   address. Otherwise the connection's address is recorded.
+- **Ledger index for chain heads across users.** Listing and counting every user's ledger chains
+  uses an index instead of scanning and sorting the whole ledger.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

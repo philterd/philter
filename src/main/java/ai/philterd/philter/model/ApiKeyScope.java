@@ -74,6 +74,9 @@ public enum ApiKeyScope {
     API_KEYS_READ("api-keys:read", "List API keys. Also requires an administrator for another user's keys."),
     API_KEYS_WRITE("api-keys:write", "Create, re-scope, and revoke API keys. Also requires an administrator for another user's keys."),
 
+    SETTINGS_READ("settings:read", "Read the deployment's admin settings. Also requires an administrator."),
+    SETTINGS_WRITE("settings:write", "Change the deployment's admin settings. Also requires an administrator."),
+
     WEBHOOKS_READ("webhooks:read", "Read a user's webhook URL and whether a secret is set."),
     WEBHOOKS_WRITE("webhooks:write", "Set and remove a user's webhook URL and secret."),
 

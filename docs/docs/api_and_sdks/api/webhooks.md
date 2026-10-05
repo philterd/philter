@@ -184,7 +184,7 @@ After the 8th failure, the delivery is marked `FAILED` and no further attempts a
 
 ## Where a webhook may point
 
-Philter refuses to deliver to private, loopback and link-local addresses, so a webhook cannot be aimed at the network Philter itself sits on. An administrator can widen or narrow that on **Admin** → **Admin Settings** → **Webhook Destinations**, with a comma-separated list of hostnames and IP addresses or CIDR ranges:
+Philter refuses to deliver to private, loopback and link-local addresses, so a webhook cannot be aimed at the network Philter itself sits on. An administrator can widen or narrow that with the [Settings API](settings_api.md) (`webhookAllowlist`) or on **Admin** → **Admin Settings** → **Webhook Destinations**, with a comma-separated list of hostnames and IP addresses or CIDR ranges:
 
 ```
 hooks.example.com, 203.0.113.0/24, 10.4.0.0/16

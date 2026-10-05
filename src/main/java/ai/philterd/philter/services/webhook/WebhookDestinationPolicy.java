@@ -64,6 +64,51 @@ public final class WebhookDestinationPolicy {
 
     }
 
+    /** A DNS hostname: dot-separated labels of letters, digits, and inner hyphens. */
+    private static final java.util.regex.Pattern HOSTNAME = java.util.regex.Pattern.compile(
+            "^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$");
+
+    /**
+     * The first entry of a comma-separated allowlist that is not a hostname, an IP address, or a CIDR
+     * range, or {@code null} when every entry is one. Nothing is looked up in DNS.
+     */
+    public static String invalidEntry(final String allowlist) {
+
+        if (allowlist == null) {
+            return null;
+        }
+
+        for (String entry : allowlist.split(",")) {
+
+            entry = entry.trim();
+            if (entry.isEmpty()) {
+                continue;
+            }
+
+            final int slash = entry.indexOf('/');
+            final String host = slash < 0 ? entry : entry.substring(0, slash);
+
+            final boolean literal = isLiteral(host);
+            if (slash >= 0 ? !literal || Cidr.parse(entry) == null
+                    : !literal && (host.matches("^[0-9.]+$") || !HOSTNAME.matcher(host).matches())) {
+                return entry;
+            }
+
+        }
+
+        return null;
+
+    }
+
+    private static boolean isLiteral(final String host) {
+        try {
+            InetAddress.ofLiteral(host);
+            return true;
+        } catch (final IllegalArgumentException notALiteral) {
+            return false;
+        }
+    }
+
     /** Whether the allowlist is empty, in which case only the public-address rule applies. */
     public boolean isEmpty() {
         return hosts.isEmpty() && ranges.isEmpty();

@@ -38,7 +38,7 @@ The field to think about is `context`, which Philter forwards verbatim as the ca
 
 ## Enabling the integration
 
-This is configured by an administrator on the dashboard **Admin** page (it is off by default):
+This is configured by an administrator, off by default, with the [Settings API](api_and_sdks/api/settings_api.md) (`phieldEnabled`, `phieldUrl`, `phieldSourceId`, `phieldOrganization`, `phieldApiKey`) or on the dashboard **Admin** page:
 
 | Option | Description | Default |
 |--------|-------------|---------|

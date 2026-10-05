@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.api.security.AdministratorAuthorization;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.services.encryption.EncryptResult;
@@ -32,6 +33,9 @@ import java.util.ArrayList;
 import java.util.List;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.RequestIdGenerator;
+import ai.philterd.philter.services.phield.PhieldPublisher;
+import ai.philterd.philter.services.webhook.WebhookDestinationPolicy;
+import java.net.URI;
 import java.util.Objects;
 import org.bson.types.ObjectId;
 
@@ -72,13 +76,7 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         }
 
         final long seen = writes.get();
-        final Document document = collection.find().first();
-
-        AdminSettingsEntity adminSettingsEntity = null;
-        if (document != null) {
-            adminSettingsEntity = AdminSettingsEntity.fromDocument(document);
-            adminSettingsEntity.setPhieldApiKey(decryptPhieldApiKey(document));
-        }
+        final AdminSettingsEntity adminSettingsEntity = load();
 
         // Not if a write landed mid-read; that would cache the pre-write state for a full TTL.
         if (writes.get() == seen) {
@@ -88,6 +86,113 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
 
         return adminSettingsEntity;
 
+    }
+
+    /** The stored settings, read past the cache, or {@code null} when none have been saved. */
+    private AdminSettingsEntity load() {
+        final Document document = collection.find().first();
+        if (document == null) {
+            return null;
+        }
+        final AdminSettingsEntity adminSettingsEntity = AdminSettingsEntity.fromDocument(document);
+        adminSettingsEntity.setPhieldApiKey(decryptPhieldApiKey(document));
+        return adminSettingsEntity;
+    }
+
+    /**
+     * Settings to change. A null field is left as it is. For the Phield API key, {@code ""} removes it.
+     */
+    public record Update(Boolean diffuseCountsEnabled, Boolean signingEnabled, String webhookAllowlist,
+                         Boolean phieldEnabled, String phieldUrl, String phieldSourceId,
+                         String phieldOrganization, String phieldApiKey) {
+    }
+
+    /**
+     * Validates and applies an {@link Update} from the API, after confirming the acting user is still an
+     * active administrator. Nothing is written unless every value is valid. The change is audited as
+     * {@code settings_updated}, naming the settings that changed and the acting API key, never the values.
+     *
+     * @return warnings about the saved settings, such as a Phield API key that will be sent over http.
+     * @throws IllegalArgumentException with the reason, when a value is not valid.
+     */
+    public List<String> update(final Update update, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+
+        AdministratorAuthorization.requireActiveAdministrator(mongoClient, actingUserId);
+
+        final AdminSettingsEntity current = load();
+
+        final String invalid = WebhookDestinationPolicy.invalidEntry(update.webhookAllowlist());
+        if (invalid != null) {
+            throw new IllegalArgumentException("webhookAllowlist entry '" + invalid
+                    + "' is not a hostname, an IP address, or a CIDR range.");
+        }
+
+        final String url = update.phieldUrl() != null ? update.phieldUrl().trim()
+                : current == null ? "" : current.getPhieldUrl();
+        final boolean phieldEnabled = update.phieldEnabled() != null ? update.phieldEnabled()
+                : current != null && current.isPhieldEnabled();
+        final String apiKey = update.phieldApiKey() != null ? update.phieldApiKey().trim()
+                : current == null ? "" : current.getPhieldApiKey();
+
+        // Checked only when this request changes Phield, so a value the dashboard saved without these
+        // checks does not block an unrelated change.
+        if (update.phieldUrl() != null && !url.isEmpty() && !isHttpUrl(url)) {
+            throw new IllegalArgumentException("phieldUrl must be an absolute http or https URL with a host.");
+        }
+        if ((update.phieldEnabled() != null || update.phieldUrl() != null) && phieldEnabled
+                && (url == null || url.isEmpty())) {
+            throw new IllegalArgumentException("phieldUrl is required when Phield is enabled.");
+        }
+
+        final List<String> changed = new ArrayList<>();
+        if (update.diffuseCountsEnabled() != null) {
+            changed.addAll(updateSetting("diffuse_counts_enabled", update.diffuseCountsEnabled()));
+        }
+        if (update.signingEnabled() != null) {
+            changed.addAll(updateSetting("signing_enabled", update.signingEnabled()));
+        }
+        if (update.webhookAllowlist() != null) {
+            changed.addAll(updateSetting("webhook_allowlist", update.webhookAllowlist().trim()));
+        }
+        if (update.phieldEnabled() != null) {
+            changed.addAll(updateSetting("phield_enabled", update.phieldEnabled()));
+        }
+        if (update.phieldUrl() != null) {
+            changed.addAll(updateSetting("phield_url", url));
+        }
+        if (update.phieldSourceId() != null) {
+            changed.addAll(updateSetting("phield_source_id",
+                    update.phieldSourceId().isBlank() ? "philter" : update.phieldSourceId().trim()));
+        }
+        if (update.phieldOrganization() != null) {
+            changed.addAll(updateSetting("phield_organization",
+                    update.phieldOrganization().isBlank() ? "philter" : update.phieldOrganization().trim()));
+        }
+        if (update.phieldApiKey() != null) {
+            changed.addAll(updateSettings(encryptPhieldApiKey(update.phieldApiKey())));
+        }
+
+        if (!changed.isEmpty()) {
+            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.SETTINGS_UPDATED,
+                    actingUserId, null, null, "settings: " + String.join(", ", changed) + ", api_key: " + actingApiKeyId);
+        }
+
+        final List<String> warnings = new ArrayList<>();
+        if (phieldEnabled && PhieldPublisher.sendsApiKeyInTheClear(url, apiKey)) {
+            warnings.add("The Phield URL is http, so the API key is sent in the clear. Use an https URL.");
+        }
+        return warnings;
+
+    }
+
+    private static boolean isHttpUrl(final String url) {
+        try {
+            final URI uri = URI.create(url);
+            return uri.getHost() != null
+                    && ("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()));
+        } catch (final IllegalArgumentException notAUri) {
+            return false;
+        }
     }
 
     /**

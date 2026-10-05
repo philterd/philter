@@ -158,6 +158,7 @@ nav:
       - 'Legal Holds API': 'api_and_sdks/api/legal_holds_api.md'
       - 'Users API': 'api_and_sdks/api/users_api.md'
       - 'API Keys API': 'api_and_sdks/api/api_keys_api.md'
+      - 'Settings API': 'api_and_sdks/api/settings_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'
     - 'Developers':
       - 'Overview': 'developers/developers.md'

@@ -172,8 +172,8 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
 
     @Test
     void createsTheIndexTheExportSortsBy() {
-        // The CSV export sorts by timestamp and then id; without an index on both, a large range is
-        // sorted in memory and can exceed MongoDB's sort memory limit.
+        // The CSV export sorts by timestamp and then id; without an index on both, every event in the
+        // range is sorted before a page is returned, spilling to disk once it passes 100 MB.
         boolean found = false;
         for (final Document index : mongoClient.getDatabase("philter").getCollection("audit_events").listIndexes()) {
             if (new Document("timestamp", -1).append("_id", -1).equals(index.get("key", Document.class))) {

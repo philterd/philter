@@ -26,7 +26,7 @@ Because the counts are bucketed per `(context, day)`, the collection stays small
 
 ## Enabling it
 
-Recording is controlled by a single global admin setting and is **off by default** (data minimization: statistics are not collected unless you opt in). An administrator enables it on the dashboard **Admin** page with the **"Record PII count statistics for differential-privacy reporting"** option.
+Recording is controlled by a single global admin setting and is **off by default** (data minimization: statistics are not collected unless you opt in). An administrator enables it with the [Settings API](api_and_sdks/api/settings_api.md) (`{"diffuseCountsEnabled": true}`) or on the dashboard **Admin** page with the **"Record PII count statistics for differential-privacy reporting"** option.
 
 Recording is best-effort: any failure is ignored so it can never affect redaction, and when the setting is off there is no per-redaction overhead.
 

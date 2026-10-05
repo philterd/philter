@@ -197,7 +197,7 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 
 ## Output Signing
 
-Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses with an ES256 JWT in the `X-Philter-Signature` response header. Signing is **disabled by default**; enable it in the dashboard **Admin** → **Admin Settings** page. See [Output Signing](output_signing.md) for full documentation.
+Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses with an ES256 JWT in the `X-Philter-Signature` response header. Signing is **disabled by default**; enable it with the [Settings API](api_and_sdks/api/settings_api.md) or the dashboard **Admin** → **Admin Settings** page. See [Output Signing](output_signing.md) for full documentation.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
@@ -205,7 +205,7 @@ Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses wit
 
 ## PII Drift Monitoring (Phield)
 
-Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured in the dashboard **Admin** settings (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with `PHIELD_API_KEY` set), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).
+Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured with the [Settings API](api_and_sdks/api/settings_api.md) or the dashboard **Admin** settings (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with `PHIELD_API_KEY` set), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).
 
 ### Bootstrap and in-memory capacity
 

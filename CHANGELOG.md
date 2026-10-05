@@ -72,6 +72,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Listings across all users.** `all_users=true` on `GET /api/policies`, `/api/contexts`,
   `/api/lists`, `/api/ledger`, and `/api/holds` lists every user's resources, each naming its owner,
   for administrators with `ADMIN_CROSS_USER_ACCESS_ENABLED`. Per-user responses are unchanged.
+- **Settings API.** `GET` and `PATCH /api/settings` read and change differential-privacy count
+  recording, output signing, the webhook destination allowlist, and Phield publishing, with new
+  `settings:read` and `settings:write` scopes. Values are validated before anything is saved, and
+  changes are audited by setting name and calling API key.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

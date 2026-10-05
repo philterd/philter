@@ -6969,6 +6969,224 @@
         }
       }
     },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get the admin settings.",
+        "description": "Returns the deployment's admin settings. The Phield API key is never returned, only whether one is set. Requires an administrator as well as the scope. Requires the `settings:read` scope.",
+        "operationId": "getSettings",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold settings:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Change admin settings.",
+        "description": "Changes the settings given in the body and leaves the rest as they are. An empty phieldApiKey removes the key. phieldUrl must be an absolute http or https URL, and is required while Phield is enabled; both are checked when a request changes Phield. Each webhookAllowlist entry must be a hostname, an IP address, or a CIDR range. Nothing is changed if any value is invalid. Returns the settings as saved, with warnings, such as a Phield API key that will be sent over http. Recorded as a settings_updated audit event naming the settings that changed and the calling API key, not their values. Requires an administrator as well as the scope. Requires the `settings:write` scope.",
+        "operationId": "updateSettings",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The settings as saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A value is invalid. The body says which, and nothing was changed.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold settings:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/signing-key": {
       "get": {
         "security": [],
@@ -9505,6 +9723,41 @@
           }
         }
       },
+      "SettingsResponse": {
+        "type": "object",
+        "properties": {
+          "diffuseCountsEnabled": {
+            "type": "boolean"
+          },
+          "phieldApiKeySet": {
+            "type": "boolean"
+          },
+          "phieldEnabled": {
+            "type": "boolean"
+          },
+          "phieldOrganization": {
+            "type": "string"
+          },
+          "phieldSourceId": {
+            "type": "string"
+          },
+          "phieldUrl": {
+            "type": "string"
+          },
+          "signingEnabled": {
+            "type": "boolean"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "webhookAllowlist": {
+            "type": "string"
+          }
+        }
+      },
       "StatusResponse": {
         "type": "object",
         "properties": {
@@ -9518,6 +9771,35 @@
             "type": "string"
           },
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "diffuseCountsEnabled": {
+            "type": "boolean"
+          },
+          "phieldApiKey": {
+            "type": "string"
+          },
+          "phieldEnabled": {
+            "type": "boolean"
+          },
+          "phieldOrganization": {
+            "type": "string"
+          },
+          "phieldSourceId": {
+            "type": "string"
+          },
+          "phieldUrl": {
+            "type": "string"
+          },
+          "signingEnabled": {
+            "type": "boolean"
+          },
+          "webhookAllowlist": {
             "type": "string"
           }
         }
@@ -9636,6 +9918,10 @@
     {
       "description": "Create and manage users. Requires an administrator, except for reading the calling key's own user.",
       "name": "Users"
+    },
+    {
+      "description": "Read and change the deployment's admin settings. Requires an administrator.",
+      "name": "Settings"
     },
     {
       "description": "Retrieve the public signing key used to verify Philter output signatures, and rotate it.",

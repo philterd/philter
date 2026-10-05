@@ -20,7 +20,9 @@ import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WebhookDestinationPolicyTest {
@@ -122,6 +124,22 @@ class WebhookDestinationPolicyTest {
     @DisplayName("A host that cannot be resolved is left to delivery to judge")
     void anUnresolvableHostIsNotRefusedAtSaveTime() {
         assertTrue(new WebhookDestinationPolicy("").isDestinationAllowed("not-a-real-host.invalid"));
+    }
+
+    @Test
+    @DisplayName("An allowlist entry must be a hostname, an IP address, or a CIDR range")
+    void validatesAllowlistEntries() {
+        assertNull(WebhookDestinationPolicy.invalidEntry(null));
+        assertNull(WebhookDestinationPolicy.invalidEntry(""));
+        assertNull(WebhookDestinationPolicy.invalidEntry(
+                "hooks.example.com, localhost, 203.0.113.7, 10.4.0.0/16, 2001:db8::1, 2001:db8::/32, , "));
+
+        assertEquals("10.0.0.0/99", WebhookDestinationPolicy.invalidEntry("hooks.example.com, 10.0.0.0/99"));
+        assertEquals("999.1.1.1", WebhookDestinationPolicy.invalidEntry("999.1.1.1"));
+        assertEquals("hooks.example.com/24", WebhookDestinationPolicy.invalidEntry("hooks.example.com/24"));
+        assertEquals("-bad.example.com", WebhookDestinationPolicy.invalidEntry("-bad.example.com"));
+        assertEquals("https://hooks.example.com", WebhookDestinationPolicy.invalidEntry("https://hooks.example.com"));
+        assertEquals("has space.example.com", WebhookDestinationPolicy.invalidEntry("has space.example.com"));
     }
 
 }

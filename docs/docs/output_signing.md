@@ -2,7 +2,7 @@
 
 Philter can digitally sign the redacted text it returns so consumers can cryptographically verify that a response came from a specific Philter deployment, is bound to the exact policy that governed it, and has not been tampered with in transit.
 
-Signing is **disabled by default** and opt-in via the Admin settings page. When enabled, every successful `POST /api/filter` (text) and `POST /api/explain` response carries a compact ES256 JWT in the `X-Philter-Signature` response header. PDF (binary) `POST /api/filter` responses are **not yet signed**; see [Which responses are signed?](#which-responses-are-signed) below.
+Signing is **disabled by default** and opt-in, with the [Settings API](api_and_sdks/api/settings_api.md) or the Admin settings page. When enabled, every successful `POST /api/filter` (text) and `POST /api/explain` response carries a compact ES256 JWT in the `X-Philter-Signature` response header. PDF (binary) `POST /api/filter` responses are **not yet signed**; see [Which responses are signed?](#which-responses-are-signed) below.
 
 ## How It Works
 
@@ -187,6 +187,17 @@ assert claims["bodyHash"] == body_hash, "body hash mismatch, response was tamper
 ```
 
 ## Enabling Output Signing
+
+With the [Settings API](api_and_sdks/api/settings_api.md):
+
+```
+curl -k -X PATCH "https://localhost:8080/api/settings" \
+  -H "Authorization: Bearer <administrator key>" \
+  -H "Content-Type: application/json" \
+  --data '{"signingEnabled":true}'
+```
+
+Or in the dashboard:
 
 1. Navigate to **Admin** → **Admin Settings** in the Philter dashboard.
 2. Check **Enable output signing (ES256 JWT on X-Philter-Signature response header)**.

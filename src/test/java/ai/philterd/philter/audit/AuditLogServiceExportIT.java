@@ -107,7 +107,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
     void neutralizesFormulas() {
         mongoClient.getDatabase("philter").getCollection("audit_events").insertOne(new Document()
                 .append("event", "api_authentication_failed")
-                // X-Forwarded-For is copied into this column, so a caller chooses it.
+                // Neutralized whichever column it is in, wherever the value came from.
                 .append("client_ip_address", "=HYPERLINK(\"https://attacker.example\",\"x\")")
                 .append("details", "@SUM(1)")
                 .append("request_id", "-1+1")

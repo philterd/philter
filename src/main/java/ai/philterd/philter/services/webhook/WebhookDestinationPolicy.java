@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.webhook;
 
+import ai.philterd.philter.utils.IpAddresses;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -36,7 +38,7 @@ import java.util.Locale;
 public final class WebhookDestinationPolicy {
 
     private final List<String> hosts = new ArrayList<>();
-    private final List<Cidr> ranges = new ArrayList<>();
+    private final List<IpAddresses.Cidr> ranges = new ArrayList<>();
 
     public WebhookDestinationPolicy(final String allowlist) {
 
@@ -52,7 +54,7 @@ public final class WebhookDestinationPolicy {
                 continue;
             }
 
-            final Cidr range = Cidr.parse(entry);
+            final IpAddresses.Cidr range = IpAddresses.Cidr.parse(entry);
 
             if (range != null) {
                 ranges.add(range);
@@ -89,7 +91,7 @@ public final class WebhookDestinationPolicy {
             final String host = slash < 0 ? entry : entry.substring(0, slash);
 
             final boolean literal = isLiteral(host);
-            if (slash >= 0 ? !literal || Cidr.parse(entry) == null
+            if (slash >= 0 ? !literal || IpAddresses.Cidr.parse(entry) == null
                     : !literal && (host.matches("^[0-9.]+$") || !HOSTNAME.matcher(host).matches())) {
                 return entry;
             }
@@ -101,12 +103,7 @@ public final class WebhookDestinationPolicy {
     }
 
     private static boolean isLiteral(final String host) {
-        try {
-            InetAddress.ofLiteral(host);
-            return true;
-        } catch (final IllegalArgumentException notALiteral) {
-            return false;
-        }
+        return IpAddresses.parseLiteral(host) != null;
     }
 
     /** Whether the allowlist is empty, in which case only the public-address rule applies. */
@@ -188,7 +185,7 @@ public final class WebhookDestinationPolicy {
     }
 
     private boolean matchesRange(final InetAddress address) {
-        for (final Cidr range : ranges) {
+        for (final IpAddresses.Cidr range : ranges) {
             if (range.contains(address)) {
                 return true;
             }
@@ -209,71 +206,6 @@ public final class WebhookDestinationPolicy {
     private static boolean isUniqueLocalIpv6(final InetAddress address) {
         final byte[] bytes = address.getAddress();
         return bytes.length == 16 && (bytes[0] & 0xFE) == 0xFC;
-    }
-
-    /** An address and prefix length, matched by comparing the leading bits. */
-    private record Cidr(byte[] network, int prefixBits) {
-
-        static Cidr parse(final String entry) {
-
-            final int slash = entry.indexOf('/');
-            final String host = slash < 0 ? entry : entry.substring(0, slash);
-
-            final byte[] address;
-            try {
-                address = literalAddress(host);
-            } catch (final UnknownHostException notAnAddress) {
-                return null;
-            }
-
-            if (address == null) {
-                return null;
-            }
-
-            int prefix = address.length * 8;
-            if (slash >= 0) {
-                try {
-                    prefix = Integer.parseInt(entry.substring(slash + 1).trim());
-                } catch (final NumberFormatException ex) {
-                    return null;
-                }
-                if (prefix < 0 || prefix > address.length * 8) {
-                    return null;
-                }
-            }
-
-            return new Cidr(address, prefix);
-
-        }
-
-        /** Parses only a literal address: a hostname must not be resolved into a range here. */
-        private static byte[] literalAddress(final String host) throws UnknownHostException {
-            if (!host.matches("^[0-9.]+$") && !host.contains(":")) {
-                return null;
-            }
-            return InetAddress.getByName(host).getAddress();
-        }
-
-        boolean contains(final InetAddress candidate) {
-
-            final byte[] bytes = candidate.getAddress();
-
-            if (bytes.length != network.length) {
-                return false;
-            }
-
-            for (int bit = 0; bit < prefixBits; bit++) {
-                final int index = bit / 8;
-                final int mask = 1 << (7 - (bit % 8));
-                if ((bytes[index] & mask) != (network[index] & mask)) {
-                    return false;
-                }
-            }
-
-            return true;
-
-        }
-
     }
 
 }

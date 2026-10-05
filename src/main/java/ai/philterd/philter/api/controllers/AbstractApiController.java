@@ -22,6 +22,7 @@ import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
+import ai.philterd.philter.config.TrustedProxiesConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -29,7 +30,9 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.utils.IpAddresses;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.InetAddress;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.types.ObjectId;
@@ -40,6 +43,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -300,32 +304,61 @@ public abstract class AbstractApiController {
         }
     }
 
+    /**
+     * The client address to record for a request. A request from a trusted proxy (see
+     * {@link TrustedProxiesConfig}) is attributed to the address its X-Forwarded-For header names: the
+     * entries are read from the right, skipping trusted proxies, because each proxy appends the address it
+     * received from and only the leftmost entries can be written by the client. Any other request, or an
+     * entry that is not an IP address, is attributed to the connection's own address. Ports are removed;
+     * nothing is looked up in DNS.
+     */
     public static String getClientIpAddress(final HttpServletRequest httpServletRequest) {
 
-        // With App Runner you can access the original source IPv4 and IPv6 addresses of the traffic entering your application.
-        // The original source IP addresses are preserved by assigning the X-Forwarded-For request header to them.
-        // This enables your applications to fetch the original source IP addresses when needed.
+        final String remote = httpServletRequest.getRemoteAddr();
 
-        String ipAddress = httpServletRequest.getHeader("X-Forwarded-For");
-
-        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
-
-            // Fallback to getRemoteAddr() if X-Forwarded-For is not present or invalid
-            ipAddress = httpServletRequest.getRemoteAddr();
-
-        } else {
-
-            // X-Forwarded-For can contain multiple IPs if passing through multiple proxies
-            // The first IP in the list is typically the client's original IP
-            int commaIndex = ipAddress.indexOf(',');
-            if (commaIndex > -1) {
-                ipAddress = ipAddress.substring(0, commaIndex).trim();
-            }
-
+        final InetAddress remoteAddress = IpAddresses.parseLiteral(remote);
+        if (remoteAddress == null || !TrustedProxiesConfig.isTrusted(remoteAddress)) {
+            return remote;
         }
 
-        return ipAddress;
+        final List<String> entries = new ArrayList<>();
+        for (final String header : Collections.list(httpServletRequest.getHeaders("X-Forwarded-For"))) {
+            for (final String entry : header.split(",")) {
+                entries.add(entry.trim());
+            }
+        }
 
+        String client = remote;
+        for (int i = entries.size() - 1; i >= 0; i--) {
+            final String literal = forwardedLiteral(entries.get(i));
+            final InetAddress address = IpAddresses.parseLiteral(literal);
+            if (address == null) {
+                return remote;
+            }
+            client = literal;
+            if (!TrustedProxiesConfig.isTrusted(address)) {
+                return client;
+            }
+        }
+
+        return client;
+
+    }
+
+    /** An X-Forwarded-For entry with any port removed: {@code 203.0.113.7:51234} or {@code [2001:db8::1]:443}. */
+    private static String forwardedLiteral(final String entry) {
+        if (entry.startsWith("[")) {
+            final int end = entry.indexOf(']');
+            if (end < 0 || !entry.substring(end + 1).matches("(:\\d{1,5})?")) {
+                return null;
+            }
+            return entry.substring(1, end);
+        }
+        final int colon = entry.indexOf(':');
+        if (colon > 0 && colon == entry.lastIndexOf(':')) {
+            return entry.substring(colon + 1).matches("\\d{1,5}") ? entry.substring(0, colon) : null;
+        }
+        return entry;
     }
 
 }

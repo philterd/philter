@@ -80,6 +80,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   /api/policies/{name}/details` read and set a policy's description and notes, which `POST
   /api/policies` also accepts. `GET /api/policies?managed=true` lists the managed policies, which are
   read by name like any other, and `POST /api/policies/{name}/copy` copies a managed or own policy.
+- **Trusted proxies.** For API requests, the client IP address recorded in the audit log comes from `X-Forwarded-For`
+  only when the request arrives from a trusted proxy (`TRUSTED_PROXIES`, defaulting to private and
+  loopback ranges), read from the right so a client cannot choose it, and only when it is an IP
+  address. Otherwise the connection's address is recorded.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

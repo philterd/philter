@@ -194,7 +194,7 @@
             }
           },
           "403": {
-            "description": "The key does not hold api-keys:write, or a requested scope is not held by the calling key.",
+            "description": "The key does not hold api-keys:write, is a session key, or a requested scope is not held by the calling key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7718,6 +7718,105 @@
         }
       }
     },
+    "/api/sign-in": {
+      "post": {
+        "security": [],
+        "tags": [
+          "Sign-in"
+        ],
+        "summary": "Sign in.",
+        "description": "Takes a username and password and returns a session key for that user, which expires after SESSION_KEY_IDLE_TIMEOUT_MINUTES without a request or SESSION_KEY_MAX_LIFETIME_MINUTES after issue. The key holds every scope, with the user's role still deciding administrator access, but cannot create API keys. A user who must change their password gets a key that can only do that and sign out. A wrong password, an unknown user, a user without a password, and a deactivated user all get the same 401. Requires no API key. Returns 404 unless PASSWORD_SIGN_IN_ENABLED is true. Recorded as sign_in_succeeded or sign_in_failed with the username and client IP address, never the password.",
+        "operationId": "signIn",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in. The session key is returned here and nowhere else.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The username or password is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Password sign-in is not enabled."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/signing-key": {
       "get": {
         "security": [],
@@ -8845,7 +8944,7 @@
             }
           },
           "403": {
-            "description": "The key does not hold api-keys:write, the caller is not an administrator, or a requested scope is not held by the calling key.",
+            "description": "The key does not hold api-keys:write, is a session key, the caller is not an administrator, or a requested scope is not held by the calling key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10746,6 +10845,50 @@
           }
         }
       },
+      "SignInRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "description": "The user's password. Never logged or audited.",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "SignInResponse": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "description": "The session key. Send it as a bearer token. It is returned here and nowhere else.",
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "When the key's maximum lifetime ends.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "idleExpiresAt": {
+            "description": "When the key expires unless it is used first. Each request moves it forward.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "passwordChangeRequired": {
+            "description": "Whether the password must be changed first. If so, the key can only change the password with PUT /api/users/me/password and sign out.",
+            "type": "boolean"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
       "StatusResponse": {
         "type": "object",
         "properties": {
@@ -10910,6 +11053,10 @@
     {
       "description": "Read, set, and remove the user's webhook for asynchronous redaction results.",
       "name": "Webhook"
+    },
+    {
+      "description": "Sign in with a username and password to get a session key. Disabled by default.",
+      "name": "Sign-in"
     },
     {
       "description": "Operations for creating and managing contexts.",

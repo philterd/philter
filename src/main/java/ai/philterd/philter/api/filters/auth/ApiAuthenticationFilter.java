@@ -17,6 +17,7 @@ package ai.philterd.philter.api.filters.auth;
 
 import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.config.SignInConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -104,6 +105,17 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             LOGGER.trace("Request for a public signing key, allowing without authorization: {}", path);
             chain.doFilter(request, response);
 
+        } else if (isSignIn(path, ((HttpServletRequest) request).getMethod())) {
+
+            // Sign-in takes a username and password, not a key. While it is disabled it answers 404
+            // here, before the body is read, so no malformed request can show that it exists.
+            if (!SignInConfig.isPasswordSignInEnabled()) {
+                ((HttpServletResponse) response).setStatus(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            request.setAttribute("requestId", RequestIdGenerator.generate());
+            chain.doFilter(request, response);
+
         } else if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui/")) {
 
             // Allow all access to the OpenAPI specs.
@@ -189,6 +201,18 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 }
 
+                // A key issued to a user who must change their password can do that and sign out, nothing else.
+                if (apiKeyEntity.isPasswordChangeOnly() && !isAllowedBeforePasswordChange(path, httpRequest.getMethod())) {
+
+                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+                    httpServletResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"The password must be changed "
+                            + "first, with PUT /api/users/me/password.\"}");
+                    return;
+
+                }
+
                 // Hand the resolved key to the downstream controllers so they do not look it up again.
                 httpRequest.setAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE, apiKeyEntity);
 
@@ -244,6 +268,16 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
      * Shared with the scope interceptor so the two cannot come to different conclusions about which
      * signing-key requests are public.
      */
+    /** Password sign-in, served without an API key. */
+    public static boolean isSignIn(final String path, final String method) {
+        return "POST".equals(method) && "/api/sign-in".equals(path);
+    }
+
+    private static boolean isAllowedBeforePasswordChange(final String path, final String method) {
+        return ("PUT".equals(method) && "/api/users/me/password".equals(path))
+                || ("DELETE".equals(method) && "/api/api-keys/current".equals(path));
+    }
+
     public static boolean isPublicSigningKeyRead(final String path, final String method) {
         if (!"GET".equals(method) && !"HEAD".equals(method)) {
             return false;

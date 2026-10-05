@@ -88,7 +88,7 @@ The key value is returned once, in this response. Philter stores only its SHA-25
 | Status | Meaning |
 |--------|---------|
 | 400 | No scopes were given, or one of them is not a scope. |
-| 403 | The key does not hold `api-keys:write`, the caller is not an administrator (second form), or a requested scope is not held by the calling key. The message says which. |
+| 403 | The key does not hold `api-keys:write`, is a [session key](../../account/api_keys.md#session-keys), the caller is not an administrator (second form), or a requested scope is not held by the calling key. The message says which. A session key cannot create keys, so a session cannot produce a credential that outlives it. |
 
 ```
 curl -k "https://localhost:8080/api/api-keys" \

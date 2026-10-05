@@ -441,6 +441,16 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      */
     public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
                                          final String source, final String auditDetails) {
+        return createSessionKey(requestId, userId, scopes, false, source, auditDetails);
+    }
+
+    /**
+     * As above. With {@code passwordChangeOnly}, the key can only change its user's password and sign
+     * out, for a user who must change their password before doing anything else.
+     */
+    public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
+                                         final boolean passwordChangeOnly, final String source,
+                                         final String auditDetails) {
 
         final String apiKey = generateApiKey();
         final Date now = new Date();
@@ -460,10 +470,12 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setIdleTimeoutSeconds(idleSeconds);
         apiKeyEntity.setIdleExpiresAt(idleExpiry(now, idleSeconds, expiresAt));
         apiKeyEntity.setLastUsedAt(now);
+        apiKeyEntity.setPasswordChangeOnly(passwordChangeOnly);
         apiKeyEntity.setId(save(apiKeyEntity));
 
+        final String session = passwordChangeOnly ? "session: true, password change only" : "session: true";
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyEntity.getId(), userId,
-                source, auditDetails == null ? "session: true" : "session: true, " + auditDetails);
+                source, auditDetails == null ? session : session + ", " + auditDetails);
 
         return apiKeyEntity;
 

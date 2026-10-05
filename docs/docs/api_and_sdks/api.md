@@ -13,7 +13,8 @@ Philter's API has the following sections:
 * [Contexts API](api/contexts_api.md) - Create, update, and delete contexts and inspect their entries. Contexts maintain referential integrity across documents.
 * [Redaction Ledger API](api/ledger_api.md) - List, read, verify, export, and delete [redaction ledger](../redaction/ledgers.md) chains.
 * [Legal Holds API](api/legal_holds_api.md) - Set, list, and release [legal holds](../redaction/legal_holds.md) that block deletion of evidence.
-* [Users API](api/users_api.md) - Create, list, promote, deactivate, and reactivate users.
+* [Users API](api/users_api.md) - Create, list, promote, deactivate, and reactivate users, and manage their passwords.
+* [Sign-in API](api/sign_in_api.md) - Exchange a username and password for a session key. Disabled by default.
 * [API Keys API](api/api_keys_api.md) - Create, re-scope, and revoke API keys.
 * [Settings API](api/settings_api.md) - Read and change the deployment's administrator settings.
 * [Audit API](api/audit_api.md) - List and export the [audit log](../auditing.md).

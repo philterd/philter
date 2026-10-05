@@ -497,6 +497,30 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return null;
     }
 
+    /**
+     * The active user with this username and password, or {@code null}. A missing user, a deactivated
+     * user, a user without a password, and a wrong password all return {@code null}, and each runs one
+     * bcrypt comparison, so neither the result nor the time taken tells a caller which usernames exist.
+     */
+    public UserEntity authenticate(final String username, final String plainPassword) {
+        final UserEntity user = username == null ? null : findByUsername(username);
+        if (user == null || user.getPassword() == null || plainPassword == null) {
+            passwordEncoder.matches(plainPassword == null ? "" : plainPassword, timingHash());
+            return null;
+        }
+        return passwordEncoder.matches(plainPassword, user.getPassword()) ? user : null;
+    }
+
+    private volatile String timingHash;
+
+    /** A hash of a random value, compared against when there is no real hash, so a miss costs the same. */
+    private String timingHash() {
+        if (timingHash == null) {
+            timingHash = passwordEncoder.encode(java.util.UUID.randomUUID().toString());
+        }
+        return timingHash;
+    }
+
     /** Whether the plaintext matches the user's password. Always false for a user without one. */
     public boolean passwordMatches(final UserEntity user, final String plainPassword) {
         if (user == null || user.getPassword() == null || plainPassword == null) {

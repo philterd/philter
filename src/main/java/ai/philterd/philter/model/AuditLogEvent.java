@@ -54,6 +54,10 @@ public enum AuditLogEvent {
     // A session key passed its idle timeout or maximum lifetime.
     API_KEY_EXPIRED("api_key_expired"),
 
+    // Password sign-in. Never records the password.
+    SIGN_IN_SUCCEEDED("sign_in_succeeded"),
+    SIGN_IN_FAILED("sign_in_failed"),
+
     // Authentication outcomes recorded by the API authentication filter.
     API_AUTHENTICATION_FAILED("api_authentication_failed"),
 

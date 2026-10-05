@@ -50,7 +50,8 @@ class ApiKeyScopeCoverageTest {
     private static final Set<String> UNAUTHENTICATED = Set.of(
             "StatusApiController.status",
             "SigningApiController.getSigningKey",
-            "SigningApiController.getSigningKeyById");
+            "SigningApiController.getSigningKeyById",
+            "SignInApiController.signIn");
 
     /** Endpoints any authenticated key may call ({@link AnyApiKey}), because they only end the caller's own access. */
     private static final Set<String> ANY_KEY = Set.of("ApiKeysApiController.signOut");

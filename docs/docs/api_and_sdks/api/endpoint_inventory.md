@@ -66,6 +66,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/settings` | application/json | `settings:read` | [Details](settings_api.md) |
 | PATCH | `/api/settings` | application/json | `settings:write` | [Details](settings_api.md) |
 | POST | `/api/reidentify` | application/json | `reidentify` | [Details](../../redaction/re-identification.md) |
+| POST | `/api/sign-in` | application/json | `Public` | [Details](sign_in_api.md) |
 | GET | `/api/signing-key` | application/json | `Public` | [Details](public_api.md) |
 | GET | `/api/signing-key/{keyId}` | application/json | `Public` | [Details](public_api.md) |
 | POST | `/api/signing-key/regenerate` | application/json | `signing:write` | [Details](../../output_signing.md) |

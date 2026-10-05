@@ -49,8 +49,8 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiKeyScopeInterceptor.class);
 
     /**
-     * Endpoints served without an API key, which therefore have no scope to check: the health probe
-     * and the public signing keys. Kept here, next to the enforcement, so the set of unauthenticated
+     * Endpoints served without an API key, which therefore have no scope to check: the health probe,
+     * the public signing keys, and password sign-in. Kept here, next to the enforcement, so the set of unauthenticated
      * endpoints is stated in exactly one place on this path.
      */
     private static final Set<String> UNAUTHENTICATED_PATHS = Set.of("/api/health");
@@ -115,7 +115,8 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
      */
     private static boolean isUnauthenticated(final String path, final String method) {
         return UNAUTHENTICATED_PATHS.contains(path)
-                || ApiAuthenticationFilter.isPublicSigningKeyRead(path, method);
+                || ApiAuthenticationFilter.isPublicSigningKeyRead(path, method)
+                || ApiAuthenticationFilter.isSignIn(path, method);
     }
 
     private static boolean refuse(final HttpServletResponse response, final String message) throws Exception {

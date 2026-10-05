@@ -57,7 +57,8 @@ class ApiKeyScopeAssignmentTest {
     private static final Set<String> UNAUTHENTICATED = Set.of(
             "GET /api/health",
             "GET /api/signing-key",
-            "GET /api/signing-key/{keyId}");
+            "GET /api/signing-key/{keyId}",
+            "POST /api/sign-in");
 
     /** Callable with any key ({@link AnyApiKey}). Documented under "Endpoints any key can call". */
     private static final Set<String> ANY_KEY = Set.of("DELETE /api/api-keys/current");

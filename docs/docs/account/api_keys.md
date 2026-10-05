@@ -109,7 +109,7 @@ Every scope change is recorded in the [audit log](../auditing.md) as a security 
 
 ## Session keys
 
-A session key is an API key issued when a person signs in through a user interface, as opposed to a long-lived key used by automation. Password sign-in is not available yet; session keys are the credential it will issue. A session key works like any other key until it expires:
+A session key is an API key issued when a person [signs in](../api_and_sdks/api/sign_in_api.md) through a user interface, as opposed to a long-lived key used by automation. It holds every scope, with the user's role still deciding administrator access, but it cannot create API keys, so a session cannot produce a credential that outlives it. A session key works like any other key until it expires:
 
 * **Idle timeout.** It expires after [`SESSION_KEY_IDLE_TIMEOUT_MINUTES`](../settings.md#api-access) (default 30) without a request. Each request starts the timeout again.
 * **Maximum lifetime.** It expires [`SESSION_KEY_MAX_LIFETIME_MINUTES`](../settings.md#api-access) (default 720, 12 hours) after it was issued, however active it is.
@@ -142,6 +142,7 @@ the request claims to come from, which a client controls through forwarding head
 A small number of endpoints do not require an API key:
 
 * `/api/health` (the health endpoint).
+* `POST /api/sign-in` ([password sign-in](../api_and_sdks/api/sign_in_api.md)), which takes a username and password instead, and answers `404 Not Found` unless `PASSWORD_SIGN_IN_ENABLED` is `true`.
 * `/v3/api-docs` and `/swagger-ui/` (the OpenAPI specification and Swagger UI).
 
 All other `/api/` endpoints require a valid API key.

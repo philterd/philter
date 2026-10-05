@@ -156,6 +156,7 @@ nav:
       - 'Redaction Ledger API': 'api_and_sdks/api/ledger_api.md'
       - 'Legal Holds API': 'api_and_sdks/api/legal_holds_api.md'
       - 'Users API': 'api_and_sdks/api/users_api.md'
+      - 'Sign-in API': 'api_and_sdks/api/sign_in_api.md'
       - 'API Keys API': 'api_and_sdks/api/api_keys_api.md'
       - 'Settings API': 'api_and_sdks/api/settings_api.md'
     - 'Client SDKs': 'api_and_sdks/sdks.md'

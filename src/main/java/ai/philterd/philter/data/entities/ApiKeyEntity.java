@@ -50,6 +50,8 @@ public class ApiKeyEntity extends AbstractEntity {
     private int idleTimeoutSeconds;
     private Date idleExpiresAt;
     private Date lastUsedAt;
+    // A session key issued to a user who must change their password: it can only do that, or sign out.
+    private boolean passwordChangeOnly;
 
     /** The scopes this key carries. Empty means the key can call nothing. */
     private Set<String> scopes = new LinkedHashSet<>();
@@ -72,6 +74,7 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setIdleTimeoutSeconds(document.getInteger("idle_timeout_seconds", 0));
         apiKeyEntity.setIdleExpiresAt(document.getDate("idle_expires_at"));
         apiKeyEntity.setLastUsedAt(document.getDate("last_used_at"));
+        apiKeyEntity.setPasswordChangeOnly(document.getBoolean("password_change_only", false));
 
         // A key with no scopes recorded can call nothing: scopes are always written at
         // creation, so their absence is a malformed key rather than a legacy one.
@@ -100,6 +103,7 @@ public class ApiKeyEntity extends AbstractEntity {
             document.put("idle_timeout_seconds", idleTimeoutSeconds);
             document.put("idle_expires_at", idleExpiresAt);
             document.put("last_used_at", lastUsedAt);
+            document.put("password_change_only", passwordChangeOnly);
         }
         document.put("scopes", new ArrayList<>(scopes));
         return document;
@@ -215,6 +219,14 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public void setLastUsedAt(final Date lastUsedAt) {
         this.lastUsedAt = lastUsedAt;
+    }
+
+    public boolean isPasswordChangeOnly() {
+        return passwordChangeOnly;
+    }
+
+    public void setPasswordChangeOnly(final boolean passwordChangeOnly) {
+        this.passwordChangeOnly = passwordChangeOnly;
     }
 
     public Set<String> getScopes() {

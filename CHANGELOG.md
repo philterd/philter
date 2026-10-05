@@ -49,8 +49,7 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   last active administrator, and cannot grant a key a scope the calling key does not hold. Every
   change is audited with the acting administrator and API key.
 - **User passwords.** A user can have an optional password, stored as a bcrypt hash, for a person who
-  will sign in through a user interface (password sign-in is not available yet); users without one
-  authenticate with API keys only. It is set at
+  signs in through a user interface; users without one authenticate with API keys only. It is set at
   creation (`POST /api/users`), changed by the user with the current one (`PUT /api/users/me/password`),
   or set and reset by an administrator (`PUT /api/users/{username}/password`), which requires a change
   at next sign-in. Passwords must be 16 characters to 72 UTF-8 bytes. A change or reset revokes the
@@ -62,8 +61,13 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   revocation apply on every instance at once. The holder signs out with `DELETE /api/api-keys/current`,
   which any key may call; an administrator revokes a user's session keys with
   `DELETE /api/users/{username}/session-keys`. Listings mark session keys and give their expiry.
-  Expiry is audited as `api_key_expired`. Long-lived keys are unchanged. Password sign-in, which
-  issues them, is not available yet.
+  Expiry is audited as `api_key_expired`. Long-lived keys are unchanged.
+- **Password sign-in.** `POST /api/sign-in` exchanges a username and password for a session key,
+  for a user interface such as Philter UI. Disabled unless `PASSWORD_SIGN_IN_ENABLED=true`, when it
+  returns 404. Every kind of failure gets the same 401 in about the same time. The session key holds
+  every scope, with the user's role deciding administrator access, but cannot create API keys. A user
+  who must change their password gets a key that can only do that and sign out. Audited as
+  `sign_in_succeeded` and `sign_in_failed` with the username and client IP address.
 - **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's
   keys, so a key can be rotated without an administrator; `GET /api/users/{username}/api-keys` lets
   an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does

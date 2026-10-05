@@ -161,7 +161,7 @@ public class ApiKeysApiController extends AbstractApiController {
                             schema = @Schema(implementation = CreatedApiKeyResponse.class))),
             @ApiResponse(responseCode = "400", description = "No scopes were given, or one of them is not a scope."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, or a requested scope is not held by the calling key.",
+            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, is a session key, or a requested scope is not held by the calling key.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class)))
     })
@@ -174,6 +174,11 @@ public class ApiKeysApiController extends AbstractApiController {
             final @RequestBody CreateApiKeyRequest request) {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> sessionRefusal = refuseSessionKey(caller);
+        if (sessionRefusal != null) {
+            return sessionRefusal;
+        }
 
         final Set<String> scopes = requestedScopes(request.getScopes());
         final ResponseEntity<Object> refusal = refuseScopesNotHeld(caller, scopes);
@@ -200,7 +205,7 @@ public class ApiKeysApiController extends AbstractApiController {
                             schema = @Schema(implementation = CreatedApiKeyResponse.class))),
             @ApiResponse(responseCode = "400", description = "No scopes were given, or one of them is not a scope."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, the caller is not an administrator, or a requested scope is not held by the calling key.",
+            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, is a session key, the caller is not an administrator, or a requested scope is not held by the calling key.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "There is no active user with that username.",
@@ -216,6 +221,11 @@ public class ApiKeysApiController extends AbstractApiController {
             final @RequestBody CreateApiKeyRequest request) {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> sessionRefusal = refuseSessionKey(caller);
+        if (sessionRefusal != null) {
+            return sessionRefusal;
+        }
 
         final ResponseEntity<Object> adminRefusal = refuseNonAdmin(userService, caller, "Creating an API key");
         if (adminRefusal != null) {
@@ -472,6 +482,18 @@ public class ApiKeysApiController extends AbstractApiController {
 
         return null;
 
+    }
+
+    /**
+     * A session key cannot create keys: a key made from a session would outlive it, and survive the
+     * sign-out, expiry, or password reset meant to end that person's access.
+     */
+    private static ResponseEntity<Object> refuseSessionKey(final ApiKeyEntity caller) {
+        if (!caller.isSession()) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
+                "A session key cannot create API keys. Use a long-lived key."));
     }
 
     private static String actingPrincipal(final ApiKeyEntity caller) {

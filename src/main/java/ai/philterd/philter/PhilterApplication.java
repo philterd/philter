@@ -41,6 +41,7 @@ import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.signing.SigningService;
+import ai.philterd.philter.data.services.SignInChallengeDataService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -346,6 +347,11 @@ public class PhilterApplication {
     @Bean
     public ApiKeyDataService apiKeyDataService() {
         return new ApiKeyDataService(mongoClient(), auditEventPublisher(), apiKeyCache());
+    }
+
+    @Bean
+    public SignInChallengeDataService signInChallengeDataService() {
+        return new SignInChallengeDataService(mongoClient());
     }
 
     @Bean

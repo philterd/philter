@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.mfa.TotpService;
 import ai.philterd.philter.services.policies.DefaultPolicy;
 import ai.philterd.philter.services.webhook.WebhookSettings;
 import com.mongodb.client.FindIterable;
@@ -64,6 +65,14 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public static final int MAX_PASSWORD_BYTES = 72;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    /** Consecutive bad codes that lock a user's MFA until an administrator unlocks it. */
+    public static final int MAX_MFA_ATTEMPTS = 5;
+
+    private final TotpService totpService = new TotpService();
+
+    /** The outcome of checking an MFA code. */
+    public enum MfaCheck { ACCEPTED, REFUSED, LOCKED }
 
     public UserService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
@@ -594,6 +603,183 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                 withApiKey("change_required: " + changeRequired, actingApiKeyId));
 
         return ServiceResponse.success(replacing ? "Password reset." : "Password set.");
+
+    }
+
+    /**
+     * Starts MFA enrollment: generates a secret and holds it as pending until
+     * {@link #confirmMfaEnrollment} sees a valid code for it, so a half-finished enrollment never applies
+     * at sign-in. Starting again replaces the pending secret.
+     *
+     * @return the secret, shown to the user once to set up an authenticator app, or {@code null} if the
+     * user is already enrolled.
+     */
+    public String startMfaEnrollment(final UserEntity user) {
+        if (user.isMfaEnabled()) {
+            return null;
+        }
+        final String secret = totpService.generateSecret();
+        user.setMfaPendingSecret(secret);
+        updateFields(user, "mfa_pending_secret", "mfa_pending_secret_key");
+        return secret;
+    }
+
+    /** The {@code otpauth://} URI an authenticator app reads, as a QR code, to set up the secret. */
+    public String mfaOtpauthUri(final UserEntity user, final String secret) {
+        return totpService.otpauthUri(user.getUsername(), secret);
+    }
+
+    /**
+     * Completes enrollment with a code for the pending secret, which then becomes the user's MFA secret.
+     * Audited as {@code user_mfa_enrolled}. The caller revokes the user's session keys.
+     *
+     * @return a failure with status 400 (the code is not valid) or 409 (already enrolled, or no
+     * enrollment was started).
+     */
+    public ServiceResponse confirmMfaEnrollment(final String requestId, final UserEntity user, final String code,
+                                                final String source, final ObjectId actingApiKeyId) {
+
+        if (user.isMfaEnabled()) {
+            return new ServiceResponse("MFA is already enrolled.", false, 409);
+        }
+        if (user.getMfaPendingSecret() == null) {
+            return new ServiceResponse("Start enrollment first, with POST /api/users/me/mfa.", false, 409);
+        }
+        final long step = totpService.matchingTimeStep(user.getMfaPendingSecret(), code);
+        if (step == TotpService.NO_MATCH) {
+            return new ServiceResponse("The code is not valid.", false, 400);
+        }
+
+        user.setMfaEnabled(true);
+        user.setMfaSecret(user.getMfaPendingSecret());
+        user.setMfaPendingSecret(null);
+        user.setMfaFailedAttempts(0);
+        user.setMfaLocked(false);
+        user.setMfaLastUsedTimeStep(step);
+        final Document serialized = user.toDocument(encryptionService);
+        final Document selected = new Document();
+        for (final String field : List.of("mfa_enabled", "mfa_secret", "mfa_secret_key", "mfa_pending_secret",
+                "mfa_pending_secret_key", "mfa_failed_attempts", "mfa_locked", "mfa_last_used_time_step")) {
+            selected.put(field, serialized.get(field));
+        }
+        // Only one of two concurrent confirmations enrolls.
+        if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.ne("mfa_enabled", true)),
+                new Document("$set", selected)).getMatchedCount() != 1) {
+            return new ServiceResponse("MFA is already enrolled.", false, 409);
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_ENROLLED, user.getId(), user.getId(),
+                source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("MFA enrolled.");
+
+    }
+
+    /**
+     * Checks an MFA code for an enrolled user. A code is accepted once: the write that accepts it
+     * requires its time step to be later than the last one accepted, so a replay, or two requests
+     * racing with the same code, fails. A refused code counts toward {@value #MAX_MFA_ATTEMPTS}
+     * consecutive failures, which lock the user; an accepted one resets the count.
+     */
+    public MfaCheck checkMfaCode(final String requestId, final UserEntity user, final String code, final String source) {
+
+        if (!user.isMfaEnabled()) {
+            return MfaCheck.REFUSED;
+        }
+        if (user.isMfaLocked()) {
+            return MfaCheck.LOCKED;
+        }
+
+        final long step = totpService.matchingTimeStep(user.getMfaSecret(), code);
+        if (step != TotpService.NO_MATCH) {
+            final boolean accepted = collection.updateOne(Filters.and(Filters.eq("_id", user.getId()),
+                            Filters.eq("mfa_enabled", true), Filters.ne("mfa_locked", true),
+                            Filters.or(Filters.lt("mfa_last_used_time_step", step),
+                                    Filters.exists("mfa_last_used_time_step", false))),
+                    new Document("$set", new Document("mfa_last_used_time_step", step).append("mfa_failed_attempts", 0)))
+                    .getMatchedCount() == 1;
+            if (accepted) {
+                user.setMfaLastUsedTimeStep(step);
+                user.setMfaFailedAttempts(0);
+                return MfaCheck.ACCEPTED;
+            }
+        }
+
+        return recordBadMfaCode(requestId, user, source) ? MfaCheck.LOCKED : MfaCheck.REFUSED;
+
+    }
+
+    /** Counts a bad code atomically, and locks the user at the limit, auditing the lock once. */
+    private boolean recordBadMfaCode(final String requestId, final UserEntity user, final String source) {
+
+        final Document after = collection.findOneAndUpdate(
+                Filters.and(Filters.eq("_id", user.getId()), Filters.eq("mfa_enabled", true)),
+                new Document("$inc", new Document("mfa_failed_attempts", 1)),
+                new com.mongodb.client.model.FindOneAndUpdateOptions().returnDocument(com.mongodb.client.model.ReturnDocument.AFTER));
+        if (after == null || after.getInteger("mfa_failed_attempts", 0) < MAX_MFA_ATTEMPTS) {
+            return false;
+        }
+
+        if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.ne("mfa_locked", true)),
+                new Document("$set", new Document("mfa_locked", true))).getMatchedCount() == 1) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_LOCKED, user.getId(), user.getId(), source,
+                    "after " + MAX_MFA_ATTEMPTS + " consecutive bad codes");
+        }
+        user.setMfaLocked(true);
+        return true;
+
+    }
+
+    /**
+     * Removes a user's MFA enrollment, including any pending one, and clears a lock. Audited as
+     * {@code user_mfa_removed}, naming {@code actingUserId} (the user when null) and {@code actingApiKeyId}.
+     *
+     * @return a failure with status 409 if the user is not enrolled.
+     */
+    public ServiceResponse removeMfa(final String requestId, final UserEntity user, final String source,
+                                     final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+
+        if (!user.isMfaEnabled() && user.getMfaPendingSecret() == null) {
+            return new ServiceResponse("MFA is not enrolled.", false, 409);
+        }
+
+        user.setMfaEnabled(false);
+        user.setMfaSecret(null);
+        user.setMfaPendingSecret(null);
+        user.setMfaFailedAttempts(0);
+        user.setMfaLocked(false);
+        user.setMfaLastUsedTimeStep(0);
+        updateFields(user, "mfa_enabled", "mfa_secret", "mfa_secret_key", "mfa_pending_secret", "mfa_pending_secret_key",
+                "mfa_failed_attempts", "mfa_locked", "mfa_last_used_time_step");
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_REMOVED,
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("MFA removed.");
+
+    }
+
+    /**
+     * Unlocks a user locked out of MFA and resets the count of bad codes. Audited as
+     * {@code user_mfa_unlocked}, naming the acting administrator and API key.
+     *
+     * @return a failure with status 409 if the user is not locked.
+     */
+    public ServiceResponse unlockMfa(final String requestId, final UserEntity user, final String source,
+                                     final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+
+        if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.eq("mfa_locked", true)),
+                new Document("$set", new Document("mfa_locked", false).append("mfa_failed_attempts", 0)))
+                .getMatchedCount() != 1) {
+            return new ServiceResponse("The user is not locked.", false, 409);
+        }
+        user.setMfaLocked(false);
+        user.setMfaFailedAttempts(0);
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_UNLOCKED,
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("MFA unlocked.");
 
     }
 

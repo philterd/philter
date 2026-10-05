@@ -51,7 +51,8 @@ class ApiKeyScopeCoverageTest {
             "StatusApiController.status",
             "SigningApiController.getSigningKey",
             "SigningApiController.getSigningKeyById",
-            "SignInApiController.signIn");
+            "SignInApiController.signIn",
+            "SignInApiController.signInMfa");
 
     /** Endpoints any authenticated key may call ({@link AnyApiKey}), because they only end the caller's own access. */
     private static final Set<String> ANY_KEY = Set.of("ApiKeysApiController.signOut");

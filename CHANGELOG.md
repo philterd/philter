@@ -68,6 +68,13 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   every scope, with the user's role deciding administrator access, but cannot create API keys. A user
   who must change their password gets a key that can only do that and sign out. Audited as
   `sign_in_succeeded` and `sign_in_failed` with the username and client IP address.
+- **TOTP multi-factor authentication for sign-in.** Users enroll with `POST /api/users/me/mfa` and
+  `.../confirm`, and remove their own with a code; administrators remove another user's and unlock
+  them. Enrolled users get a single-use, five-minute challenge from `POST /api/sign-in` and complete it
+  with a code at `POST /api/sign-in/mfa`. Each code is accepted once, and five consecutive bad codes
+  lock the user until an administrator unlocks them. Settings `mfaAvailable` and `mfaRequired`. Secrets
+  are encrypted at rest and returned only at enrollment. Audited as `user_mfa_enrolled`,
+  `user_mfa_removed`, `user_mfa_locked`, and `user_mfa_unlocked`.
 - **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's
   keys, so a key can be rotated without an administrator; `GET /api/users/{username}/api-keys` lets
   an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does

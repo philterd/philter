@@ -48,7 +48,7 @@ import java.util.List;
 
 /**
  * Reads and changes the deployment's admin settings: differential-privacy counts, output signing, the
- * webhook destination allowlist, and Phield publishing. Requires an administrator as well as the scope.
+ * webhook destination allowlist, Phield publishing, and MFA. Requires an administrator as well as the scope.
  */
 @Tag(name = "Settings", description = "Read and change the deployment's admin settings. Requires an administrator.")
 @Controller
@@ -131,7 +131,8 @@ public class SettingsApiController extends AbstractApiController {
             warnings = adminSettingsDataService.update(new AdminSettingsDataService.Update(
                     request.getDiffuseCountsEnabled(), request.getSigningEnabled(), request.getWebhookAllowlist(),
                     request.getPhieldEnabled(), request.getPhieldUrl(), request.getPhieldSourceId(),
-                    request.getPhieldOrganization(), request.getPhieldApiKey()), caller.getUserId(), caller.getId());
+                    request.getPhieldOrganization(), request.getPhieldApiKey(), request.getMfaAvailable(),
+                    request.getMfaRequired()), caller.getUserId(), caller.getId());
         } catch (final IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
         } catch (final AccessDeniedException ex) {

@@ -19,15 +19,19 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.ChangePasswordRequest;
 import ai.philterd.philter.api.requests.CreateUserRequest;
+import ai.philterd.philter.api.requests.MfaCodeRequest;
 import ai.philterd.philter.api.requests.SetPasswordRequest;
 import ai.philterd.philter.api.requests.SetUserRoleRequest;
 import ai.philterd.philter.api.responses.CreatedUserResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetUsersResponse;
+import ai.philterd.philter.api.responses.MfaEnrollmentResponse;
 import ai.philterd.philter.api.responses.UserResponse;
 import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -79,16 +83,19 @@ public class UsersApiController extends AbstractApiController {
     private final UserService userService;
     private final PolicyDataService policyDataService;
     private final ContextDataService contextDataService;
+    private final AdminSettingsDataService adminSettingsDataService;
 
     public UsersApiController(final ApiKeyDataService apiKeyDataService,
                               final ApiKeyCache apiKeyCache,
                               final UserService userService,
                               final PolicyDataService policyDataService,
-                              final ContextDataService contextDataService) {
+                              final ContextDataService contextDataService,
+                              final AdminSettingsDataService adminSettingsDataService) {
         super(apiKeyDataService, apiKeyCache);
         this.userService = userService;
         this.policyDataService = policyDataService;
         this.contextDataService = contextDataService;
+        this.adminSettingsDataService = adminSettingsDataService;
     }
 
     @Operation(
@@ -377,6 +384,256 @@ public class UsersApiController extends AbstractApiController {
 
         return ResponseEntity.noContent().build();
 
+    }
+
+    @Operation(
+            summary = "Start MFA enrollment.",
+            description = "Generates a TOTP secret for the calling key's own user and returns it, with an otpauth:// URI "
+                    + "to show as a QR code. The secret is returned only here and is encrypted at rest. Enrollment takes "
+                    + "effect only once POST /api/users/me/mfa/confirm sees a valid code; starting again replaces an "
+                    + "unconfirmed secret. Requires the mfaAvailable setting, and the scope but not an administrator.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The secret to set up an authenticator app with.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = MfaEnrollmentResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "MFA is not available on this deployment, or the user is already enrolled.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/" + SELF + "/mfa", method = RequestMethod.POST,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> startMfaEnrollment(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+
+        final UserEntity user = callingUser(requireApiKey(authorizationHeader));
+
+        if (!mfaAvailable()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "MFA is not available. An administrator turns it on with the mfaAvailable setting."));
+        }
+
+        final String secret = userService.startMfaEnrollment(user);
+        if (secret == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is already enrolled."));
+        }
+
+        return ResponseEntity.ok(new MfaEnrollmentResponse(secret, userService.mfaOtpauthUri(user, secret)));
+
+    }
+
+    @Operation(
+            summary = "Confirm MFA enrollment.",
+            description = "Completes enrollment with a code from the authenticator app for the secret POST "
+                    + "/api/users/me/mfa returned. From then on, sign-in asks for a code. Revokes the user's session "
+                    + "keys, so the person signs in again with MFA. Requires the scope but not an administrator. "
+                    + "Recorded as a user_mfa_enrolled audit event.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "MFA is enrolled.", content = @Content),
+            @ApiResponse(responseCode = "400", description = "The code is missing or not valid.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "MFA is not available, the user is already enrolled, or no enrollment was started.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/" + SELF + "/mfa/confirm", method = RequestMethod.POST,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> confirmMfaEnrollment(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @RequestBody MfaCodeRequest request) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+        final UserEntity user = callingUser(apiKeyEntity);
+
+        if (!mfaAvailable()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "MFA is not available. An administrator turns it on with the mfaAvailable setting."));
+        }
+        if (request.getCode() == null) {
+            throw new BadRequestException("code is required.");
+        }
+
+        final ServiceResponse response = userService.confirmMfaEnrollment(requestId, user, request.getCode(),
+                Source.API.getSource(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(), "reason: MFA enrolled");
+
+        return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(
+            summary = "Remove your own MFA enrollment.",
+            description = "Removes the calling key's own user's MFA, which takes a valid code so a stolen session key "
+                    + "cannot turn MFA off. A bad code counts toward the lock. A user who has lost the device asks an "
+                    + "administrator, who uses DELETE /api/users/{username}/mfa. Requires the scope but not an "
+                    + "administrator. Recorded as a user_mfa_removed audit event.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "MFA was removed.", content = @Content),
+            @ApiResponse(responseCode = "400", description = "The code is missing."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, the code is not valid, or the user's MFA is locked.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "The user is not enrolled.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/" + SELF + "/mfa/remove", method = RequestMethod.POST,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> removeOwnMfa(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @RequestBody MfaCodeRequest request) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+        final UserEntity user = callingUser(apiKeyEntity);
+
+        if (request.getCode() == null) {
+            throw new BadRequestException("code is required.");
+        }
+        if (!user.isMfaEnabled()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is not enrolled."));
+        }
+
+        return switch (userService.checkMfaCode(requestId, user, request.getCode(), Source.API.getSource())) {
+            case ACCEPTED -> {
+                final ServiceResponse response = userService.removeMfa(requestId, user, Source.API.getSource(),
+                        user.getId(), apiKeyEntity.getId());
+                yield response.isSuccessful() ? ResponseEntity.noContent().build()
+                        : ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+            }
+            case LOCKED -> ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
+                    "MFA is locked after repeated bad codes. An administrator must unlock it."));
+            case REFUSED -> ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse("The code is not valid."));
+        };
+
+    }
+
+    @Operation(
+            summary = "Remove a user's MFA enrollment.",
+            description = "Removes another user's MFA, for a user who has lost their device, and clears any lock. On the "
+                    + "caller's own user, use POST /api/users/me/mfa/remove, which takes a code. Requires an "
+                    + "administrator as well as the scope. Recorded as a user_mfa_removed audit event naming the "
+                    + "calling administrator and API key.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "MFA was removed.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The user is the caller, or is not enrolled.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/{username}/mfa", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> removeMfa(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @PathVariable("username") String username) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Removing another user's MFA");
+        if (refusal != null) {
+            return refusal;
+        }
+
+        final UserEntity user = userService.findAnyByUsername(username);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        // Without this, a stolen administrator session key could turn off its own user's MFA without a code.
+        if (user.getId().equals(apiKeyEntity.getUserId())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "Remove your own MFA with POST /api/users/me/mfa/remove, which takes a code."));
+        }
+
+        final ServiceResponse response = userService.removeMfa(requestId, user, Source.API.getSource(),
+                apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(
+            summary = "Unlock a user's MFA.",
+            description = "Unlocks a user locked after five consecutive bad MFA codes and resets the count. Requires an "
+                    + "administrator as well as the scope. Recorded as a user_mfa_unlocked audit event naming the "
+                    + "calling administrator and API key.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "The user was unlocked.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The user is not locked.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/{username}/mfa/unlock", method = RequestMethod.POST,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> unlockMfa(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @PathVariable("username") String username) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Unlocking a user's MFA");
+        if (refusal != null) {
+            return refusal;
+        }
+
+        final UserEntity user = userService.findAnyByUsername(username);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final ServiceResponse response = userService.unlockMfa(requestId, user, Source.API.getSource(),
+                apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        return ResponseEntity.noContent().build();
+
+    }
+
+    private UserEntity callingUser(final ApiKeyEntity apiKeyEntity) {
+        final UserEntity user = userService.findOneById(apiKeyEntity.getUserId());
+        if (user == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+        return user;
+    }
+
+    private boolean mfaAvailable() {
+        final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
+        return settings != null && settings.isMfaAvailable();
     }
 
     @Operation(

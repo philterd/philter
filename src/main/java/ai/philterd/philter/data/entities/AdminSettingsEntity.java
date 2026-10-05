@@ -28,6 +28,9 @@ public class AdminSettingsEntity extends AbstractEntity {
     private String phieldOrganization = "philter";
     private String phieldApiKey = "";
     private boolean signingEnabled;
+    // MFA: whether users may enroll, and whether every user who signs in must.
+    private boolean mfaAvailable;
+    private boolean mfaRequired;
     // Hosts and IP/CIDR entries a user's webhook URL may point at. Empty means any public address.
     private String webhookAllowlist = "";
 
@@ -40,6 +43,8 @@ public class AdminSettingsEntity extends AbstractEntity {
         adminSettingsEntity.setPhieldSourceId(document.getString("phield_source_id") != null ? document.getString("phield_source_id") : "philter");
         adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
         adminSettingsEntity.setSigningEnabled(document.getBoolean("signing_enabled", false));
+        adminSettingsEntity.setMfaAvailable(document.getBoolean("mfa_available", false));
+        adminSettingsEntity.setMfaRequired(document.getBoolean("mfa_required", false));
         adminSettingsEntity.setWebhookAllowlist(document.getString("webhook_allowlist") == null ? "" : document.getString("webhook_allowlist"));
         return adminSettingsEntity;
     }
@@ -58,6 +63,8 @@ public class AdminSettingsEntity extends AbstractEntity {
         // The Phield API key is deliberately absent: it is encrypted at rest, and AdminSettingsDataService
         // is the only writer of it. Emitting it here would write the decrypted key back in the clear.
         document.put("signing_enabled", signingEnabled);
+        document.put("mfa_available", mfaAvailable);
+        document.put("mfa_required", mfaRequired);
         document.put("webhook_allowlist", webhookAllowlist);
         return document;
     }
@@ -133,6 +140,22 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setSigningEnabled(boolean signingEnabled) {
         this.signingEnabled = signingEnabled;
+    }
+
+    public boolean isMfaAvailable() {
+        return mfaAvailable;
+    }
+
+    public void setMfaAvailable(final boolean mfaAvailable) {
+        this.mfaAvailable = mfaAvailable;
+    }
+
+    public boolean isMfaRequired() {
+        return mfaRequired;
+    }
+
+    public void setMfaRequired(final boolean mfaRequired) {
+        this.mfaRequired = mfaRequired;
     }
 
 }

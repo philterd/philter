@@ -30,6 +30,8 @@ public class SettingsResponse {
     private final String phieldSourceId;
     private final String phieldOrganization;
     private final boolean phieldApiKeySet;
+    private final boolean mfaAvailable;
+    private final boolean mfaRequired;
     private final List<String> warnings;
 
     /** From the stored settings, or the defaults when none have been saved. */
@@ -43,6 +45,8 @@ public class SettingsResponse {
         this.phieldSourceId = s.getPhieldSourceId();
         this.phieldOrganization = s.getPhieldOrganization();
         this.phieldApiKeySet = s.getPhieldApiKey() != null && !s.getPhieldApiKey().isEmpty();
+        this.mfaAvailable = s.isMfaAvailable();
+        this.mfaRequired = s.isMfaRequired();
         this.warnings = warnings;
     }
 
@@ -61,6 +65,10 @@ public class SettingsResponse {
     public String getPhieldOrganization() { return phieldOrganization; }
 
     public boolean isPhieldApiKeySet() { return phieldApiKeySet; }
+
+    public boolean isMfaAvailable() { return mfaAvailable; }
+
+    public boolean isMfaRequired() { return mfaRequired; }
 
     /** Warnings about the saved settings, such as a Phield API key that will be sent over http. Empty on a read. */
     public List<String> getWarnings() { return warnings; }

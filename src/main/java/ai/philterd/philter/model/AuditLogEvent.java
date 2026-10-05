@@ -74,6 +74,11 @@ public enum AuditLogEvent {
     USER_PASSWORD_SET("user_password_set"),
     USER_PASSWORD_CHANGED("user_password_changed"),
     USER_PASSWORD_RESET("user_password_reset"),
+    // TOTP multi-factor authentication.
+    USER_MFA_ENROLLED("user_mfa_enrolled"),
+    USER_MFA_REMOVED("user_mfa_removed"),
+    USER_MFA_LOCKED("user_mfa_locked"),
+    USER_MFA_UNLOCKED("user_mfa_unlocked"),
     // Retained for historical events: users are deactivated rather than deleted.
 
     // Account and admin configuration changes.

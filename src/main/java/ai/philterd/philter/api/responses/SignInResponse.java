@@ -31,6 +31,7 @@ public class SignInResponse {
     private final Date expiresAt;
     private final Date idleExpiresAt;
     private final boolean passwordChangeRequired;
+    private final boolean mfaEnrollmentRequired;
 
     public SignInResponse(final String username, final ApiKeyEntity sessionKey) {
         this.apiKey = sessionKey.getApiKey();
@@ -39,6 +40,7 @@ public class SignInResponse {
         this.expiresAt = sessionKey.getExpiresAt();
         this.idleExpiresAt = sessionKey.getIdleExpiresAt();
         this.passwordChangeRequired = sessionKey.isPasswordChangeOnly();
+        this.mfaEnrollmentRequired = sessionKey.isMfaEnrollmentOnly();
     }
 
     @Schema(description = "The session key. Send it as a bearer token. It is returned here and nowhere else.")
@@ -57,5 +59,9 @@ public class SignInResponse {
     @Schema(description = "Whether the password must be changed first. If so, the key can only change the "
             + "password with PUT /api/users/me/password and sign out.")
     public boolean isPasswordChangeRequired() { return passwordChangeRequired; }
+
+    @Schema(description = "Whether the user must enroll in MFA first. If so, the key can only enroll with "
+            + "POST /api/users/me/mfa and POST /api/users/me/mfa/confirm, and sign out.")
+    public boolean isMfaEnrollmentRequired() { return mfaEnrollmentRequired; }
 
 }

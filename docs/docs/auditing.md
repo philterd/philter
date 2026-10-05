@@ -52,6 +52,10 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `user_password_set` | A user without a password was given one, at creation or by an administrator through the [Users API](api_and_sdks/api/users_api.md#set-or-reset-a-users-password). The subject is the calling administrator, the associated object is the user, and the detail names the calling API key and whether a change is required. Never includes the password. |
 | `user_password_reset` | An administrator replaced a user's password. Recorded like `user_password_set`. |
 | `user_password_changed` | A user changed their own password. The subject and associated object are the user, and the detail names the calling API key. Never includes either password. |
+| `user_mfa_enrolled` | A user confirmed [TOTP MFA](api_and_sdks/api/users_api.md#multi-factor-authentication) enrollment. The subject and associated object are the user, and the detail names the calling API key. Never includes the secret. |
+| `user_mfa_removed` | A user's MFA enrollment was removed, by the user with a code or by an administrator, which also clears a lock. The subject is whoever removed it, and the detail names the calling API key. |
+| `user_mfa_locked` | A user's MFA was locked after five consecutive bad codes. Recorded once per lock. |
+| `user_mfa_unlocked` | An administrator unlocked a user's MFA. The subject is the administrator, and the detail names the calling API key. |
 
 ### API keys
 

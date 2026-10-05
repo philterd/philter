@@ -83,6 +83,7 @@ class UsersApiControllerTest {
     @Mock private UserService userService;
     @Mock private PolicyDataService policyDataService;
     @Mock private ContextDataService contextDataService;
+    @Mock private ai.philterd.philter.data.services.AdminSettingsDataService adminSettingsDataService;
 
     private ObjectId callerUserId;
     private ObjectId callerApiKeyId;
@@ -100,7 +101,7 @@ class UsersApiControllerTest {
         lenient().when(apiKeyCache.get(API_KEY_HASH)).thenAnswer(invocation -> callerKey);
 
         final UsersApiController controller = new UsersApiController(
-                apiKeyDataService, apiKeyCache, userService, policyDataService, contextDataService);
+                apiKeyDataService, apiKeyCache, userService, policyDataService, contextDataService, adminSettingsDataService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .addInterceptors(new ApiKeyScopeInterceptor())

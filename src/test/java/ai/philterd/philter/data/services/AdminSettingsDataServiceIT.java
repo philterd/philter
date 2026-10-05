@@ -64,16 +64,16 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     }
 
     private static void saveSigningEnabled(final AdminSettingsDataService service, final boolean enabled) {
-        service.update(new AdminSettingsDataService.Update(null, enabled, null, null, null, null, null, null), ACTING_ADMIN, null);
+        service.update(new AdminSettingsDataService.Update(null, enabled, null, null, null, null, null, null, null, null), ACTING_ADMIN, null);
     }
 
     private static void saveDiffuseCountsEnabled(final AdminSettingsDataService service, final boolean enabled) {
-        service.update(new AdminSettingsDataService.Update(enabled, null, null, null, null, null, null, null), ACTING_ADMIN, null);
+        service.update(new AdminSettingsDataService.Update(enabled, null, null, null, null, null, null, null, null, null), ACTING_ADMIN, null);
     }
 
     private static void savePhieldSettings(final AdminSettingsDataService service, final boolean enabled, final String url,
                                            final String sourceId, final String organization, final String apiKey) {
-        service.update(new AdminSettingsDataService.Update(null, null, null, enabled, url, sourceId, organization, apiKey),
+        service.update(new AdminSettingsDataService.Update(null, null, null, enabled, url, sourceId, organization, apiKey, null, null),
                 ACTING_ADMIN, null);
     }
 
@@ -239,7 +239,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final AdminSettingsDataService audited = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), publisher);
 
-        audited.update(new AdminSettingsDataService.Update(null, null, "hooks.example.com, 10.4.0.0/16", null, null, null, null, null),
+        audited.update(new AdminSettingsDataService.Update(null, null, "hooks.example.com, 10.4.0.0/16", null, null, null, null, null, null, null),
                 ACTING_ADMIN, null);
 
         final ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);

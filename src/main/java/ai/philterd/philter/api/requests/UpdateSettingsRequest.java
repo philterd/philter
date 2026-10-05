@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.requests;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Request body for {@code PATCH /api/settings}. A field left out is left unchanged. Sending an empty
  * {@code phieldApiKey} removes the key.
@@ -29,9 +31,19 @@ public class UpdateSettingsRequest {
     private String phieldSourceId;
     private String phieldOrganization;
     private String phieldApiKey;
+    private Boolean mfaAvailable;
+    private Boolean mfaRequired;
 
     public Boolean getDiffuseCountsEnabled() { return diffuseCountsEnabled; }
     public void setDiffuseCountsEnabled(final Boolean value) { this.diffuseCountsEnabled = value; }
+
+    @Schema(description = "Whether users may enroll in TOTP multi-factor authentication.")
+    public Boolean getMfaAvailable() { return mfaAvailable; }
+    public void setMfaAvailable(final Boolean value) { this.mfaAvailable = value; }
+
+    @Schema(description = "Whether every user who signs in must enroll in MFA. Requires mfaAvailable.")
+    public Boolean getMfaRequired() { return mfaRequired; }
+    public void setMfaRequired(final Boolean value) { this.mfaRequired = value; }
 
     public Boolean getSigningEnabled() { return signingEnabled; }
     public void setSigningEnabled(final Boolean value) { this.signingEnabled = value; }

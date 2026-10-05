@@ -201,14 +201,16 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 }
 
-                // A key issued to a user who must change their password can do that and sign out, nothing else.
-                if (apiKeyEntity.isPasswordChangeOnly() && !isAllowedBeforePasswordChange(path, httpRequest.getMethod())) {
+                // A key issued to a user who must change their password or enroll in MFA can do that and
+                // sign out, nothing else.
+                if (apiKeyEntity.isRestricted() && !isAllowedForRestrictedKey(apiKeyEntity, path, httpRequest.getMethod())) {
 
                     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
                     httpServletResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"The password must be changed "
-                            + "first, with PUT /api/users/me/password.\"}");
+                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \""
+                            + (apiKeyEntity.isPasswordChangeOnly() ? "The password must be changed first, with PUT /api/users/me/password."
+                            : "MFA enrollment is required first, with POST /api/users/me/mfa.") + "\"}");
                     return;
 
                 }
@@ -268,14 +270,20 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
      * Shared with the scope interceptor so the two cannot come to different conclusions about which
      * signing-key requests are public.
      */
-    /** Password sign-in, served without an API key. */
+    /** Password sign-in and its MFA step, served without an API key. */
     public static boolean isSignIn(final String path, final String method) {
-        return "POST".equals(method) && "/api/sign-in".equals(path);
+        return "POST".equals(method) && ("/api/sign-in".equals(path) || "/api/sign-in/mfa".equals(path));
     }
 
-    private static boolean isAllowedBeforePasswordChange(final String path, final String method) {
-        return ("PUT".equals(method) && "/api/users/me/password".equals(path))
-                || ("DELETE".equals(method) && "/api/api-keys/current".equals(path));
+    private static boolean isAllowedForRestrictedKey(final ApiKeyEntity key, final String path, final String method) {
+        if ("DELETE".equals(method) && "/api/api-keys/current".equals(path)) {
+            return true;
+        }
+        if (key.isPasswordChangeOnly() && "PUT".equals(method) && "/api/users/me/password".equals(path)) {
+            return true;
+        }
+        return key.isMfaEnrollmentOnly() && "POST".equals(method)
+                && ("/api/users/me/mfa".equals(path) || "/api/users/me/mfa/confirm".equals(path));
     }
 
     public static boolean isPublicSigningKeyRead(final String path, final String method) {

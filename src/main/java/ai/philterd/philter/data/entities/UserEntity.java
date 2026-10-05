@@ -35,6 +35,16 @@ public class UserEntity extends AbstractEncryptedEntity {
     private String password;
     // Set when an administrator chose the password, so the user must replace it at next sign-in.
     private boolean passwordChangeRequired;
+    // TOTP multi-factor authentication. The secret is encrypted at rest. A pending secret is one an
+    // enrollment started but has not confirmed, so it does not yet apply at sign-in.
+    private boolean mfaEnabled;
+    private String mfaSecret;
+    private String mfaPendingSecret;
+    // Consecutive bad codes; at the limit the user is locked until an administrator unlocks them.
+    private int mfaFailedAttempts;
+    private boolean mfaLocked;
+    // The last time step a code was accepted for, so no code is accepted twice.
+    private long mfaLastUsedTimeStep;
     // Users are deactivated rather than deleted: the record and all of the user's data are retained
     // (so the account can be reactivated and so audit and ledger entries that reference the user id
     // still resolve to a name), but a deactivated user's API keys are refused.
@@ -55,6 +65,13 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setWebhookSecret(readEncrypted(document, encryptionService, "webhook_secret"));
         userEntity.setPassword(document.getString("password"));
         userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
+        userEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
+        userEntity.setMfaSecret(readEncrypted(document, encryptionService, "mfa_secret"));
+        userEntity.setMfaPendingSecret(readEncrypted(document, encryptionService, "mfa_pending_secret"));
+        userEntity.setMfaFailedAttempts(document.getInteger("mfa_failed_attempts", 0));
+        userEntity.setMfaLocked(document.getBoolean("mfa_locked", false));
+        final Number lastStep = document.get("mfa_last_used_time_step", Number.class);
+        userEntity.setMfaLastUsedTimeStep(lastStep == null ? 0L : lastStep.longValue());
         userEntity.setDeactivated(document.getBoolean("deactivated", false));
         userEntity.setDeactivatedAt(document.getDate("deactivated_at"));
         return userEntity;
@@ -93,6 +110,12 @@ public class UserEntity extends AbstractEncryptedEntity {
         putEncrypted(document, encryptionService, "webhook_secret", webhookSecret);
         document.put("password", password);
         document.put("password_change_required", passwordChangeRequired);
+        document.put("mfa_enabled", mfaEnabled);
+        putEncrypted(document, encryptionService, "mfa_secret", mfaSecret);
+        putEncrypted(document, encryptionService, "mfa_pending_secret", mfaPendingSecret);
+        document.put("mfa_failed_attempts", mfaFailedAttempts);
+        document.put("mfa_locked", mfaLocked);
+        document.put("mfa_last_used_time_step", mfaLastUsedTimeStep);
         document.put("deactivated", deactivated);
         document.put("deactivated_at", deactivatedAt);
         return document;
@@ -184,6 +207,54 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setPasswordChangeRequired(final boolean passwordChangeRequired) {
         this.passwordChangeRequired = passwordChangeRequired;
+    }
+
+    public boolean isMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(final boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
+    }
+
+    public String getMfaSecret() {
+        return mfaSecret;
+    }
+
+    public void setMfaSecret(final String mfaSecret) {
+        this.mfaSecret = mfaSecret;
+    }
+
+    public String getMfaPendingSecret() {
+        return mfaPendingSecret;
+    }
+
+    public void setMfaPendingSecret(final String mfaPendingSecret) {
+        this.mfaPendingSecret = mfaPendingSecret;
+    }
+
+    public int getMfaFailedAttempts() {
+        return mfaFailedAttempts;
+    }
+
+    public void setMfaFailedAttempts(final int mfaFailedAttempts) {
+        this.mfaFailedAttempts = mfaFailedAttempts;
+    }
+
+    public boolean isMfaLocked() {
+        return mfaLocked;
+    }
+
+    public void setMfaLocked(final boolean mfaLocked) {
+        this.mfaLocked = mfaLocked;
+    }
+
+    public long getMfaLastUsedTimeStep() {
+        return mfaLastUsedTimeStep;
+    }
+
+    public void setMfaLastUsedTimeStep(final long mfaLastUsedTimeStep) {
+        this.mfaLastUsedTimeStep = mfaLastUsedTimeStep;
     }
 
     public boolean isDeactivated() {

@@ -58,7 +58,8 @@ class ApiKeyScopeAssignmentTest {
             "GET /api/health",
             "GET /api/signing-key",
             "GET /api/signing-key/{keyId}",
-            "POST /api/sign-in");
+            "POST /api/sign-in",
+            "POST /api/sign-in/mfa");
 
     /** Callable with any key ({@link AnyApiKey}). Documented under "Endpoints any key can call". */
     private static final Set<String> ANY_KEY = Set.of("DELETE /api/api-keys/current");

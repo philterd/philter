@@ -121,7 +121,7 @@ class RemainingP1IT extends AbstractMongoIT {
         users.setUserRole("req", admin, "user", "system");
         var settings = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), audit);
         assertThrows(org.springframework.security.access.AccessDeniedException.class,
-                () -> settings.update(new AdminSettingsDataService.Update(null, false, null, null, null, null, null, null),
+                () -> settings.update(new AdminSettingsDataService.Update(null, false, null, null, null, null, null, null, null, null),
                         admin.getId(), null));
     }
 }

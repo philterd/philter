@@ -87,6 +87,79 @@ class UserServiceIT extends AbstractMongoIT {
         redactListsDataService = new RedactListsDataService(mongoClient, encryptionService, audit);
     }
 
+    /** An enrolled user and the secret, enrolled through the service as the API does. */
+    private String enrollMfa(final UserService users, final UserEntity user) {
+        final String secret = users.startMfaEnrollment(user);
+        final ai.philterd.philter.services.mfa.TotpService totp = new ai.philterd.philter.services.mfa.TotpService();
+        assertTrue(users.confirmMfaEnrollment("req", user,
+                totp.codeAt(secret, ai.philterd.philter.services.mfa.TotpService.currentTimeStep() - 1), "test", null).isSuccessful());
+        return secret;
+    }
+
+    @Test
+    void twoRequestsRacingWithOneCodeAreAcceptedOnce() throws Exception {
+        final UserEntity user = createAndFind("mfa-race", "user");
+        final String secret = enrollMfa(service, user);
+        final String code = new ai.philterd.philter.services.mfa.TotpService()
+                .codeAt(secret, ai.philterd.philter.services.mfa.TotpService.currentTimeStep() + 1);
+
+        final java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            final var a = executor.submit(() -> { start.await(); return service.checkMfaCode("req", service.findOneById(user.getId()), code, "test"); });
+            final var b = executor.submit(() -> { start.await(); return service.checkMfaCode("req", service.findOneById(user.getId()), code, "test"); });
+            start.countDown();
+            final java.util.List<UserService.MfaCheck> results = java.util.List.of(a.get(), b.get());
+            assertEquals(1, results.stream().filter(r -> r == UserService.MfaCheck.ACCEPTED).count(),
+                    "a code works once, however the requests interleave: " + results);
+        }
+    }
+
+    @Test
+    void concurrentBadCodesAreAllCountedAndLockOnce() throws Exception {
+        final AuditEventPublisher audit = mock(AuditEventPublisher.class);
+        final UserService users = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
+        final UserEntity user = createAndFind("mfa-burst", "user");
+        enrollMfa(users, user);
+
+        final java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+            final java.util.List<java.util.concurrent.Future<UserService.MfaCheck>> attempts = new java.util.ArrayList<>();
+            for (int i = 0; i < 8; i++) {
+                attempts.add(executor.submit(() -> { start.await(); return users.checkMfaCode("req", users.findOneById(user.getId()), "000000", "test"); }));
+            }
+            start.countDown();
+            for (final var attempt : attempts) {
+                assertTrue(attempt.get() != UserService.MfaCheck.ACCEPTED);
+            }
+        }
+
+        final UserEntity stored = users.findOneById(user.getId());
+        assertTrue(stored.isMfaLocked());
+        assertTrue(stored.getMfaFailedAttempts() >= UserService.MAX_MFA_ATTEMPTS, "no failure was lost: " + stored.getMfaFailedAttempts());
+        verify(audit, times(1)).auditEvent(any(), eq(AuditLogEvent.USER_MFA_LOCKED), eq(user.getId()), eq(user.getId()), any(), any());
+    }
+
+    @Test
+    void anUnconfirmedEnrollmentDoesNotApplyAndRemovalClearsEverything() {
+        final UserEntity user = createAndFind("mfa-pending", "user");
+        final String pending = service.startMfaEnrollment(user);
+        final UserEntity stored = service.findOneById(user.getId());
+        assertFalse(stored.isMfaEnabled());
+        assertEquals(pending, stored.getMfaPendingSecret(), "the pending secret round-trips through encryption");
+        assertEquals(UserService.MfaCheck.REFUSED, service.checkMfaCode("req", stored,
+                new ai.philterd.philter.services.mfa.TotpService().codeAt(pending,
+                        ai.philterd.philter.services.mfa.TotpService.currentTimeStep()), "test"), "not enrolled yet");
+
+        enrollMfa(service, stored);
+        assertTrue(service.removeMfa("req", service.findOneById(user.getId()), "test", null, null).isSuccessful());
+        final UserEntity cleared = service.findOneById(user.getId());
+        assertFalse(cleared.isMfaEnabled());
+        assertNull(cleared.getMfaSecret());
+        assertNull(cleared.getMfaPendingSecret());
+        assertEquals(0, cleared.getMfaFailedAttempts());
+        assertEquals(0L, cleared.getMfaLastUsedTimeStep());
+    }
+
     @Test
     void passwordRulesCountCharactersAndUtf8Bytes() {
         assertNotNull(UserService.passwordProblem(null));

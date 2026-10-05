@@ -56,7 +56,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     }
 
     private PiiCountAggregatePublisher enabledPublisher() {
-        adminSettingsDataService.update(new AdminSettingsDataService.Update(true, null, null, null, null, null, null, null), ACTING_ADMIN, null);
+        adminSettingsDataService.update(new AdminSettingsDataService.Update(true, null, null, null, null, null, null, null, null, null), ACTING_ADMIN, null);
         return new PiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
     }
 

@@ -104,7 +104,8 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
      */
     public record Update(Boolean diffuseCountsEnabled, Boolean signingEnabled, String webhookAllowlist,
                          Boolean phieldEnabled, String phieldUrl, String phieldSourceId,
-                         String phieldOrganization, String phieldApiKey) {
+                         String phieldOrganization, String phieldApiKey,
+                         Boolean mfaAvailable, Boolean mfaRequired) {
     }
 
     /**
@@ -144,6 +145,15 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
             throw new IllegalArgumentException("phieldUrl is required when Phield is enabled.");
         }
 
+        final boolean mfaAvailable = update.mfaAvailable() != null ? update.mfaAvailable()
+                : current != null && current.isMfaAvailable();
+        final boolean mfaRequired = update.mfaRequired() != null ? update.mfaRequired()
+                : current != null && current.isMfaRequired();
+        if (mfaRequired && !mfaAvailable) {
+            throw new IllegalArgumentException("mfaRequired needs mfaAvailable: users cannot be required to enroll "
+                    + "in MFA that is not available.");
+        }
+
         final List<String> changed = new ArrayList<>();
         if (update.diffuseCountsEnabled() != null) {
             changed.addAll(updateSetting("diffuse_counts_enabled", update.diffuseCountsEnabled()));
@@ -170,6 +180,12 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         }
         if (update.phieldApiKey() != null) {
             changed.addAll(updateSettings(encryptPhieldApiKey(update.phieldApiKey())));
+        }
+        if (update.mfaAvailable() != null) {
+            changed.addAll(updateSetting("mfa_available", update.mfaAvailable()));
+        }
+        if (update.mfaRequired() != null) {
+            changed.addAll(updateSetting("mfa_required", update.mfaRequired()));
         }
 
         if (!changed.isEmpty()) {

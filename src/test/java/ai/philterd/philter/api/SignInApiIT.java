@@ -160,13 +160,15 @@ class SignInApiIT {
         assertEquals(404, response.statusCode());
         assertFalse(response.body().contains("sk_"));
 
-        // Nothing about the request may reveal that the endpoint exists while it is off.
-        for (final String contentType : List.of("application/json", "text/plain")) {
-            final HttpResponse<String> malformed = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
-                    .header("Content-Type", contentType)
-                    .POST(HttpRequest.BodyPublishers.ofString("{not json"))
-                    .build(), HttpResponse.BodyHandlers.ofString());
-            assertEquals(404, malformed.statusCode(), contentType + ": " + malformed.body());
+        // Nothing about the request may reveal that either step exists while sign-in is off.
+        for (final String path : List.of("/api/sign-in", "/api/sign-in/mfa")) {
+            for (final String contentType : List.of("application/json", "text/plain")) {
+                final HttpResponse<String> malformed = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + path))
+                        .header("Content-Type", contentType)
+                        .POST(HttpRequest.BodyPublishers.ofString("{not json"))
+                        .build(), HttpResponse.BodyHandlers.ofString());
+                assertEquals(404, malformed.statusCode(), path + " " + contentType + ": " + malformed.body());
+            }
         }
     }
 

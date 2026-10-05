@@ -21,7 +21,9 @@ The first administrator key comes from [`PHILTER_BOOTSTRAP_API_KEY`](../../accou
   "created": "2026-10-05T14:03:11.000Z",
   "deactivatedAt": null,
   "passwordSet": false,
-  "passwordChangeRequired": false
+  "passwordChangeRequired": false,
+  "mfaEnabled": false,
+  "mfaLocked": false
 }
 ```
 
@@ -30,6 +32,8 @@ The first administrator key comes from [`PHILTER_BOOTSTRAP_API_KEY`](../../accou
 * `deactivatedAt` - When the user was deactivated, or `null`.
 * `passwordSet` - Whether the user has a password.
 * `passwordChangeRequired` - Whether the user must change the password at next sign-in, because an administrator set it.
+* `mfaEnabled` - Whether the user is enrolled in [MFA](#multi-factor-authentication). The secret is never returned.
+* `mfaLocked` - Whether the user's MFA is locked after repeated bad codes, until an administrator unlocks it.
 
 ## List users
 
@@ -41,7 +45,7 @@ Returns users sorted by username, including deactivated users, and the total num
 
 ```json
 {
-  "users": [ { "username": "ci", "email": "ci@example.com", "role": "user", "active": true, "created": "2026-10-05T14:03:11.000Z", "deactivatedAt": null, "passwordSet": false, "passwordChangeRequired": false } ],
+  "users": [ { "username": "ci", "email": "ci@example.com", "role": "user", "active": true, "created": "2026-10-05T14:03:11.000Z", "deactivatedAt": null, "passwordSet": false, "passwordChangeRequired": false, "mfaEnabled": false, "mfaLocked": false } ],
   "total": 1
 }
 ```
@@ -210,6 +214,100 @@ curl -k -X PUT "https://localhost:8080/api/users/admin/password" \
 | 404 | There is no user with that username. |
 | 409 | The user is the caller and already has a password, or another request changed the password at the same time. |
 
+## Multi-factor authentication
+
+Users who [sign in](sign_in_api.md) with a password can add TOTP multi-factor authentication, with an authenticator app such as Google Authenticator, Authy, or 1Password. Once enrolled, sign-in asks for a code from the app as well as the password. MFA is available only when an administrator turns on `mfaAvailable` in the [settings](settings_api.md); `mfaRequired` makes every user who signs in enroll. A user who is already enrolled is always asked for a code, even if `mfaAvailable` is turned off later.
+
+The secret is encrypted at rest with `PHILTER_ENCRYPTION_KEY` and returned only when enrollment starts. A code is six digits and changes every 30 seconds; the codes for the 30 seconds either side of now are also accepted, to allow for clock differences. Each code is accepted once. After five consecutive bad codes the user is locked: no code is accepted until an administrator unlocks them or removes the enrollment. A good code resets the count.
+
+### Start enrollment
+
+```
+POST /api/users/me/mfa
+```
+
+Generates a secret for the calling key's own user. Requires `users:write`; does not require an administrator.
+
+`200 OK`:
+
+```json
+{
+  "secret": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+  "otpauthUri": "otpauth://totp/Philter:jordan?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Philter&algorithm=SHA1&digits=6&period=30"
+}
+```
+
+Show `otpauthUri` as a QR code for the app to scan, or have the person type in `secret`. Neither is returned again. Enrollment does not apply until it is confirmed; starting again replaces an unconfirmed secret.
+
+| Status | Meaning |
+|--------|---------|
+| 409 | MFA is not available on this deployment, or the user is already enrolled. |
+
+### Confirm enrollment
+
+```
+POST /api/users/me/mfa/confirm
+```
+
+```json
+{
+  "code": "123456"
+}
+```
+
+Completes enrollment with a code from the app, and returns `204 No Content`. Revokes the user's session keys, so the person signs in again, this time with a code. Requires `users:write`.
+
+| Status | Meaning |
+|--------|---------|
+| 400 | The code is missing or not valid. |
+| 409 | MFA is not available, the user is already enrolled, or no enrollment was started. |
+
+### Remove your own enrollment
+
+```
+POST /api/users/me/mfa/remove
+```
+
+```json
+{
+  "code": "123456"
+}
+```
+
+Removes the calling key's own user's MFA and returns `204 No Content`. It takes a valid code, so a stolen key cannot turn MFA off, and a bad code counts toward the lock. A person who has lost their device asks an administrator. Requires `users:write`.
+
+| Status | Meaning |
+|--------|---------|
+| 400 | The code is missing. |
+| 403 | The code is not valid, or the user's MFA is locked. |
+| 409 | The user is not enrolled. |
+
+### Remove a user's enrollment
+
+```
+DELETE /api/users/{username}/mfa
+```
+
+Removes another user's MFA, for a person who has lost their device, clears any lock, and returns `204 No Content`. An administrator removes their own with `POST /api/users/me/mfa/remove`. Requires `users:write` and an administrator.
+
+| Status | Meaning |
+|--------|---------|
+| 404 | There is no user with that username. |
+| 409 | The user is the caller, or is not enrolled. |
+
+### Unlock a user
+
+```
+POST /api/users/{username}/mfa/unlock
+```
+
+Unlocks a user locked after five bad codes, resets the count, and returns `204 No Content`. Requires `users:write` and an administrator.
+
+| Status | Meaning |
+|--------|---------|
+| 404 | There is no user with that username. |
+| 409 | The user is not locked. |
+
 ## Errors common to every endpoint
 
 | Status | Meaning |
@@ -228,9 +326,13 @@ curl -k -X PUT "https://localhost:8080/api/users/admin/password" \
 | `user_password_set` | A user without a password was given one, at creation or with `PUT /api/users/{username}/password`. The principal is the calling administrator, the associated object is the user, and the details name the calling API key and whether a change is required. |
 | `user_password_reset` | An administrator replaced a user's password. Recorded like `user_password_set`. |
 | `user_password_changed` | A user changed their own password. The principal and associated object are the user, and the details name the calling API key. |
-| `api_key_deleted` | A session key was revoked because the password was set, changed, or reset. The details give the reason. |
+| `user_mfa_enrolled` | A user confirmed MFA enrollment. The principal and associated object are the user, and the details name the calling API key. |
+| `user_mfa_removed` | A user's MFA was removed, by the user with a code or by an administrator. The principal is whoever removed it, and the details name the calling API key. |
+| `user_mfa_locked` | A user's MFA was locked after five consecutive bad codes. Recorded once per lock. |
+| `user_mfa_unlocked` | An administrator unlocked a user's MFA. The principal is the administrator, and the details name the calling API key. |
+| `api_key_deleted` | A session key was revoked because the password was set, changed, or reset, or MFA was enrolled. The details give the reason. |
 
-No event records a password or its hash. These are security events, so they cannot be switched off. They are readable through [`GET /api/audit`](audit_api.md). See [Auditing](../../auditing.md).
+No event records a password, its hash, or an MFA secret or code. These are security events, so they cannot be switched off. They are readable through [`GET /api/audit`](audit_api.md). See [Auditing](../../auditing.md).
 
 ## See also
 

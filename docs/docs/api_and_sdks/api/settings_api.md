@@ -14,6 +14,8 @@ These endpoints read and change the deployment's admin settings: differential-pr
   "phieldSourceId": "philter",
   "phieldOrganization": "philter",
   "phieldApiKeySet": true,
+  "mfaAvailable": false,
+  "mfaRequired": false,
   "warnings": []
 }
 ```
@@ -23,6 +25,8 @@ These endpoints read and change the deployment's admin settings: differential-pr
 * `webhookAllowlist` - Where a user's [webhook](webhooks.md#where-a-webhook-may-point) may point: comma-separated hostnames, IP addresses, and CIDR ranges. Empty allows any public address.
 * `phieldEnabled`, `phieldUrl`, `phieldSourceId`, `phieldOrganization` - [Phield](../../phield.md) publishing.
 * `phieldApiKeySet` - Whether a Phield API key is set. The key itself is never returned.
+* `mfaAvailable` - Whether users may enroll in [TOTP multi-factor authentication](users_api.md#multi-factor-authentication) for [sign-in](sign_in_api.md). Users already enrolled are asked for a code whatever this says.
+* `mfaRequired` - Whether every user who signs in must enroll in MFA. A user who is not enrolled gets a key that can only enroll. Requires `mfaAvailable`.
 * `warnings` - Warnings about the saved settings, returned on a change. Empty on a read.
 
 ## Get the settings
@@ -57,7 +61,7 @@ Values are validated before anything is saved. If any value is invalid, nothing 
 
 | Status | When |
 |--------|------|
-| `400 Bad Request` | A `webhookAllowlist` entry is not a hostname, an IP address, or a CIDR range; `phieldUrl` is not an absolute `http` or `https` URL; or the request sends `phieldEnabled` or `phieldUrl` and Phield would end up enabled without a URL. The body names the problem. |
+| `400 Bad Request` | A `webhookAllowlist` entry is not a hostname, an IP address, or a CIDR range; `phieldUrl` is not an absolute `http` or `https` URL; the request sends `phieldEnabled` or `phieldUrl` and Phield would end up enabled without a URL; or `mfaRequired` would be on while `mfaAvailable` is off. The body names the problem. |
 | `401 Unauthorized` | The `Authorization` header is absent or the API key is not recognized. |
 | `403 Forbidden` | The key does not hold the scope, or the caller is not an administrator. The message says which. |
 

@@ -7725,7 +7725,7 @@
           "Sign-in"
         ],
         "summary": "Sign in.",
-        "description": "Takes a username and password and returns a session key for that user, which expires after SESSION_KEY_IDLE_TIMEOUT_MINUTES without a request or SESSION_KEY_MAX_LIFETIME_MINUTES after issue. The key holds every scope, with the user's role still deciding administrator access, but cannot create API keys. A user who must change their password gets a key that can only do that and sign out. A wrong password, an unknown user, a user without a password, and a deactivated user all get the same 401. Requires no API key. Returns 404 unless PASSWORD_SIGN_IN_ENABLED is true. Recorded as sign_in_succeeded or sign_in_failed with the username and client IP address, never the password.",
+        "description": "Takes a username and password. For a user enrolled in MFA, returns a single-use challenge that expires in five minutes; send it with a code to POST /api/sign-in/mfa to get the key. Otherwise returns a session key for the user, which expires after SESSION_KEY_IDLE_TIMEOUT_MINUTES without a request or SESSION_KEY_MAX_LIFETIME_MINUTES after issue. The key holds every scope, with the user's role still deciding administrator access, but cannot create API keys. A user who must change their password, or must enroll in MFA, gets a key that can only do that and sign out. A wrong password, an unknown user, a user without a password, and a deactivated user all get the same 401. Requires no API key. Returns 404 unless PASSWORD_SIGN_IN_ENABLED is true. Recorded as sign_in_succeeded or sign_in_failed with the username and client IP address, never the password.",
         "operationId": "signIn",
         "requestBody": {
           "required": true,
@@ -7733,6 +7733,122 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in, or, for a user enrolled in MFA, a challenge. A session key is returned here and nowhere else.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SignInResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SignInChallengeResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The username or password is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The password is right, but the user's MFA is locked after repeated bad codes. An administrator must unlock it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Password sign-in is not enabled."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sign-in/mfa": {
+      "post": {
+        "security": [],
+        "tags": [
+          "Sign-in"
+        ],
+        "summary": "Complete sign-in with an MFA code.",
+        "description": "Takes the challenge POST /api/sign-in returned and a code from the user's authenticator app, and returns the session key. The challenge is used up by any attempt, right or wrong, so a wrong code means signing in again. Each code is accepted once. The fifth consecutive bad code locks the user until an administrator unlocks them. Requires no API key. Returns 404 unless PASSWORD_SIGN_IN_ENABLED is true. Recorded as sign_in_succeeded or sign_in_failed.",
+        "operationId": "signInMfa",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInMfaRequest"
               }
             }
           }
@@ -7759,7 +7875,17 @@
             }
           },
           "401": {
-            "description": "The username or password is not valid.",
+            "description": "The challenge is unknown, used, or expired, or the code is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The user's MFA is locked after repeated bad codes.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8508,6 +8634,357 @@
         }
       }
     },
+    "/api/users/me/mfa": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Start MFA enrollment.",
+        "description": "Generates a TOTP secret for the calling key's own user and returns it, with an otpauth:// URI to show as a QR code. The secret is returned only here and is encrypted at rest. Enrollment takes effect only once POST /api/users/me/mfa/confirm sees a valid code; starting again replaces an unconfirmed secret. Requires the mfaAvailable setting, and the scope but not an administrator. Requires the `users:write` scope.",
+        "operationId": "startMfaEnrollment",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The secret to set up an authenticator app with.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "MFA is not available on this deployment, or the user is already enrolled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/mfa/confirm": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Confirm MFA enrollment.",
+        "description": "Completes enrollment with a code from the authenticator app for the secret POST /api/users/me/mfa returned. From then on, sign-in asks for a code. Revokes the user's session keys, so the person signs in again with MFA. Requires the scope but not an administrator. Recorded as a user_mfa_enrolled audit event. Requires the `users:write` scope.",
+        "operationId": "confirmMfaEnrollment",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "MFA is enrolled."
+          },
+          "400": {
+            "description": "The code is missing or not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "MFA is not available, the user is already enrolled, or no enrollment was started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/mfa/remove": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove your own MFA enrollment.",
+        "description": "Removes the calling key's own user's MFA, which takes a valid code so a stolen session key cannot turn MFA off. A bad code counts toward the lock. A user who has lost the device asks an administrator, who uses DELETE /api/users/{username}/mfa. Requires the scope but not an administrator. Recorded as a user_mfa_removed audit event. Requires the `users:write` scope.",
+        "operationId": "removeOwnMfa",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "MFA was removed."
+          },
+          "400": {
+            "description": "The code is missing.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, the code is not valid, or the user's MFA is locked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is not enrolled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/users/me/password": {
       "put": {
         "tags": [
@@ -9077,6 +9554,244 @@
           },
           "409": {
             "description": "The user is already deactivated, is the caller, or is the last active administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/mfa": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove a user's MFA enrollment.",
+        "description": "Removes another user's MFA, for a user who has lost their device, and clears any lock. On the caller's own user, use POST /api/users/me/mfa/remove, which takes a code. Requires an administrator as well as the scope. Recorded as a user_mfa_removed audit event naming the calling administrator and API key. Requires the `users:write` scope.",
+        "operationId": "removeMfa",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "MFA was removed."
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is the caller, or is not enrolled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/mfa/unlock": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Unlock a user's MFA.",
+        "description": "Unlocks a user locked after five consecutive bad MFA codes and resets the count. Requires an administrator as well as the scope. Recorded as a user_mfa_unlocked audit event naming the calling administrator and API key. Requires the `users:write` scope.",
+        "operationId": "unlockMfa",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The user was unlocked."
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is not locked.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10512,6 +11227,27 @@
           }
         }
       },
+      "MfaCodeRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "MfaEnrollmentResponse": {
+        "type": "object",
+        "properties": {
+          "otpauthUri": {
+            "description": "The otpauth:// URI to show as a QR code for an authenticator app to scan.",
+            "type": "string"
+          },
+          "secret": {
+            "description": "The setup key, Base32, for entering by hand. Returned only here.",
+            "type": "string"
+          }
+        }
+      },
       "OwnedLedgerEntryView": {
         "properties": {
           "type": {
@@ -10816,6 +11552,12 @@
           "diffuseCountsEnabled": {
             "type": "boolean"
           },
+          "mfaAvailable": {
+            "type": "boolean"
+          },
+          "mfaRequired": {
+            "type": "boolean"
+          },
           "phieldApiKeySet": {
             "type": "boolean"
           },
@@ -10841,6 +11583,34 @@
             }
           },
           "webhookAllowlist": {
+            "type": "string"
+          }
+        }
+      },
+      "SignInChallengeResponse": {
+        "type": "object",
+        "properties": {
+          "challenge": {
+            "description": "Single-use. Any attempt with it, right or wrong, uses it up.",
+            "type": "string"
+          },
+          "challengeExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mfaRequired": {
+            "description": "Always true: send the challenge and a code to POST /api/sign-in/mfa.",
+            "type": "boolean"
+          }
+        }
+      },
+      "SignInMfaRequest": {
+        "type": "object",
+        "properties": {
+          "challenge": {
+            "type": "string"
+          },
+          "code": {
             "type": "string"
           }
         }
@@ -10873,6 +11643,10 @@
             "description": "When the key expires unless it is used first. Each request moves it forward.",
             "type": "string",
             "format": "date-time"
+          },
+          "mfaEnrollmentRequired": {
+            "description": "Whether the user must enroll in MFA first. If so, the key can only enroll with POST /api/users/me/mfa and POST /api/users/me/mfa/confirm, and sign out.",
+            "type": "boolean"
           },
           "passwordChangeRequired": {
             "description": "Whether the password must be changed first. If so, the key can only change the password with PUT /api/users/me/password and sign out.",
@@ -10910,6 +11684,14 @@
         "type": "object",
         "properties": {
           "diffuseCountsEnabled": {
+            "type": "boolean"
+          },
+          "mfaAvailable": {
+            "description": "Whether users may enroll in TOTP multi-factor authentication.",
+            "type": "boolean"
+          },
+          "mfaRequired": {
+            "description": "Whether every user who signs in must enroll in MFA. Requires mfaAvailable.",
             "type": "boolean"
           },
           "phieldApiKey": {
@@ -10951,6 +11733,14 @@
           "deactivatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "mfaEnabled": {
+            "description": "Whether the user is enrolled in TOTP multi-factor authentication. The secret is never returned.",
+            "type": "boolean"
+          },
+          "mfaLocked": {
+            "description": "Whether the user's MFA is locked after repeated bad codes, until an administrator unlocks it.",
+            "type": "boolean"
           },
           "passwordChangeRequired": {
             "description": "Whether the user must change their password at next sign-in, because an administrator set it.",

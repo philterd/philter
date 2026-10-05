@@ -123,7 +123,7 @@ class SignOnRequestIT {
     }
 
     private void signingEnabled(final boolean enabled) {
-        adminSettingsDataService.update(new AdminSettingsDataService.Update(null, enabled, null, null, null, null, null, null), userId, null);
+        adminSettingsDataService.update(new AdminSettingsDataService.Update(null, enabled, null, null, null, null, null, null, null, null), userId, null);
     }
 
     /** Redacts a fixed document, returning the response so the signature header can be inspected. */

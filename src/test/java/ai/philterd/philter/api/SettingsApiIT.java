@@ -84,7 +84,7 @@ class SettingsApiIT {
     @AfterEach
     void tearDown() {
         // The settings are global to the shared application; put back the defaults other tests expect.
-        adminSettingsDataService.update(new AdminSettingsDataService.Update(false, false, "", false, "", "", "", ""),
+        adminSettingsDataService.update(new AdminSettingsDataService.Update(false, false, "", false, "", "", "", "", null, null),
                 adminId, null);
         httpClient.close();
     }

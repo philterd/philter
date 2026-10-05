@@ -64,7 +64,7 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
     private static AdminSettingsDataService.Update update(final Boolean diffuse, final Boolean signing,
                                                           final String allowlist, final Boolean phield,
                                                           final String url, final String apiKey) {
-        return new AdminSettingsDataService.Update(diffuse, signing, allowlist, phield, url, null, null, apiKey);
+        return new AdminSettingsDataService.Update(diffuse, signing, allowlist, phield, url, null, null, apiKey, null, null);
     }
 
     @Test

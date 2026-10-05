@@ -441,16 +441,17 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      */
     public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
                                          final String source, final String auditDetails) {
-        return createSessionKey(requestId, userId, scopes, false, source, auditDetails);
+        return createSessionKey(requestId, userId, scopes, false, false, source, auditDetails);
     }
 
     /**
-     * As above. With {@code passwordChangeOnly}, the key can only change its user's password and sign
-     * out, for a user who must change their password before doing anything else.
+     * As above, for a user who must do something before anything else: with {@code passwordChangeOnly}
+     * the key can change its user's password, with {@code mfaEnrollmentOnly} it can enroll in MFA, and
+     * either way it can sign out, and nothing more.
      */
     public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
-                                         final boolean passwordChangeOnly, final String source,
-                                         final String auditDetails) {
+                                         final boolean passwordChangeOnly, final boolean mfaEnrollmentOnly,
+                                         final String source, final String auditDetails) {
 
         final String apiKey = generateApiKey();
         final Date now = new Date();
@@ -471,9 +472,16 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setIdleExpiresAt(idleExpiry(now, idleSeconds, expiresAt));
         apiKeyEntity.setLastUsedAt(now);
         apiKeyEntity.setPasswordChangeOnly(passwordChangeOnly);
+        apiKeyEntity.setMfaEnrollmentOnly(mfaEnrollmentOnly);
         apiKeyEntity.setId(save(apiKeyEntity));
 
-        final String session = passwordChangeOnly ? "session: true, password change only" : "session: true";
+        String session = "session: true";
+        if (passwordChangeOnly) {
+            session += ", password change only";
+        }
+        if (mfaEnrollmentOnly) {
+            session += ", MFA enrollment only";
+        }
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyEntity.getId(), userId,
                 source, auditDetails == null ? session : session + ", " + auditDetails);
 

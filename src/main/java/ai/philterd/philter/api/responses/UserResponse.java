@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.Date;
 
-/** A user as the API returns it. Says whether a password is set, never the password or its hash. */
+/** A user as the API returns it. Says whether a password and MFA are set, never the password, hash, or secret. */
 public class UserResponse {
 
     private final String username;
@@ -31,6 +31,8 @@ public class UserResponse {
     private final Date deactivatedAt;
     private final boolean passwordSet;
     private final boolean passwordChangeRequired;
+    private final boolean mfaEnabled;
+    private final boolean mfaLocked;
 
     public UserResponse(final UserEntity user) {
         this.username = user.getUsername();
@@ -42,6 +44,8 @@ public class UserResponse {
         this.deactivatedAt = user.getDeactivatedAt();
         this.passwordSet = user.getPassword() != null;
         this.passwordChangeRequired = user.isPasswordChangeRequired();
+        this.mfaEnabled = user.isMfaEnabled();
+        this.mfaLocked = user.isMfaLocked();
     }
 
     public String getUsername() { return username; }
@@ -61,5 +65,11 @@ public class UserResponse {
 
     @Schema(description = "Whether the user must change their password at next sign-in, because an administrator set it.")
     public boolean isPasswordChangeRequired() { return passwordChangeRequired; }
+
+    @Schema(description = "Whether the user is enrolled in TOTP multi-factor authentication. The secret is never returned.")
+    public boolean isMfaEnabled() { return mfaEnabled; }
+
+    @Schema(description = "Whether the user's MFA is locked after repeated bad codes, until an administrator unlocks it.")
+    public boolean isMfaLocked() { return mfaLocked; }
 
 }

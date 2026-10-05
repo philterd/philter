@@ -59,7 +59,7 @@ Two scopes are separated from the resources they belong to because they return t
 
 `signing:write` covers rotating the output signing key, which affects every instance in the deployment. It also requires an administrator. The two signing-key read endpoints take no API key at all.
 
-`users:read` and `users:write` cover the [Users API](../api_and_sdks/api/users_api.md). Both require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`, and `users:write` lets any key change its own user's password through `PUT /api/users/me/password`.
+`users:read` and `users:write` cover the [Users API](../api_and_sdks/api/users_api.md). Both require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`, and `users:write` lets any key change its own user's password through `PUT /api/users/me/password` and manage its own MFA enrollment under `/api/users/me/mfa`.
 
 `api-keys:read` and `api-keys:write` cover the [API Keys API](../api_and_sdks/api/api_keys_api.md). A key can list, create, re-scope, and revoke its own user's keys; an administrator can also manage other users' keys. A key cannot grant a scope it does not hold, cannot change or revoke a key holding a scope it does not hold, and cannot revoke itself.
 
@@ -84,7 +84,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `audit:read` | `GET /api/audit`<br>`GET /api/audit/export` |
 | `signing:write` | `POST /api/signing-key/regenerate` |
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
-| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password` |
+| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password`<br>`POST /api/users/me/mfa`<br>`POST /api/users/me/mfa/confirm`<br>`POST /api/users/me/mfa/remove`<br>`DELETE /api/users/{username}/mfa`<br>`POST /api/users/{username}/mfa/unlock` |
 | `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
 | `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`DELETE /api/users/{username}/session-keys`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
 | `settings:read` | `GET /api/settings` |
@@ -142,7 +142,7 @@ the request claims to come from, which a client controls through forwarding head
 A small number of endpoints do not require an API key:
 
 * `/api/health` (the health endpoint).
-* `POST /api/sign-in` ([password sign-in](../api_and_sdks/api/sign_in_api.md)), which takes a username and password instead, and answers `404 Not Found` unless `PASSWORD_SIGN_IN_ENABLED` is `true`.
+* `POST /api/sign-in` and `POST /api/sign-in/mfa` ([password sign-in](../api_and_sdks/api/sign_in_api.md)), which take a username and password, or a challenge and code, instead, and answer `404 Not Found` unless `PASSWORD_SIGN_IN_ENABLED` is `true`.
 * `/v3/api-docs` and `/swagger-ui/` (the OpenAPI specification and Swagger UI).
 
 All other `/api/` endpoints require a valid API key.

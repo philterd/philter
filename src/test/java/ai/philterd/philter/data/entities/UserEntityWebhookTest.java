@@ -59,21 +59,35 @@ class UserEntityWebhookTest {
     }
 
     @Test
-    void passwordFieldsRoundTripAndOlderMfaFieldsAreIgnored() {
-        // Pre-release builds stored dashboard MFA state beside the password; those documents must still load.
-        final Document stored = new Document("_id", new ObjectId()).append("username", "legacy").append("role", "admin")
-                .append("password", "$2a$10$abcdefghijklmnopqrstuv").append("password_change_required", true)
-                .append("security_version", 3L).append("mfa_enabled", true).append("mfa_secret", "not-decryptable")
-                .append("mfa_failed_attempts", 2).append("mfa_locked", true);
-        final UserEntity restored = UserEntity.fromDocument(stored, new TestEncryptionService());
-        assertEquals("legacy", restored.getUsername());
-        assertEquals("admin", restored.getRole());
-        assertEquals("$2a$10$abcdefghijklmnopqrstuv", restored.getPassword());
+    void passwordAndMfaFieldsRoundTripWithTheSecretEncrypted() {
+        final EncryptionService encryptionService = new TestEncryptionService();
+
+        final UserEntity user = new UserEntity();
+        user.setId(new ObjectId());
+        user.setUsername("jordan");
+        user.setPassword("$2a$10$abcdefghijklmnopqrstuv");
+        user.setPasswordChangeRequired(true);
+        user.setMfaEnabled(true);
+        user.setMfaSecret("JBSWY3DPEHPK3PXP");
+        user.setMfaPendingSecret("KRSXG5DSNFXGOIDB");
+        user.setMfaFailedAttempts(2);
+        user.setMfaLocked(true);
+        user.setMfaLastUsedTimeStep(58_000_000L);
+
+        final Document doc = user.toDocument(encryptionService);
+        assertEquals("$2a$10$abcdefghijklmnopqrstuv", doc.getString("password"), "a bcrypt hash is stored as-is");
+        assertNotEquals("JBSWY3DPEHPK3PXP", doc.getString("mfa_secret"), "the MFA secret is encrypted at rest");
+        assertNotEquals("KRSXG5DSNFXGOIDB", doc.getString("mfa_pending_secret"), "and so is a pending one");
+        assertFalse(doc.getString("mfa_secret_key").isEmpty());
+
+        final UserEntity restored = UserEntity.fromDocument(doc, encryptionService);
         assertTrue(restored.isPasswordChangeRequired());
-        final Document written = restored.toDocument(new TestEncryptionService());
-        assertEquals("$2a$10$abcdefghijklmnopqrstuv", written.getString("password"));
-        assertTrue(written.getBoolean("password_change_required"));
-        assertFalse(written.containsKey("mfa_secret"));
+        assertTrue(restored.isMfaEnabled());
+        assertEquals("JBSWY3DPEHPK3PXP", restored.getMfaSecret());
+        assertEquals("KRSXG5DSNFXGOIDB", restored.getMfaPendingSecret());
+        assertEquals(2, restored.getMfaFailedAttempts());
+        assertTrue(restored.isMfaLocked());
+        assertEquals(58_000_000L, restored.getMfaLastUsedTimeStep());
     }
 
     @Test

@@ -5257,7 +5257,7 @@
           "Policies"
         ],
         "summary": "Get the names of existing policies.",
-        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `policies:read` scope.",
+        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the names of the built-in managed policies instead. Requires the `policies:read` scope.",
         "operationId": "getPolicyNames",
         "parameters": [
           {
@@ -5278,6 +5278,15 @@
           },
           {
             "name": "all_users",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "managed",
             "in": "query",
             "required": false,
             "schema": {
@@ -5331,7 +5340,7 @@
             }
           },
           "400": {
-            "description": "Both owner and all_users were given.",
+            "description": "Both owner and all_users were given, or managed was combined with either.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5413,7 +5422,7 @@
           "Policies"
         ],
         "summary": "Create or update a policy.",
-        "description": "Saves the policy supplied in the request body under the given name, overwriting any existing policy of the same name. The policy is validated before it is stored. Admins may save into another user's account by passing that user's email as owner. Requires the `policies:write` scope.",
+        "description": "Saves the policy supplied in the request body under the given name, overwriting any existing policy of the same name. The policy is validated before it is stored. description (up to 200 characters) and notes (up to 1000) are optional; when updating, leaving either out keeps its current value. Admins may save into another user's account by passing that user's email as owner. Requires the `policies:write` scope.",
         "operationId": "save",
         "parameters": [
           {
@@ -5439,6 +5448,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "notes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -5458,7 +5483,7 @@
             "description": "The policy was saved and is now active. A policy_activated audit event is recorded."
           },
           "400": {
-            "description": "The policy name is missing or invalid, or the policy is invalid.",
+            "description": "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5763,7 +5788,7 @@
           "Policies"
         ],
         "summary": "Get a policy.",
-        "description": "Returns the full policy with the given name. Admins may retrieve another user's policy by passing that user's email as owner. Requires the `policies:read` scope.",
+        "description": "Returns the full policy with the given name. A name starting with managed_ returns that built-in managed policy. Admins may retrieve another user's policy by passing that user's email as owner. The policy's description and notes are at /api/policies/{policyName}/details. Requires the `policies:read` scope.",
         "operationId": "get",
         "parameters": [
           {
@@ -5838,6 +5863,414 @@
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policies/{policyName}/copy": {
+      "post": {
+        "tags": [
+          "Policies"
+        ],
+        "summary": "Copy a policy.",
+        "description": "Creates a new policy named by name from one of the caller's policies or, for a name starting with managed_, from a built-in managed policy. The copy has the source's policy and description; a copy of a managed policy notes which one it came from, and a copy of the caller's own policy keeps its notes. The copy starts its own version history and is active at once. Admins may copy within another user's account by passing that user's email as owner. Requires the `policies:write` scope.",
+        "operationId": "copy",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The copy's details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDetailsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The new name is missing or invalid.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no such policy to copy, or the owner does not exist or the caller may not reach it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "A policy with the new name already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policies/{policyName}/details": {
+      "get": {
+        "tags": [
+          "Policies"
+        ],
+        "summary": "Get a policy's details.",
+        "description": "Returns a policy's name, description, notes, current revision, whether it is a built-in managed policy, and when it was created and last updated: everything except the policy itself. A name starting with managed_ returns that managed policy's details. Admins may read another user's by passing that user's email as owner. Requires the `policies:read` scope.",
+        "operationId": "getDetails",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The policy's details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDetailsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no such policy, or the owner does not exist or the caller may not reach it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Policies"
+        ],
+        "summary": "Set a policy's description and notes.",
+        "description": "Sets the description (up to 200 characters) and notes (up to 1000). A field left out is left as it is; an empty value clears it. They are not part of the policy, so this does not create a new version. Managed policies cannot be changed. Admins may change another user's by passing that user's email as owner. Requires the `policies:write` scope.",
+        "operationId": "setDetails",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyDetailsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The policy's details after the change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDetailsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The description or notes are too long.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no such policy, or the owner does not exist or the caller may not reach it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The policy is a managed policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -9589,6 +10022,46 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PolicyDetailsRequest": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "PolicyDetailsResponse": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "managed": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

@@ -76,6 +76,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   recording, output signing, the webhook destination allowlist, and Phield publishing, with new
   `settings:read` and `settings:write` scopes. Values are validated before anything is saved, and
   changes are audited by setting name and calling API key.
+- **Policy details, managed policies, and copying over the API.** `GET` and `PUT
+  /api/policies/{name}/details` read and set a policy's description and notes, which `POST
+  /api/policies` also accepts. `GET /api/policies?managed=true` lists the managed policies, which are
+  read by name like any other, and `POST /api/policies/{name}/copy` copies a managed or own policy.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

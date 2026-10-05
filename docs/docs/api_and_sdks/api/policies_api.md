@@ -18,6 +18,7 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 * `offset` (optional, default: `0`) - The number of policy names to skip.
 * `limit` (optional, default: `25`) - The maximum number of policy names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
 * `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item is then an object with the policy's `name` and its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
+* `managed` (optional, default: `false`) - List the names of the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Cannot be combined with `owner` or `all_users`.
 
 Example request:
 
@@ -39,6 +40,8 @@ Example response with `all_users=true`:
 | Method | Endpoint                     | Description                                                                       |
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
 | `GET` | `/api/policies/{policyName}` | Get the content of a policy, where {policyName} is the name of the policy to get. |
+
+A name beginning with `managed_` returns that [managed policy](../../policies/sample_policies.md#managed-policies). The response is the policy itself; its description and notes are returned by [Get a Policy's Details](#get-a-policys-details).
 
 Example request:
 
@@ -77,6 +80,8 @@ Example response:
 ### Query Parameters
 
 * `name` (required) - The name of the policy to save.
+* `description` (optional) - Up to 200 characters. When updating a policy, leaving it out keeps the current description.
+* `notes` (optional) - Up to 1000 characters. When updating a policy, leaving it out keeps the current notes.
 
 ### Validation
 
@@ -85,7 +90,7 @@ The policy is validated before it is stored. It must be valid JSON in the native
 ### Responses
 
 * `201 Created` - The policy was saved.
-* `400 Bad Request` - The policy name is missing or invalid, or the policy is invalid. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
+* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the description or notes are too long. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
 * `409 Conflict` - The named policy is a managed policy and cannot be overwritten.
 
 Example request:
@@ -160,6 +165,67 @@ Example error response:
 See [Authoring Policies with PhiSQL](../../policies/phisql.md) for the language and the compile-then-save workflow.
 
 ---
+
+## Get a Policy's Details
+
+| Method | Endpoint                             | Description                                      |
+|--------|--------------------------------------|--------------------------------------------------|
+| `GET`  | `/api/policies/{policyName}/details` | Get everything about a policy except the policy itself. |
+
+Requires `policies:read`. Works for managed policies too. Supports `owner` as the other policy endpoints do.
+
+```json
+{
+  "name": "court",
+  "description": "Federal court filings",
+  "notes": "Reviewed with the clerk's office.",
+  "revision": 3,
+  "managed": false,
+  "created": "2026-10-01T14:03:11.000Z",
+  "lastUpdated": "2026-10-05T09:12:40.000Z"
+}
+```
+
+## Set a Policy's Description and Notes
+
+| Method | Endpoint                             | Description                                      |
+|--------|--------------------------------------|--------------------------------------------------|
+| `PUT`  | `/api/policies/{policyName}/details` | Set a policy's description and notes.            |
+
+Requires `policies:write`. Returns the policy's details.
+
+```json
+{
+  "description": "Federal court filings",
+  "notes": ""
+}
+```
+
+A field left out is left as it is, and an empty value clears it. The description may be up to 200 characters and the notes up to 1000. Description and notes are not part of the policy, so changing them does not create a new [version](#policy-version-history).
+
+* `400 Bad Request` - The description or notes are too long.
+* `404 Not Found` - There is no such policy.
+* `409 Conflict` - The policy is a managed policy, which cannot be changed.
+
+## Copy a Policy
+
+| Method | Endpoint                          | Description                                          |
+|--------|-----------------------------------|------------------------------------------------------|
+| `POST` | `/api/policies/{policyName}/copy` | Create a new policy from an existing one.             |
+
+Requires `policies:write`. The source is one of the caller's policies or, for a name beginning with `managed_`, a [managed policy](../../policies/sample_policies.md#managed-policies). The copy is the caller's own policy, active at once, with its own version history.
+
+* `name` (required) - The name of the new policy, under the same rules as [saving a policy](#save-a-policy).
+
+The copy has the source's policy and description. A copy of a managed policy has the note `Created from managed policy <name>`; a copy of the caller's own policy keeps its notes. Returns `201 Created` with the copy's details.
+
+* `400 Bad Request` - The new name is missing or invalid.
+* `404 Not Found` - There is no such policy to copy.
+* `409 Conflict` - A policy with the new name already exists.
+
+```
+curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies/managed_common_pii/copy?name=my-pii"
+```
 
 ## Policy Version History
 

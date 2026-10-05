@@ -33,6 +33,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -622,6 +623,67 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return null;
 
         }
+
+    }
+
+    /** Whether a name belongs to a managed policy; user policies cannot start with this prefix. */
+    public static boolean isManagedName(final String name) {
+        return name != null && name.startsWith("managed_");
+    }
+
+    /**
+     * The user's policy with this name or, for a {@code managed_} name, the managed policy. Managed
+     * names cannot be taken by a user's policy, so the two never collide.
+     */
+    public PolicyEntity findOneOrManaged(final String name, final ObjectId userId) {
+        if (isManagedName(name)) {
+            final Document document = collection.find(Filters.and(Filters.eq("name", name), Filters.eq("managed", true))).first();
+            return document == null ? null : PolicyEntity.fromDocument(document);
+        }
+        return findOne(name, userId);
+    }
+
+    /**
+     * Sets a policy's description and notes, which are not part of the policy or its versions. A null
+     * value is left as it is and an empty one clears it. Values over the length limits are refused.
+     */
+    public ServiceResponse updateDetails(final String requestId, final ObjectId userId, final String name,
+                                         final String description, final String notes, final String source) {
+
+        if (description != null && description.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
+            return new ServiceResponse("The description cannot be longer than " + POLICY_DESCRIPTION_MAX_LENGTH + " characters.", false, 400);
+        }
+        if (notes != null && notes.length() > POLICY_NOTES_MAX_LENGTH) {
+            return new ServiceResponse("The notes cannot be longer than " + POLICY_NOTES_MAX_LENGTH + " characters.", false, 400);
+        }
+
+        final PolicyEntity policyEntity = findOne(name, userId);
+        if (policyEntity == null) {
+            return new ServiceResponse("Policy does not exist.", false, 404);
+        }
+
+        final List<Bson> updates = new ArrayList<>();
+        final List<String> changed = new ArrayList<>();
+        if (description != null) {
+            updates.add(Updates.set("description", description));
+            changed.add("description");
+        }
+        if (notes != null) {
+            updates.add(Updates.set("notes", notes));
+            changed.add("notes");
+        }
+        if (updates.isEmpty()) {
+            return ServiceResponse.success();
+        }
+        updates.add(Updates.set("last_updated_timestamp", new Date()));
+
+        collection.updateOne(Filters.and(Filters.eq("_id", policyEntity.getId()), Filters.eq("user_id", userId)),
+                Updates.combine(updates));
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), null, source,
+                "details: " + String.join(", ", changed));
+
+        return ServiceResponse.success();
 
     }
 

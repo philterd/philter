@@ -4,6 +4,26 @@ This page lists some sample policies. You can use these policies either as-is or
 
 <!--To use a policy, download the policy to Philter' `policies` directory, which by default is `/opt/philter/policies`. Then restart Philter with `sudo systemctl restart Philter`. The new policy will now be available for use when submitting filter API requests to Philter. (Specify the policy's name in the request. See the [API](../api_and_sdks/api/filtering_api.md) for examples.)-->
 
+## Managed Policies
+
+Philter includes built-in managed policies that can be used as starting points:
+
+| Name | Description |
+|------|-------------|
+| `managed_common_pii` | Common PII including names, emails, phone numbers, and SSNs |
+| `managed_healthcare_phi` | Healthcare PHI including names, dates, addresses, and medical identifiers |
+| `managed_financial_pii` | Financial PII including credit cards, bank routing numbers, and Bitcoin addresses |
+
+A managed policy can be read but not changed. To use one as the basis for your own, copy it and edit the copy:
+
+```
+curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies/managed_common_pii/copy?name=my-pii"
+```
+
+List them with `GET /api/policies?managed=true` and read one with `GET /api/policies/managed_common_pii`. See the [Policies API](../api_and_sdks/api/policies_api.md#copy-a-policy).
+
+## Examples
+
 > These policies are examples and not an exhaustive list of all the sensitive information Philter can identify. Items from each of these policies can be combined to make policies to meet your use-cases.
 
 

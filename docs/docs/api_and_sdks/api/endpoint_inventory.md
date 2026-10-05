@@ -1,6 +1,6 @@
 # Endpoint inventory
 
-Philter 4.0 exposes 67 HTTP operations implemented by 69 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
+Philter 4.0 exposes 70 HTTP operations implemented by 72 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
 
 Send `Authorization: Bearer <api key>` unless the scope is Public. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
@@ -52,6 +52,9 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/policies/compile` | application/json | `policies:read` | [Details](policies_api.md) |
 | DELETE | `/api/policies/{policyName}` | See reference | `policies:write` | [Details](policies_api.md) |
 | GET | `/api/policies/{policyName}` | application/json | `policies:read` | [Details](policies_api.md) |
+| POST | `/api/policies/{policyName}/copy` | application/json | `policies:write` | [Details](policies_api.md) |
+| GET | `/api/policies/{policyName}/details` | application/json | `policies:read` | [Details](policies_api.md) |
+| PUT | `/api/policies/{policyName}/details` | application/json | `policies:write` | [Details](policies_api.md) |
 | GET | `/api/policies/{policyName}/diff` | application/json | `policies:read` | [Details](policies_api.md) |
 | POST | `/api/policies/{policyName}/rollback` | application/json | `policies:write` | [Details](policies_api.md) |
 | GET | `/api/policies/{policyName}/versions` | application/json | `policies:read` | [Details](policies_api.md) |

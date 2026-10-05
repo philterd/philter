@@ -134,7 +134,7 @@ class PoliciesApiControllerTest {
         entity.setName("my-policy");
         entity.setUserId(userId);
         entity.setPolicy("{\"name\":\"my-policy\",\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}");
-        when(policyDataService.findOne("my-policy", userId)).thenReturn(entity);
+        when(policyDataService.findOneOrManaged("my-policy", userId)).thenReturn(entity);
 
         final String body = mockMvc.perform(get("/api/policies/my-policy").header("Authorization", AUTH_HEADER))
                 .andExpect(status().isOk())
@@ -142,12 +142,12 @@ class PoliciesApiControllerTest {
 
         assertTrue(body.contains("ssnFilterStrategies"), "the policy body must be returned: " + body);
         // The lookup must use the key's owning user id, not the key's own id.
-        verify(policyDataService).findOne("my-policy", userId);
+        verify(policyDataService).findOneOrManaged("my-policy", userId);
     }
 
     @Test
     void getReturns404WhenThePolicyDoesNotExist() throws Exception {
-        when(policyDataService.findOne("missing", userId)).thenReturn(null);
+        when(policyDataService.findOneOrManaged("missing", userId)).thenReturn(null);
 
         mockMvc.perform(get("/api/policies/missing").header("Authorization", AUTH_HEADER))
                 .andExpect(status().isNotFound());

@@ -18,9 +18,11 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.requests.PolicyDetailsRequest;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.OwnedNameResponse;
+import ai.philterd.philter.api.responses.PolicyDetailsResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -90,12 +92,13 @@ public class PoliciesApiController extends AbstractApiController {
     @Operation(summary = "Get the names of existing policies.",
             description = "Returns the names of the caller's policies, paged. Admins may list another user's "
                     + "policies by passing that user's email as owner, or every user's with all_users=true, which "
-                    + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
+                    + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With "
+                    + "managed=true, returns the names of the built-in managed policies instead.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The names of the policies; with all_users, objects naming each policy and its owner.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class}))),
-            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
+            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given, or managed was combined with either."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
@@ -105,6 +108,7 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
+            final @RequestParam(value = "managed", defaultValue = "false") boolean managed,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId
@@ -114,6 +118,14 @@ public class PoliciesApiController extends AbstractApiController {
 
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (managed) {
+            if (allUsers || (owner != null && !owner.isBlank())) {
+                throw new BadRequestException("managed cannot be combined with owner or all_users.");
+            }
+            return ResponseEntity.ok(policyDataService.findManagedPolicies(normalizeOffset(offset), normalizeLimit(limit))
+                    .stream().map(PolicyEntity::getName).toList());
         }
 
         if (allUsers) {
@@ -140,8 +152,9 @@ public class PoliciesApiController extends AbstractApiController {
     }
 
     @Operation(summary = "Get a policy.",
-            description = "Returns the full policy with the given name. Admins may retrieve another user's policy "
-                    + "by passing that user's email as owner.")
+            description = "Returns the full policy with the given name. A name starting with managed_ returns that "
+                    + "built-in managed policy. Admins may retrieve another user's policy by passing that user's email "
+                    + "as owner. The policy's description and notes are at /api/policies/{policyName}/details.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy JSON."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
@@ -170,7 +183,7 @@ public class PoliciesApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
+        final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
         if (policyEntity == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
@@ -181,11 +194,14 @@ public class PoliciesApiController extends AbstractApiController {
 
     @Operation(summary = "Create or update a policy.",
             description = "Saves the policy supplied in the request body under the given name, overwriting any "
-                    + "existing policy of the same name. The policy is validated before it is stored. Admins may save "
-                    + "into another user's account by passing that user's email as owner.")
+                    + "existing policy of the same name. The policy is validated before it is stored. description (up to "
+                    + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH + " characters) and notes (up to "
+                    + PolicyDataService.POLICY_NOTES_MAX_LENGTH + ") are optional; when updating, leaving either out "
+                    + "keeps its current value. Admins may save into another user's account by passing that user's "
+                    + "email as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The policy was saved and is now active. A policy_activated audit event is recorded."),
-            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, or the policy is invalid."),
+            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
@@ -195,11 +211,14 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "description", required = false) String description,
+            final @RequestParam(value = "notes", required = false) String notes,
             @RequestBody String policyJson) throws IOException {
 
         if (StringUtils.isBlank(name)) {
             throw new BadRequestException("The policy name is missing.");
         }
+        requireDetailLengths(description, notes);
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -230,8 +249,8 @@ public class PoliciesApiController extends AbstractApiController {
         final PolicyEntity existing = policyDataService.findOne(name, userId);
 
         final ServiceResponse response = existing == null
-                ? policyDataService.create(requestId, userId, policyJson, null, null, name, Source.API.getSource())
-                : policyDataService.update(requestId, userId, existing.getId(), policyJson, null, null, Source.API.getSource());
+                ? policyDataService.create(requestId, userId, policyJson, description, notes, name, Source.API.getSource())
+                : policyDataService.update(requestId, userId, existing.getId(), policyJson, description, notes, Source.API.getSource());
 
         if (!response.isSuccessful()) {
             if (response.getStatusCode() == HttpStatus.BAD_REQUEST.value()) {
@@ -342,6 +361,161 @@ public class PoliciesApiController extends AbstractApiController {
 
         return ResponseEntity.ok(gson.toJson(response));
 
+    }
+
+    @Operation(summary = "Get a policy's details.",
+            description = "Returns a policy's name, description, notes, current revision, whether it is a built-in "
+                    + "managed policy, and when it was created and last updated: everything except the policy itself. "
+                    + "A name starting with managed_ returns that managed policy's details. Admins may read another "
+                    + "user's by passing that user's email as owner.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The policy's details.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyDetailsResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "There is no such policy, or the owner does not exist or the caller may not reach it.")
+    })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
+    @RequestMapping(value = "/api/policies/{policyName}/details", method = RequestMethod.GET,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> getDetails(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("policyName") String policyName,
+            final @RequestParam(value = "owner", required = false) String owner) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
+        if (policyEntity == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        return ResponseEntity.ok(new PolicyDetailsResponse(policyEntity));
+
+    }
+
+    @Operation(summary = "Set a policy's description and notes.",
+            description = "Sets the description (up to " + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH
+                    + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + "). A field "
+                    + "left out is left as it is; an empty value clears it. They are not part of the policy, so this "
+                    + "does not create a new version. Managed policies cannot be changed. Admins may change another "
+                    + "user's by passing that user's email as owner.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The policy's details after the change.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyDetailsResponse.class))),
+            @ApiResponse(responseCode = "400", description = "The description or notes are too long."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "There is no such policy, or the owner does not exist or the caller may not reach it."),
+            @ApiResponse(responseCode = "409", description = "The policy is a managed policy.")
+    })
+    @RequiresScope(ApiKeyScope.POLICIES_WRITE)
+    @RequestMapping(value = "/api/policies/{policyName}/details", method = RequestMethod.PUT,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> setDetails(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("policyName") String policyName,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestBody PolicyDetailsRequest request) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        if (PolicyDataService.isManagedName(policyName)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("Managed policies cannot be changed."));
+        }
+        requireDetailLengths(request.getDescription(), request.getNotes());
+
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final String requestId = RequestIdGenerator.generate();
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "set details of policy '" + policyName + "'");
+
+        final ServiceResponse response = policyDataService.updateDetails(requestId, userId, policyName,
+                request.getDescription(), request.getNotes(), Source.API.getSource());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        return ResponseEntity.ok(new PolicyDetailsResponse(policyDataService.findOne(policyName, userId)));
+
+    }
+
+    @Operation(summary = "Copy a policy.",
+            description = "Creates a new policy named by name from one of the caller's policies or, for a name "
+                    + "starting with managed_, from a built-in managed policy. The copy has the source's policy and "
+                    + "description; a copy of a managed policy notes which one it came from, and a copy of the caller's "
+                    + "own policy keeps its notes. The copy starts its own version history and is active at once. "
+                    + "Admins may copy within another user's account by passing that user's email as owner.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "The copy's details.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyDetailsResponse.class))),
+            @ApiResponse(responseCode = "400", description = "The new name is missing or invalid."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "There is no such policy to copy, or the owner does not exist or the caller may not reach it."),
+            @ApiResponse(responseCode = "409", description = "A policy with the new name already exists.")
+    })
+    @RequiresScope(ApiKeyScope.POLICIES_WRITE)
+    @RequestMapping(value = "/api/policies/{policyName}/copy", method = RequestMethod.POST,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> copy(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("policyName") String policyName,
+            final @RequestParam("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final PolicyEntity source = policyDataService.findOneOrManaged(policyName, userId);
+        if (source == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final String requestId = RequestIdGenerator.generate();
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                "copy policy '" + policyName + "' to '" + name + "'");
+
+        // Through create, as the dashboard does, so the copy gets the name rules, a fresh version history,
+        // and an unmanaged record of its own, rather than the source's revision and timestamps.
+        final ServiceResponse response = policyDataService.create(requestId, userId, source.getPolicy(),
+                source.getDescription(),
+                source.isManaged() ? "Created from managed policy " + source.getName() : source.getNotes(),
+                name, Source.API.getSource());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
+                apiKeyEntity.getUserId(), null, null, "policy: " + name + ", copied from: " + policyName);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(new PolicyDetailsResponse(policyDataService.findOne(name, userId)));
+
+    }
+
+    /** Refuses a description or notes longer than the service would keep, rather than truncating them. */
+    private static void requireDetailLengths(final String description, final String notes) {
+        if (description != null && description.length() > PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH) {
+            throw new BadRequestException("The description cannot be longer than "
+                    + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH + " characters.");
+        }
+        if (notes != null && notes.length() > PolicyDataService.POLICY_NOTES_MAX_LENGTH) {
+            throw new BadRequestException("The notes cannot be longer than "
+                    + PolicyDataService.POLICY_NOTES_MAX_LENGTH + " characters.");
+        }
     }
 
 }

@@ -534,7 +534,7 @@
             }
           },
           "403": {
-            "description": "The key does not hold api-keys:write, a requested scope is not held by the calling key, or the key being changed holds a scope the calling key does not.",
+            "description": "The key does not hold api-keys:write, a requested scope is not held by the calling key, the key being changed holds a scope the calling key does not, or the calling key is a session key and the change adds a scope.",
             "content": {
               "application/json": {
                 "schema": {

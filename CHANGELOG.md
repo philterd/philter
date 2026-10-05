@@ -65,9 +65,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Password sign-in.** `POST /api/sign-in` exchanges a username and password for a session key,
   for a user interface such as Philter UI. Disabled unless `PASSWORD_SIGN_IN_ENABLED=true`, when it
   returns 404. Every kind of failure gets the same 401 in about the same time. The session key holds
-  every scope, with the user's role deciding administrator access, but cannot create API keys. A user
-  who must change their password gets a key that can only do that and sign out. Audited as
-  `sign_in_succeeded` and `sign_in_failed` with the username and client IP address.
+  every scope, with the user's role deciding administrator access, but cannot create API keys or widen
+  an existing key's scopes. A user who must change their password gets a key that can only do that
+  and sign out. Audited as `sign_in_succeeded` and `sign_in_failed` with the username and client IP
+  address.
 - **TOTP multi-factor authentication for sign-in.** Users enroll with `POST /api/users/me/mfa` and
   `.../confirm`, and remove their own with a code; administrators remove another user's and unlock
   them. Enrolled users get a single-use, five-minute challenge from `POST /api/sign-in` and complete it

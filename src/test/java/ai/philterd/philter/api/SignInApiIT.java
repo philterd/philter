@@ -304,6 +304,44 @@ class SignInApiIT {
     }
 
     @Test
+    @DisplayName("A session key can narrow a key's scopes but not widen them; a long-lived key still can")
+    void aSessionCannotWidenAKey() throws Exception {
+
+        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String narrow = apiKeyDataService.createApiKey("req", user, "test", Set.of("redact")).getMessage();
+        final String wide = apiKeyDataService.createApiKey("req", user, "test", Set.of("redact", "policies:read")).getMessage();
+        final String narrowId = apiKeyDataService.findOneByApiKey(narrow).getId().toHexString();
+        final String wideId = apiKeyDataService.findOneByApiKey(wide).getId().toHexString();
+        final String session = gson.fromJson(signIn(username(user), PASSWORD).body(), JsonObject.class)
+                .get("apiKey").getAsString();
+
+        final HttpResponse<String> widened = send("PUT", "/api/api-keys/" + narrowId + "/scopes", session,
+                "{\"scopes\":[\"redact\",\"policies:read\"]}");
+        assertEquals(403, widened.statusCode(), widened.body());
+        assertTrue(widened.body().contains("policies:read"), "the refusal names what it would add: " + widened.body());
+        assertEquals(Set.of("redact"), apiKeyDataService.findOneByApiKey(narrow).getScopes(), "nothing changed");
+
+        assertEquals(200, send("PUT", "/api/api-keys/" + wideId + "/scopes", session, "{\"scopes\":[\"redact\"]}").statusCode(),
+                "narrowing is allowed");
+        assertEquals(Set.of("redact"), apiKeyDataService.findOneByApiKey(wide).getScopes());
+
+        // An administrator's session is held to the same rule on another user's key.
+        final ObjectId admin = seedUser("admin", PASSWORD, false);
+        final String adminSession = gson.fromJson(signIn(username(admin), PASSWORD).body(), JsonObject.class)
+                .get("apiKey").getAsString();
+        final HttpResponse<String> adminWidened = send("PUT", "/api/api-keys/" + narrowId + "/scopes", adminSession,
+                "{\"scopes\":[\"redact\",\"policies:read\"]}");
+        assertEquals(403, adminWidened.statusCode(), adminWidened.body());
+        assertTrue(adminWidened.body().contains("can narrow a key's scopes but not widen them"), adminWidened.body());
+        assertEquals(Set.of("redact"), apiKeyDataService.findOneByApiKey(narrow).getScopes());
+
+        final String longLived = apiKeyDataService.createApiKey("req", user, "test", ApiKeyScope.all()).getMessage();
+        assertEquals(200, send("PUT", "/api/api-keys/" + narrowId + "/scopes", longLived,
+                "{\"scopes\":[\"redact\",\"policies:read\"]}").statusCode(), "a long-lived key behaves as before");
+
+    }
+
+    @Test
     @DisplayName("The user's role still decides administrator access")
     void roleDecidesAdministratorAccess() throws Exception {
         final String userKey = gson.fromJson(signIn(username(seedUser("user", PASSWORD, false)), PASSWORD).body(),

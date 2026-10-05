@@ -262,7 +262,7 @@ public class ApiKeysApiController extends AbstractApiController {
                             schema = @Schema(implementation = ApiKeyResponse.class))),
             @ApiResponse(responseCode = "400", description = "No scopes were given, or one of them is not a scope."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, a requested scope is not held by the calling key, or the key being changed holds a scope the calling key does not.",
+            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, a requested scope is not held by the calling key, the key being changed holds a scope the calling key does not, or the calling key is a session key and the change adds a scope.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "There is no active key with that ID that the caller may manage.",
@@ -289,6 +289,9 @@ public class ApiKeysApiController extends AbstractApiController {
         ResponseEntity<Object> refusal = refuseScopesNotHeld(caller, scopes);
         if (refusal == null) {
             refusal = refuseWiderTarget(caller, target, "change");
+        }
+        if (refusal == null) {
+            refusal = refuseWideningFromSession(caller, target, scopes);
         }
         if (refusal != null) {
             return refusal;
@@ -494,6 +497,30 @@ public class ApiKeysApiController extends AbstractApiController {
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
                 "A session key cannot create API keys. Use a long-lived key."));
+    }
+
+    /**
+     * A session key may narrow a key's scopes but not widen them. It holds every scope, so otherwise a
+     * session together with a leaked narrow key could turn that key into a full one, which would outlive
+     * the session and a password reset as a newly created key would.
+     */
+    private static ResponseEntity<Object> refuseWideningFromSession(final ApiKeyEntity caller, final ApiKeyEntity target,
+                                                                    final Set<String> scopes) {
+        if (!caller.isSession()) {
+            return null;
+        }
+        final List<String> added = new ArrayList<>();
+        for (final String scope : scopes) {
+            if (!target.getScopes().contains(scope)) {
+                added.add(scope);
+            }
+        }
+        if (added.isEmpty()) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
+                "A session key can narrow a key's scopes but not widen them. Adding " + String.join(", ", added)
+                        + " needs a long-lived key."));
     }
 
     private static String actingPrincipal(final ApiKeyEntity caller) {

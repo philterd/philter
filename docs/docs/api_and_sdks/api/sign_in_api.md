@@ -40,7 +40,7 @@ Requires no API key. For a user enrolled in [MFA](users_api.md#multi-factor-auth
 * `passwordChangeRequired` - `true` when an administrator set the password. The key can then only change the password with [`PUT /api/users/me/password`](users_api.md#change-your-own-password) and [sign out](api_keys_api.md#sign-out); any other request is refused with `403 Forbidden`. Changing the password revokes the key, and the person signs in again with the new password.
 * `mfaEnrollmentRequired` - `true` when the `mfaRequired` [setting](settings_api.md) is on and the user is not enrolled in MFA. The key can then only [enroll](users_api.md#start-enrollment) and sign out. Confirming enrollment revokes the key, and the person signs in again, with a code.
 
-A session key cannot create API keys, so signing in cannot produce a long-lived credential that outlives the session or a password reset. It can list, re-scope, and revoke keys like any other key.
+A session key cannot create API keys, and can narrow an existing key's scopes but not widen them, so signing in cannot produce a long-lived credential that outlives the session or a password reset. It can list and revoke keys like any other key.
 
 ```
 curl -k -X POST "https://localhost:8080/api/sign-in" \

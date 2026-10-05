@@ -116,7 +116,7 @@ Replaces the key's scopes and returns the key. The key value does not change, so
 | Status | Meaning |
 |--------|---------|
 | 400 | No scopes were given, or one of them is not a scope. |
-| 403 | The key does not hold `api-keys:write`, a requested scope is not held by the calling key, or the key being changed holds a scope the calling key does not. |
+| 403 | The key does not hold `api-keys:write`, a requested scope is not held by the calling key, the key being changed holds a scope the calling key does not, or the calling key is a [session key](../../account/api_keys.md#session-keys) and the change adds a scope. A session key can narrow a key's scopes but not widen them. |
 | 404 | There is no active key with that ID that the caller may manage. A non-administrator gets this for another user's key. |
 
 ## Revoke a key

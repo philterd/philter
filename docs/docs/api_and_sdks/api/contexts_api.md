@@ -17,6 +17,7 @@ The Contexts API provides endpoints for retrieving, creating, and deleting conte
 * `offset` (optional, default: `0`) - The number of context names to skip.
 * `limit` (optional, default: `25`) - The maximum number of context names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
 * `owner` (optional) - The username of the user whose contexts to list. When omitted, the caller's own contexts are listed. Supplying an `owner` other than yourself requires admin privileges and cross-user access being enabled (`ADMIN_CROSS_USER_ACCESS_ENABLED=true`; disabled by default); otherwise it receives `404 Not Found`.
+* `all_users` (optional, default: `false`) - List every user's contexts instead of the caller's. Each item in `contexts` is then an object with the context's `name` and its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
 Example request:
 

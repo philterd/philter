@@ -218,7 +218,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
-        for (final Document document : collection.find().sort(Sorts.ascending("name")).skip(offset).limit(limit)) {
+        for (final Document document : collection.find().sort(Sorts.ascending("name", "_id")).skip(offset).limit(limit)) {
             customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
         }
 

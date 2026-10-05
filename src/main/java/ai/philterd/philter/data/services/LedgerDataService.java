@@ -398,7 +398,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         final Bson query = Filters.eq("previous_hash", GENESIS);
 
         final FindIterable<Document> documents = collection.find(query)
-                .sort(Sorts.descending("timestamp"))
+                .sort(Sorts.descending("timestamp", "_id"))
                 .skip(offset)
                 .limit(limit);
 

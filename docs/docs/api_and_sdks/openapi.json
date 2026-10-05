@@ -796,7 +796,7 @@
           "Contexts"
         ],
         "summary": "Get the names of existing contexts.",
-        "description": "Get the names of existing contexts. Requires the `contexts:read` scope.",
+        "description": "Get the names of the caller's contexts, paged. Admins may list another user's contexts with owner, or every user's with all_users=true, which returns each context's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `contexts:read` scope.",
         "operationId": "getContexts",
         "parameters": [
           {
@@ -813,6 +813,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "all_users",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {
@@ -838,17 +847,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Context names; with all_users, each context's name and owner.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetContextsResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/GetContextsResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GetAllUsersContextsResponse"
+                    }
+                  ]
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "Both owner and all_users were given.",
             "content": {
               "*/*": {
                 "schema": {
@@ -869,6 +885,16 @@
           },
           "403": {
             "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "The owner does not exist, or the caller may not reach it; or all_users was given by a caller who is not an administrator, or with cross-user access disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
@@ -3229,7 +3255,7 @@
           "Legal Holds"
         ],
         "summary": "List legal holds.",
-        "description": "Returns the caller's active legal holds, paged and ordered by set date descending. Admins may list another user's holds via the owner parameter. Requires the `holds:read` scope.",
+        "description": "Returns the caller's active legal holds, paged and ordered by set date descending. Admins may list another user's holds via the owner parameter, or every user's with all_users=true, which adds each hold's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `holds:read` scope.",
         "operationId": "listHolds",
         "parameters": [
           {
@@ -3246,6 +3272,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "all_users",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {
@@ -3271,20 +3306,30 @@
         ],
         "responses": {
           "200": {
-            "description": "Array of legal holds, most recently set first.",
+            "description": "Array of legal holds, most recently set first. With all_users, each hold also has an owner field.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LegalHoldResponse"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LegalHoldResponse"
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OwnedLegalHoldResponse"
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "Both owner and all_users were given.",
             "content": {
               "*/*": {
                 "schema": {
@@ -3890,7 +3935,7 @@
           "Redaction Ledger"
         ],
         "summary": "List redaction-ledger chains.",
-        "description": "Returns the head (genesis entry) of each redacted document's ledger chain, most recent first. Pass q to filter by document id or filename. Admins may list another user's chains by passing that user's email as owner. Requires the `ledger:read` scope.",
+        "description": "Returns the head (genesis entry) of each redacted document's ledger chain, most recent first. Pass q to filter by document id or filename. Admins may list another user's chains by passing that user's email as owner, or every user's with all_users=true, which adds each chain's owner, cannot be combined with q, and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `ledger:read` scope.",
         "operationId": "getLedger",
         "parameters": [
           {
@@ -3918,6 +3963,15 @@
             }
           },
           {
+            "name": "all_users",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -3940,17 +3994,36 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Ledger chain heads; with all_users, each also names its owner.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetLedgerResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/GetLedgerResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "chains": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/OwnedLedgerEntryView"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "format": "int32"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "all_users was combined with owner or q.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4596,7 +4669,7 @@
           "Custom Lists"
         ],
         "summary": "Get the names of existing lists.",
-        "description": "Get the names of existing lists. Requires the `lists:read` scope.",
+        "description": "Get the names of the caller's custom lists, all of them. Admins may list another user's lists with owner, or every user's with all_users=true, which is paged with offset and limit, returns each list's name and owner, and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `lists:read` scope.",
         "operationId": "getLists_1",
         "parameters": [
           {
@@ -4614,24 +4687,63 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "all_users",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "List names.",
+            "description": "List names; with all_users, each list's name and owner.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OwnedNameResponse"
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "Both owner and all_users were given.",
             "content": {
               "*/*": {
                 "schema": {
@@ -4654,7 +4766,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. Also returned for all_users when the caller is not an administrator or cross-user access is disabled.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5125,7 +5237,7 @@
           "Policies"
         ],
         "summary": "Get the names of existing policies.",
-        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner. Requires the `policies:read` scope.",
+        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `policies:read` scope.",
         "operationId": "getPolicyNames",
         "parameters": [
           {
@@ -5142,6 +5254,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "all_users",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {
@@ -5167,20 +5288,30 @@
         ],
         "responses": {
           "200": {
-            "description": "The names of the policies.",
+            "description": "The names of the policies; with all_users, objects naming each policy and its owner.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OwnedNameResponse"
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "Both owner and all_users were given.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5207,10 +5338,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                  "type": "object"
                 }
               }
             }
@@ -8799,6 +8927,16 @@
           }
         }
       },
+      "GetAllUsersContextsResponse": {
+        "properties": {
+          "contexts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnedNameResponse"
+            }
+          }
+        }
+      },
       "GetApiKeysResponse": {
         "type": "object",
         "properties": {
@@ -9104,6 +9242,98 @@
           "setAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "OwnedLedgerEntryView": {
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "documentHash": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "effectiveHash": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "policyContentHash": {
+            "type": "string"
+          },
+          "policyName": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "previousHash": {
+            "type": "string"
+          },
+          "replacement": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "signingKeyId": {
+            "type": "string"
+          },
+          "startPosition": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "OwnedLegalHoldResponse": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "scopeType": {
+            "type": "string"
+          },
+          "scopeValue": {
+            "type": "string"
+          },
+          "setAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OwnedNameResponse": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
           }
         }
       },

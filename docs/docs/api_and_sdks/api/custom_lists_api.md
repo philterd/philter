@@ -12,6 +12,12 @@ The Custom Lists API provides endpoints for retrieving, creating, and deleting c
 | ------ |-----------------|--------------------------------| 
 | `GET` | `/api/lists` | Get the names of all custom lists. |
 
+### Query Parameters
+
+* `owner` (optional, admin only) - Username of another user whose lists to get. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
+* `all_users` (optional, default: `false`) - List every user's custom lists instead of the caller's. Each item is then an object with the list's `name` and its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
+* `offset` (optional, default: `0`) and `limit` (optional, default: `25`, max `100`) - Page through the lists. These apply only with `all_users`; without it, every one of the caller's lists is returned.
+
 Example request:
 
 ```

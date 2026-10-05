@@ -79,16 +79,23 @@ public class CustomListsApiController extends AbstractApiController {
         this.gson = gson;
     }
 
-    @Operation(summary = "Get the names of existing lists.", description = "Get the names of existing lists.")
+    @Operation(summary = "Get the names of existing lists.",
+            description = "Get the names of the caller's custom lists, all of them. Admins may list another user's "
+                    + "lists with owner, or every user's with all_users=true, which is paged with offset and limit, "
+                    + "returns each list's name and owner, and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
+            @ApiResponse(responseCode = "200", description = "The list names; with all_users, each list's name and owner. The schema is set in ApiDocumentationConfig."),
+            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. Also returned for all_users when the caller is not an administrator or cross-user access is disabled.")
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
     @RequestMapping(value = "/api/lists", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
+            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -96,6 +103,20 @@ public class CustomListsApiController extends AbstractApiController {
 
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (allUsers) {
+            if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+            // Paged only here: the per-user listing has always returned every list, so a default page
+            // size there would silently cut off existing callers.
+            final List<CustomListEntity> lists =
+                    customListService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
+            auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list custom lists");
+            return new ResponseEntity<>(gson.toJson(ownedNames(userService, lists,
+                    CustomListEntity::getName, CustomListEntity::getUserId)), HttpStatus.OK);
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);

@@ -139,7 +139,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         final List<ContextEntity> contextEntities = new ArrayList<>();
 
-        for (final Document document : collection.find().sort(Sorts.ascending("context_name")).skip(offset).limit(limit)) {
+        for (final Document document : collection.find().sort(Sorts.ascending("context_name", "_id")).skip(offset).limit(limit)) {
             contextEntities.add(ContextEntity.fromDocument(document));
         }
 

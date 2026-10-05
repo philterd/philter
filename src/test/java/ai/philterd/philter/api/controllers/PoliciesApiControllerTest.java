@@ -122,7 +122,7 @@ class PoliciesApiControllerTest {
         when(policyDataService.findAll(eq(userId), anyInt(), anyInt(), eq(false)))
                 .thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER))
+        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-1"))
                 .andExpect(status().isOk());
 
         verify(policyDataService).findAll(eq(userId), anyInt(), anyInt(), eq(false));
@@ -328,7 +328,7 @@ class PoliciesApiControllerTest {
         when(policyDataService.findAll(eq(otherUser), anyInt(), anyInt(), eq(false)))
                 .thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-1")
                         .param("owner", "other@example.com"))
                 .andExpect(status().isOk());
 
@@ -344,7 +344,7 @@ class PoliciesApiControllerTest {
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
 
-        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-1")
                         .param("owner", "other@example.com"))
                 .andExpect(status().isNotFound());
     }

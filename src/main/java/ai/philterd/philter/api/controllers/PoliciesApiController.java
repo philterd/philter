@@ -20,6 +20,7 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -38,6 +39,9 @@ import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,6 +54,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -84,25 +89,41 @@ public class PoliciesApiController extends AbstractApiController {
 
     @Operation(summary = "Get the names of existing policies.",
             description = "Returns the names of the caller's policies, paged. Admins may list another user's "
-                    + "policies by passing that user's email as owner.")
+                    + "policies by passing that user's email as owner, or every user's with all_users=true, which "
+                    + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The names of the policies."),
+            @ApiResponse(responseCode = "200", description = "The names of the policies; with all_users, objects naming each policy and its owner.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class}))),
+            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
     @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<List<String>> getPolicyNames(
+    public @ResponseBody ResponseEntity<Object> getPolicyNames(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
-            final @RequestParam(value = "limit", defaultValue = "25") int limit
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
+            final @RequestAttribute("requestId") String requestId
     ) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (allUsers) {
+            if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            final List<PolicyEntity> policies =
+                    policyDataService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit), false);
+            auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list policies");
+            return ResponseEntity.ok(ownedNames(userService, policies, PolicyEntity::getName, PolicyEntity::getUserId));
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);

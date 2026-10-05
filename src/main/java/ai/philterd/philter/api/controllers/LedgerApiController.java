@@ -15,12 +15,14 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetLedgerResponse;
 import ai.philterd.philter.api.responses.LedgerChainResponse;
 import ai.philterd.philter.api.responses.LedgerEntryView;
 import ai.philterd.philter.api.responses.LedgerExport;
+import ai.philterd.philter.api.responses.OwnedLedgerEntryView;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -106,7 +108,26 @@ public class LedgerApiController extends AbstractApiController {
     }
 
     private static LedgerEntryView buildView(final LedgerEntity entry, final String token) {
-        final LedgerEntryView view = new LedgerEntryView(
+        return buildView(entry, token, null);
+    }
+
+    /** With an owner, the view names it, as a listing across users does. */
+    private static LedgerEntryView buildView(final LedgerEntity entry, final String token, final String owner) {
+        final LedgerEntryView view = owner == null ? new LedgerEntryView(
+                entry.getDocumentId(),
+                entry.getFilename(),
+                entry.getType(),
+                token,
+                entry.getReplacement(),
+                entry.getStartPosition(),
+                entry.getDocumentHash(),
+                entry.getPreviousHash(),
+                entry.getHash(),
+                entry.getTimestamp(),
+                entry.getPolicyName(),
+                entry.getPolicyVersion(),
+                entry.getPolicyContentHash()) : new OwnedLedgerEntryView(
+                owner,
                 entry.getDocumentId(),
                 entry.getFilename(),
                 entry.getType(),
@@ -127,9 +148,11 @@ public class LedgerApiController extends AbstractApiController {
     @Operation(summary = "List redaction-ledger chains.",
             description = "Returns the head (genesis entry) of each redacted document's ledger chain, most recent "
                     + "first. Pass q to filter by document id or filename. Admins may list another user's chains by "
-                    + "passing that user's email as owner.")
+                    + "passing that user's email as owner, or every user's with all_users=true, which adds each "
+                    + "chain's owner, cannot be combined with q, and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The matching ledger chains."),
+            @ApiResponse(responseCode = "200", description = "The matching ledger chains. With all_users, each entry also has an owner field."),
+            @ApiResponse(responseCode = "400", description = "all_users was combined with owner or q."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
@@ -139,6 +162,7 @@ public class LedgerApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "q", required = false) String query,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId) {
@@ -146,6 +170,24 @@ public class LedgerApiController extends AbstractApiController {
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (allUsers) {
+            if (query != null && !query.isBlank()) {
+                throw new BadRequestException("q cannot be combined with all_users.");
+            }
+            if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+            final List<LedgerEntity> chains =
+                    ledgerService.findAllChainHeadsAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
+            final Map<ObjectId, String> owners = ownerNames(userService, chains, LedgerEntity::getUserId);
+            final List<LedgerEntryView> views = new ArrayList<>(chains.size());
+            for (final LedgerEntity chain : chains) {
+                views.add(signed(buildView(chain, null, owners.get(chain.getUserId())), chain));
+            }
+            auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list ledger chains");
+            return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, ledgerService.countAllChainHeads())), HttpStatus.OK);
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);

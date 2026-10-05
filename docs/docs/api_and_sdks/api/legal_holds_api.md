@@ -50,10 +50,12 @@ curl -k -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application
 * `owner` (optional, admin only) - Username of another user whose holds to list.
 * `offset` (optional, default `0`) - Number of holds to skip.
 * `limit` (optional, default `25`) - Maximum number of holds to return.
+* `all_users` (optional, default `false`) - List every user's holds instead of the caller's; each hold then also has an `owner` field with its owner's username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
 ### Responses
 
 * `200 OK` - A JSON array of holds, ordered by set date descending.
+* `400 Bad Request` - Both `owner` and `all_users` were given.
 
 Example request:
 

@@ -447,10 +447,20 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * ordinary access must use the owner-scoped {@link #findAll(ObjectId, int, int, boolean)}.
      */
     public List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit) {
+        return findAllAcrossUsers(offset, limit, true);
+    }
+
+    /**
+     * Returns one page of every user's policies, ordered by name and then id, so the order is stable
+     * across pages even though many users have a policy of the same name. Managed policies are left out
+     * unless {@code includeManaged}.
+     */
+    public List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit, final boolean includeManaged) {
 
         final List<PolicyEntity> policies = new ArrayList<>();
 
-        for (final Document document : collection.find().sort(Sorts.ascending("name")).skip(offset).limit(limit)) {
+        for (final Document document : collection.find(acrossUsers(includeManaged))
+                .sort(Sorts.ascending("name", "_id")).skip(offset).limit(limit)) {
             policies.add(PolicyEntity.fromDocument(document));
         }
 
@@ -458,9 +468,16 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
-    /** Returns the total number of policies across every user (for admin paging). */
     public int countAllAcrossUsers() {
-        return (int) collection.countDocuments();
+        return countAllAcrossUsers(true);
+    }
+
+    public int countAllAcrossUsers(final boolean includeManaged) {
+        return (int) collection.countDocuments(acrossUsers(includeManaged));
+    }
+
+    private static Bson acrossUsers(final boolean includeManaged) {
+        return includeManaged ? new Document() : Filters.ne("managed", true);
     }
 
     /**

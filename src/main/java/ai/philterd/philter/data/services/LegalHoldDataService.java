@@ -175,7 +175,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
      */
     public List<LegalHoldEntity> findAll(final int offset, final int limit) {
         final FindIterable<Document> docs = holds.find()
-                .sort(Sorts.descending("set_at"))
+                .sort(Sorts.descending("set_at", "_id"))
                 .skip(offset)
                 .limit(limit);
         return toList(docs);

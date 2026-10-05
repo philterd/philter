@@ -69,6 +69,9 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   whether the 100,000-event cap truncated it, and the zone used. Each export is audited as
   `audit_log_exported`. In both the API and dashboard exports, a cell that a spreadsheet would run as
   a formula is prefixed with an apostrophe.
+- **Listings across all users.** `all_users=true` on `GET /api/policies`, `/api/contexts`,
+  `/api/lists`, `/api/ledger`, and `/api/holds` lists every user's resources, each naming its owner,
+  for administrators with `ADMIN_CROSS_USER_ACCESS_ENABLED`. Per-user responses are unchanged.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

@@ -19,6 +19,7 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.LegalHoldRequest;
 import ai.philterd.philter.api.responses.LegalHoldResponse;
+import ai.philterd.philter.api.responses.OwnedLegalHoldResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -31,6 +32,8 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -49,6 +52,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Legal Holds",
         description = "Operations for setting, listing, retrieving, and releasing legal holds. "
@@ -135,9 +139,13 @@ public class LegalHoldsApiController extends AbstractApiController {
 
     @Operation(summary = "List legal holds.",
             description = "Returns the caller's active legal holds, paged and ordered by set date descending. "
-                    + "Admins may list another user's holds via the owner parameter.")
+                    + "Admins may list another user's holds via the owner parameter, or every user's with "
+                    + "all_users=true, which adds each hold's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Array of legal holds, most recently set first."),
+            @ApiResponse(responseCode = "200", description = "Array of legal holds, most recently set first. With all_users, each hold also has an owner field.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(oneOf = {LegalHoldResponse[].class, OwnedLegalHoldResponse[].class}))),
+            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
@@ -147,12 +155,25 @@ public class LegalHoldsApiController extends AbstractApiController {
     public @ResponseBody ResponseEntity<List<LegalHoldResponse>> listHolds(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (allUsers) {
+            if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            final List<LegalHoldEntity> holds = legalHoldDataService.findAll(normalizeOffset(offset), normalizeLimit(limit));
+            final Map<ObjectId, String> owners = ownerNames(userService, holds, LegalHoldEntity::getUserId);
+            auditAllUsersListing(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), "list legal holds");
+            return ResponseEntity.ok(holds.stream().<LegalHoldResponse>map(hold -> new OwnedLegalHoldResponse(
+                    hold.getReference(), hold.getScopeType(), hold.getScopeValue(), hold.getReason(), hold.getSetAt(),
+                    owners.get(hold.getUserId()))).toList());
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);

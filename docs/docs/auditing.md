@@ -37,7 +37,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | Event | When it is recorded |
 |-------|---------------------|
 | `api_authentication_failed` | A request was rejected because the API key was missing, malformed, or unknown. |
-| `admin_cross_user_access` | An admin acted on another user's resource via the `owner` parameter (subject = the acting admin, associated object = the affected user). |
+| `admin_cross_user_access` | An admin acted on another user's resource via the `owner` parameter (subject = the acting admin, associated object = the affected user), or listed every user's resources with `all_users` (subject = the acting admin, no associated object; the detail names the listing). |
 
 ### Users
 

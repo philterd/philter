@@ -23,7 +23,10 @@ public class ApiDocumentationConfig {
             op(api, "/api/policies", "post").getRequestBody().setContent(content("application/json",
                     new ObjectSchema().additionalProperties(true).description("Native Phileas policy. identifiers is required; custom dictionaries use dictionaries.")));
             json(api, "/api/audit", "get", GetAuditResponse.class);
-            json(api, "/api/contexts", "get", GetContextsResponse.class);
+            // With all_users, these listings name each item's owner.
+            response(op(api, "/api/contexts", "get"), "200", "Context names; with all_users, each context's name and owner.",
+                    content("application/json", new ComposedSchema().oneOf(java.util.List.of(
+                            model(api, GetContextsResponse.class), model(api, GetAllUsersContextsResponse.class)))));
             json(api, "/api/contexts/{name}", "get", GetContextResponse.class);
             json(api, "/api/contexts/{name}/entries", "get", GetContextEntriesResponse.class);
             json(api, "/api/contexts/{name}/entries/export", "get", ContextEntriesExport.class);
@@ -32,7 +35,11 @@ public class ApiDocumentationConfig {
                     .setContent(content("application/json", model(api, ContextEntriesExport.class)));
             json(api, "/api/documents", "get", GetDocumentsResponse.class);
             json(api, "/api/documents/{documentId}/status", "get", GetRedactionStatusResponse.class);
-            json(api, "/api/ledger", "get", GetLedgerResponse.class);
+            response(op(api, "/api/ledger", "get"), "200", "Ledger chain heads; with all_users, each also names its owner.",
+                    content("application/json", new ComposedSchema().oneOf(java.util.List.of(
+                            model(api, GetLedgerResponse.class),
+                            object("chains", new ArraySchema().items(model(api, OwnedLedgerEntryView.class)),
+                                    "total", new IntegerSchema())))));
             json(api, "/api/ledger/{documentId}", "get", LedgerChainResponse.class);
             json(api, "/api/ledger/{documentId}/valid", "get", LedgerChainResponse.class);
             json(api, "/api/ledger/{documentId}/export", "get", LedgerExport.class);
@@ -41,8 +48,10 @@ public class ApiDocumentationConfig {
                 op(api, "/api/redact-lists", verb).getRequestBody()
                         .setContent(content("application/json", model(api, RedactListsRequest.class)));
             }
-            response(op(api, "/api/lists", "get"), "200", "List names.",
-                    content("application/json", new ArraySchema().items(new StringSchema())));
+            response(op(api, "/api/lists", "get"), "200", "List names; with all_users, each list's name and owner.",
+                    content("application/json", new ComposedSchema().oneOf(java.util.List.of(
+                            new ArraySchema().items(new StringSchema()),
+                            new ArraySchema().items(model(api, OwnedNameResponse.class))))));
             json(api, "/api/reidentify", "post", ReidentifyResponse.class);
             response(op(api, "/api/policies/compile", "post"), "200", "Compiled native policy; does not save it.",
                     content("application/json", object("name", new StringSchema(), "description", new StringSchema(),

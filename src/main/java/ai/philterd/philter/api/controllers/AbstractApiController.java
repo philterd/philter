@@ -15,8 +15,10 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
@@ -36,6 +38,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
 public abstract class AbstractApiController {
 
@@ -146,6 +155,48 @@ public abstract class AbstractApiController {
             return null;
         }
         return owner.getId();
+    }
+
+    /**
+     * Whether the caller may list every user's resources with {@code all_users}: an administrator, with
+     * {@code ADMIN_CROSS_USER_ACCESS_ENABLED}, the same as reaching one other user with {@code owner}.
+     * Callers answer a refusal with 404, as {@link #resolveTargetUserId} does.
+     *
+     * @throws BadRequestException if the request also names an {@code owner}.
+     */
+    protected boolean mayListAllUsers(final UserService userService, final ObjectId callerUserId, final String owner) {
+        if (owner != null && !owner.isBlank()) {
+            throw new BadRequestException("Pass owner or all_users, not both.");
+        }
+        return isCrossUserAccessEnabled() && isAdmin(userService, callerUserId);
+    }
+
+    /** The usernames of the given items' owners, looked up in one query. */
+    protected <T> Map<ObjectId, String> ownerNames(final UserService userService, final List<T> items,
+                                                   final Function<T, ObjectId> owner) {
+        final Set<ObjectId> ids = new HashSet<>();
+        for (final T item : items) {
+            ids.add(owner.apply(item));
+        }
+        return userService.findUsernamesByIds(ids);
+    }
+
+    /** Each item's name and its owner's username, in the order given. */
+    protected <T> List<OwnedNameResponse> ownedNames(final UserService userService, final List<T> items,
+                                                     final Function<T, String> name, final Function<T, ObjectId> owner) {
+        final Map<ObjectId, String> usernames = ownerNames(userService, items, owner);
+        final List<OwnedNameResponse> owned = new ArrayList<>(items.size());
+        for (final T item : items) {
+            owned.add(new OwnedNameResponse(name.apply(item), usernames.get(owner.apply(item))));
+        }
+        return owned;
+    }
+
+    /** Records an administrator listing a resource across every user. */
+    protected void auditAllUsersListing(final AuditEventPublisher auditEventPublisher, final String requestId,
+                                        final ObjectId callerUserId, final String action) {
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.ADMIN_CROSS_USER_ACCESS, callerUserId, null,
+                null, "action: " + action + " across all users");
     }
 
     /**

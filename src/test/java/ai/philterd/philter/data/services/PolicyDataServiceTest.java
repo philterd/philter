@@ -286,7 +286,7 @@ class PolicyDataServiceTest {
         final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
 
         final FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find()).thenReturn(findIterable);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
         when(findIterable.skip(anyInt())).thenReturn(findIterable);
         when(findIterable.limit(anyInt())).thenReturn(findIterable);
@@ -300,14 +300,17 @@ class PolicyDataServiceTest {
 
         assertEquals(1, page.size());
         assertEquals("alpha", page.get(0).getName());
-        verify(findIterable).sort(any());
+        // Name and then id: many users have a policy of the same name, and without the id the order of
+        // ties is undefined, so paging could skip or repeat them.
+        verify(findIterable).sort(org.mockito.ArgumentMatchers.argThat(sort ->
+                sort.toBsonDocument().toJson().equals("{\"name\": 1, \"_id\": 1}")));
         verify(findIterable).skip(25);
         verify(findIterable).limit(25);
     }
 
     @Test
     void countAllAcrossUsersDelegatesToCountDocuments() {
-        when(mongoCollection.countDocuments()).thenReturn(42L);
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(42L);
         assertEquals(42, policyDataService.countAllAcrossUsers());
     }
 

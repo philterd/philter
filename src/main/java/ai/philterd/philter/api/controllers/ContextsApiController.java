@@ -20,6 +20,7 @@ import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
 import ai.philterd.philter.api.responses.ContextEntryView;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.GetAllUsersContextsResponse;
 import ai.philterd.philter.api.responses.GetContextEntriesResponse;
 import ai.philterd.philter.api.responses.ImportContextEntriesResponse;
 import ai.philterd.philter.api.responses.GetContextResponse;
@@ -152,15 +153,21 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Get the names of existing contexts.", description = "Get the names of existing contexts.")
+    @Operation(summary = "Get the names of existing contexts.",
+            description = "Get the names of the caller's contexts, paged. Admins may list another user's contexts "
+                    + "with owner, or every user's with all_users=true, which returns each context's name and "
+                    + "owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200")
+            @ApiResponse(responseCode = "200", description = "The context names; with all_users, each context's name and owner. The schema is set in ApiDocumentationConfig."),
+            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it; or all_users was given by a caller who is not an administrator, or with cross-user access disabled.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_READ)
     @RequestMapping(value = "/api/contexts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getContexts(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
@@ -173,6 +180,18 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         final ObjectId callerUserId = apiKeyEntity.getUserId();
+
+        if (allUsers) {
+            if (!mayListAllUsers(userService, callerUserId, owner)) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+            final List<ContextEntity> contextEntities =
+                    contextService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
+            auditAllUsersListing(auditEventPublisher, requestId, callerUserId, "list contexts");
+            return new ResponseEntity<>(gson.toJson(new GetAllUsersContextsResponse(ownedNames(userService, contextEntities,
+                    ContextEntity::getContextName, ContextEntity::getUserId))), HttpStatus.OK);
+        }
 
         // The caller's own contexts, or — for an admin supplying owner — another user's. A null result
         // (non-admin naming another user, or unknown user) maps to 404 so it never reveals the user's existence.

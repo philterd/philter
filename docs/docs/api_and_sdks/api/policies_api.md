@@ -17,11 +17,21 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 
 * `offset` (optional, default: `0`) - The number of policy names to skip.
 * `limit` (optional, default: `25`) - The maximum number of policy names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
+* `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item is then an object with the policy's `name` and its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
 Example request:
 
 ```
 curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies?offset=0&limit=100"
+```
+
+Example response with `all_users=true`:
+
+```json
+[
+  { "name": "default", "owner": "alice" },
+  { "name": "default", "owner": "bob" }
+]
 ```
 
 ## Get a Policy

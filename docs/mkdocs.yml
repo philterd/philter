@@ -173,6 +173,7 @@ nav:
     - 'PII Drift Monitoring (Phield)': 'phield.md'
     - 'Differential-Privacy Reporting (Diffuse)': 'diffuse.md'
     - 'Auditing': 'auditing.md'
+    - 'Sign-in Security': 'sign_in_security.md'
     - 'Advanced Features':
       - 'Referential Integrity': 'other_features/referential_integrity.md'
       - 'Span Disambiguation': 'other_features/span_disambiguation.md'

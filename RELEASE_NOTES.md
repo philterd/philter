@@ -10,7 +10,7 @@ truth for them. This file keeps the narrative history of 3.x and earlier.
 Philter 4.0 has no built-in user interface. Administer it through its API: the `admin` user's first
 API key comes from `PHILTER_BOOTSTRAP_API_KEY`, and users, API keys, settings, policies, and the audit
 log are managed with the endpoints in the [API reference](docs/docs/api_and_sdks/api.md). [Philter UI](https://github.com/philterd/philter-ui), a
-separate web application in development, is planned to run against Philter with an administrator's API key.
+separate web application in development, signs people in through Philter with their own username and password.
 
 ## Version 2.5.0 - July 6, 2024
 

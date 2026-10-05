@@ -1,6 +1,6 @@
 # Sign-in API
 
-Password sign-in lets a person use Philter through a user interface, such as [Philter UI](https://github.com/philterd/philter-ui) (in development), without the interface holding an API key of its own. The interface sends the person's username and password, and Philter returns a [session key](../../account/api_keys.md#session-keys) for that user, which the interface uses for the person's requests until it expires or they sign out.
+Password sign-in lets a person use Philter through a user interface, such as [Philter UI](https://github.com/philterd/philter-ui) (in development), without the interface holding an API key of its own. The interface sends the person's username and password, and Philter returns a [session key](../../account/api_keys.md#session-keys) for that user, which the interface uses for the person's requests until it expires or they sign out. For how sign-in is protected as a whole, see [Sign-in Security](../../sign_in_security.md).
 
 Password sign-in is **disabled by default**. Enable it with [`PASSWORD_SIGN_IN_ENABLED=true`](../../settings.md#api-access). While it is disabled, the endpoint returns `404 Not Found`, so a deployment that runs no user interface exposes no login endpoint. It is an environment variable rather than an admin setting, so an administrator's API key cannot turn it on.
 

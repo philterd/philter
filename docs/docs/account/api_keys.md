@@ -33,7 +33,7 @@ A request with a missing, malformed, or unknown key is rejected with `401 Unauth
 
 ## Managing API keys
 
-API keys are created, re-scoped, and revoked with the [API Keys API](../api_and_sdks/api/api_keys_api.md). [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is planned to offer these operations in a browser using an administrator's API key.
+API keys are created, re-scoped, and revoked with the [API Keys API](../api_and_sdks/api/api_keys_api.md). A user interface such as [Philter UI](https://github.com/philterd/philter-ui) (in development) does not hold a key of its own: it [signs people in](../sign_in_security.md) with their own username and password, and uses the [session key](#session-keys) Philter issues for each person.
 
 * **Create a key.** `POST /api/api-keys` creates a key for the calling key's user; an administrator can create one for another user with `POST /api/users/{username}/api-keys`. Name the key's [scopes](#scopes) in the request. The response contains the key once; store it securely, since it cannot be retrieved again.
 * **Revoke a key.** `DELETE /api/api-keys/{keyId}` immediately revokes it: subsequent requests using that key are rejected with `401 Unauthorized`. Deletion is permanent and a key cannot be reactivated. The key record itself is retained (marked deleted) so that audit entries which reference the key id still resolve to it; revoked keys are not listed. Create a new key if you need access again.

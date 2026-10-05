@@ -4,9 +4,9 @@ These endpoints create and manage users. They are how a deployment is administer
 
 Requests authenticate with [API keys](../../account/api_keys.md). Create and manage a user's keys with the [API Keys API](api_keys_api.md). A user can also have a password, for a person who [signs in](sign_in_api.md) through a user interface. A user without a password can only use API keys. No endpoint returns a password or its hash. See [Passwords](#passwords).
 
-Every endpoint requires an administrator in addition to its [scope](../../account/api_keys.md#scopes), except `GET /api/users/me`, which any key holding `users:read` can call, and `PUT /api/users/me/password`, which any key holding `users:write` can call. A request that lacks the scope and a request from a non-administrator are both refused with `403 Forbidden`; the message says which.
+Every endpoint requires an administrator in addition to its [scope](../../account/api_keys.md#scopes), except `GET /api/users/me`, which any key holding `users:read` can call, and `PUT /api/users/me/password` and the `/api/users/me/mfa` endpoints, which any key holding `users:write` can call. A request that lacks the scope and a request from a non-administrator are both refused with `403 Forbidden`; the message says which.
 
-There is no setting that turns these endpoints off. A headless deployment is administered through them, so an administrator's API key is the credential that manages it, and they are guarded like every other administrator endpoint: by the administrator role and a scope. Limit which keys hold `users:write` and `api-keys:write`.
+There is no setting that turns these endpoints off. A headless deployment is administered through them, so an administrator's API key, or an administrator's [session key](../../account/api_keys.md#session-keys) from [sign-in](sign_in_api.md), is the credential that manages it, and they are guarded like every other administrator endpoint: by the administrator role and a scope. Limit which keys hold `users:write` and `api-keys:write`.
 
 The first administrator key comes from [`PHILTER_BOOTSTRAP_API_KEY`](../../account/api_keys.md#bootstrapping-an-api-key-for-automation). These endpoints are how that key provisions the rest.
 

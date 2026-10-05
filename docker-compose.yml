@@ -19,8 +19,8 @@ services:
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
       # Lets an administrator act on other users' data through the owner parameter. Off by default.
       # ADMIN_CROSS_USER_ACCESS_ENABLED: true
-      # On here, not by default: ledger entries are evidence. philter-test needs it to test legal holds.
-      LEDGER_DELETION_ENABLED: ${LEDGER_DELETION_ENABLED:-true}
+      # Lets ledger entries, which are evidence, be deleted. Off by default. Uncomment to run philter-test against this stack.
+      # LEDGER_DELETION_ENABLED: true
       # 1 MB rather than the 10 MB default, so philter-test can test the limit without a large request.
       MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-1048576}
       # Seeded onto the admin user at first start only. Development placeholders: real data needs its own.

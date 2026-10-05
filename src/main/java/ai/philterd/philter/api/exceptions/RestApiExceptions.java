@@ -29,6 +29,10 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -59,8 +63,15 @@ public class RestApiExceptions {
 		response.getWriter().write(GSON.toJson(new GenericResponse(message)));
 	}
 
+	// Each handler sets its status itself. @ResponseStatus states the same status so the generated OpenAPI
+	// specification lists the response, which ApiDocumentationConfig then describes, and @ApiResponse
+	// documents the JSON body the handler writes.
+
 	/** The message describes what the caller sent and is written for the caller to read. */
 	@ExceptionHandler(BadRequestException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleBadRequestException(final BadRequestException ex, final HttpServletResponse response)
 			throws IOException {
 		LOGGER.error("Bad request: {}", ex.getMessage());
@@ -74,6 +85,9 @@ public class RestApiExceptions {
 	 * anything the caller wrote. A fixed message is returned, and only the exception type is logged.
 	 */
 	@ExceptionHandler({FileNotFoundException.class, HttpMessageNotReadableException.class})
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnreadableRequest(final Exception ex, final HttpServletResponse response) throws IOException {
 		// Only the type: a parser's message can quote the request body, such as a password.
 		LOGGER.warn("The request could not be read: {}", ex.getClass().getSimpleName());
@@ -88,6 +102,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(PolicyResolutionException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handlePolicyResolutionException(final PolicyResolutionException ex, final HttpServletResponse response)
 			throws IOException {
 		LOGGER.error("Unable to resolve redaction policy.", ex);
@@ -95,12 +112,18 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(PolicyNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handlePolicyNotFoundException(final Exception ex, final HttpServletResponse response) throws IOException {
 		LOGGER.error("The named policy does not exist.", ex);
 		write(response, HttpStatus.NOT_FOUND, ex.getMessage());
 	}
 
 	@ExceptionHandler(UnsupportedMediaTypeException.class)
+	@ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+	@ApiResponse(responseCode = "415", description = "Unsupported Media Type", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnsupportedMediaTypeException(final UnsupportedMediaTypeException ex,
 	                                                final HttpServletResponse response) throws IOException {
 		// The body contradicts the declared type. Refusing beats redacting a document that was
@@ -109,6 +132,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(PayloadTooLargeException.class)
+	@ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
+	@ApiResponse(responseCode = "413", description = "Content Too Large", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handlePayloadTooLargeException(final PayloadTooLargeException ex, final HttpServletResponse response)
 			throws IOException {
 		// The caller sent too much data, which is a client error. Without this it reached the
@@ -117,6 +143,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(MissingServletRequestParameterException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleMissingRequestParameterException(final MissingServletRequestParameterException ex,
 	                                                   final HttpServletResponse response) throws IOException {
 		// Spring throws this before the handler method runs, so nothing has been read or written.
@@ -126,6 +155,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleParameterTypeMismatchException(final MethodArgumentTypeMismatchException ex,
 	                                                 final HttpServletResponse response) throws IOException {
 		// The parameter name is declared in the controller; the submitted value is not echoed back.
@@ -133,6 +165,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(ServiceUnavailableException.class)
+	@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+	@ApiResponse(responseCode = "503", description = "Service Unavailable", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleServiceUnavailableException(final ServiceUnavailableException ex,
 	                                              final HttpServletResponse response) throws IOException {
 		LOGGER.error("Unable to determine model service status - indicates service initialization or failure if status persists.", ex);
@@ -140,6 +175,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(UnauthorizedException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnauthorizedException(final UnauthorizedException ex, final HttpServletResponse response)
 			throws IOException {
 		LOGGER.error("Unauthorized access.", ex);
@@ -147,6 +185,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(MissingRequestHeaderException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleMissingRequestHeaderException(final MissingRequestHeaderException ex,
 	                                                final HttpServletResponse response) throws IOException {
 		if (HttpHeaders.AUTHORIZATION.equalsIgnoreCase(ex.getHeaderName())) {
@@ -158,6 +199,9 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	@ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+	@ApiResponse(responseCode = "405", description = "Method Not Allowed", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleMethodNotSupportedException(final HttpRequestMethodNotSupportedException ex,
 	                                              final HttpServletResponse response) throws IOException {
 		// A client used an HTTP method this endpoint does not support (for example, a method that was
@@ -166,11 +210,17 @@ public class RestApiExceptions {
 	}
 
 	@ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+	@ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
+	@ApiResponse(responseCode = "406", description = "Not Acceptable", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnacceptableMediaType(final Exception ex, final HttpServletResponse response) throws IOException {
 		write(response, HttpStatus.NOT_ACCEPTABLE, "No representation matches the requested Accept header.");
 	}
 
 	@ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+	@ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+	@ApiResponse(responseCode = "415", description = "Unsupported Media Type", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnsupportedRequestMediaType(final Exception ex, final HttpServletResponse response)
 			throws IOException {
 		write(response, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "The request Content-Type is not supported for this endpoint.");
@@ -178,12 +228,18 @@ public class RestApiExceptions {
 
 	@ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
 			org.springframework.web.servlet.NoHandlerFoundException.class})
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleNotFound(final Exception ex, final HttpServletResponse response) throws IOException {
 		// No endpoint or static resource at this path. Without this, the catch-all below made it a 500.
 		write(response, HttpStatus.NOT_FOUND, "Not found.");
 	}
 
 	@ExceptionHandler({IOException.class, Exception.class})
+	@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+	@ApiResponse(responseCode = "500", description = "Internal Server Error", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnknownException(final Exception ex, final HttpServletResponse response) throws IOException {
 		LOGGER.error("An unknown error has occurred.", ex);
 		write(response, HttpStatus.INTERNAL_SERVER_ERROR, "An unknown error has occurred.");

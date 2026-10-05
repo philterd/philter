@@ -63,9 +63,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -73,9 +73,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -96,9 +96,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -106,9 +106,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -116,9 +116,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -126,9 +126,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -176,9 +176,9 @@
           "400": {
             "description": "No scopes were given, or one of them is not a scope.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -186,9 +186,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -209,9 +209,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -219,9 +219,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -229,9 +229,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -239,9 +239,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -274,9 +274,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -284,9 +284,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -307,9 +307,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -317,9 +317,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -327,9 +327,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -337,9 +337,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -380,9 +380,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -390,9 +390,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -426,9 +426,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -436,9 +436,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -446,9 +446,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -456,9 +456,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -516,9 +516,9 @@
           "400": {
             "description": "No scopes were given, or one of them is not a scope.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -526,9 +526,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -552,9 +552,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -562,9 +562,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -572,9 +572,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -582,9 +582,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -676,9 +676,9 @@
           "400": {
             "description": "A timestamp could not be parsed, the range is reversed, or the event type is not one Philter emits.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -686,9 +686,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -719,9 +719,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -729,9 +729,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -739,9 +739,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -749,9 +749,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -835,9 +835,9 @@
           "400": {
             "description": "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, the zone is not a time zone, offset is negative or not a number, or limit is not a number. The body says which.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -845,9 +845,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -868,9 +868,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -878,9 +878,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -888,9 +888,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -898,9 +898,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -984,9 +984,9 @@
           "400": {
             "description": "Both owner and all_users were given.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -994,9 +994,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1020,9 +1020,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1030,9 +1030,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1040,9 +1040,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1050,9 +1050,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1124,9 +1124,9 @@
           "400": {
             "description": "The context could not be created.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1134,9 +1134,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1160,9 +1160,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1170,9 +1170,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1180,9 +1180,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1190,9 +1190,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1248,9 +1248,9 @@
           "400": {
             "description": "The context could not be deleted.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1258,9 +1258,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1284,9 +1284,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1294,9 +1294,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1304,9 +1304,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1314,9 +1314,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1370,9 +1370,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1380,9 +1380,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1406,9 +1406,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1416,9 +1416,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1426,9 +1426,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1436,9 +1436,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1510,9 +1510,9 @@
           "400": {
             "description": "Neither setting was given.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1520,9 +1520,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1546,9 +1546,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1556,9 +1556,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1566,9 +1566,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1576,9 +1576,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1634,9 +1634,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1644,9 +1644,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1670,9 +1670,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1680,9 +1680,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1690,9 +1690,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1700,9 +1700,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1776,9 +1776,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1786,9 +1786,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1812,9 +1812,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1822,9 +1822,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1832,9 +1832,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1842,9 +1842,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1907,9 +1907,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1917,9 +1917,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1943,9 +1943,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1953,9 +1953,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1963,9 +1963,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1973,9 +1973,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2050,9 +2050,9 @@
           "400": {
             "description": "The payload or on_conflict value is invalid.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2060,9 +2060,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2086,9 +2086,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2096,9 +2096,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2106,9 +2106,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2116,9 +2116,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2182,9 +2182,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2192,9 +2192,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2218,9 +2218,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2228,9 +2228,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2238,9 +2238,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2248,9 +2248,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2318,9 +2318,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2328,9 +2328,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2347,9 +2347,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2357,9 +2357,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2367,9 +2367,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2377,9 +2377,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2428,9 +2428,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2438,9 +2438,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2476,9 +2476,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2486,9 +2486,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2496,9 +2496,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2506,9 +2506,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2576,9 +2576,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2586,9 +2586,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2635,9 +2635,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2645,9 +2645,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2655,9 +2655,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2665,9 +2665,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2723,9 +2723,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2733,9 +2733,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2759,9 +2759,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2769,9 +2769,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2779,9 +2779,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2789,9 +2789,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2899,9 +2899,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2909,9 +2909,9 @@
           "401": {
             "description": "Unauthorized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2922,9 +2922,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2932,9 +2932,9 @@
           "405": {
             "description": "Method Not Allowed",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2942,9 +2942,9 @@
           "406": {
             "description": "Not Acceptable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2952,9 +2952,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2962,9 +2962,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2972,9 +2972,9 @@
           "500": {
             "description": "Signing is enabled but the signing operation failed.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2982,9 +2982,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3160,9 +3160,9 @@
           "400": {
             "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, or sign=true on a PDF request.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3170,9 +3170,9 @@
           "401": {
             "description": "Unauthorized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3183,9 +3183,9 @@
           "404": {
             "description": "The named policy does not exist.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3193,9 +3193,9 @@
           "405": {
             "description": "Method Not Allowed",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3203,9 +3203,9 @@
           "406": {
             "description": "Not Acceptable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3213,9 +3213,9 @@
           "413": {
             "description": "Request body, resolved configuration (1 MiB), or encrypted async record exceeds its size limit.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3223,9 +3223,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3252,9 +3252,9 @@
           "500": {
             "description": "Signing is enabled but the signing operation failed.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3304,9 +3304,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3314,9 +3314,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3327,9 +3327,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3337,9 +3337,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3347,9 +3347,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3357,9 +3357,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3449,9 +3449,9 @@
           "400": {
             "description": "Both owner and all_users were given.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3459,9 +3459,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3488,9 +3488,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3498,9 +3498,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3508,9 +3508,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3518,9 +3518,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3576,9 +3576,9 @@
           "400": {
             "description": "Required fields are missing or the scope type is invalid.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3586,9 +3586,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3622,9 +3622,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3632,9 +3632,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3642,9 +3642,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3652,9 +3652,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3703,9 +3703,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3713,9 +3713,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3735,9 +3735,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3745,9 +3745,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3755,9 +3755,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3765,9 +3765,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3821,9 +3821,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3831,9 +3831,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3857,9 +3857,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3867,9 +3867,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3877,9 +3877,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3887,9 +3887,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3946,9 +3946,9 @@
           "400": {
             "description": "older_than_days is missing or negative.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3956,9 +3956,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3999,9 +3999,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4009,9 +4009,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4029,9 +4029,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4039,9 +4039,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4143,9 +4143,9 @@
           "400": {
             "description": "all_users was combined with owner or q.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4153,9 +4153,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4179,9 +4179,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4189,9 +4189,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4199,9 +4199,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4209,9 +4209,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4267,9 +4267,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4277,9 +4277,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4320,9 +4320,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4330,9 +4330,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4350,9 +4350,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4360,9 +4360,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4416,9 +4416,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4426,9 +4426,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4439,9 +4439,9 @@
           "404": {
             "description": "",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4449,9 +4449,9 @@
           "405": {
             "description": "Method Not Allowed",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4459,9 +4459,9 @@
           "406": {
             "description": "Not Acceptable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4469,9 +4469,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4479,9 +4479,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4489,9 +4489,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4499,9 +4499,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4564,9 +4564,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4574,9 +4574,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4600,9 +4600,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4610,9 +4610,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4620,9 +4620,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4630,9 +4630,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4688,9 +4688,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4698,9 +4698,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4711,9 +4711,9 @@
           "404": {
             "description": "",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4721,9 +4721,9 @@
           "405": {
             "description": "Method Not Allowed",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4731,9 +4731,9 @@
           "406": {
             "description": "Not Acceptable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4741,9 +4741,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4751,9 +4751,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4761,9 +4761,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4771,9 +4771,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4863,9 +4863,9 @@
           "400": {
             "description": "Both owner and all_users were given.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4873,9 +4873,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4899,9 +4899,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4909,9 +4909,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4919,9 +4919,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4929,9 +4929,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4987,9 +4987,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4997,9 +4997,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5023,9 +5023,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5033,9 +5033,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5043,9 +5043,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5053,9 +5053,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5109,9 +5109,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5119,9 +5119,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5145,9 +5145,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5155,9 +5155,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5165,9 +5165,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5175,9 +5175,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5263,9 +5263,9 @@
           "400": {
             "description": "The list name is empty, the list contains too many items (maximum 100), or an item is too long (maximum 50 characters).",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5273,9 +5273,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5309,9 +5309,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5319,9 +5319,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5329,9 +5329,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5339,9 +5339,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5440,9 +5440,9 @@
           "400": {
             "description": "Both owner and all_users were given, or managed was combined with either.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5450,9 +5450,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5476,9 +5476,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5486,9 +5486,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5496,9 +5496,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5506,9 +5506,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5583,9 +5583,9 @@
           "400": {
             "description": "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5593,9 +5593,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5612,9 +5612,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5622,9 +5622,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5632,9 +5632,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5642,9 +5642,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5706,9 +5706,9 @@
           "400": {
             "description": "The PhiSQL failed to parse/compile, or the compiled policy failed validation.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5716,9 +5716,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5732,9 +5732,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5742,9 +5742,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5752,9 +5752,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5762,9 +5762,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5813,9 +5813,9 @@
           "400": {
             "description": "The policy name is missing.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5823,9 +5823,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5842,9 +5842,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5852,9 +5852,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5862,9 +5862,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5872,9 +5872,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5929,9 +5929,9 @@
           "400": {
             "description": "The policy name is missing.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5939,9 +5939,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5965,9 +5965,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5975,9 +5975,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5985,9 +5985,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5995,9 +5995,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6061,9 +6061,9 @@
           "400": {
             "description": "The new name is missing or invalid.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6071,9 +6071,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6107,9 +6107,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6117,9 +6117,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6127,9 +6127,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6137,9 +6137,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6195,9 +6195,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6205,9 +6205,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6231,9 +6231,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6241,9 +6241,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6251,9 +6251,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6261,9 +6261,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6327,9 +6327,9 @@
           "400": {
             "description": "The description or notes are too long.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6337,9 +6337,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6373,9 +6373,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6383,9 +6383,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6393,9 +6393,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6403,9 +6403,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6509,9 +6509,9 @@
           "400": {
             "description": "The policy name is missing, fewer than two retained revisions exist for a default diff, or only one of from/to was supplied.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6519,9 +6519,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6545,9 +6545,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6555,9 +6555,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6565,9 +6565,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6575,9 +6575,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6642,9 +6642,9 @@
           "400": {
             "description": "The policy name or target revision is missing.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6652,9 +6652,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6688,9 +6688,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6698,9 +6698,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6708,9 +6708,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6718,9 +6718,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6799,9 +6799,9 @@
           "400": {
             "description": "The policy name is missing.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6809,9 +6809,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6838,9 +6838,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6848,9 +6848,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6858,9 +6858,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6868,9 +6868,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6936,9 +6936,9 @@
           "400": {
             "description": "The policy name is missing.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6946,9 +6946,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6972,9 +6972,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6982,9 +6982,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6992,9 +6992,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7002,9 +7002,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7052,9 +7052,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7062,9 +7062,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7088,9 +7088,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7098,9 +7098,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7108,9 +7108,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7118,9 +7118,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7175,9 +7175,9 @@
           "400": {
             "description": "The request body is malformed, a list has too many terms, or a term is too long.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7185,9 +7185,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7211,9 +7211,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7221,9 +7221,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7231,9 +7231,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7241,9 +7241,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7298,9 +7298,9 @@
           "400": {
             "description": "The request body is malformed, the resulting list has too many terms, or a term is too long.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7308,9 +7308,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7334,9 +7334,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7344,9 +7344,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7354,9 +7354,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7364,9 +7364,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7424,9 +7424,9 @@
           "400": {
             "description": "Missing or invalid request fields.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7434,9 +7434,9 @@
           "401": {
             "description": "Missing or invalid API key.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7460,9 +7460,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7470,9 +7470,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7480,9 +7480,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7490,9 +7490,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7532,9 +7532,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7542,9 +7542,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7565,9 +7565,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7575,9 +7575,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7585,9 +7585,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7595,9 +7595,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7645,9 +7645,9 @@
           "400": {
             "description": "A value is invalid. The body says which, and nothing was changed.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7655,9 +7655,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7678,9 +7678,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7688,9 +7688,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7698,9 +7698,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7708,9 +7708,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7758,9 +7758,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7794,9 +7794,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7804,9 +7804,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7824,9 +7824,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7834,9 +7834,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7877,9 +7877,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7913,9 +7913,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7923,9 +7923,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7943,9 +7943,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7953,9 +7953,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8001,9 +8001,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8011,9 +8011,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8024,9 +8024,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8034,9 +8034,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8044,9 +8044,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8054,9 +8054,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8101,9 +8101,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8111,9 +8111,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8144,9 +8144,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8154,9 +8154,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8164,9 +8164,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8174,9 +8174,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8228,9 +8228,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8238,9 +8238,9 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8261,9 +8261,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8271,9 +8271,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8281,9 +8281,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8291,9 +8291,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8353,9 +8353,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8363,9 +8363,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8386,9 +8386,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8396,9 +8396,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8406,9 +8406,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8416,9 +8416,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8466,9 +8466,9 @@
           "400": {
             "description": "The username is missing or reserved, the role is not user or admin, or the password is shorter than 16 characters or longer than 72 bytes in UTF-8.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8476,9 +8476,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8509,9 +8509,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8519,9 +8519,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8529,9 +8529,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8539,9 +8539,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8581,9 +8581,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8591,9 +8591,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8614,9 +8614,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8624,9 +8624,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8634,9 +8634,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8644,9 +8644,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8686,9 +8686,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8696,9 +8696,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8729,9 +8729,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8739,9 +8739,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8749,9 +8749,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8759,9 +8759,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8814,9 +8814,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8847,9 +8847,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8857,9 +8857,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8867,9 +8867,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8877,9 +8877,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8922,9 +8922,9 @@
           "400": {
             "description": "The code is missing.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8932,9 +8932,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8965,9 +8965,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8975,9 +8975,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8985,9 +8985,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8995,9 +8995,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9050,9 +9050,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9083,9 +9083,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9093,9 +9093,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9103,9 +9103,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9113,9 +9113,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9163,9 +9163,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9173,9 +9173,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9199,9 +9199,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9209,9 +9209,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9219,9 +9219,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9229,9 +9229,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9299,9 +9299,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9309,9 +9309,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9335,9 +9335,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9345,9 +9345,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9355,9 +9355,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9365,9 +9365,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9423,9 +9423,9 @@
           "400": {
             "description": "No scopes were given, or one of them is not a scope.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9433,9 +9433,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9459,9 +9459,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9469,9 +9469,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9479,9 +9479,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9489,9 +9489,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9539,9 +9539,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9549,9 +9549,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9585,9 +9585,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9595,9 +9595,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9605,9 +9605,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9615,9 +9615,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9658,9 +9658,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9668,9 +9668,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9704,9 +9704,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9714,9 +9714,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9724,9 +9724,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9734,9 +9734,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9777,9 +9777,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9787,9 +9787,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9823,9 +9823,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9833,9 +9833,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9843,9 +9843,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9853,9 +9853,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9916,9 +9916,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9952,9 +9952,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9962,9 +9962,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9972,9 +9972,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9982,9 +9982,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10032,9 +10032,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10042,9 +10042,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10078,9 +10078,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10088,9 +10088,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10098,9 +10098,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10108,9 +10108,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10168,9 +10168,9 @@
           "400": {
             "description": "The role is missing or is not user or admin.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10178,9 +10178,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10214,9 +10214,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10224,9 +10224,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10234,9 +10234,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10244,9 +10244,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10294,9 +10294,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10304,9 +10304,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10330,9 +10330,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10340,9 +10340,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10350,9 +10350,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10360,9 +10360,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10403,9 +10403,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10413,9 +10413,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10439,9 +10439,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10449,9 +10449,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10459,9 +10459,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10469,9 +10469,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10517,9 +10517,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10527,9 +10527,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10553,9 +10553,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10563,9 +10563,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10573,9 +10573,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10583,9 +10583,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10641,9 +10641,9 @@
           "400": {
             "description": "The URL or secret is missing, the URL is invalid or not permitted, or the secret is too short. The message says which.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10651,9 +10651,9 @@
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10677,9 +10677,9 @@
           "413": {
             "description": "Content Too Large",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10687,9 +10687,9 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10697,9 +10697,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -10707,9 +10707,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }

@@ -22,14 +22,13 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.providers.ApiKeyEntityDataProvider;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
-import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.mfa.TotpService;
-import ai.philterd.philter.services.webhook.WebhookDestinationPolicy;
+import ai.philterd.philter.services.webhook.WebhookSettings;
 import ai.philterd.philter.views.widgets.CommonWidgets;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.button.Button;
@@ -57,7 +56,6 @@ import java.util.stream.Collectors;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
-import java.net.URI;
 import java.security.SecureRandom;
 
 @Route(value = "my-account")
@@ -69,7 +67,6 @@ public class AccountView extends AbstractRestrictedView {
 
     private static final String SECRET_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final int GENERATED_SECRET_LENGTH = 48;
-    private static final int MIN_SECRET_LENGTH = 16;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserEntity accountUser;
@@ -507,7 +504,7 @@ public class AccountView extends AbstractRestrictedView {
         urlField.setValue(accountUser.getWebhookUrl() != null ? accountUser.getWebhookUrl() : "");
 
         final PasswordField secretField = new PasswordField("Webhook Secret");
-        secretField.setHelperText("Minimum " + MIN_SECRET_LENGTH + " characters. Click the eye icon to reveal.");
+        secretField.setHelperText("Minimum " + WebhookSettings.MIN_SECRET_LENGTH + " characters. Click the eye icon to reveal.");
         secretField.setWidth("480px");
         secretField.setValue(accountUser.getWebhookSecret() != null ? accountUser.getWebhookSecret() : "");
 
@@ -523,62 +520,25 @@ public class AccountView extends AbstractRestrictedView {
             final String url = urlField.getValue() != null ? urlField.getValue().trim() : "";
             final String secret = secretField.getValue() != null ? secretField.getValue() : "";
 
-            if (url.isEmpty() || secret.isEmpty()) {
-                showFailureNotification("Both URL and secret are required. Use Remove to clear the webhook.");
-                return;
+            final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
+            final ServiceResponse response = userService.setWebhook(RequestIdGenerator.generate(), accountUser,
+                    url, secret, settings == null ? null : settings.getWebhookAllowlist(),
+                    Source.WEBUI.getSource(), null, null);
+
+            if (response.isSuccessful()) {
+                showSuccessNotification(response.getMessage());
+            } else {
+                showFailureNotification(response.getMessage());
             }
-
-            try {
-                final URI parsed = URI.create(url);
-                if (parsed.getScheme() == null || (!parsed.getScheme().equalsIgnoreCase("http") && !parsed.getScheme().equalsIgnoreCase("https"))) {
-                    showFailureNotification("URL must start with http:// or https://");
-                    return;
-                }
-
-                // Told here so the user finds out while looking at the form; enforced again at delivery.
-                final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
-                final WebhookDestinationPolicy policy =
-                        new WebhookDestinationPolicy(settings == null ? null : settings.getWebhookAllowlist());
-
-                if (!policy.isDestinationAllowed(parsed.getHost())) {
-                    showFailureNotification(policy.isEmpty()
-                            ? "Webhooks cannot be sent to a private or loopback address."
-                            : "Your administrator does not permit webhook delivery to " + parsed.getHost() + ".");
-                    return;
-                }
-            } catch (final Exception ex) {
-                showFailureNotification("Invalid URL: " + ex.getMessage());
-                return;
-            }
-
-            if (secret.length() < MIN_SECRET_LENGTH) {
-                showFailureNotification("Secret must be at least " + MIN_SECRET_LENGTH + " characters.");
-                return;
-            }
-
-            accountUser.setWebhookUrl(url);
-            accountUser.setWebhookSecret(secret);
-            userService.updateWebhook(accountUser);
-
-            // Audit the webhook configuration, but never record the URL or secret themselves.
-            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.WEBHOOK_CONFIGURED,
-                    accountUser.getId(), accountUser.getId(), Source.WEBUI.getSource(), null);
-
-            showSuccessNotification("Webhook saved.");
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         final Button removeButton = new Button("Remove Webhook", e -> {
             urlField.setValue("");
             secretField.setValue("");
-            accountUser.setWebhookUrl(null);
-            accountUser.setWebhookSecret(null);
-            userService.updateWebhook(accountUser);
-
-            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.WEBHOOK_REMOVED,
-                    accountUser.getId(), accountUser.getId(), Source.WEBUI.getSource(), null);
-
-            showSuccessNotification("Webhook removed.");
+            final ServiceResponse response = userService.removeWebhook(RequestIdGenerator.generate(), accountUser,
+                    Source.WEBUI.getSource(), null, null);
+            showSuccessNotification(response.getMessage());
         });
         removeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 

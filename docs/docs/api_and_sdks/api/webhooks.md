@@ -1,17 +1,78 @@
 # Webhooks
 
-When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, either through the **My Account** → **Webhook** tab of the dashboard or by updating the user document directly.
+When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, with the `/api/webhook` endpoints below or the **My Account** → **Webhook** tab of the dashboard.
 
 > Webhooks only fire from the [asynchronous filter path](filtering_api.md#pdf-documents). Synchronous redactions return the result on the request itself and never produce a webhook.
 
 ## Configuration
 
-| Field            | Purpose                                                                                  |
-|------------------|------------------------------------------------------------------------------------------|
-| `webhookUrl`     | Absolute `https://` (or `http://`) URL to which Philter will POST the event.             |
-| `webhookSecret`  | Shared secret used to HMAC-sign each request body. Minimum 16 characters; 48 recommended. |
+| Field    | Purpose                                                                                   |
+|----------|-------------------------------------------------------------------------------------------|
+| `url`    | Absolute `https://` (or `http://`) URL to which Philter will POST the event. Its host must be a permitted [destination](#where-a-webhook-may-point). |
+| `secret` | Shared secret used to HMAC-sign each request body. Minimum 16 characters; 48 recommended. |
 
-The dashboard's **My Account** → **Webhook** tab provides a "Generate" button that creates a 48-character secret. The secret can be revealed with the password field's eye icon. Saving with no URL or secret has no effect; use **Remove Webhook** to disable delivery.
+The URL and secret are validated the same way whether they are set over the API or in the dashboard. A URL or secret that fails is refused with the reason, and nothing is saved.
+
+### Read the webhook
+
+```
+GET /api/webhook
+```
+
+Requires the `webhooks:read` [scope](../../account/api_keys.md#scopes). Returns the URL and whether a secret is set. The secret is never returned.
+
+```json
+{
+  "url": "https://hooks.example.com/philter",
+  "secretSet": true
+}
+```
+
+With no webhook set, `url` is `null` and `secretSet` is `false`.
+
+### Set the webhook
+
+```
+PUT /api/webhook
+```
+
+Requires `webhooks:write`. Replaces the URL and secret and returns the configuration as above.
+
+```json
+{
+  "url": "https://hooks.example.com/philter",
+  "secret": "a-shared-secret-of-at-least-16-characters"
+}
+```
+
+A missing URL or secret, a URL that is not `http` or `https`, a destination that is not permitted, or a secret shorter than 16 characters is refused with `400 Bad Request` and a message saying which.
+
+```
+curl -k -X PUT "https://localhost:8080/api/webhook" \
+  -H "Authorization: Bearer sk_abcdefghijklmnopqrstuvwxyz012345" \
+  -H "Content-Type: application/json" \
+  --data '{"url":"https://hooks.example.com/philter","secret":"a-shared-secret-of-at-least-16-characters"}'
+```
+
+### Remove the webhook
+
+```
+DELETE /api/webhook
+```
+
+Requires `webhooks:write`. Removes the URL and secret, so results are no longer delivered, and returns `204 No Content`.
+
+### Another user's webhook
+
+An administrator can read, set, or remove another user's webhook by adding `owner=<username>` to any of these requests. This requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, as for other cross-user access. An owner that does not exist or cannot be reached returns `404 Not Found`.
+
+### Auditing
+
+Setting and removing a webhook are recorded as `webhook_configured` and `webhook_removed` [audit events](../../auditing.md), naming the calling user and API key. The URL and secret are not recorded. A refused attempt is not recorded.
+
+### In the dashboard
+
+The **My Account** → **Webhook** tab provides a "Generate" button that creates a 48-character secret. The secret can be revealed with the password field's eye icon. Use **Remove Webhook** to disable delivery.
 
 ## Events
 

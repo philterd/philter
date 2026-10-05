@@ -144,8 +144,8 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 |-------|---------------------|
 | `redact_lists_retrieved` | The account's always-redact / never-redact lists were retrieved. |
 | `redact_lists_updated` | The account's always-redact / never-redact lists were changed. |
-| `webhook_configured` | A webhook URL and secret were configured. |
-| `webhook_removed` | The webhook was removed. |
+| `webhook_configured` | A webhook URL and secret were configured. The URL and secret are not recorded. Set through the [API](api_and_sdks/api/webhooks.md#set-the-webhook), the subject is the calling user and the detail names the calling API key. |
+| `webhook_removed` | The webhook was removed. Removed through the [API](api_and_sdks/api/webhooks.md#remove-the-webhook), the subject is the calling user and the detail names the calling API key. |
 | `settings_updated` | An administrator changed the deployment settings. The `details` field names which settings changed — the webhook allowlist, MFA, output signing, or the Phield and Diffuse publishing settings — and never their values. |
 
 ### Audit log access

@@ -22,6 +22,7 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.DefaultPolicy;
+import ai.philterd.philter.services.webhook.WebhookSettings;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -606,9 +607,46 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         throw new UnsupportedOperationException("Use a field-specific account mutation.");
     }
 
-    public void updateWebhook(final UserEntity user) {
-        authorizeDashboardMutation(user, "webui", false);
+    /**
+     * Validates and saves a user's webhook URL and secret, then audits {@code webhook_configured} with
+     * {@code actingUserId} as the principal (the user when null) and {@code actingApiKeyId}, if any, in
+     * the details. The URL and secret are never audited.
+     *
+     * @param allowlist The administrator's webhook destination allowlist, or {@code null} for none.
+     */
+    public ServiceResponse setWebhook(final String requestId, final UserEntity user, final String url,
+                                      final String secret, final String allowlist, final String source,
+                                      final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+        authorizeDashboardMutation(user, source, false);
+
+        final String problem = WebhookSettings.validate(url, secret, allowlist);
+        if (problem != null) {
+            return ServiceResponse.failure(problem);
+        }
+
+        user.setWebhookUrl(url.trim());
+        user.setWebhookSecret(secret);
         updateFields(user, false, "webhook_url", "webhook_secret", "webhook_secret_key");
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.WEBHOOK_CONFIGURED,
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("Webhook saved.");
+    }
+
+    /** Removes a user's webhook and audits {@code webhook_removed}, recording the acting principal as above. */
+    public ServiceResponse removeWebhook(final String requestId, final UserEntity user, final String source,
+                                         final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+        authorizeDashboardMutation(user, source, false);
+
+        user.setWebhookUrl(null);
+        user.setWebhookSecret(null);
+        updateFields(user, false, "webhook_url", "webhook_secret", "webhook_secret_key");
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.WEBHOOK_REMOVED,
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("Webhook removed.");
     }
 
     private boolean updateFields(final UserEntity user, final boolean securityChange, final String... fields) {

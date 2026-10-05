@@ -790,4 +790,35 @@ class UserServiceIT extends AbstractMongoIT {
                 eq("api_key: " + actingKey));
     }
 
+    @Test
+    void setWebhookValidatesBeforeSavingAndAuditsTheActor() {
+        final AuditEventPublisher audit = mock(AuditEventPublisher.class);
+        service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
+        final UserEntity user = createAndFind("hooked", null, "user");
+        final ObjectId acting = new ObjectId();
+        final ObjectId actingKey = new ObjectId();
+
+        // Refused: nothing is stored and nothing is audited.
+        assertFalse(service.setWebhook("req", user, "https://127.0.0.1/hook", "a-secret-of-16ch", null, "api", acting, actingKey).isSuccessful());
+        assertNull(service.findOneById(user.getId()).getWebhookUrl());
+        verify(audit, times(0)).auditEvent(any(), eq(AuditLogEvent.WEBHOOK_CONFIGURED), any(), any(), any(), any());
+
+        assertTrue(service.setWebhook("req", user, " https://93.184.216.34/hook ", "a-secret-of-16ch", null, "api", acting, actingKey).isSuccessful());
+        final UserEntity saved = service.findOneById(user.getId());
+        assertEquals("https://93.184.216.34/hook", saved.getWebhookUrl());
+        assertEquals("a-secret-of-16ch", saved.getWebhookSecret());
+        final org.bson.Document stored = mongoClient.getDatabase("philter").getCollection("users")
+                .find(new org.bson.Document("_id", user.getId())).first();
+        assertFalse(String.valueOf(stored.get("webhook_secret")).contains("a-secret-of-16ch"), "the secret is encrypted at rest");
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.WEBHOOK_CONFIGURED), eq(acting), eq(user.getId()), eq("api"),
+                eq("api_key: " + actingKey));
+
+        assertTrue(service.removeWebhook("req", saved, "api", acting, actingKey).isSuccessful());
+        final UserEntity removed = service.findOneById(user.getId());
+        assertNull(removed.getWebhookUrl());
+        assertNull(removed.getWebhookSecret());
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.WEBHOOK_REMOVED), eq(acting), eq(user.getId()), eq("api"),
+                eq("api_key: " + actingKey));
+    }
+
 }

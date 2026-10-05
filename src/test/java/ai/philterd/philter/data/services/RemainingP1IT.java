@@ -77,8 +77,8 @@ class RemainingP1IT extends AbstractMongoIT {
         when(mfaSession.getAttribute(ai.philterd.philter.views.MfaChallengeView.MFA_SATISFIED_ATTRIBUTE))
                 .thenReturn(current.getId() + ":" + current.getSecurityVersion());
         com.vaadin.flow.server.VaadinSession.setCurrent(mfaSession);
-        stale.setWebhookUrl("https://example.com/events"); stale.setWebhookSecret("webhook secret");
-        service.updateWebhook(stale);
+        assertTrue(service.setWebhook("req", stale, "https://93.184.216.34/events", "a webhook secret of 16+",
+                null, "webui", null, null).isSuccessful());
         current = service.findOneById(stale.getId());
         assertEquals("user", current.getRole()); assertTrue(current.isMfaEnabled());
         assertEquals("NEWSECRET", current.getMfaSecret());

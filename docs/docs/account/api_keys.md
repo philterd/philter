@@ -87,6 +87,8 @@ Two scopes are separated from the resources they belong to because they return t
 | `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role` |
 | `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
 | `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
+| `webhooks:read` | `GET /api/webhook` |
+| `webhooks:write` | `DELETE /api/webhook`<br>`PUT /api/webhook` |
 | `reidentify` | `POST /api/reidentify` |
 
 `/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).

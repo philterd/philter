@@ -56,6 +56,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does
   not hold, change or revoke a key holding a scope it does not hold, or revoke itself. New
   `api-keys:read` scope. Changes are audited with the acting user and API key.
+- **Webhook API.** `GET`, `PUT`, and `DELETE /api/webhook` read, set, and remove the user's webhook
+  for asynchronous results, with `owner` for administrators under the cross-user rules. The URL and
+  secret are validated as in the dashboard, by one shared check. New `webhooks:read` and
+  `webhooks:write` scopes.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

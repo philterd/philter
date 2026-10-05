@@ -7811,6 +7811,16 @@
               }
             }
           },
+          "429": {
+            "description": "The username is locked after repeated failures (POST /api/sign-in only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -7916,6 +7926,16 @@
               "*/*": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The username is locked after repeated failures (POST /api/sign-in only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }

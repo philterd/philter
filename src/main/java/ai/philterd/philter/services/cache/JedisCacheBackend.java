@@ -67,6 +67,19 @@ public class JedisCacheBackend implements CacheBackend {
     }
 
     @Override
+    public long incrementInWindow(final String key, final int windowSeconds) {
+        try (final Jedis jedis = pool.getResource()) {
+            // One transaction, so the counter is never left without an expiry: create it with the
+            // window if it does not exist, then increment, which keeps the expiry it was created with.
+            final redis.clients.jedis.Transaction transaction = jedis.multi();
+            transaction.set(key, "0", redis.clients.jedis.params.SetParams.setParams().nx().ex(windowSeconds));
+            final redis.clients.jedis.Response<Long> count = transaction.incr(key);
+            transaction.exec();
+            return count.get();
+        }
+    }
+
+    @Override
     public String get(final String key) {
         try (final Jedis jedis = pool.getResource()) {
             return jedis.get(key);

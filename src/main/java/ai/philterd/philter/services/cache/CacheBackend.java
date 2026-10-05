@@ -21,6 +21,17 @@ package ai.philterd.philter.services.cache;
  */
 public interface CacheBackend {
 
+    /** True while counters cannot be stored for lack of room; callers counting failures must refuse. */
+    default boolean counterCapacityExceeded() { return false; }
+
+    /**
+     * Adds one to the counter at {@code key} and returns the new value. The counter expires
+     * {@code windowSeconds} after it was created, and further increments do not move that, so it counts
+     * events in a fixed window. Atomic: counting with a read and a write would lose increments that
+     * overlap, which is the difference between a limit and a suggestion.
+     */
+    long incrementInWindow(String key, int windowSeconds);
+
     /** Stores a string value with a time-to-live, in seconds. */
     void setex(String key, int ttlSeconds, String value);
 

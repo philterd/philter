@@ -57,6 +57,9 @@ public enum AuditLogEvent {
     // Password sign-in. Never records the password.
     SIGN_IN_SUCCEEDED("sign_in_succeeded"),
     SIGN_IN_FAILED("sign_in_failed"),
+    // A username locked after consecutive failed sign-ins, and a client over the sign-in rate limit.
+    SIGN_IN_LOCKED("sign_in_locked"),
+    SIGN_IN_RATE_LIMITED("sign_in_rate_limited"),
 
     // Authentication outcomes recorded by the API authentication filter.
     API_AUTHENTICATION_FAILED("api_authentication_failed"),

@@ -39,6 +39,8 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `api_authentication_failed` | A request was rejected because the API key was missing, malformed, or unknown. |
 | `sign_in_succeeded` | A person [signed in](api_and_sdks/api/sign_in_api.md) with a username and password. The subject is the user, the associated object is the session key issued, and the detail names the username and the key. Records the client IP address, never the password. |
 | `sign_in_failed` | A sign-in was refused: a wrong password, an unknown username, a user without a password, or a deactivated user. The detail names the username that was tried, cut to 100 characters, with commas and control characters replaced by `_`. Records the client IP address, never the password. |
+| `sign_in_locked` | Repeated failed sign-ins locked a username ([lockout](api_and_sdks/api/sign_in_api.md#lockout-and-rate-limiting)). The detail names the username, cut and cleaned as for `sign_in_failed`, the limit, and the lockout period. Records the client IP address. Recorded once per lock. |
+| `sign_in_rate_limited` | A client address went over the sign-in rate limit. The detail names the limit. Recorded for the first refused request in each minute, so a flood of requests is not a flood of events. |
 | `admin_cross_user_access` | An admin acted on another user's resource via the `owner` parameter (subject = the acting admin, associated object = the affected user), or listed every user's resources with `all_users` (subject = the acting admin, no associated object; the detail names the listing). |
 
 ### Users

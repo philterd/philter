@@ -75,6 +75,13 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   lock the user until an administrator unlocks them. Settings `mfaAvailable` and `mfaRequired`. Secrets
   are encrypted at rest and returned only at enrollment. Audited as `user_mfa_enrolled`,
   `user_mfa_removed`, `user_mfa_locked`, and `user_mfa_unlocked`.
+- **Sign-in lockout and rate limiting.** `SIGN_IN_MAX_FAILURES` failed sign-ins for a username (default
+  5) within `SIGN_IN_LOCKOUT_MINUTES` (default 15) lock it for that long, refusing even the right
+  password until the lock lapses; a success resets the count. Each client address, as read through
+  the trusted-proxy rules, may make `SIGN_IN_RATE_LIMIT_PER_MINUTE` sign-in requests a minute (default
+  20). Both answer `429` with `Retry-After`, are shared across instances through a Valkey/Redis cache,
+  and are per instance with the in-memory cache. Audited as `sign_in_locked` and
+  `sign_in_rate_limited`.
 - **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's
   keys, so a key can be rotated without an administrator; `GET /api/users/{username}/api-keys` lets
   an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does

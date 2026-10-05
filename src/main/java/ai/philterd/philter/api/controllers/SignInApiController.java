@@ -33,6 +33,7 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.cache.SignInThrottle;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,6 +43,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.bson.types.ObjectId;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -73,16 +75,19 @@ public class SignInApiController extends AbstractApiController {
     private final AuditEventPublisher auditEventPublisher;
     private final SignInChallengeDataService challenges;
     private final AdminSettingsDataService adminSettingsDataService;
+    private final SignInThrottle throttle;
 
     public SignInApiController(final ApiKeyDataService apiKeyDataService, final ApiKeyCache apiKeyCache,
                                final UserService userService, final AuditEventPublisher auditEventPublisher,
                                final SignInChallengeDataService challenges,
-                               final AdminSettingsDataService adminSettingsDataService) {
+                               final AdminSettingsDataService adminSettingsDataService,
+                               final SignInThrottle throttle) {
         super(apiKeyDataService, apiKeyCache);
         this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
         this.challenges = challenges;
         this.adminSettingsDataService = adminSettingsDataService;
+        this.throttle = throttle;
     }
 
     @Operation(
@@ -109,7 +114,11 @@ public class SignInApiController extends AbstractApiController {
                     + "repeated bad codes. An administrator must unlock it.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content),
+            @ApiResponse(responseCode = "429", description = "The username is locked after repeated failures (POST /api/sign-in "
+                    + "only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
     })
     @SecurityRequirements
     @RequestMapping(value = "/api/sign-in", method = RequestMethod.POST,
@@ -125,13 +134,37 @@ public class SignInApiController extends AbstractApiController {
 
         final String username = request.getUsername() == null ? null : request.getUsername().trim();
         final String clientIp = getClientIpAddress(httpRequest);
+
+        final ResponseEntity<Object> limited = rateLimit(requestId, clientIp);
+        if (limited != null) {
+            return limited;
+        }
+
+        // Refused before the password is checked, so a locked username cannot be guessed at.
+        if (throttle.isLocked(username)) {
+            return lockedOut();
+        }
+        final long attempt = throttle.beginAttempt(username);
+        if (attempt > throttle.getMaxFailures()) {
+            // Parallel requests past the limit, which arrived before the lock was set.
+            throttle.lock(username);
+            return lockedOut();
+        }
+
         final UserEntity user = userService.authenticate(username, request.getPassword());
 
         if (user == null) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_FAILED, null, null, clientIp,
                     "username: " + auditable(username));
+            if (throttle.recordFailure(username, attempt)) {
+                auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_LOCKED, null, null, clientIp,
+                        "username: " + auditable(username) + ", after " + throttle.getMaxFailures()
+                                + " failed sign-ins, for " + throttle.getLockoutSeconds() / 60 + " minutes");
+            }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new GenericResponse(FAILED));
         }
+
+        throttle.reset(username);
 
         // An enrolled user is always challenged, even if MFA has since been made unavailable: turning a
         // setting off must not quietly let someone in on a password alone.
@@ -167,7 +200,11 @@ public class SignInApiController extends AbstractApiController {
             @ApiResponse(responseCode = "403", description = "The user's MFA is locked after repeated bad codes.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content),
+            @ApiResponse(responseCode = "429", description = "The username is locked after repeated failures (POST /api/sign-in "
+                    + "only), or the client address is over SIGN_IN_RATE_LIMIT_PER_MINUTE. Retry-After gives the seconds to wait.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
     })
     @SecurityRequirements
     @RequestMapping(value = "/api/sign-in/mfa", method = RequestMethod.POST,
@@ -182,6 +219,12 @@ public class SignInApiController extends AbstractApiController {
         }
 
         final String clientIp = getClientIpAddress(httpRequest);
+
+        final ResponseEntity<Object> limited = rateLimit(requestId, clientIp);
+        if (limited != null) {
+            return limited;
+        }
+
         final ObjectId userId = challenges.consume(request.getChallenge());
         final UserEntity user = userId == null ? null : userService.findOneById(userId);
 
@@ -214,6 +257,30 @@ public class SignInApiController extends AbstractApiController {
 
         return ResponseEntity.ok(new SignInResponse(user.getUsername(), sessionKey));
 
+    }
+
+    /**
+     * Refuses a request over the per-address limit. Only the first refusal in each window is audited, so
+     * a flood of requests cannot become a flood of audit events.
+     */
+    private ResponseEntity<Object> rateLimit(final String requestId, final String clientIp) {
+        final long requests = throttle.countRequest(clientIp);
+        if (requests <= throttle.getRatePerMinute()) {
+            return null;
+        }
+        if (requests == throttle.getRatePerMinute() + 1L) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_RATE_LIMITED, null, null, clientIp,
+                    "limit: " + throttle.getRatePerMinute() + " per minute");
+        }
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(SignInThrottle.RATE_WINDOW_SECONDS))
+                .body(new GenericResponse("Too many sign-in requests. Try again later."));
+    }
+
+    private ResponseEntity<Object> lockedOut() {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(throttle.getLockoutSeconds()))
+                .body(new GenericResponse("Too many failed sign-ins for this username. Try again later."));
     }
 
     private ResponseEntity<Object> locked(final String requestId, final UserEntity user, final String clientIp) {

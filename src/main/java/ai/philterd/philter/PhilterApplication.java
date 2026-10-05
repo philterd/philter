@@ -46,6 +46,7 @@ import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.RedactionCache;
+import ai.philterd.philter.services.cache.SignInThrottle;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
@@ -311,6 +312,11 @@ public class PhilterApplication {
     public ApiKeyCache apiKeyCache() {
         LOGGER.info("Initializing API key cache.");
         return new ApiKeyCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
+    }
+
+    @Bean
+    public SignInThrottle signInThrottle() {
+        return new SignInThrottle(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
     }
 
     @Bean

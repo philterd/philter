@@ -4,6 +4,7 @@ Philter caches several things to avoid repeated database lookups on the hot path
 
 * **API keys**, so that authenticating a request does not query MongoDB on every call.
 * **Context entries** (the token to replacement mappings used for consistent redaction within a context), so that repeated redactions in the same context reuse prior replacements quickly.
+* **Sign-in counters**: failed [sign-ins](api_and_sdks/api/sign_in_api.md) per username, username locks, and sign-in requests per client address, used to [lock and rate-limit](api_and_sdks/api/sign_in_api.md#lockout-and-rate-limiting) password sign-in.
 
 These use the shared cache backend described below. One additional cache is always kept in-process: the per-request **policy and redact-list cache** used by the filtering endpoints. It is never written to Valkey/Redis, because stored policies can contain PII in their filter-strategy conditions and the always/never redact terms are themselves sensitive. Each instance rebuilds it on a short TTL, so it needs no shared backend.
 
@@ -22,7 +23,7 @@ The in-memory backend bounds live and non-expiring entries by entry count and ac
 
 ## Valkey/Redis cache (distributed deployments)
 
-When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance remains valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`). This is a security concern.
+When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance remains valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`). Sign-in lockout and rate limiting are also counted per instance, so behind a load balancer that spreads requests across instances, an attacker gets each instance's allowance separately and can evade them. Both are security concerns.
 
 Newly created context replacements are **not** in this list, because consistency there is enforced in
 MongoDB by a unique index on the token, an atomic upsert, and concurrent writers being handed the stored

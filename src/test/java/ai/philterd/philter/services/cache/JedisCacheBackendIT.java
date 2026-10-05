@@ -136,6 +136,23 @@ class JedisCacheBackendIT {
 
 
     @Test
+    void incrementInWindowCountsAndSetsTheExpiryOnce() {
+        assertEquals(1, backend.incrementInWindow("philter:window", 60));
+        assertEquals(2, backend.incrementInWindow("philter:window", 60));
+        assertEquals(3, backend.incrementInWindow("philter:window", 60));
+        try (final redis.clients.jedis.Jedis jedis = new redis.clients.jedis.Jedis(server.getHost(), server.getBindPort())) {
+            final long ttl = jedis.ttl("philter:window");
+            assertTrue(ttl > 0 && ttl <= 60, "the counter carries the window's expiry: " + ttl);
+        }
+        final JedisCacheBackend other = new JedisCacheBackend(server.getHost(), server.getBindPort(), "", false);
+        try {
+            assertEquals(4, other.incrementInWindow("philter:window", 60), "every instance shares the count");
+        } finally {
+            other.close();
+        }
+    }
+
+    @Test
     @DisplayName("A ContextCache reaches a server on a non-default port")
     void contextCacheHonorsTheConfiguredPort() {
 

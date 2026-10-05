@@ -157,6 +157,46 @@ public class InMemoryCacheBackendTest {
     }
 
     @Test
+    void aCounterCountsInAFixedWindowThatIncrementsDoNotExtend() {
+        final AtomicLong now = new AtomicLong(1000);
+        final var cache = new InMemoryCacheBackend(now::get);
+        assertEquals(1, cache.incrementInWindow("counter", 10));
+        now.set(9000);
+        assertEquals(2, cache.incrementInWindow("counter", 10), "within the window");
+        now.set(11000);
+        assertEquals(1, cache.incrementInWindow("counter", 10), "the window ran from the first increment, not the last");
+    }
+
+    @Test
+    void aCounterThatCannotBeStoredReportsTheLimitReachedForItsWindow() {
+        final AtomicLong now = new AtomicLong(1000);
+        final var cache = new InMemoryCacheBackend(now::get, 1, 4096);
+        assertEquals(1, cache.incrementInWindow("existing", 60));
+        assertEquals(Long.MAX_VALUE, cache.incrementInWindow("overflow", 60), "no room: never reads as zero");
+        assertTrue(cache.counterCapacityExceeded());
+        assertEquals(2, cache.incrementInWindow("existing", 60), "an existing counter keeps counting");
+        cache.del("existing");
+        assertTrue(cache.counterCapacityExceeded(), "deleting a counter does not end the overflow window");
+        now.set(61000);
+        cache.removeExpiredEntries();
+        assertFalse(cache.counterCapacityExceeded());
+        assertEquals(1, cache.incrementInWindow("new", 60));
+    }
+
+    @Test
+    void concurrentIncrementsAreAllCounted() throws Exception {
+        final var cache = new InMemoryCacheBackend(System::currentTimeMillis);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+            final java.util.List<java.util.concurrent.Future<?>> tasks = new java.util.ArrayList<>();
+            for (int i = 0; i < 8; i++) {
+                tasks.add(executor.submit(() -> { for (int j = 0; j < 250; j++) cache.incrementInWindow("concurrent", 60); }));
+            }
+            for (final var task : tasks) task.get();
+        }
+        assertEquals("2000", cache.get("concurrent"));
+    }
+
+    @Test
     void deletingLastHashFieldReclaimsContainer() throws Exception {
         final var cache = new InMemoryCacheBackend(() -> 1000L);
         cache.hset("hash", "first", "one");

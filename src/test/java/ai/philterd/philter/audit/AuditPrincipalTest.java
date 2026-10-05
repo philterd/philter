@@ -49,13 +49,16 @@ class AuditPrincipalTest {
 
     /**
      * {@code ClassName.EVENT} for events with no principal to record: an unissued or malformed key
-     * identifies nobody, a refused sign-in authenticated nobody (the username tried is in the details),
+     * identifies nobody, a refused, locked, or rate-limited sign-in authenticated nobody (the username or
+     * address is in the details),
      * and the signing key is generated at startup, before any request. Listed individually rather than
      * exempted by class.
      */
     private static final Set<String> NO_PRINCIPAL_EXISTS = Set.of(
             "ApiAuthenticationFilter.API_AUTHENTICATION_FAILED",
             "SignInApiController.SIGN_IN_FAILED",
+            "SignInApiController.SIGN_IN_LOCKED",
+            "SignInApiController.SIGN_IN_RATE_LIMITED",
             "SigningKeyDataService.SIGNING_KEY_GENERATED");
 
     @Test

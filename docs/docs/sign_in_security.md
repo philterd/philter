@@ -1,12 +1,12 @@
 # Sign-in Security
 
-Philter has no built-in user interface. A user interface that runs separately, such as [Philter UI](https://github.com/philterd/philter-ui) (in development), signs people in through Philter: it sends a person's username and password to Philter and receives a session key for that person's Philter user. Philter stays the only user store, the user's role and scopes decide what the person may do, and the audit log names the person rather than a key the interface shares.
+Philter has no built-in user interface. A user interface that runs separately signs people in through Philter, and [Philter UI](https://github.com/philterd/philter-ui), in development, is being built to work this way: it sends a person's username and password to Philter and receives a session key for that person's Philter user. Philter stays the only user store, the user's role and scopes decide what the person may do, and the audit log names the person rather than a key the interface shares.
 
 This page describes how sign-in is protected. For the endpoints, see the [Sign-in API](api_and_sdks/api/sign_in_api.md), the [Users API](api_and_sdks/api/users_api.md), and the [API Keys API](api_and_sdks/api/api_keys_api.md).
 
 ## Enabling password sign-in
 
-Password sign-in is **disabled by default**, so a deployment that runs no user interface exposes no login endpoint. Enable it with [`PASSWORD_SIGN_IN_ENABLED=true`](settings.md#api-access). While it is disabled, `POST /api/sign-in` and `POST /api/sign-in/mfa` answer `404 Not Found` to every request. It is an environment variable rather than an admin setting, so an administrator's API key cannot turn it on.
+Password sign-in is **disabled by default**, so a deployment that runs no user interface exposes no login endpoint. Enable it with [`PASSWORD_SIGN_IN_ENABLED=true`](settings.md#api-access). While it is disabled, `POST /api/sign-in` and `POST /api/sign-in/mfa` answer `404 Not Found`, whatever the request contains. It is an environment variable rather than an admin setting, so an administrator's API key cannot turn it on.
 
 Automation does not sign in. It uses long-lived [API keys](account/api_keys.md), and users created for it need no password.
 
@@ -15,7 +15,7 @@ Automation does not sign in. It uses long-lived [API keys](account/api_keys.md),
 * **Rules.** At least 16 characters and at most 72 bytes in UTF-8, the most bcrypt reads. Stored as bcrypt hashes and never returned or audited.
 * **Optional.** A user without a password cannot sign in. Every kind of failed sign-in (wrong password, unknown username, a user without a password, a deactivated user) gets the same `401` in about the same time, so sign-in does not reveal which usernames exist.
 * **The first administrator.** The `admin` user starts without a password. Set it with the [bootstrap API key](account/api_keys.md#bootstrapping-an-api-key-for-automation) through [`PUT /api/users/admin/password`](api_and_sdks/api/users_api.md#set-or-reset-a-users-password). There is no bootstrap password.
-* **Set by an administrator.** A password given when an administrator creates a user, or set or reset by an administrator later, must be changed at the user's next sign-in, because someone else chose it.
+* **Set by an administrator.** A password given when an administrator creates a user, or set or reset later by an administrator on another user, must be changed at that user's next sign-in, because someone else chose it. An administrator setting their own first password, as with the bootstrap key, is not asked to change it.
 * **Changed by the user.** [`PUT /api/users/me/password`](api_and_sdks/api/users_api.md#change-your-own-password) requires the current password, and the new one must differ. An administrator's key cannot replace its own user's password without the current one, so a stolen key cannot take over its own account.
 
 ## First sign-in and resets

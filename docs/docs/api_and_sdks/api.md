@@ -1,6 +1,6 @@
 # API
 
-Philter has no built-in user interface: everything, including administration, is done through its API. A user interface such as [Philter UI](https://github.com/philterd/philter-ui) (in development) signs people in with their own username and password through the [Sign-in API](api/sign_in_api.md) and uses a session key for each person; see [Sign-in Security](../sign_in_security.md).
+Philter has no built-in user interface: everything, including administration, is done through its API. A user interface signs people in with their own username and password through the [Sign-in API](api/sign_in_api.md) and uses a session key for each person, as [Philter UI](https://github.com/philterd/philter-ui), in development, is being built to; see [Sign-in Security](../sign_in_security.md).
 
 Philter's API has the following sections:
 

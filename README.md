@@ -71,7 +71,7 @@ API_KEY=$(grep PHILTER_BOOTSTRAP_API_KEY .env | cut -d= -f2)
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
-Philter has no built-in user interface: it is administered through its API. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, signs people in through Philter with their own username and password, when password sign-in is enabled. See [Sign-in Security](docs/docs/sign_in_security.md).
+Philter has no built-in user interface: it is administered through its API. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is being built to sign people in through Philter with their own username and password, when password sign-in is enabled. See [Sign-in Security](docs/docs/sign_in_security.md).
 
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
 

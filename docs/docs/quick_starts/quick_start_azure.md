@@ -31,7 +31,7 @@ Philter has no user interface; it is administered through its [API](../api_and_s
 
 Set `API_KEY` in your shell to the bootstrap key. Every request below authenticates with it.
 
-For applications, create keys holding only the scopes they need, such as `redact`, with [`POST /api/api-keys`](../api_and_sdks/api/api_keys_api.md#create-a-key). To retire the bootstrap key, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, signs people in through Philter with their own username and password once `PASSWORD_SIGN_IN_ENABLED` is set; see [Sign-in Security](../sign_in_security.md).
+For applications, create keys holding only the scopes they need, such as `redact`, with [`POST /api/api-keys`](../api_and_sdks/api/api_keys_api.md#create-a-key). To retire the bootstrap key, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is being built to sign people in through Philter with their own username and password once `PASSWORD_SIGN_IN_ENABLED` is set; see [Sign-in Security](../sign_in_security.md).
 
 With Philter now running we can take it for a spin. We will send some text to Philter and inspect at the response we get back. The Philter virtual machine running in your cloud account should have a public IP address (unless you customized the deployment). We will use that public IP address to interact with Philter.
 

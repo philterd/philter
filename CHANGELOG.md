@@ -141,8 +141,8 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   changed to the one `/api/status` used to return. Update health probes to `GET /api/health` and to
   match on `UP`.
 - **Philter has no built-in UI.** It is administered through its API. [Philter UI](https://github.com/philterd/philter-ui),
-  a separate application in development, signs people in through Philter with their own username and
-  password.
+  a separate application in development, is being built to sign people in through Philter with their
+  own username and password.
 - **Outbound HTTPS from the redaction pipeline now verifies certificates.** Earlier builds trusted
   any certificate from any host unconditionally. If Philter reaches ph-eye (or another service in the
   pipeline) over HTTPS with a self-signed or privately-issued certificate, add its issuer to the JVM

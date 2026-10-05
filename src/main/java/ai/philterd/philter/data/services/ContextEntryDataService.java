@@ -365,12 +365,16 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     }
 
+    /**
+     * Counts a context's entries by filter type in one aggregation. Every entry is counted, so the
+     * counts sum to the context's size; entries stored without a filter type are counted under the
+     * {@code null} key.
+     */
     public Map<String, Long> getFilterTypeCounts(final String contextName, final ObjectId userId) {
 
         final Document matchStage = new Document("$match",
                 new Document("context_name", contextName)
-                        .append("user_id", userId)
-                        .append("replacement_uuid", false));
+                        .append("user_id", userId));
 
         final Document groupStage = new Document("$group",
                 new Document("_id", "$filter_type")
@@ -383,10 +387,10 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         final Map<String, Long> filterTypeCounts = new HashMap<>();
 
         for (final Document document : collection.aggregate(pipeline)) {
-            final String filterType = document.getString("_id");
-            final Integer count = document.getInteger("count");
-            if (filterType != null && count != null) {
-                filterTypeCounts.put(filterType, count.longValue());
+            // $sum yields an int or, past its range, a long.
+            final Object count = document.get("count");
+            if (count instanceof Number number) {
+                filterTypeCounts.merge(document.getString("_id"), number.longValue(), Long::sum);
             }
         }
 

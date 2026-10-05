@@ -42,6 +42,8 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -64,6 +66,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 @Tag(name = "Contexts", description = "Operations for creating and managing contexts.")
@@ -194,9 +198,14 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Get the details of a context.", description = "Get the details of a context with the provided name.")
+    @Operation(summary = "Get the details of a context.",
+            description = "Get the details of a context with the provided name: its size and its entries counted "
+                    + "by filter type. The counts are computed in the database and sum to the size, with entries "
+                    + "that have no filter type counted as untyped.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200"),
+            @ApiResponse(responseCode = "200", description = "The context's size and per-filter-type counts.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GetContextResponse.class))),
             @ApiResponse(responseCode = "404", description = "A context with the given name does not exist."),
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_READ)
@@ -228,9 +237,20 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        // Counted, not measured: fetching to size it silently returned one page.
-        final GetContextResponse getContextResponse =
-                new GetContextResponse(contextEntryService.countByUserIdAndContext(userId, name));
+        // One aggregation, so the per-type counts always sum to the size, even while entries are written.
+        final Map<String, Long> filterTypes = new TreeMap<>();
+        long size = 0;
+        long untyped = 0;
+        for (final Map.Entry<String, Long> count : contextEntryService.getFilterTypeCounts(name, userId).entrySet()) {
+            size += count.getValue();
+            if (count.getKey() == null) {
+                untyped += count.getValue();
+            } else {
+                filterTypes.put(count.getKey(), count.getValue());
+            }
+        }
+
+        final GetContextResponse getContextResponse = new GetContextResponse(size, filterTypes, untyped);
 
         return new ResponseEntity<>(gson.toJson(getContextResponse), HttpStatus.OK);
 

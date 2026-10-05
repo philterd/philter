@@ -15,16 +15,37 @@
  */
 package ai.philterd.philter.api.responses;
 
+import java.util.Map;
+
+/**
+ * A context's size and its entries counted by filter type. The filter-type counts and {@code untyped}
+ * sum to {@code size}.
+ */
 public class GetContextResponse {
 
     private final long size;
+    private final Map<String, Long> filterTypes;
+    private final long untyped;
 
-    public GetContextResponse(long size) {
+    public GetContextResponse(final long size, final Map<String, Long> filterTypes, final long untyped) {
         this.size = size;
+        this.filterTypes = filterTypes;
+        this.untyped = untyped;
     }
 
+    /** Every entry in the context. */
     public long getSize() {
         return size;
+    }
+
+    /** Entries by filter type, sorted by filter type. */
+    public Map<String, Long> getFilterTypes() {
+        return filterTypes;
+    }
+
+    /** Entries stored without a filter type, which only an import can create. */
+    public long getUntyped() {
+        return untyped;
     }
 
 }

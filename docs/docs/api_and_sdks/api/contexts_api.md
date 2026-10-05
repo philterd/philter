@@ -55,9 +55,20 @@ Example response:
 
 ```json
 {
-  "size": 125
+  "size": 125,
+  "filterTypes": {
+    "EMAIL_ADDRESS": 40,
+    "PERSON": 83
+  },
+  "untyped": 2
 }
 ```
+
+* `size` - The number of entries in the context.
+* `filterTypes` - The number of entries for each filter type, sorted by filter type.
+* `untyped` - The number of entries with no filter type. Only an [import](#import-a-mapping-table-into-a-context) can create one.
+
+The counts are computed in the database in one query and sum to `size`.
 
 ## Create a Context
 

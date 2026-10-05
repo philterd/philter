@@ -1055,7 +1055,7 @@
           "Contexts"
         ],
         "summary": "Get the details of a context.",
-        "description": "Get the details of a context with the provided name. Requires the `contexts:read` scope.",
+        "description": "Get the details of a context with the provided name: its size and its entries counted by filter type. The counts are computed in the database and sum to the size, with entries that have no filter type counted as untyped. Requires the `contexts:read` scope.",
         "operationId": "getContext",
         "parameters": [
           {
@@ -8715,7 +8715,18 @@
       },
       "GetContextResponse": {
         "properties": {
+          "filterTypes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
           "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "untyped": {
             "type": "integer",
             "format": "int64"
           }

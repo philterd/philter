@@ -674,11 +674,15 @@ class ContextsApiControllerTest {
     // one user read another's mapping table here.
 
     @Test
-    @DisplayName("A context reports its true size, not one page of it")
+    @DisplayName("A context reports its true size and per-type counts, which sum to it")
     void contextSizeIsCountedNotPaged() throws Exception {
 
         when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(new ContextEntity());
-        when(contextEntryService.countByUserIdAndContext(eq(userId), eq("ctx"))).thenReturn(4210);
+        final java.util.Map<String, Long> counts = new java.util.HashMap<>();
+        counts.put("PERSON", 4000L);
+        counts.put("EMAIL_ADDRESS", 200L);
+        counts.put(null, 10L);
+        when(contextEntryService.getFilterTypeCounts("ctx", userId)).thenReturn(counts);
 
         final String body = mockMvc.perform(get("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-size"))
@@ -686,6 +690,9 @@ class ContextsApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"size\":4210"), "the size must be the whole context, was: " + body);
+        assertTrue(body.contains("\"filterTypes\":{\"EMAIL_ADDRESS\":200,\"PERSON\":4000}"),
+                "counts by filter type, sorted: " + body);
+        assertTrue(body.contains("\"untyped\":10"), "entries without a filter type are counted: " + body);
 
         // Counting by fetching is what capped the answer at one page.
         verify(contextEntryService, never())
@@ -947,7 +954,7 @@ class ContextsApiControllerTest {
         ctx.setUserId(otherUserId);
         ctx.setContextName("ctx");
         when(contextService.findOne(eq("ctx"), eq(otherUserId))).thenReturn(ctx);
-        when(contextEntryService.countByUserIdAndContext(eq(otherUserId), eq("ctx"))).thenReturn(7);
+        when(contextEntryService.getFilterTypeCounts("ctx", otherUserId)).thenReturn(java.util.Map.of("PERSON", 7L));
 
         mockMvc.perform(get("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
@@ -956,8 +963,8 @@ class ContextsApiControllerTest {
 
         verify(contextService).findOne("ctx", otherUserId);
         // Counted for the owner named, never for the calling admin.
-        verify(contextEntryService).countByUserIdAndContext(otherUserId, "ctx");
-        verify(contextEntryService, never()).countByUserIdAndContext(eq(userId), any());
+        verify(contextEntryService).getFilterTypeCounts("ctx", otherUserId);
+        verify(contextEntryService, never()).getFilterTypeCounts(any(), eq(userId));
     }
 
     @Test

@@ -126,19 +126,27 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void getFilterTypeCountsAggregatesExcludingUuidReplacements() {
+    void getFilterTypeCountsCountsEveryEntrySoTheySumToTheSize() {
         final ObjectId user = new ObjectId();
         service.putReplacement(user, "ctx", "John Smith", "David Jones", "PERSON");
         service.putReplacement(user, "ctx", "Jane Roe", "Mary Major", "PERSON");
         service.putReplacement(user, "ctx", "john@example.com", "noone@example.com", "EMAIL_ADDRESS");
-        // A UUID replacement must be excluded from the counts.
+        // A UUID replacement is an entry like any other.
         service.putReplacement(user, "ctx", "123-45-6789", "550e8400-e29b-41d4-a716-446655440000", "SSN");
+        // Only an import can store an entry without a filter type; it is counted under the null key.
+        service.putReplacement(user, "ctx", "untyped token", "untyped replacement", null);
+        // Another context and another user are not counted.
+        service.putReplacement(user, "other", "Ann Lee", "Bea Kim", "PERSON");
+        service.putReplacement(new ObjectId(), "ctx", "Joe Bloggs", "Tom Doe", "PERSON");
 
         final Map<String, Long> counts = service.getFilterTypeCounts("ctx", user);
 
         assertEquals(2L, counts.get("PERSON"));
         assertEquals(1L, counts.get("EMAIL_ADDRESS"));
-        assertFalse(counts.containsKey("SSN"), "UUID replacements must be excluded from filter-type counts");
+        assertEquals(1L, counts.get("SSN"));
+        assertEquals(1L, counts.get(null));
+        assertEquals(service.countByUserIdAndContext(user, "ctx"),
+                counts.values().stream().mapToLong(Long::longValue).sum(), "the counts sum to the context's size");
     }
 
     @Test

@@ -60,6 +60,10 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   for asynchronous results, with `owner` for administrators under the cross-user rules. The URL and
   secret are validated as in the dashboard, by one shared check. New `webhooks:read` and
   `webhooks:write` scopes.
+- **Context counts by filter type.** `GET /api/contexts/{name}` returns the context's entries
+  counted by filter type (`filterTypes`, plus `untyped`) alongside `size`, computed in the database.
+  The counts now include entries with UUID replacements, so they sum to `size`; the dashboard's
+  counts change to match.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

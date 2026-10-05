@@ -24,7 +24,6 @@ import ai.philterd.philter.audit.MongoDBAuditEventPublisher;
 import ai.philterd.philter.data.MongoClientUtil;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.audit.AuditLogService;
-import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
@@ -46,7 +45,6 @@ import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.RedactionCache;
-import ai.philterd.philter.services.cache.LoginAttemptCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
@@ -65,11 +63,6 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
-import com.vaadin.flow.component.dependency.NpmPackage;
-import com.vaadin.flow.component.dependency.StyleSheet;
-import com.vaadin.flow.component.page.AppShellConfigurator;
-import com.vaadin.flow.theme.Theme;
-import com.vaadin.flow.theme.lumo.Lumo;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -98,19 +91,10 @@ import org.springdoc.core.utils.SpringDocUtils;
 
 
 @Configuration
-@Theme("philter")
-// Vaadin 25 loads all Lumo modules automatically except the utility classes, which must be
-// requested explicitly. AbstractRestrictedView uses LumoUtility CSS classes, so load the
-// utility stylesheet here (replaces the removed "utility" entry in theme.json's lumoImports).
-@StyleSheet(Lumo.UTILITY_STYLESHEET)
-// Override the react-router version that Vaadin's React integration pulls in transitively. The
-// platform-bundled version has open security advisories; pin a patched release. See the Dependabot
-// alerts for react-router (GHSA-qwww-vcr4-c8h2, CVE-2026-55685, and related).
-@NpmPackage(value = "react-router", version = "7.18.2")
 @SpringBootApplication
 @PropertySource("classpath:internal.properties")
 @EnableScheduling
-public class PhilterApplication implements AppShellConfigurator {
+public class PhilterApplication {
 
     private static final Logger LOGGER = LogManager.getLogger(PhilterApplication.class);
 
@@ -147,8 +131,8 @@ public class PhilterApplication implements AppShellConfigurator {
             LOGGER.warn("****************************************************************************************");
             LOGGER.warn("* ADMIN_CROSS_USER_ACCESS_ENABLED is ON: administrators can view and act on OTHER     *");
             LOGGER.warn("* users' contexts, policies, custom lists, documents, and redaction ledger via the    *");
-            LOGGER.warn("* API 'owner' parameter and the admin 'All ...' UI tabs. Disable this unless you      *");
-            LOGGER.warn("* explicitly require cross-user administration.                                       *");
+            LOGGER.warn("* API 'owner' and 'all_users' parameters. Disable this unless you explicitly require  *");
+            LOGGER.warn("* cross-user administration.                                                          *");
             LOGGER.warn("****************************************************************************************");
         }
 
@@ -164,9 +148,8 @@ public class PhilterApplication implements AppShellConfigurator {
         if (LedgerDeletionConfig.isLedgerDeletionEnabled()) {
             LOGGER.warn("****************************************************************************************");
             LOGGER.warn("* LEDGER_DELETION_ENABLED is ON: administrators can permanently delete redaction      *");
-            LOGGER.warn("* ledger evidence via DELETE /api/ledger and the Redaction Ledgers dashboard. Legal   *");
-            LOGGER.warn("* holds still block deletion and every deletion is audited. Disable this unless you   *");
-            LOGGER.warn("* explicitly require ledger deletion.                                                 *");
+            LOGGER.warn("* ledger evidence via DELETE /api/ledger. Legal holds still block deletion and every  *");
+            LOGGER.warn("* deletion is audited. Disable this unless you explicitly require ledger deletion.    *");
             LOGGER.warn("****************************************************************************************");
         }
 
@@ -191,7 +174,7 @@ public class PhilterApplication implements AppShellConfigurator {
                 .type(SecurityScheme.Type.HTTP)
                 .scheme("bearer")
                 .description("A Philter API key, sent as `Authorization: Bearer <api key>`. "
-                        + "Create one on the API Keys page of the dashboard.");
+                        + "The first comes from PHILTER_BOOTSTRAP_API_KEY; create more with POST /api/api-keys.");
 
         return new OpenAPI()
                 .info(new Info().title("Philter API").version(version))
@@ -330,12 +313,6 @@ public class PhilterApplication implements AppShellConfigurator {
     }
 
     @Bean
-    public LoginAttemptCache loginAttemptCache() {
-        LOGGER.info("Initializing login attempt cache.");
-        return new LoginAttemptCache(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
-    }
-
-    @Bean
     public ContextDataService contextDataService() {
         return new ContextDataService(mongoClient(), contextCache(), auditEventPublisher());
     }
@@ -439,17 +416,14 @@ public class PhilterApplication implements AppShellConfigurator {
         return new InMemoryVectorService();
     }
 
+    /**
+     * Nobody signs in to Philter; every request is authenticated by its API key. This bean exists so
+     * Spring Boot does not create its default in-memory user and log a generated password for it.
+     */
     @Bean
-    public UserDetailsService userDetailsService(final UserService userService, final LoginAttemptCache loginAttemptCache) {
-        return email -> {
-            final UserEntity user = userService.findByUsername(email);
-            if (user == null) {
-                throw new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + email);
-            }
-            // When the account is locked out (too many recent failed logins), build it as locked so
-            // Spring Security rejects the attempt with a LockedException before checking the password.
-            final boolean locked = loginAttemptCache.isLocked(email);
-            return new ai.philterd.philter.api.security.DashboardPrincipal(user, locked);
+    public UserDetailsService userDetailsService() {
+        return username -> {
+            throw new org.springframework.security.core.userdetails.UsernameNotFoundException("Philter has no sign-in.");
         };
     }
 

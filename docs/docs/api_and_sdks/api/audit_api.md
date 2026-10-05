@@ -59,7 +59,7 @@ Every field except `timestamp` and `event` may be absent for an event that did n
 GET /api/audit/export?from=2026-10-01&to=2026-10-05&zone=UTC
 ```
 
-Returns the audit log for a range of whole days as a CSV file (`text/csv`), newest first, one page at a time, with the same columns as the dashboard export. Requires an administrator and the `audit:read` scope. Each export records an `audit_log_exported` event.
+Returns the audit log for a range of whole days as a CSV file (`text/csv`), newest first, one page at a time. Requires an administrator and the `audit:read` scope. Each export records an `audit_log_exported` event.
 
 ### Query Parameters
 

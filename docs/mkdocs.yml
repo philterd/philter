@@ -75,7 +75,6 @@ nav:
       - 'System Requirements': 'system_requirements.md'
       - 'Upgrading': 'upgrading.md'
   - 'Using Philter':
-      - 'Dashboard': 'dashboard.md'
       - 'PII, PHI, and NPPI': 'pii_phi_nppi.md'
       - 'Deidentification': 'deidentification.md'
       - 'Redacting Documents and Text': 'redaction/redacting_documents.md'
@@ -173,7 +172,6 @@ nav:
     - 'PII Drift Monitoring (Phield)': 'phield.md'
     - 'Differential-Privacy Reporting (Diffuse)': 'diffuse.md'
     - 'Auditing': 'auditing.md'
-    - 'Login Security': 'login_security.md'
     - 'Advanced Features':
       - 'Referential Integrity': 'other_features/referential_integrity.md'
       - 'Span Disambiguation': 'other_features/span_disambiguation.md'

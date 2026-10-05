@@ -101,7 +101,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     /**
      * Creates a key limited to the given scopes. A key with no scopes can call nothing, which is the
-     * safe reading of "no permissions were granted"; the dashboard requires at least one.
+     * safe reading of "no permissions were granted".
      */
     public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source,
                                         final Set<String> scopes) {
@@ -145,8 +145,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     /**
      * Idempotently persists a caller-supplied API key for the given user. Used to bootstrap a
-     * known key at startup (the {@code PHILTER_BOOTSTRAP_API_KEY} environment variable) so that
-     * automation and turnkey deployments have a credential without the interactive UI flow.
+     * known key at startup (the {@code PHILTER_BOOTSTRAP_API_KEY} environment variable) as the
+     * admin user's first credential.
      *
      * <p>No-op if a key with the same value already exists (including a previously deleted one,
      * so a revoked bootstrap key is not resurrected on restart). The caller is responsible for
@@ -182,8 +182,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     }
 
     /**
-     * Returns the user's active (non-deleted) bootstrap key, or {@code null} if none. Used by the UI
-     * to flag that a key seeded from {@link #BOOTSTRAP_API_KEY_ENV} is still in use.
+     * Returns the user's active (non-deleted) bootstrap key, or {@code null} if none. Shows
+     * whether a key seeded from {@link #BOOTSTRAP_API_KEY_ENV} is still in use.
      */
     public ApiKeyEntity findActiveBootstrapKey(final ObjectId userId) {
 
@@ -235,8 +235,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     /**
      * Lists a page of a user's API keys sorted by creation time. When {@code includeDeleted} is false,
-     * soft-deleted keys are excluded; when true, deleted keys are included so the account view can show
-     * them clearly marked (a deleted key is revoked and can never authenticate again).
+     * soft-deleted keys are excluded; when true, deleted keys are included, marked as deleted (a deleted key is revoked and can never authenticate again).
      */
     public List<ApiKeyEntity> findAll(final ObjectId userId, final int offset, final int limit, final boolean includeDeleted) {
 
@@ -342,8 +341,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
                 new Document("$set", new Document("scopes", new java.util.ArrayList<>(scopes))));
         if (result.getMatchedCount() != 1) return new ServiceResponse("API key not found.", false, 404);
 
-        // Keep the caller's copy consistent with what was stored, so a UI holding the old object shows
-        // the change without re-reading.
+        // Keep the caller's copy consistent with what was stored, so a caller holding the old object
+        // sees the change without re-reading.
         apiKeyEntity.setScopes(stored.getScopes());
 
         // Evict so the new scopes apply to the next request rather than after the cache TTL, matching
@@ -385,8 +384,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         collection.updateOne(Filters.and(Filters.eq("_id", owned.getId()), Filters.eq("user_id", callerUserId)),
                 new Document("$set", new Document("deleted", true).append("deleted_at", owned.getDeletedAt())));
 
-        // Keep the caller's copy consistent with what was stored, so a UI holding the old object
-        // reflects the deletion without re-reading.
+        // Keep the caller's copy consistent with what was stored, so a caller holding the old object
+        // sees the deletion without re-reading.
         apiKeyEntity.setDeleted(true);
         apiKeyEntity.setDeletedAt(owned.getDeletedAt());
 

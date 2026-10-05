@@ -86,7 +86,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         final String fingerprintBefore = service.getPublicKeyFingerprint();
 
-        final ObjectId actingUser = new ObjectId();
+        final ObjectId actingUser = ai.philterd.philter.testutil.TestAdministrators.create(mongoClient);
         service.regenerate("req", actingUser, null, "source: test");
 
         final String fingerprintAfter = service.getPublicKeyFingerprint();
@@ -108,7 +108,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     void newInstanceAfterRegenerationLoadsRegeneratedKey() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
-        service.regenerate("req", new ObjectId(), null, "source: test");
+        service.regenerate("req", ai.philterd.philter.testutil.TestAdministrators.create(mongoClient), null, "source: test");
         final String fingerprintAfterRegenerate = service.getPublicKeyFingerprint();
 
         // New instance (simulating restart after regeneration) must load the regenerated key
@@ -162,7 +162,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final Thread rotator = new Thread(() -> {
             try {
                 for (int i = 0; i < 100; i++) {
-                    service.regenerate("req", null, null, "source: test");
+                    service.regenerate("req", ai.philterd.philter.testutil.TestAdministrators.create(mongoClient), null, "source: test");
                 }
             } finally {
                 rotating.set(false);

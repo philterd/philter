@@ -19,7 +19,6 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -94,7 +93,7 @@ class SigningServiceIT extends AbstractMongoIT {
     void signatureDoesNotVerifyWithNewPublicKeyAfterRegeneration() throws Exception {
         final String jwt = signingService.sign("Redacted.", "default", 1, UUID.randomUUID().toString());
 
-        keyService.regenerate("req", new ObjectId(), null, "source: test");
+        keyService.regenerate("req", ai.philterd.philter.testutil.TestAdministrators.create(mongoClient), null, "source: test");
 
         assertFalse(verifyJwt(jwt, keyService.getPublicKey()),
                 "JWT signed with the old key must not verify with the new public key after regeneration");
@@ -102,7 +101,7 @@ class SigningServiceIT extends AbstractMongoIT {
 
     @Test
     void newSignatureVerifiesWithNewKeyAfterRegeneration() throws Exception {
-        keyService.regenerate("req", new ObjectId(), null, "source: test");
+        keyService.regenerate("req", ai.philterd.philter.testutil.TestAdministrators.create(mongoClient), null, "source: test");
 
         final String jwt = signingService.sign("Redacted.", "default", 1, UUID.randomUUID().toString());
 

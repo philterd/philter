@@ -2,7 +2,7 @@
 
 This page documents the **Phileas redaction policy schema, version 1.0.0**: the complete JSON structure that defines a redaction policy. The schema is published at `https://www.philterd.ai/schemas/redaction-policy/1.0.0/schema.json` and is the authoritative format consumed by the redaction engine.
 
-> You do not need to know this schema to use Philter. Most users build policies in the dashboard or with the hosted policy editor at [policies.philterd.ai](https://policies.philterd.ai). This reference is for authoring or reviewing policies by hand and for understanding every available option.
+> You do not need to know this schema to use Philter. Most users build policies with the hosted policy editor at [policies.philterd.ai](https://policies.philterd.ai). This reference is for authoring or reviewing policies by hand and for understanding every available option.
 
 The version supported by a running Philter instance is reported by the [status endpoint](../api_and_sdks/api/filtering_api.md) in the `redactionPolicySchemaVersion` field.
 

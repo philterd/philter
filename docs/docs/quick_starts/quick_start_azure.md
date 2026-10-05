@@ -24,7 +24,14 @@ Congratulations! You have deployed Philter in Azure. You are now ready to filter
 
 ## Try it out!
 
-Sign in to the dashboard with your configured administrator credentials, complete the required password change, and create an [API key](../account/api_keys.md) with the `redact` scope. Set `API_KEY` in your shell to that key. See [bootstrap settings](../settings.md#bootstrap-and-in-memory-capacity) for first-start credentials. Every filtering request below authenticates with this key.
+Philter has no user interface; it is administered through its [API](../api_and_sdks/api.md). It does not start without two values, which must be set before its first start:
+
+* `PHILTER_ENCRYPTION_KEY`: a base64-encoded 32-byte key (`openssl rand -base64 32`) that encrypts sensitive data at rest. Keep the same value for the life of the deployment and back it up: data encrypted with it cannot be recovered if it is lost or changed. See [Encryption](../settings.md#encryption).
+* `PHILTER_BOOTSTRAP_API_KEY`: the first API key, `sk_` followed by 32 letters and digits (`echo "sk_$(openssl rand -hex 16)"`). Philter seeds it onto the `admin` user with every scope. See [bootstrap settings](../settings.md#bootstrap-and-in-memory-capacity).
+
+Set `API_KEY` in your shell to the bootstrap key. Every request below authenticates with it.
+
+For applications, create keys holding only the scopes they need, such as `redact`, with [`POST /api/api-keys`](../api_and_sdks/api/api_keys_api.md#create-a-key). To retire the bootstrap key, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is planned to run against Philter with an administrator's API key.
 
 With Philter now running we can take it for a spin. We will send some text to Philter and inspect at the response we get back. The Philter virtual machine running in your cloud account should have a public IP address (unless you customized the deployment). We will use that public IP address to interact with Philter.
 

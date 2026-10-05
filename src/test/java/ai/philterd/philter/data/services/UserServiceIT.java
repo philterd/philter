@@ -55,13 +55,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import ai.philterd.philter.model.AuditLogEvent;
-import org.junit.jupiter.api.DisplayName;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Integration tests for {@link UserService} against a real (in-memory) MongoDB. These exercise the
@@ -96,7 +90,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void createUserPersistsAndIsReadableByEmailAndId() {
         final ServiceResponse response = service.createUser(
-                "req", "alice@example.com", "s3cret", "user", policyDataService, contextDataService, "system");
+                "req", "alice@example.com", "user", policyDataService, contextDataService, "system");
         assertTrue(response.isSuccessful());
 
         // The username round-trips through the real Mongo query path.
@@ -109,37 +103,23 @@ class UserServiceIT extends AbstractMongoIT {
         assertNotNull(byId);
         assertEquals(byEmail.getId(), byId.getId());
         assertEquals("alice@example.com", byId.getUsername());
-
-        // The stored password is hashed, not the plaintext.
-        assertNotNull(byEmail.getPassword());
-        assertFalse(byEmail.getPassword().equals("s3cret"));
     }
 
     @Test
     void createUserRejectsDuplicateEmail() {
         assertTrue(service.createUser(
-                "req", "dup@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+                "req", "dup@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final ServiceResponse second = service.createUser(
-                "req", "dup@example.com", "pw2", "user", policyDataService, contextDataService, "system");
+                "req", "dup@example.com", "user", policyDataService, contextDataService, "system");
         assertFalse(second.isSuccessful());
         assertEquals(1, service.count());
     }
 
     @Test
-    void createUserWithPasswordChangeRequiredPersistsFlag() {
-        assertTrue(service.createUser(
-                "req", "admin@example.com", "admin", "admin", policyDataService, contextDataService, "system", true)
-                .isSuccessful());
-
-        final UserEntity user = service.findByUsername("admin@example.com");
-        assertTrue(user.isPasswordChangeRequired());
-    }
-
-    @Test
     void createUserSeedsDefaultPolicyAndDefaultContext() {
         assertTrue(service.createUser(
-                "req", "bob@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+                "req", "bob@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final ObjectId userId = service.findByUsername("bob@example.com").getId();
 
@@ -154,75 +134,11 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void createUserAssignsAndPersistsAHexFpeKey() {
         assertTrue(service.createUser(
-                "req", "fpe@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+                "req", "fpe@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final UserEntity user = service.findByUsername("fpe@example.com");
         assertNotNull(user.getFpeKey());
         assertTrue(user.getFpeKey().matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
-    }
-
-    @Test
-    void enableMfaPersistsEnrollmentAndDecryptsSecret() {
-        assertTrue(service.createUser(
-                "req", "mfa@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
-
-        service.enableMfa("req", service.findByUsername("mfa@example.com"), "JBSWY3DPEHPK3PXP", "system");
-
-        final UserEntity reread = service.findByUsername("mfa@example.com");
-        assertTrue(reread.isMfaEnabled());
-        // The secret round-trips through the real encryption service and the real Mongo read path.
-        assertEquals("JBSWY3DPEHPK3PXP", reread.getMfaSecret());
-        assertFalse(reread.isMfaLocked());
-        assertEquals(0, reread.getMfaFailedAttempts());
-    }
-
-    @Test
-    void failedMfaAttemptsLockTheAccountAndPersist() {
-        assertTrue(service.createUser(
-                "req", "lock@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
-        service.enableMfa("req", service.findByUsername("lock@example.com"), "JBSWY3DPEHPK3PXP", "system");
-
-        boolean locked = false;
-        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
-            locked = service.recordFailedMfaAttempt("req", service.findByUsername("lock@example.com"), "system");
-        }
-        assertTrue(locked);
-
-        final UserEntity reread = service.findByUsername("lock@example.com");
-        assertTrue(reread.isMfaLocked());
-        assertEquals(UserService.MAX_MFA_ATTEMPTS, reread.getMfaFailedAttempts());
-    }
-
-    @Test
-    void unlockMfaClearsThePersistedLockButKeepsEnrollment() {
-        assertTrue(service.createUser(
-                "req", "unlock@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
-        service.enableMfa("req", service.findByUsername("unlock@example.com"), "JBSWY3DPEHPK3PXP", "system");
-        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
-            service.recordFailedMfaAttempt("req", service.findByUsername("unlock@example.com"), "system");
-        }
-        assertTrue(service.findByUsername("unlock@example.com").isMfaLocked());
-
-        service.unlockMfa("req", service.findByUsername("unlock@example.com"), "system");
-
-        final UserEntity reread = service.findByUsername("unlock@example.com");
-        assertFalse(reread.isMfaLocked());
-        assertEquals(0, reread.getMfaFailedAttempts());
-        assertTrue(reread.isMfaEnabled());
-        assertEquals("JBSWY3DPEHPK3PXP", reread.getMfaSecret());
-    }
-
-    @Test
-    void disableMfaClearsEnrollmentAndPersistedSecret() {
-        assertTrue(service.createUser(
-                "req", "off@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
-        service.enableMfa("req", service.findByUsername("off@example.com"), "JBSWY3DPEHPK3PXP", "system");
-
-        service.disableMfa("req", service.findByUsername("off@example.com"), "system");
-
-        final UserEntity reread = service.findByUsername("off@example.com");
-        assertFalse(reread.isMfaEnabled());
-        assertNull(reread.getMfaSecret());
     }
 
     @Test
@@ -236,37 +152,9 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void passwordMatchesReflectsStoredHash() {
-        assertTrue(service.createUser(
-                "req", "carol@example.com", "correct-horse", "user", policyDataService, contextDataService, "system")
-                .isSuccessful());
-
-        final UserEntity user = service.findByUsername("carol@example.com");
-        assertTrue(service.passwordMatches(user, "correct-horse"));
-        assertFalse(service.passwordMatches(user, "wrong"));
-    }
-
-    @Test
-    void changePasswordUpdatesStoredHash() {
-        assertTrue(service.createUser(
-                "req", "dave@example.com", "old-password", "user", policyDataService, contextDataService, "system")
-                .isSuccessful());
-
-        final UserEntity user = service.findByUsername("dave@example.com");
-        assertTrue(service.passwordMatches(user, "old-password"));
-
-        assertTrue(service.changePassword("req", user, "new-password", "system").isSuccessful());
-
-        // Re-read from Mongo: the persisted hash now matches the new password, not the old one.
-        final UserEntity reread = service.findByUsername("dave@example.com");
-        assertTrue(service.passwordMatches(reread, "new-password"));
-        assertFalse(service.passwordMatches(reread, "old-password"));
-    }
-
-    @Test
     void setUserRoleUpdatesPersistedRole() {
         assertTrue(service.createUser(
-                "req", "erin@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "erin@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByUsername("erin@example.com");
@@ -278,7 +166,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void deactivateUserRetainsTheUserAndAllOfTheirData() {
         assertTrue(service.createUser(
-                "req", "frank@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "frank@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByUsername("frank@example.com");
@@ -310,7 +198,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void deactivateUserRetainsPoliciesAndLedgerResolvableToTheUser() throws Exception {
         assertTrue(service.createUser(
-                "req", "evidence@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "evidence@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
         final UserEntity user = service.findByUsername("evidence@example.com");
         final ObjectId userId = user.getId();
@@ -348,7 +236,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void reactivateUserRestoresAccessAndData() {
         assertTrue(service.createUser(
-                "req", "henry@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "henry@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
         final UserEntity user = service.findByUsername("henry@example.com");
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
@@ -372,7 +260,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void deactivatedEmailStaysReservedAndIsExcludedFromActiveListing() {
         assertTrue(service.createUser(
-                "req", "reuse@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "reuse@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
         final UserEntity first = service.findByUsername("reuse@example.com");
 
@@ -380,7 +268,7 @@ class UserServiceIT extends AbstractMongoIT {
 
         // The email stays reserved by the deactivated account: a duplicate cannot be created.
         assertFalse(service.createUser(
-                "req", "reuse@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "reuse@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         // Only one row exists; it is excluded from the active listing but present in the full one.
@@ -393,7 +281,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void deactivateUserRetainsTheirRedactLists() {
         assertTrue(service.createUser(
-                "req", "grace@example.com", "pw", "user", policyDataService, contextDataService, "system")
+                "req", "grace@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
 
         final UserEntity user = service.findByUsername("grace@example.com");
@@ -411,8 +299,8 @@ class UserServiceIT extends AbstractMongoIT {
 
     @Test
     void findUsernamesByIdsResolvesManyUsersInOneCall() {
-        assertTrue(service.createUser("req", "h@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
-        assertTrue(service.createUser("req", "i@example.com", "pw", "user", policyDataService, contextDataService, "system").isSuccessful());
+        assertTrue(service.createUser("req", "h@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
+        assertTrue(service.createUser("req", "i@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
 
         final ObjectId h = service.findByUsername("h@example.com").getId();
         final ObjectId i = service.findByUsername("i@example.com").getId();
@@ -434,9 +322,9 @@ class UserServiceIT extends AbstractMongoIT {
 
     @Test
     void findAllSupportsPagingAndCount() {
-        service.createUser("req", "u1@example.com", "pw", "user", policyDataService, contextDataService, "system");
-        service.createUser("req", "u2@example.com", "pw", "user", policyDataService, contextDataService, "system");
-        service.createUser("req", "u3@example.com", "pw", "user", policyDataService, contextDataService, "system");
+        service.createUser("req", "u1@example.com", "user", policyDataService, contextDataService, "system");
+        service.createUser("req", "u2@example.com", "user", policyDataService, contextDataService, "system");
+        service.createUser("req", "u3@example.com", "user", policyDataService, contextDataService, "system");
 
         assertEquals(3, service.count());
 
@@ -560,180 +448,15 @@ class UserServiceIT extends AbstractMongoIT {
 }
 
 
-    // ----- MFA attempt counting and replay prevention -----
-
-    private UserEntity mfaUser() {
-        final String username = "mfa-" + UUID.randomUUID() + "@example.com";
-        service.createUser("req", username, "password", "user", policyDataService, contextDataService, "test");
-        final UserEntity user = service.findByUsername(username);
-        service.enableMfa("req", user, "TESTSECRET", "system");
+    private UserEntity createAndFind(final String username, final String role) {
+        assertTrue(service.createUser("req", username, role, policyDataService, contextDataService, "system").isSuccessful());
         return service.findByUsername(username);
-    }
-
-    @Test
-    @DisplayName("The limit-th failure locks the account, and earlier ones do not")
-    void failuresLockOnTheLimit() {
-
-        final UserEntity user = mfaUser();
-
-        boolean locked = false;
-        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
-            assertFalse(service.findByUsername(user.getUsername()).isMfaLocked(), "not locked before the limit");
-            locked = service.recordFailedMfaAttempt("req", service.findByUsername(user.getUsername()), "test");
-        }
-
-        assertTrue(locked, "the limit-th failure must report that it locked the account");
-
-        final UserEntity after = service.findByUsername(user.getUsername());
-        assertTrue(after.isMfaLocked());
-        assertEquals(UserService.MAX_MFA_ATTEMPTS, after.getMfaFailedAttempts());
-
-    }
-
-    @Test
-    @DisplayName("Codes submitted together are all counted, and the lock is announced once")
-    void concurrentFailuresAreAllCountedAndLockOnce() throws Exception {
-
-        final UserEntity user = mfaUser();
-        final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
-        final UserService counting = new UserService(mongoClient, new RealLocalEncryptionService(), publisher);
-
-        final int submissions = 25;
-        final CountDownLatch go = new CountDownLatch(1);
-        final List<Thread> threads = new ArrayList<>();
-        final AtomicInteger reportedLocked = new AtomicInteger();
-
-        for (int i = 0; i < submissions; i++) {
-            final Thread thread = new Thread(() -> {
-                try {
-                    go.await(10, TimeUnit.SECONDS);
-                } catch (final InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-                // As the challenge page does: load the user, then record the failure.
-                if (counting.recordFailedMfaAttempt("req", counting.findByUsername(user.getUsername()), "test")) {
-                    reportedLocked.incrementAndGet();
-                }
-            });
-            thread.start();
-            threads.add(thread);
-        }
-
-        go.countDown();
-        for (final Thread thread : threads) {
-            thread.join(30_000);
-        }
-
-        final UserEntity after = service.findByUsername(user.getUsername());
-
-        // Read-modify-write recorded one of twenty. Every attempt must now be counted, and the count
-        // stops being interesting once the account is locked, so it is at least the limit.
-        assertTrue(after.getMfaFailedAttempts() >= UserService.MAX_MFA_ATTEMPTS,
-                "every failure must be counted; recorded " + after.getMfaFailedAttempts() + " of " + submissions);
-        assertTrue(after.isMfaLocked(), "the account must end locked");
-
-        assertEquals(1, reportedLocked.get(), "exactly one caller may report that it locked the account");
-        verify(publisher, times(1)).auditEvent(any(), eq(AuditLogEvent.USER_MFA_LOCKED), any(), any(), any(), any());
-
-    }
-
-    @Test
-    @DisplayName("One code submitted twice is accepted once")
-    void aCodeIsAcceptedOnce() {
-
-        final UserEntity user = mfaUser();
-
-        assertTrue(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 100L));
-        assertFalse(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 100L),
-                "the same step must not be accepted again");
-        assertFalse(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 99L),
-                "nor an older one");
-        assertTrue(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 101L),
-                "the next step is accepted");
-
-    }
-
-    @Test
-    @DisplayName("The same code submitted from two sessions at once succeeds once")
-    void oneOfTwoSimultaneousSubmissionsOfOneCodeWins() throws Exception {
-
-        final List<String> outcomes = Collections.synchronizedList(new ArrayList<>());
-
-        for (int round = 0; round < 20; round++) {
-
-            final UserEntity user = mfaUser();
-            final CountDownLatch go = new CountDownLatch(1);
-            final List<Boolean> accepted = Collections.synchronizedList(new ArrayList<>());
-
-            final Runnable submit = () -> {
-                try {
-                    go.await(10, TimeUnit.SECONDS);
-                } catch (final InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-                accepted.add(service.recordAcceptedMfaTimeStep(service.findByUsername(user.getUsername()), 500L));
-            };
-
-            final Thread a = new Thread(submit);
-            final Thread b = new Thread(submit);
-            a.start();
-            b.start();
-            go.countDown();
-            a.join(20_000);
-            b.join(20_000);
-
-            final long wins = accepted.stream().filter(Boolean::booleanValue).count();
-            if (wins != 1) {
-                outcomes.add("round " + round + " accepted " + wins + " times");
-            }
-
-        }
-
-        assertEquals(List.of(), outcomes, "a replayed code must be accepted exactly once");
-
-    }
-
-    @Test
-    @DisplayName("A valid code cannot unlock an account that concurrent failures locked")
-    void acceptingACodeCannotClearALock() {
-
-        final UserEntity user = mfaUser();
-
-        // The stale view a request holds while a wave of failures runs.
-        final UserEntity asReadBeforeTheWave = service.findByUsername(user.getUsername());
-
-        for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
-            service.recordFailedMfaAttempt("req", service.findByUsername(user.getUsername()), "test");
-        }
-        assertTrue(service.findByUsername(user.getUsername()).isMfaLocked());
-
-        assertFalse(service.recordAcceptedMfaTimeStep(asReadBeforeTheWave, 700L),
-                "a code accepted from a stale read must not be able to reopen a locked account");
-
-        final UserEntity after = service.findByUsername(user.getUsername());
-        assertTrue(after.isMfaLocked(), "the lock must survive");
-        assertEquals(UserService.MAX_MFA_ATTEMPTS, after.getMfaFailedAttempts(),
-                "and so must the count that established it");
-
-    }
-
-    private UserEntity createAndFind(final String username, final String password, final String role) {
-        assertTrue(service.createUser("req", username, password, role, policyDataService, contextDataService, "system").isSuccessful());
-        return service.findByUsername(username);
-    }
-
-    @Test
-    void createUserWithoutAPasswordStoresNone() {
-        final UserEntity user = createAndFind("api-user", null, "user");
-
-        assertNull(user.getPassword(), "a user created over the API has no password");
-        assertFalse(service.passwordMatches(user, ""), "no password can match a user without one");
     }
 
     @Test
     void theLastActiveAdministratorCannotBeDemotedOrDeactivated() {
-        final UserEntity admin = createAndFind("only-admin", null, "admin");
-        createAndFind("someone", null, "user");
+        final UserEntity admin = createAndFind("only-admin", "admin");
+        createAndFind("someone", "user");
 
         assertTrue(service.isLastActiveAdmin(admin));
         assertFalse(service.setUserRole("req", admin, "user", "api", null, null).isSuccessful());
@@ -746,8 +469,8 @@ class UserServiceIT extends AbstractMongoIT {
 
     @Test
     void anAdministratorCanBeRemovedWhileAnotherRemainsActive() {
-        final UserEntity first = createAndFind("admin-one", null, "admin");
-        final UserEntity second = createAndFind("admin-two", null, "admin");
+        final UserEntity first = createAndFind("admin-one", "admin");
+        final UserEntity second = createAndFind("admin-two", "admin");
 
         assertTrue(service.deactivateUser("req", second, "api", null, null).isSuccessful());
         assertEquals(1, service.countActiveAdmins(), "a deactivated administrator is not counted");
@@ -761,7 +484,7 @@ class UserServiceIT extends AbstractMongoIT {
 
     @Test
     void deactivatingTwiceOrReactivatingAnActiveUserFails() {
-        final UserEntity user = createAndFind("twice", null, "user");
+        final UserEntity user = createAndFind("twice", "user");
 
         assertFalse(service.reactivateUser("req", user, "api", null, null).isSuccessful());
         assertTrue(service.deactivateUser("req", service.findOneById(user.getId()), "api", null, null).isSuccessful());
@@ -772,8 +495,8 @@ class UserServiceIT extends AbstractMongoIT {
     void changesAreAuditedWithTheActingPrincipal() {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
-        createAndFind("other-admin", null, "admin");
-        final UserEntity user = createAndFind("audited", null, "user");
+        createAndFind("other-admin", "admin");
+        final UserEntity user = createAndFind("audited", "user");
         final ObjectId acting = new ObjectId();
         final ObjectId actingKey = new ObjectId();
 
@@ -794,7 +517,7 @@ class UserServiceIT extends AbstractMongoIT {
     void setWebhookValidatesBeforeSavingAndAuditsTheActor() {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
-        final UserEntity user = createAndFind("hooked", null, "user");
+        final UserEntity user = createAndFind("hooked", "user");
         final ObjectId acting = new ObjectId();
         final ObjectId actingKey = new ObjectId();
 

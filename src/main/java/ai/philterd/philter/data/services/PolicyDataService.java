@@ -517,7 +517,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         }
 
-        // The UI sometimes needs to see all policies, including managed policies.
+        // Optionally include the managed policies.
         if(includeManagedPolicies) {
 
             // Now add the managed policies.
@@ -561,7 +561,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         }
 
-        // The UI sometimes needs to see all policies, including managed policies.
+        // Optionally include the managed policies.
         if(includeManagedPolicies) {
 
             // Now add the managed policies.
@@ -818,7 +818,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @param requestId       Correlation ID for audit events.
      * @param policyName      Name of the policy to delete.
      * @param userId          Owner of the policy.
-     * @param source          Whether the deletion came from the API or the dashboard.
+     * @param source          Where the deletion came from, such as the API.
      * @param principalId     The caller, recorded in the audit event. Not necessarily {@code userId}:
      *                        an admin may delete another user's policy.
      * @param clientIpAddress The client IP address, or null when unavailable.

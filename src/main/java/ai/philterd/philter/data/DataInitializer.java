@@ -66,13 +66,9 @@ public class DataInitializer {
 
         // Check for the admin user.
         if (userService.findAnyByUsername("admin") == null) {
-
-            final String bootstrapPassword = requireBootstrapPassword(System.getenv("PHILTER_BOOTSTRAP_ADMIN_PASSWORD"));
             LOGGER.info("Creating initial admin user");
-            // The operator supplies a private bootstrap credential; never log its value.
-            userService.createUser(RequestIdGenerator.generate(), "admin", null, bootstrapPassword, "admin", policyDataService, contextDataService, Source.SYSTEM.getSource(), true);
-
-
+            userService.createUser(RequestIdGenerator.generate(), "admin", "admin", policyDataService, contextDataService,
+                    Source.SYSTEM.getSource());
         }
 
         // Load managed policies from JSON files
@@ -90,49 +86,35 @@ public class DataInitializer {
     }
 
     /**
-     * Seeds the API key supplied in {@code PHILTER_BOOTSTRAP_API_KEY}, if set, so automation and
-     * turnkey (marketplace/IaC) deployments have a credential without the interactive UI flow.
-     * Authentication stays on; the key is the operator's own secret, bound to the admin user, and
-     * idempotent across restarts. Absent or invalid, this is a no-op and Philter behaves as before.
+     * Seeds the API key supplied in {@code PHILTER_BOOTSTRAP_API_KEY} onto the admin user, the only way a
+     * deployment gets its first credential: nobody signs in to Philter. It is required until the admin
+     * has had an API key, so a new deployment cannot start without one, and ignored afterwards, so a
+     * revoked bootstrap key is not recreated on a later restart. Its value is never logged.
      */
     private void seedBootstrapApiKey() {
 
         final String envName = ApiKeyDataService.BOOTSTRAP_API_KEY_ENV;
         final String bootstrapKey = System.getenv(envName);
 
-        if (bootstrapKey == null || bootstrapKey.isBlank()) {
-            return;
-        }
-
-        if (!API_KEY_PATTERN.matcher(bootstrapKey).matches()) {
-            // Never log the value; report only that it was rejected.
-            LOGGER.error("{} is set but is not a valid API key (expected 'sk_' followed by 32 "
-                    + "alphanumeric characters). Ignoring it.", envName);
-            return;
-        }
-
         final UserEntity admin = userService.findByUsername("admin");
 
-        if (admin == null) {
-            LOGGER.warn("{} is set but the admin user was not found; skipping bootstrap key.", envName);
+        // Counting deleted keys too, so that once the admin has had any key, the bootstrap key is
+        // neither required nor seeded again.
+        if (admin == null || apiKeyDataService.count(admin.getId(), true) > 0) {
+            if (bootstrapKey != null && !bootstrapKey.isBlank()) {
+                LOGGER.info("{} is set but the admin user already has or had an API key; not seeding it.", envName);
+            }
             return;
         }
 
-        // Only seed when the admin has never had an API key. Counting deleted keys too means that once
-        // the admin has created (or even archived) any key of their own, the bootstrap key is never
-        // seeded again, and a bootstrap key that was revoked is not recreated on a later restart.
-        if (apiKeyDataService.count(admin.getId(), true) > 0) {
-            LOGGER.info("{} is set but the admin user already has API key(s) (active or archived); "
-                    + "not seeding the bootstrap key.", envName);
-            return;
-        }
+        requireBootstrapApiKey(bootstrapKey);
 
         final boolean created = apiKeyDataService.ensureApiKey(
                 RequestIdGenerator.generate(), admin.getId(), bootstrapKey, Source.SYSTEM.getSource());
 
         if (created) {
-            LOGGER.warn("Seeded a bootstrap API key for the admin user from {}. This key is intended "
-                    + "for automation; rotate or revoke it in the UI when it is no longer needed.", envName);
+            LOGGER.warn("Seeded a bootstrap API key for the admin user from {}. It holds every scope; create "
+                    + "narrower keys with it and revoke it when it is no longer needed.", envName);
         }
 
     }
@@ -151,10 +133,12 @@ public class DataInitializer {
 
     }
 
-    static String requireBootstrapPassword(final String password) {
-        if (password == null || password.length() < 16 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
-            throw new IllegalStateException("Set PHILTER_BOOTSTRAP_ADMIN_PASSWORD to a private password of at least 16 characters (at most 72 UTF-8 bytes) before first startup.");
+    static String requireBootstrapApiKey(final String apiKey) {
+        if (apiKey == null || !API_KEY_PATTERN.matcher(apiKey).matches()) {
+            throw new IllegalStateException("Set " + ApiKeyDataService.BOOTSTRAP_API_KEY_ENV + " to a private API key "
+                    + "('sk_' followed by 32 letters and digits) before first startup. It is the administrator's "
+                    + "first credential.");
         }
-        return password;
+        return apiKey;
     }
 }

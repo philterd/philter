@@ -1,6 +1,6 @@
 # Filter Policies
 
-The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. Policies are JSON configurations stored in MongoDB. Create or update them through the dashboard or [Policies API](../api_and_sdks/api/policies_api.md).
+The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. Policies are JSON configurations stored in MongoDB. Create or update them through the [Policies API](../api_and_sdks/api/policies_api.md).
 
 Each policy has a `name` that is used by Philter to apply the appropriate de-identification methods. The `name` is passed to Philter’s [API](../api_and_sdks/api/filtering_api.md) along with the text to be filtered when submitting text to Philter. This provides flexibility and allows you to de-identify different types of documents in differing manners with a single instance of Philter. For example, you may have a policy for bankruptcy documents and a separate policy for financial documents.
 
@@ -11,7 +11,7 @@ Each policy has a `name` that is used by Philter to apply the appropriate de-ide
 
 A policy:
 
-* Has a name unique within its owning account. Set the name in the dashboard or in the required `name` query parameter when saving through the API; the local filename does not set the policy name.
+* Has a name unique within its owning account. Set the name in the required `name` query parameter when saving it; the local filename does not set the policy name.
 * Must have a list of `identifiers` that are filters for sensitive information.
     * Each `identifier` , or filter, can have zero or more [filter strategies](filter_strategies.md). A filter strategy tells Philter how to manipulate that type of sensitive information when it is identified.
 * Can have an optional list of terms or patterns of information to [ignore](ignoring_specific_information.md).
@@ -50,7 +50,7 @@ Save this JSON locally as `email-and-phone-numbers.json` for the upload below. T
 
 ### Applying a Policy to Text
 
-Create an API key with `policies:write` and `redact` scopes on the dashboard's [API Keys](../account/api_keys.md) tab. Set `API_KEY` in your shell to that key. Upload the policy:
+Use an [API key](../account/api_keys.md) holding the `policies:write` and `redact` scopes, such as one created with [`POST /api/api-keys`](../api_and_sdks/api/api_keys_api.md#create-a-key) and `{"scopes":["policies:write","redact"]}`. Set `API_KEY` in your shell to that key. Upload the policy:
 
 ```bash
 curl --fail-with-body -k -X POST "https://localhost:8080/api/policies?name=email-and-phone-numbers" \

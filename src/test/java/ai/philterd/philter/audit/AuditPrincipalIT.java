@@ -97,7 +97,7 @@ class AuditPrincipalIT {
         baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
 
         final String username = "audit-principal-" + UUID.randomUUID() + "@example.com";
-        final ServiceResponse created = userService.createUser("req", username, "password", "user",
+        final ServiceResponse created = userService.createUser("req", username, "user",
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
 

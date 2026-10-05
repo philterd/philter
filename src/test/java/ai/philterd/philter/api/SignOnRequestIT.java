@@ -100,7 +100,7 @@ class SignOnRequestIT {
         baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
 
         final String username = "sign-on-request-" + UUID.randomUUID() + "@example.com";
-        final ServiceResponse created = userService.createUser("req", username, "password", "admin",
+        final ServiceResponse created = userService.createUser("req", username, "admin",
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
 
@@ -123,7 +123,7 @@ class SignOnRequestIT {
     }
 
     private void signingEnabled(final boolean enabled) {
-        adminSettingsDataService.saveSigningEnabled(userId, enabled);
+        adminSettingsDataService.update(new AdminSettingsDataService.Update(null, enabled, null, null, null, null, null, null), userId, null);
     }
 
     /** Redacts a fixed document, returning the response so the signature header can be inspected. */

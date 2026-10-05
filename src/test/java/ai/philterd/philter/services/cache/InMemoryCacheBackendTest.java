@@ -68,12 +68,11 @@ public class InMemoryCacheBackendTest {
     }
 
     @Test
-    void cleanupReclaimsOneTimeStringsCountersAndWholeHashes() throws Exception {
+    void cleanupReclaimsOneTimeStringsAndWholeHashes() throws Exception {
         final AtomicLong now = new AtomicLong(1000);
         final var cache = new InMemoryCacheBackend(now::get);
         for (int i = 0; i < 2000; i++) {
             cache.setex("token-" + i, 1, "value");
-            cache.incrementAndExpire("login-" + i, 1);
             cache.hset("context-" + i, "field", "value");
             cache.expire("context-" + i, 1);
         }
@@ -88,27 +87,23 @@ public class InMemoryCacheBackendTest {
     }
 
     @Test
-    void cleanupPreservesRefreshedValuesAndSlidingCounterExpiry() throws Exception {
+    void cleanupPreservesRefreshedValues() throws Exception {
         final AtomicLong now = new AtomicLong(1000);
         final var cache = new InMemoryCacheBackend(now::get);
         cache.setex("string", 1, "old");
-        cache.incrementAndExpire("counter", 1);
         cache.hset("hash", "field", "value");
         cache.expire("hash", 1);
         now.set(1500);
         cache.setex("string", 2, "new");
-        assertEquals(2, cache.incrementAndExpire("counter", 2));
         cache.expire("hash", 2);
         now.set(2000);
         cache.removeExpiredEntries();
         assertEquals("new", cache.get("string"));
-        assertEquals("2", cache.get("counter"));
         assertEquals("value", cache.hget("hash", "field"));
         now.set(3500);
         cache.removeExpiredEntries();
         assertTrue(storedEntries(cache, "strings").isEmpty());
         assertTrue(storedEntries(cache, "hashes").isEmpty());
-        assertEquals(1, cache.incrementAndExpire("counter", 1));
     }
 
     @Test
@@ -162,26 +157,6 @@ public class InMemoryCacheBackendTest {
     }
 
     @Test
-    void concurrentCounterIncrementsRemainAtomicDuringCleanup() throws Exception {
-        final var cache = new InMemoryCacheBackend(() -> 1000L);
-        try (var executor = Executors.newFixedThreadPool(8)) {
-            final var tasks = new java.util.ArrayList<java.util.concurrent.Future<?>>();
-            for (int worker = 0; worker < 8; worker++) {
-                tasks.add(executor.submit(() -> {
-                    for (int i = 0; i < 500; i++) {
-                        cache.incrementAndExpire("counter", 60);
-                        cache.removeExpiredEntries();
-                    }
-                }));
-            }
-            for (var task : tasks) {
-                task.get(5, TimeUnit.SECONDS);
-            }
-        }
-        assertEquals("4000", cache.get("counter"));
-    }
-
-    @Test
     void deletingLastHashFieldReclaimsContainer() throws Exception {
         final var cache = new InMemoryCacheBackend(() -> 1000L);
         cache.hset("hash", "first", "one");
@@ -228,23 +203,6 @@ public class InMemoryCacheBackendTest {
         assertNull(cache.hget("hash", "field"), "Rejected refresh must discard the stale value");
         cache.setex("one", 0, "x".repeat(4096));
         assertNull(cache.get("one"));
-    }
-
-    @Test
-    void counterOverflowPreservesExistingLockoutsAndBlocksNewLoginsUntilWindowEnds() throws Exception {
-        final AtomicLong now = new AtomicLong(1000);
-        var cache = new InMemoryCacheBackend(now::get, 1, 4096);
-        assertEquals(1, cache.incrementAndExpire("existing", 60));
-        assertEquals(Long.MAX_VALUE, cache.incrementAndExpire("overflow", 60));
-        assertEquals("1", cache.get("existing"));
-        assertTrue(cache.counterCapacityExceeded());
-        assertEquals(2, cache.incrementAndExpire("existing", 60));
-        cache.del("existing");
-        assertTrue(cache.counterCapacityExceeded(), "Successful login/reset cannot clear the global failure window");
-        now.set(61000);
-        cache.removeExpiredEntries();
-        assertFalse(cache.counterCapacityExceeded());
-        assertEquals(1, cache.incrementAndExpire("new", 60));
     }
 
     @Test

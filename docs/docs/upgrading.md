@@ -15,7 +15,9 @@ Philter 4.x includes several breaking changes. Review the following before upgra
 * **`/api/status` has been removed.** Use `GET /api/health`, which returns the same response and is also unauthenticated. Its `status` value changed from `Healthy` to `UP`, matching the health response shared across Philterd products. Update load-balancer health checks, monitoring probes, and any client that called `/api/status` or matched on `Healthy`. See [High Availability](high_availability.md#load-balancing).
 * **PDF redaction is asynchronous by default.** `POST /api/filter` with a PDF now returns `202 Accepted` with a `documentId`; download the result from the [Documents API](api_and_sdks/api/documents_api.md). Append `?async=false` to keep the previous synchronous behavior. Text redaction is unchanged.
 * **Outbound HTTPS is now verified.** Earlier builds accepted any certificate from any host when the redaction pipeline called another service over HTTPS. Certificates are now verified by default, so a ph-eye instance behind a self-signed or privately-issued certificate will fail to connect until you add its issuer to the JVM truststore. Setting `TLS_TRUST_ALL_ENABLED=true` restores the old behavior, with a warning logged at startup. Deployments reaching ph-eye over plain HTTP are unaffected. See [Settings](settings.md#outbound-tls).
-* **Policies are edited as JSON.** The visual policy builder has been replaced by a JSON editor in the dashboard; you can also build policies in the [policy editor](https://policies.philterd.ai/) and paste the JSON in. The policy format itself is unchanged from 3.x: policies are still authored with a top-level `identifiers` object keyed by filter name, each carrying a `<name>FilterStrategies` array. Your existing 3.x policy JSON continues to work, except for the filter and strategy changes below.
+* **There is no built-in user interface.** Philter 4 is administered through its API: users with the [Users API](api_and_sdks/api/users_api.md), keys with the [API Keys API](api_and_sdks/api/api_keys_api.md), deployment settings with the [Settings API](api_and_sdks/api/settings_api.md), and policies, contexts, ledgers, legal holds, and the audit log with their own APIs. [Philter UI](https://github.com/philterd/philter-ui), a separate browser interface that uses an administrator's API key, is in development.
+* **The first credential is a bootstrap API key.** Set `PHILTER_BOOTSTRAP_API_KEY` (`sk_` followed by 32 letters and digits) for a new deployment: Philter does not start without it until the `admin` user has had an API key. See [Bootstrapping an API key](account/api_keys.md#bootstrapping-an-api-key-for-automation).
+* **Policies are JSON.** The visual policy builder has been removed. Build policies in the [policy editor](https://policies.philterd.ai/) or by hand and save them with the [Policies API](api_and_sdks/api/policies_api.md). The policy format itself is unchanged from 3.x: policies are still authored with a top-level `identifiers` object keyed by filter name, each carrying a `<name>FilterStrategies` array. Your existing 3.x policy JSON continues to work, except for the filter and strategy changes below.
 
 ### Policy and strategy changes
 
@@ -73,7 +75,7 @@ In Philter 3.x, filter policies are no longer stored on the local file system. I
 Because of this change:
 
 1.  **Policies must be recreated:** You cannot simply copy policy files from `/opt/philter/policies` to a Philter 3.x instance.
-2.  **Use the Dashboard or API:** Policies must be recreated using the Philter web dashboard or the Policies API.
+2.  **Use the API:** Policies must be recreated using the Policies API.
 3.  **Authentication:** Access to the Policies API now requires Bearer token authentication.
 
 ### Configuration Changes
@@ -85,9 +87,7 @@ Philter 3.x has moved away from `.properties` files for most configurations, fav
 1.  **Back up your current policies:** Ensure you have copies of your existing policy JSON files from your current Philter instance (usually in `/opt/philter/policies`).
 2.  **Launch Philter 3.x:** Deploy a new Philter 3.x instance. Ensure you have MongoDB, Valkey, and OpenSearch available as required.
 3.  **Configure 3.x:** Use environment variables to configure your new Philter instance. Refer to the [Settings](settings.md) documentation for a full list of available variables.
-4.  **Recreate Policies:**
-    *   **Via Dashboard:** Open the Philter dashboard (default port 8080), log in (username `admin`, with your configured bootstrap password on first login), and use the policy editor to recreate your policies. You can copy and paste the JSON from your old policies into the editor.
-    *   **Via API:** Use the [Policies API](api_and_sdks/api/policies_api.md) to upload your old policy JSON files to the new instance. Note that you will need to provide an API token.
+4.  **Recreate Policies:** Use the [Policies API](api_and_sdks/api/policies_api.md) to upload your old policy JSON files to the new instance. Note that you will need to provide an API token.
 5.  **Update your clients:** Ensure your client applications are updated to use the new Bearer token authentication and point to the correct Philter 3.x endpoints.
 6.  **Test:** Thoroughly test your redaction workflows to ensure they are performing as expected with the new version.
 7.  **Decommission:** Once verified, decommission your old Philter instance.

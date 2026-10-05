@@ -28,24 +28,31 @@ Queued PDF jobs retain encrypted input while pending or processing and remove it
 
 Synchronous text redaction does not retain the complete submitted document as a queued job. Depending on the context and configuration, it can persist token-to-replacement mappings, encrypted original and replacement values in the ledger, and audit or usage records. See [Database](../database.md) for what is stored and encrypted.
 
-## How to Redact a Document via the Dashboard
+## How to Redact a Document
 
-The dashboard redacts a document directly, for testing a policy before you use the API. It is not a
-document management surface: it processes input synchronously without a context, so it does not queue a document or create context mappings or a context ledger. The input and downloadable result are held in memory for the test. Redaction metrics and configured usage reporting can still be emitted.
+Documents are redacted with the [Filtering API](../api_and_sdks/api/filtering_api.md). Name the policy with `p` and, optionally, a context with `c`.
 
-1.  **Open the Dashboard.** Log in and select **Dashboard** in the left-hand navigation. The
-    **Redaction Test** tab is where redaction runs.
-2.  **Select a redaction policy** from the policy list for PDF redaction.
-3.  **Upload the PDF** with the upload control.
-4.  **Click Submit PDF.** The document is redacted immediately.
-5.  **Download the result** with the **Download redacted &lt;filename&gt;** link that appears.
+To test a policy on plain text, send it synchronously and read the redacted text from the response:
 
-To redact plain text instead, paste it into the text area, choose a policy, and click **Submit
-Text**; the redacted text is shown in place.
+```bash
+curl -k -X POST "https://localhost:8080/api/filter?p=my-policy" \
+  --data-binary @sample.txt \
+  -H "Content-Type: text/plain" \
+  -H "Authorization: Bearer $API_KEY"
+```
 
-For anything beyond testing, including batches, contexts, and asynchronous processing, use the
-[Filtering API](../api_and_sdks/api/filtering_api.md) and the
-[Documents API](../api_and_sdks/api/documents_api.md).
+To redact a PDF and receive the result inline, add `async=false`:
+
+```bash
+curl -k -X POST "https://localhost:8080/api/filter?p=my-policy&async=false" \
+  --data-binary @sample.pdf \
+  -H "Content-Type: application/pdf" \
+  -H "Accept: application/pdf" \
+  -H "Authorization: Bearer $API_KEY" \
+  -o redacted.pdf
+```
+
+Without `async=false`, a PDF is queued and processed asynchronously; poll and download it with the [Documents API](../api_and_sdks/api/documents_api.md), or receive a [webhook](../api_and_sdks/api/webhooks.md) when it completes.
 
 ## Immutable Cryptographic Ledgers
 

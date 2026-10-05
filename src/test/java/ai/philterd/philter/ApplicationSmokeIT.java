@@ -26,6 +26,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -44,19 +46,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Checks that the surfaces outside the API still work when the application is actually running.
  *
- * <p>The API has thorough coverage, but three things it depends on have almost none. The Vaadin
- * dashboard is roughly a third of the codebase at under 1% line coverage, so a Spring or Vaadin
- * upgrade that broke it would pass the whole suite. The actuator endpoints are what a load balancer
- * and a Prometheus scraper depend on, and nothing else asserts they respond. Swagger UI is what the
- * documentation points developers at.
+ * <p>The actuator endpoints are what a load balancer and a Prometheus scraper depend on, and nothing
+ * else asserts they respond. Swagger UI and the bundled documentation are what developers are pointed
+ * at. Philter has no UI since 4.0, so the paths the dashboard used must not answer or set a cookie.
  *
- * <p>These assertions are deliberately shallow: this is a smoke test, not a UI test. It answers "does
- * a real running Philter still serve its dashboard, its probes, its metrics, and its API reference",
- * which is the question a framework upgrade raises and which unit tests cannot answer. Each check
- * looks at the response body, not only the status code, because a friendly error page is also a 200.
+ * <p>These assertions are deliberately shallow: this is a smoke test. It answers "does a real running
+ * Philter still serve its probes, its metrics, and its API reference", which is the question a
+ * framework upgrade raises and which unit tests cannot answer. Each check looks at the response body,
+ * not only the status code, because a friendly error page is also a 200.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"spring.main.allow-bean-definition-overriding=true"})
+        properties = {"spring.main.allow-bean-definition-overriding=true",
+                "philter.docs.location=classpath:/smoke-docs/"})
 class ApplicationSmokeIT {
 
     /**
@@ -91,13 +92,12 @@ class ApplicationSmokeIT {
     @BeforeEach
     void setUp() {
 
-        // Do not follow redirects: a redirect to the login page must not be mistaken for a page that
-        // rendered.
+        // Do not follow redirects: a redirect must not be mistaken for a page that rendered.
         httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
         baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
 
         final String username = "smoke-" + UUID.randomUUID() + "@example.com";
-        final ServiceResponse created = userService.createUser("req", username, "password", "user",
+        final ServiceResponse created = userService.createUser("req", username, "user",
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
 
@@ -111,19 +111,38 @@ class ApplicationSmokeIT {
         httpClient.close();
     }
 
-    @Test
-    @DisplayName("The dashboard login page renders")
-    void dashboardRenders() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/login", "/admin", "/account", "/VAADIN/", "/public/philter.png"})
+    @DisplayName("The paths the dashboard served are not found, and set no cookie")
+    void formerDashboardPathsAreNotFound(final String path) throws Exception {
 
-        final HttpResponse<String> response = get("/login");
+        final HttpResponse<String> response = get(path);
+
+        assertEquals(404, response.statusCode(), path + ": " + head(response.body()));
+        assertTrue(response.headers().allValues("Set-Cookie").isEmpty(),
+                path + " must not start a session: " + response.headers().allValues("Set-Cookie"));
+
+    }
+
+    @Test
+    @DisplayName("The unauthenticated status endpoint responds")
+    void apiHealthResponds() throws Exception {
+
+        final HttpResponse<String> response = get("/api/health");
+
+        assertEquals(200, response.statusCode(), response.body());
+        assertTrue(response.headers().allValues("Set-Cookie").isEmpty());
+
+    }
+
+    @Test
+    @DisplayName("The bundled documentation is served")
+    void documentationIsServed() throws Exception {
+
+        final HttpResponse<String> response = get("/public/docs/index.html");
 
         assertEquals(200, response.statusCode());
-        // Vaadin stamps its generated bootstrap page, so this confirms the Vaadin servlet produced the
-        // response rather than an error page or a static file.
-        assertTrue(response.body().contains("auto-generated by Vaadin"),
-                "the login page must be rendered by Vaadin: " + head(response.body()));
-        assertTrue(response.body().contains("window.Vaadin"),
-                "the Vaadin client bootstrap must be present: " + head(response.body()));
+        assertTrue(response.body().contains("smoke-docs"), head(response.body()));
 
     }
 

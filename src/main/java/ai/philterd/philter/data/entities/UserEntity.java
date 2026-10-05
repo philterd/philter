@@ -24,58 +24,33 @@ import java.util.Date;
 
 public class UserEntity extends AbstractEncryptedEntity {
 
-    private long securityVersion;
-    public long getSecurityVersion() { return securityVersion; }
-    public void setSecurityVersion(long value) { securityVersion = value; }
-
     private ObjectId id;
     private String username;
     private String email;
-    private String password;
     private String role;
     private String fpeKey;
     private String webhookUrl;
     private String webhookSecret;
-    private boolean passwordChangeRequired;
     // Users are deactivated rather than deleted: the record and all of the user's data are retained
     // (so the account can be reactivated and so audit and ledger entries that reference the user id
-    // still resolve to a name), but a deactivated user cannot sign in and holds no active access.
+    // still resolve to a name), but a deactivated user's API keys are refused.
     private boolean deactivated;
     private Date deactivatedAt;
-    // Multi-factor authentication (TOTP). mfaEnabled is set once the user has verified an enrolled
-    // authenticator; mfaSecret is the Base32 shared secret for code generation. An admin can clear both
-    // to reset a user who has lost their authenticator.
-    private boolean mfaEnabled;
-    private String mfaSecret;
-    // Consecutive failed MFA code entries; when it reaches the limit the account is locked and an
-    // administrator must clear the lock (it does not expire on its own).
-    private int mfaFailedAttempts;
-    private boolean mfaLocked;
-    // The last TOTP step accepted, so a code cannot be replayed within its window.
-    private long mfaLastUsedTimeStep;
 
     public static UserEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final UserEntity userEntity = new UserEntity();
         userEntity.setId(document.getObjectId("_id"));
-        userEntity.setSecurityVersion(document.getLong("security_version") == null ? 0L : document.getLong("security_version"));
         // The login identifier is the username. Accounts created before the username field existed
         // stored the login id under "email", so fall back to that when "username" is absent.
         userEntity.setUsername(document.getString("username") != null
                 ? document.getString("username") : document.getString("email"));
         userEntity.setEmail(document.getString("email"));
-        userEntity.setPassword(document.getString("password"));
         userEntity.setRole(document.getString("role"));
         userEntity.setFpeKey(readEncrypted(document, encryptionService, "fpe_key"));
         userEntity.setWebhookUrl(document.getString("webhook_url"));
         userEntity.setWebhookSecret(readEncrypted(document, encryptionService, "webhook_secret"));
-        userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
         userEntity.setDeactivated(document.getBoolean("deactivated", false));
         userEntity.setDeactivatedAt(document.getDate("deactivated_at"));
-        userEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
-        userEntity.setMfaSecret(readEncrypted(document, encryptionService, "mfa_secret"));
-        userEntity.setMfaFailedAttempts(document.getInteger("mfa_failed_attempts", 0));
-        userEntity.setMfaLocked(document.getBoolean("mfa_locked", false));
-        userEntity.setMfaLastUsedTimeStep(document.getLong("mfa_last_used_time_step") == null ? 0L : document.getLong("mfa_last_used_time_step"));
         return userEntity;
     }
 
@@ -102,24 +77,17 @@ public class UserEntity extends AbstractEncryptedEntity {
         if (id != null) {
             document.put("_id", id);
         }
-        document.put("security_version", securityVersion);
         document.put("username", username);
         document.put("email", email);
-        document.put("password", password);
         document.put("role", role);
-        // Per-user secrets are encrypted at rest (ciphertext plus a <field>_key). The password is a
-        // bcrypt hash, so it is stored as-is; the webhook URL is an endpoint, not a credential.
+        // Per-user secrets are encrypted at rest (ciphertext plus a <field>_key); the webhook URL is an
+        // endpoint, not a credential. Fields earlier versions stored, such as a password hash or MFA
+        // state, are left in place in existing documents and not read.
         putEncrypted(document, encryptionService, "fpe_key", fpeKey);
         document.put("webhook_url", webhookUrl);
         putEncrypted(document, encryptionService, "webhook_secret", webhookSecret);
-        document.put("password_change_required", passwordChangeRequired);
         document.put("deactivated", deactivated);
         document.put("deactivated_at", deactivatedAt);
-        document.put("mfa_enabled", mfaEnabled);
-        putEncrypted(document, encryptionService, "mfa_secret", mfaSecret);
-        document.put("mfa_failed_attempts", mfaFailedAttempts);
-        document.put("mfa_locked", mfaLocked);
-        document.put("mfa_last_used_time_step", mfaLastUsedTimeStep);
         return document;
     }
 
@@ -163,14 +131,6 @@ public class UserEntity extends AbstractEncryptedEntity {
         this.email = email;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public String getRole() {
         return role;
     }
@@ -203,14 +163,6 @@ public class UserEntity extends AbstractEncryptedEntity {
         this.webhookSecret = webhookSecret;
     }
 
-    public boolean isPasswordChangeRequired() {
-        return passwordChangeRequired;
-    }
-
-    public void setPasswordChangeRequired(final boolean passwordChangeRequired) {
-        this.passwordChangeRequired = passwordChangeRequired;
-    }
-
     public boolean isDeactivated() {
         return deactivated;
     }
@@ -227,43 +179,4 @@ public class UserEntity extends AbstractEncryptedEntity {
         this.deactivatedAt = deactivatedAt;
     }
 
-    public long getMfaLastUsedTimeStep() {
-        return mfaLastUsedTimeStep;
-    }
-
-    public void setMfaLastUsedTimeStep(final long mfaLastUsedTimeStep) {
-        this.mfaLastUsedTimeStep = mfaLastUsedTimeStep;
-    }
-
-    public boolean isMfaEnabled() {
-        return mfaEnabled;
-    }
-
-    public void setMfaEnabled(final boolean mfaEnabled) {
-        this.mfaEnabled = mfaEnabled;
-    }
-
-    public String getMfaSecret() {
-        return mfaSecret;
-    }
-
-    public void setMfaSecret(final String mfaSecret) {
-        this.mfaSecret = mfaSecret;
-    }
-
-    public int getMfaFailedAttempts() {
-        return mfaFailedAttempts;
-    }
-
-    public void setMfaFailedAttempts(final int mfaFailedAttempts) {
-        this.mfaFailedAttempts = mfaFailedAttempts;
-    }
-
-    public boolean isMfaLocked() {
-        return mfaLocked;
-    }
-
-    public void setMfaLocked(final boolean mfaLocked) {
-        this.mfaLocked = mfaLocked;
-    }
 }

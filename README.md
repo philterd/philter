@@ -51,13 +51,15 @@ On its first run the script generates private credentials into `.env` and reuses
 * `PHILTER_ENCRYPTION_KEY` encrypts sensitive data at rest. Keep it safe and use the same
   value across restarts and instances: Philter refuses to start without it, and data
   encrypted with it cannot be recovered if the key is lost or changed.
-* `PHILTER_BOOTSTRAP_API_KEY` is seeded onto the `admin` user at first start so the API
-  works without visiting the dashboard. Revoke it in the dashboard when you no longer
-  need it.
+* `PHILTER_BOOTSTRAP_API_KEY` is seeded onto the `admin` user at first start. It is the
+  only way to get a first credential, so Philter does not start without it until the admin
+  has had an API key. It holds every scope: create narrower keys with it. To retire it, create a
+  replacement administrator key with every scope and revoke the bootstrap key with that; a key
+  cannot revoke itself or a key holding scopes it lacks.
 
-The script also generates `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` for the first dashboard login. It stores these in an owner-readable `.env` file. The MongoDB password is written in `docker-compose.yml` rather than generated, so the stack comes up with nothing to set first; change it for a deployment holding real data.
+The script stores these in an owner-readable `.env` file. The MongoDB password is written in `docker-compose.yml` rather than generated, so the stack comes up with nothing to set first; change it for a deployment holding real data.
 
-To supply these yourself, put it in `.env` before the first run and the script keeps it.
+To supply these yourself, put them in `.env` before the first run and the script keeps them.
 
 The bootstrap key can create further users and mint API keys for them over the API (`POST /api/users`, `POST /api/users/{username}/api-keys`). See [Users API](docs/docs/api_and_sdks/api/users_api.md).
 
@@ -69,12 +71,11 @@ API_KEY=$(grep PHILTER_BOOTSTRAP_API_KEY .env | cut -d= -f2)
 curl -k "https://localhost:8080/api/filter" --data "George Washington lives in 90210 and his SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
-You can also access the UI at https://localhost:8080. Sign in as `admin` using `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` from `.env`; you are
-required to set a new password before you can use the dashboard.
+Philter has no built-in user interface: it is administered through its API. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is planned to run against a Philter instance using an administrator's API key.
 
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
 
-Philter serves HTTPS using a self-signed certificate that it generates the first time it starts, so `curl` needs `-k` and your browser will warn before showing the UI. See [TLS](https://philterd.github.io/philter/settings/#tls) for how to install your own certificate, or how to serve plain HTTP when a load balancer terminates TLS in front of Philter.
+Philter serves HTTPS using a self-signed certificate that it generates the first time it starts, so `curl` needs `-k`. See [TLS](https://philterd.github.io/philter/settings/#tls) for how to install your own certificate, or how to serve plain HTTP when a load balancer terminates TLS in front of Philter.
 
 Philter uses a built-in in-memory cache by default and can be configured to use a shared Valkey/Redis cache for distributed deployments. See [Caching](https://philterd.github.io/philter/caching/) in the user documentation.
 

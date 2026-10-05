@@ -13,9 +13,8 @@ flowchart TB
     p2["Philter node 2"]
     p3["Philter node N"]
   end
-  cache["Valkey / Redis<br/>shared cache: contexts, API keys, lockouts"]
+  cache["Valkey / Redis<br/>shared cache: contexts, API keys"]
   db[("MongoDB<br/>system of record")]
-  dash["Philter dashboard<br/>single instance, session-based"]
 
   clients --> lb
   lb --> p1
@@ -27,24 +26,21 @@ flowchart TB
   p1 --> db
   p2 --> db
   p3 --> db
-  dash --> db
-  dash --> cache
 ```
 
-A load balancer distributes API requests across two or more identical, stateless Philter nodes. Every node reads and writes the same shared Valkey/Redis cache and the same MongoDB, so API requests can be served by any node. Consistent context replacements depend on retained MongoDB mappings and cache invalidation, as described below. The dashboard is the one exception: it is session-based and runs as a single instance (see below).
+A load balancer distributes API requests across two or more identical, stateless Philter nodes. Every node reads and writes the same shared Valkey/Redis cache and the same MongoDB, so API requests can be served by any node. Consistent context replacements depend on retained MongoDB mappings and cache invalidation, as described below. Philter has no built-in UI, so there is no session-based component to pin to one node.
 
 ## What is stateless and what is shared
 
 - **Philter API nodes are stateless.** Each API request (`/api/**`) is authenticated from its own API key and depends on no server-side session, so any node can serve any request. Add or remove nodes freely.
 - **MongoDB is the system of record.** Policies, API keys, contexts and their token-to-replacement mappings, ledgers, and more live in [MongoDB](database.md). Philter does not start without it.
-- **Valkey/Redis is the shared cache.** Context replacements, the API-key cache, and login-lockout counters are shared through [Valkey/Redis](caching.md) so they stay consistent across the fleet.
-- **The dashboard is single-instance.** The dashboard is session-based; its server-side session is not shared, so it runs as one instance and is not part of the scaled API tier. It is a low-traffic admin console, not the redaction hot path. See [Caching](caching.md#horizontal-scaling-the-api-not-the-dashboard) and [Login Security](login_security.md).
+- **Valkey/Redis is the shared cache.** Context replacements and the API-key cache are shared through [Valkey/Redis](caching.md) so they stay consistent across the fleet.
 
 ## Required configuration
 
 Every node must share the same backing services:
 
-- **Same cache.** Set `CACHE_HOSTNAME` (and `CACHE_PORT`, `CACHE_PASSWORD`, `CACHE_SSL` as needed) identically on every node so they share one Valkey/Redis. With more than one node this is effectively required, not optional: without it, each node keeps its own in-process cache, invalidations do not reach the other nodes, and login-lockout counters are not shared. MongoDB still coordinates creation of new token mappings. The full configuration table is in [Caching](caching.md#configuration).
+- **Same cache.** Set `CACHE_HOSTNAME` (and `CACHE_PORT`, `CACHE_PASSWORD`, `CACHE_SSL` as needed) identically on every node so they share one Valkey/Redis. With more than one node this is effectively required, not optional: without it, each node keeps its own in-process cache, invalidations do not reach the other nodes, and a revoked API key stays usable on other nodes until their cached copy expires. MongoDB still coordinates creation of new token mappings. The full configuration table is in [Caching](caching.md#configuration).
 - **Same database.** Point every node at the same MongoDB. See [Database](database.md).
 - **Same encryption key.** Set the same `PHILTER_ENCRYPTION_KEY` on every node. It is required to decrypt shared records and derive consistent keyed token hashes. Preserve it across restarts; see [Encryption](settings.md#encryption).
 - **Same queue limits.** Use identical [async admission limits](settings.md#async-queue-admission) on every node.
@@ -52,15 +48,13 @@ Every node must share the same backing services:
 
 ## Load balancing
 
-Put any HTTP load balancer in front of the API nodes. Requests are stateless, so no sticky sessions are needed for `/api/**`. Configure the load balancer health check against Philter's health endpoint:
+Put any HTTP load balancer in front of the API nodes. Requests are stateless, so no sticky sessions are needed. Configure the load balancer health check against Philter's health endpoint:
 
 ```
 GET /api/health
 ```
 
 The [health endpoint](api_and_sdks/api/public_api.md) is a liveness check: it returns `200` with `"status": "UP"` when its handler can respond. It does not probe MongoDB, the cache, or worker progress. Remove unresponsive nodes from routing, but also monitor dependency availability, queue age, and processing failures before deciding a node can accept useful work. Philter does not expose a dedicated dependency-readiness endpoint through `/api/health`.
-
-If you also expose the dashboard through the load balancer, send it to the single dashboard instance rather than the API pool, since it is session-based.
 
 The Docker image serves HTTPS with a self-signed certificate by default, which a load balancer will not trust. Hold the real certificate at the load balancer and set `SSL_ENABLED=false` on every node so they serve plain HTTP behind it, over a private network. See [TLS](settings.md#tls).
 

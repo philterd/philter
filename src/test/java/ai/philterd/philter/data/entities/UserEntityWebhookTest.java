@@ -59,29 +59,16 @@ class UserEntityWebhookTest {
     }
 
     @Test
-    void mfaFieldsRoundTripWithEncryptedSecret() {
-        final EncryptionService encryptionService = new TestEncryptionService();
-
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setEmail("a@b.c");
-        user.setMfaEnabled(true);
-        user.setMfaSecret("JBSWY3DPEHPK3PXP");
-        user.setMfaFailedAttempts(2);
-        user.setMfaLocked(true);
-
-        final Document doc = user.toDocument(encryptionService);
-        // The secret is encrypted at rest; the flags and counter are stored as-is.
-        assertNotEquals("JBSWY3DPEHPK3PXP", doc.getString("mfa_secret"));
-        assertTrue(doc.getBoolean("mfa_enabled"));
-        assertTrue(doc.getBoolean("mfa_locked"));
-        assertEquals(2, doc.getInteger("mfa_failed_attempts"));
-
-        final UserEntity restored = UserEntity.fromDocument(doc, encryptionService);
-        assertTrue(restored.isMfaEnabled());
-        assertEquals("JBSWY3DPEHPK3PXP", restored.getMfaSecret());
-        assertEquals(2, restored.getMfaFailedAttempts());
-        assertTrue(restored.isMfaLocked());
+    void fieldsFromEarlierVersionsAreIgnored() {
+        // Users stored before 4.0 carry dashboard sign-in fields; they must still load.
+        final Document stored = new Document("_id", new ObjectId()).append("username", "legacy").append("role", "admin")
+                .append("password", "$2a$10$abcdefghijklmnopqrstuv").append("password_change_required", true)
+                .append("security_version", 3L).append("mfa_enabled", true).append("mfa_secret", "not-decryptable")
+                .append("mfa_failed_attempts", 2).append("mfa_locked", true);
+        final UserEntity restored = UserEntity.fromDocument(stored, new TestEncryptionService());
+        assertEquals("legacy", restored.getUsername());
+        assertEquals("admin", restored.getRole());
+        assertFalse(restored.toDocument(new TestEncryptionService()).containsKey("mfa_secret"));
     }
 
     @Test

@@ -20,7 +20,7 @@ import ai.philterd.philter.utils.EnvUtils;
 /**
  * The kill switch for admin cross-user access: whether an administrator may view or act on
  * <em>other</em> users' resources (their contexts, policies, custom lists, documents, and redaction
- * ledger). This governs both the API {@code owner} parameter and the admin "All …" UI tabs.
+ * ledger). This governs the API {@code owner} and {@code all_users} parameters.
  *
  * <p>It does <strong>not</strong> affect ordinary admin functions such as user management, nor a
  * user's access to their own data.

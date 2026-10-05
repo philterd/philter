@@ -130,7 +130,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
      */
     public String regenerate(final String requestId, final ObjectId actingUserId,
                              final String clientIpAddress, final String details) {
-        ai.philterd.philter.api.security.DashboardAuthorization.requireAdministrator(mongoClient, actingUserId);
+        ai.philterd.philter.api.security.AdministratorAuthorization.requireActiveAdministrator(mongoClient, actingUserId);
         if (externallyManaged) {
             throw new IllegalStateException("Signing key is managed by PHILTER_SIGNING_KEY_PATH; replace the file and restart all instances.");
         }

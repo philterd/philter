@@ -25,12 +25,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * Serves the built documentation at {@code /public/docs/}. The documentation is built and placed on
  * the filesystem by the Docker image (see the Dockerfile's docs stage); this maps that directory to
- * the URL the UI links to (for example, the footer's "Documentation" link to
- * {@code /public/docs/index.html}).
+ * that URL.
  * <p>
  * The location is configurable via {@code philter.docs.location} and defaults to the path the Docker
  * image uses. When the directory is absent (for example, local development that did not build the
- * docs), requests under {@code /public/docs/} simply return 404 — the same behavior as before.
+ * docs), requests under {@code /public/docs/} return 404.
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {

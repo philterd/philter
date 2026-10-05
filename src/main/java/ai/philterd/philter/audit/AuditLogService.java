@@ -33,8 +33,8 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Read-only access to the audit log ({@code audit_events}): the dashboard's CSV export and the
- * {@code GET /api/audit} listing. Writing is handled by {@link MongoDBAuditEventPublisher}.
+ * Read-only access to the audit log ({@code audit_events}): the {@code GET /api/audit}
+ * listing and its CSV export. Writing is handled by {@link MongoDBAuditEventPublisher}.
  */
 public class AuditLogService {
 

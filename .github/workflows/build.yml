@@ -15,6 +15,4 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
       - name: Run the Maven verify phase
-        run: |
-          export PHILTER_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -base64 32)"
-          mvn --batch-mode --update-snapshots verify
+        run: mvn --batch-mode --update-snapshots verify

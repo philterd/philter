@@ -38,6 +38,13 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         return new SigningKeyDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
+    /** Rotation rechecks that the acting user is an active administrator. */
+    private ObjectId admin() {
+        final ObjectId id = new ObjectId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", id).append("role", "admin"));
+        return id;
+    }
+
     @Test
     void startupPublishesOneKeyAndAuditsGeneration() {
         final var audit = mock(AuditEventPublisher.class);
@@ -53,7 +60,7 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         final var first = new SigningKeyDataService(mongoClient, new TestEncryptionService(), audit);
         final String old = first.getActiveKeyId();
         final var second = service();
-        final var actor = new ObjectId();
+        final var actor = admin();
         first.regenerate("req", actor, null, "source: test");
         assertNotEquals(old, first.getActiveKeyId());
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
@@ -68,7 +75,7 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         final var first = new SigningKeyDataService(mongoClient, encryption, mock(AuditEventPublisher.class));
         final String before = first.getActiveKeyId();
         doThrow(new IllegalStateException("encryption unavailable")).when(encryption).encryptBytes(any(), anyString());
-        assertThrows(IllegalStateException.class, () -> first.regenerate("req", null, null, "source: test"));
+        assertThrows(IllegalStateException.class, () -> first.regenerate("req", admin(), null, "source: test"));
         assertEquals(before, service().getActiveKeyId());
         assertEquals(before, first.getActiveKeyId());
     }
@@ -79,7 +86,7 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         mongoClient.getDatabase("philter").getCollection("signing_key_state").deleteMany(new Document());
         assertThrows(IllegalStateException.class, first::currentSigningKey);
         assertThrows(IllegalStateException.class, first::getPublicKeyInfo);
-        assertThrows(IllegalStateException.class, () -> first.regenerate("req", null, null, "source: test"));
+        assertThrows(IllegalStateException.class, () -> first.regenerate("req", admin(), null, "source: test"));
     }
 
     @Test
@@ -116,7 +123,7 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         assertTrue(first.isExternallyManaged());
         assertArrayEquals(pair.getPublic().getEncoded(), first.getPublicKey().getEncoded());
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
-        assertThrows(IllegalStateException.class, () -> first.regenerate("req", null, null, "source: test"));
+        assertThrows(IllegalStateException.class, () -> first.regenerate("req", admin(), null, "source: test"));
         final var stored = mongoClient.getDatabase("philter").getCollection("signing_keys").find().first();
         assertFalse(stored.containsKey("private_key"));
         assertEquals(0, mongoClient.getDatabase("philter").getCollection("signing_key_state").countDocuments());
@@ -134,10 +141,11 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         when(client.getDatabase("philter")).thenReturn(db);
         when(db.getCollection("signing_keys")).thenReturn(realDb.getCollection("signing_keys"));
         when(db.getCollection("signing_key_state")).thenReturn(state);
+        when(db.getCollection("users")).thenReturn(realDb.getCollection("users"));
         final var rotating = new SigningKeyDataService(client, new TestEncryptionService(), mock(AuditEventPublisher.class));
         doThrow(new IllegalStateException("publication failed")).when(state)
                 .updateOne(any(org.bson.conversions.Bson.class), any(org.bson.conversions.Bson.class));
-        assertThrows(IllegalStateException.class, () -> rotating.regenerate("req", null, null, "source: test"));
+        assertThrows(IllegalStateException.class, () -> rotating.regenerate("req", admin(), null, "source: test"));
         assertEquals(before, first.getActiveKeyId());
         assertEquals(before, rotating.currentSigningKey().keyId());
         assertEquals(before, service().getActiveKeyId());

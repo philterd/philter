@@ -93,7 +93,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
     }
 
     @Test
-    @DisplayName("Without a zone the server's is used, as the dashboard does")
+    @DisplayName("Without a zone the server's is used")
     void defaultsToTheServerZone() {
         final AuditLogService.CsvExport export = new AuditLogService(mongoClient)
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), null);

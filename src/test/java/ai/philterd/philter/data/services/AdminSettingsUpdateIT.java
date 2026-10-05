@@ -50,14 +50,14 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
     @BeforeEach
     void setUp() {
         service = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), audit);
-        admin = user("admin", false, false);
+        admin = user("admin", false);
     }
 
-    private ObjectId user(final String role, final boolean deactivated, final boolean mfaLocked) {
+    private ObjectId user(final String role, final boolean deactivated) {
         final ObjectId id = new ObjectId();
         mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", id)
                 .append("username", "u-" + id).append("role", role)
-                .append("deactivated", deactivated).append("mfa_locked", mfaLocked));
+                .append("deactivated", deactivated));
         return id;
     }
 
@@ -130,10 +130,10 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
     }
 
     @Test
-    @DisplayName("Only a current, active, unlocked administrator may change settings")
+    @DisplayName("Only a current, active administrator may change settings")
     void requiresAnActiveAdministrator() {
-        for (final ObjectId notAllowed : List.of(user("user", false, false), user("admin", true, false),
-                user("admin", false, true), new ObjectId())) {
+        for (final ObjectId notAllowed : List.of(user("user", false), user("admin", true),
+                new ObjectId())) {
             assertThrows(AccessDeniedException.class,
                     () -> service.update(update(true, null, null, null, null, null), notAllowed, key));
         }
@@ -143,7 +143,7 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
     @Test
     @DisplayName("A Phield value saved without these checks does not block an unrelated change")
     void storedPhieldValuesDoNotBlockOtherChanges() {
-        // As the dashboard can leave them: enabled with a URL that is not one.
+        // As an earlier version could leave them: enabled with a URL that is not one.
         mongoClient.getDatabase("philter").getCollection("admin_settings").insertOne(
                 new Document("phield_enabled", true).append("phield_url", "phield:8080"));
 

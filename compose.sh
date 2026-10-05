@@ -39,14 +39,12 @@ fi
 chmod 600 "${ENV_FILE}"
 
 if ! grep -q '^PHILTER_ENCRYPTION_KEY=.' "${ENV_FILE}" \
-        || ! grep -q '^PHILTER_BOOTSTRAP_API_KEY=.' "${ENV_FILE}" \
-        || ! grep -q '^PHILTER_BOOTSTRAP_ADMIN_PASSWORD=.' "${ENV_FILE}"; then
+        || ! grep -q '^PHILTER_BOOTSTRAP_API_KEY=.' "${ENV_FILE}"; then
     if ! command -v openssl > /dev/null 2>&1; then
         echo "openssl is needed to generate the keys in ${ENV_FILE} but was not found." >&2
         echo "Install it, or add these lines yourself:" >&2
         echo "  PHILTER_ENCRYPTION_KEY=<base64-encoded 32 bytes>" >&2
         echo "  PHILTER_BOOTSTRAP_API_KEY=sk_<32 alphanumeric characters>" >&2
-        echo "  PHILTER_BOOTSTRAP_ADMIN_PASSWORD=<a private password, at least 16 characters>" >&2
         exit 1
     fi
 fi
@@ -60,13 +58,7 @@ fi
 # openssl rand -hex 16 gives the 32 alphanumeric characters Philter requires after "sk_".
 if ! grep -q '^PHILTER_BOOTSTRAP_API_KEY=.' "${ENV_FILE}"; then
     printf 'PHILTER_BOOTSTRAP_API_KEY=sk_%s\n' "$(openssl rand -hex 16)" >> "${ENV_FILE}"
-    echo "Generated PHILTER_BOOTSTRAP_API_KEY in ${ENV_FILE}."
-fi
-
-# A private first-login password, delivered only through the owner-readable .env file.
-if ! grep -q '^PHILTER_BOOTSTRAP_ADMIN_PASSWORD=.' "${ENV_FILE}"; then
-    printf 'PHILTER_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 24)" >> "${ENV_FILE}"
-    echo "Generated PHILTER_BOOTSTRAP_ADMIN_PASSWORD in ${ENV_FILE}. Use it for the first admin login."
+    echo "Generated PHILTER_BOOTSTRAP_API_KEY in ${ENV_FILE}. It is the admin user's first API key."
 fi
 
 # The image copies the jar rather than building it, so Maven has to have run first. Checking here

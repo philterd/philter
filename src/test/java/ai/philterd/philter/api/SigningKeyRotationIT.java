@@ -113,7 +113,7 @@ class SigningKeyRotationIT {
 
     private ObjectId createUser(final String role) {
         final String username = "rotation-" + UUID.randomUUID() + "@example.com";
-        final ServiceResponse created = userService.createUser("req", username, "password", role,
+        final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
         return userService.findByUsername(username).getId();

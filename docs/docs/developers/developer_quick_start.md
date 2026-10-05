@@ -4,7 +4,7 @@ This guide walks through creating a redaction policy, redacting text, and redact
 
 ## Before You Start
 
-You need a running Philter instance and an API key. Create a key on the [API Keys](../account/api_keys.md) page of the dashboard, or seed one at startup with `PHILTER_BOOTSTRAP_API_KEY` (see [Settings](../settings.md)).
+You need a running Philter instance and an API key. Philter does not start without `PHILTER_ENCRYPTION_KEY` (see [Encryption](../settings.md#encryption)) and, on its first start, `PHILTER_BOOTSTRAP_API_KEY`, the first API key, which Philter seeds onto the `admin` user (see [bootstrap settings](../settings.md#bootstrap-and-in-memory-capacity)). Running from the repository, `./compose.sh` generates both into `.env`. Create narrower keys with the [API Keys API](../api_and_sdks/api/api_keys_api.md).
 
 Every request carries the key as a bearer token:
 

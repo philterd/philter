@@ -170,6 +170,15 @@ public class RestApiExceptions {
     }
 
 	@ResponseBody
+	@ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
+			org.springframework.web.servlet.NoHandlerFoundException.class})
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public String handleNotFound(Exception ex) {
+		// No endpoint or static resource at this path. Without this, the catch-all below made it a 500.
+		return "Not found.";
+	}
+
+	@ResponseBody
 	@ExceptionHandler({IOException.class, Exception.class})
 	@ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR)
 	public String handleUnknownException(Exception ex) {

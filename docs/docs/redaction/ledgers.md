@@ -127,14 +127,13 @@ Deletion always operates on **whole document chains**, never on individual entri
 
 **Legal holds block both deletion paths.** If a [legal hold](legal_holds.md) is active on a document chain or a user's evidence, a purge or a single-chain delete against that evidence is blocked and returns HTTP 423. The hold must be released before either can proceed. Because these are the only ways entries are removed through Philter, a hold preserves the evidence it covers for as long as it is active. Securing the underlying MongoDB is a separate responsibility. See [Legal Holds](legal_holds.md) for the full documentation.
 
-> **Deletion is restricted.** Both paths require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is **`false` by default**. A deployment that has not opted in cannot delete ledger evidence through Philter at all, and the deletion controls do not appear in the dashboard. See [Settings](../settings.md).
+> **Deletion is restricted.** Both paths require an **administrator** and `LEDGER_DELETION_ENABLED=true`, which is **`false` by default**. A deployment that has not opted in cannot delete ledger evidence through Philter at all. See [Settings](../settings.md).
 
 ### 1. Purge by age (on demand or scheduled)
 
 An administrator can prune old entries at any time. This is how you enforce a retention policy: schedule this call and you get time-based retention that is still admin-only, hold-aware, and audited.
 
-* **Dashboard**: on the **Redaction Ledgers** page, use **Purge old entries** and enter a number of days. Eligible completed chains of yours older than that are deleted.
-* **API**: `DELETE /api/ledger?older_than_days={n}` deletes the calling user's chains older than `n` days. See the [Ledger API](../api_and_sdks/api/ledger_api.md#purge-old-ledger-entries).
+`DELETE /api/ledger?older_than_days={n}` deletes the calling user's chains older than `n` days. See the [Ledger API](../api_and_sdks/api/ledger_api.md#purge-old-ledger-entries).
 
 Age retention applies to a whole chain. Philter seals the chain after its ledger entries have been
 recorded, and further appends to that document ID are rejected. Both the completion time and the
@@ -149,8 +148,7 @@ multi-row deletion is not a MongoDB transaction. An interrupted operation also r
 
 ### 2. Deleting a single document's chain
 
-* **Dashboard**: click the delete (trash) icon next to a document on the **Redaction Ledgers** page.
-* **API**: `DELETE /api/ledger/{documentId}` removes that document's chain. See the [Ledger API](../api_and_sdks/api/ledger_api.md#delete-a-documents-ledger-chain).
+`DELETE /api/ledger/{documentId}` removes that document's chain. See the [Ledger API](../api_and_sdks/api/ledger_api.md#delete-a-documents-ledger-chain).
 
 ### There is no automatic expiry
 
@@ -158,51 +156,32 @@ Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that had MongoDB e
 
 ### Ledger entries survive user deactivation
 
-Deactivating a user account does **not** delete that user's ledger. Users are deactivated rather than deleted (see [User Management](../dashboard.md#user-management)), and deactivation never cascades to the ledger: every chain is retained and stays resolvable to the retained (deactivated) owning user, so the redaction evidence is preserved. The only ways ledger entries are removed are the two above.
+Deactivating a user account does **not** delete that user's ledger. Users are deactivated rather than deleted (see the [Users API](../api_and_sdks/api/users_api.md#deactivate-a-user)), and deactivation never cascades to the ledger: every chain is retained and stays resolvable to the retained (deactivated) owning user, so the redaction evidence is preserved. The only ways ledger entries are removed are the two above.
 
 ## Exporting Ledger Entries
 
 A document's full ledger chain can be exported as a portable JSON document so it can be archived externally and later re-verified. Each exported entry carries its `hash` and `previousHash`, so the chain's integrity can be checked offline.
 
-* **Dashboard**: open a document's ledger with **View**, then use **Export (JSON)** to download the chain.
-* **API**: `GET /api/ledger/{documentId}/export` returns the chain as a downloadable JSON document. See the [Ledger API](../api_and_sdks/api/ledger_api.md#export-a-documents-ledger-chain).
+`GET /api/ledger/{documentId}/export` returns the chain as a downloadable JSON document. See the [Ledger API](../api_and_sdks/api/ledger_api.md#export-a-documents-ledger-chain).
 
 > **Security:** unlike a context export (which contains only token hashes), a ledger export includes the **decrypted original token and its replacement**, because the ledger's purpose is to record exactly what was redacted to what. Both values are also inputs to each entry's hash, so they are what makes the chain verifiable offline; an export stripped of them could not be re-verified. Treat an export as sensitive and store and transmit it securely. Any valid API key for the account can produce one.
 
-## The Redaction Ledgers Dashboard
+## Viewing Ledgers
 
-The **Redaction Ledgers** page within your Philterd dashboard serves as the central hub for auditing your document processing activities.
+Ledgers are read with the [Ledger API](../api_and_sdks/api/ledger_api.md):
 
-### The Recent Documents List
+* [`GET /api/ledger`](../api_and_sdks/api/ledger_api.md#list-ledger-chains) lists your chains, most recent first. Each item is the chain's genesis entry, which carries the document ID, the original filename, and the time the chain was started. Use `q` to filter by all or part of a filename or document ID, and `offset` and `limit` to page.
+* [`GET /api/ledger/{documentId}`](../api_and_sdks/api/ledger_api.md#get-a-documents-ledger-chain) returns a document's entries in order, with whether the chain currently verifies. Each entry records its timestamp, its hash and the previous entry's hash, the replacement applied, and the type of information identified (for example, `SSN` or `PERSON`). The original values are returned only by an [export](#exporting-ledger-entries).
+* [`GET /api/ledger/{documentId}/valid`](../api_and_sdks/api/ledger_api.md#verify-a-documents-ledger-chain) checks whether the chain still verifies.
 
-By default, the page displays the most recently processed documents (up to 100) that have ledgering enabled. For each document, the following metadata is provided:
-  
-* **Original File Name**: The name of the document as it was uploaded.
-*   **Unique Document ID**: A system-generated UUID that uniquely identifies this specific redaction task.
-*   **Processing Date/Time**: A precise timestamp indicating when the redaction operation was completed.
-
-To delve deeper into the audit trail for a specific file, click the **View Ledger** button associated with that document.
-
-### The Detailed Redaction Log
-
-Opening a document's ledger reveals a line-by-line accounting of the sensitive information handled by the engine: 
-
-* **Timestamp**: The exact millisecond the specific redaction was committed to the ledger.
-*   **Cryptographic Hash**: The unique SHA-256 (or similar) hash for this specific entry, ensuring its place in the chain.
-*   **Identified Token**: The original, sensitive text that was detected (e.g., "John Smith").
-*   **Applied Replacement**: The redacted or masked value that replaced the original token (e.g., `[PERSON]` or `********`).
-*   **Classification (Type)**: The category of PII/PHI identified, corresponding to your policy's filters (e.g., `SSN`, `EMAIL_ADDRESS`, `PHONE_NUMBER`).
-
-## Searching and Filtering
-
-For organizations processing a high volume of documents, you can quickly locate a specific audit trail by utilizing the search box at the bottom of the Ledgers page. Simply enter all or part of the file name or the Document ID to filter the list.
+An administrator can list every user's chains with `GET /api/ledger?all_users=true`, which requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`.
 
 ## Important Considerations and Limitations
 
 *   **Plain text**: individual redactions are recorded as chain entries, so the ledger holds the full detail of what was redacted.
 *   **PDF**: a chain is created and appears in the ledger listing, stamped with the filename and the governing policy version, but the individual redactions within the PDF are **not** recorded as entries. The chain validates, but it holds no per-redaction detail.
-*   **Dashboard Listing**: The main dashboard view shows the most recent documents (up to 100). All ledger data, including older chains beyond that listing, remains accessible via the [Ledger API](../api_and_sdks/api/ledger_api.md) for historical reporting. Entries are retained until you remove them (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
-*   **Data Privacy**: Ledgers record the original sensitive information (the "Identified Token"), so treat access to them as access to the underlying data. Reading and validating a chain returns the replacements but not the original values; the originals come only from an export, which needs the separate `ledger:export` scope. Within that, the API key is the credential and no additional role is required for an account's own ledger. Reaching **another** user's ledger requires an administrator **and** `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, supplied through the `owner` parameter on the [Ledger API](../api_and_sdks/api/ledger_api.md); every such access is audited. Scope and rotate API keys accordingly, and see [Deletion is restricted](#how-and-when-ledger-entries-are-deleted) for the separate, administrator-only deletion path.
+*   **Retention**: Entries are retained until you remove them (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
+*   **Data Privacy**: Ledgers record the original sensitive information, so treat access to them as access to the underlying data. Reading and validating a chain returns the replacements but not the original values; the originals come only from an export, which needs the separate `ledger:export` scope. Within that, the API key is the credential and no additional role is required for an account's own ledger. Reaching **another** user's ledger requires an administrator **and** `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, supplied through the `owner` parameter on the [Ledger API](../api_and_sdks/api/ledger_api.md); every such access is audited. Scope and rotate API keys accordingly, and see [Deletion is restricted](#how-and-when-ledger-entries-are-deleted) for the separate, administrator-only deletion path.
 
 
 ## Effective configuration evidence

@@ -40,8 +40,8 @@ public final class WebhookSettings {
             return "Both a URL and a secret are required. Remove the webhook to clear it.";
         }
 
-        // Any failure parsing the URL or resolving its host is reported as an invalid URL, as the
-        // dashboard always has, rather than escaping as an error.
+        // Any failure parsing the URL or resolving its host is reported as an invalid URL rather than
+        // escaping as an error.
         try {
 
             final URI parsed = URI.create(url.trim());

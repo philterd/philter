@@ -49,7 +49,6 @@ public class InMemoryCacheBackend implements CacheBackend {
     private final int maxEntries;
     private long bytes;
     private int entries;
-    private volatile long counterOverflowUntil;
 
     InMemoryCacheBackend(final LongSupplier clock, final int maxEntries, final long maxBytes) {
         if (maxEntries <= 0 || maxBytes <= 0) throw new IllegalArgumentException("Cache capacity must be positive.");
@@ -86,12 +85,6 @@ public class InMemoryCacheBackend implements CacheBackend {
             }
         }
     }
-
-    @Override
-    public boolean counterCapacityExceeded() {
-        return clock.getAsLong() < counterOverflowUntil;
-    }
-
 
     private InMemoryCacheBackend() {
         this(System::currentTimeMillis);
@@ -134,29 +127,6 @@ public class InMemoryCacheBackend implements CacheBackend {
         final Entry<String> old = strings.get(key);
         if (old != null) removeString(key, old);
         if (reserve(1, weight(key, value))) strings.put(key, new Entry<>(value, expiryFrom(ttlSeconds)));
-    }
-
-    @Override
-    public synchronized long incrementAndExpire(final String key, final int ttlSeconds) {
-        if (ttlSeconds <= 0) throw new IllegalArgumentException("Counter TTL must be positive.");
-        final long now = clock.getAsLong();
-        Entry<String> old = strings.get(key);
-        if (old != null && old.isExpired(now)) { removeString(key, old); old = null; }
-        long count = 0;
-        if (old != null) {
-            try { count = Long.parseLong(old.value()); } catch (NumberFormatException ignored) { }
-        }
-        final long next = count == Long.MAX_VALUE ? count : count + 1;
-        final String value = Long.toString(next);
-        final long delta = weight(key, value) - (old == null ? 0 : weight(key, old.value()));
-        if (!reserve(old == null ? 1 : 0, delta)) {
-            // Never evict a live lockout counter. A single bounded overflow marker blocks logins
-            // for the entire failure window, including usernames whose counters could not be stored.
-            counterOverflowUntil = Math.max(counterOverflowUntil, expiryFrom(ttlSeconds));
-            return Long.MAX_VALUE;
-        }
-        strings.put(key, new Entry<>(value, expiryFrom(ttlSeconds)));
-        return next;
     }
 
     @Override

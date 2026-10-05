@@ -21,11 +21,11 @@ To evaluate Philter's performance you need:
 
 #### Configuring Philter
 
-Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a configuration that defines the types of sensitive information that will be redacted and how it will be redacted. Policies are stored in a database and are managed using Philter's [web dashboard](dashboard.md) or [API](api_and_sdks/api/policies_api.md).
+Before we can begin our evaluation we need to create a policy. A [policy](policies/filter_policies.md) is a configuration that defines the types of sensitive information that will be redacted and how it will be redacted. Policies are stored in a database and are managed with the [Policies API](api_and_sdks/api/policies_api.md).
 
 #### Creating a Policy
 
-Log into the Philter dashboard and navigate to the **Redaction Policies** page. You can create a new policy by clicking the "New Policy" button, or you can clone the default policy and modify it for your needs.
+Write a new policy, or copy the default policy with [`POST /api/policies/default/copy?name=...`](api_and_sdks/api/policies_api.md#copy-a-policy) and modify the copy for your needs.
 
 When creating a new policy, the configuration will be similar to what's shown below:
 
@@ -118,7 +118,7 @@ The order of the filters in the policy does not matter and has no impact on perf
 
 Repeat these steps until you have added a filter for each of the types of sensitive information you want to redact. Typically, the default redaction `strategy` and `redactionFormat` values for each filter should be fine for evaluation.
 
-When finished modifying the policy, save the policy in the dashboard. There is no need to restart Philter; the policy will be available immediately for use.
+When finished modifying the policy, save it with [`POST /api/policies`](api_and_sdks/api/policies_api.md#save-a-policy). There is no need to restart Philter; the policy will be available immediately for use.
 
 #### Submitting Text for Redaction
 

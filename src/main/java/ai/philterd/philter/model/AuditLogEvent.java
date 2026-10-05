@@ -61,14 +61,9 @@ public enum AuditLogEvent {
 
     // User account lifecycle.
     USER_CREATED("user_created"),
-    USER_PASSWORD_CHANGED("user_password_changed"),
     USER_ROLE_CHANGED("user_role_changed"),
     USER_DEACTIVATED("user_deactivated"),
     USER_REACTIVATED("user_reactivated"),
-    USER_MFA_ENABLED("user_mfa_enabled"),
-    USER_MFA_DISABLED("user_mfa_disabled"),
-    USER_MFA_LOCKED("user_mfa_locked"),
-    USER_MFA_UNLOCKED("user_mfa_unlocked"),
     // Retained for historical events: users are deactivated rather than deleted.
 
     // Account and admin configuration changes.

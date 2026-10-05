@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The changelog told readers this release ships Phileas 4.2.0 while the build shipped 4.4.0. Nobody
  * noticed, because a dependency bump lands in the pom and the release notes are written once.
  *
- * <p>The rule is that the changelog may be less precise than the build ("Vaadin 25" for 25.2.6 is
+ * <p>The rule is that the changelog may be less precise than the build ("Phileas 4" for 4.5.0 is
  * fine) but never different. A version it names must be a prefix of the version that is built, with
  * any build qualifier ignored, so 4.5.0 describes 4.5.0-SNAPSHOT.
  */
@@ -48,7 +48,6 @@ class ReleaseNotesVersionTest {
     /** The pom property holding each dependency's version, by the name the changelog calls it. */
     private static final Map<String, String> PROPERTIES = Map.of(
             "Phileas", "phileas.version",
-            "Vaadin", "vaadin.version",
             "Java", "java.version");
 
     @Test

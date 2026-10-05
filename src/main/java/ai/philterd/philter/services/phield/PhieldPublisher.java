@@ -175,8 +175,8 @@ public class PhieldPublisher {
 
     /**
      * Warns the first time a configuration is seen that sends the key over cleartext http, and again
-     * if it is corrected and later reintroduced. An administrator who configures this from the
-     * dashboard is warned there too; this covers instances configured some other way.
+     * if it is corrected and later reintroduced. {@code PATCH /api/settings} also returns a
+     * warning; this covers instances configured some other way.
      */
     private void warnIfApiKeyInTheClear(final Config config) {
         if (config.apiKeyInTheClear) {

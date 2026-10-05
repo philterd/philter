@@ -47,12 +47,10 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -136,8 +134,8 @@ class UsersApiControllerTest {
     }
 
     private void userCreationSucceeds() {
-        when(userService.createUser(anyString(), anyString(), any(), isNull(), anyString(),
-                any(), any(), anyString(), anyBoolean(), any(), any()))
+        when(userService.createUser(anyString(), anyString(), any(), anyString(),
+                any(), any(), anyString(), any(), any()))
                 .thenReturn(ServiceResponse.success("User created."));
     }
 
@@ -162,8 +160,8 @@ class UsersApiControllerTest {
 
         assertTrue(body.contains("\"username\":\"ci\""), "the response must name the user: " + body);
         assertTrue(body.contains("\"role\":\"user\""), "the response must state the role: " + body);
-        verify(userService).createUser(eq("req-provision"), eq("ci"), eq("ci@example.com"), isNull(),
-                eq("user"), any(), any(), eq("api"), eq(false), eq(callerUserId), eq(callerApiKeyId));
+        verify(userService).createUser(eq("req-provision"), eq("ci"), eq("ci@example.com"),
+                eq("user"), any(), any(), eq("api"), eq(callerUserId), eq(callerApiKeyId));
     }
 
     @Test
@@ -176,8 +174,8 @@ class UsersApiControllerTest {
 
         // The acting principal is passed through to the user_created event; without it the audit log
         // says a user appeared and not who made it.
-        verify(userService).createUser(anyString(), anyString(), any(), isNull(), anyString(),
-                any(), any(), anyString(), anyBoolean(), eq(callerUserId), eq(callerApiKeyId));
+        verify(userService).createUser(anyString(), anyString(), any(), anyString(),
+                any(), any(), anyString(), eq(callerUserId), eq(callerApiKeyId));
     }
 
     @Test
@@ -191,8 +189,8 @@ class UsersApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"role\":\"admin\""), "the role is normalized: " + body);
-        verify(userService).createUser(anyString(), eq("ops"), any(), isNull(), eq("admin"),
-                any(), any(), anyString(), anyBoolean(), any(), any());
+        verify(userService).createUser(anyString(), eq("ops"), any(), eq("admin"),
+                any(), any(), anyString(), any(), any());
     }
 
     @Test
@@ -202,8 +200,8 @@ class UsersApiControllerTest {
 
         createUser("{\"username\":\"ci\",\"role\":\"root\"}").andExpect(status().isBadRequest());
 
-        verify(userService, never()).createUser(anyString(), anyString(), any(), any(), anyString(),
-                any(), any(), anyString(), anyBoolean(), any(), any());
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(),
+                any(), any(), anyString(), any(), any());
     }
 
     @Test
@@ -225,8 +223,8 @@ class UsersApiControllerTest {
 
         assertTrue(body.contains("administrator"), "the refusal must say what is required: " + body);
         assertFalse(body.contains("scope"), "this refusal is not about the key's scopes: " + body);
-        verify(userService, never()).createUser(anyString(), anyString(), any(), any(), anyString(),
-                any(), any(), anyString(), anyBoolean(), any(), any());
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(),
+                any(), any(), anyString(), any(), any());
     }
 
     @Test
@@ -247,8 +245,8 @@ class UsersApiControllerTest {
     @DisplayName("A username already in use is a conflict, not a new user")
     void createUserReportsADuplicateUsername() throws Exception {
         callerIsAdministrator(true);
-        when(userService.createUser(anyString(), anyString(), any(), isNull(), anyString(),
-                any(), any(), anyString(), anyBoolean(), any(), any()))
+        when(userService.createUser(anyString(), anyString(), any(), anyString(),
+                any(), any(), anyString(), any(), any()))
                 .thenReturn(ServiceResponse.failure("User already exists."));
 
         final String body = createUser("{\"username\":\"ci\"}")
@@ -276,8 +274,8 @@ class UsersApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("API keys"), "the refusal must say how users authenticate: " + body);
-        verify(userService, never()).createUser(anyString(), anyString(), any(), any(), anyString(),
-                any(), any(), anyString(), anyBoolean(), any(), any());
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(),
+                any(), any(), anyString(), any(), any());
     }
 
     // ----- reading users -----
@@ -294,8 +292,6 @@ class UsersApiControllerTest {
         user.setEmail(username + "@example.com");
         user.setRole(role);
         user.setDeactivated(deactivated);
-        user.setPassword("$2a$10$storedhashstoredhashstoredhashstoredhashstoredhashst");
-        user.setMfaSecret("JBSWY3DPEHPK3PXP");
         return user;
     }
 
@@ -314,8 +310,6 @@ class UsersApiControllerTest {
         assertTrue(body.contains("\"total\":2"), body);
         assertTrue(body.contains("\"username\":\"bob\"") && body.contains("\"active\":false"),
                 "a deactivated user is listed and marked: " + body);
-        assertFalse(body.contains("password") || body.contains("storedhash") || body.contains("JBSWY3DP")
-                || body.contains("mfa"), "no password, hash, or MFA secret may leave the API: " + body);
     }
 
     @Test

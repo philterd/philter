@@ -1,6 +1,6 @@
 # Developers
 
-Philter's REST API is the integration surface for applications, data pipelines, and batch processing. Everything the dashboard does to redaction resources is also available over the API, so policies and redaction workflows can be managed as code.
+Philter's REST API is the integration surface for applications, data pipelines, and batch processing, and the only way to administer Philter, which has no built-in user interface. Policies, redaction workflows, users, and keys can all be managed as code.
 
 The [Developer Quick Start](./developer_quick_start.md) walks through creating a policy, redacting text, and redacting a PDF, with `curl` and Python examples.
 
@@ -13,13 +13,14 @@ The API covers:
 *   **Contexts**: manage [contexts](../redaction/contexts.md) and their token-to-replacement entries, including export and import.
 *   **Lists**: manage [custom lists](../redaction/custom_lists.md) and [always/never redact lists](../redaction/redact_lists.md).
 *   **Evidence**: query and export the [redaction ledger](../redaction/ledgers.md), and set or release [legal holds](../redaction/legal_holds.md).
+*   **Administration**: manage [users](../api_and_sdks/api/users_api.md), [API keys](../api_and_sdks/api/api_keys_api.md), [settings](../api_and_sdks/api/settings_api.md), and the [audit log](../api_and_sdks/api/audit_api.md).
 *   **Re-identification**: reverse a `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE` value with [re-identification](../redaction/re-identification.md), which requires a reason that is recorded in the audit log.
 
 See the [API Reference](../api_and_sdks/api.md) for every endpoint, and [Client SDKs](../api_and_sdks/sdks.md) for the Java SDK and for generating a client in other languages from the OpenAPI specification.
 
 ## API Authentication
 
-All API requests authenticate with an API key sent as a bearer token. Manage keys on the [API Keys](../account/api_keys.md) page of the dashboard, or seed one at startup with `PHILTER_BOOTSTRAP_API_KEY`.
+All API requests authenticate with an API key sent as a bearer token. The first key is seeded at startup from `PHILTER_BOOTSTRAP_API_KEY`; manage further keys with the [API Keys API](../api_and_sdks/api/api_keys_api.md). See [API Keys and Authentication](../account/api_keys.md).
 
 ```http
 Authorization: Bearer <YOUR_API_KEY>

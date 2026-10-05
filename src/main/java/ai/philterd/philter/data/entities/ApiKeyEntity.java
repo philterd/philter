@@ -38,8 +38,8 @@ public class ApiKeyEntity extends AbstractEntity {
     private Date timestamp;
     private transient String apiKey;
     private ObjectId userId;
-    // True for a key seeded at startup from PHILTER_BOOTSTRAP_API_KEY, so the UI can flag that the
-    // bootstrap key is still in use and nudge the admin to replace it with one of their own.
+    // True for a key seeded at startup from PHILTER_BOOTSTRAP_API_KEY, so a client can flag that the
+    // bootstrap key is still in use and should be replaced with a narrower one.
     private boolean bootstrap;
 
     /** The scopes this key carries. Empty means the key can call nothing. */

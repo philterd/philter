@@ -124,7 +124,7 @@ class ApiFilterChainIT {
 
         // Each test gets its own user so state cannot leak between tests through the shared context.
         username = "filter-chain-" + UUID.randomUUID() + "@example.com";
-        final ServiceResponse created = userService.createUser("req", username, "password", "user",
+        final ServiceResponse created = userService.createUser("req", username, "user",
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
 
@@ -135,7 +135,7 @@ class ApiFilterChainIT {
 
         // A second user, so cross-user access can be attempted against a real account.
         otherUsername = "other-" + UUID.randomUUID() + "@example.com";
-        userService.createUser("req", otherUsername, "password", "user",
+        userService.createUser("req", otherUsername, "user",
                 policyDataService, contextDataService, "test");
 
         // The seeded default policy detects persons through ph-eye, which is not running here. Use a

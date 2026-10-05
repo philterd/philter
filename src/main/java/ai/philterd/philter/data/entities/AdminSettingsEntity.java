@@ -28,7 +28,6 @@ public class AdminSettingsEntity extends AbstractEntity {
     private String phieldOrganization = "philter";
     private String phieldApiKey = "";
     private boolean signingEnabled;
-    private boolean mfaEnabled;
     // Hosts and IP/CIDR entries a user's webhook URL may point at. Empty means any public address.
     private String webhookAllowlist = "";
 
@@ -42,7 +41,6 @@ public class AdminSettingsEntity extends AbstractEntity {
         adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
         adminSettingsEntity.setSigningEnabled(document.getBoolean("signing_enabled", false));
         adminSettingsEntity.setWebhookAllowlist(document.getString("webhook_allowlist") == null ? "" : document.getString("webhook_allowlist"));
-        adminSettingsEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
         return adminSettingsEntity;
     }
 
@@ -61,7 +59,6 @@ public class AdminSettingsEntity extends AbstractEntity {
         // is the only writer of it. Emitting it here would write the decrypted key back in the clear.
         document.put("signing_enabled", signingEnabled);
         document.put("webhook_allowlist", webhookAllowlist);
-        document.put("mfa_enabled", mfaEnabled);
         return document;
     }
 
@@ -136,14 +133,6 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public void setSigningEnabled(boolean signingEnabled) {
         this.signingEnabled = signingEnabled;
-    }
-
-    public boolean isMfaEnabled() {
-        return mfaEnabled;
-    }
-
-    public void setMfaEnabled(boolean mfaEnabled) {
-        this.mfaEnabled = mfaEnabled;
     }
 
 }

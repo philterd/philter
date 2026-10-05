@@ -10,16 +10,16 @@ This file is the source of truth for 4.0.0 and later: record every release entry
 
 ## [4.0.0] - Unreleased
 
-Major release, the first since 3.4.0. The UI is rebuilt on Vaadin 25 and served by Philter itself,
-the runtime moves to Java 25, Spring Boot 4, and Phileas 4.5, and redaction gains an evidence
-trail: a tamper-evident ledger, policy versioning, output signing, and an audit log.
+Major release, the first since 3.4.0. Philter is API-only, with no built-in UI; the runtime moves to
+Java 25, Spring Boot 4, and Phileas 4.5, and redaction gains an evidence trail: a tamper-evident
+ledger, policy versioning, output signing, and an audit log.
 
 See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Added
 
 - **Redaction ledger.** A tamper-evident, hash-chained record of every redaction made in a
-  ledger-enabled context, with endpoints under `/api/ledger`, a dashboard view, legal holds, and
+  ledger-enabled context, with endpoints under `/api/ledger`, legal holds, and
   JSON export. Deletion is administrator-only and off unless `LEDGER_DELETION_ENABLED=true`.
 - **Policy versioning.** Every policy save is retained as an immutable, content-addressed snapshot,
   and each redaction is stamped with the policy name, version, and content hash in the ledger, the
@@ -27,26 +27,24 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Output signing.** Text filter and explain responses can be signed with an ES256 JWT returned in
   `X-Philter-Signature`, binding the response hash and the applied policy. Opt-in.
 - **Legal holds.** Named, audited holds that block deletion of redaction evidence until released,
-  scoped to one document chain or to all of a user's evidence, with `/api/holds` and a dashboard view.
-- **Multi-factor authentication.** Optional TOTP on dashboard login, with enrollment, lockout after
-  repeated failures, and admin unlock.
-- **Audit log.** Security-relevant actions are recorded to a new `audit_events` collection, with an
-  admin viewer and CSV export.
+  scoped to one document chain or to all of a user's evidence, with `/api/holds`.
+- **Audit log.** Security-relevant actions are recorded to a new `audit_events` collection, readable
+  and exportable as CSV over the API.
 - **Phield and Diffuse integrations.** Optional publishing of PII type counts for drift monitoring
-  and of differential-privacy aggregates. Both are configured in the dashboard and off by default.
+  and of differential-privacy aggregates. Both are configured with `/api/settings` and off by default.
   The Phield integration takes an optional API key, sent as a bearer token, for Phield instances
   run with `PHIELD_API_KEY` set. The key is encrypted at rest.
 - **Asynchronous PDF redaction** and the `/api/documents` endpoints for listing, polling,
   downloading, and deleting jobs, with signed webhook delivery on completion or failure.
 - **Admin cross-user access.** Administrators can act on another user's resources with an `owner`
-  parameter and admin dashboard tabs.
+  parameter.
 - **Prometheus metrics** at `/actuator/prometheus`, replacing the in-application metrics dashboard.
 - **HTTPS by default.** The Docker image generates a self-signed certificate on first start.
-- **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds a credential for automation and turnkey
-  deployments without using the dashboard.
+- **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds the admin user's first API key. It is
+  required at startup until the admin has had an API key, and ignored afterwards.
 - **Users API.** Endpoints under `/api/users` list, read, and create users, set a user's role,
   deactivate and reactivate users, and mint API keys for a user, so a deployment can be administered
-  without the dashboard. `GET /api/users/me` returns the calling key's user. Users created over the
+  over the API. `GET /api/users/me` returns the calling key's user. Users created over the
   API have no password and authenticate with API keys. The endpoints require an administrator and
   the new `users:read` scope or `users:write`/`api-keys:write`, refuse to demote or deactivate the
   last active administrator, and cannot grant a key a scope the calling key does not hold. Every
@@ -58,17 +56,15 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `api-keys:read` scope. Changes are audited with the acting user and API key.
 - **Webhook API.** `GET`, `PUT`, and `DELETE /api/webhook` read, set, and remove the user's webhook
   for asynchronous results, with `owner` for administrators under the cross-user rules. The URL and
-  secret are validated as in the dashboard, by one shared check. New `webhooks:read` and
+  secret are validated before they are saved. New `webhooks:read` and
   `webhooks:write` scopes.
 - **Context counts by filter type.** `GET /api/contexts/{name}` returns the context's entries
   counted by filter type (`filterTypes`, plus `untyped`) alongside `size`, computed in the database.
-  The counts now include entries with UUID replacements, so they sum to `size`; the dashboard's
-  counts change to match.
+  The counts now include entries with UUID replacements, so they sum to `size`.
 - **Audit log CSV export over the API.** `GET /api/audit/export` returns the audit log for a date
   range as CSV, one page at a time (`limit`, default 100, at most 1,000; `offset`), with an optional
   `zone` for the range and response headers giving the row count, whether more remain, the next
-  offset, and the zone used. Each export is audited as `audit_log_exported`. In both the API and
-  dashboard exports, a cell that a spreadsheet would run as a formula is prefixed with an apostrophe.
+  offset, and the zone used. Each export is audited as `audit_log_exported`. A cell that a spreadsheet would run as a formula is prefixed with an apostrophe.
 - **Listings across all users.** `all_users=true` on `GET /api/policies`, `/api/contexts`,
   `/api/lists`, `/api/ledger`, and `/api/holds` lists every user's resources, each naming its owner,
   for administrators with `ADMIN_CROSS_USER_ACCESS_ENABLED`. Per-user responses are unchanged.
@@ -110,7 +106,8 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `"Healthy"`, matching the health response shared across Philterd products. Its response shape also
   changed to the one `/api/status` used to return. Update health probes to `GET /api/health` and to
   match on `UP`.
-- **Philter serves its own UI**, so the separate `philter-ui` container is gone.
+- **Philter has no built-in UI.** It is administered through its API. [Philter UI](https://github.com/philterd/philter-ui),
+  a separate application in development, is planned to run against Philter with an administrator's API key.
 - **Outbound HTTPS from the redaction pipeline now verifies certificates.** Earlier builds trusted
   any certificate from any host unconditionally. If Philter reaches ph-eye (or another service in the
   pipeline) over HTTPS with a self-signed or privately-issued certificate, add its issuer to the JVM

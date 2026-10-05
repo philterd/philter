@@ -103,7 +103,7 @@ public enum ApiKeyScope {
         return scope;
     }
 
-    /** Every scope, in declaration order. Used for the bootstrap key and the dashboard's select-all. */
+    /** Every scope, in declaration order. Used for the bootstrap key. */
     public static Set<String> all() {
         final Set<String> scopes = new LinkedHashSet<>();
         for (final ApiKeyScope value : values()) {

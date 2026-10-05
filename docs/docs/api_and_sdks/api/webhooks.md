@@ -1,6 +1,6 @@
 # Webhooks
 
-When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, with the `/api/webhook` endpoints below or the **My Account** → **Webhook** tab of the dashboard.
+When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, with the `/api/webhook` endpoints below.
 
 > Webhooks only fire from the [asynchronous filter path](filtering_api.md#pdf-documents). Synchronous redactions return the result on the request itself and never produce a webhook.
 
@@ -11,7 +11,7 @@ When Philter completes or fails an asynchronous PDF redaction, it can notify you
 | `url`    | Absolute `https://` (or `http://`) URL to which Philter will POST the event. Its host must be a permitted [destination](#where-a-webhook-may-point). |
 | `secret` | Shared secret used to HMAC-sign each request body. Minimum 16 characters; 48 recommended. |
 
-The URL and secret are validated the same way whether they are set over the API or in the dashboard. A URL or secret that fails is refused with the reason, and nothing is saved.
+A URL or secret that fails validation is refused with the reason, and nothing is saved. To generate a 48-character secret, run `openssl rand -hex 24`.
 
 ### Read the webhook
 
@@ -69,10 +69,6 @@ An administrator can read, set, or remove another user's webhook by adding `owne
 ### Auditing
 
 Setting and removing a webhook are recorded as `webhook_configured` and `webhook_removed` [audit events](../../auditing.md), naming the calling user and API key. The URL and secret are not recorded. A refused attempt is not recorded.
-
-### In the dashboard
-
-The **My Account** → **Webhook** tab provides a "Generate" button that creates a 48-character secret. The secret can be revealed with the password field's eye icon. Use **Remove Webhook** to disable delivery.
 
 ## Events
 
@@ -184,7 +180,7 @@ After the 8th failure, the delivery is marked `FAILED` and no further attempts a
 
 ## Where a webhook may point
 
-Philter refuses to deliver to private, loopback and link-local addresses, so a webhook cannot be aimed at the network Philter itself sits on. An administrator can widen or narrow that with the [Settings API](settings_api.md) (`webhookAllowlist`) or on **Admin** → **Admin Settings** → **Webhook Destinations**, with a comma-separated list of hostnames and IP addresses or CIDR ranges:
+Philter refuses to deliver to private, loopback and link-local addresses, so a webhook cannot be aimed at the network Philter itself sits on. An administrator can widen or narrow that with the [Settings API](settings_api.md) (`webhookAllowlist`), with a comma-separated list of hostnames and IP addresses or CIDR ranges:
 
 ```
 hooks.example.com, 203.0.113.0/24, 10.4.0.0/16

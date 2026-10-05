@@ -227,8 +227,7 @@ public class AuditApiController extends AbstractApiController {
     public static final String EXPORT_TIME_ZONE_HEADER = "X-Philter-Export-Time-Zone";
 
     @Operation(summary = "Export the audit log as CSV.",
-            description = "Returns the audit log for a range of whole days as CSV, most recent first, with the same "
-                    + "columns as the dashboard export. from and to are dates (YYYY-MM-DD), both inclusive, read in "
+            description = "Returns the audit log for a range of whole days as CSV, most recent first. from and to are dates (YYYY-MM-DD), both inclusive, read in "
                     + "zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when "
                     + "zone is omitted. to may be at most " + AuditLogService.MAX_EXPORT_WINDOW_DAYS
                     + " days after from. Returns up to limit events (default " + EXPORT_DEFAULT_LIMIT + ", at most "

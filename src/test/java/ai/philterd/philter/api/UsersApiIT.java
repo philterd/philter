@@ -107,7 +107,7 @@ class UsersApiIT {
     /** Seeds a user directly, standing in for the account a deployment starts with. */
     private ObjectId seedUser(final String prefix, final String role) {
         final String username = prefix + UUID.randomUUID();
-        final ServiceResponse created = userService.createUser("req", username, PASSWORD, role,
+        final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
         return userService.findByUsername(username).getId();
@@ -242,7 +242,6 @@ class UsersApiIT {
                 "{\"username\":\"" + username + "\",\"email\":\"ops@example.com\"}").statusCode());
 
         final UserEntity created = userService.findByUsername(username);
-        assertNull(created.getPassword(), "a user created over the API has no password");
 
         final HttpResponse<String> minted = post("/api/users/" + username + "/api-keys", adminKey,
                 "{\"scopes\":[\"users:read\",\"policies:read\"]}");

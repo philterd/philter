@@ -238,9 +238,8 @@ public class UsersApiController extends AbstractApiController {
 
         final String role = request.getRole() == null ? UserService.ROLE_USER : normalizeRole(request.getRole());
 
-        final ServiceResponse response = userService.createUser(requestId, username, request.getEmail(),
-                null, role, policyDataService, contextDataService,
-                Source.API.getSource(), false, apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        final ServiceResponse response = userService.createUser(requestId, username, request.getEmail(), role, policyDataService,
+                contextDataService, Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
 
         if (!response.isSuccessful()) {
             // The only way creation fails is a username that is already taken, by an active account or
@@ -347,7 +346,7 @@ public class UsersApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        // As in the dashboard: the request would end with the caller locked out by their own key.
+        // The request would end with the caller locked out by their own key.
         if (user.getId().equals(apiKeyEntity.getUserId())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
                     new GenericResponse("An administrator cannot deactivate their own user."));

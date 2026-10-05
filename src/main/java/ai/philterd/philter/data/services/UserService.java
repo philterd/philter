@@ -33,8 +33,6 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,8 +41,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import com.mongodb.client.result.UpdateResult;
-import com.mongodb.client.model.Updates;
 
 public class UserService extends AbstractEncryptedService<UserEntity> {
 
@@ -59,11 +55,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public static final String LAST_ADMIN_MESSAGE =
             "This is the last active administrator. Make another user an administrator first.";
 
-    private final PasswordEncoder passwordEncoder;
-
     public UserService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
-        this.passwordEncoder = new BCryptPasswordEncoder();
 
         ensureIndex(Indexes.ascending("username"), new com.mongodb.client.model.IndexOptions().unique(true));
 
@@ -71,7 +64,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     /**
      * Looks up an <strong>active</strong> (not deactivated) user by username. Deactivated users are
-     * excluded so they cannot sign in and cannot be targeted via the cross-user {@code owner}
+     * excluded so their keys cannot be used and they cannot be targeted via the cross-user {@code owner}
      * parameter. Use {@link #findOneById(ObjectId)} or {@link #findUsernamesByIds(Collection)} to resolve
      * a deactivated user for audit and ledger display, and {@link #findAnyByUsername(String)} to detect a
      * username that is already taken (including by a deactivated account).
@@ -153,36 +146,26 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    // Backward-compatible overloads without the optional email (email defaults to null).
-    public ServiceResponse createUser(final String requestId, final String username, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source) {
-        return createUser(requestId, username, null, plainPassword, role, policyService, contextService, source, false);
+    public ServiceResponse createUser(final String requestId, final String username, final String role,
+                                      final PolicyDataService policyService, final ContextDataService contextService,
+                                      final String source) {
+        return createUser(requestId, username, null, role, policyService, contextService, source, null, null);
     }
 
-    public ServiceResponse createUser(final String requestId, final String username, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
-        return createUser(requestId, username, null, plainPassword, role, policyService, contextService, source, passwordChangeRequired);
-    }
-
-    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source) {
-        return createUser(requestId, username, email, plainPassword, role, policyService, contextService, source, false);
-    }
-
-    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired) {
-        return createUser(requestId, username, email, plainPassword, role, policyService, contextService, source, passwordChangeRequired, null);
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
+                                      final PolicyDataService policyService, final ContextDataService contextService,
+                                      final String source) {
+        return createUser(requestId, username, email, role, policyService, contextService, source, null, null);
     }
 
     /**
-     * Creates a user, recording {@code actingUserId} as the principal of the {@code user_created}
-     * audit event and the new user as the object it acted on. Pass null where the acting principal is
-     * the dashboard session or startup, which the {@code source} already names; the new user is then
-     * the subject, as it was before there was any other caller.
+     * Creates a user, with a default policy and context. {@code actingUserId} is recorded as the principal
+     * of the {@code user_created} audit event, or the new user itself when null (startup), and
+     * {@code actingApiKeyId}, if any, in the details. Users have no password: they authenticate with API keys.
      */
-    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired, final ObjectId actingUserId) {
-        return createUser(requestId, username, email, plainPassword, role, policyService, contextService, source, passwordChangeRequired, actingUserId, null);
-    }
-
-    /** As above, naming {@code actingApiKeyId} in the audit details when the change came through the API. */
-    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
-        authorizeDashboardMutation(null, source, true);
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
+                                      final PolicyDataService policyService, final ContextDataService contextService,
+                                      final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
 
         final UserEntity existing = findAnyByUsername(username);
         if(existing != null) {
@@ -197,10 +180,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final UserEntity userEntity = new UserEntity();
         userEntity.setUsername(username);
         userEntity.setEmail(email);
-        // Users created over the API have no password: they authenticate with API keys only.
-        userEntity.setPassword(plainPassword == null ? null : passwordEncoder.encode(plainPassword));
         userEntity.setRole(role);
-        userEntity.setPasswordChangeRequired(passwordChangeRequired);
         // A stable per-user key for the FPE_ENCRYPT_REPLACE strategy. It is generated once and never
         // changes so format-preserving encryption is deterministic for the user.
         userEntity.setFpeKey(EncryptionService.generateFpeKey());
@@ -238,23 +218,15 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    /** Returns whether the supplied plaintext password matches the user's stored (hashed) password. */
-    public boolean passwordMatches(final UserEntity userEntity, final String plainPassword) {
-        if (userEntity == null || userEntity.getPassword() == null || plainPassword == null) {
-            return false;
-        }
-        return passwordEncoder.matches(plainPassword, userEntity.getPassword());
-    }
 
-    /** Lists a page of all users, including deactivated ones (so the admin view can show them all). */
+    /** Lists a page of all users, including deactivated ones. */
     public List<UserEntity> findAll(final int offset, final int limit) {
         return findAll(offset, limit, true);
     }
 
     /**
      * Lists a page of users sorted by email. When {@code includeDeactivated} is false, deactivated
-     * users are excluded; when true, every user is returned so the admin view can show deactivated
-     * accounts (clearly marked) alongside active ones.
+     * users are excluded; when true, every user is returned, deactivated ones included.
      */
     public List<UserEntity> findAll(final int offset, final int limit, final boolean includeDeactivated) {
 
@@ -285,27 +257,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                 : collection.countDocuments(Filters.ne("deactivated", true)));
     }
 
-    public ServiceResponse changePassword(final String requestId, final UserEntity userEntity, final String newPassword, final String source) {
-        authorizeDashboardMutation(userEntity, source, false);
-
-        if(userEntity == null) {
-
-            return ServiceResponse.failure("User does not exist.");
-
-        } else {
-
-            userEntity.setPassword(passwordEncoder.encode(newPassword));
-            // Changing the password satisfies any forced-reset requirement.
-            userEntity.setPasswordChangeRequired(false);
-            updateFields(userEntity, true, "password", "password_change_required");
-
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_CHANGED, userEntity.getId(), userEntity.getId(), source, null);
-
-            return ServiceResponse.success("Password changed.");
-
-        }
-
-    }
 
     public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source) {
         return setUserRole(requestId, userEntity, newRole, source, null, null);
@@ -317,7 +268,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * administrator.
      */
     public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
-        authorizeDashboardMutation(userEntity, source, true);
 
         if (userEntity == null) {
             return ServiceResponse.failure("User does not exist.");
@@ -328,7 +278,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             }
 
             userEntity.setRole(newRole);
-            updateFields(userEntity, true, "role");
+            updateFields(userEntity, "role");
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_ROLE_CHANGED,
                     actingUserId == null ? userEntity.getId() : actingUserId, userEntity.getId(), source, withApiKey("role: " + newRole, actingApiKeyId));
@@ -378,8 +328,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * later (see {@link #reactivateUser(String, UserEntity, String)}) and so audit and ledger entries
      * that reference the user id still resolve to a name.
      *
-     * <p>A deactivated user holds no active access: it is excluded from {@link #findByEmail(String)}
-     * (which the login {@code UserDetailsService} and the cross-user {@code owner} lookup consult), and
+     * <p>A deactivated user holds no active access: it is excluded from {@link #findByUsername(String)}
+     * (which the cross-user {@code owner} lookup consults), and
      * the API authentication filter rejects its API keys by checking {@link #isDeactivated(ObjectId)}
      * live. The keys themselves are left untouched so reactivation restores access immediately without
      * resurrecting keys the user had separately deleted.
@@ -398,7 +348,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * active administrator.
      */
     public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
-        authorizeDashboardMutation(userEntity, source, true);
 
         if (isLastActiveAdmin(userEntity)) {
             return ServiceResponse.failure(LAST_ADMIN_MESSAGE);
@@ -406,7 +355,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         userEntity.setDeactivated(true);
         userEntity.setDeactivatedAt(new Date());
-        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) {
+        if (!updateFields(userEntity, "deactivated", "deactivated_at")) {
             return ServiceResponse.failure("User is already deactivated.");
         }
 
@@ -419,7 +368,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     /**
-     * Reactivates a previously deactivated user, restoring sign-in and API access. The user's data was
+     * Reactivates a previously deactivated user, restoring API access. The user's data was
      * never removed on deactivation, so reactivation returns the account to exactly its prior state.
      */
     public ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source) {
@@ -431,11 +380,10 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * when null) and {@code actingApiKeyId}, if any, in the details.
      */
     public ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
-        authorizeDashboardMutation(userEntity, source, true);
 
         userEntity.setDeactivated(false);
         userEntity.setDeactivatedAt(null);
-        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) {
+        if (!updateFields(userEntity, "deactivated", "deactivated_at")) {
             return ServiceResponse.failure("User is already active.");
         }
 
@@ -446,162 +394,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
-    /**
-     * Enables multi-factor authentication for a user by storing the verified TOTP secret and marking the
-     * account enrolled. Called from the MFA enrollment flow only after the user has proven they can
-     * generate a valid code from the secret.
-     */
-    public void enableMfa(final String requestId, final UserEntity userEntity, final String secret, final String source) {
-        authorizeDashboardMutation(userEntity, source, false);
 
-        userEntity.setMfaSecret(secret);
-        userEntity.setMfaEnabled(true);
-        userEntity.setMfaFailedAttempts(0);
-        userEntity.setMfaLocked(false);
-        updateFields(userEntity, true, "mfa_secret", "mfa_secret_key", "mfa_enabled", "mfa_failed_attempts", "mfa_locked");
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_ENABLED, userEntity.getId(), userEntity.getId(), source, "MFA enabled via authenticator enrollment");
 
-    }
 
-    /**
-     * Disables multi-factor authentication for a user and clears the enrolled secret. This is both the
-     * admin reset path for a user who has lost their authenticator and the user's own opt-out: in either
-     * case the user can enroll again from scratch. No-op (but still safe to call) when no MFA is enrolled.
-     */
-    public void disableMfa(final String requestId, final UserEntity userEntity, final String source) {
-        authorizeDashboardMutation(userEntity, source, false);
 
-        userEntity.setMfaEnabled(false);
-        userEntity.setMfaSecret(null);
-        userEntity.setMfaFailedAttempts(0);
-        userEntity.setMfaLocked(false);
-        updateFields(userEntity, true, "mfa_secret", "mfa_secret_key", "mfa_enabled", "mfa_failed_attempts", "mfa_locked");
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_DISABLED, userEntity.getId(), userEntity.getId(), source, "MFA disabled and enrolled secret cleared");
-
-    }
-
-    /** Maximum consecutive failed MFA code attempts before the account is locked and needs an admin unlock. */
-    public static final int MAX_MFA_ATTEMPTS = 5;
-
-    /** Compare-and-set retries before falling back to counting without resolving the lock. */
-    private static final int MFA_COUNT_ATTEMPTS = 25;
-
-    /**
-     * Records a failed MFA code entry. After {@link #MAX_MFA_ATTEMPTS} consecutive failures the account
-     * is locked and can only be cleared by an administrator. Returns true if this failure locked it.
-     */
-    public boolean recordFailedMfaAttempt(final String requestId, final UserEntity userEntity, final String source) {
-
-        for (int attempt = 0; attempt < MFA_COUNT_ATTEMPTS; attempt++) {
-
-            final Document current = collection.find(Filters.and(Filters.eq("_id", userEntity.getId()),
-                    Filters.eq("security_version", userEntity.getSecurityVersion()))).first();
-            if (current == null) {
-                return false;
-            }
-            if (current.getBoolean("mfa_locked", false)) {
-                return false;
-            }
-
-            final int counted = current.getInteger("mfa_failed_attempts", 0);
-            final int next = counted + 1;
-            final boolean locks = next >= MAX_MFA_ATTEMPTS;
-
-            // Compare-and-set: the count is in the filter, and the lock moves with it.
-            final UpdateResult result = collection.updateOne(
-                    Filters.and(
-                            Filters.eq("_id", userEntity.getId()),
-                            Filters.eq("mfa_failed_attempts", counted),
-                            Filters.eq("security_version", userEntity.getSecurityVersion()),
-                            Filters.ne("mfa_locked", true)),
-                    Updates.combine(
-                            Updates.set("mfa_failed_attempts", next),
-                            Updates.set("mfa_locked", locks)));
-
-            if (result.getMatchedCount() == 1) {
-
-                userEntity.setMfaFailedAttempts(next);
-                userEntity.setMfaLocked(locks);
-
-                // Exactly one caller performs the transition, so the event is emitted once.
-                if (locks) {
-                    auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_LOCKED, userEntity.getId(),
-                            userEntity.getId(), source,
-                            "MFA locked after " + MAX_MFA_ATTEMPTS + " failed code attempts; requires an administrator to unlock");
-                }
-
-                return locks;
-
-            }
-
-        }
-
-        // Rather than lose the attempt; the next failure establishes the lock.
-        collection.updateOne(Filters.and(Filters.eq("_id", userEntity.getId()),
-                Filters.eq("security_version", userEntity.getSecurityVersion())), Updates.inc("mfa_failed_attempts", 1));
-        LOGGER.warn("Recorded a failed MFA attempt without resolving the lock state after {} attempts.",
-                MFA_COUNT_ATTEMPTS);
-
-        return false;
-
-    }
-
-    /** Clears the failed-attempt counter after a successful MFA verification. */
-    public void resetMfaAttempts(final UserEntity userEntity) {
-        if (userEntity.getMfaFailedAttempts() != 0) {
-            userEntity.setMfaFailedAttempts(0);
-            collection.updateOne(Filters.and(Filters.eq("_id", userEntity.getId()),
-                    Filters.eq("security_version", userEntity.getSecurityVersion()), Filters.ne("mfa_locked", true)),
-                    Updates.set("mfa_failed_attempts", 0));
-        }
-    }
-
-    /** Records the step accepted, so that code cannot be presented again. */
-    public boolean recordAcceptedMfaTimeStep(final UserEntity userEntity, final long timeStep) {
-
-        // Accept only if the stored step is older, in one operation.
-        final UpdateResult result = collection.updateOne(
-                Filters.and(
-                        Filters.eq("_id", userEntity.getId()),
-                        Filters.eq("mfa_enabled", true),
-                        Filters.ne("deactivated", true),
-                        Filters.eq("security_version", userEntity.getSecurityVersion()),
-                        Filters.ne("mfa_locked", true),
-                        Filters.or(
-                                Filters.exists("mfa_last_used_time_step", false),
-                                Filters.lt("mfa_last_used_time_step", timeStep))),
-                Updates.combine(
-                        Updates.set("mfa_last_used_time_step", timeStep),
-                        Updates.set("mfa_failed_attempts", 0)));
-
-        final boolean accepted = result.getMatchedCount() == 1;
-
-        if (accepted) {
-            userEntity.setMfaLastUsedTimeStep(timeStep);
-            userEntity.setMfaFailedAttempts(0);
-        }
-
-        return accepted;
-
-    }
-
-    /**
-     * Clears an MFA lock and the failed-attempt counter so the user can enter a code again. This is the
-     * administrator action that recovers a locked account; the user's enrollment is unchanged.
-     */
-    public void unlockMfa(final String requestId, final UserEntity userEntity, final String source) {
-        authorizeDashboardMutation(userEntity, source, true);
-
-        userEntity.setMfaLocked(false);
-        userEntity.setMfaFailedAttempts(0);
-        updateFields(userEntity, true, "mfa_locked", "mfa_failed_attempts");
-
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_UNLOCKED, userEntity.getId(), userEntity.getId(), source, "MFA lock cleared by administrator");
-    }
-
-    /** Whole-record saves must never restore security state from a dashboard snapshot. */
+    /** Whole-record saves could overwrite a concurrent change to another field; update fields individually. */
     @Override
     public void update(final UserEntity user) {
         throw new UnsupportedOperationException("Use a field-specific account mutation.");
@@ -617,7 +416,6 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public ServiceResponse setWebhook(final String requestId, final UserEntity user, final String url,
                                       final String secret, final String allowlist, final String source,
                                       final ObjectId actingUserId, final ObjectId actingApiKeyId) {
-        authorizeDashboardMutation(user, source, false);
 
         final String problem = WebhookSettings.validate(url, secret, allowlist);
         if (problem != null) {
@@ -626,7 +424,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         user.setWebhookUrl(url.trim());
         user.setWebhookSecret(secret);
-        updateFields(user, false, "webhook_url", "webhook_secret", "webhook_secret_key");
+        updateFields(user, "webhook_url", "webhook_secret", "webhook_secret_key");
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.WEBHOOK_CONFIGURED,
                 actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
@@ -637,11 +435,10 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     /** Removes a user's webhook and audits {@code webhook_removed}, recording the acting principal as above. */
     public ServiceResponse removeWebhook(final String requestId, final UserEntity user, final String source,
                                          final ObjectId actingUserId, final ObjectId actingApiKeyId) {
-        authorizeDashboardMutation(user, source, false);
 
         user.setWebhookUrl(null);
         user.setWebhookSecret(null);
-        updateFields(user, false, "webhook_url", "webhook_secret", "webhook_secret_key");
+        updateFields(user, "webhook_url", "webhook_secret", "webhook_secret_key");
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.WEBHOOK_REMOVED,
                 actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
@@ -649,12 +446,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return ServiceResponse.success("Webhook removed.");
     }
 
-    private boolean updateFields(final UserEntity user, final boolean securityChange, final String... fields) {
+    private boolean updateFields(final UserEntity user, final String... fields) {
         final Document serialized = user.toDocument(encryptionService);
         final Document selected = new Document();
         for (final String field : fields) selected.put(field, serialized.get(field));
         final Document update = new Document("$set", selected);
-        if (securityChange) update.append("$inc", new Document("security_version", 1L));
         org.bson.conversions.Bson predicate = Filters.eq("_id", user.getId());
         if (selected.containsKey("deactivated")) {
             predicate = Filters.and(predicate, Filters.ne("deactivated", user.isDeactivated()));
@@ -662,18 +458,5 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return collection.updateOne(predicate, update).getMatchedCount() == 1;
     }
 
-    private void authorizeDashboardMutation(final UserEntity target, final String source, final boolean adminOnly) {
-        if (!"webui".equals(source)) return;
-        final var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        final UserEntity actor = auth == null ? null : findByUsername(auth.getName());
-        if (actor == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof ai.philterd.philter.api.security.DashboardPrincipal principal)
-                || !principal.matches(actor)
-                || actor.isMfaEnabled() && !ai.philterd.philter.views.MfaChallengeView.isSatisfied(
-                        com.vaadin.flow.server.VaadinSession.getCurrent(), actor)
-                || (adminOnly || target != null && !actor.getId().equals(target.getId()))
-                    && !"admin".equalsIgnoreCase(actor.getRole())) {
-            throw new org.springframework.security.access.AccessDeniedException("Current account authorization required.");
-        }
-    }
 
 }

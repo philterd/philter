@@ -18,9 +18,9 @@ Audit events are written to the `audit_events` collection in Philter's MongoDB d
 |-------|-------------|
 | `event` | The type of action (one of the event names listed below). |
 | `request_id` | A correlation id for the request or operation that produced the event. |
-| `api_key_id` | The acting principal: the user id (for dashboard actions) or API key id, when known. |
+| `api_key_id` | The principal the event is recorded under, when known. Usually the calling user's id; administrative changes name the calling API key in `details`. Some events record the entity concerned instead: the policy for `policy_created` and `policy_updated`, the list for `custom_list_created`, `custom_list_updated`, and `custom_list_deleted`, and the key acted on for `api_key_*` events. |
 | `associated_object` | The id of the entity the action concerned (for example, the policy or user affected), when applicable. |
-| `client_ip_address` | The client IP address, when available. For an API request, it is the address of the connection or, for a request from a [trusted proxy](settings.md#api-access), the client address its `X-Forwarded-For` header names; only IP addresses are recorded. Actions taken in the dashboard record the `X-Forwarded-For` header as sent. |
+| `client_ip_address` | The client IP address, when available. For an API request, it is the address of the connection or, for a request from a [trusted proxy](settings.md#api-access), the client address its `X-Forwarded-For` header names. Some events record where the change came from (such as `api` or `system`) in this field instead of an address. |
 | `details` | A short, non-sensitive description with extra context (for example, a role name or a counter). |
 | `timestamp` | When the event occurred. |
 
@@ -43,15 +43,10 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `user_created` | A user account was created. Created through the [Users API](api_and_sdks/api/users_api.md), the subject is the calling administrator, the associated object is the new user, and the detail names the calling API key; created in the dashboard or at startup, the new user is both. |
-| `user_password_changed` | A user's password was changed. |
+| `user_created` | A user account was created. Created through the [Users API](api_and_sdks/api/users_api.md), the subject is the calling administrator, the associated object is the new user, and the detail names the calling API key; for the `admin` user created at startup, the new user is both. |
 | `user_role_changed` | A user's role was changed. Changed through the [Users API](api_and_sdks/api/users_api.md), the subject is the calling administrator, the associated object is the user, and the detail names the calling API key. |
-| `user_deactivated` | A user account was deactivated: sign-in and API access are revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
-| `user_reactivated` | A previously deactivated user account was reactivated, restoring sign-in and API access. Through the [Users API](api_and_sdks/api/users_api.md), deactivation and reactivation name the calling administrator as the subject and the calling API key in the detail. |
-| `user_mfa_enabled` | A user completed authenticator enrollment and multi-factor authentication is now required for their sign-in. |
-| `user_mfa_disabled` | Multi-factor authentication was turned off for a user and the enrolled secret was cleared. |
-| `user_mfa_locked` | A user was locked out of multi-factor authentication after repeated failed codes. |
-| `user_mfa_unlocked` | An administrator cleared a user's multi-factor authentication lock. |
+| `user_deactivated` | A user account was deactivated: API access is revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
+| `user_reactivated` | A previously deactivated user account was reactivated, restoring API access. Through the [Users API](api_and_sdks/api/users_api.md), deactivation and reactivation name the calling administrator as the subject and the calling API key in the detail. |
 
 ### API keys
 
@@ -65,10 +60,10 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `policy_created` | A policy was created, through the dashboard or `POST /api/policies`. The source field distinguishes them. |
-| `policy_updated` | A policy was updated, through the dashboard or `POST /api/policies` naming an existing policy. |
+| `policy_created` | A policy was created, through `POST /api/policies` or `POST /api/policies/{name}/copy`. |
+| `policy_updated` | A policy was updated, through `POST /api/policies` naming an existing policy, or its description or notes through `PUT /api/policies/{name}/details` (details name the fields changed). |
 | `policy_activated` | A policy was saved via the API and became active immediately. Recorded alongside `policy_created` or `policy_updated`, and attributing the change to the API key that made it. Details include the policy name. |
-| `policy_deleted` | A policy was deleted. The associated object is the deleted policy; details include the policy name and whether the deletion came from the API or the dashboard. |
+| `policy_deleted` | A policy was deleted. The associated object is the deleted policy; details include the policy name and where the deletion came from. |
 | `policy_version_history_retrieved` | The version history of a policy was retrieved. Details include the policy name and the number of versions returned. |
 | `policy_rolled_back` | A policy was rolled back to a prior revision. The associated object is the policy; details include the policy name, the target revision, and the new revision number. |
 
@@ -134,7 +129,7 @@ See [Legal Holds](redaction/legal_holds.md) for full documentation on the hold l
 | Event | When it is recorded |
 |-------|---------------------|
 | `signing_key_generated` | A new ES256 keypair was auto-generated on first start (no existing key was found in MongoDB). |
-| `signing_key_regenerated` | The signing key was regenerated via the Admin UI. Any consumer that cached the old public key will need to re-fetch the new one from `GET /api/signing-key`. |
+| `signing_key_regenerated` | The signing key was regenerated through `POST /api/signing-key/regenerate`. Any consumer that cached the old public key will need to re-fetch the new one from `GET /api/signing-key`. |
 
 See [Output Signing](output_signing.md) for the full documentation on key management and response verification.
 
@@ -146,7 +141,7 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 | `redact_lists_updated` | The account's always-redact / never-redact lists were changed. |
 | `webhook_configured` | A webhook URL and secret were configured. The URL and secret are not recorded. Set through the [API](api_and_sdks/api/webhooks.md#set-the-webhook), the subject is the calling user and the detail names the calling API key. |
 | `webhook_removed` | The webhook was removed. Removed through the [API](api_and_sdks/api/webhooks.md#remove-the-webhook), the subject is the calling user and the detail names the calling API key. |
-| `settings_updated` | An administrator changed the deployment settings. The `details` field names which settings changed (the webhook allowlist, MFA, output signing, or the Phield and Diffuse publishing settings) and never their values. Changed through the [Settings API](api_and_sdks/api/settings_api.md), the detail also names the calling API key. |
+| `settings_updated` | An administrator changed the deployment settings. The `details` field names which settings changed (the webhook allowlist, output signing, or the Phield and Diffuse publishing settings) and never their values. Changed through the [Settings API](api_and_sdks/api/settings_api.md), the detail also names the calling API key. |
 
 ### Audit log access
 
@@ -157,12 +152,12 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 
 ## Exporting the audit log
 
-Administrators can export the audit log as a CSV file with [`GET /api/audit/export`](api_and_sdks/api/audit_api.md#export-audit-events-as-csv), or from the dashboard: open **Admin → Audit Log**, choose a date range, and click **Download Audit Log (CSV)**. Both require an administrator.
+Administrators can export the audit log as a CSV file with [`GET /api/audit/export`](api_and_sdks/api/audit_api.md#export-audit-events-as-csv). It requires an administrator and the `audit:read` scope.
 
-* **Date range with a 30-day limit.** Pick a **From** and a **To** date. The **To** date may be at most **30 days** after the **From** date; a wider range (or a From date after the To date) disables the download and shows an error. The default range is the last 30 days.
-* **Time zone.** The **From** and **To** values are whole calendar days. The dashboard reads them in the **server's time zone** (the JVM default), not the browser's. The API reads them in the time zone given by its `zone` parameter, defaulting to the server's, and reports the zone it used. The **To** day is included in full, so the export covers `From 00:00` up to, but not including, the start of the day after `To`, in that time zone.
+* **Date range with a 30-day limit.** `from` and `to` are required. `to` may be at most **30 days** after `from`; a wider range, or a `from` after `to`, is refused.
+* **Time zone.** `from` and `to` are whole calendar days, read in the time zone given by the `zone` parameter, defaulting to the server's (the JVM default). The response reports the zone used. The `to` day is included in full, so the export covers `from 00:00` up to, but not including, the start of the day after `to`, in that time zone.
 * **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, and `details` (the same fields described above; timestamps are written in ISO-8601, in UTC). As with the stored events, no sensitive values are included. A value beginning with `=`, `+`, `-`, `@`, a tab, or a carriage return is written with a leading apostrophe, so a spreadsheet shows it as text instead of running it as a formula. Most values are recorded by Philter itself, but some, such as a legal hold's reference, are written by callers.
-* **Size.** The API returns the range one page at a time: `limit` events per page (default 100, at most 1,000), with `offset` and the `X-Philter-Export-Next-Offset` header to fetch the next; see [paging](api_and_sdks/api/audit_api.md#paging), including why pages of a range that includes the current day can repeat events. The dashboard export is one file of at most 100,000 events (newest first) and does not report truncation, so narrow the range if you need to be sure you have captured everything in a busy period.
+* **Size.** The API returns the range one page at a time: `limit` events per page (default 100, at most 1,000), with `offset` and the `X-Philter-Export-Next-Offset` header to fetch the next; see [paging](api_and_sdks/api/audit_api.md#paging), including why pages of a range that includes the current day can repeat events.
 
 ## Reading the audit log over the API
 

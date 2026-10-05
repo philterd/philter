@@ -1,8 +1,8 @@
 # Users API
 
-These endpoints create and manage users, so a deployment can be administered without the dashboard: by automation such as CI, a marketplace image, or an infrastructure-as-code run, or by a separate user interface.
+These endpoints create and manage users. They are how a deployment is administered: by automation such as CI, a marketplace image, or an infrastructure-as-code run, or by a separate user interface, such as [Philter UI](https://github.com/philterd/philter-ui) (in development).
 
-Users have no password. They authenticate with [API keys](../../account/api_keys.md), so no endpoint here accepts or returns a password, password hash, or MFA secret. Create and manage a user's keys with the [API Keys API](api_keys_api.md).
+Users have no password. They authenticate with [API keys](../../account/api_keys.md), so no endpoint here accepts or returns a password or password hash. Create and manage a user's keys with the [API Keys API](api_keys_api.md).
 
 Every endpoint requires an administrator in addition to its [scope](../../account/api_keys.md#scopes), except `GET /api/users/me`, which any key holding `users:read` can call. A request that lacks the scope and a request from a non-administrator are both refused with `403 Forbidden`; the message says which.
 

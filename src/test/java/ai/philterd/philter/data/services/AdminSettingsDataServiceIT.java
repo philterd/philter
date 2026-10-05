@@ -57,6 +57,24 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     @BeforeEach
     void setUpService() {
         service = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
+        // Every settings change rechecks that the acting user is an active administrator.
+        mongoClient.getDatabase("philter").getCollection("users").replaceOne(new Document("_id", ACTING_ADMIN),
+                new Document("_id", ACTING_ADMIN).append("username", "settings-admin").append("role", "admin"),
+                new com.mongodb.client.model.ReplaceOptions().upsert(true));
+    }
+
+    private static void saveSigningEnabled(final AdminSettingsDataService service, final boolean enabled) {
+        service.update(new AdminSettingsDataService.Update(null, enabled, null, null, null, null, null, null), ACTING_ADMIN, null);
+    }
+
+    private static void saveDiffuseCountsEnabled(final AdminSettingsDataService service, final boolean enabled) {
+        service.update(new AdminSettingsDataService.Update(enabled, null, null, null, null, null, null, null), ACTING_ADMIN, null);
+    }
+
+    private static void savePhieldSettings(final AdminSettingsDataService service, final boolean enabled, final String url,
+                                           final String sourceId, final String organization, final String apiKey) {
+        service.update(new AdminSettingsDataService.Update(null, null, null, enabled, url, sourceId, organization, apiKey),
+                ACTING_ADMIN, null);
     }
 
     @Test
@@ -66,19 +84,19 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void saveDiffuseCountsEnabledPersists() {
-        service.saveDiffuseCountsEnabled(ACTING_ADMIN, true);
+        saveDiffuseCountsEnabled(service, true);
 
         final AdminSettingsEntity settings = service.findAdminSettings();
         assertNotNull(settings);
         assertTrue(settings.isDiffuseCountsEnabled());
 
-        service.saveDiffuseCountsEnabled(ACTING_ADMIN, false);
+        saveDiffuseCountsEnabled(service, false);
         assertFalse(service.findAdminSettings().isDiffuseCountsEnabled());
     }
 
     @Test
     void savePhieldSettingsPersistsAllFields() {
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "my-source", "my-org", "s3cret");
+        savePhieldSettings(service, true, "https://phield.example.com", "my-source", "my-org", "s3cret");
 
         final AdminSettingsEntity settings = service.findAdminSettings();
         assertNotNull(settings);
@@ -92,8 +110,8 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     @Test
     void savePhieldSettingsAppliesTrimmingAndDefaults() {
         // A blank source id / organization fall back to "philter"; the url and api key are trimmed;
-        // a null url or api key becomes "".
-        service.savePhieldSettings(ACTING_ADMIN, true, "  https://phield.example.com  ", "  ", "", "  s3cret  ");
+        // "" clears the url and api key.
+        savePhieldSettings(service, true, "  https://phield.example.com  ", "  ", "", "  s3cret  ");
 
         AdminSettingsEntity settings = service.findAdminSettings();
         assertEquals("https://phield.example.com", settings.getPhieldUrl());
@@ -101,7 +119,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
         assertEquals("philter", settings.getPhieldOrganization());
         assertEquals("s3cret", settings.getPhieldApiKey());
 
-        service.savePhieldSettings(ACTING_ADMIN, false, null, "src", "org", null);
+        savePhieldSettings(service, false, "", "src", "org", "");
         settings = service.findAdminSettings();
         assertFalse(settings.isPhieldEnabled());
         assertEquals("", settings.getPhieldUrl());
@@ -112,7 +130,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void phieldApiKeyIsEncryptedAtRest() {
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "s3cret");
+        savePhieldSettings(service, true, "https://phield.example.com", "src", "org", "s3cret");
 
         final Document stored = mongoClient.getDatabase("philter").getCollection("admin_settings").find().first();
         assertNotNull(stored);
@@ -128,12 +146,12 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     void thePhieldApiKeyAndItsDataKeyAreWrittenInOneUpdate() {
         // They are one logical value: a document carrying the ciphertext but the wrong data key (or
         // none) cannot be decrypted, so no interleaving save may ever leave the pair mismatched.
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "first-key");
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "second-key");
+        savePhieldSettings(service, true, "https://phield.example.com", "src", "org", "first-key");
+        savePhieldSettings(service, true, "https://phield.example.com", "src", "org", "second-key");
         assertEquals("second-key", service.findAdminSettings().getPhieldApiKey());
 
         // A save that clears the key must clear both halves, not leave the old data key behind.
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "");
+        savePhieldSettings(service, true, "https://phield.example.com", "src", "org", "");
         final Document stored = mongoClient.getDatabase("philter").getCollection("admin_settings").find().first();
         assertNotNull(stored);
         assertEquals("", stored.getString("phield_api_key"));
@@ -153,9 +171,9 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     @Test
     void anUndecryptablePhieldApiKeyDoesNotBreakTheOtherSettings() {
         // Every read of the admin settings decrypts this field, including the ones output signing and
-        // the dashboard make, so a key that cannot be decrypted must degrade to "unset" rather than throw.
-        service.saveSigningEnabled(ACTING_ADMIN, true);
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "s3cret");
+        // GET /api/settings make, so a key that cannot be decrypted must degrade to "unset" rather than throw.
+        saveSigningEnabled(service, true);
+        savePhieldSettings(service, true, "https://phield.example.com", "src", "org", "s3cret");
 
         final MongoCollection<Document> collection =
                 mongoClient.getDatabase("philter").getCollection("admin_settings");
@@ -172,10 +190,10 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void settingsDocumentIsASingletonAcrossManySaves() {
-        service.saveSigningEnabled(ACTING_ADMIN, true);
-        service.saveDiffuseCountsEnabled(ACTING_ADMIN, true);
-        service.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "");
-        service.saveSigningEnabled(ACTING_ADMIN, false);
+        saveSigningEnabled(service, true);
+        saveDiffuseCountsEnabled(service, true);
+        savePhieldSettings(service, true, "https://phield.example.com", "src", "org", "");
+        saveSigningEnabled(service, false);
 
         // Every save targets the same single document; no duplicates are created.
         final MongoCollection<Document> collection =
@@ -195,7 +213,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     @DisplayName("Settings are cached, and a write through the service evicts")
     void settingsAreCachedAndWritesEvict() {
 
-        service.saveSigningEnabled(ACTING_ADMIN, true);
+        saveSigningEnabled(service, true);
         assertTrue(service.findAdminSettings().isSigningEnabled());
 
         // Change it underneath the service. A cached read must not see this.
@@ -207,7 +225,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
                 "the settings are read once per redaction, so they must come from the cache");
 
         // A write through the service evicts, so the next read is fresh.
-        service.saveSigningEnabled(ACTING_ADMIN, false);
+        saveSigningEnabled(service, false);
         assertFalse(service.findAdminSettings().isSigningEnabled(),
                 "a write must evict, or an admin's change would not take effect");
 
@@ -221,7 +239,8 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final AdminSettingsDataService audited = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), publisher);
 
-        audited.saveWebhookAllowlist(ACTING_ADMIN, "hooks.example.com, 10.4.0.0/16");
+        audited.update(new AdminSettingsDataService.Update(null, null, "hooks.example.com, 10.4.0.0/16", null, null, null, null, null),
+                ACTING_ADMIN, null);
 
         final ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);
         verify(publisher).auditEvent(any(), eq(AuditLogEvent.SETTINGS_UPDATED), eq(ACTING_ADMIN),
@@ -240,11 +259,11 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final AdminSettingsDataService audited = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), publisher);
 
-        audited.saveMfaEnabled(ACTING_ADMIN, true);
+        saveSigningEnabled(audited, true);
         verify(publisher).auditEvent(any(), eq(AuditLogEvent.SETTINGS_UPDATED), any(), any(), any(), any());
 
-        // The Admin page saves every field on every click; only a change is worth recording.
-        audited.saveMfaEnabled(ACTING_ADMIN, true);
+        // A client may send every field on every save; only a change is worth recording.
+        saveSigningEnabled(audited, true);
         verifyNoMoreInteractions(publisher);
 
     }
@@ -256,7 +275,7 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final AdminSettingsDataService audited = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), publisher);
 
-        audited.savePhieldSettings(ACTING_ADMIN, true, "https://phield.example.com", "src", "org", "s3cret-key");
+        savePhieldSettings(audited, true, "https://phield.example.com", "src", "org", "s3cret-key");
 
         final ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);
         verify(publisher).auditEvent(any(), eq(AuditLogEvent.SETTINGS_UPDATED), eq(ACTING_ADMIN),

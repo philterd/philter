@@ -43,9 +43,7 @@ This matters in practice: if `LIT-A` and `LIT-B` both cover the same document an
 
 Creating a hold requires: a **reference**, a **scope type**, a **scope value** (the document ID or user email), and an optional **reason**.
 
-From the dashboard: navigate to **Legal Holds** in the left-hand navigation, then click **Set Hold**. Fill in the form and save.
-
-From the API:
+Set a hold with the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md#set-a-hold):
 
 ```
 POST /api/holds
@@ -64,18 +62,16 @@ A successful response returns **HTTP 201 Created** with the hold details. If the
 
 ### 2. View active holds
 
-Users can view all of their own holds. Administrators can view holds for all users.
+Users can view all of their own holds. Administrators can also view other users' holds when `ADMIN_CROSS_USER_ACCESS_ENABLED` is on.
 
-From the dashboard: the **Legal Holds** page shows a table of all active holds scoped to the logged-in user. Administrators see a global view across all users.
-
-From the API:
+List holds with the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md#list-holds):
 
 ```
 GET /api/holds
 Authorization: Bearer <api-key>
 ```
 
-Admins may pass `?owner=<email>` to list holds for a specific user. Pagination is supported via `?offset=` and `?limit=`.
+Admins may pass `?owner=<username>` to list holds for a specific user, or `?all_users=true` to list every user's holds; both require `ADMIN_CROSS_USER_ACCESS_ENABLED=true`. Pagination is supported via `?offset=` and `?limit=`.
 
 To retrieve a specific hold by reference:
 
@@ -88,9 +84,7 @@ Authorization: Bearer <api-key>
 
 Once a matter is resolved, the hold must be explicitly released. Releasing a hold is audited.
 
-From the dashboard: on the **Legal Holds** page, click the **Release** button next to the hold. Confirm the dialog to release.
-
-From the API:
+Release a hold with the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md#release-a-hold):
 
 ```
 DELETE /api/holds/{reference}
@@ -101,7 +95,7 @@ A successful release returns **HTTP 200 OK**. If the hold does not exist, **HTTP
 
 ## How Holds Block Deletions
 
-The hold check runs on every deletion Philter performs. There is no way to bypass a hold through the API or the dashboard.
+The hold check runs on every deletion Philter performs. There is no way to bypass a hold through the API.
 
 | Deletion operation | Hold check applied |
 |--------------------|--------------------|
@@ -121,7 +115,7 @@ No partial deletion occurs. Either the entire requested deletion succeeds or it 
 
 ## Admin Access
 
-Administrators can manage holds on behalf of any user via the `?owner=<email>` parameter on all API endpoints. They can view all holds from the **Legal Holds** dashboard page, which shows a global table rather than a per-user view. Every time an admin acts on another user's hold, an `admin_cross_user_access` audit event is recorded.
+Administrators can manage holds on behalf of any user via the `?owner=<username>` parameter on all API endpoints, and list every user's holds with `GET /api/holds?all_users=true`. Both require `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, which is disabled by default. Every time an admin acts on another user's hold, an `admin_cross_user_access` audit event is recorded.
 
 Non-admin users cannot specify an `owner` parameter that differs from themselves. Attempting to do so returns **HTTP 404 Not Found**.
 
@@ -200,7 +194,7 @@ No. A `user` scope hold protects **all** ledger entries for that user, including
 
 **Can I release a hold by accident?**
 
-From the dashboard, release requires explicit confirmation in a dialog. Via the API, a `DELETE` request is required; there is no bulk-release endpoint. Each release is audited so accidental releases are traceable.
+Release requires a `DELETE` request naming the hold's reference; there is no bulk-release endpoint. Each release is audited so accidental releases are traceable.
 
 **What happens to holds if a user account is deactivated?**
 
@@ -218,4 +212,4 @@ No. Releasing a hold only removes the hold itself. All ledger entries that were 
 
 - [Redaction Ledgers](ledgers.md): the evidence that legal holds protect.
 - [Auditing](../auditing.md): the audit log that records all hold lifecycle events.
-- [User Management](../dashboard.md#user-management): users are deactivated rather than deleted, so holds survive deactivation.
+- [Users API](../api_and_sdks/api/users_api.md#deactivate-a-user): users are deactivated rather than deleted, so holds survive deactivation.

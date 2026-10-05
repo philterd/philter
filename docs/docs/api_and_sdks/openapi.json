@@ -667,7 +667,7 @@
           "Audit Log"
         ],
         "summary": "Export the audit log as CSV.",
-        "description": "Returns the audit log for a range of whole days as CSV, most recent first, with the same columns as the dashboard export. from and to are dates (YYYY-MM-DD), both inclusive, read in zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when zone is omitted. to may be at most 30 days after from. Returns up to limit events (default 100, at most 1000; a larger value is treated as the maximum, and zero or less as the default), starting offset events into the range; the X-Philter-Export-Truncated header is true when more remain, and X-Philter-Export-Next-Offset gives the offset to request next. Events are ordered by timestamp and then id, so paging a range that is no longer receiving events returns each exactly once; a range that includes the current day can repeat events across pages. Timestamps in the CSV are UTC. The export is itself audited. Requires an administrator as well as the audit:read scope. Requires the `audit:read` scope.",
+        "description": "Returns the audit log for a range of whole days as CSV, most recent first. from and to are dates (YYYY-MM-DD), both inclusive, read in zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when zone is omitted. to may be at most 30 days after from. Returns up to limit events (default 100, at most 1000; a larger value is treated as the maximum, and zero or less as the default), starting offset events into the range; the X-Philter-Export-Truncated header is true when more remain, and X-Philter-Export-Next-Offset gives the offset to request next. Events are ordered by timestamp and then id, so paging a range that is no longer receiving events returns each exactly once; a range that includes the current day can repeat events across pages. Timestamps in the CSV are UTC. The export is itself audited. Requires an administrator as well as the audit:read scope. Requires the `audit:read` scope.",
         "operationId": "exportAuditLog",
         "parameters": [
           {
@@ -10316,7 +10316,7 @@
     },
     "securitySchemes": {
       "apiKey": {
-        "description": "A Philter API key, sent as `Authorization: Bearer <api key>`. Create one on the API Keys page of the dashboard.",
+        "description": "A Philter API key, sent as `Authorization: Bearer <api key>`. The first comes from PHILTER_BOOTSTRAP_API_KEY; create more with POST /api/api-keys.",
         "type": "http",
         "scheme": "bearer"
       }

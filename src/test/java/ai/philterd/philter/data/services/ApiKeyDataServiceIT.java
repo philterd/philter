@@ -338,12 +338,12 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final ApiKeyEntity entity = service.findOneByApiKey(created.getMessage());
 
         service.updateScopes("req-scope-change", entity.getUserId(), entity,
-                Set.of(ApiKeyScope.POLICIES_READ.getScope()), "webui");
+                Set.of(ApiKeyScope.POLICIES_READ.getScope()), "api");
 
         final ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);
         verify(auditEventPublisher).auditEvent(eq("req-scope-change"),
                 eq(AuditLogEvent.API_KEY_SCOPES_CHANGED), eq(entity.getId()), eq(entity.getId()),
-                eq("webui"), details.capture());
+                eq("api"), details.capture());
 
         // The entry must say what the key held before and after, so an auditor can tell whether the
         // key was widened or narrowed rather than only that something changed.
@@ -405,7 +405,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         final ApiKeyEntity key = service.findOneByApiKey(created.getMessage());
 
         final ServiceResponse response = service.updateScopes("req", attacker, key,
-                ApiKeyScope.all(), "webui");
+                ApiKeyScope.all(), "api");
 
         assertFalse(response.isSuccessful(), "another user must not be able to widen this key");
 
@@ -429,7 +429,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         key.setUserId(attacker);
 
         final ServiceResponse response = service.updateScopes("req", attacker, key,
-                ApiKeyScope.all(), "webui");
+                ApiKeyScope.all(), "api");
 
         assertFalse(response.isSuccessful(), "a tampered owner on the passed entity must not authorize the change");
         assertEquals(Set.of(ApiKeyScope.REDACT.getScope()),

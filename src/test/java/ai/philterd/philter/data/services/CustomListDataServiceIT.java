@@ -343,8 +343,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
         final ObjectId user = new ObjectId();
 
-        // An immutable list threw UnsupportedOperationException outright; the dashboard works around
-        // it by copying into an ArrayList at both of its call sites.
+        // An immutable list threw UnsupportedOperationException outright.
         assertTrue(save(user, "immutable", List.of("Alice", "Bob")).isSuccessful());
 
         final List<String> mutable = new ArrayList<>(List.of("Alice", "", "Bob"));

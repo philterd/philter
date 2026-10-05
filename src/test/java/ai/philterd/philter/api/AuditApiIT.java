@@ -108,7 +108,7 @@ class AuditApiIT {
     /** Creates a user and returns its username. */
     private String createUser(final String prefix, final String role) {
         final String username = prefix + UUID.randomUUID() + "@example.com";
-        final ServiceResponse created = userService.createUser("req", username, "password", role,
+        final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
         return username;

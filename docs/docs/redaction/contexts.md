@@ -20,55 +20,31 @@ Entity type disambiguation helps resolve ambiguity when the identical piece of t
 
 This feature is optional and can be enabled or disabled on a per-context basis. Enabling disambiguation can improve the accuracy of redaction in complex documents where entity types are frequently ambiguous.
 
-## Managing Contexts via the Dashboard
+## Managing Contexts
 
-The **Contexts** page provides a centralized interface for managing these organizational units.
+Contexts are managed with the [Contexts API](../api_and_sdks/api/contexts_api.md). Every new user starts with a context named `default`, created automatically; you can use it, change its settings, or delete it like any other.
 
-### Viewing Your Context Inventory
+| Task | Request |
+| --- | --- |
+| List your contexts | [`GET /api/contexts`](../api_and_sdks/api/contexts_api.md#get-context-names) |
+| Create a context | [`POST /api/contexts?name=...`](../api_and_sdks/api/contexts_api.md#create-a-context), with optional `entity_type_disambiguation` and `ledger` flags |
+| Change its settings | [`PUT /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#update-a-context) |
+| Show counts by filter type | [`GET /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#get-context-details) |
+| List individual mappings | [`GET /api/contexts/{name}/entries`](../api_and_sdks/api/contexts_api.md#list-context-entries) |
+| Clear its mappings | [`DELETE /api/contexts/{name}/entries`](../api_and_sdks/api/contexts_api.md#empty-a-context) |
+| Delete it | [`DELETE /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#delete-a-context) |
 
-The main table on the Contexts page lists all the contexts you have created. You can quickly see the name of each context and perform administrative actions. Every new user starts with a context named `default`, created automatically; you can use it, edit its settings, or delete it like any other.
+Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
 
-### Creating a New Context
-
-1.  **Initiate Creation**: Click the **New Context** button at the top of the table.
-2.  **Assign a Name**: Enter a descriptive **Context Name** (e.g., `Clinical-Trial-Alpha` or `HR-Records-2023`). Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
-3.  **Enable Entity Type Disambiguation (Optional)**: Check the **Enable entity type disambiguation** checkbox to improve entity type accuracy across the context.
-4.  **Enable the Redaction Ledger (Optional)**: Check the **Enable the redaction ledger** checkbox to record a [redaction ledger](ledgers.md) for redactions performed in this context. This option is unchecked by default.
-5.  **Finalize**: Click **Save**. This context is now available to be selected during document uploads or API calls.
-
-### Editing a Context
-
-You can enable or disable entity type disambiguation and the redaction ledger for an existing context at any time:
-
-1.  Click the **Edit** (pencil) icon for the target context.
-2.  Toggle the **Enable entity type disambiguation** or **Enable the redaction ledger** checkboxes as desired.
-3.  Click **Save**.
-
-### Inspecting Context Entries
-
-To verify how information is being mapped within a context:
-
-1.  Click the **View Context** (eye) icon for a specific row.
-2.  A dialog will show **Filter Type** and **Count** totals for the context, or indicate that no entries were found.
-3.  Click **Close** to return to the main list.
-
-The same counts are returned by [`GET /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#get-context-details). For individual mappings, use the [context entries API](../api_and_sdks/api/contexts_api.md). Listing returns replacement metadata; exports include keyed token hashes and require the same deployment encryption key when imported elsewhere.
+Listing entries returns replacement metadata; exports include keyed token hashes and require the same deployment encryption key when imported elsewhere.
 
 ### Clearing a Context
 
-There may be times when you want to reset the mappings within a context without deleting the context itself (e.g., at the start of a new project phase):
-
-1.  Click the **Clear** (refresh) icon for the target context.
-2.  **Warning**: This action will permanently delete all existing sensitive-to-redacted mappings and the context's learned disambiguation vectors. Future redactions in this context will generate new, different replacement values.
-3.  Confirm the action by clicking **Clear**.
+Clearing a context resets its mappings without deleting the context itself (for example, at the start of a new project phase). It permanently deletes all existing sensitive-to-redacted mappings and the context's learned disambiguation vectors. Future redactions in this context generate new, different replacement values.
 
 ### Deleting a Context
 
-To permanently remove a context and all its associated mappings:
-
-1.  Click the **Delete** (trash) icon.
-2.  **Impact**: Deleting a context removes the organizational unit, its internal mappings, and its learned disambiguation vectors. This will **not** affect documents that have already been redacted and downloaded.
-3.  **Permissions**: A context can be deleted only by the user that created it or by an admin.
+Deleting a context removes the context, its internal mappings, and its learned disambiguation vectors. It does **not** affect documents that have already been redacted and downloaded. A context can be deleted only by the user that created it or by an admin.
 
 > Contexts are owned by the user that created them. When that user is deleted, their contexts are deleted too, along with each context's mappings and disambiguation vectors.
 
@@ -92,7 +68,7 @@ A context's mapping table can be exported and imported through the [Contexts API
 *   **Export** returns the context's mappings as a JSON document. Only a keyed hash of each original value is exported, never the original value itself, so the same value continues to map to the same replacement wherever the table is imported. The key is derived from `PHILTER_ENCRYPTION_KEY`, so an export can be imported elsewhere in the same deployment but not into a different one.
 *   **Import** loads such a document into an existing context. By default an incoming value that already exists is skipped; you can choose to overwrite instead.
 
-Export and import are restricted to the user that **created** the context or to an **admin**. Because context names are unique only per user, an admin reaching another user's context supplies that user's email via the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.
+Export and import are restricted to the user that **created** the context or to an **admin**. Because context names are unique only per user, an admin reaching another user's context supplies that user's username in the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.
 
 ## Integration and Best Practices
 

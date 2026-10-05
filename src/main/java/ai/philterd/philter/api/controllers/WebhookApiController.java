@@ -54,7 +54,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 /**
  * Reads, sets, and removes the calling user's webhook, the destination for asynchronous redaction
  * results. An administrator reaches another user's webhook with {@code owner}, under the usual
- * cross-user rules. Validation and auditing are in {@link UserService}, shared with the dashboard.
+ * cross-user rules. Validation and auditing are in {@link UserService}.
  */
 @Tag(name = "Webhook",
         description = "Read, set, and remove the user's webhook for asynchronous redaction results.")

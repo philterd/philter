@@ -10,7 +10,7 @@ Philter API keys start with the prefix `sk_` followed by 32 alphanumeric charact
 sk_abcdefghijklmnopqrstuvwxyz012345
 ```
 
-Keys are stored only as a SHA-256 hash; Philter cannot recover the original key after it is created. A short prefix of each key is retained so you can recognize it in the dashboard.
+Keys are stored only as a SHA-256 hash; Philter cannot recover the original key after it is created. A short prefix of each key is retained and returned when keys are listed, so you can tell them apart.
 
 ## Authenticating a request
 
@@ -33,16 +33,16 @@ A request with a missing, malformed, or unknown key is rejected with `401 Unauth
 
 ## Managing API keys
 
-API keys are created and removed in the dashboard, under **My Account** → **API Keys**, or with the [API Keys API](../api_and_sdks/api/api_keys_api.md):
+API keys are created, re-scoped, and revoked with the [API Keys API](../api_and_sdks/api/api_keys_api.md). [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is planned to offer these operations in a browser using an administrator's API key.
 
-* **Create a key.** Choose the key's [scopes](#scopes), then Philter generates the key and shows it once. Use the **Copy** button to copy it to your clipboard, then store it securely; it cannot be retrieved again afterward.
-* **Delete a key.** Deleting a key immediately revokes it: subsequent requests using that key are rejected with `401 Unauthorized`. Deletion is permanent and a key cannot be reactivated. The key record itself is retained (marked deleted) so that audit entries which reference the key id still resolve to it; deleted keys are not shown in the list. Generate a new key if you need access again.
+* **Create a key.** `POST /api/api-keys` creates a key for the calling key's user; an administrator can create one for another user with `POST /api/users/{username}/api-keys`. Name the key's [scopes](#scopes) in the request. The response contains the key once; store it securely, since it cannot be retrieved again.
+* **Revoke a key.** `DELETE /api/api-keys/{keyId}` immediately revokes it: subsequent requests using that key are rejected with `401 Unauthorized`. Deletion is permanent and a key cannot be reactivated. The key record itself is retained (marked deleted) so that audit entries which reference the key id still resolve to it; revoked keys are not listed. Create a new key if you need access again.
 
 A user may have more than one API key (for example, one per integration), which makes it possible to rotate or revoke a single key without disrupting others.
 
 An API key's creation, deletion, and scope changes are recorded in the [audit log](../auditing.md).
 
-A deactivated user's API keys are also rejected for as long as the account is deactivated, even though the keys themselves are not deleted; reactivating the user restores them. See [User Management](../dashboard.md#user-management).
+A deactivated user's API keys are also rejected for as long as the account is deactivated, even though the keys themselves are not deleted; reactivating the user restores them. See the [Users API](../api_and_sdks/api/users_api.md).
 
 ## Scopes
 
@@ -97,7 +97,7 @@ Two scopes are separated from the resources they belong to because they return t
 
 ### Choosing and changing scopes
 
-Scopes are selected when a key is created, under **My Account** → **API Keys** → **New API Key**. Use **Edit scopes** on an existing key to change them: the key value itself does not change, so integrations keep working with the same credential, and the change takes effect on the next request.
+Scopes are named when a key is created. Change them on an existing key with [`PUT /api/api-keys/{keyId}/scopes`](../api_and_sdks/api/api_keys_api.md#change-a-keys-scopes): the key value itself does not change, so integrations keep working with the same credential, and the change takes effect on the next request.
 
 A key must have at least one scope. A key with none can call nothing.
 
@@ -105,20 +105,20 @@ Every scope change is recorded in the [audit log](../auditing.md) as a security 
 
 ## Bootstrapping an API key for automation
 
-Creating a key in the dashboard is the normal path, but turnkey deployments (cloud marketplace images, Terraform, Docker Compose) often need a key without an interactive step. Set the `PHILTER_BOOTSTRAP_API_KEY` environment variable to a value of the form `sk_` followed by 32 alphanumeric characters, and Philter assigns that key to the `admin` user at startup.
+Every key is created with another key, so the first one comes from the environment. Set the `PHILTER_BOOTSTRAP_API_KEY` environment variable to a value of the form `sk_` followed by 32 alphanumeric characters, and Philter assigns that key to the `admin` user at startup. It is required until the `admin` user has had an API key, active or revoked: Philter does not start without it on a fresh install.
 
-The key is only seeded when the `admin` user has no API keys at all, counting both active and archived (deleted) keys. So it is created once on a fresh install, and once you have created a key of your own (or revoked the bootstrap key), it is never seeded again on a later restart.
+The key is only seeded when the `admin` user has no API keys at all, counting both active and revoked keys. So it is created once on a fresh install, and once the `admin` user has had any key, the variable is ignored and the key is never seeded again on a later restart.
 
-While the bootstrap key is in use, Philter makes it visible so it does not become a forgotten, long-lived credential: the admin sees a warning on login, and the **API Keys** page shows a banner identifying the bootstrap key (including its value, read from the environment of the running instance) with a prompt to create your own key and delete it.
+The bootstrap key is listed with `"bootstrap": true` by the [API Keys API](../api_and_sdks/api/api_keys_api.md#the-key-object), and Philter logs a warning when it seeds it, so it does not become a forgotten, long-lived credential.
 
-The bootstrap key is created with every scope, since it exists to provision a deployment before anyone has chosen what it should be limited to. Narrow it with **Edit scopes**, or replace it with a key scoped to what your automation actually needs.
+The bootstrap key is created with every scope, since it exists to provision a deployment before anyone has chosen what it should be limited to. Use it to create keys scoped to what each integration needs. To retire it, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks.
 
-Authentication stays fully enabled; the bootstrap key is your own secret, provisioned the same way you supply other secrets. Treat it like any credential and rotate or revoke it in the dashboard once it is no longer needed. See [Settings](../settings.md#api-access).
+Authentication stays fully enabled; the bootstrap key is your own secret, provisioned the same way you supply other secrets. Treat it like any credential and retire it once it is no longer needed. See [Settings](../settings.md#api-access).
 
 ## Restricting access by IP address
 
-Philter does not filter by client IP address. Restrict access at the network layer instead — security
-groups, firewall rules, or your ingress or load balancer — where the rules apply to every port on the
+Philter does not filter by client IP address. Restrict access at the network layer instead (security
+groups, firewall rules, or your ingress or load balancer), where the rules apply to every port on the
 host and cannot be influenced by the request itself. An application-level check sees only the address
 the request claims to come from, which a client controls through forwarding headers.
 

@@ -11,44 +11,20 @@ Custom Lists are typically used in two primary scenarios within a [redaction pol
 *   **Whitelisting (Ignore Lists)**: Ensuring that specific, non-sensitive terms that might be mistaken for PII (like a company name "John Deere") are never redacted.
 *   **Blacklisting (Target Lists)**: Ensuring that specific sensitive terms (like "Project Phoenix") are always identified and redacted, even if they don't match standard PII patterns.
 
-## Managing Custom Lists via the Dashboard
+## Managing Custom Lists
 
-The Philter dashboard offers a streamlined interface for the entire lifecycle of your custom lists.
+Custom lists are managed with the [Custom Lists API](../api_and_sdks/api/custom_lists_api.md).
 
-### Viewing Your Lists
+| Task | Request |
+| --- | --- |
+| List your lists | [`GET /api/lists`](../api_and_sdks/api/custom_lists_api.md#get-list-names) |
+| Read a list | [`GET /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#get-a-list) |
+| Create or replace a list | [`POST /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#create-or-update-a-list), with the terms as a JSON array and an optional `description` |
+| Delete a list | [`DELETE /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#delete-a-list) |
 
-To see your current lists, navigate to the **Custom Lists** page from the left menu. 
-
-*   **List Name**: The unique identifier you use to reference this list in policies.
-*   **Description**: An optional short description of the list's purpose or contents.
-*   **Item Count**: A quick glance at how many terms are currently stored in the list.
-
-### Creating a New Custom List
-
-To create a new custom list:
-
-1.  **Open the Creation Dialog**: Click the **New Custom List** button located above the lists table.
-2.  **Assign a Unique Name**: Enter a **List Name**. We recommend using clear, descriptive names (e.g., `Employee-Names-2024` or `Project-Codenames`). This name is what you will use in your [policy JSON](../policies/policy_schema.md).
-3.  **Add a Description (Optional)**: Enter an optional **Description** (maximum 250 characters) to provide context about the list's purpose or contents.
-4.  **Define Your Terms**: In the **List Items** text area, enter your terms. **Important**: Place each term on its own individual line. Each custom list can contain a maximum of 100 items.
-5.  **Save**: Click the **Save** button. Your list is now active and ready to be integrated into your policies.
-
-### Editing a List
-
-To edit an existing custom list:
-
-1.  Find the list in the table and click its **Edit** button.
-2.  Modify the optional description field if needed (maximum 250 characters).
-3.  Add new terms on new lines or delete existing ones from the text area. Each list can contain a maximum of 100 items.
-4.  Click **Save**. All policies referencing this list will immediately begin using the updated set of terms.
-
-Please note a list's name cannot be changed once it has been created. If you need a new name, you should create a new list.
-
-### Deleting a List
-
-1.  Click the **Delete** (trash) icon for the list you wish to remove.
-2.  **Review the Warning**: A confirmation dialog will appear. Exercise caution: if any of your active [redaction policies](policies.md) currently reference this list, those policies may fail or behave unexpectedly once the list is gone.
-3.  **Confirm**: Click **Delete** to permanently remove the list from your account.
+* **Name**: the identifier you use to reference the list in your [policy JSON](../policies/policy_schema.md). Use clear, descriptive names (for example, `Employee-Names-2024` or `Project-Codenames`). A list cannot be renamed; create a new list instead.
+* **Items**: each list can contain a maximum of 100 items. Saving a list replaces its items, and every policy that references it uses the new set immediately.
+* **Deleting**: if any of your [redaction policies](policies.md) reference the list, those policies may fail or behave unexpectedly once it is gone.
 
 ## Using Custom Lists in Policies
 

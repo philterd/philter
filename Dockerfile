@@ -40,8 +40,7 @@ ADD ./target/philter.jar /opt/philter/
 
 RUN chmod +x /opt/philter/philter.jar
 
-# Built documentation, served by Philter at /public/docs/ (see WebConfig). The footer's
-# "Documentation" link points to /public/docs/index.html.
+# Built documentation, served by Philter at /public/docs/ (see WebConfig).
 COPY --from=docs /site/ /opt/philter/public/docs/
 
 RUN groupadd --system --gid 10001 philter \

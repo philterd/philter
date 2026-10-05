@@ -50,10 +50,13 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     void setUpServices() {
         adminSettingsDataService = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
         aggregates = mongoClient.getDatabase("philter").getCollection(PiiCountAggregatePublisher.COLLECTION);
+        // Changing a setting rechecks that the acting user is an active administrator.
+        mongoClient.getDatabase("philter").getCollection("users")
+                .insertOne(new org.bson.Document("_id", ACTING_ADMIN).append("role", "admin"));
     }
 
     private PiiCountAggregatePublisher enabledPublisher() {
-        adminSettingsDataService.saveDiffuseCountsEnabled(ACTING_ADMIN, true);
+        adminSettingsDataService.update(new AdminSettingsDataService.Update(true, null, null, null, null, null, null, null), ACTING_ADMIN, null);
         return new PiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
     }
 

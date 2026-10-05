@@ -44,13 +44,6 @@
                 <artifactId>jsoup</artifactId>
                 <version>1.23.1</version>
             </dependency>
-            <dependency>
-                <groupId>com.vaadin</groupId>
-                <artifactId>vaadin-bom</artifactId>
-                <version>${vaadin.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
         </dependencies>
     </dependencyManagement>
     <distributionManagement>
@@ -116,13 +109,11 @@
         <mongodb.version>5.9.1</mongodb.version>
         <phileas.version>4.5.0-SNAPSHOT</phileas.version>
         <springdoc.version>3.1.0</springdoc.version>
-        <vaadin.version>25.2.6</vaadin.version>
         <!-- Build plugin versions -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
         <git-commit-id-maven-plugin.version>9.0.2</git-commit-id-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <license-maven-plugin.version>1.19</license-maven-plugin.version>
-        <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
@@ -155,22 +146,6 @@
                     <execution>
                         <goals>
                             <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>com.vaadin</groupId>
-                <artifactId>vaadin-maven-plugin</artifactId>
-                <version>${vaadin.version}</version>
-                <configuration>
-                    <forceProductionBuild>true</forceProductionBuild>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>prepare-frontend</goal>
-                            <goal>build-frontend</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -232,11 +207,11 @@
                     <!-- Keep application logs in per-test reports; Maven still prints test failures. -->
                     <redirectTestOutputToFile>${maven.test.redirectTestOutputToFile}</redirectTestOutputToFile>
                     <!-- Isolated integration-test applications must not depend on operator credentials
-                         or inherit TLS settings from the developer's deployment environment. These
+                         or inherit TLS settings from the developer's deployment environment. Philter
+                         does not start without a bootstrap key, so the tests supply their own. These
                          values apply only to the test JVM, never to the packaged application. -->
                     <environmentVariables>
-                        <PHILTER_BOOTSTRAP_ADMIN_PASSWORD>integration-test-admin-password</PHILTER_BOOTSTRAP_ADMIN_PASSWORD>
-                        <PHILTER_BOOTSTRAP_API_KEY></PHILTER_BOOTSTRAP_API_KEY>
+                        <PHILTER_BOOTSTRAP_API_KEY>sk_integrationtestintegrationtest12</PHILTER_BOOTSTRAP_API_KEY>
                         <SSL_ENABLED>false</SSL_ENABLED>
                     </environmentVariables>
                     <includes>
@@ -293,15 +268,6 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
-                            <!-- The Vaadin views are a quarter of the instructions and are covered only
-                                 as far as a headless fixture reaches: the access gate, the navigation,
-                                 and that each page builds. Rendering and the event handlers need a
-                                 browser, so including the views would put any useful threshold out of
-                                 reach. They are excluded from the threshold only: the report above still
-                                 covers them, so their coverage stays visible. -->
-                            <excludes>
-                                <exclude>ai/philterd/philter/views/**</exclude>
-                            </excludes>
                             <rules>
                                 <!-- The floors are set below current coverage on purpose. A threshold is
                                      here to catch a drop, not to state an ambition: one set above where
@@ -371,34 +337,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId> <!-- Does what vaadin:clean does. -->
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>${maven-clean-plugin.version}</version>
-                <configuration>
-                    <filesets>
-                        <fileset>
-                            <directory>node_modules</directory>
-                            <includes>
-                                <include>**/*</include>
-                            </includes>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                        <fileset>
-                            <directory>pnpm-lock.yaml</directory>
-                        </fileset>
-                        <fileset>
-                            <directory>${project.build.directory}</directory>
-                            <includes>
-                                <include>package-lock.json</include>
-                            </includes>
-                        </fileset>
-                        <fileset>
-                            <directory>src/main/frontend/generated</directory>
-                        </fileset>
-                    </filesets>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -479,29 +417,6 @@
     </build>
     <profiles>
         <profile>
-            <id>production</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.vaadin</groupId>
-                        <artifactId>vaadin-maven-plugin</artifactId>
-                        <version>${vaadin.version}</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>build-frontend</goal>
-                                </goals>
-                                <phase>compile</phase>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
             <id>sign</id>
             <activation>
                 <property>
@@ -562,20 +477,6 @@
     </profiles>
     <dependencies>
         <dependency>
-            <groupId>com.vaadin</groupId>
-            <artifactId>vaadin</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.vaadin</groupId>
-            <artifactId>vaadin-spring-boot-starter</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-logging</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-log4j2</artifactId>
         </dependency>
@@ -592,16 +493,6 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.zxing</groupId>
-            <artifactId>core</artifactId>
-            <version>3.5.3</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.zxing</groupId>
-            <artifactId>javase</artifactId>
-            <version>3.5.3</version>
         </dependency>
         <dependency>
             <groupId>ai.philterd</groupId>

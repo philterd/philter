@@ -23,8 +23,7 @@ services:
       # LEDGER_DELETION_ENABLED: true
       # 1 MB rather than the 10 MB default, so philter-test can test the limit without a large request.
       MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-1048576}
-      # Seeded onto the admin user at first start only. Development placeholders: real data needs its own.
-      PHILTER_BOOTSTRAP_ADMIN_PASSWORD: ${PHILTER_BOOTSTRAP_ADMIN_PASSWORD:-philter-development-only}
+      # The admin user's first API key, required until the admin has one. Development placeholder: real data needs its own.
       PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
       # HTTPS with a self-signed certificate, so curl needs -k. See docs/docs/settings.md to use your own.
       # SSL_KEYSTORE: /opt/philter/ssl/philter-cert.p12

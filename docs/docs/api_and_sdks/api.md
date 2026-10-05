@@ -1,14 +1,22 @@
 # API
 
+Philter has no built-in user interface: everything, including administration, is done through its API. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is planned to run against Philter with an administrator's API key.
+
 Philter's API has the following sections:
 
 * [Redaction API](api/filtering_api.md) - Submit text or PDFs for redaction. In Philter 4.0, PDF requests are asynchronous by default; the redacted bytes are downloaded via the Documents API.
 * [Documents API](api/documents_api.md) - List, poll, download, and delete asynchronous PDF redactions.
 * [Webhooks](api/webhooks.md) - Receive signed HTTP notifications when an asynchronous redaction completes or fails.
-* [Policies API](api/policies_api.md) - Create, modify, and delete [policies](../policies/filter_policies.md). Policies can also be managed in the dashboard.
+* [Policies API](api/policies_api.md) - Create, modify, and delete [policies](../policies/filter_policies.md).
 * [Custom Lists API](api/custom_lists_api.md) - Create, modify, and delete custom lists. Custom lists are referenced by policies to identify terms to redact.
 * [Always/Never Redact Lists API](api/redact_lists_api.md) - Get, replace (POST), and append to (PUT) the account's always-redact and never-redact lists, applied across all of your policies.
 * [Contexts API](api/contexts_api.md) - Create, update, and delete contexts and inspect their entries. Contexts maintain referential integrity across documents.
+* [Redaction Ledger API](api/ledger_api.md) - List, read, verify, export, and delete [redaction ledger](../redaction/ledgers.md) chains.
+* [Legal Holds API](api/legal_holds_api.md) - Set, list, and release [legal holds](../redaction/legal_holds.md) that block deletion of evidence.
+* [Users API](api/users_api.md) - Create, list, promote, deactivate, and reactivate users.
+* [API Keys API](api/api_keys_api.md) - Create, re-scope, and revoke API keys.
+* [Settings API](api/settings_api.md) - Read and change the deployment's administrator settings.
+* [Audit API](api/audit_api.md) - List and export the [audit log](../auditing.md).
 
 ## OpenAPI Specification
 
@@ -26,7 +34,7 @@ Every running Philter instance serves an interactive API reference (Swagger UI) 
 
 * **Swagger UI:** `https://<your-philter-host>:8080/swagger-ui/index.html`
 
-You can also reach the Swagger UI from the dashboard: open **My Account → API Keys** and use the **Open the API reference (Swagger UI)** link. To authorize a request from Swagger UI, send your API key as a bearer token in the `Authorization` header (see [API Keys and Authentication](../account/api_keys.md)).
+To authorize a request from Swagger UI, send your API key as a bearer token in the `Authorization` header (see [API Keys and Authentication](../account/api_keys.md)).
 
 ## Securing Philter's API
 

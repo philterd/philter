@@ -22,10 +22,9 @@ import org.bson.types.ObjectId;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
- * Rechecks, against the stored account, that the user making a change is still an active, unlocked
+ * Rechecks, against the stored account, that the user making a change is still an active
  * administrator. The API's checks run when a request starts; this runs where the change is made, so
- * a user demoted or deactivated in between cannot complete it. Unlike {@link DashboardAuthorization},
- * it does not depend on the dashboard's session.
+ * a user demoted or deactivated in between cannot complete it.
  */
 public final class AdministratorAuthorization {
 
@@ -38,7 +37,7 @@ public final class AdministratorAuthorization {
                 : client.getDatabase("philter").getCollection("users").find(Filters.eq("_id", actingUserId)).first();
 
         if (user == null || !"admin".equalsIgnoreCase(user.getString("role"))
-                || user.getBoolean("deactivated", false) || user.getBoolean("mfa_locked", false)) {
+                || user.getBoolean("deactivated", false)) {
             throw new AccessDeniedException("Current administrator authorization required.");
         }
 

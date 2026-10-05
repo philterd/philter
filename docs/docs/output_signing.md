@@ -2,7 +2,7 @@
 
 Philter can digitally sign the redacted text it returns so consumers can cryptographically verify that a response came from a specific Philter deployment, is bound to the exact policy that governed it, and has not been tampered with in transit.
 
-Signing is **disabled by default** and opt-in, with the [Settings API](api_and_sdks/api/settings_api.md) or the Admin settings page. When enabled, every successful `POST /api/filter` (text) and `POST /api/explain` response carries a compact ES256 JWT in the `X-Philter-Signature` response header. PDF (binary) `POST /api/filter` responses are **not yet signed**; see [Which responses are signed?](#which-responses-are-signed) below.
+Signing is **disabled by default** and opt-in, with the [Settings API](api_and_sdks/api/settings_api.md). When enabled, every successful `POST /api/filter` (text) and `POST /api/explain` response carries a compact ES256 JWT in the `X-Philter-Signature` response header. PDF (binary) `POST /api/filter` responses are **not yet signed**; see [Which responses are signed?](#which-responses-are-signed) below.
 
 ## How It Works
 
@@ -43,14 +43,11 @@ When this environment variable is set, the key is loaded from the file on startu
 
 The private signing key never enters the database, so database access alone does not yield it. Restrict who can read the file. Use it where the signature has to withstand compromise of the database itself, for example when the [redaction ledger](redaction/ledgers.md) is relied on as evidence.
 
-To rotate a file-managed key, replace the PEM on every node and restart all instances. Dashboard regeneration is disabled in this mode, and the service rejects regeneration attempts. During a rolling replacement, nodes may sign with different keys; the signature key ID selects the matching retained public key.
+To rotate a file-managed key, replace the PEM on every node and restart all instances. Regeneration is refused in this mode. During a rolling replacement, nodes may sign with different keys; the signature key ID selects the matching retained public key.
 
 ### Regenerating the key
 
-From the **Admin** → **Admin Settings** page, click **Regenerate Signing Key**. A confirmation dialog warns you that any consumer that cached the old public key will need to re-fetch it. For database-managed keys, confirmation stores a new keypair and publishes its ID for all instances. Operations that already selected the previous key may finish with it; subsequent key selections use the published key.
-
-Rotation is also available over the API, so it can go in a runbook or be driven across a fleet
-without a browser on each deployment:
+Regenerate the key over the API. Any consumer that cached the old public key will need to re-fetch it. For database-managed keys, regeneration stores a new keypair and publishes its ID for all instances. Operations that already selected the previous key may finish with it; subsequent key selections use the published key.
 
 ```bash
 curl -k -X POST -H "Authorization: Bearer <token>" \
@@ -64,13 +61,11 @@ curl -k -X POST -H "Authorization: Bearer <token>" \
 The response names the key that is now active, so no second request is needed to confirm which one
 took effect. The endpoint requires an administrator as well as an API key holding the
 `signing:write` scope; a caller missing either is refused with `403` and the key is not rotated. When
-the key is managed by `PHILTER_SIGNING_KEY_PATH` the endpoint returns `409` and names the cause,
-matching what the dashboard does.
+the key is managed by `PHILTER_SIGNING_KEY_PATH` the endpoint returns `409` and names the cause.
 
-Regeneration is audited as `signing_key_regenerated`, whether it came from the dashboard or the API.
-The recorded principal is always the **user** who rotated the key, never an API key id; when the API
-was used, the key that carried the request is named in the event's `details` alongside
-`source: api`. Read the events through [`GET /api/audit`](api_and_sdks/api/audit_api.md).
+Regeneration is audited as `signing_key_regenerated`.
+The recorded principal is the **user** who rotated the key, never an API key id; the key that
+carried the request is named in the event's `details` alongside `source: api`. Read the events through [`GET /api/audit`](api_and_sdks/api/audit_api.md).
 
 Regeneration preserves previous public keys and does not invalidate historical signatures. Each JWT carries a `kid` header; fetch its key from `GET /api/signing-key/{keyId}`. Cache verification keys by ID.
 
@@ -197,12 +192,6 @@ curl -k -X PATCH "https://localhost:8080/api/settings" \
   --data '{"signingEnabled":true}'
 ```
 
-Or in the dashboard:
-
-1. Navigate to **Admin** → **Admin Settings** in the Philter dashboard.
-2. Check **Enable output signing (ES256 JWT on X-Philter-Signature response header)**.
-3. Click **Save**.
-
 Signing is applied immediately on the next request, and applies to every response from then on: once
 enabled, it cannot be turned off by a caller. To sign only some requests instead, leave the setting
 off and pass `sign=true` on the requests that need it (see
@@ -251,7 +240,7 @@ See also [Settings](settings.md) for the full environment variable reference.
 | Event | When recorded |
 |-------|---------------|
 | `signing_key_generated` | A new keypair was auto-generated on first start (no existing key found). |
-| `signing_key_regenerated` | The signing key was regenerated via the Admin UI. |
+| `signing_key_regenerated` | The signing key was regenerated through `POST /api/signing-key/regenerate`. |
 
 See [Auditing](auditing.md) for the full audit log reference.
 
@@ -259,7 +248,7 @@ See [Auditing](auditing.md) for the full audit log reference.
 
 - The private key is stored in the `signing_keys` MongoDB collection. Restrict database access accordingly.
 - Consumers must trust the channel through which they receive the public key. Serve `GET /api/signing-key` over HTTPS.
-- The key fingerprint on the Admin Settings page allows quick visual confirmation that the public key has not changed unexpectedly.
+- The `fingerprint` returned by `GET /api/signing-key` allows quick confirmation that the public key has not changed unexpectedly.
 - Output signing attests that the response came from a deployment holding the private key and was not modified in transit. It does not prove that the policy correctly classified all PII. That is the role of the [Redaction Ledger](redaction/ledgers.md).
 
 ## See Also

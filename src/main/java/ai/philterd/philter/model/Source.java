@@ -17,7 +17,6 @@ package ai.philterd.philter.model;
 
 public enum Source {
 
-    WEBUI("webui"),
     API("api"),
     SYSTEM("system");
 

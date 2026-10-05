@@ -18,7 +18,7 @@ package ai.philterd.philter.model;
 public class Constants {
 
     /**
-     * Maximum file size for document uploads via API and UI. Defaults to 10 MB; override with the
+     * Maximum file size for document uploads via the API. Defaults to 10 MB; override with the
      * {@code MAX_FILE_SIZE_BYTES} environment variable.
      */
     public static final int MAX_FILE_SIZE_BYTES = (int) getEnvLong("MAX_FILE_SIZE_BYTES", 10L * 1024 * 1024);

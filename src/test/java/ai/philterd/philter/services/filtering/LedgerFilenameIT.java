@@ -51,7 +51,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The chain head is what {@code GET /api/ledger} and the Redaction Ledgers dashboard list, so it is
+ * The chain head is what {@code GET /api/ledger} lists, so it is
  * the entry whose filename a reviewer actually sees. It previously recorded the literal
  * {@code none-provided} regardless of what the caller sent, which also made chain search by filename
  * match nothing. A real {@link LedgerDataService} is used so these assertions read what was persisted.

@@ -113,7 +113,7 @@ class UserServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
         when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(userId));
 
-        ServiceResponse response = userService.createUser("req", email, "password", "role", policyDataService, contextDataService, "source");
+        ServiceResponse response = userService.createUser("req", email, "role", policyDataService, contextDataService, "source");
 
         assertTrue(response.isSuccessful());
         // A default policy and a default context are seeded for the new user.
@@ -121,24 +121,6 @@ class UserServiceTest {
         verify(contextDataService).create("default", userId);
         verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_CREATED),
                 eq(userId), eq(userId), eq("source"), org.mockito.ArgumentMatchers.contains("role"));
-    }
-
-    @Test
-    void createUserWithPasswordChangeRequiredPersistsFlag() {
-        final FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(null);
-
-        final InsertOneResult insertOneResult = mock(InsertOneResult.class);
-        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
-
-        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
-
-        userService.createUser("req", "admin", "admin", "admin", policyDataService, contextDataService, "system", true);
-
-        verify(mongoCollection).insertOne(docCaptor.capture());
-        assertTrue(docCaptor.getValue().getBoolean("password_change_required"));
     }
 
     @Test
@@ -153,7 +135,7 @@ class UserServiceTest {
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
 
-        userService.createUser("req", "fpe@example.com", "pw", "user", policyDataService, contextDataService, "system");
+        userService.createUser("req", "fpe@example.com", "user", policyDataService, contextDataService, "system");
 
         verify(mongoCollection).insertOne(docCaptor.capture());
         // The FPE key is encrypted at rest, so decrypt it back through the entity to assert its form.
@@ -180,92 +162,6 @@ class UserServiceTest {
         user.setId(new ObjectId());
         assertThrows(IllegalStateException.class, () -> userService.ensureFpeKey(user));
         verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
-    }
-
-    @Test
-    void enableMfaSetsSecretEnrolledAndResetsLock() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setMfaLocked(true);
-        user.setMfaFailedAttempts(3);
-
-        userService.enableMfa("req", user, "SECRET32", "system");
-
-        assertTrue(user.isMfaEnabled());
-        assertEquals("SECRET32", user.getMfaSecret());
-        assertFalse(user.isMfaLocked());
-        assertEquals(0, user.getMfaFailedAttempts());
-        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
-    }
-
-    @Test
-    void disableMfaClearsEnrollmentAndLock() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setMfaEnabled(true);
-        user.setMfaSecret("SECRET32");
-        user.setMfaLocked(true);
-        user.setMfaFailedAttempts(5);
-
-        userService.disableMfa("req", user, "system");
-
-        assertFalse(user.isMfaEnabled());
-        assertNull(user.getMfaSecret());
-        assertFalse(user.isMfaLocked());
-        assertEquals(0, user.getMfaFailedAttempts());
-    }
-
-    @Test
-    void unlockMfaClearsLockAndCounterButKeepsEnrollment() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setMfaEnabled(true);
-        user.setMfaSecret("SECRET32");
-        user.setMfaLocked(true);
-        user.setMfaFailedAttempts(UserService.MAX_MFA_ATTEMPTS);
-
-        userService.unlockMfa("req", user, "system");
-
-        assertFalse(user.isMfaLocked());
-        assertEquals(0, user.getMfaFailedAttempts());
-        assertTrue(user.isMfaEnabled(), "unlock must not change enrollment");
-        assertEquals("SECRET32", user.getMfaSecret());
-    }
-
-    @Test
-    void resetMfaAttemptsClearsCounter() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setMfaFailedAttempts(3);
-
-        userService.resetMfaAttempts(user);
-
-        assertEquals(0, user.getMfaFailedAttempts());
-    }
-
-    @Test
-    void changePasswordClearsPasswordChangeRequiredFlag() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-        user.setEmail("admin");
-        user.setPasswordChangeRequired(true);
-
-        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
-                .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
-
-        userService.changePassword("req", user, "a-new-password", "system");
-
-        assertFalse(user.isPasswordChangeRequired());
-    }
-
-    @Test
-    void passwordMatches() {
-        final UserEntity user = new UserEntity();
-        user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("correct-horse"));
-
-        assertTrue(userService.passwordMatches(user, "correct-horse"));
-        assertFalse(userService.passwordMatches(user, "wrong"));
-        assertFalse(userService.passwordMatches(null, "x"));
     }
 
     @Test
@@ -414,7 +310,7 @@ class UserServiceTest {
         when(findIterable.first()).thenReturn(new Document("_id", new ObjectId())
                 .append("email", "taken@example.com").append("deactivated", true));
 
-        final ServiceResponse response = userService.createUser("req", "taken@example.com", "pw", "user",
+        final ServiceResponse response = userService.createUser("req", "taken@example.com", "user",
                 policyDataService, contextDataService, "system");
 
         assertFalse(response.isSuccessful());
@@ -443,17 +339,6 @@ class UserServiceTest {
         // Excluding deactivated users issues a filtered find(), not the unfiltered find().
         verify(mongoCollection).find(any(Bson.class));
         verify(mongoCollection, never()).find();
-    }
-
-    @Test
-    void changePasswordIsAudited() {
-        final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
-
-        userService.changePassword("req", user, "new-password", "source");
-
-        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.USER_PASSWORD_CHANGED),
-                eq(user.getId()), eq(user.getId()), eq("source"), org.mockito.ArgumentMatchers.isNull());
     }
 
     @Test

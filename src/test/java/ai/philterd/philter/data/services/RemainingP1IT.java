@@ -1,7 +1,5 @@
 package ai.philterd.philter.data.services;
 
-import ai.philterd.philter.api.security.DashboardPrincipal;
-import ai.philterd.philter.api.security.DashboardSessionFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.ServiceResponse;
@@ -13,10 +11,6 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +33,7 @@ class RemainingP1IT extends AbstractMongoIT {
     private UserService users() { return new UserService(mongoClient, new TestEncryptionService(), audit); }
     private UserEntity account(UserService users) {
         UserEntity user = new UserEntity();
-        user.setUsername("operator"); user.setPassword("unused"); user.setRole("admin");
+        user.setUsername("operator"); user.setRole("admin");
         user.setFpeKey("0123456789abcdef0123456789abcdef");
         user.setId(users.save(user));
         return user;
@@ -50,76 +44,6 @@ class RemainingP1IT extends AbstractMongoIT {
         other.setUsername("other-admin"); other.setRole("admin");
         users.save(other);
     }
-    private void authenticate(UserEntity user) {
-        final var principal = new DashboardPrincipal(user, false);
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
-    }
-    @AfterEach void clearAuthentication() {
-        SecurityContextHolder.clearContext();
-        com.vaadin.flow.server.VaadinSession.setCurrent(null);
-    }
-
-    @Test void staleSettingsCannotRestorePasswordRoleOrMfaState() {
-        UserService service = users();
-        UserEntity stale = account(service);
-        anotherAdmin(service);
-        service.enableMfa("req", service.findOneById(stale.getId()), "NEWSECRET", "system");
-        service.setUserRole("req", service.findOneById(stale.getId()), "user", "system");
-        service.changePassword("req", stale, "a sufficiently long password", "system");
-        UserEntity current = service.findOneById(stale.getId());
-        assertEquals("user", current.getRole()); assertTrue(current.isMfaEnabled());
-        assertEquals("NEWSECRET", current.getMfaSecret());
-        assertEquals(3L, current.getSecurityVersion());
-        assertThrows(UnsupportedOperationException.class, () -> service.update(stale));
-        authenticate(current);
-        var mfaSession = mock(com.vaadin.flow.server.VaadinSession.class);
-        when(mfaSession.getAttribute(ai.philterd.philter.views.MfaChallengeView.MFA_SATISFIED_ATTRIBUTE))
-                .thenReturn(current.getId() + ":" + current.getSecurityVersion());
-        com.vaadin.flow.server.VaadinSession.setCurrent(mfaSession);
-        assertTrue(service.setWebhook("req", stale, "https://93.184.216.34/events", "a webhook secret of 16+",
-                null, "webui", null, null).isSuccessful());
-        current = service.findOneById(stale.getId());
-        assertEquals("user", current.getRole()); assertTrue(current.isMfaEnabled());
-        assertEquals("NEWSECRET", current.getMfaSecret());
-        assertTrue(service.passwordMatches(current, "a sufficiently long password"));
-    }
-
-    @Test void alreadyOpenRpcIsRejectedAfterDemotionEvenAfterRePromotion() throws Exception {
-        UserService service = users(); UserEntity before = account(service); authenticate(before);
-        service.setUserRole("req", before, "user", "system");
-        service.setUserRole("req", before, "admin", "system");
-        assertThrows(org.springframework.security.access.AccessDeniedException.class,
-                () -> service.setUserRole("req", before, "admin", "webui"));
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/admin");
-        request.setParameter("v-r", "uidl");
-        final var session = (org.springframework.mock.web.MockHttpSession) request.getSession();
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        new DashboardSessionFilter(users()).doFilter(request, response, (req, res) -> fail("Revoked RPC reached dashboard"));
-        assertEquals(401, response.getStatus()); assertTrue(session.isInvalid());
-    }
-
-    @Test void enrollmentRevokesPreviouslyUnenrolledSessionAndOldCodeCannotSatisfyNewEpoch() throws Exception {
-        UserService service = users(); UserEntity before = account(service); authenticate(before);
-        service.enableMfa("req", before, "FIRST", "system");
-        UserEntity firstEnrollment = service.findOneById(before.getId());
-        service.disableMfa("req", firstEnrollment, "system");
-        service.enableMfa("req", firstEnrollment, "SECOND", "system");
-        assertFalse(service.recordAcceptedMfaTimeStep(firstEnrollment, 100));
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        new DashboardSessionFilter(users()).doFilter(new MockHttpServletRequest("POST", "/account"), response,
-                (req, res) -> fail("Old session survived enrollment"));
-        assertEquals(401, response.getStatus());
-    }
-
-    @Test void currentSessionRequestStillReachesDashboard() throws Exception {
-        UserService service = users(); authenticate(account(service));
-        final boolean[] invoked = {false};
-        new DashboardSessionFilter(users()).doFilter(new MockHttpServletRequest("POST", "/account"),
-                new MockHttpServletResponse(), (req, res) -> invoked[0] = true);
-        assertTrue(invoked[0]);
-    }
-
     private PolicyDataService policies(PolicyVersionDataService versions) {
         return new PolicyDataService(mongoClient, audit, new Gson(), versions,
                 new ai.philterd.philter.services.cache.RedactionCache());
@@ -193,21 +117,11 @@ class RemainingP1IT extends AbstractMongoIT {
     }
 
     @Test void staleAdminCannotChangeGlobalSettingsAtServiceBoundary() {
-        UserService users = users(); var admin = account(users); anotherAdmin(users); authenticate(admin);
+        UserService users = users(); var admin = account(users); anotherAdmin(users);
         users.setUserRole("req", admin, "user", "system");
         var settings = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), audit);
         assertThrows(org.springframework.security.access.AccessDeniedException.class,
-                () -> settings.saveMfaEnabled(admin.getId(), false));
-    }
-    @Test void passwordAuthenticationAloneCannotMutateAnMfaEnrolledAccount() {
-        var service = users(); var account = account(service);
-        service.enableMfa("req", account, "SECRET", "system");
-        account = service.findOneById(account.getId()); authenticate(account);
-        final var target = account;
-        assertThrows(org.springframework.security.access.AccessDeniedException.class,
-                () -> service.disableMfa("req", target, "webui"));
-        assertThrows(org.springframework.security.access.AccessDeniedException.class,
-                () -> new AdminSettingsDataService(mongoClient, new TestEncryptionService(), audit)
-                        .saveMfaEnabled(target.getId(), false));
+                () -> settings.update(new AdminSettingsDataService.Update(null, false, null, null, null, null, null, null),
+                        admin.getId(), null));
     }
 }

@@ -19,7 +19,6 @@ import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.content.ContentTypeVerifyingFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.views.LoginView;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -31,13 +30,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
-
-import static com.vaadin.flow.spring.security.VaadinSecurityConfigurer.vaadin;
 
 @Configuration
 @EnableWebSecurity
@@ -63,23 +58,17 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers("/public/**", "/themes/**", "/favicon.ico");
+        return (web) -> web.ignoring().requestMatchers("/public/**");
     }
 
     /**
-     * Security chain for the stateless, Bearer-token API ({@code /api/**}). It is registered ahead of
-     * the UI chain so API requests never touch the Vaadin/session machinery.
+     * Security chain for the stateless, Bearer-token API ({@code /api/**}).
      *
      * <p>The chain creates no HTTP session ({@link SessionCreationPolicy#STATELESS}): authentication is
      * re-established from the API key on every request by {@link ApiAuthenticationFilter}, so nothing is
      * carried in a session between requests. That is what lets the API scale horizontally behind a plain
-     * load balancer, unlike the session-bound Vaadin dashboard. The filter performs authentication
+     * load balancer. The filter performs authentication
      * itself (returning 401/403 JSON and handing the resolved key to controllers via a request
      * attribute), so Spring Security authorization here is permissive and CSRF is disabled (token auth
      * does not rely on cookies).
@@ -105,38 +94,25 @@ public class SecurityConfig {
     }
 
     /**
-     * Security chain for everything that is not the API: the session-based Vaadin dashboard and the
-     * actuator endpoints. This is the catch-all chain ({@code @Order(2)}), so it handles every request
-     * the API chain above did not match.
+     * Security chain for everything that is not the API: the actuator endpoints, the OpenAPI
+     * specification and Swagger UI, and the documentation under {@code /public/docs}. All are public and
+     * hold no session, so nothing here sets a cookie, and any other path answers 404 because no handler
+     * serves it.
      */
     @Bean
     @Order(2)
-    public SecurityFilterChain filterChain(final HttpSecurity http,
-                                           final SizeLimitingFilter sizeLimitingFilter,
-                                           final ai.philterd.philter.data.services.UserService userService) throws Exception {
+    public SecurityFilterChain filterChain(final HttpSecurity http, final SizeLimitingFilter sizeLimitingFilter) throws Exception {
 
         http
-                // CSRF protection is left enabled for the Vaadin UI (Vaadin's security configurer
-                // handles its own internal requests). It is disabled only for the actuator endpoints,
-                // which do not use cookie-based sessions and are therefore not susceptible to CSRF.
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/actuator/**"))
-                // Clickjacking protection: the dashboard is only ever framed by itself.
+                // No session and no cookie-based authentication, so there is nothing for CSRF to forge.
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(cache -> cache.disable())
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())
                         .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'")))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**", "/styles/**", "/icons/**", "/actuator/**", "/themes/**", "/favicon.ico").permitAll()
-                        // The OpenAPI specification and Swagger UI are public, matching the
-                        // documented behavior (ApiAuthenticationFilter also allows these paths,
-                        // but it only runs on the /api/** chain, so they must be permitted here).
-                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                )
-
-                .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new DashboardSessionFilter(userService), org.springframework.security.web.access.intercept.AuthorizationFilter.class)
-                .sessionManagement(session -> session.sessionFixation(fixation -> fixation.newSession()))
-                .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/dashboard", true))
-                .with(vaadin(), vaadin -> vaadin.loginView(LoginView.class));
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
 

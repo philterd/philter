@@ -4,13 +4,13 @@ Philter requires a [MongoDB](https://www.mongodb.com/) database. MongoDB is the 
 
 ## Supported versions
 
-Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.yml` pins. That MongoDB requires authentication and is not published to the host: it holds the ledger, the audit log and the encrypted PII, and Philter reaches it over the compose network. `compose.sh` generates the password into `.env` on first run. To attach `mongosh` or [Philter Diffuse](diffuse.md) from your machine, uncomment the `ports` block on the `mongodb` service.
+Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.yml` pins. That MongoDB requires authentication and holds the ledger, the audit log and the encrypted PII. Its port is published so `mongosh` and [Philter Diffuse](diffuse.md) can reach it from your machine, and its development password is written in `docker-compose.yml`; for real data, use a generated password and do not publish the port.
 
 ## What Philter stores in MongoDB
 
 | Data | Description |
 |------|-------------|
-| Users | Dashboard user accounts, roles, and (BCrypt-hashed) passwords. |
+| Users | User accounts, roles, and webhook settings. Users authenticate with API keys and have no password. |
 | API keys | Hashed API keys and their metadata. |
 | Policies | Redaction policies, including the managed policies shipped with Philter. |
 | Contexts and context entries | Contexts and their token-to-replacement mappings used for referential integrity. |
@@ -23,7 +23,7 @@ Philter is developed and tested against **MongoDB 8.2**, which is what the bundl
 | Ledger chain lifecycle | The `ledger_chains` collection tracks open, writing, failed, completed, and purged chains. Purged markers prevent late appends; they contain owner/document IDs and lifecycle timestamps, not tokens or replacements. |
 | Redaction ledger | The cryptographic ledger of redactions, when enabled for a context. See [Redaction Ledgers](redaction/ledgers.md). |
 | Disambiguation vectors | The per-`(user, context)` vectors learned for [span disambiguation](other_features/span_disambiguation.md), bounded by `MAX_VECTORS_PER_CONTEXT`. |
-| Admin settings | Instance-wide administrator settings (for example, whether logging is enabled). |
+| Admin settings | Instance-wide administrator settings, such as output signing and Phield publishing. See the [Settings API](api_and_sdks/api/settings_api.md). |
 | Audit events | The audit log of security-relevant actions. See [Auditing](auditing.md). |
 
 Some collections are encrypted at rest and some are not. See [What is encrypted at rest](#what-is-encrypted-at-rest) below and [encryption](settings.md#encryption).
@@ -48,16 +48,16 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 
 The audit log is deliberately readable: it is evidence of who did what, and encrypting it would make
 it unusable for the reporting it exists for. It records event names, the acting API key, an object
-id, a client address and a short detail string — not document content.
+id, a client address and a short detail string, not document content.
 
 **Not encrypted:** API keys (stored as a hash), context entries (stored as a token hash, not the
 original value), policies and their version snapshots, contexts, legal holds, the rest of the admin
-settings, webhook delivery metadata and payloads, and the audit log. These hold no recoverable secret — with one
+settings, webhook delivery metadata and payloads, and the audit log. These hold no recoverable secret, with one
 exception you control.
 
 > **A policy can hold a secret, and then it is stored in the clear.** The `crypto` and `fpe` sections
 > of a policy may contain an encryption key. Policies and their version snapshots are not encrypted,
-> and the values those keys encrypted are held in `context_entries`, which is not encrypted either —
+> and the values those keys encrypted are held in `context_entries`, which is not encrypted either,
 > so a key written into a policy can be read by anyone who can read the database, along with
 > everything it encrypted. Prefix the value with `env:` (for example `env:CRYPTO_KEY`) to keep the key
 > in the environment and store only the variable's name. Philter logs a warning when a policy is saved

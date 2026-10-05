@@ -25,7 +25,7 @@ Philter requires a MongoDB database to store policies and other data. See [Datab
 
 ## Encryption
 
-Philter encrypts sensitive data at rest and requires an encryption key. Encryption is applied per collection; see [what is encrypted](database.md#what-is-encrypted-at-rest). Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts. It generates the bootstrap API key and the MongoDB password into the same file.
+Philter encrypts sensitive data at rest and requires an encryption key. Encryption is applied per collection; see [what is encrypted](database.md#what-is-encrypted-at-rest). Philter will not start if the key is missing or invalid. The `compose.sh` script in the repository generates one into a `.env` file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts. It generates the bootstrap API key into the same file.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
@@ -42,7 +42,7 @@ The cache is used for API key and context caching. Philter supports Valkey/Redis
 | `CACHE_PASSWORD` | The Valkey password. | (empty) |
 | `CACHE_SSL` | Whether to use SSL for communication with the Valkey cache. | `false` |
 | `SCHEDULER_POOL_SIZE` | Threads available to Philter's background workers: one redacts asynchronous documents, the other delivers webhooks. With a single thread they block each other, so a slow document delays delivery. Raise it only if you add further scheduled work. | `2` |
-| `ADMIN_SETTINGS_CACHE_TTL_SECONDS` | How long an instance caches the admin settings (output signing, Phield, Diffuse) before re-reading them. They are read on every redaction, so caching keeps that off the database. A change made through this instance's dashboard applies immediately; one made on another instance is picked up within this window. | `60` |
+| `ADMIN_SETTINGS_CACHE_TTL_SECONDS` | How long an instance caches the admin settings (output signing, Phield, Diffuse) before re-reading them. They are read on every redaction, so caching keeps that off the database. A change made through this instance's [Settings API](api_and_sdks/api/settings_api.md) applies immediately; one made on another instance is picked up within this window. | `60` |
 
 ## Metrics
 
@@ -50,7 +50,7 @@ Philter exposes metrics in Prometheus format at `/actuator/prometheus`. See [Mon
 
 ## TLS
 
-Philter serves HTTPS on port 8080. The Docker image generates a self-signed certificate the first time it starts and writes it to `/opt/philter/ssl/philter.p12`. That certificate is not signed by a certificate authority, so clients must skip verification (`curl -k`) and browsers warn before showing the dashboard. It encrypts the connection but does not prove Philter's identity, which is why every example in this documentation passes `-k`.
+Philter serves HTTPS on port 8080. The Docker image generates a self-signed certificate the first time it starts and writes it to `/opt/philter/ssl/philter.p12`. That certificate is not signed by a certificate authority, so clients must skip verification (`curl -k`). It encrypts the connection but does not prove Philter's identity, which is why every example in this documentation passes `-k`.
 
 Replace it for anything beyond evaluation. There are two ways to do that:
 
@@ -109,10 +109,10 @@ That keeps verification on and trusts exactly the one certificate you intend, ra
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `PHILTER_BOOTSTRAP_API_KEY` | Optional API key to seed at startup so automation and turnkey deployments have a credential without using the dashboard. Must be `sk_` followed by 32 alphanumeric characters (generate one however you provision secrets). When set, it is assigned to the `admin` user, but only if that user has no API keys at all (active or archived), so it is seeded once on a fresh install and never resurrected after you create or revoke a key of your own. It is created with every [scope](account/api_keys.md#scopes); narrow it in the dashboard or replace it with a key scoped to what your automation needs. Authentication stays enabled. While the bootstrap key is in use, the dashboard shows a warning on login and surfaces the key on the API Keys page. Rotate or revoke it in the dashboard when it is no longer needed. | (empty; UI key creation only) |
-| `ADMIN_CROSS_USER_ACCESS_ENABLED` | Whether an administrator may view or act on **other** users' resources (their contexts, policies, custom lists, documents, and redaction ledger) via the API `owner` parameter, the `all_users` parameter on the policy, context, custom list, ledger, and legal hold listings, and the admin "All …" dashboard tabs. **Disabled by default**, so an admin sees only their own data, like any user; set to `true` to opt in. Does not affect ordinary admin functions such as user management. | `false` |
-| `LEDGER_DELETION_ENABLED` | Whether [redaction ledger](redaction/ledgers.md) entries may be deleted at all, through `DELETE /api/ledger` or the Redaction Ledgers dashboard. **Disabled by default**: when unset, no ledger evidence can be deleted through Philter and the dashboard controls are hidden. Deletion is additionally restricted to administrators, and [legal holds](redaction/legal_holds.md) still block it. Deleting another user's ledger requires `ADMIN_CROSS_USER_ACCESS_ENABLED` as well. | `false` |
-| `TRUSTED_PROXIES` | The load balancers and proxies whose `X-Forwarded-For` header Philter believes when recording the client IP address of an API request in the [audit log](auditing.md) (dashboard actions record the header as sent): a comma-separated list of IP addresses and CIDR ranges. A request from one of them is attributed to the client address the header names, reading the header from the right and skipping trusted proxies, since each proxy appends the address it received from and a client can write the leftmost entries itself. A request from any other address is attributed to the connection's address, and the header is ignored. Only IP addresses are recorded; a hostname or other text in the header is ignored, and nothing is looked up in DNS. The default trusts loopback, private, link-local, and IPv6 unique-local addresses, so a load balancer or ingress on the same network works without configuration while a client on the internet cannot choose its recorded address. Set it to your proxies' addresses if a host on your internal network should not be able to, or if your load balancer has a public address. Entries that are not an address or range are logged and ignored. | `127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10` |
+| `PHILTER_BOOTSTRAP_API_KEY` | The `admin` user's first API key, and the only way to get a first credential. Must be `sk_` followed by 32 letters and digits (generate one however you provision secrets). **Required while the `admin` user has never had an API key**: Philter does not start if it is unset or malformed. Once the `admin` user has had any key, active or revoked, it is ignored, so it is seeded once on a fresh install and never re-created after you revoke it. It is created with every [scope](account/api_keys.md#scopes); use it to create narrower keys with the [API Keys API](api_and_sdks/api/api_keys_api.md). To retire it, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks. | (none) |
+| `ADMIN_CROSS_USER_ACCESS_ENABLED` | Whether an administrator may view or act on **other** users' resources (their contexts, policies, custom lists, documents, and redaction ledger) via the API `owner` parameter and the `all_users` parameter on the policy, context, custom list, ledger, and legal hold listings. **Disabled by default**, so an admin sees only their own data, like any user; set to `true` to opt in. Does not affect ordinary admin functions such as user management. | `false` |
+| `LEDGER_DELETION_ENABLED` | Whether [redaction ledger](redaction/ledgers.md) entries may be deleted at all, through `DELETE /api/ledger`. **Disabled by default**: when unset, no ledger evidence can be deleted through Philter. Deletion is additionally restricted to administrators, and [legal holds](redaction/legal_holds.md) still block it. Deleting another user's ledger requires `ADMIN_CROSS_USER_ACCESS_ENABLED` as well. | `false` |
+| `TRUSTED_PROXIES` | The load balancers and proxies whose `X-Forwarded-For` header Philter believes when recording the client IP address of an API request in the [audit log](auditing.md): a comma-separated list of IP addresses and CIDR ranges. A request from one of them is attributed to the client address the header names, reading the header from the right and skipping trusted proxies, since each proxy appends the address it received from and a client can write the leftmost entries itself. A request from any other address is attributed to the connection's address, and the header is ignored. Only IP addresses are recorded; a hostname or other text in the header is ignored, and nothing is looked up in DNS. The default trusts loopback, private, link-local, and IPv6 unique-local addresses, so a load balancer or ingress on the same network works without configuration while a client on the internet cannot choose its recorded address. Set it to your proxies' addresses if a host on your internal network should not be able to, or if your load balancer has a public address. Entries that are not an address or range are logged and ignored. | `127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10` |
 
 ## Auditing
 
@@ -134,23 +134,11 @@ security review can see; it removes the per-redaction volume.
 |----------------------|-------------|---------------|
 | `AUDIT_REDACTION_EVENTS_ENABLED` | Whether the two per-redaction audit events are recorded. Set to `false` for a lean, high-volume deployment. Security events are unaffected. | `true` |
 
-## Dashboard Login
-
-These settings control the dashboard login lockout and session timeout. See [Login Security](login_security.md).
-
-| Environment Variable | Description | Default Value |
-|----------------------|-------------|---------------|
-| `LOGIN_MAX_ATTEMPTS` | Number of consecutive failed dashboard logins that triggers a temporary lockout. | `5` |
-| `LOGIN_LOCKOUT_SECONDS` | How long a dashboard login lockout lasts, in seconds. | `900` |
-| `SESSION_TIMEOUT_MINUTES` | Minutes of inactivity before the dashboard session ends and the user is returned to the login page. | `15` |
-
-Optional multi-factor authentication (TOTP) for the dashboard is enabled in the dashboard **Admin** → **Admin Settings** page, not via an environment variable, and is opt-in per user. See [Multi-factor authentication](login_security.md#multi-factor-authentication-mfa).
-
 ## Redaction Ledger
 
-Whether a redaction is recorded in the [redaction ledger](redaction/ledgers.md) is controlled per context by the **Enable the redaction ledger** option set when creating or editing a context. The option is unchecked (disabled) by default, so redactions made in a context are not written to the ledger unless the context has it enabled.
+Whether a redaction is recorded in the [redaction ledger](redaction/ledgers.md) is controlled per context by the `ledger` option set when [creating or updating a context](api_and_sdks/api/contexts_api.md). It is disabled by default, so redactions made in a context are not written to the ledger unless the context has it enabled.
 
-**Ledger entries never expire on their own.** They are governance evidence, so they are removed only by a deliberate deletion: an administrator calling `DELETE /api/ledger` or `DELETE /api/ledger/{documentId}`, or using the equivalent controls in the Redaction Ledgers dashboard. Both require `LEDGER_DELETION_ENABLED=true` (see [API Access](#api-access) above), are refused while a [legal hold](redaction/legal_holds.md) covers the evidence, and are recorded in the [audit log](auditing.md).
+**Ledger entries never expire on their own.** They are governance evidence, so they are removed only by a deliberate deletion: an administrator calling `DELETE /api/ledger` or `DELETE /api/ledger/{documentId}`. Both require `LEDGER_DELETION_ENABLED=true` (see [API Access](#api-access) above), are refused while a [legal hold](redaction/legal_holds.md) covers the evidence, and are recorded in the [audit log](auditing.md).
 
 To enforce a retention period, schedule the purge endpoint. This gives you time-based retention that is still admin-only, hold-aware, and audited:
 
@@ -198,7 +186,7 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 
 ## Output Signing
 
-Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses with an ES256 JWT in the `X-Philter-Signature` response header. Signing is **disabled by default**; enable it with the [Settings API](api_and_sdks/api/settings_api.md) or the dashboard **Admin** → **Admin Settings** page. See [Output Signing](output_signing.md) for full documentation.
+Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses with an ES256 JWT in the `X-Philter-Signature` response header. Signing is **disabled by default**; enable it with the [Settings API](api_and_sdks/api/settings_api.md). See [Output Signing](output_signing.md) for full documentation.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
@@ -206,17 +194,17 @@ Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses wit
 
 ## PII Drift Monitoring (Phield)
 
-Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured with the [Settings API](api_and_sdks/api/settings_api.md) or the dashboard **Admin** settings (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with `PHIELD_API_KEY` set), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).
+Philter can optionally publish per-redaction **PII type counts** to a [Phield](https://github.com/philterd/phield) drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured with the [Settings API](api_and_sdks/api/settings_api.md) (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with `PHIELD_API_KEY` set), not via environment variables. See [PII Drift Monitoring with Phield](phield.md).
 
 ### Bootstrap and in-memory capacity
 
 | Setting | Behavior | Default |
 |---|---|---|
-| `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` | Private first-login password; required when the `admin` account does not exist. Minimum 16 characters, maximum 72 UTF-8 bytes. `compose.sh` generates it in `.env`. | None |
+| `PHILTER_BOOTSTRAP_API_KEY` | Required on first start; see [API Access](#api-access). `compose.sh` generates it in `.env`. | None |
 | `IN_MEMORY_CACHE_MAX_ENTRIES` | Positive maximum across strings, hash containers, and hash fields. | `100000` |
 | `IN_MEMORY_CACHE_MAX_BYTES` | Positive maximum accounted retained cache size, including conservative object overhead and UTF-16 string data. This is not a JVM heap limit. | `67108864` |
 
-At capacity, ordinary cache insertions are skipped and unsuccessful refreshes discard stale values. Live login-failure counters are never evicted to admit new entries. Counter overflow blocks all dashboard logins for the failure window, including users whose counters could not be retained. Expiry and deletion release capacity. `LOGIN_MAX_ATTEMPTS` and `LOGIN_LOCKOUT_SECONDS` must be positive.
+At capacity, ordinary cache insertions are skipped and unsuccessful refreshes discard stale values. Expiry and deletion release capacity.
 
 ## Async queue admission
 

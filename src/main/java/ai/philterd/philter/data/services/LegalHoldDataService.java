@@ -186,11 +186,6 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
         return (int) holds.countDocuments(Filters.eq("user_id", userId));
     }
 
-    /** Returns the total number of holds across all users. Admin use only. */
-    public int countAll() {
-        return (int) holds.countDocuments();
-    }
-
     /**
      * Returns {@code true} if any active hold protects ledger entries for the given document.
      *

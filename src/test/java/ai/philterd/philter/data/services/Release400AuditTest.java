@@ -39,12 +39,11 @@ class Release400AuditTest extends AbstractMongoIT {
     private final AuditEventPublisher audit = mock(AuditEventPublisher.class);
 
     @Test
-    void staleAccountPasswordSavePreservesRevokedRoleAndDeactivation() {
+    void staleAccountWebhookSavePreservesRevokedRoleAndDeactivation() {
         final UserService service = new UserService(mongoClient, new TestEncryptionService(), audit);
         final UserEntity user = new UserEntity();
         user.setUsername("audit-user");
         user.setRole("admin");
-        user.setPassword("unused");
         final ObjectId id = service.save(user);
         // Another administrator, so demoting and deactivating this one is not refused as the last.
         final UserEntity otherAdmin = new UserEntity();
@@ -56,9 +55,10 @@ class Release400AuditTest extends AbstractMongoIT {
         service.setUserRole("audit", adminCopy, "user", "test");
         service.deactivateUser("audit", adminCopy, "test");
         assertTrue(service.isDeactivated(id));
-        service.changePassword("audit", staleForm, "a-new-audit-password", "test");
-        assertTrue(service.isDeactivated(id), "Password changes must preserve deactivation");
-        assertEquals("user", service.findOneById(id).getRole(), "Password changes must preserve demotion");
+        assertTrue(service.setWebhook("audit", staleForm, "https://hooks.example.com/philter", "a-webhook-secret-of-length",
+                null, "test", null, null).isSuccessful());
+        assertTrue(service.isDeactivated(id), "Webhook changes must preserve deactivation");
+        assertEquals("user", service.findOneById(id).getRole(), "Webhook changes must preserve demotion");
     }
 
     @Test
@@ -160,7 +160,9 @@ class Release400AuditTest extends AbstractMongoIT {
         final var first = new SigningKeyDataService(mongoClient, encryption, audit);
         final var second = new SigningKeyDataService(mongoClient, encryption, audit);
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
-        first.regenerate("req", new ObjectId(), null, "source: test");
+        final ObjectId admin = new ObjectId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", admin).append("role", "admin"));
+        first.regenerate("req", admin, null, "source: test");
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId(),
                 "The second instance must select the newly published key");
     }

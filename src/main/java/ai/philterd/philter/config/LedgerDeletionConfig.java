@@ -18,8 +18,8 @@ package ai.philterd.philter.config;
 import ai.philterd.philter.utils.EnvUtils;
 
 /**
- * The kill switch for redaction-ledger deletion, governing the {@code DELETE /api/ledger} endpoints
- * and the equivalent dashboard actions. Deletion is additionally restricted to administrators.
+ * The kill switch for redaction-ledger deletion, governing the {@code DELETE /api/ledger} endpoints.
+ * Deletion is additionally restricted to administrators.
  *
  * <p>Separate from {@link AdminAccessConfig} on purpose: that controls <em>whose</em> data an admin
  * may reach, this controls whether evidence may be <em>destroyed</em>. Deleting another user's ledger

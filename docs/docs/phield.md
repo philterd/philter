@@ -38,15 +38,15 @@ The field to think about is `context`, which Philter forwards verbatim as the ca
 
 ## Enabling the integration
 
-This is configured by an administrator, off by default, with the [Settings API](api_and_sdks/api/settings_api.md) (`phieldEnabled`, `phieldUrl`, `phieldSourceId`, `phieldOrganization`, `phieldApiKey`) or on the dashboard **Admin** page:
+This is configured by an administrator, off by default, with the [Settings API](api_and_sdks/api/settings_api.md):
 
-| Option | Description | Default |
+| Setting | Description | Default |
 |--------|-------------|---------|
-| **Publish PII count statistics to Phield** | Enables publishing. When off, nothing is sent. | Off |
-| **Phield URL** | Base URL of the Phield service (for example `http://phield:8080`). Counts are posted to `<URL>/ingest` after each redaction. Publishing is inactive while this is blank. | (empty) |
-| **Phield Source ID** | The `source_id` reported to Phield, identifying this Philter instance. Use a distinct value per instance if you want each baselined separately. | `philter` |
-| **Phield Organization** | The `organization` reported to Phield. | `philter` |
-| **Phield API Key** | Sent as an `Authorization: Bearer` header on each request. Set this to the value of the Phield instance's `PHIELD_API_KEY`. Leave blank when the Phield instance is unauthenticated. | (empty) |
+| `phieldEnabled` | Enables publishing. When off, nothing is sent. | Off |
+| `phieldUrl` | Base URL of the Phield service (for example `http://phield:8080`). Counts are posted to `<URL>/ingest` after each redaction. Publishing is inactive while this is blank. | (empty) |
+| `phieldSourceId` | The `source_id` reported to Phield, identifying this Philter instance. Use a distinct value per instance if you want each baselined separately. | `philter` |
+| `phieldOrganization` | The `organization` reported to Phield. | `philter` |
+| `phieldApiKey` | Sent as an `Authorization: Bearer` header on each request. Set this to the value of the Phield instance's `PHIELD_API_KEY`. Leave it unset, or set it to `""` to remove it, when the Phield instance is unauthenticated. | (empty) |
 
 Changes take effect within a short interval (the settings are cached briefly to keep the redaction path fast).
 

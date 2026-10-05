@@ -359,8 +359,8 @@ public class ApiKeysApiController extends AbstractApiController {
     private ResponseEntity<Object> mint(final String requestId, final ApiKeyEntity caller, final UserEntity user,
                                         final Set<String> scopes) {
 
-        // The principal recorded is the new key and the object is the user it belongs to, as for a key
-        // made in the dashboard; who asked for it goes in the details.
+        // The principal recorded is the new key and the object is the user it belongs to; who asked for
+        // it goes in the details.
         final ServiceResponse response = apiKeyService.createApiKey(requestId, user.getId(),
                 Source.API.getSource(), scopes,
                 "created " + actingPrincipal(caller) + ", scopes: [" + String.join(", ", scopes) + "]");

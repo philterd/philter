@@ -489,7 +489,7 @@ public class PoliciesApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "copy policy '" + policyName + "' to '" + name + "'");
 
-        // Through create, as the dashboard does, so the copy gets the name rules, a fresh version history,
+        // Through create, so the copy gets the name rules, a fresh version history,
         // and an unmanaged record of its own, rather than the source's revision and timestamps.
         final ServiceResponse response = policyDataService.create(requestId, userId, source.getPolicy(),
                 source.getDescription(),

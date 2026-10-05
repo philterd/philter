@@ -19,7 +19,6 @@ import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
-import ai.philterd.philter.config.ProvisioningConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -162,14 +161,6 @@ public abstract class AbstractApiController {
      */
     protected boolean isLedgerDeletionEnabled() {
         return LedgerDeletionConfig.isLedgerDeletionEnabled();
-    }
-
-    /**
-     * Whether this deployment exposes the provisioning endpoints at all. Reads the
-     * {@code PROVISIONING_API_ENABLED} kill switch; overridable for tests.
-     */
-    protected boolean isProvisioningApiEnabled() {
-        return ProvisioningConfig.isProvisioningApiEnabled();
     }
 
     /** Page size used when a caller supplies none, or a value that is not positive. */

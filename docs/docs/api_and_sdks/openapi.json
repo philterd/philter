@@ -6548,12 +6548,135 @@
       }
     },
     "/api/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List users.",
+        "description": "Lists users sorted by username, including deactivated users, with the total count. Requires an administrator as well as the scope. Requires the `users:read` scope.",
+        "operationId": "getUsers",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUsersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
-          "Provisioning"
+          "Users"
         ],
         "summary": "Create a user.",
-        "description": "Creates a non-administrator user with a default policy and context, as the dashboard does. The role is not a parameter: this endpoint cannot create an administrator, because an administrator account is made in the dashboard where the caller has passed the login and its MFA. Requires an administrator as well as the scope, and is present only when PROVISIONING_API_ENABLED=true. Recorded as a user_created audit event naming the calling administrator as the principal. Requires the `users:write` scope.",
+        "description": "Creates a user with a default policy and context. The role is user unless admin is given. The user has no password and authenticates with API keys; create one with POST /api/users/{username}/api-keys. Requires an administrator as well as the scope. Recorded as a user_created audit event naming the calling administrator as the principal and the calling API key in the details. Requires the `users:write` scope.",
         "operationId": "createUser",
         "parameters": [
           {
@@ -6587,7 +6710,7 @@
             }
           },
           "400": {
-            "description": "The username is missing, or the password is missing or shorter than 16 characters.",
+            "description": "The username is missing or reserved, the role is not user or admin, or a password was sent.",
             "content": {
               "*/*": {
                 "schema": {
@@ -6615,9 +6738,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "PROVISIONING_API_ENABLED is not set, so the endpoint is not present."
           },
           "406": {
             "description": "No representation matches Accept."
@@ -6675,13 +6795,234 @@
         }
       }
     },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get the calling key's user.",
+        "description": "Returns the user that owns the API key making the request. Does not require an administrator. Requires the `users:read` scope.",
+        "operationId": "getCurrentUser",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The calling key's user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get a user.",
+        "description": "Returns one user by username, active or deactivated. Requires an administrator as well as the scope. Requires the `users:read` scope.",
+        "operationId": "getUser",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/users/{username}/api-keys": {
       "post": {
         "tags": [
-          "Provisioning"
+          "Users"
         ],
         "summary": "Create an API key for a user.",
-        "description": "Mints a key for the named user with the scopes given in the body, and returns its value once: only the hash is stored, so the response is the one chance to capture it. The scopes must be a subset of those the calling key holds, so this cannot be used to widen access beyond the credential making the request. Requires an administrator as well as the scope, and is present only when PROVISIONING_API_ENABLED=true. Recorded as an api_key_created audit event naming the calling administrator. Requires the `api-keys:write` scope.",
+        "description": "Mints a key for the named user with the scopes given in the body, and returns its value once: only the hash is stored, so the response is the one chance to capture it. The scopes must be a subset of those the calling key holds, so this cannot be used to widen access beyond the credential making the request. Requires an administrator as well as the scope. Recorded as an api_key_created audit event naming the calling administrator. Requires the `api-keys:write` scope.",
         "operationId": "createApiKey",
         "parameters": [
           {
@@ -6753,10 +7094,398 @@
             }
           },
           "404": {
-            "description": "PROVISIONING_API_ENABLED is not set, so the endpoint is not present, or there is no active user with that username."
+            "description": "There is no active user with that username."
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/deactivate": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Deactivate a user.",
+        "description": "Deactivates a user: the user's API keys stop working, and the user and all of its data are retained so it can be reactivated. The last active administrator, and the calling administrator, cannot be deactivated. Requires an administrator as well as the scope. Recorded as a user_deactivated audit event naming the calling administrator as the principal and the calling API key in the details. Requires the `users:write` scope.",
+        "operationId": "deactivateUser",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user was deactivated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is already deactivated, is the caller, or is the last active administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/reactivate": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Reactivate a user.",
+        "description": "Reactivates a deactivated user, restoring its API keys. Requires an administrator as well as the scope. Recorded as a user_reactivated audit event naming the calling administrator as the principal and the calling API key in the details. Requires the `users:write` scope.",
+        "operationId": "reactivateUser",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user was reactivated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is already active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/role": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Set a user's role.",
+        "description": "Sets the role to user or admin. The last active administrator cannot be demoted. Requires an administrator as well as the scope. Recorded as a user_role_changed audit event naming the calling administrator as the principal and the calling API key in the details. Requires the `users:write` scope.",
+        "operationId": "setUserRole",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The role was set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The role is missing or is not user or admin.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is the last active administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -6905,7 +7634,8 @@
           "email": {
             "type": "string"
           },
-          "password": {
+          "role": {
+            "description": "user (the default) or admin.",
             "type": "string"
           },
           "username": {
@@ -7043,6 +7773,21 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "GetUsersResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            }
           }
         }
       },
@@ -7333,6 +8078,15 @@
           }
         }
       },
+      "SetUserRoleRequest": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "description": "user or admin.",
+            "type": "string"
+          }
+        }
+      },
       "StatusResponse": {
         "type": "object",
         "properties": {
@@ -7346,6 +8100,31 @@
             "type": "string"
           },
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deactivatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "role": {
+            "type": "string"
+          },
+          "username": {
             "type": "string"
           }
         }
@@ -7394,16 +8173,16 @@
       "name": "Re-identification"
     },
     {
-      "description": "Create users and API keys without the dashboard, for automation that stands up a deployment. Present only when PROVISIONING_API_ENABLED=true; otherwise both endpoints answer 404.",
-      "name": "Provisioning"
-    },
-    {
       "description": "Operations for creating, retrieving, deleting, and compiling redaction policies.",
       "name": "Policies"
     },
     {
       "description": "Read-only access to the audit log.",
       "name": "Audit Log"
+    },
+    {
+      "description": "Create and manage users, and create API keys for them. Requires an administrator, except for reading the calling key's own user.",
+      "name": "Users"
     },
     {
       "description": "Redact text and return a detailed explanation of what was redacted and why.",

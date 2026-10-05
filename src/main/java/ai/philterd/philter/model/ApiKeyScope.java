@@ -38,9 +38,8 @@ import java.util.Set;
  * deployment, naming principals and actions across every account, so it is not reachable with the
  * read scope of any one resource.
  *
- * <p>{@link #USERS_WRITE} and {@link #API_KEYS_WRITE} carry a further condition: the endpoints they
- * cover exist only where {@code PROVISIONING_API_ENABLED} is set, so a key holding either scope can
- * call nothing with it in a deployment that has not opted in.
+ * <p>{@link #USERS_READ}, {@link #USERS_WRITE}, and {@link #API_KEYS_WRITE} also require an
+ * administrator, except that {@link #USERS_READ} lets any key read its own user.
  */
 public enum ApiKeyScope {
 
@@ -69,8 +68,9 @@ public enum ApiKeyScope {
 
     SIGNING_WRITE("signing:write", "Rotate the output signing key. Also requires an administrator."),
 
-    USERS_WRITE("users:write", "Create a non-administrator user. Also requires an administrator and PROVISIONING_API_ENABLED."),
-    API_KEYS_WRITE("api-keys:write", "Create an API key for a user. Also requires an administrator and PROVISIONING_API_ENABLED."),
+    USERS_READ("users:read", "List and read users. Also requires an administrator, except to read the calling key's own user."),
+    USERS_WRITE("users:write", "Create users, set their role, and deactivate or reactivate them. Also requires an administrator."),
+    API_KEYS_WRITE("api-keys:write", "Create an API key for a user. Also requires an administrator."),
 
     REIDENTIFY("reidentify", "Reverse a replacement to its original value.");
 

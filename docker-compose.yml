@@ -19,8 +19,6 @@ services:
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
       # Lets an administrator act on other users' data through the owner parameter. Off by default.
       # ADMIN_CROSS_USER_ACCESS_ENABLED: true
-      # On here, not by default: an API key can create users and keys, bypassing the dashboard login and its MFA.
-      PROVISIONING_API_ENABLED: "true"
       # On here, not by default: ledger entries are evidence. philter-test needs it to test legal holds.
       LEDGER_DELETION_ENABLED: ${LEDGER_DELETION_ENABLED:-true}
       # 1 MB rather than the 10 MB default, so philter-test can test the limit without a large request.

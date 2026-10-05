@@ -1,6 +1,6 @@
 # Endpoint inventory
 
-Philter 4.0 exposes 50 HTTP operations implemented by 52 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
+Philter 4.0 exposes 56 HTTP operations implemented by 58 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
 
 Send `Authorization: Bearer <api key>` unless the scope is Public. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
@@ -58,7 +58,13 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/signing-key` | application/json | `Public` | [Details](public_api.md) |
 | GET | `/api/signing-key/{keyId}` | application/json | `Public` | [Details](public_api.md) |
 | POST | `/api/signing-key/regenerate` | application/json | `signing:write` | [Details](../../output_signing.md) |
-| POST | `/api/users` | application/json | `users:write` | [Details](provisioning_api.md) |
-| POST | `/api/users/{username}/api-keys` | application/json | `api-keys:write` | [Details](provisioning_api.md) |
+| GET | `/api/users` | application/json | `users:read` | [Details](users_api.md) |
+| POST | `/api/users` | application/json | `users:write` | [Details](users_api.md) |
+| GET | `/api/users/me` | application/json | `users:read` | [Details](users_api.md) |
+| GET | `/api/users/{username}` | application/json | `users:read` | [Details](users_api.md) |
+| POST | `/api/users/{username}/api-keys` | application/json | `api-keys:write` | [Details](users_api.md) |
+| POST | `/api/users/{username}/deactivate` | application/json | `users:write` | [Details](users_api.md) |
+| POST | `/api/users/{username}/reactivate` | application/json | `users:write` | [Details](users_api.md) |
+| PUT | `/api/users/{username}/role` | application/json | `users:write` | [Details](users_api.md) |
 
 PDF async acceptance returns `application/json` with status 202, regardless of the selected download format. A ZIP result contains `redacted.pdf`. Health is a liveness response, not a dependency-readiness probe. Webhooks are outbound notifications; they are documented separately and are not inbound API routes.

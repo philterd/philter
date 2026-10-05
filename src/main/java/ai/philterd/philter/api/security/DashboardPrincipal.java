@@ -11,7 +11,8 @@ public final class DashboardPrincipal extends User {
     private final long securityVersion;
 
     public DashboardPrincipal(UserEntity user, boolean locked) {
-        super(user.getUsername(), user.getPassword(), !user.isDeactivated(), true, true, !locked,
+        // A user created over the API has no password; an empty hash never matches, so it cannot sign in.
+        super(user.getUsername(), user.getPassword() == null ? "" : user.getPassword(), !user.isDeactivated(), true, true, !locked,
                 List.of(new SimpleGrantedAuthority("ROLE_" + (user.getRole() == null ? "USER" : user.getRole().toUpperCase(java.util.Locale.ROOT)))));
         userId = user.getId().toHexString();
         securityVersion = user.getSecurityVersion();

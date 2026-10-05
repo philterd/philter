@@ -44,12 +44,13 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **HTTPS by default.** The Docker image generates a self-signed certificate on first start.
 - **Bootstrap API key.** `PHILTER_BOOTSTRAP_API_KEY` seeds a credential for automation and turnkey
   deployments without using the dashboard.
-- **Provisioning endpoints.** `POST /api/users` creates a non-administrator user and
-  `POST /api/users/{username}/api-keys` mints a key for a user the caller is not signed in as, so a
-  deployment can be stood up by automation. Off unless `PROVISIONING_API_ENABLED=true`, when both
-  answer `404 Not Found`. Enabled, they require an administrator and the `users:write` or
-  `api-keys:write` scope, cannot create an administrator, and cannot grant a key a scope the calling
-  key does not hold. Every creation is audited with the acting administrator.
+- **Users API.** Endpoints under `/api/users` list, read, and create users, set a user's role,
+  deactivate and reactivate users, and mint API keys for a user, so a deployment can be administered
+  without the dashboard. `GET /api/users/me` returns the calling key's user. Users created over the
+  API have no password and authenticate with API keys. The endpoints require an administrator and
+  the new `users:read` scope or `users:write`/`api-keys:write`, refuse to demote or deactivate the
+  last active administrator, and cannot grant a key a scope the calling key does not hold. Every
+  change is audited with the acting administrator and API key.
 - **New API endpoints.** Management APIs for contexts (including entry paging, export, and import),
   custom lists, and always/never redact lists; `POST /api/reidentify` to reverse a `CRYPTO_REPLACE`
   or `FPE_ENCRYPT_REPLACE` value, which requires a reason that is recorded in the audit log;

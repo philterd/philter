@@ -46,6 +46,11 @@ class Release400AuditTest extends AbstractMongoIT {
         user.setRole("admin");
         user.setPassword("unused");
         final ObjectId id = service.save(user);
+        // Another administrator, so demoting and deactivating this one is not refused as the last.
+        final UserEntity otherAdmin = new UserEntity();
+        otherAdmin.setUsername("audit-other-admin");
+        otherAdmin.setRole("admin");
+        service.save(otherAdmin);
         final UserEntity staleForm = service.findOneById(id);
         final UserEntity adminCopy = service.findOneById(id);
         service.setUserRole("audit", adminCopy, "user", "test");

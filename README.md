@@ -59,7 +59,7 @@ The script also generates `PHILTER_BOOTSTRAP_ADMIN_PASSWORD` for the first dashb
 
 To supply these yourself, put it in `.env` before the first run and the script keeps it.
 
-The bundled `docker-compose.yml` also sets `PROVISIONING_API_ENABLED`, so the bootstrap key can create further users and mint API keys for them over the API (`POST /api/users`, `POST /api/users/{username}/api-keys`) without visiting the dashboard. It is off by default in Philter itself and the application warns at startup while it is on, since it is the way around the dashboard login and its MFA; remove the line for a deployment holding real data unless automation provisions it. See [Provisioning API](docs/docs/api_and_sdks/api/provisioning_api.md).
+The bootstrap key can create further users and mint API keys for them over the API (`POST /api/users`, `POST /api/users/{username}/api-keys`). See [Users API](docs/docs/api_and_sdks/api/users_api.md).
 
 Once the containers are running, submit text to Philter's API for redaction:
 

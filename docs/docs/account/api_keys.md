@@ -59,7 +59,7 @@ Two scopes are separated from the resources they belong to because they return t
 
 `signing:write` covers rotating the output signing key, which affects every instance in the deployment. It also requires an administrator. The two signing-key read endpoints take no API key at all.
 
-`users:write` and `api-keys:write` cover the [provisioning endpoints](../api_and_sdks/api/provisioning_api.md), which create a user and mint a key for a user the caller is not signed in as. Both require an administrator, and both exist only where the deployment sets `PROVISIONING_API_ENABLED=true`. Without it the endpoints answer `404 Not Found`, so a key holding either scope can call nothing with it. A key minted this way can carry only scopes the calling key already holds.
+`users:read`, `users:write`, and `api-keys:write` cover the [Users API](../api_and_sdks/api/users_api.md), which lists, creates, and manages users and mints keys for them. All three require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`. A key minted this way can carry only scopes the calling key already holds.
 
 ### Scopes and the endpoints they cover
 
@@ -81,7 +81,8 @@ Two scopes are separated from the resources they belong to because they return t
 | `holds:write` | `DELETE /api/holds/{reference}`<br>`POST /api/holds` |
 | `audit:read` | `GET /api/audit` |
 | `signing:write` | `POST /api/signing-key/regenerate` |
-| `users:write` | `POST /api/users` |
+| `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
+| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role` |
 | `api-keys:write` | `POST /api/users/{username}/api-keys` |
 | `reidentify` | `POST /api/reidentify` |
 

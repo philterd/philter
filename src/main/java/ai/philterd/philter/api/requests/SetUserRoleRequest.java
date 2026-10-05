@@ -17,28 +17,13 @@ package ai.philterd.philter.api.requests;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** Request body for {@code POST /api/users}. */
-public class CreateUserRequest {
+/** Request body for {@code PUT /api/users/{username}/role}. */
+public class SetUserRoleRequest {
 
-    private String username;
-    private String email;
     private String role;
 
-    private String password;
-
-    public String getUsername() { return username; }
-    public void setUsername(final String username) { this.username = username; }
-
-    public String getEmail() { return email; }
-    public void setEmail(final String email) { this.email = email; }
-
-    @Schema(description = "user (the default) or admin.")
+    @Schema(description = "user or admin.")
     public String getRole() { return role; }
     public void setRole(final String role) { this.role = role; }
-
-    /** Not accepted. Present only so a request that sends one is refused rather than silently ignored. */
-    @Schema(hidden = true)
-    public String getPassword() { return password; }
-    public void setPassword(final String password) { this.password = password; }
 
 }

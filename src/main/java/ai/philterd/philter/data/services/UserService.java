@@ -49,6 +49,15 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UserService.class);
 
+    /** The role that grants administrator rights. */
+    public static final String ROLE_ADMIN = "admin";
+
+    /** The role every other user has. */
+    public static final String ROLE_USER = "user";
+
+    public static final String LAST_ADMIN_MESSAGE =
+            "This is the last active administrator. Make another user an administrator first.";
+
     private final PasswordEncoder passwordEncoder;
 
     public UserService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
@@ -167,6 +176,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * the subject, as it was before there was any other caller.
      */
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired, final ObjectId actingUserId) {
+        return createUser(requestId, username, email, plainPassword, role, policyService, contextService, source, passwordChangeRequired, actingUserId, null);
+    }
+
+    /** As above, naming {@code actingApiKeyId} in the audit details when the change came through the API. */
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String plainPassword, final String role, final PolicyDataService policyService, final ContextDataService contextService, final String source, final boolean passwordChangeRequired, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
         authorizeDashboardMutation(null, source, true);
 
         final UserEntity existing = findAnyByUsername(username);
@@ -182,7 +196,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final UserEntity userEntity = new UserEntity();
         userEntity.setUsername(username);
         userEntity.setEmail(email);
-        userEntity.setPassword(passwordEncoder.encode(plainPassword));
+        // Users created over the API have no password: they authenticate with API keys only.
+        userEntity.setPassword(plainPassword == null ? null : passwordEncoder.encode(plainPassword));
         userEntity.setRole(role);
         userEntity.setPasswordChangeRequired(passwordChangeRequired);
         // A stable per-user key for the FPE_ENCRYPT_REPLACE strategy. It is generated once and never
@@ -191,7 +206,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final ObjectId userId = save(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED,
-                actingUserId == null ? userId : actingUserId, userId, source, "role: " + role);
+                actingUserId == null ? userId : actingUserId, userId, source, withApiKey("role: " + role, actingApiKeyId));
 
         // Create the default policy.
         LOGGER.info("Inserting the default policy");
@@ -292,20 +307,57 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source) {
+        return setUserRole(requestId, userEntity, newRole, source, null, null);
+    }
+
+    /**
+     * Sets a user's role, recording {@code actingUserId} as the audit principal (the target user when
+     * null) and {@code actingApiKeyId}, if any, in the details. Refuses to demote the last active
+     * administrator.
+     */
+    public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
         authorizeDashboardMutation(userEntity, source, true);
 
         if (userEntity == null) {
             return ServiceResponse.failure("User does not exist.");
 
         } else {
+            if (!ROLE_ADMIN.equalsIgnoreCase(newRole) && isLastActiveAdmin(userEntity)) {
+                return ServiceResponse.failure(LAST_ADMIN_MESSAGE);
+            }
+
             userEntity.setRole(newRole);
             updateFields(userEntity, true, "role");
 
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_ROLE_CHANGED, userEntity.getId(), userEntity.getId(), source, "role: " + newRole);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_ROLE_CHANGED,
+                    actingUserId == null ? userEntity.getId() : actingUserId, userEntity.getId(), source, withApiKey("role: " + newRole, actingApiKeyId));
 
             return ServiceResponse.success("User role updated.");
         }
 
+    }
+
+    /** Appends the acting API key to audit details, so an API change names the credential that made it. */
+    private static String withApiKey(final String details, final ObjectId actingApiKeyId) {
+        if (actingApiKeyId == null) {
+            return details;
+        }
+        return details == null ? "api_key: " + actingApiKeyId : details + ", api_key: " + actingApiKeyId;
+    }
+
+    /** Counts active (not deactivated) administrators. */
+    public long countActiveAdmins() {
+        return collection.countDocuments(Filters.and(
+                Filters.regex("role", "^" + ROLE_ADMIN + "$", "i"), Filters.ne("deactivated", true)));
+    }
+
+    /**
+     * Whether removing this user's administrator rights would leave no active administrator. The check
+     * and the change that follows are separate operations, so two concurrent removals can still race.
+     */
+    public boolean isLastActiveAdmin(final UserEntity userEntity) {
+        return ROLE_ADMIN.equalsIgnoreCase(userEntity.getRole()) && !userEntity.isDeactivated()
+                && countActiveAdmins() <= 1;
     }
 
     /** Returns the key assigned at account creation; missing key material is a configuration error. */
@@ -335,15 +387,33 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * (the user's policies and redaction ledger) is retained and stays resolvable to the retained user
      * record, so no admin action can silently destroy it. The audit event records that retention.
      */
-    public void deactivateUser(final String requestId, final UserEntity userEntity, final String source) {
+    public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source) {
+        return deactivateUser(requestId, userEntity, source, null, null);
+    }
+
+    /**
+     * Deactivates a user as above, recording {@code actingUserId} as the audit principal (the target user
+     * when null) and {@code actingApiKeyId}, if any, in the details. Refuses to deactivate the last
+     * active administrator.
+     */
+    public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
         authorizeDashboardMutation(userEntity, source, true);
+
+        if (isLastActiveAdmin(userEntity)) {
+            return ServiceResponse.failure(LAST_ADMIN_MESSAGE);
+        }
 
         userEntity.setDeactivated(true);
         userEntity.setDeactivatedAt(new Date());
-        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) return;
+        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) {
+            return ServiceResponse.failure("User is already deactivated.");
+        }
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DEACTIVATED, userEntity.getId(), userEntity.getId(), source,
-                "account deactivated; user data retained, including policies and redaction ledger (evidence preserved)");
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DEACTIVATED,
+                actingUserId == null ? userEntity.getId() : actingUserId, userEntity.getId(), source,
+                withApiKey("account deactivated; user data retained, including policies and redaction ledger (evidence preserved)", actingApiKeyId));
+
+        return ServiceResponse.success("User deactivated.");
 
     }
 
@@ -351,14 +421,27 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * Reactivates a previously deactivated user, restoring sign-in and API access. The user's data was
      * never removed on deactivation, so reactivation returns the account to exactly its prior state.
      */
-    public void reactivateUser(final String requestId, final UserEntity userEntity, final String source) {
+    public ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source) {
+        return reactivateUser(requestId, userEntity, source, null, null);
+    }
+
+    /**
+     * Reactivates a user as above, recording {@code actingUserId} as the audit principal (the target user
+     * when null) and {@code actingApiKeyId}, if any, in the details.
+     */
+    public ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
         authorizeDashboardMutation(userEntity, source, true);
 
         userEntity.setDeactivated(false);
         userEntity.setDeactivatedAt(null);
-        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) return;
+        if (!updateFields(userEntity, true, "deactivated", "deactivated_at")) {
+            return ServiceResponse.failure("User is already active.");
+        }
 
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_REACTIVATED, userEntity.getId(), userEntity.getId(), source, null);
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_REACTIVATED,
+                actingUserId == null ? userEntity.getId() : actingUserId, userEntity.getId(), source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("User reactivated.");
 
     }
 

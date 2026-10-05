@@ -44,6 +44,12 @@ class RemainingP1IT extends AbstractMongoIT {
         user.setId(users.save(user));
         return user;
     }
+    /** Another administrator, so demoting the account under test is not refused as the last one. */
+    private void anotherAdmin(UserService users) {
+        UserEntity other = new UserEntity();
+        other.setUsername("other-admin"); other.setRole("admin");
+        users.save(other);
+    }
     private void authenticate(UserEntity user) {
         final var principal = new DashboardPrincipal(user, false);
         SecurityContextHolder.getContext().setAuthentication(
@@ -57,6 +63,7 @@ class RemainingP1IT extends AbstractMongoIT {
     @Test void staleSettingsCannotRestorePasswordRoleOrMfaState() {
         UserService service = users();
         UserEntity stale = account(service);
+        anotherAdmin(service);
         service.enableMfa("req", service.findOneById(stale.getId()), "NEWSECRET", "system");
         service.setUserRole("req", service.findOneById(stale.getId()), "user", "system");
         service.changePassword("req", stale, "a sufficiently long password", "system");
@@ -186,7 +193,7 @@ class RemainingP1IT extends AbstractMongoIT {
     }
 
     @Test void staleAdminCannotChangeGlobalSettingsAtServiceBoundary() {
-        UserService users = users(); var admin = account(users); authenticate(admin);
+        UserService users = users(); var admin = account(users); anotherAdmin(users); authenticate(admin);
         users.setUserRole("req", admin, "user", "system");
         var settings = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), audit);
         assertThrows(org.springframework.security.access.AccessDeniedException.class,

@@ -42,6 +42,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -714,6 +715,79 @@ class UserServiceIT extends AbstractMongoIT {
         assertEquals(UserService.MAX_MFA_ATTEMPTS, after.getMfaFailedAttempts(),
                 "and so must the count that established it");
 
+    }
+
+    private UserEntity createAndFind(final String username, final String password, final String role) {
+        assertTrue(service.createUser("req", username, password, role, policyDataService, contextDataService, "system").isSuccessful());
+        return service.findByUsername(username);
+    }
+
+    @Test
+    void createUserWithoutAPasswordStoresNone() {
+        final UserEntity user = createAndFind("api-user", null, "user");
+
+        assertNull(user.getPassword(), "a user created over the API has no password");
+        assertFalse(service.passwordMatches(user, ""), "no password can match a user without one");
+    }
+
+    @Test
+    void theLastActiveAdministratorCannotBeDemotedOrDeactivated() {
+        final UserEntity admin = createAndFind("only-admin", null, "admin");
+        createAndFind("someone", null, "user");
+
+        assertTrue(service.isLastActiveAdmin(admin));
+        assertFalse(service.setUserRole("req", admin, "user", "api", null, null).isSuccessful());
+        assertFalse(service.deactivateUser("req", admin, "api", null, null).isSuccessful());
+
+        final UserEntity reloaded = service.findOneById(admin.getId());
+        assertEquals("admin", reloaded.getRole());
+        assertFalse(reloaded.isDeactivated());
+    }
+
+    @Test
+    void anAdministratorCanBeRemovedWhileAnotherRemainsActive() {
+        final UserEntity first = createAndFind("admin-one", null, "admin");
+        final UserEntity second = createAndFind("admin-two", null, "admin");
+
+        assertTrue(service.deactivateUser("req", second, "api", null, null).isSuccessful());
+        assertEquals(1, service.countActiveAdmins(), "a deactivated administrator is not counted");
+
+        // Now the first is the only active administrator left.
+        assertFalse(service.setUserRole("req", service.findOneById(first.getId()), "user", "api", null, null).isSuccessful());
+
+        assertTrue(service.reactivateUser("req", service.findOneById(second.getId()), "api", null, null).isSuccessful());
+        assertTrue(service.setUserRole("req", service.findOneById(first.getId()), "user", "api", null, null).isSuccessful());
+    }
+
+    @Test
+    void deactivatingTwiceOrReactivatingAnActiveUserFails() {
+        final UserEntity user = createAndFind("twice", null, "user");
+
+        assertFalse(service.reactivateUser("req", user, "api", null, null).isSuccessful());
+        assertTrue(service.deactivateUser("req", service.findOneById(user.getId()), "api", null, null).isSuccessful());
+        assertFalse(service.deactivateUser("req", service.findOneById(user.getId()), "api", null, null).isSuccessful());
+    }
+
+    @Test
+    void changesAreAuditedWithTheActingPrincipal() {
+        final AuditEventPublisher audit = mock(AuditEventPublisher.class);
+        service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
+        createAndFind("other-admin", null, "admin");
+        final UserEntity user = createAndFind("audited", null, "user");
+        final ObjectId acting = new ObjectId();
+        final ObjectId actingKey = new ObjectId();
+
+        service.setUserRole("req", user, "admin", "api", acting, actingKey);
+        service.deactivateUser("req", service.findOneById(user.getId()), "api", acting, actingKey);
+        service.reactivateUser("req", service.findOneById(user.getId()), "api", acting, actingKey);
+
+        // The principal is the acting user and the details name the key it used.
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.USER_ROLE_CHANGED), eq(acting), eq(user.getId()), eq("api"),
+                eq("role: admin, api_key: " + actingKey));
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.USER_DEACTIVATED), eq(acting), eq(user.getId()), eq("api"),
+                endsWith(", api_key: " + actingKey));
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.USER_REACTIVATED), eq(acting), eq(user.getId()), eq("api"),
+                eq("api_key: " + actingKey));
     }
 
 }

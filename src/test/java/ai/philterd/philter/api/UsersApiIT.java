@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.api;
 
-import ai.philterd.philter.config.ProvisioningConfig;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -40,6 +39,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -50,14 +50,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Provisioning a deployment over real HTTP: an administrator's key creates a user, mints a key for
- * it, and that key then works, which is the whole point of the endpoints existing. The refusals are
+ * Managing users over real HTTP: an administrator's key creates a user, mints a key for it, and that
+ * key then works; deactivating the user stops the key and reactivating restores it. The refusals are
  * exercised here too, because they run in a filter and an interceptor that a controller test does not
  * see the same way.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {"spring.main.allow-bean-definition-overriding=true"})
-class ProvisioningApiIT {
+class UsersApiIT {
 
     /** Nested, not imported, so its beans override the application's. See ApiFilterChainIT. */
     @TestConfiguration
@@ -94,8 +94,6 @@ class ProvisioningApiIT {
         httpClient = HttpClient.newHttpClient();
         baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
 
-        ProvisioningConfig.setOverrideForTesting(true);
-
         adminUserId = seedUser("provision-admin-", "admin");
         adminKey = seedKey(adminUserId, ApiKeyScope.all());
 
@@ -103,7 +101,6 @@ class ProvisioningApiIT {
 
     @AfterEach
     void tearDown() {
-        ProvisioningConfig.setOverrideForTesting(null);
         httpClient.close();
     }
 
@@ -130,6 +127,14 @@ class ProvisioningApiIT {
                 .build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    private HttpResponse<String> put(final String path, final String apiKey, final String body) throws Exception {
+        return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body))
+                .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
     private HttpResponse<String> get(final String path, final String apiKey) throws Exception {
         return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .header("Authorization", "Bearer " + apiKey)
@@ -147,7 +152,7 @@ class ProvisioningApiIT {
         final String username = newUsername();
 
         final HttpResponse<String> created = post("/api/users", adminKey,
-                "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}");
+                "{\"username\":\"" + username + "\"}");
 
         assertEquals(201, created.statusCode(), created.body());
         assertEquals("user", gson.fromJson(created.body(), JsonObject.class).get("role").getAsString());
@@ -178,7 +183,7 @@ class ProvisioningApiIT {
 
         final String username = newUsername();
         assertEquals(201, post("/api/users", adminKey,
-                "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}").statusCode());
+                "{\"username\":\"" + username + "\"}").statusCode());
         assertEquals(201, post("/api/users/" + username + "/api-keys", adminKey,
                 "{\"scopes\":[\"redact\"]}").statusCode());
 
@@ -212,46 +217,89 @@ class ProvisioningApiIT {
     }
 
     @Test
-    @DisplayName("With the deployment opted out, neither endpoint is there")
-    void neitherEndpointExistsUnlessTheDeploymentOptsIn() throws Exception {
-
-        ProvisioningConfig.setOverrideForTesting(false);
+    @DisplayName("Without a credential nothing is created")
+    void refusesAnUnauthenticatedCaller() throws Exception {
 
         final String username = newUsername();
 
-        assertEquals(404, post("/api/users", adminKey,
-                "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}").statusCode());
-        assertEquals(404, post("/api/users/" + username + "/api-keys", adminKey,
-                "{\"scopes\":[\"redact\"]}").statusCode());
+        final HttpResponse<String> anonymous = httpClient.send(
+                HttpRequest.newBuilder(URI.create(baseUrl + "/api/users"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString("{\"username\":\"" + username + "\"}"))
+                        .build(), HttpResponse.BodyHandlers.ofString());
 
-        assertNull(userService.findByUsername(username), "nothing may be created while the switch is off");
+        assertEquals(401, anonymous.statusCode(), anonymous.body());
+        assertNull(userService.findByUsername(username));
 
     }
 
     @Test
-    @DisplayName("Without a credential nothing is created, whether the switch is on or off")
-    void refusesAnUnauthenticatedCaller() throws Exception {
+    @DisplayName("A user's lifecycle: create, promote, read, deactivate, reactivate, all audited")
+    void managesAUserThroughItsLifecycle() throws Exception {
 
         final String username = newUsername();
-        final String body = "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}";
+        assertEquals(201, post("/api/users", adminKey,
+                "{\"username\":\"" + username + "\",\"email\":\"ops@example.com\"}").statusCode());
 
-        for (final boolean enabled : new boolean[]{true, false}) {
+        final UserEntity created = userService.findByUsername(username);
+        assertNull(created.getPassword(), "a user created over the API has no password");
 
-            ProvisioningConfig.setOverrideForTesting(enabled);
+        final HttpResponse<String> minted = post("/api/users/" + username + "/api-keys", adminKey,
+                "{\"scopes\":[\"users:read\",\"policies:read\"]}");
+        final String userKey = gson.fromJson(minted.body(), JsonObject.class).get("apiKey").getAsString();
 
-            final HttpResponse<String> anonymous = httpClient.send(
-                    HttpRequest.newBuilder(URI.create(baseUrl + "/api/users"))
-                            .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString(body))
-                            .build(), HttpResponse.BodyHandlers.ofString());
+        // The new user reads itself without being an administrator, and cannot list others.
+        final HttpResponse<String> me = get("/api/users/me", userKey);
+        assertEquals(200, me.statusCode(), me.body());
+        assertEquals(username, gson.fromJson(me.body(), JsonObject.class).get("username").getAsString());
+        assertEquals(403, get("/api/users", userKey).statusCode());
 
-            // The gate is the first thing the handler checks, so this proves the credential is
-            // demanded ahead of it rather than by it.
-            assertEquals(401, anonymous.statusCode(), "enabled=" + enabled + ": " + anonymous.body());
-            assertNull(userService.findByUsername(username), "enabled=" + enabled);
+        final HttpResponse<String> promoted = put("/api/users/" + username + "/role", adminKey, "{\"role\":\"admin\"}");
+        assertEquals(200, promoted.statusCode(), promoted.body());
+        assertEquals("admin", userService.findByUsername(username).getRole());
 
+        final HttpResponse<String> read = get("/api/users/" + username, adminKey);
+        assertEquals(200, read.statusCode(), read.body());
+        assertFalse(read.body().contains("password"), read.body());
+        final JsonObject readUser = gson.fromJson(read.body(), JsonObject.class);
+        assertTrue(readUser.get("created").getAsString().matches("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}(Z|[+-]\\d\\d:\\d\\d)"),
+                "dates are ISO 8601 with an offset, like the rest of the API: " + read.body());
+        assertTrue(readUser.has("deactivatedAt") && readUser.get("deactivatedAt").isJsonNull(), read.body());
+
+        final HttpResponse<String> listed = get("/api/users?limit=100", adminKey);
+        assertEquals(200, listed.statusCode(), listed.body());
+        assertTrue(gson.fromJson(listed.body(), JsonObject.class).get("total").getAsLong() >= 2, listed.body());
+
+        assertEquals(200, post("/api/users/" + username + "/deactivate", adminKey, "").statusCode());
+        assertEquals(401, get("/api/policies", userKey).statusCode(), "a deactivated user's key is rejected");
+        assertEquals(200, get("/api/users/" + username, adminKey).statusCode(), "a deactivated user is still readable");
+        assertEquals(409, post("/api/users/" + username + "/deactivate", adminKey, "").statusCode());
+
+        assertEquals(200, post("/api/users/" + username + "/reactivate", adminKey, "").statusCode());
+        assertEquals(200, get("/api/policies", userKey).statusCode(), "reactivation restores the key");
+
+        final String adminKeyId = apiKeyDataService.findOneByApiKey(adminKey).getId().toHexString();
+        final HttpResponse<String> audit = get("/api/audit?limit=100", adminKey);
+        final Set<String> recorded = new HashSet<>();
+        for (final var element : gson.fromJson(audit.body(), JsonObject.class).getAsJsonArray("events")) {
+            final JsonObject event = element.getAsJsonObject();
+            if (event.has("associatedObject") && created.getId().toHexString().equals(event.get("associatedObject").getAsString())
+                    && adminUserId.toHexString().equals(event.get("apiKeyId").getAsString())
+                    && event.has("details") && event.get("details").getAsString().contains("api_key: " + adminKeyId)) {
+                recorded.add(event.get("event").getAsString());
+            }
         }
+        assertTrue(recorded.containsAll(Set.of("user_created", "user_role_changed", "user_deactivated", "user_reactivated")),
+                "every change names the acting administrator and key: " + recorded);
 
+    }
+
+    @Test
+    @DisplayName("An administrator cannot deactivate their own user")
+    void cannotDeactivateSelf() throws Exception {
+        final String self = userService.findOneById(adminUserId).getUsername();
+        assertEquals(409, post("/api/users/" + self + "/deactivate", adminKey, "").statusCode());
+        assertFalse(userService.findOneById(adminUserId).isDeactivated());
     }
 
     @Test
@@ -262,7 +310,7 @@ class ProvisioningApiIT {
         final String username = newUsername();
 
         final HttpResponse<String> refused = post("/api/users", redactOnly,
-                "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}");
+                "{\"username\":\"" + username + "\"}");
 
         assertEquals(403, refused.statusCode());
         assertTrue(refused.body().contains("users:write"), refused.body());
@@ -278,7 +326,7 @@ class ProvisioningApiIT {
         final String username = newUsername();
 
         final HttpResponse<String> refused = post("/api/users", regularKey,
-                "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}");
+                "{\"username\":\"" + username + "\"}");
 
         assertEquals(403, refused.statusCode());
         assertTrue(refused.body().contains("administrator"), refused.body());
@@ -295,7 +343,7 @@ class ProvisioningApiIT {
 
         final String username = newUsername();
         assertEquals(201, post("/api/users", adminKey,
-                "{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}").statusCode());
+                "{\"username\":\"" + username + "\"}").statusCode());
 
         final HttpResponse<String> refused = post("/api/users/" + username + "/api-keys", narrowAdminKey,
                 "{\"scopes\":[\"redact\",\"ledger:export\"]}");

@@ -43,11 +43,11 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `user_created` | A user account was created. Created through the [provisioning API](api_and_sdks/api/provisioning_api.md), the subject is the calling administrator and the associated object is the new user; created in the dashboard or at startup, the new user is both. |
+| `user_created` | A user account was created. Created through the [Users API](api_and_sdks/api/users_api.md), the subject is the calling administrator, the associated object is the new user, and the detail names the calling API key; created in the dashboard or at startup, the new user is both. |
 | `user_password_changed` | A user's password was changed. |
-| `user_role_changed` | A user's role was changed. |
+| `user_role_changed` | A user's role was changed. Changed through the [Users API](api_and_sdks/api/users_api.md), the subject is the calling administrator, the associated object is the user, and the detail names the calling API key. |
 | `user_deactivated` | A user account was deactivated: sign-in and API access are revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
-| `user_reactivated` | A previously deactivated user account was reactivated, restoring sign-in and API access. |
+| `user_reactivated` | A previously deactivated user account was reactivated, restoring sign-in and API access. Through the [Users API](api_and_sdks/api/users_api.md), deactivation and reactivation name the calling administrator as the subject and the calling API key in the detail. |
 | `user_mfa_enabled` | A user completed authenticator enrollment and multi-factor authentication is now required for their sign-in. |
 | `user_mfa_disabled` | Multi-factor authentication was turned off for a user and the enrolled secret was cleared. |
 | `user_mfa_locked` | A user was locked out of multi-factor authentication after repeated failed codes. |
@@ -57,7 +57,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `api_key_created` | An API key was created. The subject is the key and the associated object is the user it belongs to. Created through the [provisioning API](api_and_sdks/api/provisioning_api.md), the detail names the administrator and the API key that asked for it. |
+| `api_key_created` | An API key was created. The subject is the key and the associated object is the user it belongs to. Created through the [Users API](api_and_sdks/api/users_api.md), the detail names the administrator and the API key that asked for it. |
 | `api_key_deleted` | An API key was deleted (soft-deleted): it is revoked and can no longer authenticate, but the key record is retained so audit entries that reference its id still resolve. |
 | `api_key_scopes_changed` | An API key's [scopes](account/api_keys.md#scopes) were changed. The entry records the scopes the key held before and after, so it shows whether the key was widened or narrowed. |
 

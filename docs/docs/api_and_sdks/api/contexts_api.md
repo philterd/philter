@@ -61,10 +61,14 @@ Example response:
     "EMAIL_ADDRESS": 40,
     "PERSON": 83
   },
-  "untyped": 2
+  "untyped": 2,
+  "entityTypeDisambiguation": true,
+  "ledger": false
 }
 ```
 
+* `entityTypeDisambiguation` - Whether entity type disambiguation is enabled for the context.
+* `ledger` - Whether the context records redactions in the [ledger](../../redaction/ledgers.md).
 * `size` - The number of entries in the context.
 * `filterTypes` - The number of entries for each filter type, sorted by filter type.
 * `untyped` - The number of entries with no filter type. Only an [import](#import-a-mapping-table-into-a-context) can create one.
@@ -100,12 +104,14 @@ curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/c
 
 | Method | Endpoint               | Description                                                                   |
 |--------|------------------------|-------------------------------------------------------------------------------|
-| `PUT`  | `/api/contexts/{name}` | Update the `entity_type_disambiguation` and `ledger` flags on a context.      |
+| `PUT`  | `/api/contexts/{name}` | Change a context's `entity_type_disambiguation` and `ledger` settings.        |
+
+Only the settings given change. A setting left out keeps its current value, so turning one on never turns the other off. Read the current values with [Get Context Details](#get-context-details).
 
 ### Query Parameters
 
-* `entity_type_disambiguation` (optional, default: `false`) - Enable entity type disambiguation.
-* `ledger` (optional, default: `false`) - Enable the redaction ledger.
+* `entity_type_disambiguation` (optional) - Whether to enable entity type disambiguation. Left out, it is unchanged.
+* `ledger` (optional) - Whether to enable the redaction ledger. Left out, it is unchanged; turning it off stops recording redaction evidence for the context.
 * `owner` (optional, admin only) - Username of another user whose context to update. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 Example request:
@@ -115,7 +121,7 @@ curl -X PUT -k -H "Authorization: Bearer <token>" \
   "https://localhost:8080/api/contexts/my-context?entity_type_disambiguation=false&ledger=true"
 ```
 
-Returns `200 OK` on success, `404 Not Found` if no context with that name exists for the calling user.
+Returns `200 OK` on success, `400 Bad Request` if neither setting is given, and `404 Not Found` if no context with that name exists for the calling user. Each change is recorded as a `context_updated` [audit event](../../auditing.md) naming the settings whose values changed.
 
 ## Delete a Context
 

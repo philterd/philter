@@ -27,6 +27,7 @@ public enum AuditLogEvent {
     CONTEXTS_RETRIEVED("contexts_retrieved"),
     CONTEXT_CREATED("context_created"),
     CONTEXT_DELETED("context_deleted"),
+    CONTEXT_UPDATED("context_updated"),
 
     POLICY_CREATED("policy_created"),
     POLICY_UPDATED("policy_updated"),

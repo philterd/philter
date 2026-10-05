@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.vectors.MongoVectorService;
@@ -270,16 +271,45 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ServiceResponse updateSettings(final String contextName, final ObjectId userId, final boolean disambiguation, final boolean ledger) {
+    /**
+     * Changes a context's settings. A {@code null} setting keeps its current value, so turning one on never
+     * turns the other off. Audited as {@code context_updated}, naming each setting whose value changed, the
+     * acting user, and the acting API key.
+     */
+    public ServiceResponse updateSettings(final String requestId, final String contextName, final ObjectId userId,
+                                          final Boolean disambiguation, final Boolean ledger,
+                                          final ObjectId actingUserId, final ObjectId actingApiKeyId) {
 
         final ContextEntity existing = findOne(contextName, userId);
         if (existing == null) {
             return new ServiceResponse("Context does not exist.", false, 404);
         }
 
-        final Bson filter = Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", userId));
-        final Bson update = Updates.combine(Updates.set("disambiguation", disambiguation), Updates.set("ledger", ledger));
-        collection.updateOne(filter, update);
+        final List<Bson> sets = new ArrayList<>();
+        final List<String> changed = new ArrayList<>();
+        if (disambiguation != null) {
+            sets.add(Updates.set("disambiguation", disambiguation));
+            if (disambiguation != existing.isDisambiguation()) {
+                changed.add("entity_type_disambiguation: " + disambiguation);
+            }
+        }
+        if (ledger != null) {
+            sets.add(Updates.set("ledger", ledger));
+            if (ledger != existing.isLedger()) {
+                changed.add("ledger: " + ledger);
+            }
+        }
+        if (sets.isEmpty()) {
+            return new ServiceResponse("No setting was given.", false, 400);
+        }
+
+        collection.updateOne(Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", userId)),
+                Updates.combine(sets));
+
+        if (!changed.isEmpty()) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_UPDATED, actingUserId, existing.getId(), null,
+                    "context: " + contextName + ", " + String.join(", ", changed) + ", api_key: " + actingApiKeyId);
+        }
 
         return new ServiceResponse("Context updated.", true);
 

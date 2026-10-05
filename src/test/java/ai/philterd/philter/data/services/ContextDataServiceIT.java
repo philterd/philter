@@ -221,11 +221,39 @@ class ContextDataServiceIT extends AbstractMongoIT {
         final ObjectId owner = new ObjectId();
         assertTrue(service.create("c", owner, false, false).isSuccessful());
 
-        assertTrue(service.updateSettings("c", owner, true, true).isSuccessful());
+        assertTrue(service.updateSettings("req", "c", owner, true, true, owner, null).isSuccessful());
 
         final ContextEntity updated = service.findOne("c", owner);
         assertTrue(updated.isDisambiguation());
         assertTrue(updated.isLedger());
+    }
+
+    @Test
+    void anOmittedSettingKeepsItsValueInBothDirections() {
+        final ObjectId owner = new ObjectId();
+        assertTrue(service.create("partial", owner, false, true).isSuccessful());
+
+        // Turning disambiguation on must not turn the ledger off.
+        assertTrue(service.updateSettings("req", "partial", owner, true, null, owner, null).isSuccessful());
+        ContextEntity stored = service.findOne("partial", owner);
+        assertTrue(stored.isDisambiguation());
+        assertTrue(stored.isLedger(), "the ledger keeps recording evidence");
+
+        // And turning the ledger off must not touch disambiguation.
+        assertTrue(service.updateSettings("req", "partial", owner, null, false, owner, null).isSuccessful());
+        stored = service.findOne("partial", owner);
+        assertTrue(stored.isDisambiguation());
+        assertFalse(stored.isLedger());
+    }
+
+    @Test
+    void neitherSettingChangesNothingAndIsRefused() {
+        final ObjectId owner = new ObjectId();
+        assertTrue(service.create("neither", owner, true, true).isSuccessful());
+        final ServiceResponse response = service.updateSettings("req", "neither", owner, null, null, owner, null);
+        assertFalse(response.isSuccessful());
+        assertEquals(400, response.getStatusCode());
+        assertTrue(service.findOne("neither", owner).isLedger());
     }
 
 }

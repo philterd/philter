@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
@@ -43,6 +44,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -269,7 +271,8 @@ public class ContextsApiController extends AbstractApiController {
             }
         }
 
-        final GetContextResponse getContextResponse = new GetContextResponse(size, filterTypes, untyped);
+        final GetContextResponse getContextResponse = new GetContextResponse(size, filterTypes, untyped,
+                contextEntity.isDisambiguation(), contextEntity.isLedger());
 
         return new ResponseEntity<>(gson.toJson(getContextResponse), HttpStatus.OK);
 
@@ -380,9 +383,12 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Update a context's settings.", description = "Update the entity_type_disambiguation and ledger flags on an existing context.")
+    @Operation(summary = "Update a context's settings.", description = "Changes a context's entity_type_disambiguation "
+            + "and ledger settings. Only the settings given change; one left out keeps its current value. Recorded as a "
+            + "context_updated audit event naming each setting that changed.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was updated."),
+            @ApiResponse(responseCode = "400", description = "Neither setting was given."),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
@@ -390,9 +396,12 @@ public class ContextsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> updateContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
-            final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
-            final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
-            final @RequestParam(value = "owner", required = false) String owner) {
+            final @Parameter(description = "Whether to apply entity-type span disambiguation. Left out, it keeps its current value.")
+            @RequestParam(value = "entity_type_disambiguation", required = false) Boolean disambiguation,
+            final @Parameter(description = "Whether to record redactions in the ledger. Left out, it keeps its current value.")
+            @RequestParam(value = "ledger", required = false) Boolean ledger,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestAttribute("requestId") String requestId) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
         if (apiKeyEntity == null) {
@@ -404,10 +413,16 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+        // Refused rather than done as nothing, so a caller who misspelled a parameter learns of it.
+        if (disambiguation == null && ledger == null) {
+            throw new BadRequestException("Give entity_type_disambiguation, ledger, or both.");
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "update context '" + name + "'");
 
-        final ServiceResponse response = contextService.updateSettings(name, userId, disambiguation, ledger);
+        final ServiceResponse response = contextService.updateSettings(requestId, name, userId, disambiguation, ledger,
+                apiKeyEntity.getUserId(), apiKeyEntity.getId());
 
         return new ResponseEntity<>(new GenericResponse(response.getMessage()),
                 response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);

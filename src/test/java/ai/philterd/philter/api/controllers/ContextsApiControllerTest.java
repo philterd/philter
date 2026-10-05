@@ -728,34 +728,48 @@ class ContextsApiControllerTest {
 
     @Test
     void updateContextAppliesTheSettingsToTheOwningUser() throws Exception {
-        when(contextService.updateSettings(eq("my-context"), eq(userId), eq(true), eq(true)))
+        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), eq(true), eq(true), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
         mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
                         .param("entity_type_disambiguation", "true")
                         .param("ledger", "true"))
                 .andExpect(status().isOk());
 
-        verify(contextService).updateSettings("my-context", userId, true, true);
+        verify(contextService).updateSettings(eq("req-update"), eq("my-context"), eq(userId), eq(true), eq(true), eq(userId), any());
     }
 
     @Test
-    void updateContextDefaultsBothFlagsToFalseWhenOmitted() throws Exception {
-        when(contextService.updateSettings(eq("my-context"), eq(userId), eq(false), eq(false)))
+    void updateContextPassesAnOmittedSettingAsUnchanged() throws Exception {
+        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq(false), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
-        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER))
+        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
+                        .param("ledger", "false"))
                 .andExpect(status().isOk());
 
-        verify(contextService).updateSettings("my-context", userId, false, false);
+        verify(contextService).updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq(false), any(), any());
+    }
+
+    @Test
+    void updateContextRefusesARequestWithNeitherSetting() throws Exception {
+        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update"))
+                .andExpect(status().isBadRequest());
+
+        verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void updateContextReturns404WhenTheContextDoesNotExist() throws Exception {
-        when(contextService.updateSettings(eq("missing"), eq(userId), anyBoolean(), anyBoolean()))
+        when(contextService.updateSettings(any(), eq("missing"), eq(userId), any(), any(), any(), any()))
                 .thenReturn(ServiceResponse.failure("Context not found."));
 
-        mockMvc.perform(put("/api/contexts/missing").header("Authorization", AUTH_HEADER))
+        mockMvc.perform(put("/api/contexts/missing").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
+                        .param("ledger", "true"))
                 .andExpect(status().isNotFound());
     }
 
@@ -889,16 +903,17 @@ class ContextsApiControllerTest {
     @Test
     void adminCanUpdateAnotherUsersContextViaOwner() throws Exception {
         final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
-        when(contextService.updateSettings(eq("ctx"), eq(otherUserId), eq(true), eq(false)))
+        when(contextService.updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
         mockMvc.perform(put("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
                         .param("owner", "other@example.com")
                         .param("entity_type_disambiguation", "true"))
                 .andExpect(status().isOk());
 
-        verify(contextService).updateSettings("ctx", otherUserId, true, false);
-        verify(contextService, never()).updateSettings(anyString(), eq(userId), anyBoolean(), anyBoolean());
+        verify(contextService).updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), eq(userId), any());
+        verify(contextService, never()).updateSettings(any(), anyString(), eq(userId), any(), any(), any(), any());
     }
 
     @Test

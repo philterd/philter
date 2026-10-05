@@ -48,6 +48,8 @@ for migration steps.
   `TLS_TRUST_ALL_ENABLED=true`.
 - **Context names are unique per user**, and **users are deactivated rather than deleted**, so their
   data and ledger evidence are kept.
+- **`PUT /api/contexts/{name}` changes only the settings given**, rather than resetting an omitted one
+  to `false`. `GET /api/contexts/{name}` returns both settings.
 
 ### Removed
 

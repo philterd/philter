@@ -86,6 +86,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `contexts_retrieved` | The list of contexts was retrieved. |
 | `context_created` | A context was created. |
 | `context_deleted` | A context was deleted. |
+| `context_updated` | A context's settings were changed with `PUT /api/contexts/{name}`. The subject is the calling user, the associated object is the context, and the detail names the context, each setting that changed with its new value, and the calling API key. Sending a setting at its current value records nothing. |
 | `context_entry_deleted` | A single context entry was deleted. |
 | `context_entries_purged` | All entries were cleared from a context. |
 | `context_entries_exported` | A context's mapping table was exported. |

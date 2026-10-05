@@ -259,8 +259,9 @@ class UsersApiIT {
 
         final HttpResponse<String> read = get("/api/users/" + username, adminKey);
         assertEquals(200, read.statusCode(), read.body());
-        assertFalse(read.body().contains("password"), read.body());
         final JsonObject readUser = gson.fromJson(read.body(), JsonObject.class);
+        assertFalse(readUser.get("passwordSet").getAsBoolean(), read.body());
+        assertFalse(read.body().contains("$2"), "no password hash leaves the API: " + read.body());
         assertTrue(readUser.get("created").getAsString().matches("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}(Z|[+-]\\d\\d:\\d\\d)"),
                 "dates are ISO 8601 with an offset, like the rest of the API: " + read.body());
         assertTrue(readUser.has("deactivatedAt") && readUser.get("deactivatedAt").isJsonNull(), read.body());

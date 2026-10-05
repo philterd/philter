@@ -16,10 +16,11 @@
 package ai.philterd.philter.api.responses;
 
 import ai.philterd.philter.data.entities.UserEntity;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.Date;
 
-/** A user as the API returns it. Never carries a password, password hash, or MFA secret. */
+/** A user as the API returns it. Says whether a password is set, never the password or its hash. */
 public class UserResponse {
 
     private final String username;
@@ -28,6 +29,8 @@ public class UserResponse {
     private final boolean active;
     private final Date created;
     private final Date deactivatedAt;
+    private final boolean passwordSet;
+    private final boolean passwordChangeRequired;
 
     public UserResponse(final UserEntity user) {
         this.username = user.getUsername();
@@ -37,6 +40,8 @@ public class UserResponse {
         // The ObjectId carries the creation time; users have no separate created field.
         this.created = user.getId() == null ? null : user.getId().getDate();
         this.deactivatedAt = user.getDeactivatedAt();
+        this.passwordSet = user.getPassword() != null;
+        this.passwordChangeRequired = user.isPasswordChangeRequired();
     }
 
     public String getUsername() { return username; }
@@ -50,5 +55,11 @@ public class UserResponse {
     public Date getCreated() { return created; }
 
     public Date getDeactivatedAt() { return deactivatedAt; }
+
+    @Schema(description = "Whether the user has a password. A user without one can only use API keys.")
+    public boolean isPasswordSet() { return passwordSet; }
+
+    @Schema(description = "Whether the user must change their password at next sign-in, because an administrator set it.")
+    public boolean isPasswordChangeRequired() { return passwordChangeRequired; }
 
 }

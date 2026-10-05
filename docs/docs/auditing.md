@@ -47,6 +47,9 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `user_role_changed` | A user's role was changed. Changed through the [Users API](api_and_sdks/api/users_api.md), the subject is the calling administrator, the associated object is the user, and the detail names the calling API key. |
 | `user_deactivated` | A user account was deactivated: API access is revoked, but the user record and all of its data are retained (the event detail records this). Deactivation never cascades, so governance evidence (the user's policies and redaction ledger) is preserved and stays resolvable to the retained user, and the account can be reactivated. |
 | `user_reactivated` | A previously deactivated user account was reactivated, restoring API access. Through the [Users API](api_and_sdks/api/users_api.md), deactivation and reactivation name the calling administrator as the subject and the calling API key in the detail. |
+| `user_password_set` | A user without a password was given one, at creation or by an administrator through the [Users API](api_and_sdks/api/users_api.md#set-or-reset-a-users-password). The subject is the calling administrator, the associated object is the user, and the detail names the calling API key and whether a change is required. Never includes the password. |
+| `user_password_reset` | An administrator replaced a user's password. Recorded like `user_password_set`. |
+| `user_password_changed` | A user changed their own password. The subject and associated object are the user, and the detail names the calling API key. Never includes either password. |
 
 ### API keys
 

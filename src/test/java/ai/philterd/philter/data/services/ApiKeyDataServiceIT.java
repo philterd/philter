@@ -177,6 +177,34 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
     }
 
     @Test
+    void revokeSessionKeysRevokesOnlyThatUsersSessionKeysAndEvictsThem() {
+        final ObjectId user = new ObjectId();
+        final ObjectId other = new ObjectId();
+        final String session = service.createApiKey("req", user, "src").getMessage();
+        final String longLived = service.createApiKey("req", user, "src").getMessage();
+        final String othersSession = service.createApiKey("req", other, "src").getMessage();
+        for (final String key : List.of(session, othersSession)) {
+            mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(
+                    new org.bson.Document("_id", service.findOneByApiKey(key).getId()),
+                    new org.bson.Document("$set", new org.bson.Document("session", true)));
+        }
+        final ApiKeyEntity sessionEntity = service.findOneByApiKey(session);
+        apiKeyCache.insert(sessionEntity.getApiKeyHash(), sessionEntity);
+
+        assertEquals(1L, service.revokeSessionKeys("req", user, "api", "reason: test"));
+
+        assertTrue(service.findAll(user, 0, 10, true).stream()
+                .filter(ApiKeyEntity::isSession).allMatch(ApiKeyEntity::isDeleted));
+        assertNotNull(service.findOneByApiKey(longLived), "a long-lived key keeps working");
+        assertNotNull(service.findOneByApiKey(othersSession), "another user's session key keeps working");
+        assertFalse(apiKeyCache.containsApiKey(sessionEntity.getApiKeyHash()), "evicted, so it stops at once");
+        verify(auditEventPublisher).auditEvent(eq("req"), eq(AuditLogEvent.API_KEY_DELETED), eq(sessionEntity.getId()),
+                eq(sessionEntity.getId()), eq("api"), eq("reason: test"));
+
+        assertEquals(0L, service.revokeSessionKeys("req", user, "api", "reason: test"), "nothing left to revoke");
+    }
+
+    @Test
     void deleteAllByUserIdStampsDeletedAtAndRetainsRecords() {
         final ObjectId user = new ObjectId();
         service.createApiKey("req", user, "src");

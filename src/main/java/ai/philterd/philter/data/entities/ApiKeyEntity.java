@@ -41,6 +41,9 @@ public class ApiKeyEntity extends AbstractEntity {
     // True for a key seeded at startup from PHILTER_BOOTSTRAP_API_KEY, so a client can flag that the
     // bootstrap key is still in use and should be replaced with a narrower one.
     private boolean bootstrap;
+    // True for a key issued when a person signs in, as opposed to a long-lived key. Changing or resetting
+    // the user's password revokes these.
+    private boolean session;
 
     /** The scopes this key carries. Empty means the key can call nothing. */
     private Set<String> scopes = new LinkedHashSet<>();
@@ -58,6 +61,7 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setDeletedAt(document.getDate("deleted_at"));
         apiKeyEntity.setTimestamp(document.getDate("timestamp"));
         apiKeyEntity.setBootstrap(document.getBoolean("bootstrap", false));
+        apiKeyEntity.setSession(document.getBoolean("session", false));
 
         // A key with no scopes recorded can call nothing: scopes are always written at
         // creation, so their absence is a malformed key rather than a legacy one.
@@ -80,6 +84,7 @@ public class ApiKeyEntity extends AbstractEntity {
         document.put("deleted_at", deletedAt);
         document.put("timestamp", timestamp);
         document.put("bootstrap", bootstrap);
+        document.put("session", session);
         document.put("scopes", new ArrayList<>(scopes));
         return document;
     }
@@ -154,6 +159,14 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public void setBootstrap(final boolean bootstrap) {
         this.bootstrap = bootstrap;
+    }
+
+    public boolean isSession() {
+        return session;
+    }
+
+    public void setSession(final boolean session) {
+        this.session = session;
     }
 
     public Set<String> getScopes() {

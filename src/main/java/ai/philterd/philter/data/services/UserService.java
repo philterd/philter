@@ -33,7 +33,10 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,6 +57,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     public static final String LAST_ADMIN_MESSAGE =
             "This is the last active administrator. Make another user an administrator first.";
+
+    /** Fewer characters are refused. */
+    public static final int MIN_PASSWORD_CHARACTERS = 16;
+    /** bcrypt reads at most 72 bytes, so a longer password would be silently truncated. */
+    public static final int MAX_PASSWORD_BYTES = 72;
+
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "users", encryptionService, auditEventPublisher);
@@ -161,11 +171,29 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     /**
      * Creates a user, with a default policy and context. {@code actingUserId} is recorded as the principal
      * of the {@code user_created} audit event, or the new user itself when null (startup), and
-     * {@code actingApiKeyId}, if any, in the details. Users have no password: they authenticate with API keys.
+     * {@code actingApiKeyId}, if any, in the details. The user has no password, so it can only use API keys.
      */
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
                                       final PolicyDataService policyService, final ContextDataService contextService,
                                       final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+        return createUser(requestId, username, email, role, null, policyService, contextService, source,
+                actingUserId, actingApiKeyId);
+    }
+
+    /**
+     * As above, with an optional password, which the user must change at next sign-in because someone
+     * else chose it. Setting it is audited as {@code user_password_set}, without the password.
+     *
+     * @throws IllegalArgumentException if the password is not acceptable; see {@link #passwordProblem(String)}.
+     */
+    public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
+                                      final String password, final PolicyDataService policyService,
+                                      final ContextDataService contextService, final String source,
+                                      final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+
+        if (password != null && passwordProblem(password) != null) {
+            throw new IllegalArgumentException(passwordProblem(password));
+        }
 
         final UserEntity existing = findAnyByUsername(username);
         if(existing != null) {
@@ -184,10 +212,19 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         // A stable per-user key for the FPE_ENCRYPT_REPLACE strategy. It is generated once and never
         // changes so format-preserving encryption is deterministic for the user.
         userEntity.setFpeKey(EncryptionService.generateFpeKey());
+        if (password != null) {
+            userEntity.setPassword(passwordEncoder.encode(password));
+            userEntity.setPasswordChangeRequired(true);
+        }
         final ObjectId userId = save(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED,
                 actingUserId == null ? userId : actingUserId, userId, source, withApiKey("role: " + role, actingApiKeyId));
+        if (password != null) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_SET,
+                    actingUserId == null ? userId : actingUserId, userId, source,
+                    withApiKey("change_required: true", actingApiKeyId));
+        }
 
         // Create the default policy.
         LOGGER.info("Inserting the default policy");
@@ -444,6 +481,112 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                 actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
 
         return ServiceResponse.success("Webhook removed.");
+    }
+
+    /**
+     * Why a password is not acceptable, or {@code null} when it is: at least
+     * {@value #MIN_PASSWORD_CHARACTERS} characters and at most {@value #MAX_PASSWORD_BYTES} UTF-8 bytes.
+     */
+    public static String passwordProblem(final String password) {
+        if (password == null || password.codePointCount(0, password.length()) < MIN_PASSWORD_CHARACTERS) {
+            return "The password must be at least " + MIN_PASSWORD_CHARACTERS + " characters.";
+        }
+        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            return "The password must be at most " + MAX_PASSWORD_BYTES + " bytes in UTF-8.";
+        }
+        return null;
+    }
+
+    /** Whether the plaintext matches the user's password. Always false for a user without one. */
+    public boolean passwordMatches(final UserEntity user, final String plainPassword) {
+        if (user == null || user.getPassword() == null || plainPassword == null) {
+            return false;
+        }
+        return passwordEncoder.matches(plainPassword, user.getPassword());
+    }
+
+    /**
+     * Changes the user's own password, which requires the current one, and clears any forced change.
+     * Audited as {@code user_password_changed}, without either password. The caller revokes the user's
+     * session keys.
+     *
+     * @return a failure with status 400 (the new password is unacceptable or unchanged), 403 (the current
+     * password is wrong), or 409 (the user has no password, or it changed concurrently).
+     */
+    public ServiceResponse changeOwnPassword(final String requestId, final UserEntity user, final String currentPassword,
+                                             final String newPassword, final String source, final ObjectId actingApiKeyId) {
+
+        if (user.getPassword() == null) {
+            return new ServiceResponse("The user has no password. An administrator sets the first one.", false, 409);
+        }
+        if (!passwordMatches(user, currentPassword)) {
+            return new ServiceResponse("The current password is not correct.", false, 403);
+        }
+        final String problem = passwordProblem(newPassword);
+        if (problem != null) {
+            return new ServiceResponse(problem, false, 400);
+        }
+        if (passwordMatches(user, newPassword)) {
+            return new ServiceResponse("The new password must differ from the current one.", false, 400);
+        }
+
+        if (!writePassword(user, passwordEncoder.encode(newPassword), false)) {
+            return new ServiceResponse("The password was changed by another request. Try again.", false, 409);
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_CHANGED, user.getId(), user.getId(),
+                source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("Password changed.");
+
+    }
+
+    /**
+     * Sets a user's password without the current one, as an administrator does. Audited as
+     * {@code user_password_reset} when it replaces a password and {@code user_password_set} when the user
+     * had none, naming {@code actingUserId} and {@code actingApiKeyId}, never the password. The caller
+     * revokes the user's session keys.
+     *
+     * @param changeRequired whether the user must change it at next sign-in.
+     * @return a failure with status 400 if the password is not acceptable, or 409 if it changed concurrently.
+     */
+    public ServiceResponse setPassword(final String requestId, final UserEntity user, final String newPassword,
+                                       final boolean changeRequired, final String source,
+                                       final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+
+        final String problem = passwordProblem(newPassword);
+        if (problem != null) {
+            return new ServiceResponse(problem, false, 400);
+        }
+
+        final boolean replacing = user.getPassword() != null;
+        if (!writePassword(user, passwordEncoder.encode(newPassword), changeRequired)) {
+            return new ServiceResponse("The password was changed by another request. Try again.", false, 409);
+        }
+
+        auditEventPublisher.auditEvent(requestId,
+                replacing ? AuditLogEvent.USER_PASSWORD_RESET : AuditLogEvent.USER_PASSWORD_SET,
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source,
+                withApiKey("change_required: " + changeRequired, actingApiKeyId));
+
+        return ServiceResponse.success(replacing ? "Password reset." : "Password set.");
+
+    }
+
+    /**
+     * Writes a new hash only if the stored one is still the one this request read, so two concurrent
+     * changes cannot both succeed against the same current password.
+     */
+    private boolean writePassword(final UserEntity user, final String newHash, final boolean changeRequired) {
+        final boolean written = collection.updateOne(
+                Filters.and(Filters.eq("_id", user.getId()), Filters.eq("password", user.getPassword())),
+                new Document("$set", new Document("password", newHash).append("password_change_required", changeRequired)))
+                .getMatchedCount() == 1;
+        if (written) {
+            user.setPassword(newHash);
+            user.setPasswordChangeRequired(changeRequired);
+        }
+        return written;
     }
 
     private boolean updateFields(final UserEntity user, final String... fields) {

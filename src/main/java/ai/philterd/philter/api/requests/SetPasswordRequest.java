@@ -17,27 +17,12 @@ package ai.philterd.philter.api.requests;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** Request body for {@code POST /api/users}. */
-public class CreateUserRequest {
-
-    private String username;
-    private String email;
-    private String role;
+/** Request body for {@code PUT /api/users/{username}/password}. */
+public class SetPasswordRequest {
 
     private String password;
 
-    public String getUsername() { return username; }
-    public void setUsername(final String username) { this.username = username; }
-
-    public String getEmail() { return email; }
-    public void setEmail(final String email) { this.email = email; }
-
-    @Schema(description = "user (the default) or admin.")
-    public String getRole() { return role; }
-    public void setRole(final String role) { this.role = role; }
-
-    @Schema(description = "Optional. At least 16 characters and at most 72 bytes in UTF-8. The user must change it "
-            + "at next sign-in. Without one, the user can only use API keys.")
+    @Schema(description = "At least 16 characters and at most 72 bytes in UTF-8.")
     public String getPassword() { return password; }
     public void setPassword(final String password) { this.password = password; }
 

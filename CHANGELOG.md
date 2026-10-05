@@ -44,11 +44,18 @@ See [Upgrading](docs/docs/upgrading.md) for migration steps.
   required at startup until the admin has had an API key, and ignored afterwards.
 - **Users API.** Endpoints under `/api/users` list, read, and create users, set a user's role,
   deactivate and reactivate users, and mint API keys for a user, so a deployment can be administered
-  over the API. `GET /api/users/me` returns the calling key's user. Users created over the
-  API have no password and authenticate with API keys. The endpoints require an administrator and
+  over the API. `GET /api/users/me` returns the calling key's user. The endpoints require an administrator and
   the new `users:read` scope or `users:write`/`api-keys:write`, refuse to demote or deactivate the
   last active administrator, and cannot grant a key a scope the calling key does not hold. Every
   change is audited with the acting administrator and API key.
+- **User passwords.** A user can have an optional password, stored as a bcrypt hash, for a person who
+  will sign in through a user interface (password sign-in is not available yet); users without one
+  authenticate with API keys only. It is set at
+  creation (`POST /api/users`), changed by the user with the current one (`PUT /api/users/me/password`),
+  or set and reset by an administrator (`PUT /api/users/{username}/password`), which requires a change
+  at next sign-in. Passwords must be 16 characters to 72 UTF-8 bytes. A change or reset revokes the
+  user's session keys. The `admin` user's first password is set with the bootstrap API key. Audited
+  as `user_password_set`, `user_password_changed`, and `user_password_reset`, never with the password.
 - **API Keys API.** `/api/api-keys` lists, creates, re-scopes, and revokes the calling key's user's
   keys, so a key can be rotated without an administrator; `GET /api/users/{username}/api-keys` lets
   an administrator list another user's keys and manage them by ID. A key cannot grant a scope it does

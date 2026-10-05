@@ -88,6 +88,46 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
+    void passwordRulesCountCharactersAndUtf8Bytes() {
+        assertNotNull(UserService.passwordProblem(null));
+        assertNotNull(UserService.passwordProblem("x".repeat(15)));
+        assertNull(UserService.passwordProblem("x".repeat(16)));
+        assertNull(UserService.passwordProblem("x".repeat(72)));
+        assertNotNull(UserService.passwordProblem("x".repeat(73)));
+        // 16 characters of two code units each count as 16, not 32.
+        assertNull(UserService.passwordProblem("\uD83D\uDE00".repeat(16)));
+        // 24 three-byte characters are 72 bytes; 25 are 75.
+        assertNull(UserService.passwordProblem("\u20ac".repeat(24)));
+        assertNotNull(UserService.passwordProblem("\u20ac".repeat(25)));
+
+        // bcrypt accepts the longest allowed password, and every byte of it counts.
+        final UserEntity user = createAndFind("longest-password", "user");
+        final String longest = "x".repeat(71) + "a";
+        assertTrue(service.setPassword("req", user, longest, false, "test", null, null).isSuccessful());
+        assertTrue(service.passwordMatches(service.findOneById(user.getId()), longest));
+        assertFalse(service.passwordMatches(service.findOneById(user.getId()), "x".repeat(71) + "b"),
+                "the 72nd byte is part of the password");
+    }
+
+    @Test
+    void aStaleCopyCannotChangeAPasswordSomeoneElseAlreadyChanged() {
+        final UserEntity user = createAndFind("stale-password", "user");
+        assertTrue(service.setPassword("req", user, "first-password-0123", false, "test", null, null).isSuccessful());
+
+        final UserEntity first = service.findOneById(user.getId());
+        final UserEntity second = service.findOneById(user.getId());
+        assertTrue(service.changeOwnPassword("req", first, "first-password-0123", "second-password-0123", "test", null)
+                .isSuccessful());
+
+        // The second request read the old hash, so its current password checks out, but the write must not land.
+        final ServiceResponse late = service.changeOwnPassword("req", second, "first-password-0123",
+                "third-password-01234", "test", null);
+        assertFalse(late.isSuccessful());
+        assertEquals(409, late.getStatusCode());
+        assertTrue(service.passwordMatches(service.findOneById(user.getId()), "second-password-0123"));
+    }
+
+    @Test
     void createUserPersistsAndIsReadableByEmailAndId() {
         final ServiceResponse response = service.createUser(
                 "req", "alice@example.com", "user", policyDataService, contextDataService, "system");

@@ -51,6 +51,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -134,7 +135,7 @@ class UsersApiControllerTest {
     }
 
     private void userCreationSucceeds() {
-        when(userService.createUser(anyString(), anyString(), any(), anyString(),
+        when(userService.createUser(anyString(), anyString(), any(), anyString(), any(),
                 any(), any(), anyString(), any(), any()))
                 .thenReturn(ServiceResponse.success("User created."));
     }
@@ -161,7 +162,7 @@ class UsersApiControllerTest {
         assertTrue(body.contains("\"username\":\"ci\""), "the response must name the user: " + body);
         assertTrue(body.contains("\"role\":\"user\""), "the response must state the role: " + body);
         verify(userService).createUser(eq("req-provision"), eq("ci"), eq("ci@example.com"),
-                eq("user"), any(), any(), eq("api"), eq(callerUserId), eq(callerApiKeyId));
+                eq("user"), isNull(), any(), any(), eq("api"), eq(callerUserId), eq(callerApiKeyId));
     }
 
     @Test
@@ -174,7 +175,7 @@ class UsersApiControllerTest {
 
         // The acting principal is passed through to the user_created event; without it the audit log
         // says a user appeared and not who made it.
-        verify(userService).createUser(anyString(), anyString(), any(), anyString(),
+        verify(userService).createUser(anyString(), anyString(), any(), anyString(), any(),
                 any(), any(), anyString(), eq(callerUserId), eq(callerApiKeyId));
     }
 
@@ -189,7 +190,7 @@ class UsersApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"role\":\"admin\""), "the role is normalized: " + body);
-        verify(userService).createUser(anyString(), eq("ops"), any(), eq("admin"),
+        verify(userService).createUser(anyString(), eq("ops"), any(), eq("admin"), any(),
                 any(), any(), anyString(), any(), any());
     }
 
@@ -200,7 +201,7 @@ class UsersApiControllerTest {
 
         createUser("{\"username\":\"ci\",\"role\":\"root\"}").andExpect(status().isBadRequest());
 
-        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(),
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(), any(),
                 any(), any(), anyString(), any(), any());
     }
 
@@ -223,7 +224,7 @@ class UsersApiControllerTest {
 
         assertTrue(body.contains("administrator"), "the refusal must say what is required: " + body);
         assertFalse(body.contains("scope"), "this refusal is not about the key's scopes: " + body);
-        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(),
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(), any(),
                 any(), any(), anyString(), any(), any());
     }
 
@@ -245,7 +246,7 @@ class UsersApiControllerTest {
     @DisplayName("A username already in use is a conflict, not a new user")
     void createUserReportsADuplicateUsername() throws Exception {
         callerIsAdministrator(true);
-        when(userService.createUser(anyString(), anyString(), any(), anyString(),
+        when(userService.createUser(anyString(), anyString(), any(), anyString(), any(),
                 any(), any(), anyString(), any(), any()))
                 .thenReturn(ServiceResponse.failure("User already exists."));
 
@@ -265,16 +266,29 @@ class UsersApiControllerTest {
     }
 
     @Test
-    @DisplayName("A password is refused rather than silently ignored")
-    void createUserRefusesAPassword() throws Exception {
+    @DisplayName("A password is passed through to the service")
+    void createUserAcceptsAPassword() throws Exception {
+        callerIsAdministrator(true);
+        userCreationSucceeds();
+
+        createUser("{\"username\":\"ci\",\"password\":\"a-password-of-at-least-16-characters\"}")
+                .andExpect(status().isCreated());
+
+        verify(userService).createUser(anyString(), eq("ci"), any(), anyString(),
+                eq("a-password-of-at-least-16-characters"), any(), any(), anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A password under 16 characters is refused before anything is created")
+    void createUserRefusesAShortPassword() throws Exception {
         callerIsAdministrator(true);
 
-        final String body = createUser("{\"username\":\"ci\",\"password\":\"a-password-of-at-least-16-characters\"}")
+        final String body = createUser("{\"username\":\"ci\",\"password\":\"too-short\"}")
                 .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
 
-        assertTrue(body.contains("API keys"), "the refusal must say how users authenticate: " + body);
-        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(),
+        assertTrue(body.contains("16 characters"), "the refusal must give the rule: " + body);
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(), any(),
                 any(), any(), anyString(), any(), any());
     }
 

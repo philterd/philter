@@ -31,6 +31,10 @@ public class UserEntity extends AbstractEncryptedEntity {
     private String fpeKey;
     private String webhookUrl;
     private String webhookSecret;
+    // A bcrypt hash, or null for a user that only authenticates with long-lived API keys.
+    private String password;
+    // Set when an administrator chose the password, so the user must replace it at next sign-in.
+    private boolean passwordChangeRequired;
     // Users are deactivated rather than deleted: the record and all of the user's data are retained
     // (so the account can be reactivated and so audit and ledger entries that reference the user id
     // still resolve to a name), but a deactivated user's API keys are refused.
@@ -49,6 +53,8 @@ public class UserEntity extends AbstractEncryptedEntity {
         userEntity.setFpeKey(readEncrypted(document, encryptionService, "fpe_key"));
         userEntity.setWebhookUrl(document.getString("webhook_url"));
         userEntity.setWebhookSecret(readEncrypted(document, encryptionService, "webhook_secret"));
+        userEntity.setPassword(document.getString("password"));
+        userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
         userEntity.setDeactivated(document.getBoolean("deactivated", false));
         userEntity.setDeactivatedAt(document.getDate("deactivated_at"));
         return userEntity;
@@ -81,11 +87,12 @@ public class UserEntity extends AbstractEncryptedEntity {
         document.put("email", email);
         document.put("role", role);
         // Per-user secrets are encrypted at rest (ciphertext plus a <field>_key); the webhook URL is an
-        // endpoint, not a credential. Fields earlier versions stored, such as a password hash or MFA
-        // state, are left in place in existing documents and not read.
+        // endpoint, not a credential, and the password is a bcrypt hash, stored as-is.
         putEncrypted(document, encryptionService, "fpe_key", fpeKey);
         document.put("webhook_url", webhookUrl);
         putEncrypted(document, encryptionService, "webhook_secret", webhookSecret);
+        document.put("password", password);
+        document.put("password_change_required", passwordChangeRequired);
         document.put("deactivated", deactivated);
         document.put("deactivated_at", deactivatedAt);
         return document;
@@ -161,6 +168,22 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public void setWebhookSecret(final String webhookSecret) {
         this.webhookSecret = webhookSecret;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(final String password) {
+        this.password = password;
+    }
+
+    public boolean isPasswordChangeRequired() {
+        return passwordChangeRequired;
+    }
+
+    public void setPasswordChangeRequired(final boolean passwordChangeRequired) {
+        this.passwordChangeRequired = passwordChangeRequired;
     }
 
     public boolean isDeactivated() {

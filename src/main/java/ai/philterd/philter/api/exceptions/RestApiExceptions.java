@@ -52,13 +52,14 @@ public class RestApiExceptions {
 
 	/**
 	 * Not thrown by Philter, so the message is a filesystem path or a parser trace rather than
-	 * anything the caller wrote. A fixed message is returned and the detail stays in the log.
+	 * anything the caller wrote. A fixed message is returned, and only the exception type is logged.
 	 */
 	@ResponseBody
 	@ExceptionHandler({FileNotFoundException.class, HttpMessageNotReadableException.class})
 	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
 	public String handleUnreadableRequest(final Exception ex) {
-		LOGGER.error("The request could not be read.", ex);
+		// Only the type: a parser's message can quote the request body, such as a password.
+		LOGGER.warn("The request could not be read: {}", ex.getClass().getSimpleName());
 		return "The request body is missing or could not be read.";
 	}
 

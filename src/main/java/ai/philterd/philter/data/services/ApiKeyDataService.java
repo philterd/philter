@@ -427,6 +427,42 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    /**
+     * Revokes the user's active session keys, the keys issued at sign-in, leaving long-lived keys alone.
+     * Each is evicted from the cache and audited as {@code api_key_deleted} with {@code auditDetails}.
+     *
+     * @return how many keys were revoked.
+     */
+    public long revokeSessionKeys(final String requestId, final ObjectId userId, final String source,
+                                  final String auditDetails) {
+
+        final List<ApiKeyEntity> affected = new ArrayList<>();
+        for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId),
+                Filters.eq("session", true), Filters.eq("deleted", false)))) {
+            affected.add(ApiKeyEntity.fromDocument(document));
+        }
+
+        if (affected.isEmpty()) {
+            return 0;
+        }
+
+        // By id, so a key created after the read is not revoked without being evicted and audited.
+        final List<ObjectId> ids = new ArrayList<>();
+        for (final ApiKeyEntity key : affected) {
+            ids.add(key.getId());
+        }
+        collection.updateMany(Filters.and(Filters.in("_id", ids), Filters.eq("deleted", false)),
+                new Document("$set", new Document("deleted", true).append("deleted_at", new Date())));
+
+        for (final ApiKeyEntity key : affected) {
+            apiKeyCache.delete(key.getApiKeyHash());
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_DELETED, key.getId(), key.getId(), source, auditDetails);
+        }
+
+        return affected.size();
+
+    }
+
     @Override
     public void update(final ApiKeyEntity key) {
         throw new UnsupportedOperationException("Use scope or revocation operations.");

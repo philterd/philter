@@ -64,6 +64,10 @@ public enum AuditLogEvent {
     USER_ROLE_CHANGED("user_role_changed"),
     USER_DEACTIVATED("user_deactivated"),
     USER_REACTIVATED("user_reactivated"),
+    // Passwords: set without one before (or at creation), changed by the user, reset by an administrator.
+    USER_PASSWORD_SET("user_password_set"),
+    USER_PASSWORD_CHANGED("user_password_changed"),
+    USER_PASSWORD_RESET("user_password_reset"),
     // Retained for historical events: users are deactivated rather than deleted.
 
     // Account and admin configuration changes.

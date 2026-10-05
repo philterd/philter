@@ -59,7 +59,7 @@ Two scopes are separated from the resources they belong to because they return t
 
 `signing:write` covers rotating the output signing key, which affects every instance in the deployment. It also requires an administrator. The two signing-key read endpoints take no API key at all.
 
-`users:read` and `users:write` cover the [Users API](../api_and_sdks/api/users_api.md). Both require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`.
+`users:read` and `users:write` cover the [Users API](../api_and_sdks/api/users_api.md). Both require an administrator, except that `users:read` lets any key read its own user through `GET /api/users/me`, and `users:write` lets any key change its own user's password through `PUT /api/users/me/password`.
 
 `api-keys:read` and `api-keys:write` cover the [API Keys API](../api_and_sdks/api/api_keys_api.md). A key can list, create, re-scope, and revoke its own user's keys; an administrator can also manage other users' keys. A key cannot grant a scope it does not hold, cannot change or revoke a key holding a scope it does not hold, and cannot revoke itself.
 
@@ -84,7 +84,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `audit:read` | `GET /api/audit`<br>`GET /api/audit/export` |
 | `signing:write` | `POST /api/signing-key/regenerate` |
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
-| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role` |
+| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password` |
 | `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
 | `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
 | `settings:read` | `GET /api/settings` |

@@ -17,7 +17,9 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.requests.ChangePasswordRequest;
 import ai.philterd.philter.api.requests.CreateUserRequest;
+import ai.philterd.philter.api.requests.SetPasswordRequest;
 import ai.philterd.philter.api.requests.SetUserRoleRequest;
 import ai.philterd.philter.api.responses.CreatedUserResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -59,15 +61,15 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Manages users. Every endpoint requires an administrator as well as
- * its scope, except {@code GET /api/users/me}, which any key holding {@code users:read} may call.
+ * Manages users. Every endpoint requires an administrator as well as its scope, except
+ * {@code GET /api/users/me} and {@code PUT /api/users/me/password}, which act on the calling key's own user.
  *
- * <p>Users have no password here: they authenticate with API keys, so no endpoint accepts or returns
- * a password, password hash, or MFA secret.
+ * <p>A password is optional, for a person who signs in; a user without one can only use API keys. No
+ * endpoint returns a password or its hash.
  */
 @Tag(name = "Users",
-        description = "Create and manage users. Requires an administrator, "
-                + "except for reading the calling key's own user.")
+        description = "Create and manage users and their passwords. Requires an administrator, "
+                + "except for reading the calling key's own user and changing its own password.")
 @Controller
 public class UsersApiController extends AbstractApiController {
 
@@ -193,15 +195,17 @@ public class UsersApiController extends AbstractApiController {
     @Operation(
             summary = "Create a user.",
             description = "Creates a user with a default policy and context. The role is user unless admin is "
-                    + "given. The user has no password and authenticates with API keys; create one with "
-                    + "POST /api/users/{username}/api-keys. Requires an administrator as well as the scope. "
+                    + "given. A password is optional; without one the user can only use API keys, created with "
+                    + "POST /api/users/{username}/api-keys. A user created with a password must change it at next "
+                    + "sign-in, and setting it is audited as user_password_set. Requires an administrator as well as the scope. "
                     + "Recorded as a user_created audit event naming the calling administrator as the principal and "
                     + "the calling API key in the details.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The user was created.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = CreatedUserResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The username is missing or reserved, the role is not user or admin, or a password was sent."),
+            @ApiResponse(responseCode = "400", description = "The username is missing or reserved, the role is not user or admin, or the password is "
+                    + "shorter than 16 characters or longer than 72 bytes in UTF-8."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -232,14 +236,15 @@ public class UsersApiController extends AbstractApiController {
         if (SELF.equalsIgnoreCase(username)) {
             throw new BadRequestException("'" + SELF + "' is reserved and cannot be a username.");
         }
-        if (request.getPassword() != null) {
-            throw new BadRequestException("password is not accepted. Users authenticate with API keys.");
+        if (request.getPassword() != null && UserService.passwordProblem(request.getPassword()) != null) {
+            throw new BadRequestException(UserService.passwordProblem(request.getPassword()));
         }
 
         final String role = request.getRole() == null ? UserService.ROLE_USER : normalizeRole(request.getRole());
 
-        final ServiceResponse response = userService.createUser(requestId, username, request.getEmail(), role, policyDataService,
-                contextDataService, Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        final ServiceResponse response = userService.createUser(requestId, username, request.getEmail(), role,
+                request.getPassword(), policyDataService, contextDataService, Source.API.getSource(),
+                apiKeyEntity.getUserId(), apiKeyEntity.getId());
 
         if (!response.isSuccessful()) {
             // The only way creation fails is a username that is already taken, by an active account or
@@ -248,6 +253,129 @@ public class UsersApiController extends AbstractApiController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new CreatedUserResponse(username, role));
+
+    }
+
+    @Operation(
+            summary = "Change the calling user's password.",
+            description = "Changes the password of the calling key's own user, which requires the current password. "
+                    + "The new password must differ from it. Clears any required change and revokes the user's session "
+                    + "keys, including the calling key if it is one; long-lived keys are unaffected. Requires the "
+                    + "scope, not an administrator. Recorded as a user_password_changed audit event, without either "
+                    + "password.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "The password was changed.", content = @Content),
+            @ApiResponse(responseCode = "400", description = "A password is missing, the new password is shorter than 16 "
+                    + "characters or longer than 72 bytes in UTF-8, or it is the same as the current one.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the current password is not correct.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "The user has no password yet, so an administrator sets the "
+                    + "first one, or the password was changed by a concurrent request.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/" + SELF + "/password", method = RequestMethod.PUT,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> changeOwnPassword(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @RequestBody ChangePasswordRequest request) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        if (request.getCurrentPassword() == null || request.getNewPassword() == null) {
+            throw new BadRequestException("currentPassword and newPassword are required.");
+        }
+
+        final UserEntity user = userService.findOneById(apiKeyEntity.getUserId());
+        if (user == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        final ServiceResponse response = userService.changeOwnPassword(requestId, user, request.getCurrentPassword(),
+                request.getNewPassword(), Source.API.getSource(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(), "reason: password changed");
+
+        return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(
+            summary = "Set or reset a user's password.",
+            description = "Sets another user's password without the current one. The user must change it at next "
+                    + "sign-in, and their session keys are revoked. On the calling administrator's own user, this sets "
+                    + "only the first password, with no change required, which is how the admin user gets one with the "
+                    + "bootstrap API key; after that, use PUT /api/users/me/password. Requires an administrator as "
+                    + "well as the scope. Recorded as a user_password_reset audit event when it replaces a password, "
+                    + "or user_password_set when the user had none, naming the calling administrator and API key, "
+                    + "never the password.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "The password was set.", content = @Content),
+            @ApiResponse(responseCode = "400", description = "The password is missing, shorter than 16 characters, or "
+                    + "longer than 72 bytes in UTF-8.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The user is the caller and already has a password, or the "
+                    + "password was changed by a concurrent request.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/{username}/password", method = RequestMethod.PUT,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> setPassword(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @PathVariable("username") String username,
+            final @RequestBody SetPasswordRequest request) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Setting another user's password");
+        if (refusal != null) {
+            return refusal;
+        }
+
+        if (request.getPassword() == null) {
+            throw new BadRequestException("password is required.");
+        }
+
+        final UserEntity user = userService.findAnyByUsername(username);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        // Without this, a stolen session key could replace its own user's password without knowing it.
+        final boolean self = user.getId().equals(apiKeyEntity.getUserId());
+        if (self && user.getPassword() != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "Change your own password with PUT /api/users/me/password, which requires the current one."));
+        }
+
+        final ServiceResponse response = userService.setPassword(requestId, user, request.getPassword(), !self,
+                Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+        }
+
+        apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(),
+                "reason: password set by " + apiKeyEntity.getUserId() + ", api_key: " + apiKeyEntity.getId());
+
+        return ResponseEntity.noContent().build();
 
     }
 

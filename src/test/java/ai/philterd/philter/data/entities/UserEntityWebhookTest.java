@@ -59,8 +59,8 @@ class UserEntityWebhookTest {
     }
 
     @Test
-    void fieldsFromEarlierVersionsAreIgnored() {
-        // Users stored before 4.0 carry dashboard sign-in fields; they must still load.
+    void passwordFieldsRoundTripAndOlderMfaFieldsAreIgnored() {
+        // Pre-release builds stored dashboard MFA state beside the password; those documents must still load.
         final Document stored = new Document("_id", new ObjectId()).append("username", "legacy").append("role", "admin")
                 .append("password", "$2a$10$abcdefghijklmnopqrstuv").append("password_change_required", true)
                 .append("security_version", 3L).append("mfa_enabled", true).append("mfa_secret", "not-decryptable")
@@ -68,7 +68,12 @@ class UserEntityWebhookTest {
         final UserEntity restored = UserEntity.fromDocument(stored, new TestEncryptionService());
         assertEquals("legacy", restored.getUsername());
         assertEquals("admin", restored.getRole());
-        assertFalse(restored.toDocument(new TestEncryptionService()).containsKey("mfa_secret"));
+        assertEquals("$2a$10$abcdefghijklmnopqrstuv", restored.getPassword());
+        assertTrue(restored.isPasswordChangeRequired());
+        final Document written = restored.toDocument(new TestEncryptionService());
+        assertEquals("$2a$10$abcdefghijklmnopqrstuv", written.getString("password"));
+        assertTrue(written.getBoolean("password_change_required"));
+        assertFalse(written.containsKey("mfa_secret"));
     }
 
     @Test

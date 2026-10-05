@@ -8087,7 +8087,7 @@
           "Users"
         ],
         "summary": "Create a user.",
-        "description": "Creates a user with a default policy and context. The role is user unless admin is given. The user has no password and authenticates with API keys; create one with POST /api/users/{username}/api-keys. Requires an administrator as well as the scope. Recorded as a user_created audit event naming the calling administrator as the principal and the calling API key in the details. Requires the `users:write` scope.",
+        "description": "Creates a user with a default policy and context. The role is user unless admin is given. A password is optional; without one the user can only use API keys, created with POST /api/users/{username}/api-keys. A user created with a password must change it at next sign-in, and setting it is audited as user_password_set. Requires an administrator as well as the scope. Recorded as a user_created audit event naming the calling administrator as the principal and the calling API key in the details. Requires the `users:write` scope.",
         "operationId": "createUser",
         "parameters": [
           {
@@ -8121,7 +8121,7 @@
             }
           },
           "400": {
-            "description": "The username is missing or reserved, the role is not user or admin, or a password was sent.",
+            "description": "The username is missing or reserved, the role is not user or admin, or the password is shorter than 16 characters or longer than 72 bytes in UTF-8.",
             "content": {
               "*/*": {
                 "schema": {
@@ -8267,6 +8267,124 @@
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/password": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Change the calling user's password.",
+        "description": "Changes the password of the calling key's own user, which requires the current password. The new password must differ from it. Clears any required change and revokes the user's session keys, including the calling key if it is one; long-lived keys are unaffected. Requires the scope, not an administrator. Recorded as a user_password_changed audit event, without either password. Requires the `users:write` scope.",
+        "operationId": "changeOwnPassword",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The password was changed."
+          },
+          "400": {
+            "description": "A password is missing, the new password is shorter than 16 characters or longer than 72 bytes in UTF-8, or it is the same as the current one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the current password is not correct.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user has no password yet, so an administrator sets the first one, or the password was changed by a concurrent request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -8762,6 +8880,135 @@
           },
           "409": {
             "description": "The user is already deactivated, is the caller, or is the last active administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/password": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Set or reset a user's password.",
+        "description": "Sets another user's password without the current one. The user must change it at next sign-in, and their session keys are revoked. On the calling administrator's own user, this sets only the first password, with no change required, which is how the admin user gets one with the bootstrap API key; after that, use PUT /api/users/me/password. Requires an administrator as well as the scope. Recorded as a user_password_reset audit event when it replaces a password, or user_password_set when the user had none, naming the calling administrator and API key, never the password. Requires the `users:write` scope.",
+        "operationId": "setPassword",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The password was set."
+          },
+          "400": {
+            "description": "The password is missing, shorter than 16 characters, or longer than 72 bytes in UTF-8.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The user is the caller and already has a password, or the password was changed by a concurrent request.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9475,6 +9722,19 @@
           }
         }
       },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "description": "The user's current password.",
+            "type": "string"
+          },
+          "newPassword": {
+            "description": "At least 16 characters and at most 72 bytes in UTF-8, different from the current password.",
+            "type": "string"
+          }
+        }
+      },
       "ContextEntriesExport": {
         "properties": {
           "version": {
@@ -9548,6 +9808,10 @@
         "type": "object",
         "properties": {
           "email": {
+            "type": "string"
+          },
+          "password": {
+            "description": "Optional. At least 16 characters and at most 72 bytes in UTF-8. The user must change it at next sign-in. Without one, the user can only use API keys.",
             "type": "string"
           },
           "role": {
@@ -10176,6 +10440,15 @@
           }
         }
       },
+      "SetPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "description": "At least 16 characters and at most 72 bytes in UTF-8.",
+            "type": "string"
+          }
+        }
+      },
       "SetUserRoleRequest": {
         "type": "object",
         "properties": {
@@ -10294,6 +10567,14 @@
             "type": "string",
             "format": "date-time"
           },
+          "passwordChangeRequired": {
+            "description": "Whether the user must change their password at next sign-in, because an administrator set it.",
+            "type": "boolean"
+          },
+          "passwordSet": {
+            "description": "Whether the user has a password. A user without one can only use API keys.",
+            "type": "boolean"
+          },
           "role": {
             "type": "string"
           },
@@ -10377,6 +10658,10 @@
       "name": "Redaction Ledger"
     },
     {
+      "description": "Create and manage users and their passwords. Requires an administrator, except for reading the calling key's own user and changing its own password.",
+      "name": "Users"
+    },
+    {
       "description": "Unauthenticated health, including the supported redaction policy schema version.",
       "name": "Health"
     },
@@ -10387,10 +10672,6 @@
     {
       "description": "Operations for creating and managing contexts.",
       "name": "Contexts"
-    },
-    {
-      "description": "Create and manage users. Requires an administrator, except for reading the calling key's own user.",
-      "name": "Users"
     },
     {
       "description": "Read and change the deployment's admin settings. Requires an administrator.",

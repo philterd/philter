@@ -10,7 +10,7 @@ Philter is developed and tested against **MongoDB 8.2**, which is what the bundl
 
 | Data | Description |
 |------|-------------|
-| Users | User accounts, roles, and webhook settings. Users authenticate with API keys and have no password. |
+| Users | User accounts, roles, webhook settings, and optional bcrypt password hashes. |
 | API keys | Hashed API keys and their metadata. |
 | Policies | Redaction policies, including the managed policies shipped with Philter. |
 | Contexts and context entries | Contexts and their token-to-replacement mappings used for referential integrity. |

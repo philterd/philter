@@ -71,10 +71,12 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/users` | application/json | `users:read` | [Details](users_api.md) |
 | POST | `/api/users` | application/json | `users:write` | [Details](users_api.md) |
 | GET | `/api/users/me` | application/json | `users:read` | [Details](users_api.md) |
+| PUT | `/api/users/me/password` | application/json | `users:write` | [Details](users_api.md) |
 | GET | `/api/users/{username}` | application/json | `users:read` | [Details](users_api.md) |
 | GET | `/api/users/{username}/api-keys` | application/json | `api-keys:read` | [Details](api_keys_api.md) |
 | POST | `/api/users/{username}/api-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
 | POST | `/api/users/{username}/deactivate` | application/json | `users:write` | [Details](users_api.md) |
+| PUT | `/api/users/{username}/password` | application/json | `users:write` | [Details](users_api.md) |
 | POST | `/api/users/{username}/reactivate` | application/json | `users:write` | [Details](users_api.md) |
 | PUT | `/api/users/{username}/role` | application/json | `users:write` | [Details](users_api.md) |
 | DELETE | `/api/webhook` | See reference | `webhooks:write` | [Details](webhooks.md) |

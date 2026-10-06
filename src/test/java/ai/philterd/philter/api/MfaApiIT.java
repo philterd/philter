@@ -235,6 +235,9 @@ class MfaApiIT {
         assertEquals(200, completed.statusCode(), completed.body());
         final String sessionKey = gson.fromJson(completed.body(), JsonObject.class).get("apiKey").getAsString();
         assertEquals(200, send("GET", "/api/users/me", sessionKey, null).statusCode());
+        assertEquals(apiKeyDataService.findOneByApiKey(sessionKey).getId().toHexString(),
+                gson.fromJson(completed.body(), JsonObject.class).get("id").getAsString(),
+                "completing sign-in with a code returns the session key's id too");
 
         assertEquals(401, completeSignIn(challenge, code).statusCode(), "the challenge is single-use");
         assertEquals(401, completeSignIn(signIn(user).get("challenge").getAsString(), code).statusCode(),

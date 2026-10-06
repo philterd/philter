@@ -239,6 +239,33 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     }
 
     /**
+     * Lists a page of a user's active API keys: only session keys when {@code session} is true, only
+     * long-lived keys when false, and both when null.
+     */
+    public List<ApiKeyEntity> findAllBySession(final ObjectId userId, final int offset, final int limit, final Boolean session) {
+        final List<ApiKeyEntity> keys = new ArrayList<>();
+        for (final Document document : collection.find(activeKeys(userId, session))
+                .sort(Sorts.ascending("timestamp")).skip(offset).limit(limit)) {
+            keys.add(ApiKeyEntity.fromDocument(document));
+        }
+        return keys;
+    }
+
+    /** Counts what {@link #findAllBySession(ObjectId, int, int, Boolean)} lists. */
+    public int countBySession(final ObjectId userId, final Boolean session) {
+        return (int) collection.countDocuments(activeKeys(userId, session));
+    }
+
+    private static Document activeKeys(final ObjectId userId, final Boolean session) {
+        final Document query = new Document("deleted", false).append("user_id", userId);
+        if (session != null) {
+            // Keys made before session keys existed have no session field, and are long-lived.
+            query.append("session", session ? true : new Document("$ne", true));
+        }
+        return query;
+    }
+
+    /**
      * Lists a page of a user's API keys sorted by creation time. When {@code includeDeleted} is false,
      * soft-deleted keys are excluded; when true, deleted keys are included, marked as deleted (a deleted key is revoked and can never authenticate again).
      */

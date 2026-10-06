@@ -347,8 +347,8 @@ class ApiKeysApiControllerTest {
         final ApiKeyEntity key = storedKey(callerUserId, Set.of("redact"));
         key.setApiKeyHash("0123456789abcdef-hash");
         key.setBootstrap(true);
-        when(apiKeyDataService.findAll(callerUserId, 0, 25)).thenReturn(List.of(key));
-        when(apiKeyDataService.count(callerUserId)).thenReturn(1);
+        when(apiKeyDataService.findAllBySession(callerUserId, 0, 25, (Boolean) null)).thenReturn(List.of(key));
+        when(apiKeyDataService.countBySession(callerUserId, (Boolean) null)).thenReturn(1);
 
         final String body = perform(get("/api/api-keys"))
                 .andExpect(status().isOk())
@@ -359,6 +359,21 @@ class ApiKeysApiControllerTest {
                 && body.contains("\"created\"") && body.contains("\"total\":1"), body);
         assertFalse(body.contains("hash") || body.contains("\"apiKey\""), "no secret or hash may be listed: " + body);
         verifyNoInteractions(userService);
+    }
+
+    @Test
+    @DisplayName("session filters the listing, and total counts only the matching keys")
+    void filtersBySession() throws Exception {
+        final ApiKeyEntity key = storedKey(callerUserId, Set.of("redact"));
+        when(apiKeyDataService.findAllBySession(callerUserId, 0, 25, Boolean.FALSE)).thenReturn(List.of(key));
+        when(apiKeyDataService.countBySession(callerUserId, Boolean.FALSE)).thenReturn(1);
+
+        final String body = perform(get("/api/api-keys").param("session", "false"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"total\":1"), body);
+        verify(apiKeyDataService).findAllBySession(callerUserId, 0, 25, Boolean.FALSE);
     }
 
     @Test
@@ -380,8 +395,8 @@ class ApiKeysApiControllerTest {
         final UserEntity bob = targetUser("bob");
         when(userService.findAnyByUsername("bob")).thenReturn(bob);
         final ApiKeyEntity bobsKey = storedKey(bob.getId(), Set.of("redact"));
-        when(apiKeyDataService.findAll(bob.getId(), 0, 25)).thenReturn(List.of(bobsKey));
-        when(apiKeyDataService.count(bob.getId())).thenReturn(1);
+        when(apiKeyDataService.findAllBySession(bob.getId(), 0, 25, (Boolean) null)).thenReturn(List.of(bobsKey));
+        when(apiKeyDataService.countBySession(bob.getId(), (Boolean) null)).thenReturn(1);
 
         perform(get("/api/users/bob/api-keys")).andExpect(status().isOk());
     }
@@ -409,6 +424,19 @@ class ApiKeysApiControllerTest {
 
         verify(apiKeyDataService).updateScopes(eq("req-keys"), eq(callerUserId), eq(key), eq(Set.of("redact")), eq("api"),
                 contains("api_key: " + callerApiKeyId));
+    }
+
+    @Test
+    @DisplayName("The key making the request cannot change its own scopes, even to narrow them")
+    void cannotChangeItsOwnScopes() throws Exception {
+        lenient().when(apiKeyDataService.findOneById(callerKey.getId())).thenReturn(callerKey);
+
+        final String body = setScopes(callerKey, "{\"scopes\":[\"redact\"]}")
+                .andExpect(status().isConflict())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("making the request"), body);
+        verify(apiKeyDataService, never()).updateScopes(anyString(), any(), any(), any(), anyString(), any());
     }
 
     @Test

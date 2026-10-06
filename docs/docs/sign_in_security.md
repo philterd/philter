@@ -26,7 +26,7 @@ A user who must change their password, or must enroll in MFA, gets a session key
 
 A [session key](account/api_keys.md#session-keys) is the key issued at sign-in.
 
-* **Scopes.** It holds every scope, with the user's role still deciding administrator access. It cannot create API keys, and can narrow an existing key's scopes but not widen them, so a session cannot produce a long-lived credential that outlives it or a password reset.
+* **Scopes.** It holds every scope, with the user's role still deciding administrator access. It cannot create API keys, and can narrow another key's scopes but not widen them, so a session cannot produce a long-lived credential that outlives it or a password reset.
 * **Timeouts.** It expires after [`SESSION_KEY_IDLE_TIMEOUT_MINUTES`](settings.md#api-access) (default 30) without a request, or [`SESSION_KEY_MAX_LIFETIME_MINUTES`](settings.md#api-access) (default 720) after sign-in, whichever comes first.
 * **Every instance agrees.** Each request with a session key is checked against the database, not a cache, so an expired or revoked session key is refused on every instance at once. Keep the instances' clocks synchronized; expiry is measured with each instance's clock.
 * **Ending a session.** The holder signs out with [`DELETE /api/api-keys/current`](api_and_sdks/api/api_keys_api.md#sign-out). An administrator signs a person out everywhere with [`DELETE /api/users/{username}/session-keys`](api_and_sdks/api/api_keys_api.md#revoke-a-users-session-keys). Setting, changing, or resetting a password, and enrolling in MFA, also revoke the user's session keys. Long-lived keys are never affected.

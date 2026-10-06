@@ -25,6 +25,7 @@ import java.util.List;
 /** Response to a successful {@code POST /api/sign-in}: the session key, returned once. */
 public class SignInResponse {
 
+    private final String id;
     private final String apiKey;
     private final String username;
     private final List<String> scopes;
@@ -34,6 +35,7 @@ public class SignInResponse {
     private final boolean mfaEnrollmentRequired;
 
     public SignInResponse(final String username, final ApiKeyEntity sessionKey) {
+        this.id = sessionKey.getId() == null ? null : sessionKey.getId().toHexString();
         this.apiKey = sessionKey.getApiKey();
         this.username = username;
         this.scopes = new ArrayList<>(sessionKey.getScopes());
@@ -42,6 +44,9 @@ public class SignInResponse {
         this.passwordChangeRequired = sessionKey.isPasswordChangeOnly();
         this.mfaEnrollmentRequired = sessionKey.isMfaEnrollmentOnly();
     }
+
+    @Schema(description = "The session key's id, as GET /api/api-keys lists it, so a client can recognize its own key.")
+    public String getId() { return id; }
 
     @Schema(description = "The session key. Send it as a bearer token. It is returned here and nowhere else.")
     public String getApiKey() { return apiKey; }

@@ -105,7 +105,7 @@ Two scopes are separated from the resources they belong to because they return t
 
 Scopes are named when a key is created. Change them on an existing key with [`PUT /api/api-keys/{keyId}/scopes`](../api_and_sdks/api/api_keys_api.md#change-a-keys-scopes): the key value itself does not change, so integrations keep working with the same credential, and the change takes effect on the next request.
 
-A key must have at least one scope. A key with none can call nothing.
+A key must have at least one scope. A key with none can call nothing. A key cannot change its own scopes, as it cannot revoke itself: change them with another key, so a client never cuts off the access it is using.
 
 Every scope change is recorded in the [audit log](../auditing.md) as a security event, including the scopes the key held before and after, so the record shows whether a key was widened or narrowed.
 

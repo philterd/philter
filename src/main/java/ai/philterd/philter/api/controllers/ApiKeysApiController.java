@@ -35,6 +35,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -88,7 +89,8 @@ public class ApiKeysApiController extends AbstractApiController {
             summary = "List the calling key's user's API keys.",
             description = "Lists the active keys belonging to the calling key's user, oldest first, with the "
                     + "total. Returns each key's ID, prefix, scopes, creation time, and whether it is the "
-                    + "bootstrap key, never the key itself.")
+                    + "bootstrap key, never the key itself. session=true lists only session keys and session=false "
+                    + "only long-lived keys; total counts only the keys listed.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "A page of keys.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -103,18 +105,21 @@ public class ApiKeysApiController extends AbstractApiController {
     public @ResponseBody ResponseEntity<Object> getApiKeys(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
-            final @RequestParam(value = "limit", defaultValue = "25") int limit) {
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
+            final @Parameter(description = "true lists only session keys, false only long-lived keys; left out, both. "
+                    + "total counts only the keys listed.")
+            @RequestParam(value = "session", required = false) Boolean session) {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
 
-        return ResponseEntity.ok(page(caller.getUserId(), offset, limit));
+        return ResponseEntity.ok(page(caller.getUserId(), offset, limit, session));
 
     }
 
     @Operation(
             summary = "List a user's API keys.",
-            description = "Lists the named user's active keys, oldest first, with the total. Requires an "
-                    + "administrator as well as the scope.")
+            description = "Lists the named user's active keys, oldest first, with the total. session=true lists only "
+                    + "session keys and session=false only long-lived keys. Requires an administrator as well as the scope.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "A page of keys.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -132,7 +137,10 @@ public class ApiKeysApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("username") String username,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
-            final @RequestParam(value = "limit", defaultValue = "25") int limit) {
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
+            final @Parameter(description = "true lists only session keys, false only long-lived keys; left out, both. "
+                    + "total counts only the keys listed.")
+            @RequestParam(value = "session", required = false) Boolean session) {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
 
@@ -146,7 +154,7 @@ public class ApiKeysApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        return ResponseEntity.ok(page(user.getId(), offset, limit));
+        return ResponseEntity.ok(page(user.getId(), offset, limit, session));
 
     }
 
@@ -254,8 +262,8 @@ public class ApiKeysApiController extends AbstractApiController {
             summary = "Replace an API key's scopes.",
             description = "Replaces the scopes on a key. The key value does not change. The new scopes must be a "
                     + "subset of those the calling key holds, and the calling key cannot change a key holding a "
-                    + "scope it does not hold. A caller can change its own user's keys; an administrator can "
-                    + "change any user's. Recorded as an api_key_scopes_changed audit event with the scopes "
+                    + "scope it does not hold. The key making the request cannot change its own scopes. A caller can "
+                    + "change its own user's keys; an administrator can change any user's. Recorded as an api_key_scopes_changed audit event with the scopes "
                     + "before and after and the calling user and API key.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The scopes were replaced.",
@@ -267,7 +275,10 @@ public class ApiKeysApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "There is no active key with that ID that the caller may manage.",
-                    content = @Content)
+                    content = @Content),
+            @ApiResponse(responseCode = "409", description = "The key is the one making the request.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
     })
     @RequiresScope(ApiKeyScope.API_KEYS_WRITE)
     @RequestMapping(value = "/api/api-keys/{keyId}/scopes", method = RequestMethod.PUT,
@@ -285,6 +296,12 @@ public class ApiKeysApiController extends AbstractApiController {
         final ApiKeyEntity target = findManageableKey(keyId, caller);
         if (target == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        // Refused as revoking it is: a client narrowing the key it is using would break its own access.
+        if (target.getId().equals(caller.getId())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "This is the key making the request. Change its scopes with another key."));
         }
 
         ResponseEntity<Object> refusal = refuseScopesNotHeld(caller, scopes);
@@ -460,12 +477,12 @@ public class ApiKeysApiController extends AbstractApiController {
 
     }
 
-    private GetApiKeysResponse page(final ObjectId userId, final int offset, final int limit) {
+    private GetApiKeysResponse page(final ObjectId userId, final int offset, final int limit, final Boolean session) {
         final List<ApiKeyResponse> keys = new ArrayList<>();
-        for (final ApiKeyEntity key : apiKeyService.findAll(userId, normalizeOffset(offset), normalizeLimit(limit))) {
+        for (final ApiKeyEntity key : apiKeyService.findAllBySession(userId, normalizeOffset(offset), normalizeLimit(limit), session)) {
             keys.add(new ApiKeyResponse(key));
         }
-        return new GetApiKeysResponse(keys, apiKeyService.count(userId));
+        return new GetApiKeysResponse(keys, apiKeyService.countBySession(userId, session));
     }
 
     private ResponseEntity<Object> mint(final String requestId, final ApiKeyEntity caller, final UserEntity user,

@@ -193,6 +193,13 @@ class SignInApiIT {
         assertEquals(200, send("GET", "/api/users/me", key, null).statusCode());
         assertTrue(apiKeyDataService.findOneByApiKey(key).isSession());
 
+        // The response names the session key's id, which the key listing uses, so a client can find its own.
+        final String id = body.get("id").getAsString();
+        assertEquals(apiKeyDataService.findOneByApiKey(key).getId().toHexString(), id);
+        final HttpResponse<String> sessions = send("GET", "/api/api-keys?session=true", key, null);
+        assertEquals(200, sessions.statusCode(), sessions.body());
+        assertTrue(sessions.body().contains("\"id\":\"" + id + "\""), sessions.body());
+
         final List<JsonObject> succeeded = audit("sign_in_succeeded", "username: " + username(user));
         assertEquals(1, succeeded.size());
         assertEquals(user.toHexString(), succeeded.getFirst().get("apiKeyId").getAsString());

@@ -17,7 +17,7 @@
           "API Keys"
         ],
         "summary": "List the calling key's user's API keys.",
-        "description": "Lists the active keys belonging to the calling key's user, oldest first, with the total. Returns each key's ID, prefix, scopes, creation time, and whether it is the bootstrap key, never the key itself. Requires the `api-keys:read` scope.",
+        "description": "Lists the active keys belonging to the calling key's user, oldest first, with the total. Returns each key's ID, prefix, scopes, creation time, and whether it is the bootstrap key, never the key itself. session=true lists only session keys and session=false only long-lived keys; total counts only the keys listed. Requires the `api-keys:read` scope.",
         "operationId": "getApiKeys",
         "parameters": [
           {
@@ -46,6 +46,15 @@
               "type": "integer",
               "format": "int32",
               "default": 25
+            }
+          },
+          {
+            "description": "true lists only session keys, false only long-lived keys; left out, both. total counts only the keys listed.",
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -567,7 +576,7 @@
           "API Keys"
         ],
         "summary": "Replace an API key's scopes.",
-        "description": "Replaces the scopes on a key. The key value does not change. The new scopes must be a subset of those the calling key holds, and the calling key cannot change a key holding a scope it does not hold. A caller can change its own user's keys; an administrator can change any user's. Recorded as an api_key_scopes_changed audit event with the scopes before and after and the calling user and API key. Requires the `api-keys:write` scope.",
+        "description": "Replaces the scopes on a key. The key value does not change. The new scopes must be a subset of those the calling key holds, and the calling key cannot change a key holding a scope it does not hold. The key making the request cannot change its own scopes. A caller can change its own user's keys; an administrator can change any user's. Recorded as an api_key_scopes_changed audit event with the scopes before and after and the calling user and API key. Requires the `api-keys:write` scope.",
         "operationId": "setApiKeyScopes",
         "parameters": [
           {
@@ -643,6 +652,16 @@
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The key is the one making the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -10001,7 +10020,7 @@
           "API Keys"
         ],
         "summary": "List a user's API keys.",
-        "description": "Lists the named user's active keys, oldest first, with the total. Requires an administrator as well as the scope. Requires the `api-keys:read` scope.",
+        "description": "Lists the named user's active keys, oldest first, with the total. session=true lists only session keys and session=false only long-lived keys. Requires an administrator as well as the scope. Requires the `api-keys:read` scope.",
         "operationId": "getUserApiKeys",
         "parameters": [
           {
@@ -10038,6 +10057,15 @@
               "type": "integer",
               "format": "int32",
               "default": 25
+            }
+          },
+          {
+            "description": "true lists only session keys, false only long-lived keys; left out, both. total counts only the keys listed.",
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -12614,6 +12642,10 @@
             "description": "When the key's maximum lifetime ends.",
             "type": "string",
             "format": "date-time"
+          },
+          "id": {
+            "description": "The session key's id, as GET /api/api-keys lists it, so a client can recognize its own key.",
+            "type": "string"
           },
           "idleExpiresAt": {
             "description": "When the key expires unless it is used first. Each request moves it forward.",

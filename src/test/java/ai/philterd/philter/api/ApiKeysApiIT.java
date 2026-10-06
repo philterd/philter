@@ -238,4 +238,53 @@ class ApiKeysApiIT {
 
     }
 
+    @Test
+    @DisplayName("session filters the listing between session and long-lived keys, and total counts only those listed")
+    void filtersBySession() throws Exception {
+        final ObjectId user = seedUser("user");
+        final String longLived = seedKey(user, Set.of("api-keys:read", "api-keys:write"));
+        seedKey(user, Set.of("redact"));
+        final String sessionId = apiKeyDataService.createSessionKey("req", user, ApiKeyScope.all(), "test", null)
+                .getId().toHexString();
+
+        final JsonObject all = gson.fromJson(send("GET", "/api/api-keys", longLived, null).body(), JsonObject.class);
+        assertEquals(3, all.get("total").getAsLong());
+
+        final JsonObject sessions = gson.fromJson(send("GET", "/api/api-keys?session=true", longLived, null).body(), JsonObject.class);
+        assertEquals(1, sessions.get("total").getAsLong());
+        assertEquals(sessionId, sessions.getAsJsonArray("apiKeys").get(0).getAsJsonObject().get("id").getAsString());
+
+        final JsonObject keys = gson.fromJson(send("GET", "/api/api-keys?session=false", longLived, null).body(), JsonObject.class);
+        assertEquals(2, keys.get("total").getAsLong());
+        assertEquals(2, keys.getAsJsonArray("apiKeys").size());
+        assertFalse(keys.toString().contains(sessionId), keys.toString());
+
+        // The administrator listing filters the same way.
+        final String admin = seedKey(seedUser("admin"), ApiKeyScope.all());
+        final String username = userService.findOneById(user).getUsername();
+        final JsonObject adminSessions = gson.fromJson(
+                send("GET", "/api/users/" + username + "/api-keys?session=true", admin, null).body(), JsonObject.class);
+        assertEquals(1, adminSessions.get("total").getAsLong());
+    }
+
+    @Test
+    @DisplayName("A key cannot change its own scopes, whether long-lived or a session key, and keeps them")
+    void aKeyCannotChangeItsOwnScopes() throws Exception {
+        final ObjectId user = seedUser("user");
+        final String key = seedKey(user, Set.of("api-keys:write", "policies:read"));
+        final HttpResponse<String> refused = send("PUT", "/api/api-keys/" + idOf(key) + "/scopes", key, "{\"scopes\":[\"api-keys:write\"]}");
+        assertEquals(409, refused.statusCode(), refused.body());
+        assertTrue(gson.fromJson(refused.body(), JsonObject.class).get("message").getAsString().contains("making the request"));
+        assertEquals(200, send("GET", "/api/policies", key, null).statusCode(), "the key keeps its scopes");
+
+        final ai.philterd.philter.data.entities.ApiKeyEntity session =
+                apiKeyDataService.createSessionKey("req", user, ApiKeyScope.all(), "test", null);
+        assertEquals(409, send("PUT", "/api/api-keys/" + session.getId().toHexString() + "/scopes",
+                session.getApiKey(), "{\"scopes\":[\"redact\"]}").statusCode());
+
+        // Another key may still change it.
+        assertEquals(200, send("PUT", "/api/api-keys/" + idOf(key) + "/scopes", session.getApiKey(),
+                "{\"scopes\":[\"api-keys:write\"]}").statusCode());
+    }
+
 }

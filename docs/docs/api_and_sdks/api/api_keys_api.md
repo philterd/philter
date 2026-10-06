@@ -57,6 +57,8 @@ GET /api/api-keys?offset=0&limit=25
 
 Lists the active keys belonging to the calling key's user, oldest first, and the total. Requires `api-keys:read`. `limit` is capped at 100.
 
+* `session` (optional) - `true` lists only [session keys](../../account/api_keys.md#session-keys), `false` only long-lived keys. Left out, both are listed. `total` counts only the keys listed, so paging works the same either way.
+
 ```json
 {
   "apiKeys": [ { "id": "6a0f1c2e9b1d4e3f2a1b0c9d", "prefix": "sk_AbCdEfGhI...", "scopes": ["redact"], "created": "2026-10-05T14:03:11.000Z", "bootstrap": false } ],
@@ -70,7 +72,7 @@ Lists the active keys belonging to the calling key's user, oldest first, and the
 GET /api/users/{username}/api-keys?offset=0&limit=25
 ```
 
-Lists the named user's active keys. Requires `api-keys:read` and an administrator. Returns `404 Not Found` if there is no such user.
+Lists the named user's active keys. Accepts `session` as [List your keys](#list-your-keys) does. Requires `api-keys:read` and an administrator. Returns `404 Not Found` if there is no such user.
 
 ## Create a key
 
@@ -135,6 +137,7 @@ Replaces the key's scopes and returns the key. The key value does not change, so
 | 400 | No scopes were given, or one of them is not a scope. |
 | 403 | The key does not hold `api-keys:write`, a requested scope is not held by the calling key, the key being changed holds a scope the calling key does not, or the calling key is a [session key](../../account/api_keys.md#session-keys) and the change adds a scope. A session key can narrow a key's scopes but not widen them. |
 | 404 | There is no active key with that ID that the caller may manage. A non-administrator gets this for another user's key. |
+| 409 | The key is the one making the request. A key cannot change its own scopes, even to narrow them, since a client doing so would cut its own access; change them with another key. |
 
 ## Revoke a key
 

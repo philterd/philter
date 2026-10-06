@@ -1,9 +1,0 @@
-#!/bin/bash -e
-
-API_KEY=""
-
-# Create an SSN-only policy.
-curl -k -v -s -X POST "https://localhost:8080/api/policies" -H "Content-Type: application/json" -H "Authorization: Bearer ${API_KEY}" -d @./ssn.json
-
-# Apply the policy to text.
-curl -k -s -X POST "https://localhost:8080/api/filter?p=ssn" -H "Content-Type: text/plain" -H "Authorization: Bearer ${API_KEY}" -H "Accept: text/plain" -d'His SSN was 123-45-6789.'

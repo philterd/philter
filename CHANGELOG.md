@@ -58,9 +58,6 @@ for migration steps.
   existing policy with `PUT /api/policies/{name}` and a list with `PUT /api/lists/{name}`.
 - **`DELETE /api/policies/{name}` reports refusals**: `404` for a policy that does not exist and `409`
   for the `default` policy, each with a `message`. It returned `200` whatever happened.
-- **`GET /api/lists` returns objects**, each with the list's `name`, `description`, and `size`, rather
-  than a list of names. `GET /api/lists/{name}` returns the `description`, and saving a list without
-  one keeps the stored description.
 
 ### Removed
 

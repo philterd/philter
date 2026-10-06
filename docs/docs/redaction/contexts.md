@@ -34,7 +34,9 @@ Contexts are managed with the [Contexts API](../api_and_sdks/api/contexts_api.md
 | Clear its mappings | [`DELETE /api/contexts/{name}/entries`](../api_and_sdks/api/contexts_api.md#empty-a-context) |
 | Delete it | [`DELETE /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#delete-a-context) |
 
-Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
+Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
+
+Each user can have **at most 10 contexts**, including `default`. The limit is per user: other users' contexts do not count toward it. A request for an eleventh is refused with `400 Bad Request` and the message `Maximum number of contexts reached.`; delete a context to make room. The limit is fixed and cannot be changed with a setting. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
 
 Listing entries returns replacement metadata; exports include keyed token hashes and require the same deployment encryption key when imported elsewhere.
 
@@ -46,7 +48,7 @@ Clearing a context resets its mappings without deleting the context itself (for 
 
 Deleting a context removes the context, its internal mappings, and its learned disambiguation vectors. It does **not** affect documents that have already been redacted and downloaded. A context can be deleted only by the user that created it or by an admin.
 
-> Contexts are owned by the user that created them. When that user is deleted, their contexts are deleted too, along with each context's mappings and disambiguation vectors.
+> Contexts are owned by the user that created them. Users are deactivated rather than deleted, and a deactivated user's contexts, mappings, and disambiguation vectors are kept, so they are there again if the user is reactivated.
 
 ## Capacity and Eviction
 

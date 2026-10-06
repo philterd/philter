@@ -116,7 +116,7 @@ class PathSafeNamesApiIT {
     }
 
     private static String hold(final String reference) {
-        return new Gson().toJson(java.util.Map.of("reference", reference, "scopeType", "user", "scopeValue", "all"));
+        return new Gson().toJson(java.util.Map.of("reference", reference, "scopeType", "user"));
     }
 
     private void assertRefusedNamingTheRule(final HttpResponse<String> response) {

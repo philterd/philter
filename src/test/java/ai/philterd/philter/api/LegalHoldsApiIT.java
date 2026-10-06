@@ -57,7 +57,7 @@ class LegalHoldsApiIT {
     static class Config extends InMemoryTestConfiguration {
     }
 
-    private static final String HOLD = "{\"reference\":\"LIT-1\",\"scopeType\":\"user\",\"scopeValue\":\"all\"}";
+    private static final String HOLD = "{\"reference\":\"LIT-1\",\"scopeType\":\"user\"}";
 
     @Autowired private Environment environment;
     @Autowired private UserService userService;
@@ -128,7 +128,7 @@ class LegalHoldsApiIT {
                 new UpdateOptions().upsert(true));
 
         final HttpResponse<String> set = send("POST", "/api/holds",
-                "{\"reference\":\"LIT-2\",\"scopeType\":\"user\",\"scopeValue\":\"all\"}");
+                "{\"reference\":\"LIT-2\",\"scopeType\":\"user\"}");
         assertEquals(409, set.statusCode(), set.body());
         assertEquals("operation_in_progress", json(set).get("reason").getAsString());
         assertTrue(json(set).has("message"), set.body());

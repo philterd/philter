@@ -27,7 +27,7 @@ Each hold has a **scope type** that determines what data it protects.
 | Scope type | What it protects |
 |------------|-----------------|
 | `document_chain` | The ledger chain for one specific document, identified by its document ID. Only that document's chain is protected; other documents belonging to the same user can still be deleted. |
-| `user` | All redaction ledger evidence for the named user. No chain belonging to that user can be deleted while this hold is active. |
+| `user` | All redaction ledger evidence for the hold's owner: the caller, or the user an administrator names with `owner`. No chain belonging to that user can be deleted or purged while this hold is active. |
 
 Choose `document_chain` when a single document is at issue (a disputed redaction, a specific file in litigation). Choose `user` when the entire user's evidence needs to be frozen (for example, a data subject request or a regulatory inquiry covering all activity by that user).
 
@@ -41,7 +41,7 @@ This matters in practice: if `LIT-A` and `LIT-B` both cover the same document an
 
 ### 1. Set a hold
 
-Creating a hold requires: a **reference**, a **scope type**, a **scope value** (the document ID or user email), and an optional **reason**.
+Creating a hold requires a **reference** and a **scope type**, a **scope value** for a `document_chain` hold (the document ID), and an optional **reason**. A `user` hold covers all of its owner's evidence, where the owner is the caller or the user named by `owner`, so it needs no scope value; one given must be the owner's username.
 
 Set a hold with the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md#set-a-hold):
 

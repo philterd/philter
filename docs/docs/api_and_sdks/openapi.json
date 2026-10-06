@@ -3893,7 +3893,7 @@
           "Legal Holds"
         ],
         "summary": "Set a legal hold.",
-        "description": "Creates a named hold that blocks deletion and purge of the specified evidence until the hold is released. The reference must be unique for the calling user. Two scope types are supported: 'document_chain' protects a specific document's ledger chain; 'user' protects all governance evidence owned by the user. Admins may place a hold on another user's evidence via the owner parameter. Requires the `holds:write` scope.",
+        "description": "Creates a named hold that blocks deletion and purge of the specified evidence until the hold is released. The reference must be unique for the calling user. Two scope types are supported: 'document_chain' protects a specific document's ledger chain; 'user' protects all governance evidence owned by the hold's owner, which is the caller or the user named by owner. For a user hold, scopeValue is optional; if given it must be the owner's username, and the owner's username is stored either way. Admins may place a hold on another user's evidence via the owner parameter. Requires the `holds:write` scope.",
         "operationId": "setHold",
         "parameters": [
           {
@@ -12169,6 +12169,7 @@
             "type": "string"
           },
           "scopeValue": {
+            "description": "For document_chain, the document id (required). For user, optional: the hold covers all of its owner's evidence, and if given this must be the owner's username, which is stored either way.",
             "type": "string"
           }
         }

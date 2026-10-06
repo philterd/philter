@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.requests;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Request body for {@code POST /api/holds}.
  */
@@ -31,6 +33,8 @@ public class LegalHoldRequest {
     public String getScopeType() { return scopeType; }
     public void setScopeType(final String scopeType) { this.scopeType = scopeType; }
 
+    @Schema(description = "For document_chain, the document id (required). For user, optional: the hold covers all "
+            + "of its owner's evidence, and if given this must be the owner's username, which is stored either way.")
     public String getScopeValue() { return scopeValue; }
     public void setScopeValue(final String scopeValue) { this.scopeValue = scopeValue; }
 

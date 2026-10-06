@@ -26,6 +26,7 @@ import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
@@ -83,7 +84,9 @@ public class LegalHoldsApiController extends AbstractApiController {
             description = "Creates a named hold that blocks deletion and purge of the specified evidence until the hold "
                     + "is released. The reference must be unique for the calling user. "
                     + "Two scope types are supported: 'document_chain' protects a specific document's ledger chain; "
-                    + "'user' protects all governance evidence owned by the user. "
+                    + "'user' protects all governance evidence owned by the hold's owner, which is the caller or the user "
+                    + "named by owner. For a user hold, scopeValue is optional; if given it must be the owner's username, "
+                    + "and the owner's username is stored either way. "
                     + "Admins may place a hold on another user's evidence via the owner parameter.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The hold was set and is now active.",
@@ -119,7 +122,13 @@ public class LegalHoldsApiController extends AbstractApiController {
         if (request.getScopeType() == null || request.getScopeType().isBlank()) {
             throw new BadRequestException("scopeType is required.");
         }
-        if (request.getScopeValue() == null || request.getScopeValue().isBlank()) {
+        // Checked before scopeValue, so a mistyped scope type is reported as that rather than as a missing value.
+        if (!LegalHoldEntity.SCOPE_DOCUMENT_CHAIN.equals(request.getScopeType())
+                && !LegalHoldEntity.SCOPE_USER.equals(request.getScopeType())) {
+            throw new BadRequestException("Invalid scope type. Must be 'document_chain' or 'user'.");
+        }
+        final boolean userScope = LegalHoldEntity.SCOPE_USER.equals(request.getScopeType());
+        if (!userScope && (request.getScopeValue() == null || request.getScopeValue().isBlank())) {
             throw new BadRequestException("scopeValue is required.");
         }
 
@@ -128,13 +137,26 @@ public class LegalHoldsApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
+        // A user hold covers everything its owner holds, so the owner is the scope. scopeValue may be left
+        // out; if given it must name that owner, and either way the owner's username is what is stored.
+        String scopeValue = request.getScopeValue();
+        if (userScope) {
+            final UserEntity ownerUser = userService.findOneById(userId);
+            final String ownerUsername = ownerUser == null ? null : ownerUser.getUsername();
+            if (scopeValue != null && !scopeValue.isBlank() && !scopeValue.equals(ownerUsername)) {
+                throw new BadRequestException("For a user hold, scopeValue is optional; if given, it must be the "
+                        + "username of the hold's owner, which is the caller or the user named by owner.");
+            }
+            scopeValue = ownerUsername;
+        }
+
         final String requestId = RequestIdGenerator.generate();
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "set legal hold '" + request.getReference() + "'");
 
         final ServiceResponse response = legalHoldDataService.create(
                 requestId, request.getReference(), request.getScopeType(),
-                request.getScopeValue(), request.getReason(), userId, apiKeyEntity.getUserId());
+                scopeValue, request.getReason(), userId, apiKeyEntity.getUserId());
 
         if (response.getStatusCode() == 409) {
             return ResponseEntity.status(HttpStatus.CONFLICT)

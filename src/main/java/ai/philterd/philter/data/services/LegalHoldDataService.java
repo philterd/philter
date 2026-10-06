@@ -43,7 +43,9 @@ import java.util.List;
  * Manages legal holds: named, audited blocks on deletion or purge of governance evidence.
  *
  * <p>A hold has a {@code reference} (caller-supplied, unique per owner), a {@code scopeType}
- * ({@code document_chain} or {@code user}), and a {@code scopeValue} (document ID or user ID).
+ * ({@code document_chain} or {@code user}), and a {@code scopeValue}. For a {@code document_chain} hold the
+ * scope value is the document ID. A {@code user} hold covers all of its owner's evidence, matched on the
+ * owner alone; its scope value is the owner's username, kept for display and never used for matching.
  * Multiple holds may protect the same evidence simultaneously; releasing one hold never
  * unblocks evidence still covered by another.
  *

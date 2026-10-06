@@ -17,8 +17,8 @@ All endpoints require authentication with a Bearer token. See [API Keys](../../a
 | Field | Required | Description |
 |-------|----------|-------------|
 | `reference` | Yes | Hold identifier, unique for the calling user (for example `LIT-2026-001`). Philter does not interpret it, but it is how the hold is read and released, in a request path, so it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including spaces and periods, is allowed. |
-| `scopeType` | Yes | `document_chain` to protect one document's ledger chain, or `user` to protect all of a user's evidence. |
-| `scopeValue` | Yes | The document id (for `document_chain`) or the target user's id (for `user`). |
+| `scopeType` | Yes | `document_chain` to protect one document's ledger chain, or `user` to protect all of the hold owner's ledger evidence. The owner is the caller, or the user named by `owner`. |
+| `scopeValue` | For `document_chain` | For `document_chain`, the document id. For `user`, optional: the hold already covers everything its owner holds. If given, it must be the owner's username, or the request is refused with `400 Bad Request`. Philter stores and returns the owner's username for a `user` hold either way. |
 | `reason` | No | Free-text description of why the hold was set. |
 
 ### Query Parameters

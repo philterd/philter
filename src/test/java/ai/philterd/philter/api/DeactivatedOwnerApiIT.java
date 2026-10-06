@@ -81,7 +81,7 @@ class DeactivatedOwnerApiIT {
 
         // As in the issue: a hold and a policy for the user, set while they were active.
         assertEquals(201, send(adminKey, "POST", "/api/holds?owner=" + leaver,
-                "{\"reference\":\"case-7\",\"scopeType\":\"user\",\"scopeValue\":\"all\"}").statusCode());
+                "{\"reference\":\"case-7\",\"scopeType\":\"user\"}").statusCode());
         assertEquals(201, send(adminKey, "POST", "/api/policies?name=kept&owner=" + leaver, POLICY).statusCode());
         assertEquals(200, send(adminKey, "POST", "/api/users/" + leaver + "/deactivate", null).statusCode());
     }
@@ -140,7 +140,7 @@ class DeactivatedOwnerApiIT {
     void writesAreAllowed() throws Exception {
         assertEquals(201, send(adminKey, "POST", "/api/policies?name=after&owner=" + leaver, POLICY).statusCode());
         assertEquals(201, send(adminKey, "POST", "/api/holds?owner=" + leaver,
-                "{\"reference\":\"case-8\",\"scopeType\":\"user\",\"scopeValue\":\"all\"}").statusCode());
+                "{\"reference\":\"case-8\",\"scopeType\":\"user\"}").statusCode());
     }
 
     @Test

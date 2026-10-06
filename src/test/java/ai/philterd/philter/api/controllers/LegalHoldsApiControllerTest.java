@@ -137,10 +137,44 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void setHoldReturns400WhenScopeValueMissing() throws Exception {
+        // A document hold names its document; a user hold needs no scope value.
+        mockMvc.perform(post("/api/holds").header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reference\":\"R1\",\"scopeType\":\"document_chain\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void setUserHoldWithoutScopeValueStoresTheOwnersUsername() throws Exception {
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setUsername("jordan");
+        when(userService.findOneById(userId)).thenReturn(caller);
+        when(legalHoldDataService.create(anyString(), eq("R1"), eq("user"), eq("jordan"), any(), eq(userId), eq(userId)))
+                .thenReturn(new ServiceResponse("Created.", true, 201));
+        when(legalHoldDataService.findByReference("R1", userId)).thenReturn(holdEntity("R1", "user", "jordan"));
+
         mockMvc.perform(post("/api/holds").header("Authorization", AUTH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reference\":\"R1\",\"scopeType\":\"user\"}"))
+                .andExpect(status().isCreated());
+
+        verify(legalHoldDataService).create(anyString(), eq("R1"), eq("user"), eq("jordan"), any(), eq(userId), eq(userId));
+    }
+
+    @Test
+    void setUserHoldRefusesAScopeValueThatIsNotTheOwner() throws Exception {
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setUsername("jordan");
+        when(userService.findOneById(userId)).thenReturn(caller);
+
+        mockMvc.perform(post("/api/holds").header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reference\":\"R1\",\"scopeType\":\"user\",\"scopeValue\":\"someone-else\"}"))
                 .andExpect(status().isBadRequest());
+
+        verify(legalHoldDataService, never()).create(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -192,14 +226,13 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void setHoldReturns400WhenServiceRejectsInvalidScopeType() throws Exception {
-        when(legalHoldDataService.create(anyString(), anyString(), anyString(),
-                anyString(), any(), any(), any()))
-                .thenReturn(new ServiceResponse("Invalid scope type.", false, 400));
-
+        // Refused before the service is called, so a mistyped type is not reported as a missing scopeValue.
         mockMvc.perform(post("/api/holds").header("Authorization", AUTH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reference\":\"R1\",\"scopeType\":\"bad\",\"scopeValue\":\"v\"}"))
                 .andExpect(status().isBadRequest());
+
+        verify(legalHoldDataService, never()).create(any(), any(), any(), any(), any(), any(), any());
     }
 
     // -------------------------------------------------------------------------

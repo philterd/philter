@@ -18,7 +18,7 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 * `offset` (optional, default: `0`) - The number of policy names to skip.
 * `limit` (optional, default: `25`) - The maximum number of policy names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
 * `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item is then an object with the policy's `name` and its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
-* `managed` (optional, default: `false`) - List the names of the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Cannot be combined with `owner` or `all_users`.
+* `managed` (optional, default: `false`) - List the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Each item is then an object with the policy's `name` and `description`. Cannot be combined with `owner` or `all_users`.
 
 Example request:
 
@@ -32,6 +32,16 @@ Example response with `all_users=true`:
 [
   { "name": "default", "owner": "alice" },
   { "name": "default", "owner": "bob" }
+]
+```
+
+Example response with `managed=true`:
+
+```json
+[
+  { "name": "managed_common_pii", "description": "Common PII including names, emails, phone numbers, and SSNs" },
+  { "name": "managed_financial_pii", "description": "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses" },
+  { "name": "managed_healthcare_phi", "description": "Healthcare PHI including names, dates, addresses, and medical identifiers" }
 ]
 ```
 

@@ -20,7 +20,7 @@ A managed policy can be read but not changed. To use one as the basis for your o
 curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies/managed_common_pii/copy?name=my-pii"
 ```
 
-List them with `GET /api/policies?managed=true` and read one with `GET /api/policies/managed_common_pii`. See the [Policies API](../api_and_sdks/api/policies_api.md#copy-a-policy).
+List them, each with its description, with `GET /api/policies?managed=true`, and read one with `GET /api/policies/managed_common_pii`. See the [Policies API](../api_and_sdks/api/policies_api.md#copy-a-policy).
 
 ## Examples
 

@@ -44,6 +44,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Policy details, managed policies, and copying, over real HTTP. */
@@ -186,8 +187,22 @@ class PolicyDetailsIT {
     void managedPolicies() throws Exception {
         final HttpResponse<String> listed = send("GET", "/api/policies?managed=true", null, null);
         assertEquals(200, listed.statusCode(), listed.body());
-        final JsonArray names = gson.fromJson(listed.body(), JsonArray.class);
-        assertTrue(names.toString().contains("\"managed_common_pii\""), names.toString());
+        final JsonArray managed = gson.fromJson(listed.body(), JsonArray.class);
+        assertFalse(managed.isEmpty(), listed.body());
+
+        // Each entry carries its description, the same one the policy's details return.
+        String listedDescription = null;
+        for (final var element : managed) {
+            final JsonObject entry = element.getAsJsonObject();
+            assertTrue(entry.get("name").getAsString().startsWith("managed_"), entry.toString());
+            assertEquals(details(entry.get("name").getAsString()).get("description").getAsString(),
+                    entry.get("description").getAsString(), entry.toString());
+            if ("managed_common_pii".equals(entry.get("name").getAsString())) {
+                listedDescription = entry.get("description").getAsString();
+            }
+        }
+        assertNotNull(listedDescription, "managed_common_pii is listed: " + listed.body());
+        assertFalse(listedDescription.isEmpty());
 
         final HttpResponse<String> policy = send("GET", "/api/policies/managed_common_pii", null, null);
         assertEquals(200, policy.statusCode());

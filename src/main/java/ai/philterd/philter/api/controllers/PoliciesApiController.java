@@ -21,6 +21,7 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.PolicyDetailsRequest;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.ManagedPolicySummary;
 import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.api.responses.PolicyConflictResponse;
 import ai.philterd.philter.api.responses.PolicyDetailsResponse;
@@ -94,11 +95,12 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Returns the names of the caller's policies, paged. Admins may list another user's "
                     + "policies by passing that user's email as owner, or every user's with all_users=true, which "
                     + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With "
-                    + "managed=true, returns the names of the built-in managed policies instead.")
+                    + "managed=true, returns the built-in managed policies instead, each with its name and description.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The names of the policies; with all_users, objects naming each policy and its owner.",
+            @ApiResponse(responseCode = "200", description = "The names of the policies; with all_users, objects naming each "
+                    + "policy and its owner; with managed, objects giving each managed policy's name and description.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class}))),
+                            schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class, ManagedPolicySummary[].class}))),
             @ApiResponse(responseCode = "400", description = "Both owner and all_users were given, or managed was combined with either."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
@@ -126,7 +128,7 @@ public class PoliciesApiController extends AbstractApiController {
                 throw new BadRequestException("managed cannot be combined with owner or all_users.");
             }
             return ResponseEntity.ok(policyDataService.findManagedPolicies(normalizeOffset(offset), normalizeLimit(limit))
-                    .stream().map(PolicyEntity::getName).toList());
+                    .stream().map(policy -> new ManagedPolicySummary(policy.getName(), policy.getDescription())).toList());
         }
 
         if (allUsers) {

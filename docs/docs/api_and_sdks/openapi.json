@@ -5950,7 +5950,7 @@
           "Policies"
         ],
         "summary": "Get the names of existing policies.",
-        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the names of the built-in managed policies instead. Requires the `policies:read` scope.",
+        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's email as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the built-in managed policies instead, each with its name and description. Requires the `policies:read` scope.",
         "operationId": "getPolicyNames",
         "parameters": [
           {
@@ -6010,7 +6010,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The names of the policies; with all_users, objects naming each policy and its owner.",
+            "description": "The names of the policies; with all_users, objects naming each policy and its owner; with managed, objects giving each managed policy's name and description.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6025,6 +6025,12 @@
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/OwnedNameResponse"
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ManagedPolicySummary"
                       }
                     }
                   ]
@@ -12141,6 +12147,19 @@
             "description": "How many items the list holds.",
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ManagedPolicySummary": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "What the managed policy redacts, or an empty string if it has no description.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The managed policy's name, beginning with managed_.",
+            "type": "string"
           }
         }
       },

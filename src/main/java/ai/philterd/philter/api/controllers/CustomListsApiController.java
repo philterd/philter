@@ -211,10 +211,7 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "409", description = "The list was not created because the owner already has a list "
                     + "with this name; reason is list_exists. Nothing is changed.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = CustomListConflictResponse.class))),
-            @ApiResponse(responseCode = "412", description = "The maximum number of lists already exists.",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
+                            schema = @Schema(implementation = CustomListConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)
     @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)

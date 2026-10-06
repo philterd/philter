@@ -5388,16 +5388,6 @@
               }
             }
           },
-          "412": {
-            "description": "The maximum number of lists already exists.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Content Too Large",
             "content": {

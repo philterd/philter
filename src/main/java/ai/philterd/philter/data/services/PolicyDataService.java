@@ -52,7 +52,6 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     private static final Logger LOGGER = LogManager.getLogger(PolicyDataService.class);
 
     public static final String POLICY_NAME_REGEX = "^[a-zA-Z0-9_-]+$";
-    public static final int MAX_NUMBER_OF_POLICIES = 50;
     public static final int POLICY_NAME_MAX_LENGTH = 50;
     public static final int POLICY_NOTES_MAX_LENGTH = 1000;
     public static final int POLICY_DESCRIPTION_MAX_LENGTH = 200;

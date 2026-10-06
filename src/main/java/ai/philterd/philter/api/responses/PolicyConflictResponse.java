@@ -19,7 +19,7 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * A policy save, rollback, or delete refused with {@code 409 Conflict}. Several causes share the status, so
+ * A policy save, copy, rollback, or delete refused with {@code 409 Conflict}. Several causes share the status, so
  * {@code reason} is what lets a client tell them apart without reading the message.
  */
 public class PolicyConflictResponse {

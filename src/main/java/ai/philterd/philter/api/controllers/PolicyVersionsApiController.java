@@ -283,7 +283,10 @@ public class PolicyVersionsApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The policy or the target revision does not exist.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "The policy or the target revision does not exist; the message says which. "
+                    + "No body when the owner does not exist or the caller may not reach it.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "409", description = "The policy was not rolled back, and reason says why: "
                     + "policy_managed (managed policies cannot be rolled back) or policy_changed (the policy changed "
                     + "concurrently; reload it and retry).",
@@ -324,8 +327,9 @@ public class PolicyVersionsApiController extends AbstractApiController {
                 requestId, policyName, userId, targetRevision,
                 apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
 
+        // The service says which was not found: the policy or the revision.
         if (response.getStatusCode() == 404) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new GenericResponse(response.getMessage()));
         }
         if (response.getStatusCode() == 409) {
             return ResponseEntity.status(HttpStatus.CONFLICT)

@@ -237,7 +237,10 @@ class PolicyDetailsIT {
         copy = gson.fromJson(send("POST", "/api/policies/pii/copy?name=pii-2", null, null).body(), JsonObject.class);
         assertEquals("tuned", copy.get("notes").getAsString());
 
-        assertEquals(409, send("POST", "/api/policies/pii/copy?name=pii-2", null, null).statusCode());
+        final HttpResponse<String> taken = send("POST", "/api/policies/pii/copy?name=pii-2", null, null);
+        assertEquals(409, taken.statusCode(), taken.body());
+        assertEquals("policy_exists", gson.fromJson(taken.body(), JsonObject.class).get("reason").getAsString(), taken.body());
+        assertTrue(gson.fromJson(taken.body(), JsonObject.class).has("message"), taken.body());
         assertEquals(400, send("POST", "/api/policies/pii/copy?name=managed_mine", null, null).statusCode());
         assertEquals(404, send("POST", "/api/policies/nope/copy?name=x", null, null).statusCode());
     }

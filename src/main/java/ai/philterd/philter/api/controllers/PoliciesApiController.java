@@ -543,7 +543,9 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "The new name is missing or invalid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "There is no such policy to copy, or the owner does not exist or the caller may not reach it."),
-            @ApiResponse(responseCode = "409", description = "A policy with the new name already exists.")
+            @ApiResponse(responseCode = "409", description = "A policy with the new name already exists; reason is policy_exists.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}/copy", method = RequestMethod.POST,
@@ -577,6 +579,10 @@ public class PoliciesApiController extends AbstractApiController {
                 source.isManaged() ? "Created from managed policy " + source.getName() : source.getNotes(),
                 name, Source.API.getSource());
         if (!response.isSuccessful()) {
+            if (response.getStatusCode() == HttpStatus.CONFLICT.value()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new PolicyConflictResponse(response.getMessage(), response.getDetails()));
+            }
             return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
         }
 

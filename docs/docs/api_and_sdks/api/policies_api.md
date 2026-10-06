@@ -284,7 +284,7 @@ The copy has the source's policy and description. A copy of a managed policy has
 
 * `400 Bad Request` - The new name is missing or invalid.
 * `404 Not Found` - There is no such policy to copy.
-* `409 Conflict` - A policy with the new name already exists.
+* `409 Conflict` - A policy with the new name already exists. The body carries a `message` and the `reason` `policy_exists`, as when [creating a policy](#save-a-policy).
 
 ```
 curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies/managed_common_pii/copy?name=my-pii"
@@ -406,7 +406,7 @@ Rollback restores the content of the specified revision as a **new** revision. H
 
 * `201 Created` - Rollback succeeded. Body contains the new revision number.
 * `400 Bad Request` - The `revision` parameter is missing or is not a number. The body carries a `message`.
-* `404 Not Found` - The policy or the target revision does not exist.
+* `404 Not Found` - The policy or the target revision does not exist. The body's `message` says which, for example `Revision 99 does not exist.`, except when the `owner` does not exist or may not be reached.
 * `409 Conflict` - The policy was not rolled back. The body carries a `message` and a `reason`:
     * `policy_managed` - Managed policies cannot be rolled back.
     * `policy_changed` - The policy changed after this request read it. Reload it and retry.

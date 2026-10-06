@@ -488,7 +488,8 @@ class PolicyVersionsApiControllerTest {
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
                         .param("revision", "1"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Policy does not exist."));
     }
 
     @Test
@@ -499,7 +500,8 @@ class PolicyVersionsApiControllerTest {
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
                         .param("revision", "99"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Revision 99 does not exist."));
     }
 
     @Test

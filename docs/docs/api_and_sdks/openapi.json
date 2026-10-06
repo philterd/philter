@@ -6851,11 +6851,11 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "A policy with the new name already exists.",
+            "description": "A policy with the new name already exists; reason is policy_exists.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PolicyConflictResponse"
                 }
               }
             }
@@ -7419,7 +7419,14 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The policy or the target revision does not exist."
+            "description": "The policy or the target revision does not exist; the message says which. No body when the owner does not exist or the caller may not reach it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."

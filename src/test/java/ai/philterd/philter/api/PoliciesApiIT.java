@@ -205,4 +205,18 @@ class PoliciesApiIT {
         }
     }
 
+    @Test
+    @DisplayName("A rollback 404 says whether the policy or the revision does not exist")
+    void rollbackNotFoundSaysWhich() throws Exception {
+        assertEquals(201, send("POST", "/api/policies?name=rolled", POLICY).statusCode());
+
+        final HttpResponse<String> noRevision = send("POST", "/api/policies/rolled/rollback?revision=99", null);
+        assertEquals(404, noRevision.statusCode(), noRevision.body());
+        assertEquals("Revision 99 does not exist.", json(noRevision).get("message").getAsString());
+
+        final HttpResponse<String> noPolicy = send("POST", "/api/policies/missing/rollback?revision=0", null);
+        assertEquals(404, noPolicy.statusCode(), noPolicy.body());
+        assertEquals("Policy does not exist.", json(noPolicy).get("message").getAsString());
+    }
+
 }

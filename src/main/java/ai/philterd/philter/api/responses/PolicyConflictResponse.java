@@ -19,7 +19,7 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * A policy save or rollback refused with {@code 409 Conflict}. Several causes share the status, so
+ * A policy save, rollback, or delete refused with {@code 409 Conflict}. Several causes share the status, so
  * {@code reason} is what lets a client tell them apart without reading the message.
  */
 public class PolicyConflictResponse {
@@ -33,6 +33,9 @@ public class PolicyConflictResponse {
     /** A policy with this name was created after the request checked for one. */
     public static final String REASON_POLICY_EXISTS = PolicyDataService.REASON_POLICY_EXISTS;
 
+    /** The policy is the user's default policy, which cannot be deleted. */
+    public static final String REASON_POLICY_DEFAULT = PolicyDataService.REASON_POLICY_DEFAULT;
+
     private final String message;
     private final String reason;
 
@@ -44,9 +47,9 @@ public class PolicyConflictResponse {
     public String getMessage() { return message; }
 
     @Schema(description = "Why the policy was not changed: policy_managed (it is a built-in managed policy), "
-            + "policy_changed (it changed concurrently; reload it and retry), or policy_exists (a policy with "
-            + "this name was created concurrently).",
-            allowableValues = {REASON_POLICY_MANAGED, REASON_POLICY_CHANGED, REASON_POLICY_EXISTS})
+            + "policy_changed (it changed concurrently; reload it and retry), policy_exists (a policy with "
+            + "this name was created concurrently), or policy_default (the default policy cannot be deleted).",
+            allowableValues = {REASON_POLICY_MANAGED, REASON_POLICY_CHANGED, REASON_POLICY_EXISTS, REASON_POLICY_DEFAULT})
     public String getReason() { return reason; }
 
 }

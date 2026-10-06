@@ -172,11 +172,47 @@ class PoliciesApiControllerTest {
 
     @Test
     void deleteScopesToOwningUserId() throws Exception {
+        when(policyDataService.deleteByName(anyString(), eq("my-policy"), eq(userId), eq(Source.API), eq(userId), anyString()))
+                .thenReturn(new ServiceResponse("Policy deleted.", true, 200));
+
         mockMvc.perform(delete("/api/policies/my-policy").header("Authorization", AUTH_HEADER))
                 .andExpect(status().isOk());
 
         verify(policyDataService).deleteByName(anyString(),
                 eq("my-policy"), eq(userId), eq(Source.API), eq(userId), anyString());
+    }
+
+    @Test
+    void deleteReturns404WithAMessageWhenThePolicyDoesNotExist() throws Exception {
+        when(policyDataService.deleteByName(anyString(), eq("missing"), eq(userId), eq(Source.API), eq(userId), anyString()))
+                .thenReturn(new ServiceResponse("Policy does not exist.", false, 404));
+
+        mockMvc.perform(delete("/api/policies/missing").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Policy does not exist."));
+    }
+
+    @Test
+    void deleteReturns409WithAReasonForTheDefaultPolicy() throws Exception {
+        when(policyDataService.deleteByName(anyString(), eq("default"), eq(userId), eq(Source.API), eq(userId), anyString()))
+                .thenReturn(new ServiceResponse("Cannot delete the default policy.", false, 409,
+                        PolicyDataService.REASON_POLICY_DEFAULT));
+
+        // An Accept header that excludes JSON still gets the JSON refusal.
+        mockMvc.perform(delete("/api/policies/default").header("Authorization", AUTH_HEADER).accept(MediaType.TEXT_PLAIN))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Cannot delete the default policy."))
+                .andExpect(jsonPath("$.reason").value("policy_default"));
+    }
+
+    @Test
+    void deletePassesOnAnyOtherRefusalWithItsMessage() throws Exception {
+        when(policyDataService.deleteByName(anyString(), eq("my-policy"), eq(userId), eq(Source.API), eq(userId), anyString()))
+                .thenReturn(new ServiceResponse("Something else.", false, 503));
+
+        mockMvc.perform(delete("/api/policies/my-policy").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("Something else."));
     }
 
     private static final String VALID_POLICY_BODY =

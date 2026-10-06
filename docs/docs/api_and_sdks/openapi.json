@@ -5950,10 +5950,27 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
+            "description": "There is no such policy, with a message. Also returned, with no body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The policy was not deleted because it is the default policy; reason is policy_default.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyConflictResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -11579,12 +11596,13 @@
             "type": "string"
           },
           "reason": {
-            "description": "Why the policy was not changed: policy_managed (it is a built-in managed policy), policy_changed (it changed concurrently; reload it and retry), or policy_exists (a policy with this name was created concurrently).",
+            "description": "Why the policy was not changed: policy_managed (it is a built-in managed policy), policy_changed (it changed concurrently; reload it and retry), policy_exists (a policy with this name was created concurrently), or policy_default (the default policy cannot be deleted).",
             "type": "string",
             "enum": [
               "policy_managed",
               "policy_changed",
-              "policy_exists"
+              "policy_exists",
+              "policy_default"
             ]
           }
         }

@@ -287,14 +287,22 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Deletes the policy with the given name. Admins may delete another user's policy by passing "
                     + "that user's email as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The policy was deleted."),
+            @ApiResponse(responseCode = "200", description = "The policy was deleted.", content = @Content),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
+            @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, with no "
+                    + "body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
+                    + "to discover accounts.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "The policy was not deleted because it is the default policy; "
+                    + "reason is policy_default.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.DELETE)
-    public ResponseEntity<Void> delete(
+    public ResponseEntity<Object> delete(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable(name = "policyName") String policyName,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -320,8 +328,18 @@ public class PoliciesApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "delete policy '" + policyName + "'");
 
-        policyDataService.deleteByName(requestId, policyName, userId, Source.API,
+        final ServiceResponse response = policyDataService.deleteByName(requestId, policyName, userId, Source.API,
                 apiKeyEntity.getUserId(), getClientIpAddress(request));
+
+        if (!response.isSuccessful()) {
+            // The content type is set rather than negotiated, so the refusal is sent whatever Accept asked for.
+            final ResponseEntity.BodyBuilder refusal = ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON);
+            if (response.getStatusCode() == HttpStatus.CONFLICT.value()) {
+                return refusal.body(new PolicyConflictResponse(response.getMessage(), response.getDetails()));
+            }
+            return refusal.body(new GenericResponse(response.getMessage()));
+        }
 
         return ResponseEntity.ok().build();
 

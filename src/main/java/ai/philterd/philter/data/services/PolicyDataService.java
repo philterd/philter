@@ -63,6 +63,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public static final String REASON_POLICY_MANAGED = "policy_managed";
     public static final String REASON_POLICY_CHANGED = "policy_changed";
     public static final String REASON_POLICY_EXISTS = "policy_exists";
+    public static final String REASON_POLICY_DEFAULT = "policy_default";
 
     private final Gson gson;
     private final PolicyVersionDataService policyVersionDataService;
@@ -839,7 +840,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         if("default".equalsIgnoreCase(policyName)) {
-            return new ServiceResponse("Cannot delete the default policy.", false, 409);
+            return new ServiceResponse("Cannot delete the default policy.", false, 409, REASON_POLICY_DEFAULT);
         }
 
         // There should never be a policy that is "managed=true" and has a user_id != null but this is just a safeguard.

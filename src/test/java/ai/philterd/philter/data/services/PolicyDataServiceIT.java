@@ -226,6 +226,19 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     }
 
     @Test
+    @DisplayName("The default policy is not deleted, and the refusal says why")
+    void deleteByNameKeepsTheDefaultPolicy() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "default").isSuccessful());
+
+        final ServiceResponse response = service.deleteByName("req", "default", user, Source.API, user, "10.0.0.1");
+        assertEquals(409, response.getStatusCode());
+        assertEquals("Cannot delete the default policy.", response.getMessage());
+        assertEquals(PolicyDataService.REASON_POLICY_DEFAULT, response.getDetails());
+        assertNotNull(service.findOne("default", user), "the default policy is kept");
+    }
+
+    @Test
     void deleteByNameReturns404ForUnknownPolicy() {
         final ServiceResponse response = service.deleteByName("req", "nope", new ObjectId(), Source.API, new ObjectId(), "10.0.0.1");
         assertFalse(response.isSuccessful());

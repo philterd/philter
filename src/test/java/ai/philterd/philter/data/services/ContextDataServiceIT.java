@@ -216,6 +216,90 @@ class ContextDataServiceIT extends AbstractMongoIT {
         assertNull(service.findOne("default", owner));
     }
 
+    private java.util.Set<Integer> slotsOf(final ObjectId userId) {
+        final java.util.Set<Integer> slots = new java.util.TreeSet<>();
+        for (final Document document : mongoClient.getDatabase("philter").getCollection("contexts")
+                .find(new Document("user_id", userId))) {
+            assertTrue(slots.add(document.getInteger("slot")), "no two contexts share a slot");
+        }
+        return slots;
+    }
+
+    @Test
+    void concurrentCreatesNeverExceedTheLimit() throws Exception {
+        final ObjectId user = new ObjectId();
+        final int threads = 30;
+        final CountDownLatch start = new CountDownLatch(1);
+        final List<Future<ServiceResponse>> results = new ArrayList<>();
+        try (ExecutorService executor = Executors.newFixedThreadPool(threads)) {
+            for (int i = 0; i < threads; i++) {
+                final String name = "parallel-" + i;
+                results.add(executor.submit(() -> { start.await(); return service.create(name, user); }));
+            }
+            start.countDown();
+            int created = 0;
+            for (final Future<ServiceResponse> result : results) {
+                final ServiceResponse response = result.get();
+                if (response.isSuccessful()) {
+                    created++;
+                } else {
+                    assertEquals(409, response.getStatusCode());
+                    assertEquals(ContextDataService.REASON_CONTEXT_LIMIT_REACHED, response.getDetails(),
+                            "every refusal is the limit: " + response.getMessage());
+                }
+            }
+            assertEquals(ContextDataService.MAXIMUM_CONTEXTS_PER_USER, created);
+        }
+        assertEquals(ContextDataService.MAXIMUM_CONTEXTS_PER_USER, service.findAll(user).size(), "exactly the limit, never more");
+        assertEquals(java.util.Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), slotsOf(user));
+    }
+
+    @Test
+    void deletingAContextFreesItsSlot() {
+        final ObjectId user = new ObjectId();
+        for (int i = 0; i < ContextDataService.MAXIMUM_CONTEXTS_PER_USER; i++) {
+            assertTrue(service.create("c" + i, user).isSuccessful());
+        }
+        assertEquals(ContextDataService.REASON_CONTEXT_LIMIT_REACHED, service.create("extra", user).getDetails());
+        assertTrue(service.deleteByName("c3", user, false).isSuccessful());
+        assertTrue(service.create("extra", user).isSuccessful());
+        assertEquals(java.util.Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), slotsOf(user), "the freed slot is reused");
+    }
+
+    @Test
+    void contextsWrittenBeforeSlotsGetThemAtStartup() {
+        final MongoCollection<Document> contexts = mongoClient.getDatabase("philter").getCollection("contexts");
+        // As a database written before slots existed: no slot index and no slots.
+        contexts.dropIndex("user_id_slot_unique");
+        final ObjectId few = new ObjectId();
+        final ObjectId many = new ObjectId();
+        final ObjectId mixed = new ObjectId();
+        for (int i = 0; i < 3; i++) {
+            contexts.insertOne(new Document("context_name", "f" + i).append("user_id", few));
+        }
+        for (int i = 0; i < 12; i++) {
+            contexts.insertOne(new Document("context_name", "m" + i).append("user_id", many));
+        }
+        contexts.insertOne(new Document("context_name", "held").append("user_id", mixed).append("slot", 0));
+        contexts.insertOne(new Document("context_name", "loose").append("user_id", mixed));
+        // A slot stored as null counts as missing, or two of them would block the index.
+        final ObjectId nulls = new ObjectId();
+        contexts.insertOne(new Document("context_name", "n0").append("user_id", nulls).append("slot", null));
+        contexts.insertOne(new Document("context_name", "n1").append("user_id", nulls).append("slot", null));
+
+        final ContextDataService started = new ContextDataService(mongoClient, new ContextCache(null, 0, null, false),
+                mock(AuditEventPublisher.class));
+
+        assertEquals(java.util.Set.of(0, 1, 2), slotsOf(few));
+        assertEquals(12, slotsOf(many).size(), "a user over the limit keeps every context");
+        assertEquals(java.util.Set.of(0, 1), slotsOf(mixed), "a slot already held is kept, and the rest fill around it");
+        assertEquals(java.util.Set.of(0, 1), slotsOf(nulls));
+
+        assertEquals(ContextDataService.REASON_CONTEXT_LIMIT_REACHED, started.create("one-more", many).getDetails());
+        assertTrue(started.create("next", few).isSuccessful());
+        assertEquals(java.util.Set.of(0, 1, 2, 3), slotsOf(few));
+    }
+
     @Test
     void updateSettingsPersistsFlags() {
         final ObjectId owner = new ObjectId();

@@ -28,6 +28,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
@@ -58,7 +59,49 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         // Context names are unique within an owner. Incompatible schemas fail startup.
         ensureIndex(Indexes.ascending("user_id", "context_name"),
-                new IndexOptions().unique(true).name("user_id_context_name_unique"));
+                new IndexOptions().unique(true).name(NAME_INDEX));
+
+        // Each context holds one of its user's numbered slots, so the limit is enforced by this index
+        // rather than by a count that a concurrent create can slip past. Contexts written before slots
+        // existed get one first, or the index could not be built.
+        assignMissingSlots();
+        ensureIndex(Indexes.ascending("user_id", "slot"), new IndexOptions().unique(true).name(SLOT_INDEX));
+    }
+
+    private static final String NAME_INDEX = "user_id_context_name_unique";
+    private static final String SLOT_INDEX = "user_id_slot_unique";
+
+    /**
+     * Gives every context without a slot the lowest slots its user has free, in {@code _id} order. The
+     * assignment depends only on the stored contexts and each write is conditional on the slot still
+     * being missing, so instances starting together assign the same slots. A user who already has more
+     * contexts than the limit gets slots past it; {@link #create} refuses that user until they are under
+     * the limit again.
+     */
+    private void assignMissingSlots() {
+        // Filters.eq(field, null) matches a missing field and a null one alike.
+        for (final ObjectId userId : collection.distinct("user_id", Filters.eq("slot", null), ObjectId.class)) {
+            final java.util.Set<Integer> used = usedSlots(userId);
+            int next = 0;
+            for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId),
+                    Filters.eq("slot", null))).sort(Sorts.ascending("_id"))) {
+                while (used.contains(next)) {
+                    next++;
+                }
+                collection.updateOne(Filters.and(Filters.eq("_id", document.getObjectId("_id")), Filters.eq("slot", null)),
+                        Updates.set("slot", next));
+                used.add(next);
+            }
+        }
+    }
+
+    private java.util.Set<Integer> usedSlots(final ObjectId userId) {
+        final java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId), Filters.ne("slot", null)))
+                .projection(Projections.include("slot"))) {
+            used.add(document.getInteger("slot"));
+        }
+        return used;
     }
 
     public ServiceResponse create(final String contextName, final ObjectId userId) {
@@ -78,9 +121,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             return new ServiceResponse("Context already exists.", false, 409, REASON_CONTEXT_EXISTS);
         }
 
+        final ServiceResponse limitReached = new ServiceResponse("Maximum number of contexts reached.", false, 409,
+                REASON_CONTEXT_LIMIT_REACHED);
         if(findAll(userId).size() >= MAXIMUM_CONTEXTS_PER_USER) {
-            return new ServiceResponse("Maximum number of contexts reached.", false, 409,
-                    REASON_CONTEXT_LIMIT_REACHED);
+            return limitReached;
         }
 
         final ContextEntity contextEntity = new ContextEntity();
@@ -89,22 +133,43 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         contextEntity.setDisambiguation(disambiguation);
         contextEntity.setLedger(ledger);
 
-        final ObjectId objectId;
-        try {
-            objectId = save(contextEntity);
-        } catch (final MongoWriteException | MongoWriteConcernException ex) {
-            // The findOne check above is not atomic with this insert, so two concurrent creates of the
-            // same (user, name) can both pass it. The unique index on (user_id, context_name) still
-            // prevents a duplicate, but the losing insert fails with a duplicate-key error (code 11000).
-            // Convert it to the same 409 the non-racing path returns rather than surfacing a raw write
-            // exception as a 500.
-            if(isDuplicateKey(ex)) {
-                return new ServiceResponse("Context already exists.", false, 409, REASON_CONTEXT_EXISTS);
+        // Claim the lowest free slot. The checks above are not atomic with the insert, so concurrent
+        // creates can race for a slot or a name; the unique indexes settle both, and the loser of a slot
+        // tries the next one. Each lost race means another create filled a slot, so this ends within the
+        // limit; the cap only guards against contexts being created and deleted in tight alternation.
+        for (int attempt = 0; attempt <= 2 * MAXIMUM_CONTEXTS_PER_USER; attempt++) {
+
+            final java.util.Set<Integer> used = usedSlots(userId);
+            Integer slot = null;
+            for (int candidate = 0; candidate < MAXIMUM_CONTEXTS_PER_USER; candidate++) {
+                if (!used.contains(candidate)) {
+                    slot = candidate;
+                    break;
+                }
             }
-            throw ex;
+            if (slot == null) {
+                return limitReached;
+            }
+            contextEntity.setSlot(slot);
+
+            try {
+                final ObjectId objectId = save(contextEntity);
+                return new ServiceResponse("Context created", true, objectId, 201);
+            } catch (final MongoWriteException | MongoWriteConcernException ex) {
+                if (!isDuplicateKey(ex)) {
+                    throw ex;
+                }
+                // Another create took this slot first: try the next. Any other duplicate is the name,
+                // which a create racing this one claimed: the same 409 the check above returns.
+                if (!ex.getMessage().contains(SLOT_INDEX)) {
+                    return new ServiceResponse("Context already exists.", false, 409, REASON_CONTEXT_EXISTS);
+                }
+            }
+
         }
 
-        return new ServiceResponse("Context created", true, objectId, 201);
+        // Refused rather than over the limit; a retry succeeds once the contention stops.
+        return limitReached;
 
     }
 

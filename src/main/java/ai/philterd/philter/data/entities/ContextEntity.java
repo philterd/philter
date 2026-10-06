@@ -36,6 +36,9 @@ public class ContextEntity extends AbstractEntity {
     private boolean disambiguation;
     private String disambiguationScope = DISAMBIGUATION_SCOPE_DOCUMENT;
     private boolean ledger;
+    // Which of the user's numbered slots this context holds. A unique index on (user_id, slot) is what
+    // keeps a user to MAXIMUM_CONTEXTS_PER_USER contexts, however many creates race.
+    private Integer slot;
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
     private ObjectId userId;
@@ -50,6 +53,7 @@ public class ContextEntity extends AbstractEntity {
         contextEntity.disambiguationScope = document.getString("disambiguation_scope") != null
                 ? document.getString("disambiguation_scope") : DISAMBIGUATION_SCOPE_DOCUMENT;
         contextEntity.ledger = document.getBoolean("ledger", false);
+        contextEntity.slot = document.getInteger("slot");
         contextEntity.ttlInHours = document.getInteger("ttl_in_hours", DEFAULT_TTL_IN_HOURS);
         contextEntity.timestamp = document.getDate("timestamp");
         return contextEntity;
@@ -67,9 +71,18 @@ public class ContextEntity extends AbstractEntity {
         document.put("disambiguation", disambiguation);
         document.put("disambiguation_scope", disambiguationScope);
         document.put("ledger", ledger);
+        document.put("slot", slot);
         document.put("ttl_in_hours", ttlInHours);
         document.put("timestamp", timestamp);
         return document;
+    }
+
+    public Integer getSlot() {
+        return slot;
+    }
+
+    public void setSlot(final Integer slot) {
+        this.slot = slot;
     }
 
     public ObjectId getId() {

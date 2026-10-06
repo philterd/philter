@@ -26,6 +26,12 @@ public final class MongoSchemaMocks {
             indexes.add(doc);
             return name;
         });
+        // Constructors that backfill by distinct values (ContextDataService) find nothing to do.
+        final com.mongodb.client.DistinctIterable<Object> distinct = mock(com.mongodb.client.DistinctIterable.class);
+        final MongoCursor<Object> empty = mock(MongoCursor.class);
+        lenient().when(empty.hasNext()).thenReturn(false);
+        lenient().when(distinct.iterator()).thenReturn(empty);
+        lenient().when(collection.distinct(anyString(), any(Bson.class), any(Class.class))).thenReturn((com.mongodb.client.DistinctIterable) distinct);
         ListIndexesIterable<Document> iterable = mock(ListIndexesIterable.class);
         lenient().when(collection.listIndexes()).thenReturn(iterable);
         lenient().when(iterable.iterator()).thenAnswer(call -> {

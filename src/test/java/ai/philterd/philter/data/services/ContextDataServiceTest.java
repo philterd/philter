@@ -82,7 +82,8 @@ class ContextDataServiceTest {
         
         // Mock findAll(userId).size() check and findOne
         FindIterable<Document> findAllIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(findAllIterable);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findAllIterable);
+        when(findAllIterable.projection(any())).thenReturn(findAllIterable);
         when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
         when(findAllIterable.first()).thenReturn(null);
 
@@ -93,7 +94,9 @@ class ContextDataServiceTest {
         ServiceResponse response = contextDataService.create(contextName, userId, false, false);
 
         assertTrue(response.isSuccessful());
-        verify(mongoCollection).insertOne(any(Document.class));
+        final ArgumentCaptor<Document> inserted = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).insertOne(inserted.capture());
+        assertEquals(0, inserted.getValue().getInteger("slot"), "a user with no contexts gets the first slot");
     }
 
     @Test
@@ -120,7 +123,8 @@ class ContextDataServiceTest {
         final String contextName = "testContext";
 
         final FindIterable<Document> findAllIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(findAllIterable);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findAllIterable);
+        when(findAllIterable.projection(any())).thenReturn(findAllIterable);
         when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
         when(findAllIterable.first()).thenReturn(null);
 
@@ -142,7 +146,8 @@ class ContextDataServiceTest {
         final String contextName = "testContext";
 
         final FindIterable<Document> findAllIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(findAllIterable);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findAllIterable);
+        when(findAllIterable.projection(any())).thenReturn(findAllIterable);
         when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
         when(findAllIterable.first()).thenReturn(null);
 

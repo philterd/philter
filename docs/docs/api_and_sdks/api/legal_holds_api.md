@@ -2,7 +2,7 @@
 
 The legal holds API sets, lists, and releases [legal holds](../../redaction/legal_holds.md): named, audited instructions that block deletion of redaction evidence until the hold is released.
 
-> **Admin cross-user access:** by default each endpoint operates on the calling user's own holds. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (set, list, get, release). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
+> **Admin cross-user access:** by default each endpoint operates on the calling user's own holds. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (set, list, get, release). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
 All endpoints require authentication with a Bearer token. See [API Keys](../../account/api_keys.md).
 

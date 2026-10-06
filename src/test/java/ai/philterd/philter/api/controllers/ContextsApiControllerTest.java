@@ -272,7 +272,7 @@ class ContextsApiControllerTest {
         final ai.philterd.philter.data.entities.UserEntity owner = new ai.philterd.philter.data.entities.UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
-        when(userService.findByUsername(email)).thenReturn(owner);
+        when(userService.findAnyByUsername(email)).thenReturn(owner);
     }
 
     // ----- Export -----
@@ -854,7 +854,7 @@ class ContextsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUserId);
         owner.setEmail(email);
-        when(userService.findByUsername(email)).thenReturn(owner);
+        when(userService.findAnyByUsername(email)).thenReturn(owner);
         return otherUserId;
     }
 
@@ -867,7 +867,7 @@ class ContextsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(new ObjectId());
         owner.setEmail(email);
-        when(userService.findByUsername(email)).thenReturn(owner);
+        when(userService.findAnyByUsername(email)).thenReturn(owner);
     }
 
     @Test

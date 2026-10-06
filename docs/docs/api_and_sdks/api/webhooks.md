@@ -64,7 +64,7 @@ Requires `webhooks:write`. Removes the URL and secret, so results are no longer 
 
 ### Another user's webhook
 
-An administrator can read, set, or remove another user's webhook by adding `owner=<username>` to any of these requests. This requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, as for other cross-user access. An owner that does not exist or cannot be reached returns `404 Not Found`.
+An administrator can read, set, or remove another user's webhook by adding `owner=<username>` to any of these requests. This requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, as for other cross-user access. An owner that does not exist or cannot be reached returns `404 Not Found`. A deactivated user may be named as `owner`.
 
 ### Auditing
 

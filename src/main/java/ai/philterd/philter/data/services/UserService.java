@@ -82,11 +82,11 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     /**
-     * Looks up an <strong>active</strong> (not deactivated) user by username. Deactivated users are
-     * excluded so their keys cannot be used and they cannot be targeted via the cross-user {@code owner}
-     * parameter. Use {@link #findOneById(ObjectId)} or {@link #findUsernamesByIds(Collection)} to resolve
-     * a deactivated user for audit and ledger display, and {@link #findAnyByUsername(String)} to detect a
-     * username that is already taken (including by a deactivated account).
+     * Looks up an <strong>active</strong> (not deactivated) user by username, for actions that grant a user
+     * access: signing in and creating an API key. Use {@link #findAnyByUsername(String)} to resolve a user
+     * whose data is being reached, such as the cross-user {@code owner} parameter, or to detect a username
+     * that is already taken (including by a deactivated account), and {@link #findOneById(ObjectId)} or
+     * {@link #findUsernamesByIds(Collection)} to resolve a deactivated user for audit and ledger display.
      */
     public UserEntity findByUsername(final String username) {
         final Document document = collection.find(
@@ -374,8 +374,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * later (see {@link #reactivateUser(String, UserEntity, String)}) and so audit and ledger entries
      * that reference the user id still resolve to a name.
      *
-     * <p>A deactivated user holds no active access: it is excluded from {@link #findByUsername(String)}
-     * (which the cross-user {@code owner} lookup consults), and
+     * <p>A deactivated user holds no active access: it is excluded from {@link #findByUsername(String)},
+     * which sign-in consults, and
      * the API authentication filter rejects its API keys by checking {@link #isDeactivated(ObjectId)}
      * live. The keys themselves are left untouched so reactivation restores access immediately without
      * resurrecting keys the user had separately deleted.

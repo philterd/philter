@@ -201,7 +201,7 @@ class WebhookApiControllerTest {
     void aNonAdministratorCannotReachAnotherUser() throws Exception {
         AdminAccessConfig.setOverrideForTesting(true);
         final UserEntity bob = user(new ObjectId(), "bob", "user");
-        when(userService.findByUsername("bob")).thenReturn(bob);
+        when(userService.findAnyByUsername("bob")).thenReturn(bob);
 
         setWebhook("?owner=bob", "{\"url\":\"https://93.184.216.34/x\",\"secret\":\"a-secret-of-16ch\"}")
                 .andExpect(status().isNotFound());
@@ -216,7 +216,7 @@ class WebhookApiControllerTest {
     void anAdministratorNeedsCrossUserAccess() throws Exception {
         caller.setRole("admin");
         final UserEntity bob = user(new ObjectId(), "bob", "user");
-        when(userService.findByUsername("bob")).thenReturn(bob);
+        when(userService.findAnyByUsername("bob")).thenReturn(bob);
 
         AdminAccessConfig.setOverrideForTesting(false);
         perform(delete("/api/webhook?owner=bob")).andExpect(status().isNotFound());

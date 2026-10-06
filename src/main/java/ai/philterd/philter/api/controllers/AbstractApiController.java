@@ -148,7 +148,9 @@ public abstract class AbstractApiController {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             return callerUserId;
         }
-        final UserEntity owner = userService.findByUsername(ownerUsername);
+        // Deactivated users included: deactivation keeps a user's data, including evidence under legal hold,
+        // so an administrator must still be able to read and manage it. A deactivated caller cannot get here.
+        final UserEntity owner = userService.findAnyByUsername(ownerUsername);
         if (owner == null) {
             return null;
         }

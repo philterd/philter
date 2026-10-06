@@ -139,7 +139,7 @@ Sets the role to `user` or `admin` and returns the user. Requires `users:write` 
 POST /api/users/{username}/deactivate
 ```
 
-Deactivates the user and returns it. The user's API keys stop working at once. The user and all of its data (API keys, policies, contexts, lists, and redaction ledger) are retained, so the user can be reactivated. Requires `users:write` and an administrator.
+Deactivates the user and returns it. The user's API keys stop working at once. The user and all of its data (API keys, policies, contexts, lists, and redaction ledger) are retained, so the user can be reactivated. While cross-user access is enabled, an administrator can still read and manage that data by naming the user as `owner`, for example to release a legal hold, without reactivating the user. Requires `users:write` and an administrator.
 
 | Status | Meaning |
 |--------|---------|

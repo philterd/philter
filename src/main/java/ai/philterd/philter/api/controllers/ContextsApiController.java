@@ -140,7 +140,8 @@ public class ContextsApiController extends AbstractApiController {
             // No owner specified: operate on the caller's own context.
             targetUserId = callerUserId;
         } else {
-            final UserEntity owner = userService.findByUsername(ownerEmail);
+            // Deactivated owners included, as in resolveTargetUserId.
+            final UserEntity owner = userService.findAnyByUsername(ownerEmail);
             if (owner == null) {
                 return null;
             }

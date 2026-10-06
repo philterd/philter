@@ -92,14 +92,14 @@ class AbstractApiControllerTest {
 
     @Test
     void unknownOwnerResolvesToNull() {
-        when(userService.findByUsername("ghost@example.com")).thenReturn(null);
+        when(userService.findAnyByUsername("ghost@example.com")).thenReturn(null);
         assertNull(controller.resolveTargetUserId(userService, callerId, "ghost@example.com"));
     }
 
     @Test
     void nonAdminNamingAnotherOwnerResolvesToNull() {
         final ObjectId otherId = new ObjectId();
-        when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "caller@example.com", "user"));
 
         assertNull(controller.resolveTargetUserId(userService, callerId, "other@example.com"));
@@ -108,10 +108,33 @@ class AbstractApiControllerTest {
     @Test
     void adminNamingAnotherOwnerResolvesToThatOwner() {
         final ObjectId otherId = new ObjectId();
-        when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "admin@example.com", "admin"));
 
         assertEquals(otherId, controller.resolveTargetUserId(userService, callerId, "other@example.com"));
+    }
+
+    @Test
+    void adminNamingADeactivatedOwnerResolvesToThatOwner() {
+        // Deactivation keeps a user's data, so an administrator can still reach it.
+        final ObjectId otherId = new ObjectId();
+        final UserEntity leaver = user(otherId, "leaver@example.com", "user");
+        leaver.setDeactivated(true);
+        when(userService.findAnyByUsername("leaver@example.com")).thenReturn(leaver);
+        when(userService.findOneById(callerId)).thenReturn(user(callerId, "admin@example.com", "admin"));
+
+        assertEquals(otherId, controller.resolveTargetUserId(userService, callerId, "leaver@example.com"));
+    }
+
+    @Test
+    void nonAdminNamingADeactivatedOwnerResolvesToNull() {
+        final ObjectId otherId = new ObjectId();
+        final UserEntity leaver = user(otherId, "leaver@example.com", "user");
+        leaver.setDeactivated(true);
+        when(userService.findAnyByUsername("leaver@example.com")).thenReturn(leaver);
+        when(userService.findOneById(callerId)).thenReturn(user(callerId, "caller@example.com", "user"));
+
+        assertNull(controller.resolveTargetUserId(userService, callerId, "leaver@example.com"));
     }
 
     @Test
@@ -119,7 +142,7 @@ class AbstractApiControllerTest {
         // With cross-user access disabled, even an admin naming another user is denied (resolves to null).
         controller.crossUserAccessEnabled = false;
         final ObjectId otherId = new ObjectId();
-        when(userService.findByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
 
         assertNull(controller.resolveTargetUserId(userService, callerId, "other@example.com"));
         // The switch is read before the role is, so a disabled deployment never even asks who is asking.
@@ -131,14 +154,14 @@ class AbstractApiControllerTest {
         // The kill switch only blocks reaching OTHER users; own resources remain accessible.
         controller.crossUserAccessEnabled = false;
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, null));
-        when(userService.findByUsername("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "admin"));
+        when(userService.findAnyByUsername("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "admin"));
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, "caller@example.com"));
     }
 
     @Test
     void nonAdminNamingThemselvesResolvesToOwnId() {
         // Naming your own email is allowed without admin rights.
-        when(userService.findByUsername("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "user"));
+        when(userService.findAnyByUsername("caller@example.com")).thenReturn(user(callerId, "caller@example.com", "user"));
 
         assertEquals(callerId, controller.resolveTargetUserId(userService, callerId, "caller@example.com"));
     }

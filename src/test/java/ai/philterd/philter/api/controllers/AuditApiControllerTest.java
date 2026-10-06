@@ -121,7 +121,7 @@ class AuditApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
-        when(userService.findByUsername(email)).thenReturn(owner);
+        when(userService.findAnyByUsername(email)).thenReturn(owner);
     }
 
     private static Document auditEvent(final String event) {
@@ -238,7 +238,7 @@ class AuditApiControllerTest {
     @Test
     void returns404ForAnOwnerThatDoesNotExist() throws Exception {
         makeCallerAdmin();
-        when(userService.findByUsername("nobody@example.com")).thenReturn(null);
+        when(userService.findAnyByUsername("nobody@example.com")).thenReturn(null);
 
         perform("/api/audit?owner=nobody@example.com").andExpect(status().isNotFound());
 

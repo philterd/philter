@@ -242,7 +242,7 @@ class LegalHoldsApiControllerTest {
         caller.setId(userId);
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
-        when(userService.findByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
 
         mockMvc.perform(get("/api/holds").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -253,7 +253,7 @@ class LegalHoldsApiControllerTest {
     void listHoldsAdminCanListAnotherUsersHolds() throws Exception {
         final ObjectId otherUserId = new ObjectId();
         makeCallerAdmin();
-        when(userService.findByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
         when(legalHoldDataService.findAllByUserId(eq(otherUserId), anyInt(), anyInt()))
                 .thenReturn(List.of(holdEntity("LIT-ADM", "user", otherUserId.toHexString())));
 
@@ -303,7 +303,7 @@ class LegalHoldsApiControllerTest {
         caller.setId(userId);
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
-        when(userService.findByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
 
         mockMvc.perform(get("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -314,7 +314,7 @@ class LegalHoldsApiControllerTest {
     void getHoldAdminCanRetrieveAnotherUsersHold() throws Exception {
         final ObjectId otherUserId = new ObjectId();
         makeCallerAdmin();
-        when(userService.findByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
         when(legalHoldDataService.findByReference("LIT-001", otherUserId))
                 .thenReturn(holdEntity("LIT-001", "user", otherUserId.toHexString()));
 
@@ -370,7 +370,7 @@ class LegalHoldsApiControllerTest {
         caller.setId(userId);
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
-        when(userService.findByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -381,7 +381,7 @@ class LegalHoldsApiControllerTest {
     void releaseHoldAdminCanReleaseAnotherUsersHold() throws Exception {
         final ObjectId otherUserId = new ObjectId();
         makeCallerAdmin();
-        when(userService.findByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
         when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(otherUserId)))
                 .thenReturn(new ServiceResponse("Released.", true, 200));
 

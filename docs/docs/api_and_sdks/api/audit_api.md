@@ -23,7 +23,7 @@ Authorization: Bearer <token>
 * `event` - Optional. Return only events of this type, such as `policy_deleted`. The value must be one of the event names listed in [Auditing](../../auditing.md); any other value is rejected with `400 Bad Request` rather than returning an empty page, so a typo does not read as "this never happened".
 * `from` - Optional. Return only events at or after this time. An ISO-8601 instant, such as `2026-09-01T00:00:00Z`. Inclusive.
 * `to` - Optional. Return only events strictly before this time, in the same format. Exclusive, so a day's events are `from` that day `to` the next.
-* `owner` - Optional. Return only events whose acting principal is this user, named by username. Resolved by the usual rules: a username that does not exist, or one the caller may not reach, returns `404 Not Found`. Note that some events record the affected entity rather than the acting principal in `api_key_id` and so are not returned by an `owner` filter; an unfiltered listing always returns them.
+* `owner` - Optional. Return only events whose acting principal is this user, named by username. Resolved by the usual rules: a username that does not exist, or one the caller may not reach, returns `404 Not Found`; a deactivated user may be named. Note that some events record the affected entity rather than the acting principal in `api_key_id` and so are not returned by an `owner` filter; an unfiltered listing always returns them.
 * `offset` - Optional. Number of events to skip (default `0`).
 * `limit` - Optional. Maximum events to return (default `25`, max `100`).
 

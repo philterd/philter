@@ -152,7 +152,7 @@ class CustomListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
         when(customListService.findAll(eq(otherUser))).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER)
@@ -169,7 +169,7 @@ class CustomListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
         caller.setRole("user");
@@ -252,7 +252,7 @@ class CustomListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(new ObjectId());
         owner.setEmail("other@example.com");
-        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
 
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
@@ -317,7 +317,7 @@ class CustomListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
-        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
         when(customListService.replace(anyString(), eq(otherUser), eq("their-list"), any(), any(), any()))
                 .thenReturn(new ServiceResponse("List was updated", true, 200));
 
@@ -338,7 +338,7 @@ class CustomListsApiControllerTest {
         final UserEntity owner = new UserEntity();
         owner.setId(new ObjectId());
         owner.setEmail("other@example.com");
-        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
 
         mockMvc.perform(put("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")

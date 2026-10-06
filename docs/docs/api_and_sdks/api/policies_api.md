@@ -80,8 +80,8 @@ Example response:
 ### Query Parameters
 
 * `name` (required) - The name of the policy to create.
-* `description` (optional) - Up to 200 characters.
-* `notes` (optional) - Up to 1000 characters.
+
+Set the policy's description and notes afterwards with [`PUT /api/policies/{policyName}/details`](#set-a-policys-description-and-notes), which takes them in a JSON body. They are not accepted as query parameters here, since free text in a URL can exceed request header limits in some languages and is written to access logs; a request that sends them is refused.
 
 ### Validation
 
@@ -90,7 +90,7 @@ The policy is validated before it is stored. It must be valid JSON in the native
 ### Responses
 
 * `201 Created` - The policy was created.
-* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the description or notes are too long. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
+* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the request has a `description` or `notes` parameter. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
 * `404 Not Found` - The owner does not exist or may not be reached.
 * `409 Conflict` - You already have a policy with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `policy_exists`.
 
@@ -117,16 +117,16 @@ Example `409` response:
 
 The policy is validated as when [creating one](#validation), and the replaced content is kept in the [version history](#policy-version-history).
 
+The policy's description and notes are kept. Change them with [`PUT /api/policies/{policyName}/details`](#set-a-policys-description-and-notes).
+
 ### Query Parameters
 
-* `description` (optional) - Up to 200 characters. Leaving it out keeps the current description.
-* `notes` (optional) - Up to 1000 characters. Leaving it out keeps the current notes.
 * `owner` (optional, admin only) - Username of another user whose policy to replace.
 
 ### Responses
 
 * `200 OK` - The policy was replaced.
-* `400 Bad Request` - The policy is invalid, or the description or notes are too long.
+* `400 Bad Request` - The policy is invalid, or the request has a `description` or `notes` parameter.
 * `404 Not Found` - There is no such policy. The body carries a `message`, except when the `owner` does not exist or may not be reached.
 * `409 Conflict` - The policy changed after this request read it. Nothing is changed. The body carries a `message` and the `reason` `policy_changed`; reload the policy and retry.
 
@@ -254,7 +254,7 @@ Requires `policies:write`. Returns the policy's details.
 }
 ```
 
-A field left out is left as it is, and an empty value clears it. The description may be up to 200 characters and the notes up to 1000. Description and notes are not part of the policy, so changing them does not create a new [version](#policy-version-history).
+A field left out is left as it is, and an empty value clears it. The description may be up to 200 characters and the notes up to 1000, in any language. Description and notes are not part of the policy, so changing them does not create a new [version](#policy-version-history).
 
 * `400 Bad Request` - The description or notes are too long.
 * `404 Not Found` - There is no such policy.

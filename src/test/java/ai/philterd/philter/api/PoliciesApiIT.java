@@ -152,7 +152,8 @@ class PoliciesApiIT {
     @Test
     @DisplayName("Replacing a policy stores a new revision and keeps an omitted description")
     void replaceStoresANewRevision() throws Exception {
-        assertEquals(201, send("POST", "/api/policies?name=replaced&description=" + "Kept", POLICY).statusCode());
+        assertEquals(201, send("POST", "/api/policies?name=replaced", POLICY).statusCode());
+        assertEquals(200, send("PUT", "/api/policies/replaced/details", "{\"description\":\"Kept\"}").statusCode());
         final int before = json(send("GET", "/api/policies/replaced/details", null)).get("revision").getAsInt();
 
         final HttpResponse<String> replaced = send("PUT", "/api/policies/replaced", POLICY.replace("REDACT", "MASK"));

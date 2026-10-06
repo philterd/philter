@@ -108,10 +108,11 @@ class PolicyDetailsIT {
     }
 
     @Test
-    @DisplayName("Description and notes are saved with the policy, kept when left out, and set or cleared by details")
+    @DisplayName("Description and notes are set by details, kept when the policy is replaced, and cleared by details")
     void descriptionAndNotes() throws Exception {
-        assertEquals(201, send("POST", "/api/policies?name=court&description=" + q("Court filings")
-                + "&notes=" + q("Line one\nline two"), "application/json", POLICY).statusCode());
+        assertEquals(201, send("POST", "/api/policies?name=court", "application/json", POLICY).statusCode());
+        assertEquals(200, send("PUT", "/api/policies/court/details", "application/json",
+                gson.toJson(java.util.Map.of("description", "Court filings", "notes", "Line one\nline two"))).statusCode());
 
         JsonObject details = details("court");
         assertEquals("Court filings", details.get("description").getAsString());
@@ -137,8 +138,47 @@ class PolicyDetailsIT {
 
         assertEquals(400, send("PUT", "/api/policies/court/details", "application/json",
                 "{\"description\":\"" + "x".repeat(201) + "\"}").statusCode());
-        assertEquals(400, send("POST", "/api/policies?name=court&notes=" + "y".repeat(1001), "application/json", POLICY).statusCode());
+        assertEquals(400, send("PUT", "/api/policies/court/details", "application/json",
+                "{\"notes\":\"" + "y".repeat(1001) + "\"}").statusCode());
         assertEquals(404, send("PUT", "/api/policies/nope/details", "application/json", "{\"notes\":\"n\"}").statusCode());
+    }
+
+    @Test
+    @DisplayName("Notes at their limit in a three-byte script survive creating and replacing a policy")
+    void longNotesInAnyLanguage() throws Exception {
+        // 1000 characters of three bytes each: 9000 bytes once percent-encoded, past Tomcat's 8 KB header
+        // limit, so these could not travel in a query string.
+        final String notes = "\u6f22".repeat(1000);
+        final String description = "\u6f22".repeat(200);
+
+        assertEquals(201, send("POST", "/api/policies?name=kanji", "application/json", POLICY).statusCode());
+        final HttpResponse<String> set = send("PUT", "/api/policies/kanji/details", "application/json",
+                gson.toJson(java.util.Map.of("description", description, "notes", notes)));
+        assertEquals(200, set.statusCode(), set.body());
+
+        assertEquals(200, send("PUT", "/api/policies/kanji", "application/json", POLICY.replace("REDACT", "MASK")).statusCode());
+
+        final JsonObject details = details("kanji");
+        assertEquals(notes, details.get("notes").getAsString());
+        assertEquals(description, details.get("description").getAsString());
+    }
+
+    @Test
+    @DisplayName("Creating or replacing a policy refuses description and notes, naming where they go")
+    void createAndReplaceRefuseDetails() throws Exception {
+        for (final String[] request : new String[][]{
+                {"POST", "/api/policies?name=refused&description=" + q("Court filings")},
+                {"POST", "/api/policies?name=refused&notes=n"}}) {
+            final HttpResponse<String> refused = send(request[0], request[1], "application/json", POLICY);
+            assertEquals(400, refused.statusCode(), refused.body());
+            assertTrue(refused.body().contains("/details"), refused.body());
+        }
+        assertEquals(404, send("GET", "/api/policies/refused", null, null).statusCode(), "nothing was created");
+
+        assertEquals(201, send("POST", "/api/policies?name=kept", "application/json", POLICY).statusCode());
+        final HttpResponse<String> refused = send("PUT", "/api/policies/kept?notes=n", "application/json", POLICY.replace("REDACT", "MASK"));
+        assertEquals(400, refused.statusCode(), refused.body());
+        assertFalse(send("GET", "/api/policies/kept", null, null).body().contains("MASK"), "the policy was not replaced");
     }
 
     @Test

@@ -21,7 +21,7 @@ Policies are managed with the [Policies API](../api_and_sdks/api/policies_api.md
 | List your policies | [`GET /api/policies`](../api_and_sdks/api/policies_api.md#get-policy-names) |
 | List the [managed policies](../policies/sample_policies.md#managed-policies) | [`GET /api/policies?managed=true`](../api_and_sdks/api/policies_api.md#get-policy-names) |
 | Read a policy | [`GET /api/policies/{name}`](../api_and_sdks/api/policies_api.md#get-a-policy) |
-| Create a policy | [`POST /api/policies?name=...`](../api_and_sdks/api/policies_api.md#save-a-policy), with the policy JSON as the body and optional `description` and `notes` |
+| Create a policy | [`POST /api/policies?name=...`](../api_and_sdks/api/policies_api.md#save-a-policy), with the policy JSON as the body |
 | Replace a policy | [`PUT /api/policies/{name}`](../api_and_sdks/api/policies_api.md#replace-a-policy), with the policy JSON as the body |
 | Read or set its description and notes | [`GET` and `PUT /api/policies/{name}/details`](../api_and_sdks/api/policies_api.md#get-a-policys-details) |
 | Copy a policy | [`POST /api/policies/{name}/copy`](../api_and_sdks/api/policies_api.md#copy-a-policy) |

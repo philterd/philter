@@ -465,11 +465,10 @@ class PoliciesApiControllerTest {
         existing.setId(new ObjectId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), eq("New."), isNull(), anyString()))
+        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString()))
                 .thenReturn(new ServiceResponse("The policy was updated.", true, 200));
 
         mockMvc.perform(put("/api/policies/my-policy").header("Authorization", AUTH_HEADER)
-                        .param("description", "New.")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_POLICY_BODY))
                 .andExpect(status().isOk());

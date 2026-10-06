@@ -196,12 +196,12 @@ public class PoliciesApiController extends AbstractApiController {
     @Operation(summary = "Create a policy.",
             description = "Creates a policy from the request body under the given name. A name the owner already uses is "
                     + "refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is "
-                    + "validated before it is stored. description (up to " + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH
-                    + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + ") are optional. "
-                    + "Admins may create a policy in another user's account by passing that user's email as owner.")
+                    + "validated before it is stored. Set its description and notes afterwards with "
+                    + "PUT /api/policies/{policyName}/details. Admins may create a policy in another user's account by "
+                    + "passing that user's email as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The policy was created and is now active. A policy_activated audit event is recorded."),
-            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long."),
+            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the request has a description or notes parameter."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
                     content = @Content),
@@ -216,24 +216,22 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestParam(value = "description", required = false) String description,
-            final @RequestParam(value = "notes", required = false) String notes,
-            @RequestBody String policyJson) throws IOException {
+            @RequestBody String policyJson,
+            final HttpServletRequest httpServletRequest) {
 
-        return write(authorizationHeader, name, owner, description, notes, policyJson, false);
+        return write(authorizationHeader, name, owner, policyJson, httpServletRequest, false);
 
     }
 
     @Operation(summary = "Replace a policy.",
             description = "Replaces an existing policy with the request body, as a new revision. The policy is validated "
-                    + "before it is stored. description (up to " + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH
-                    + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + ") are optional; "
-                    + "leaving either out keeps its current value. Admins may replace another user's policy by passing "
+                    + "before it is stored. Its description and notes are kept; change them with "
+                    + "PUT /api/policies/{policyName}/details. Admins may replace another user's policy by passing "
                     + "that user's email as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy was replaced and is now active. A policy_activated audit event is recorded.",
                     content = @Content),
-            @ApiResponse(responseCode = "400", description = "The policy is invalid, or the description or notes are too long."),
+            @ApiResponse(responseCode = "400", description = "The policy is invalid, or the request has a description or notes parameter."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, with no "
                     + "body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
@@ -251,23 +249,28 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable("policyName") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestParam(value = "description", required = false) String description,
-            final @RequestParam(value = "notes", required = false) String notes,
-            @RequestBody String policyJson) throws IOException {
+            @RequestBody String policyJson,
+            final HttpServletRequest httpServletRequest) {
 
-        return write(authorizationHeader, name, owner, description, notes, policyJson, true);
+        return write(authorizationHeader, name, owner, policyJson, httpServletRequest, true);
 
     }
 
     /** Creates or replaces a policy; neither falls back to the other, so a create never overwrites. */
     private ResponseEntity<Object> write(final String authorizationHeader, final String name, final String owner,
-                                         final String description, final String notes, final String policyJson,
+                                         final String policyJson, final HttpServletRequest httpServletRequest,
                                          final boolean replace) {
 
         if (StringUtils.isBlank(name)) {
             throw new BadRequestException("The policy name is missing.");
         }
-        requireDetailLengths(description, notes);
+
+        // Free text in the URL outgrows header limits in some languages and lands in access logs, so the
+        // details travel in a body. Refused rather than ignored, so a client sending them is not misled.
+        if (httpServletRequest.getParameter("description") != null || httpServletRequest.getParameter("notes") != null) {
+            throw new BadRequestException("description and notes are not accepted here. Set them with "
+                    + "PUT /api/policies/{policyName}/details, which takes them in a JSON body.");
+        }
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -299,9 +302,9 @@ public class PoliciesApiController extends AbstractApiController {
             final PolicyEntity existing = policyDataService.findOne(name, userId);
             response = existing == null
                     ? new ServiceResponse("Policy does not exist.", false, 404)
-                    : policyDataService.update(requestId, userId, existing.getId(), policyJson, description, notes, Source.API.getSource());
+                    : policyDataService.update(requestId, userId, existing.getId(), policyJson, null, null, Source.API.getSource());
         } else {
-            response = policyDataService.create(requestId, userId, policyJson, description, notes, name, Source.API.getSource());
+            response = policyDataService.create(requestId, userId, policyJson, null, null, name, Source.API.getSource());
         }
 
         if (!response.isSuccessful()) {

@@ -17,26 +17,30 @@ package ai.philterd.philter.api.responses;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.util.List;
+/** A custom list as {@code GET /api/lists} lists it: its name, description, and size, without its items. */
+public class ListSummaryResponse {
 
-public class GetListsResponse {
-
-    private final List<String> lists;
+    private final String name;
     private final String description;
+    private final int size;
+    private final String owner;
 
-    public GetListsResponse(List<String> lists, String description) {
-        this.lists = lists;
+    public ListSummaryResponse(final String name, final String description, final int size, final String owner) {
+        this.name = name;
         this.description = description == null ? "" : description;
+        this.size = size;
+        this.owner = owner;
     }
 
-    /** The list's items. */
-    public List<String> getLists() {
-        return lists;
-    }
+    public String getName() { return name; }
 
     @Schema(description = "The list's description, or an empty string if it has none.")
-    public String getDescription() {
-        return description;
-    }
+    public String getDescription() { return description; }
+
+    @Schema(description = "How many items the list holds.")
+    public int getSize() { return size; }
+
+    @Schema(description = "The username of the user the list belongs to. Present only in an all_users listing.")
+    public String getOwner() { return owner; }
 
 }

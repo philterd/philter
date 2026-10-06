@@ -66,7 +66,7 @@ a list used by a policy, update the policy's references or expect subsequent red
 
 For developers and organizations with dynamic data protection needs, Philter provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with the Philterd platform, among other use-cases.
 
-*   **List Retrieval**: Programmatically fetch the names of all your custom lists.
+*   **List Retrieval**: Programmatically fetch your custom lists, each with its name, description, and number of items.
 *   **Item Management**: Retrieve, add, or update the specific items within any list.
 *   **Automated Lifecycle**: Create and delete lists as part of your automated CI/CD or data governance pipelines.
 

@@ -4881,8 +4881,8 @@
         "tags": [
           "Custom Lists"
         ],
-        "summary": "Get the names of existing lists.",
-        "description": "Get the names of the caller's custom lists, all of them. Admins may list another user's lists with owner, or every user's with all_users=true, which is paged with offset and limit, returns each list's name and owner, and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `lists:read` scope.",
+        "summary": "List custom lists.",
+        "description": "Lists the caller's custom lists, all of them, each with its name, description, and number of items. Admins may list another user's lists with owner, or every user's with all_users=true, which is paged with offset and limit, adds each list's owner, and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `lists:read` scope.",
         "operationId": "getLists_1",
         "parameters": [
           {
@@ -4933,24 +4933,14 @@
         ],
         "responses": {
           "200": {
-            "description": "List names; with all_users, each list's name and owner.",
+            "description": "Each list's name, description, and size; with all_users, its owner too.",
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/OwnedNameResponse"
-                      }
-                    }
-                  ]
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListSummaryResponse"
+                  }
                 }
               }
             }
@@ -5162,7 +5152,7 @@
           "Custom Lists"
         ],
         "summary": "Get the contents of a list.",
-        "description": "Get the contents of a list with the provided name. Requires the `lists:read` scope.",
+        "description": "Gets a list's items, in the lists field, and its description. Requires the `lists:read` scope.",
         "operationId": "getLists",
         "parameters": [
           {
@@ -5284,7 +5274,7 @@
           "Custom Lists"
         ],
         "summary": "Create or update a list.",
-        "description": "Create a list whose contents are the request body, or overwrite it if a list with the same name already exists. Requires the `lists:write` scope.",
+        "description": "Creates a list whose items are the request body, or replaces the items of an existing list with the same name. description is optional: left out, an existing list keeps its description; given as an empty string, it is cleared. Requires the `lists:write` scope.",
         "operationId": "createList",
         "parameters": [
           {
@@ -5304,12 +5294,12 @@
             }
           },
           {
+            "description": "The list's description. Left out, an existing list keeps its own; an empty string clears it.",
             "name": "description",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": ""
+              "type": "string"
             }
           },
           {
@@ -11179,6 +11169,10 @@
       "GetListsResponse": {
         "type": "object",
         "properties": {
+          "description": {
+            "description": "The list's description, or an empty string if it has none.",
+            "type": "string"
+          },
           "lists": {
             "type": "array",
             "items": {
@@ -11385,6 +11379,26 @@
           "setAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ListSummaryResponse": {
+        "properties": {
+          "description": {
+            "description": "The list's description, or an empty string if it has none.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "description": "The username of the user the list belongs to. Present only in an all_users listing.",
+            "type": "string"
+          },
+          "size": {
+            "description": "How many items the list holds.",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

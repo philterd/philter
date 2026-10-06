@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetListsResponse;
+import ai.philterd.philter.api.responses.ListSummaryResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -31,6 +32,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,6 +55,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static ai.philterd.philter.data.services.CustomListDataService.MAXIMUM_ITEM_LENGTH;
 import static ai.philterd.philter.data.services.CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS;
@@ -79,12 +82,12 @@ public class CustomListsApiController extends AbstractApiController {
         this.gson = gson;
     }
 
-    @Operation(summary = "Get the names of existing lists.",
-            description = "Get the names of the caller's custom lists, all of them. Admins may list another user's "
-                    + "lists with owner, or every user's with all_users=true, which is paged with offset and limit, "
-                    + "returns each list's name and owner, and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
+    @Operation(summary = "List custom lists.",
+            description = "Lists the caller's custom lists, all of them, each with its name, description, and number of "
+                    + "items. Admins may list another user's lists with owner, or every user's with all_users=true, which "
+                    + "is paged with offset and limit, adds each list's owner, and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The list names; with all_users, each list's name and owner. The schema is set in ApiDocumentationConfig."),
+            @ApiResponse(responseCode = "200", description = "Each list's name, description, and size; with all_users, its owner too. The schema is set in ApiDocumentationConfig."),
             @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. Also returned for all_users when the caller is not an administrator or cross-user access is disabled.")
     })
@@ -115,8 +118,12 @@ public class CustomListsApiController extends AbstractApiController {
                     customListService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list custom lists");
-            return new ResponseEntity<>(gson.toJson(ownedNames(userService, lists,
-                    CustomListEntity::getName, CustomListEntity::getUserId)), HttpStatus.OK);
+            final Map<ObjectId, String> owners = ownerNames(userService, lists, CustomListEntity::getUserId);
+            final List<ListSummaryResponse> summaries = new ArrayList<>(lists.size());
+            for (final CustomListEntity entity : lists) {
+                summaries.add(summary(entity, owners.get(entity.getUserId())));
+            }
+            return new ResponseEntity<>(gson.toJson(summaries), HttpStatus.OK);
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -128,17 +135,22 @@ public class CustomListsApiController extends AbstractApiController {
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
 
-        final List<String> lists = new ArrayList<>();
-
-        for(final CustomListEntity customListEntity : customListEntities) {
-            lists.add(customListEntity.getName());
+        final List<ListSummaryResponse> lists = new ArrayList<>(customListEntities.size());
+        for (final CustomListEntity customListEntity : customListEntities) {
+            // No owner: Gson leaves out a null field, so a per-user listing does not carry one.
+            lists.add(summary(customListEntity, null));
         }
 
         return new ResponseEntity<>(gson.toJson(lists), HttpStatus.OK);
 
     }
 
-    @Operation(summary = "Get the contents of a list.", description = "Get the contents of a list with the provided name.")
+    private static ListSummaryResponse summary(final CustomListEntity entity, final String owner) {
+        return new ListSummaryResponse(entity.getName(), entity.getDescription(),
+                entity.getItems() == null ? 0 : entity.getItems().size(), owner);
+    }
+
+    @Operation(summary = "Get the contents of a list.", description = "Gets a list's items, in the lists field, and its description.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "The list does not exist, or the owner does not exist or may not be reached. The API does not distinguish these, so a name or owner cannot be used to discover what exists."),
@@ -173,7 +185,8 @@ public class CustomListsApiController extends AbstractApiController {
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED, apiKeyEntity.getUserId(), customListEntity.getId(), getClientIpAddress(httpServletRequest));
 
-            final GetListsResponse getListsResponse = new GetListsResponse(customListEntity.getItems());
+            final GetListsResponse getListsResponse = new GetListsResponse(customListEntity.getItems(),
+                    customListEntity.getDescription());
 
             return new ResponseEntity<>(getListsResponse, HttpStatus.OK);
 
@@ -181,7 +194,9 @@ public class CustomListsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create or update a list.", description = "Create a list whose contents are the request body, or overwrite it if a list with the same name already exists.")
+    @Operation(summary = "Create or update a list.", description = "Creates a list whose items are the request body, or "
+            + "replaces the items of an existing list with the same name. description is optional: left out, an existing "
+            + "list keeps its description; given as an empty string, it is cleared.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The list was created."),
             @ApiResponse(responseCode = "200", description = "An existing list with the same name was updated."),
@@ -194,7 +209,8 @@ public class CustomListsApiController extends AbstractApiController {
     public ResponseEntity<GenericResponse> createList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String list,
-            final @RequestParam(value = "description", defaultValue="", required = false) String description,
+            final @Parameter(description = "The list's description. Left out, an existing list keeps its own; an empty string clears it.")
+            @RequestParam(value = "description", required = false) String description,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody List<String> listItems,
             final @RequestAttribute("requestId") String requestId,

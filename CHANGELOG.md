@@ -53,6 +53,9 @@ for migration steps.
   data and ledger evidence are kept.
 - **`PUT /api/contexts/{name}` changes only the settings given**, rather than resetting an omitted one
   to `false`. `GET /api/contexts/{name}` returns both settings.
+- **`GET /api/lists` returns objects**, each with the list's `name`, `description`, and `size`, rather
+  than a list of names. `GET /api/lists/{name}` returns the `description`, and saving a list without
+  one keeps the stored description.
 
 ### Removed
 

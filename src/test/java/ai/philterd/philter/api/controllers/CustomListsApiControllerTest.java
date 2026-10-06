@@ -51,6 +51,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -210,7 +211,8 @@ class CustomListsApiControllerTest {
 
     @Test
     void createListStoresTheItemsForTheOwningUser() throws Exception {
-        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), anyString(),
+        // No description is sent, so the service is told to leave it as it is.
+        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), isNull(),
                 eq(List.of("alpha", "beta")), eq(true), any()))
                 .thenReturn(new ServiceResponse("Created.", true, 201));
 
@@ -220,14 +222,14 @@ class CustomListsApiControllerTest {
                         .requestAttr("requestId", "req-create-list"))
                 .andExpect(status().isCreated());
 
-        verify(customListService).saveOrUpdate(anyString(), eq(userId), eq("my-list"), anyString(),
+        verify(customListService).saveOrUpdate(anyString(), eq(userId), eq("my-list"), isNull(),
                 eq(List.of("alpha", "beta")), eq(true), any());
     }
 
     @Test
     void createListPropagatesTheServiceStatusCode() throws Exception {
         // The service reports rejections (too many items, item too long) through the status code.
-        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), anyString(),
+        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), any(),
                 any(), eq(true), any()))
                 .thenReturn(new ServiceResponse("Too many items.", false, 400));
 

@@ -10,12 +10,12 @@ The Custom Lists API provides endpoints for retrieving, creating, and deleting c
 
 | Method | Endpoint        | Description                    |
 | ------ |-----------------|--------------------------------| 
-| `GET` | `/api/lists` | Get the names of all custom lists. |
+| `GET` | `/api/lists` | List the custom lists, each with its name, description, and number of items. |
 
 ### Query Parameters
 
 * `owner` (optional, admin only) - Username of another user whose lists to get. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
-* `all_users` (optional, default: `false`) - List every user's custom lists instead of the caller's. Each item is then an object with the list's `name` and its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
+* `all_users` (optional, default: `false`) - List every user's custom lists instead of the caller's. Each list then also has its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 * `offset` (optional, default: `0`) and `limit` (optional, default: `25`, max `100`) - Page through the lists. These apply only with `all_users`; without it, every one of the caller's lists is returned.
 
 Example request:
@@ -23,6 +23,23 @@ Example request:
 ```
 curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/lists
 ```
+
+Example response:
+
+```json
+[
+  {
+    "name": "my-list",
+    "description": "My description",
+    "size": 2
+  }
+]
+```
+
+* `name` - The list's name.
+* `description` - The list's description, or an empty string if it has none.
+* `size` - The number of items in the list.
+* `owner` - The username of the list's owner. Present only with `all_users`.
 
 ## Get a List
 
@@ -40,12 +57,16 @@ Example response:
 
 ```json
 {
-  "items": [
+  "lists": [
     "item1",
     "item2"
-  ]
+  ],
+  "description": "My description"
 }
 ```
+
+* `lists` - The list's items.
+* `description` - The list's description, or an empty string if it has none.
 
 ## Create or Update a List
 
@@ -55,7 +76,7 @@ Example response:
 
 ### Query Parameters
 
-* `description` (optional) - A description of the custom list.
+* `description` (optional) - A description of the custom list. Left out, an existing list keeps its description and a new list has none. An empty value (`description=`) clears it.
 
 ### Request Body
 
@@ -64,7 +85,7 @@ A JSON array of strings containing the items for the list.
 ### Responses
 
 * `201 Created` - A new list was created.
-* `200 OK` - An existing list with the same name was overwritten.
+* `200 OK` - The items of an existing list with the same name were replaced.
 
 Example request:
 

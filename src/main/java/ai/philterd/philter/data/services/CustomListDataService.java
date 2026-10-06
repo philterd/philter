@@ -93,7 +93,10 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
                 // If it does already exist, we are just going to update it's content.
                 customListEntity.setItems(trimmedListItems);
-                customListEntity.setDescription(description);
+                // Left out, the description stays as it is; an empty one clears it.
+                if (description != null) {
+                    customListEntity.setDescription(description);
+                }
                 update(customListEntity);
 
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_UPDATED, customListEntity.getId(), origin);
@@ -112,7 +115,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             final CustomListEntity customListEntity = new CustomListEntity();
             customListEntity.setUserId(userId);
             customListEntity.setName(listName);
-            customListEntity.setDescription(description);
+            customListEntity.setDescription(description == null ? "" : description);
             customListEntity.setItems(trimmedListItems);
             final ObjectId objectId = save(customListEntity);
 

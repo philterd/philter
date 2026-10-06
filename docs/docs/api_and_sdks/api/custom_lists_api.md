@@ -82,10 +82,12 @@ Example response:
 
 A JSON array of strings containing the items for the list.
 
+The name is part of the path, so it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including spaces and periods, is allowed when percent-encoded.
+
 ### Responses
 
 * `201 Created` - The list was created.
-* `400 Bad Request` - The name is empty, there are too many items, or an item is too long.
+* `400 Bad Request` - The name is empty or breaks the rule above, there are too many items, or an item is too long. The body carries a `message`.
 * `404 Not Found` - The owner does not exist or may not be reached.
 * `409 Conflict` - You already have a list with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `list_exists`.
 
@@ -140,4 +142,10 @@ Example request:
 
 ```
 curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/lists/my-list
+```
+
+A list created before names were checked may have a name that cannot be used in a path, such as one containing `/`. Delete it with the name in the query instead: `DELETE /api/lists?name=<name>`, which behaves the same way.
+
+```
+curl -X DELETE -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/lists?name=a%2Fb"
 ```

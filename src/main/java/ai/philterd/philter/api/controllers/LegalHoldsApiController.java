@@ -33,6 +33,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.utils.PathSafeNames;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -88,7 +89,8 @@ public class LegalHoldsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The hold was set and is now active.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = LegalHoldResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Required fields are missing or the scope type is invalid."),
+            @ApiResponse(responseCode = "400", description = "Required fields are missing, the scope type is invalid, or the "
+                    + "reference " + PathSafeNames.RULE + ", since it must be usable in a request path."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
                     content = @Content),
@@ -234,6 +236,31 @@ public class LegalHoldsApiController extends AbstractApiController {
         }
 
         return ResponseEntity.ok(toResponse(hold));
+    }
+
+    @Operation(summary = "Release a legal hold by reference in the query.",
+            description = "Releases the hold whose reference is given in the reference query parameter, for a hold "
+                    + "whose reference cannot be used in a request path. Otherwise the same as "
+                    + "DELETE /api/holds/{reference}, including the audit record.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The hold was released.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The hold was not released because an evidence or hold operation "
+                    + "for the owner is active or requires recovery; reason is operation_in_progress.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = LegalHoldConflictResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.HOLDS_WRITE)
+    @RequestMapping(value = "/api/holds", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> releaseHoldNamedInQuery(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam("reference") String reference,
+            final @RequestParam(value = "owner", required = false) String owner) {
+        return releaseHold(authorizationHeader, reference, owner);
     }
 
     @Operation(summary = "Release a legal hold.",

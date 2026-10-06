@@ -23,7 +23,7 @@ Custom lists are managed with the [Custom Lists API](../api_and_sdks/api/custom_
 | Replace a list | [`PUT /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#replace-a-list), with the complete new terms as a JSON array |
 | Delete a list | [`DELETE /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#delete-a-list) |
 
-* **Name**: the identifier you use to reference the list in your [policy JSON](../policies/policy_schema.md). Use clear, descriptive names (for example, `Employee-Names-2024` or `Project-Codenames`). A list cannot be renamed; create a new list instead.
+* **Name**: the identifier you use to reference the list in your [policy JSON](../policies/policy_schema.md). Use clear, descriptive names (for example, `Employee-Names-2024` or `Project-Codenames`). A name cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`, since it is used in request paths. A list cannot be renamed; create a new list instead.
 * **Items**: each list can contain a maximum of 100 items, each up to 50 characters. There is no limit on the number of lists. Replacing a list replaces its items, and every policy that references it uses the new set immediately.
 * **Deleting**: if any of your [redaction policies](policies.md) reference the list, those policies may fail or behave unexpectedly once it is gone.
 

@@ -16,7 +16,7 @@ All endpoints require authentication with a Bearer token. See [API Keys](../../a
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `reference` | Yes | Hold identifier, unique for the calling user (for example `LIT-2026-001`). Arbitrary text; Philter does not interpret it. |
+| `reference` | Yes | Hold identifier, unique for the calling user (for example `LIT-2026-001`). Philter does not interpret it, but it is how the hold is read and released, in a request path, so it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including spaces and periods, is allowed. |
 | `scopeType` | Yes | `document_chain` to protect one document's ledger chain, or `user` to protect all of a user's evidence. |
 | `scopeValue` | Yes | The document id (for `document_chain`) or the target user's id (for `user`). |
 | `reason` | No | Free-text description of why the hold was set. |
@@ -28,7 +28,7 @@ All endpoints require authentication with a Bearer token. See [API Keys](../../a
 ### Responses
 
 * `201 Created` - The hold was set and is now active. The body contains the hold details.
-* `400 Bad Request` - A required field is missing or `scopeType` is not recognized.
+* `400 Bad Request` - A required field is missing, `scopeType` is not recognized, or the `reference` breaks the rule above. The body carries a `message` naming the problem.
 * `409 Conflict` - The hold was not set. The body carries a `message` and a `reason`:
     * `hold_exists` - A hold with this reference already exists for the user.
     * `operation_in_progress` - Another evidence or hold operation for the user is active, or was interrupted and requires recovery. Retry once it finishes.
@@ -108,6 +108,12 @@ Example request:
 
 ```bash
 curl -k -X DELETE -H "Authorization: Bearer <token>" "https://localhost:8080/api/holds/LIT-2026-001"
+```
+
+A hold set before references were checked may have a reference that cannot be used in a path, such as one containing `/`. Release it with the reference in the query instead, which behaves the same way, including the audit record:
+
+```bash
+curl -k -X DELETE -H "Authorization: Bearer <token>" "https://localhost:8080/api/holds?reference=LIT%2F2026%2F001"
 ```
 
 Example `409` response:

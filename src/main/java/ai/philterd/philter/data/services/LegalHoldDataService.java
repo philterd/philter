@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -84,6 +85,11 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
 
         if (reference == null || reference.isBlank()) {
             return new ServiceResponse("Reference is required.", false, 400);
+        }
+        // The reference is how the hold is released, through a path; one that cannot be put in a path
+        // would make a hold that keeps blocking deletion and cannot be released.
+        if (!PathSafeNames.isPathSafe(reference)) {
+            return new ServiceResponse("The reference " + PathSafeNames.RULE + ".", false, 400);
         }
         if (!LegalHoldEntity.SCOPE_DOCUMENT_CHAIN.equals(scopeType)
                 && !LegalHoldEntity.SCOPE_USER.equals(scopeType)) {

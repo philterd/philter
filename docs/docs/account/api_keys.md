@@ -69,18 +69,18 @@ Two scopes are separated from the resources they belong to because they return t
 |-------|-----------|
 | `redact` | `POST /api/explain`<br>`POST /api/filter` |
 | `contexts:read` | `GET /api/contexts`<br>`GET /api/contexts/{name}`<br>`GET /api/contexts/{name}/entries`<br>`GET /api/contexts/{name}/entries/export` |
-| `contexts:write` | `DELETE /api/contexts/{name}`<br>`DELETE /api/contexts/{name}/entries`<br>`DELETE /api/contexts/{name}/entries/{entryId}`<br>`POST /api/contexts`<br>`POST /api/contexts/{name}/entries/import`<br>`PUT /api/contexts/{name}` |
+| `contexts:write` | `DELETE /api/contexts`<br>`DELETE /api/contexts/{name}`<br>`DELETE /api/contexts/{name}/entries`<br>`DELETE /api/contexts/{name}/entries/{entryId}`<br>`POST /api/contexts`<br>`POST /api/contexts/{name}/entries/import`<br>`PUT /api/contexts/{name}` |
 | `policies:read` | `GET /api/policies`<br>`GET /api/policies/{policyName}`<br>`GET /api/policies/{policyName}/details`<br>`GET /api/policies/{policyName}/diff`<br>`GET /api/policies/{policyName}/versions`<br>`GET /api/policies/{policyName}/versions/{revision}`<br>`POST /api/policies/compile` |
 | `policies:write` | `DELETE /api/policies/{policyName}`<br>`POST /api/policies`<br>`POST /api/policies/{policyName}/copy`<br>`POST /api/policies/{policyName}/rollback`<br>`PUT /api/policies/{policyName}`<br>`PUT /api/policies/{policyName}/details` |
 | `lists:read` | `GET /api/lists`<br>`GET /api/lists/{name}`<br>`GET /api/redact-lists` |
-| `lists:write` | `DELETE /api/lists/{name}`<br>`POST /api/lists/{name}`<br>`POST /api/redact-lists`<br>`PUT /api/lists/{name}`<br>`PUT /api/redact-lists` |
+| `lists:write` | `DELETE /api/lists`<br>`DELETE /api/lists/{name}`<br>`POST /api/lists/{name}`<br>`POST /api/redact-lists`<br>`PUT /api/lists/{name}`<br>`PUT /api/redact-lists` |
 | `documents:read` | `GET /api/documents`<br>`GET /api/documents/{documentId}`<br>`GET /api/documents/{documentId}/status` |
 | `documents:write` | `DELETE /api/documents/{documentId}` |
 | `ledger:read` | `GET /api/ledger`<br>`GET /api/ledger/{documentId}`<br>`GET /api/ledger/{documentId}/valid` |
 | `ledger:export` | `GET /api/ledger/{documentId}/export` |
 | `ledger:delete` | `DELETE /api/ledger`<br>`DELETE /api/ledger/{documentId}` |
 | `holds:read` | `GET /api/holds`<br>`GET /api/holds/{reference}` |
-| `holds:write` | `DELETE /api/holds/{reference}`<br>`POST /api/holds` |
+| `holds:write` | `DELETE /api/holds`<br>`DELETE /api/holds/{reference}`<br>`POST /api/holds` |
 | `audit:read` | `GET /api/audit`<br>`GET /api/audit/export` |
 | `signing:write` | `POST /api/signing-key/regenerate` |
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |

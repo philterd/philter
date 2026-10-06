@@ -31,6 +31,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -204,7 +205,7 @@ public class CustomListsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The list was created.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The list name is empty, the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
+            @ApiResponse(responseCode = "400", description = "The list name is empty or " + PathSafeNames.RULE + ", the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
@@ -286,6 +287,25 @@ public class CustomListsApiController extends AbstractApiController {
         }
         return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.valueOf(serviceResponse.getStatusCode()));
 
+    }
+
+    @Operation(summary = "Delete a list by name in the query.",
+            description = "Deletes a list named in the name query parameter, for a list whose name cannot be used in "
+                    + "a request path. Otherwise the same as DELETE /api/lists/{name}.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "The list was deleted."),
+            @ApiResponse(responseCode = "404", description = "The given list does not exist.")
+    })
+    @RequiresScope(ApiKeyScope.LISTS_WRITE)
+    @RequestMapping(value = "/api/lists", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> deleteListNamedInQuery(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam("name") String list,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+        return deleteList(authorizationHeader, list, owner, requestId, httpServletRequest);
     }
 
     @Operation(summary = "Delete a list.", description = "Delete a list with the given name.")

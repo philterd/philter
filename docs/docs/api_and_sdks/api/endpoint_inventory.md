@@ -16,6 +16,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | PUT | `/api/api-keys/{keyId}/scopes` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
 | GET | `/api/audit` | application/json | `audit:read` | [Details](audit_api.md) |
 | GET | `/api/audit/export` | text/csv | `audit:read` | [Details](audit_api.md) |
+| DELETE | `/api/contexts` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | GET | `/api/contexts` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | POST | `/api/contexts` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | DELETE | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |
@@ -35,6 +36,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/filter` | application/zip | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | text/plain | `redact` | [Details](filtering_api.md) |
 | GET | `/api/health` | application/json | `Public` | [Details](public_api.md) |
+| DELETE | `/api/holds` | application/json | `holds:write` | [Details](legal_holds_api.md) |
 | GET | `/api/holds` | application/json | `holds:read` | [Details](legal_holds_api.md) |
 | POST | `/api/holds` | application/json | `holds:write` | [Details](legal_holds_api.md) |
 | DELETE | `/api/holds/{reference}` | application/json | `holds:write` | [Details](legal_holds_api.md) |
@@ -45,6 +47,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/ledger/{documentId}` | application/json | `ledger:read` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}/export` | application/json | `ledger:export` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}/valid` | application/json | `ledger:read` | [Details](ledger_api.md) |
+| DELETE | `/api/lists` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | GET | `/api/lists` | application/json | `lists:read` | [Details](custom_lists_api.md) |
 | DELETE | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | GET | `/api/lists/{name}` | application/json | `lists:read` | [Details](custom_lists_api.md) |

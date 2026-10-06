@@ -18,7 +18,7 @@ Enforcement is within Philter. Anyone with direct access to the underlying Mongo
 
 Every hold has a **reference**. This is a short, human-readable identifier such as a case number, matter number, or ticket reference (for example `LIT-2026-001` or `GDPR-REQUEST-42`). The reference is unique per user and can be used to look up or release a specific hold.
 
-The reference is arbitrary text: Philter does not interpret it. Choose a value that means something to the people who need to manage the hold.
+Philter does not interpret the reference. Choose a value that means something to the people who need to manage the hold. Because the reference is how the hold is read and released in a request path, it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`; spaces and periods are fine.
 
 ### Scope types
 

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -91,6 +92,10 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
         if (listName == null || listName.isEmpty()) {
             return new ServiceResponse("List name cannot be empty.", false, 400);
+        }
+
+        if (!PathSafeNames.isPathSafe(listName)) {
+            return new ServiceResponse("The list name " + PathSafeNames.RULE + ".", false, 400);
         }
 
         if (listItems.size() > CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS) {

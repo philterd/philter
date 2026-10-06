@@ -43,6 +43,7 @@ import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -283,7 +284,8 @@ public class ContextsApiController extends AbstractApiController {
             + ContextDataService.MAXIMUM_CONTEXTS_PER_USER + " contexts, counting default.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was created."),
-            @ApiResponse(responseCode = "400", description = "The name is missing or blank."),
+            @ApiResponse(responseCode = "400", description = "The name is missing or blank, or "
+                    + PathSafeNames.RULE + ", since it must be usable in a request path."),
             @ApiResponse(responseCode = "409", description = "The context was not created, and reason says why: "
                     + "context_exists (the caller already has a context with this name) or context_limit_reached "
                     + "(the caller already has the most contexts a user may have).",
@@ -325,7 +327,8 @@ public class ContextsApiController extends AbstractApiController {
         } else {
 
             // A conflict with the caller's existing contexts, a duplicate name or the limit, is 409 with a
-            // reason; the only other failure the service reports is a blank name.
+            // reason; the other failures the service reports are a blank name and one that cannot be
+            // used in a request path.
             if (serviceResponse.getStatusCode() == 409) {
                 return new ResponseEntity<>(new ContextConflictResponse(serviceResponse.getMessage(),
                         serviceResponse.getDetails()), HttpStatus.CONFLICT);
@@ -334,6 +337,26 @@ public class ContextsApiController extends AbstractApiController {
 
         }
 
+    }
+
+    @Operation(summary = "Delete a context by name in the query.",
+            description = "Deletes a context named in the name query parameter, for a context whose name cannot be "
+                    + "used in a request path. Otherwise the same as DELETE /api/contexts/{name}.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The context was deleted."),
+            @ApiResponse(responseCode = "400", description = "The context could not be deleted."),
+            @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
+    })
+    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
+    @RequestMapping(value = "/api/contexts", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GenericResponse> deleteContextNamedInQuery(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam("name") String name,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+        return deleteContext(authorizationHeader, name, owner, requestId, httpServletRequest);
     }
 
     @Operation(summary = "Delete a context.", description = "Delete an existing context.")

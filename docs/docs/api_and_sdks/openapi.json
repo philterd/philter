@@ -1004,6 +1004,128 @@
       }
     },
     "/api/contexts": {
+      "delete": {
+        "tags": [
+          "Contexts"
+        ],
+        "summary": "Delete a context by name in the query.",
+        "description": "Deletes a context named in the name query parameter, for a context whose name cannot be used in a request path. Otherwise the same as DELETE /api/contexts/{name}. Requires the `contexts:write` scope.",
+        "operationId": "deleteContextNamedInQuery",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The context was deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The context could not be deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The context has open asynchronous redaction jobs and cannot be deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Contexts"
@@ -1217,7 +1339,7 @@
             }
           },
           "400": {
-            "description": "The name is missing or blank.",
+            "description": "The name is missing or blank, or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., since it must be usable in a request path.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3463,6 +3585,131 @@
       }
     },
     "/api/holds": {
+      "delete": {
+        "tags": [
+          "Legal Holds"
+        ],
+        "summary": "Release a legal hold by reference in the query.",
+        "description": "Releases the hold whose reference is given in the reference query parameter, for a hold whose reference cannot be used in a request path. Otherwise the same as DELETE /api/holds/{reference}, including the audit record. Requires the `holds:write` scope.",
+        "operationId": "releaseHoldNamedInQuery",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reference",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The hold was released."
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "No hold with the given reference exists for this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The hold was not released because an evidence or hold operation for the owner is active or requires recovery; reason is operation_in_progress.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalHoldConflictResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Legal Holds"
@@ -3669,7 +3916,7 @@
             }
           },
           "400": {
-            "description": "Required fields are missing or the scope type is invalid.",
+            "description": "Required fields are missing, the scope type is invalid, or the reference cannot contain /, \\, ;, %, or control characters, and cannot be . or .., since it must be usable in a request path.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4884,6 +5131,128 @@
       }
     },
     "/api/lists": {
+      "delete": {
+        "tags": [
+          "Custom Lists"
+        ],
+        "summary": "Delete a list by name in the query.",
+        "description": "Deletes a list named in the name query parameter, for a list whose name cannot be used in a request path. Otherwise the same as DELETE /api/lists/{name}. Requires the `lists:write` scope.",
+        "operationId": "deleteListNamedInQuery",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The list was deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "The given list does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Custom Lists"
@@ -5343,7 +5712,7 @@
             }
           },
           "400": {
-            "description": "The list name is empty, the list contains too many items (maximum 100), or an item is too long (maximum 50 characters).",
+            "description": "The list name is empty or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., the list contains too many items (maximum 100), or an item is too long (maximum 50 characters).",
             "content": {
               "application/json": {
                 "schema": {

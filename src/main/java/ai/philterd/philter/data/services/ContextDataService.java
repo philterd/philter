@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -112,6 +113,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         if(contextName == null || contextName.isBlank()) {
             return new ServiceResponse("Context name cannot be blank.", false, 400);
+        }
+
+        if (!PathSafeNames.isPathSafe(contextName)) {
+            return new ServiceResponse("The context name " + PathSafeNames.RULE + ".", false, 400);
         }
 
         // Context names are unique per user, so reject a name the caller already uses. Another user may

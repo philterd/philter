@@ -34,7 +34,7 @@ Contexts are managed with the [Contexts API](../api_and_sdks/api/contexts_api.md
 | Clear its mappings | [`DELETE /api/contexts/{name}/entries`](../api_and_sdks/api/contexts_api.md#empty-a-context) |
 | Delete it | [`DELETE /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#delete-a-context) |
 
-Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
+Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name. A name cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`, since it is used in request paths.
 
 Each user can have **at most 10 contexts**, including `default`. The limit is per user: other users' contexts do not count toward it. A request for an eleventh is refused with `409 Conflict` and `reason` set to `context_limit_reached`; delete a context to make room. The limit is fixed and cannot be changed with a setting. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
 

@@ -83,7 +83,7 @@ The counts are computed in the database in one query and sum to `size`.
 
 ### Query Parameters
 
-* `name` (required) - The name of the context to create. Context names are **unique per user**: if you already have a context with this name the request is rejected with `409 Conflict`. A name you use does not prevent another user from using the same name. Each user can have at most 10 contexts; see [Capacity](#capacity).
+* `name` (required) - The name of the context to create. Context names are **unique per user**: if you already have a context with this name the request is rejected with `409 Conflict`. A name you use does not prevent another user from using the same name. Each user can have at most 10 contexts; see [Capacity](#capacity). Because the name is how the context is addressed in a request path, it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`.
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 * `owner` (optional, admin only) - Username of another user whose context to create the context for. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
@@ -91,7 +91,7 @@ The counts are computed in the database in one query and sum to `size`.
 ### Responses
 
 * `200 OK` - The context was created.
-* `400 Bad Request` - The `name` parameter is missing or blank.
+* `400 Bad Request` - The `name` parameter is missing or blank, or breaks the rule above. The body carries a `message`.
 * `409 Conflict` - The context was not created because of your existing contexts. The body's `reason` says which, so a client need not read the message:
     * `context_exists` - You already have a context with this name.
     * `context_limit_reached` - You already have 10 contexts.
@@ -148,6 +148,12 @@ Example request:
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/contexts/my-context
+```
+
+A context created before names were checked may have a name that cannot be used in a path, such as one containing `/`. Delete it with the name in the query instead: `DELETE /api/contexts?name=<name>`, which behaves the same way.
+
+```bash
+curl -X DELETE -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/contexts?name=a%2Fb"
 ```
 
 ## List Context Entries

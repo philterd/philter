@@ -70,6 +70,15 @@ public class ServiceResponse {
         this.details = null;
     }
 
+    /** With a status and details, such as a machine-readable reason for a failure. */
+    public ServiceResponse(final String message, final boolean successful, final int statusCode, final String details) {
+        this.message = message;
+        this.successful = successful;
+        this.objectId = null;
+        this.statusCode = statusCode;
+        this.details = details;
+    }
+
     public ServiceResponse(final String message, final boolean successful, final ObjectId objectId, final int statusCode) {
         this.message = message;
         this.successful = successful;

@@ -91,8 +91,17 @@ The counts are computed in the database in one query and sum to `size`.
 ### Responses
 
 * `200 OK` - The context was created.
-* `400 Bad Request` - The `name` parameter is missing, the user already has 10 contexts (the message is `Maximum number of contexts reached.`), or the context could not be created.
-* `409 Conflict` - You already have a context with this name.
+* `400 Bad Request` - The `name` parameter is missing or blank.
+* `409 Conflict` - The context was not created because of your existing contexts. The body's `reason` says which, so a client need not read the message:
+    * `context_exists` - You already have a context with this name.
+    * `context_limit_reached` - You already have 10 contexts.
+
+```json
+{
+  "message": "Maximum number of contexts reached.",
+  "reason": "context_limit_reached"
+}
+```
 
 Example request:
 
@@ -311,7 +320,7 @@ Example response:
 
 ## Capacity
 
-Each user can have at most **10 contexts**, including the `default` context every user starts with. The limit counts only the user's own contexts, and it is fixed: no setting changes it. Creating an eleventh returns `400 Bad Request`, even when its name matches an existing context, which would otherwise return `409 Conflict`; delete a context to make room. An administrator creating a context with `owner` is held to the other user's limit.
+Each user can have at most **10 contexts**, including the `default` context every user starts with. The limit counts only the user's own contexts, and it is fixed: no setting changes it. Creating an eleventh returns `409 Conflict` with `reason` set to `context_limit_reached`; delete a context to make room. A name you already use is reported as `context_exists` whether or not you are at the limit. An administrator creating a context with `owner` is held to the other user's limit.
 
 Each context is bounded by `MAX_CONTEXT_SIZE` (default 10,000 entries; overridable via the [`MAX_CONTEXT_SIZE` environment variable](../../settings.md)). When the limit is reached, the least-read entry is evicted before a new one is inserted (ties broken by oldest). Disambiguation vector storage is similarly bounded by `MAX_VECTORS_PER_CONTEXT` (default 100,000, FIFO eviction).
 

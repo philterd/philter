@@ -40,6 +40,10 @@ import java.util.List;
 public class ContextDataService extends AbstractService<ContextEntity> {
 
     public static final int MAXIMUM_CONTEXTS_PER_USER = 10;
+
+    /** Reasons a create is refused with 409, carried in the response's details. */
+    public static final String REASON_CONTEXT_EXISTS = "context_exists";
+    public static final String REASON_CONTEXT_LIMIT_REACHED = "context_limit_reached";
     public static final int MAX_LIMIT = 100;
 
     private final ContextEntryDataService contextEntryService;
@@ -67,14 +71,16 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             return new ServiceResponse("Context name cannot be blank.", false, 400);
         }
 
-        if(findAll(userId).size() >= MAXIMUM_CONTEXTS_PER_USER) {
-            return new ServiceResponse("Maximum number of contexts reached.", false, 412);
+        // Context names are unique per user, so reject a name the caller already uses. Another user may
+        // hold the same name without conflict. Checked before the limit, so a duplicate is always reported
+        // as one.
+        if(findOne(contextName, userId) != null) {
+            return new ServiceResponse("Context already exists.", false, 409, REASON_CONTEXT_EXISTS);
         }
 
-        // Context names are unique per user, so reject a name the caller already uses. Another user may
-        // hold the same name without conflict.
-        if(findOne(contextName, userId) != null) {
-            return new ServiceResponse("Context already exists.", false, 409);
+        if(findAll(userId).size() >= MAXIMUM_CONTEXTS_PER_USER) {
+            return new ServiceResponse("Maximum number of contexts reached.", false, 409,
+                    REASON_CONTEXT_LIMIT_REACHED);
         }
 
         final ContextEntity contextEntity = new ContextEntity();
@@ -93,7 +99,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             // Convert it to the same 409 the non-racing path returns rather than surfacing a raw write
             // exception as a 500.
             if(isDuplicateKey(ex)) {
-                return new ServiceResponse("Context already exists.", false, 409);
+                return new ServiceResponse("Context already exists.", false, 409, REASON_CONTEXT_EXISTS);
             }
             throw ex;
         }

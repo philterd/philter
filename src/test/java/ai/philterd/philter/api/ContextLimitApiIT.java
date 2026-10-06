@@ -85,6 +85,11 @@ class ContextLimitApiIT {
                 ApiKeyScope.all()).getMessage();
     }
 
+    private static String reason(final HttpResponse<String> response) {
+        final com.google.gson.JsonObject body = new com.google.gson.Gson().fromJson(response.body(), com.google.gson.JsonObject.class);
+        return body.has("reason") ? body.get("reason").getAsString() : null;
+    }
+
     private HttpResponse<String> send(final String method, final String path, final String key) throws Exception {
         return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .header("Authorization", "Bearer " + key)
@@ -93,7 +98,7 @@ class ContextLimitApiIT {
     }
 
     @Test
-    @DisplayName("A user can have ten contexts, counting default, and the eleventh is refused with 400")
+    @DisplayName("A user can have ten contexts, counting default, and the eleventh is refused with 409 and a reason")
     void limitsEachUserToTenContexts() throws Exception {
 
         final String key = newUserKey();
@@ -102,10 +107,16 @@ class ContextLimitApiIT {
         }
 
         final HttpResponse<String> eleventh = send("POST", "/api/contexts?name=one-too-many", key);
-        assertEquals(400, eleventh.statusCode());
+        assertEquals(409, eleventh.statusCode());
+        assertEquals("context_limit_reached", reason(eleventh), eleventh.body());
         assertTrue(eleventh.body().contains("Maximum number of contexts reached."), eleventh.body());
-        assertEquals(400, send("POST", "/api/contexts?name=c1", key).statusCode(),
-                "at the limit, even a name already in use gets the limit's 400, not 409");
+
+        final HttpResponse<String> duplicate = send("POST", "/api/contexts?name=c1", key);
+        assertEquals(409, duplicate.statusCode());
+        assertEquals("context_exists", reason(duplicate), "at the limit, a name in use is still reported as a duplicate");
+
+        final HttpResponse<String> blank = send("POST", "/api/contexts?name=%20", key);
+        assertEquals(400, blank.statusCode(), "a blank name is still a bad request: " + blank.body());
 
         assertEquals(200, send("POST", "/api/contexts?name=c1", newUserKey()).statusCode(),
                 "another user's contexts do not count toward the limit");

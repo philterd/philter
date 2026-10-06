@@ -210,13 +210,14 @@ class ContextsApiControllerTest {
     void createReturns409ForDuplicateName() throws Exception {
         // A name the caller already uses yields a 409 ServiceResponse, which must surface as HTTP 409.
         when(contextService.create(eq("dup"), eq(userId), anyBoolean(), anyBoolean()))
-                .thenReturn(new ServiceResponse("Context already exists.", false, 409));
+                .thenReturn(new ServiceResponse("Context already exists.", false, 409, "context_exists"));
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
                         .header("Authorization", AUTH_HEADER)
                         .param("name", "dup")
                         .requestAttr("requestId", "req-dup"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.reason").value("context_exists"));
     }
 
     @Test

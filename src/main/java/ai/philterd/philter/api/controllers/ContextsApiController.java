@@ -20,6 +20,7 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
 import ai.philterd.philter.api.responses.ContextEntryView;
+import ai.philterd.philter.api.responses.ContextConflictResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetAllUsersContextsResponse;
 import ai.philterd.philter.api.responses.GetContextEntriesResponse;
@@ -278,15 +279,20 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create a context.", description = "Create a new context.")
+    @Operation(summary = "Create a context.", description = "Creates a context. A user can have at most "
+            + ContextDataService.MAXIMUM_CONTEXTS_PER_USER + " contexts, counting default.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was created."),
-            @ApiResponse(responseCode = "400", description = "The context could not be created."),
-            @ApiResponse(responseCode = "409", description = "A context with this name already exists.")
+            @ApiResponse(responseCode = "400", description = "The name is missing or blank."),
+            @ApiResponse(responseCode = "409", description = "The context was not created, and reason says why: "
+                    + "context_exists (the caller already has a context with this name) or context_limit_reached "
+                    + "(the caller already has the most contexts a user may have).",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ContextConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GenericResponse> createContext(
+    public ResponseEntity<Object> createContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam("name") String name,
             final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
@@ -318,9 +324,13 @@ public class ContextsApiController extends AbstractApiController {
 
         } else {
 
-            // A name the caller already uses is a conflict; other validation failures are 400.
-            final HttpStatus status = serviceResponse.getStatusCode() == 409 ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
-            return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), status);
+            // A conflict with the caller's existing contexts, a duplicate name or the limit, is 409 with a
+            // reason; the only other failure the service reports is a blank name.
+            if (serviceResponse.getStatusCode() == 409) {
+                return new ResponseEntity<>(new ContextConflictResponse(serviceResponse.getMessage(),
+                        serviceResponse.getDetails()), HttpStatus.CONFLICT);
+            }
+            return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.BAD_REQUEST);
 
         }
 

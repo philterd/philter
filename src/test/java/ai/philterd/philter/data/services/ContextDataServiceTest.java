@@ -102,15 +102,15 @@ class ContextDataServiceTest {
 
         final FindIterable<Document> iterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(iterable);
-        // The caller is under the per-user maximum...
-        when(iterable.iterator()).thenReturn(mock(MongoCursor.class));
-        // ...but already owns a context with this name, so the per-user uniqueness check must reject it.
+        // The caller already owns a context with this name. That is checked before the limit, so a
+        // duplicate is reported as one whatever the caller's count.
         when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", userId));
 
         final ServiceResponse response = contextDataService.create("dup", userId, false, false);
 
         assertFalse(response.isSuccessful());
         assertEquals(409, response.getStatusCode());
+        assertEquals(ContextDataService.REASON_CONTEXT_EXISTS, response.getDetails());
         verify(mongoCollection, never()).insertOne(any(Document.class));
     }
 

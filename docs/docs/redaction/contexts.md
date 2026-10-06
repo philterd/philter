@@ -36,7 +36,7 @@ Contexts are managed with the [Contexts API](../api_and_sdks/api/contexts_api.md
 
 Context names are **unique per user**. You cannot have two contexts with the same name, but a name you use does not prevent another user from using the same name.
 
-Each user can have **at most 10 contexts**, including `default`. The limit is per user: other users' contexts do not count toward it. A request for an eleventh is refused with `400 Bad Request` and the message `Maximum number of contexts reached.`; delete a context to make room. The limit is fixed and cannot be changed with a setting. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
+Each user can have **at most 10 contexts**, including `default`. The limit is per user: other users' contexts do not count toward it. A request for an eleventh is refused with `409 Conflict` and `reason` set to `context_limit_reached`; delete a context to make room. The limit is fixed and cannot be changed with a setting. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
 
 Listing entries returns replacement metadata; exports include keyed token hashes and require the same deployment encryption key when imported elsewhere.
 

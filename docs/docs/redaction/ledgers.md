@@ -85,6 +85,10 @@ The validity response reports both, plus how many entries carry a signature:
 `signaturesValid` and `valid` false, even if `hashChainValid` is true. A missing, unknown, or invalid
 signing key ID also prevents signature validation. There is no unsigned compatibility mode.
 
+A chain that cannot be checked at all, such as one with an entry that no longer decrypts, is reported
+with `valid` false and a `validationError` instead of these fields. See
+[A chain that cannot be validated](../api_and_sdks/api/ledger_api.md#a-chain-that-cannot-be-validated).
+
 Every new ledger entry must be signed before it is saved. If signing fails, Philter fails the
 redaction rather than returning success with unsigned evidence. Earlier signed entries from that
 request may already have been saved; this does not make the whole chain write atomic.

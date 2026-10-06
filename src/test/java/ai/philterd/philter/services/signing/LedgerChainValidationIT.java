@@ -43,7 +43,9 @@ import java.util.Date;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -244,6 +246,64 @@ class LedgerChainValidationIT extends AbstractMongoIT {
 
         assertLogNamesTheEntryNotThePii(logsFromValidation(), target, ssn);
 
+    }
+
+    /** Validates with the logger captured, and returns the result and what was logged. */
+    private LedgerDataService.ChainValidation validateCapturingLogs(final StringBuilder logged) {
+        final CapturingAppender appender = new CapturingAppender();
+        appender.start();
+        final org.apache.logging.log4j.core.Logger logger =
+                (org.apache.logging.log4j.core.Logger) LogManager.getLogger(LedgerDataService.class);
+        logger.addAppender(appender);
+        try {
+            return ledgerDataService.validateChain(USER, DOC);
+        } finally {
+            logger.removeAppender(appender);
+            appender.stop();
+            logged.append(String.join("\n", appender.messages));
+        }
+    }
+
+    @Test
+    @DisplayName("An entry that no longer decrypts makes the chain unverifiable, not an exception")
+    void anUndecryptableEntryIsUnverifiable() throws Exception {
+
+        final String ssn = "111-22-3333";
+        writeChain(ssn);
+        final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(1);
+        ledger().updateOne(Filters.eq("hash", target.getHash()), Updates.set("token", "bm90LWNpcGhlcnRleHQ="));
+
+        final StringBuilder logged = new StringBuilder();
+        final LedgerDataService.ChainValidation validation = validateCapturingLogs(logged);
+
+        assertFalse(validation.valid());
+        assertEquals(LedgerDataService.CHAIN_UNVERIFIABLE, validation.error());
+        assertTrue(logged.toString().contains(DOC), "the failure is logged with the document id: " + logged);
+        assertFalse(logged.toString().contains(ssn), "the redacted value never reaches the log: " + logged);
+
+    }
+
+    @Test
+    @DisplayName("An entry with a field of the wrong type makes the chain unverifiable, not an exception")
+    void aMalformedEntryIsUnverifiable() throws Exception {
+
+        writeChain();
+        final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(1);
+        ledger().updateOne(Filters.eq("hash", target.getHash()), Updates.set("start_position", "not-a-number"));
+
+        final LedgerDataService.ChainValidation validation = ledgerDataService.validateChain(USER, DOC);
+        assertFalse(validation.valid());
+        assertEquals(LedgerDataService.CHAIN_UNVERIFIABLE, validation.error());
+        assertTrue(ledgerDataService.chainExists(USER, DOC), "the chain still exists, so the API answers 200, not 404");
+
+    }
+
+    @Test
+    @DisplayName("A chain that validates reports no error")
+    void aValidChainHasNoError() throws Exception {
+        writeChain();
+        assertNull(ledgerDataService.validateChain(USER, DOC).error());
+        assertFalse(ledgerDataService.chainExists(USER, "no-such-document"));
     }
 
 }

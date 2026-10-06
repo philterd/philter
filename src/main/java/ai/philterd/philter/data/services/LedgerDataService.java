@@ -22,6 +22,7 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.signing.SigningService;
+import com.mongodb.MongoException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.ReadPreference;
@@ -29,6 +30,7 @@ import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
@@ -177,18 +179,59 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      * Hash-chain consistency and signature authenticity are separate checks. An unsigned entry is
      * unauthenticated and makes the chain invalid, even when every hash and link is consistent.
      */
+    /**
+     * The result of checking a chain. {@code error} is set, and the other fields are meaningless, when the
+     * check could not be completed, such as an entry that can no longer be read.
+     */
     public record ChainValidation(boolean hashChainValid, boolean signaturesValid,
-                                  int signedEntries, int unsignedEntries) {
+                                  int signedEntries, int unsignedEntries, String error) {
+
+        public ChainValidation(final boolean hashChainValid, final boolean signaturesValid,
+                               final int signedEntries, final int unsignedEntries) {
+            this(hashChainValid, signaturesValid, signedEntries, unsignedEntries, null);
+        }
+
+        static ChainValidation unverifiable() {
+            return new ChainValidation(false, false, 0, 0, CHAIN_UNVERIFIABLE);
+        }
+
         public boolean valid() {
-            return hashChainValid && signaturesValid && unsignedEntries == 0;
+            return error == null && hashChainValid && signaturesValid && unsignedEntries == 0;
         }
     }
 
-    public boolean isChainValid(final ObjectId userId, final String documentId) throws Exception {
+    /** Reported when a chain cannot be checked. Says nothing about the cause, which is in the log. */
+    public static final String CHAIN_UNVERIFIABLE =
+            "The chain could not be validated, so it is not reported as valid. An entry could not be read or checked.";
+
+    public boolean isChainValid(final ObjectId userId, final String documentId) {
         return validateChain(userId, documentId).valid();
     }
 
-    public ChainValidation validateChain(final ObjectId userId, final String documentId) throws Exception {
+    /**
+     * Checks a chain's hashes, links, and signatures. A chain that cannot be checked, such as one with an
+     * entry that no longer decrypts or a field of the wrong type, is reported as unverifiable rather than
+     * thrown: a chain that cannot be validated is not a valid chain. A database failure still throws, since
+     * it says nothing about the chain.
+     */
+    public ChainValidation validateChain(final ObjectId userId, final String documentId) {
+        try {
+            return checkChain(userId, documentId);
+        } catch (final MongoException e) {
+            throw e;
+        } catch (final Exception e) {
+            LOGGER.warn("The ledger chain for document {} could not be validated.", documentId, e);
+            return ChainValidation.unverifiable();
+        }
+    }
+
+    /** Whether the owner has any entry for the document, without reading one. */
+    public boolean chainExists(final ObjectId userId, final String documentId) {
+        return collection.countDocuments(Filters.and(Filters.eq("user_id", userId), Filters.eq("document_id", documentId)),
+                new CountOptions().limit(1)) > 0;
+    }
+
+    private ChainValidation checkChain(final ObjectId userId, final String documentId) throws Exception {
 
         final List<LedgerEntity> chain = getChain(userId, documentId);
 

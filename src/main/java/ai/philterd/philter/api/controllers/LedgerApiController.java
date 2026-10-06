@@ -221,7 +221,8 @@ public class LedgerApiController extends AbstractApiController {
 
     @Operation(summary = "Get a document's ledger chain.",
             description = "Returns the full ordered chain of ledger entries for a document, along with whether the "
-                    + "hash chain currently verifies.")
+                    + "hash chain currently verifies. A chain that cannot be validated, such as one with an entry that "
+                    + "can no longer be read, returns valid false with a validationError and no entries.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.LEDGER_READ)
     @RequestMapping(value = "/api/ledger/{documentId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -242,20 +243,27 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<LedgerEntity> chain = ledgerService.getChain(userId, documentId);
-        if (chain.isEmpty()) {
+        // Checked without reading an entry, so a damaged one is reported by validation rather than thrown here.
+        if (!ledgerService.chainExists(userId, documentId)) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
         final LedgerDataService.ChainValidation chainValidation = ledgerService.validateChain(userId, documentId);
 
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, apiKeyEntity.getUserId(), null,
+                getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId);
+
+        // The entries could not be read or checked, so none are returned.
+        if (chainValidation.error() != null) {
+            return new ResponseEntity<>(gson.toJson(LedgerChainResponse.unverifiable(documentId, chainValidation.error())),
+                    HttpStatus.OK);
+        }
+
+        final List<LedgerEntity> chain = ledgerService.getChain(userId, documentId);
         final List<LedgerEntryView> entries = new ArrayList<>(chain.size());
         for (final LedgerEntity entry : chain) {
             entries.add(toView(entry));
         }
-
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, apiKeyEntity.getUserId(), null,
-                getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId);
 
         return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, chainValidation.valid(),
                 chainValidation.hashChainValid(), chainValidation.signaturesValid(),
@@ -265,7 +273,8 @@ public class LedgerApiController extends AbstractApiController {
 
     @Operation(summary = "Verify a document's ledger chain.",
             description = "Returns whether the hash chain for the document's ledger verifies (no entry has been "
-                    + "altered and every link is intact).")
+                    + "altered and every link is intact). A chain that cannot be validated returns valid false with a "
+                    + "validationError.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.LEDGER_READ)
     @RequestMapping(value = "/api/ledger/{documentId}/valid", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -284,11 +293,15 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        if (ledgerService.getChain(userId, documentId).isEmpty()) {
+        if (!ledgerService.chainExists(userId, documentId)) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
         final LedgerDataService.ChainValidation validation = ledgerService.validateChain(userId, documentId);
+        if (validation.error() != null) {
+            return new ResponseEntity<>(gson.toJson(LedgerChainResponse.unverifiable(documentId, validation.error())),
+                    HttpStatus.OK);
+        }
 
         return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, validation.valid(),
                 validation.hashChainValid(), validation.signaturesValid(),

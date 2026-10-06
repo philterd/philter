@@ -47,10 +47,12 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -266,6 +268,7 @@ class LedgerApiControllerTest {
 
     @Test
     void getChainReturnsEntriesAndValidity() throws Exception {
+        when(ledgerService.chainExists(userId, "doc-1")).thenReturn(true);
         when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
         when(ledgerService.validateChain(userId, "doc-1"))
                 .thenReturn(new LedgerDataService.ChainValidation(true, true, 2, 0));
@@ -280,7 +283,7 @@ class LedgerApiControllerTest {
 
     @Test
     void getChainReturns404WhenEmpty() throws Exception {
-        when(ledgerService.getChain(userId, "missing")).thenReturn(Collections.emptyList());
+        when(ledgerService.chainExists(userId, "missing")).thenReturn(false);
 
         mockMvc.perform(get("/api/ledger/missing").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-chain-404"))
@@ -289,7 +292,7 @@ class LedgerApiControllerTest {
 
     @Test
     void validateReturnsValidity() throws Exception {
-        when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
+        when(ledgerService.chainExists(userId, "doc-1")).thenReturn(true);
         when(ledgerService.validateChain(userId, "doc-1"))
                 .thenReturn(new LedgerDataService.ChainValidation(false, true, 2, 0));
 
@@ -298,6 +301,34 @@ class LedgerApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"valid\":false"));
+    }
+
+    @Test
+    @DisplayName("A chain that cannot be validated is 200 with valid false and the reason, from both endpoints")
+    void anUnverifiableChainIsReportedNotThrown() throws Exception {
+        when(ledgerService.chainExists(userId, "doc-1")).thenReturn(true);
+        when(ledgerService.validateChain(userId, "doc-1")).thenReturn(new LedgerDataService.ChainValidation(
+                false, false, 0, 0, LedgerDataService.CHAIN_UNVERIFIABLE));
+
+        for (final String path : List.of("/api/ledger/doc-1", "/api/ledger/doc-1/valid")) {
+            final String body = mockMvc.perform(get(path).header("Authorization", AUTH_HEADER)
+                            .requestAttr("requestId", "req-unverifiable"))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            final com.google.gson.JsonObject json = new Gson().fromJson(body, com.google.gson.JsonObject.class);
+            assertFalse(json.get("valid").getAsBoolean(), body);
+            assertEquals(LedgerDataService.CHAIN_UNVERIFIABLE, json.get("validationError").getAsString());
+            // It does not claim that a hash or signature mismatched, or that entries were counted.
+            for (final String absent : List.of("hashChainValid", "signaturesValid", "signedEntries", "unsignedEntries", "entries")) {
+                assertFalse(json.has(absent), absent + " should be left out: " + body);
+            }
+        }
+
+        // The entries are not read, since that is what failed.
+        verify(ledgerService, never()).getChain(any(), any());
+        // Reading the chain is audited as it is when it validates.
+        verify(auditEventPublisher).auditEvent(anyString(), eq(AuditLogEvent.REDACTION_LEDGER_QUERY), eq(userId), isNull(),
+                any(), eq("owner: " + userId + ", documentId: doc-1"));
     }
 
     @Test
@@ -564,6 +595,7 @@ class LedgerApiControllerTest {
         final ObjectId otherUser = new ObjectId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
+        when(ledgerService.chainExists(otherUser, "doc-1")).thenReturn(true);
         when(ledgerService.getChain(otherUser, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
         when(ledgerService.validateChain(otherUser, "doc-1"))
                 .thenReturn(new LedgerDataService.ChainValidation(true, true, 2, 0));
@@ -607,14 +639,15 @@ class LedgerApiControllerTest {
     void getChainForAnotherUsersDocumentReturns404() throws Exception {
         final ObjectId otherUser = new ObjectId();
         final String documentId = "doc-owned-by-other";
-        // Scoped to the caller, the chain is empty even though it exists for otherUser.
-        when(ledgerService.getChain(userId, documentId)).thenReturn(Collections.emptyList());
+        // Scoped to the caller, the chain does not exist even though it does for otherUser.
+        when(ledgerService.chainExists(userId, documentId)).thenReturn(false);
 
         mockMvc.perform(get("/api/ledger/" + documentId).header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-iso-chain"))
                 .andExpect(status().isNotFound());
 
-        verify(ledgerService).getChain(userId, documentId);
+        verify(ledgerService).chainExists(userId, documentId);
+        verify(ledgerService, never()).chainExists(eq(otherUser), any());
         verify(ledgerService, never()).getChain(eq(otherUser), any());
     }
 
@@ -636,6 +669,7 @@ class LedgerApiControllerTest {
     @Test
     @DisplayName("Reading a chain does not return the redacted values")
     void readingAChainDoesNotReturnTheValues() throws Exception {
+        when(ledgerService.chainExists(userId, "doc-1")).thenReturn(true);
         when(ledgerService.getChain(userId, "doc-1")).thenReturn(List.of(chainHead("doc-1", "a.txt")));
         when(ledgerService.validateChain(userId, "doc-1"))
                 .thenReturn(new LedgerDataService.ChainValidation(true, true, 1, 0));

@@ -382,4 +382,14 @@ class LedgerDataServiceTest {
         e.setScopeValue(documentId);
         return e;
     }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("A database failure while validating still throws, since it says nothing about the chain")
+    void aDatabaseFailureIsNotReportedAsAnInvalidChain() {
+        when(mongoCollection.find(any(Bson.class))).thenThrow(new com.mongodb.MongoTimeoutException("no server"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(com.mongodb.MongoException.class,
+                () -> ledgerDataService.validateChain(new ObjectId(), "doc-1"));
+    }
+
 }

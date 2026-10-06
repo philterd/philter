@@ -71,6 +71,20 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
 
 Returns `200 OK` with `{ "documentId": "…", "valid": true }` (the `entries` array is omitted), or `404 Not Found` if no such chain exists. `valid` is `false` if any entry was altered or a link in the chain is broken.
 
+### A chain that cannot be validated
+
+If the chain cannot be checked at all, for example because an entry can no longer be decrypted or a stored field has the wrong type, both this endpoint and [Get a document's ledger chain](#get-a-documents-ledger-chain) return `200 OK` with `valid` set to `false` and a `validationError`. A chain that cannot be validated is not reported as valid. The response leaves out `hashChainValid`, `signaturesValid`, the entry counts, and `entries`, since those checks did not complete; it does not mean a hash or signature mismatched. Philter logs the failure with the document id.
+
+```json
+{
+  "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
+  "valid": false,
+  "validationError": "The chain could not be validated, so it is not reported as valid. An entry could not be read or checked."
+}
+```
+
+A database error while reading the chain is still a `500 Internal Server Error`, since it says nothing about the chain.
+
 ## Export a document's ledger chain
 
 | Method | Endpoint                          | Description                                            |

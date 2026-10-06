@@ -15,21 +15,26 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
  * A document's redaction-ledger chain: its document id, whether the hash chain currently verifies,
- * and the ordered entries. The validity endpoint returns this with {@code entries} omitted.
+ * and the ordered entries. The validity endpoint returns this with {@code entries} omitted. A chain
+ * that could not be checked has {@code valid} false and a {@code validationError}, and leaves out the
+ * results of the checks, which did not complete.
  */
 public class LedgerChainResponse {
 
     private final String documentId;
     private final boolean valid;
     /** Reported apart from {@code valid}: these fail for different reasons and mean different things. */
-    private final boolean hashChainValid;
-    private final boolean signaturesValid;
-    private final int signedEntries;
-    private final int unsignedEntries;
+    private final Boolean hashChainValid;
+    private final Boolean signaturesValid;
+    private final Integer signedEntries;
+    private final Integer unsignedEntries;
+    private final String validationError;
     private final List<LedgerEntryView> entries;
 
     public LedgerChainResponse(final String documentId, final boolean valid, final List<LedgerEntryView> entries) {
@@ -45,23 +50,46 @@ public class LedgerChainResponse {
         this.signaturesValid = signaturesValid;
         this.signedEntries = signedEntries;
         this.unsignedEntries = unsignedEntries;
+        this.validationError = null;
         this.entries = entries;
     }
 
-    public boolean isHashChainValid() {
+    private LedgerChainResponse(final String documentId, final String validationError) {
+        this.documentId = documentId;
+        this.valid = false;
+        this.hashChainValid = null;
+        this.signaturesValid = null;
+        this.signedEntries = null;
+        this.unsignedEntries = null;
+        this.validationError = validationError;
+        this.entries = null;
+    }
+
+    /** A chain whose validation could not be completed. Gson leaves out the null fields. */
+    public static LedgerChainResponse unverifiable(final String documentId, final String validationError) {
+        return new LedgerChainResponse(documentId, validationError);
+    }
+
+    public Boolean getHashChainValid() {
         return hashChainValid;
     }
 
-    public boolean isSignaturesValid() {
+    public Boolean getSignaturesValid() {
         return signaturesValid;
     }
 
-    public int getSignedEntries() {
+    public Integer getSignedEntries() {
         return signedEntries;
     }
 
-    public int getUnsignedEntries() {
+    public Integer getUnsignedEntries() {
         return unsignedEntries;
+    }
+
+    @Schema(description = "Why the chain could not be validated. Present only then, with valid false and the "
+            + "hash, signature, and entry-count fields left out.")
+    public String getValidationError() {
+        return validationError;
     }
 
     public String getDocumentId() {

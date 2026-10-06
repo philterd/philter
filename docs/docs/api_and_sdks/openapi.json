@@ -4476,7 +4476,7 @@
           "Redaction Ledger"
         ],
         "summary": "Get a document's ledger chain.",
-        "description": "Returns the full ordered chain of ledger entries for a document, along with whether the hash chain currently verifies. Requires the `ledger:read` scope.",
+        "description": "Returns the full ordered chain of ledger entries for a document, along with whether the hash chain currently verifies. A chain that cannot be validated, such as one with an entry that can no longer be read, returns valid false with a validationError and no entries. Requires the `ledger:read` scope.",
         "operationId": "getChain",
         "parameters": [
           {
@@ -4748,7 +4748,7 @@
           "Redaction Ledger"
         ],
         "summary": "Verify a document's ledger chain.",
-        "description": "Returns whether the hash chain for the document's ledger verifies (no entry has been altered and every link is intact). Requires the `ledger:read` scope.",
+        "description": "Returns whether the hash chain for the document's ledger verifies (no entry has been altered and every link is intact). A chain that cannot be validated returns valid false with a validationError. Requires the `ledger:read` scope.",
         "operationId": "validateChain",
         "parameters": [
           {
@@ -11644,6 +11644,10 @@
           },
           "valid": {
             "type": "boolean"
+          },
+          "validationError": {
+            "description": "Why the chain could not be validated. Present only then, with valid false and the hash, signature, and entry-count fields left out.",
+            "type": "string"
           }
         }
       },

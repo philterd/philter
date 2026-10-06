@@ -58,6 +58,11 @@ GET /api/users/me
 
 Returns the user that owns the API key making the request. Requires `users:read`; does not require an administrator. `me` is reserved and cannot be used as a username.
 
+The user object has two more fields here, about the deployment, which a user who is not an administrator cannot read from the [Settings API](settings_api.md):
+
+* `mfaAvailable` - Whether users may [enroll in MFA](#start-enrollment).
+* `mfaRequired` - Whether every user who signs in must enroll. Never `true` while `mfaAvailable` is `false`.
+
 ## Get a user
 
 ```

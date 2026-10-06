@@ -7922,7 +7922,7 @@
           "Settings"
         ],
         "summary": "Get the admin settings.",
-        "description": "Returns the deployment's admin settings. The Phield API key is never returned, only whether one is set. Requires an administrator as well as the scope. Requires the `settings:read` scope.",
+        "description": "Returns the deployment's admin settings. The Phield API key is never returned, only whether one is set. Also returns, read-only, whether cross-user access and ledger deletion are enabled and whether the signing key is externally managed, which are set by environment variables. Requires an administrator as well as the scope. Requires the `settings:read` scope.",
         "operationId": "getSettings",
         "parameters": [
           {
@@ -8025,7 +8025,7 @@
           "Settings"
         ],
         "summary": "Change admin settings.",
-        "description": "Changes the settings given in the body and leaves the rest as they are. An empty phieldApiKey removes the key. phieldUrl must be an absolute http or https URL, and is required while Phield is enabled; both are checked when a request changes Phield. Each webhookAllowlist entry must be a hostname, an IP address, or a CIDR range. Nothing is changed if any value is invalid. Returns the settings as saved, with warnings, such as a Phield API key that will be sent over http. Recorded as a settings_updated audit event naming the settings that changed and the calling API key, not their values. Requires an administrator as well as the scope. Requires the `settings:write` scope.",
+        "description": "Changes the settings given in the body and leaves the rest as they are. An empty phieldApiKey removes the key. phieldUrl must be an absolute http or https URL, and is required while Phield is enabled; both are checked when a request changes Phield. Each webhookAllowlist entry must be a hostname, an IP address, or a CIDR range. Nothing is changed if any value is invalid. Returns the settings as saved, with warnings, such as a Phield API key that will be sent over http. Recorded as a settings_updated audit event naming the settings that changed and the calling API key, not their values. The read-only crossUserAccessEnabled, ledgerDeletionEnabled, and signingKeyExternallyManaged are ignored. Requires an administrator as well as the scope. Requires the `settings:write` scope.",
         "operationId": "updateSettings",
         "parameters": [
           {
@@ -8971,7 +8971,7 @@
           "Users"
         ],
         "summary": "Get the calling key's user.",
-        "description": "Returns the user that owns the API key making the request. Does not require an administrator. Requires the `users:read` scope.",
+        "description": "Returns the user that owns the API key making the request, with whether this deployment makes MFA available and required. Does not require an administrator. Requires the `users:read` scope.",
         "operationId": "getCurrentUser",
         "parameters": [
           {
@@ -8989,7 +8989,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+                  "$ref": "#/components/schemas/CurrentUserResponse"
                 }
               }
             }
@@ -11377,6 +11377,55 @@
           }
         }
       },
+      "CurrentUserResponse": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deactivatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mfaAvailable": {
+            "description": "Whether this deployment lets users enroll in MFA.",
+            "type": "boolean"
+          },
+          "mfaEnabled": {
+            "description": "Whether the user is enrolled in TOTP multi-factor authentication. The secret is never returned.",
+            "type": "boolean"
+          },
+          "mfaLocked": {
+            "description": "Whether the user's MFA is locked after repeated bad codes, until an administrator unlocks it.",
+            "type": "boolean"
+          },
+          "mfaRequired": {
+            "description": "Whether this deployment makes every user who signs in enroll in MFA. Never true while mfaAvailable is false.",
+            "type": "boolean"
+          },
+          "passwordChangeRequired": {
+            "description": "Whether the user must change their password at next sign-in, because an administrator set it.",
+            "type": "boolean"
+          },
+          "passwordSet": {
+            "description": "Whether the user has a password. A user without one can only use API keys.",
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
       "CustomListConflictResponse": {
         "type": "object",
         "properties": {
@@ -12104,8 +12153,18 @@
       "SettingsResponse": {
         "type": "object",
         "properties": {
+          "crossUserAccessEnabled": {
+            "description": "Whether administrators may use owner and all_users to reach other users' resources. Set by ADMIN_CROSS_USER_ACCESS_ENABLED; read-only, and ignored by PATCH.",
+            "type": "boolean",
+            "readOnly": true
+          },
           "diffuseCountsEnabled": {
             "type": "boolean"
+          },
+          "ledgerDeletionEnabled": {
+            "description": "Whether administrators may delete and purge ledger chains. Set by LEDGER_DELETION_ENABLED; read-only, and ignored by PATCH.",
+            "type": "boolean",
+            "readOnly": true
           },
           "mfaAvailable": {
             "type": "boolean"
@@ -12130,6 +12189,11 @@
           },
           "signingEnabled": {
             "type": "boolean"
+          },
+          "signingKeyExternallyManaged": {
+            "description": "Whether the output signing key comes from PHILTER_SIGNING_KEY_PATH, in which case it cannot be rotated through the API. Read-only, and ignored by PATCH.",
+            "type": "boolean",
+            "readOnly": true
           },
           "warnings": {
             "type": "array",

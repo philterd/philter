@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api;
 
+import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -84,7 +86,7 @@ class SettingsApiIT {
     @AfterEach
     void tearDown() {
         // The settings are global to the shared application; put back the defaults other tests expect.
-        adminSettingsDataService.update(new AdminSettingsDataService.Update(false, false, "", false, "", "", "", "", null, null),
+        adminSettingsDataService.update(new AdminSettingsDataService.Update(false, false, "", false, "", "", "", "", false, false),
                 adminId, null);
         httpClient.close();
     }
@@ -172,6 +174,65 @@ class SettingsApiIT {
         final HttpResponse<String> noScope = send("PATCH", "/api/settings", readOnly, "{\"signingEnabled\":true}");
         assertEquals(403, noScope.statusCode());
         assertTrue(noScope.body().contains("settings:write"), noScope.body());
+    }
+
+    @Test
+    @DisplayName("Reading reports the deployment flags, which a change cannot set")
+    void reportsTheDeploymentFlags() throws Exception {
+        try {
+            AdminAccessConfig.setOverrideForTesting(true);
+            LedgerDeletionConfig.setOverrideForTesting(false);
+            JsonObject settings = gson.fromJson(send("GET", "/api/settings", adminKey, null).body(), JsonObject.class);
+            assertTrue(settings.get("crossUserAccessEnabled").getAsBoolean());
+            assertFalse(settings.get("ledgerDeletionEnabled").getAsBoolean());
+            // No PHILTER_SIGNING_KEY_PATH in tests, so the key is Philter's own.
+            assertFalse(settings.get("signingKeyExternallyManaged").getAsBoolean());
+
+            AdminAccessConfig.setOverrideForTesting(false);
+            LedgerDeletionConfig.setOverrideForTesting(true);
+            settings = gson.fromJson(send("GET", "/api/settings", adminKey, null).body(), JsonObject.class);
+            assertFalse(settings.get("crossUserAccessEnabled").getAsBoolean());
+            assertTrue(settings.get("ledgerDeletionEnabled").getAsBoolean());
+
+            // Sent back in a change, as a client that saves what it read would, they are ignored.
+            final HttpResponse<String> changed = send("PATCH", "/api/settings", adminKey,
+                    "{\"crossUserAccessEnabled\":true,\"ledgerDeletionEnabled\":false,\"signingKeyExternallyManaged\":true,\"diffuseCountsEnabled\":true}");
+            assertEquals(200, changed.statusCode(), changed.body());
+            settings = gson.fromJson(changed.body(), JsonObject.class);
+            assertFalse(settings.get("crossUserAccessEnabled").getAsBoolean());
+            assertTrue(settings.get("ledgerDeletionEnabled").getAsBoolean());
+            assertFalse(settings.get("signingKeyExternallyManaged").getAsBoolean());
+            assertTrue(settings.get("diffuseCountsEnabled").getAsBoolean(), "the rest of the change applies");
+        } finally {
+            AdminAccessConfig.setOverrideForTesting(null);
+            LedgerDeletionConfig.setOverrideForTesting(null);
+        }
+    }
+
+    @Test
+    @DisplayName("Any user reads whether MFA is available and required from their own account")
+    void anyUserReadsTheMfaSettings() throws Exception {
+        final String userKey = apiKeyDataService.createApiKey("req", seedUser("user"), "test", ApiKeyScope.all()).getMessage();
+
+        JsonObject me = gson.fromJson(send("GET", "/api/users/me", userKey, null).body(), JsonObject.class);
+        assertFalse(me.get("mfaAvailable").getAsBoolean());
+        assertFalse(me.get("mfaRequired").getAsBoolean());
+
+        assertEquals(200, send("PATCH", "/api/settings", adminKey, "{\"mfaAvailable\":true}").statusCode());
+        me = gson.fromJson(send("GET", "/api/users/me", userKey, null).body(), JsonObject.class);
+        assertTrue(me.get("mfaAvailable").getAsBoolean());
+        assertFalse(me.get("mfaRequired").getAsBoolean());
+
+        assertEquals(200, send("PATCH", "/api/settings", adminKey, "{\"mfaRequired\":true}").statusCode());
+        for (final String key : new String[]{userKey, adminKey}) {
+            me = gson.fromJson(send("GET", "/api/users/me", key, null).body(), JsonObject.class);
+            assertTrue(me.get("mfaAvailable").getAsBoolean());
+            assertTrue(me.get("mfaRequired").getAsBoolean());
+        }
+
+        // Another user's record, read by an administrator, does not repeat the deployment's settings.
+        final String username = me.get("username").getAsString();
+        assertFalse(send("GET", "/api/users/" + username, adminKey, null).body().contains("mfaAvailable"));
     }
 
 }

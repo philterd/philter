@@ -26,6 +26,7 @@ import ai.philterd.philter.api.responses.CreatedUserResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetUsersResponse;
 import ai.philterd.philter.api.responses.MfaEnrollmentResponse;
+import ai.philterd.philter.api.responses.CurrentUserResponse;
 import ai.philterd.philter.api.responses.UserResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
@@ -136,12 +137,12 @@ public class UsersApiController extends AbstractApiController {
 
     @Operation(
             summary = "Get the calling key's user.",
-            description = "Returns the user that owns the API key making the request. Does not require an "
-                    + "administrator.")
+            description = "Returns the user that owns the API key making the request, with whether this "
+                    + "deployment makes MFA available and required. Does not require an administrator.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The calling key's user.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = UserResponse.class))),
+                            schema = @Schema(implementation = CurrentUserResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold users:read.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -159,7 +160,9 @@ public class UsersApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        return ResponseEntity.ok(new UserResponse(user));
+        final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
+        return ResponseEntity.ok(new CurrentUserResponse(user,
+                settings != null && settings.isMfaAvailable(), settings != null && settings.isMfaRequired()));
 
     }
 

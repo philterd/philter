@@ -1,6 +1,6 @@
 # Settings API
 
-These endpoints read and change the deployment's admin settings: differential-privacy count recording, output signing, the webhook destination allowlist, and Phield publishing. They require an administrator in addition to the [scope](../../account/api_keys.md#scopes): `settings:read` to read, `settings:write` to change.
+These endpoints read and change the deployment's admin settings: differential-privacy count recording, output signing, the webhook destination allowlist, Phield publishing, and MFA. Reading also reports which features the deployment's environment variables turn on. They require an administrator in addition to the [scope](../../account/api_keys.md#scopes): `settings:read` to read, `settings:write` to change.
 
 ## The settings object
 
@@ -16,7 +16,10 @@ These endpoints read and change the deployment's admin settings: differential-pr
   "phieldApiKeySet": true,
   "mfaAvailable": false,
   "mfaRequired": false,
-  "warnings": []
+  "warnings": [],
+  "crossUserAccessEnabled": false,
+  "ledgerDeletionEnabled": false,
+  "signingKeyExternallyManaged": false
 }
 ```
 
@@ -28,6 +31,12 @@ These endpoints read and change the deployment's admin settings: differential-pr
 * `mfaAvailable` - Whether users may enroll in [TOTP multi-factor authentication](users_api.md#multi-factor-authentication) for [sign-in](sign_in_api.md). Users already enrolled are asked for a code whatever this says.
 * `mfaRequired` - Whether every user who signs in must enroll in MFA. A user who is not enrolled gets a key that can only enroll. Requires `mfaAvailable`.
 * `warnings` - Warnings about the saved settings, returned on a change. Empty on a read.
+
+These are set by environment variables, so they are read-only. A client uses them to decide which controls to offer. `PATCH` ignores them.
+
+* `crossUserAccessEnabled` - Whether administrators may use `owner` and `all_users` to reach other users' resources. Set by [`ADMIN_CROSS_USER_ACCESS_ENABLED`](../../settings.md#api-access). While it is off, those requests return `404 Not Found`.
+* `ledgerDeletionEnabled` - Whether administrators may delete and purge [ledger](ledger_api.md) chains. Set by [`LEDGER_DELETION_ENABLED`](../../settings.md#api-access).
+* `signingKeyExternallyManaged` - Whether the [output signing](../../output_signing.md) key is loaded from `PHILTER_SIGNING_KEY_PATH`. If so, `POST /api/signing-key/regenerate` returns `409 Conflict`; replace the file instead.
 
 ## Get the settings
 

@@ -22,6 +22,7 @@ import ai.philterd.philter.api.responses.SettingsResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
+import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -56,19 +57,29 @@ public class SettingsApiController extends AbstractApiController {
 
     private final AdminSettingsDataService adminSettingsDataService;
     private final UserService userService;
+    private final SigningKeyDataService signingKeyDataService;
 
     public SettingsApiController(final ApiKeyDataService apiKeyDataService,
                                  final ApiKeyCache apiKeyCache,
                                  final AdminSettingsDataService adminSettingsDataService,
-                                 final UserService userService) {
+                                 final UserService userService,
+                                 final SigningKeyDataService signingKeyDataService) {
         super(apiKeyDataService, apiKeyCache);
         this.adminSettingsDataService = adminSettingsDataService;
         this.userService = userService;
+        this.signingKeyDataService = signingKeyDataService;
+    }
+
+    private SettingsResponse settings(final List<String> warnings) {
+        return new SettingsResponse(adminSettingsDataService.findAdminSettings(), warnings,
+                isCrossUserAccessEnabled(), isLedgerDeletionEnabled(), signingKeyDataService.isExternallyManaged());
     }
 
     @Operation(summary = "Get the admin settings.",
             description = "Returns the deployment's admin settings. The Phield API key is never returned, only "
-                    + "whether one is set. Requires an administrator as well as the scope.")
+                    + "whether one is set. Also returns, read-only, whether cross-user access and ledger deletion are "
+                    + "enabled and whether the signing key is externally managed, which are set by environment "
+                    + "variables. Requires an administrator as well as the scope.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The settings.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -90,7 +101,7 @@ public class SettingsApiController extends AbstractApiController {
             return refusal;
         }
 
-        return ResponseEntity.ok(new SettingsResponse(adminSettingsDataService.findAdminSettings(), List.of()));
+        return ResponseEntity.ok(settings(List.of()));
 
     }
 
@@ -100,7 +111,8 @@ public class SettingsApiController extends AbstractApiController {
                     + "while Phield is enabled; both are checked when a request changes Phield. Each webhookAllowlist entry must be a hostname, an IP address, or a CIDR "
                     + "range. Nothing is changed if any value is invalid. Returns the settings as saved, with warnings, "
                     + "such as a Phield API key that will be sent over http. Recorded as a settings_updated audit event "
-                    + "naming the settings that changed and the calling API key, not their values. Requires an "
+                    + "naming the settings that changed and the calling API key, not their values. The read-only "
+                    + "crossUserAccessEnabled, ledgerDeletionEnabled, and signingKeyExternallyManaged are ignored. Requires an "
                     + "administrator as well as the scope.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The settings as saved.",
@@ -141,7 +153,7 @@ public class SettingsApiController extends AbstractApiController {
                     "Changing the admin settings requires an administrator."));
         }
 
-        return ResponseEntity.ok(new SettingsResponse(adminSettingsDataService.findAdminSettings(), warnings));
+        return ResponseEntity.ok(settings(warnings));
 
     }
 

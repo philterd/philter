@@ -62,7 +62,7 @@ class ApiKeyScopeAssignmentTest {
             "POST /api/sign-in/mfa");
 
     /** Callable with any key ({@link AnyApiKey}). Documented under "Endpoints any key can call". */
-    private static final Set<String> ANY_KEY = Set.of("DELETE /api/api-keys/current");
+    private static final Set<String> ANY_KEY = Set.of("DELETE /api/api-keys/current", "GET /api/api-keys/scopes");
 
     @Test
     @DisplayName("Every handler requires the scope the documentation promises")

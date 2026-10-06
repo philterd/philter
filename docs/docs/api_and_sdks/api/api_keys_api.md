@@ -32,6 +32,23 @@ A key is bounded by the key calling the endpoint:
 * `idleExpiresAt` - Session keys only: when the key expires unless it is used before then. Each request moves it forward. `null` for a long-lived key.
 * `lastUsedAt` - Session keys only: the last request made with the key. Philter does not record when a long-lived key was last used.
 
+## List the scopes
+
+```
+GET /api/api-keys/scopes
+```
+
+Returns every scope an API key can carry, with what it allows, in the order Philter declares them. Use it to offer scopes to choose from instead of hard-coding them; a scope Philter adds appears here. Any key can call it, whatever its scopes. See [Scopes](../../account/api_keys.md#scopes).
+
+```json
+{
+  "scopes": [
+    { "name": "redact", "description": "Redact text and documents, and explain redactions." },
+    { "name": "contexts:read", "description": "List and read contexts and their entries, including exports." }
+  ]
+}
+```
+
 ## List your keys
 
 ```

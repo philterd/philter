@@ -19,6 +19,7 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.requests.CreateApiKeyRequest;
 import ai.philterd.philter.api.requests.SetApiKeyScopesRequest;
 import ai.philterd.philter.api.responses.ApiKeyResponse;
+import ai.philterd.philter.api.responses.ApiKeyScopesResponse;
 import ai.philterd.philter.api.responses.CreatedApiKeyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetApiKeysResponse;
@@ -360,6 +361,27 @@ public class ApiKeysApiController extends AbstractApiController {
         }
 
         return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(
+            summary = "List the API key scopes.",
+            description = "Returns every scope an API key can carry, with what it allows, in the order Philter declares "
+                    + "them, so a client offering scopes to choose from need not hard-code them. Any key may call it, "
+                    + "whatever its scopes, since it describes the API rather than any account.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Every scope.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiKeyScopesResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized.")
+    })
+    @AnyApiKey
+    @RequestMapping(value = "/api/api-keys/scopes", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<ApiKeyScopesResponse> getScopes(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+
+        requireApiKey(authorizationHeader);
+        return ResponseEntity.ok(new ApiKeyScopesResponse());
 
     }
 

@@ -99,6 +99,8 @@ Two scopes are separated from the resources they belong to because they return t
 
 `DELETE /api/api-keys/current` signs out a [session key](#session-keys). Any key can call it, whatever its scopes, because it can only end the caller's own access.
 
+`GET /api/api-keys/scopes` [lists the scopes](../api_and_sdks/api/api_keys_api.md#list-the-scopes) and what each allows. Any key can call it, because it describes the API rather than any account.
+
 ### Choosing and changing scopes
 
 Scopes are named when a key is created. Change them on an existing key with [`PUT /api/api-keys/{keyId}/scopes`](../api_and_sdks/api/api_keys_api.md#change-a-keys-scopes): the key value itself does not change, so integrations keep working with the same credential, and the change takes effect on the next request.

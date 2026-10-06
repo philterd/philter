@@ -215,4 +215,27 @@ class ApiKeysApiIT {
                 "every change names the calling key: " + recorded);
     }
 
+    @Test
+    @DisplayName("Every scope is listed, in declaration order with its description, to any key")
+    void listsEveryScope() throws Exception {
+
+        // A key with no API key scopes at all can still read the list.
+        final String key = seedKey(seedUser("user"), Set.of(ai.philterd.philter.model.ApiKeyScope.REDACT.getScope()));
+        final HttpResponse<String> response = send("GET", "/api/api-keys/scopes", key, null);
+        assertEquals(200, response.statusCode(), response.body());
+
+        final com.google.gson.JsonArray listed = gson.fromJson(response.body(), com.google.gson.JsonObject.class).getAsJsonArray("scopes");
+        final ai.philterd.philter.model.ApiKeyScope[] declared = ai.philterd.philter.model.ApiKeyScope.values();
+        assertEquals(declared.length, listed.size(), "every scope, and only scopes");
+        for (int i = 0; i < declared.length; i++) {
+            final com.google.gson.JsonObject scope = listed.get(i).getAsJsonObject();
+            assertEquals(declared[i].getScope(), scope.get("name").getAsString());
+            assertEquals(declared[i].getDescription(), scope.get("description").getAsString());
+        }
+
+        assertEquals(401, httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/api-keys/scopes")).GET().build(),
+                HttpResponse.BodyHandlers.ofString()).statusCode(), "but not without a key");
+
+    }
+
 }

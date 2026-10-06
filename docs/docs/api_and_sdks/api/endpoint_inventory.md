@@ -10,6 +10,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 |--------|----------|----------------|----------------|-----------|
 | GET | `/api/api-keys` | application/json | `api-keys:read` | [Details](api_keys_api.md) |
 | POST | `/api/api-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
+| GET | `/api/api-keys/scopes` | application/json | Any key | [Details](api_keys_api.md#list-the-scopes) |
 | DELETE | `/api/api-keys/current` | See reference | Any key | [Details](api_keys_api.md#sign-out) |
 | DELETE | `/api/api-keys/{keyId}` | See reference | `api-keys:write` | [Details](api_keys_api.md) |
 | PUT | `/api/api-keys/{keyId}/scopes` | application/json | `api-keys:write` | [Details](api_keys_api.md) |

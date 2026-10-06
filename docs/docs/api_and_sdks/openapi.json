@@ -347,6 +347,101 @@
         }
       }
     },
+    "/api/api-keys/scopes": {
+      "get": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "List the API key scopes.",
+        "description": "Returns every scope an API key can carry, with what it allows, in the order Philter declares them, so a client offering scopes to choose from need not hard-code them. Any key may call it, whatever its scopes, since it describes the API rather than any account.",
+        "operationId": "getScopes",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyScopesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/api-keys/{keyId}": {
       "delete": {
         "tags": [
@@ -10760,6 +10855,30 @@
           "session": {
             "description": "Whether this is a session key, issued when a person signed in, rather than a long-lived key.",
             "type": "boolean"
+          }
+        }
+      },
+      "ApiKeyScopeDescription": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "What the scope allows, including any requirement for an administrator.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The scope as an API key carries it, for example policies:read.",
+            "type": "string"
+          }
+        }
+      },
+      "ApiKeyScopesResponse": {
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyScopeDescription"
+            }
           }
         }
       },

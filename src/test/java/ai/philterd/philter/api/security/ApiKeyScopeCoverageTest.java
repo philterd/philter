@@ -55,7 +55,7 @@ class ApiKeyScopeCoverageTest {
             "SignInApiController.signInMfa");
 
     /** Endpoints any authenticated key may call ({@link AnyApiKey}), because they only end the caller's own access. */
-    private static final Set<String> ANY_KEY = Set.of("ApiKeysApiController.signOut");
+    private static final Set<String> ANY_KEY = Set.of("ApiKeysApiController.signOut", "ApiKeysApiController.getScopes");
 
     @Test
     @DisplayName("Every API handler declares a required scope")

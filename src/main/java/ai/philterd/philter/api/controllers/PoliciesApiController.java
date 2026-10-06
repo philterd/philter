@@ -22,6 +22,7 @@ import ai.philterd.philter.api.requests.PolicyDetailsRequest;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.OwnedNameResponse;
+import ai.philterd.philter.api.responses.PolicyConflictResponse;
 import ai.philterd.philter.api.responses.PolicyDetailsResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -203,11 +204,19 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The policy was saved and is now active. A policy_activated audit event is recorded."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. "
+                    + "Also returned, with a message, when the policy was deleted while it was being updated.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "The policy was not saved, and reason says why: policy_changed "
+                    + "(it changed concurrently; reload it and retry) or policy_exists (a policy with this name was "
+                    + "created concurrently).",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Void> save(
+    public ResponseEntity<Object> save(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -256,7 +265,13 @@ public class PoliciesApiController extends AbstractApiController {
             if (response.getStatusCode() == HttpStatus.BAD_REQUEST.value()) {
                 throw new BadRequestException(response.getMessage());
             }
-            return ResponseEntity.status(response.getStatusCode()).build();
+            // The content type is set rather than negotiated, so the refusal is sent whatever Accept asked for.
+            final ResponseEntity.BodyBuilder refusal = ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON);
+            if (response.getStatusCode() == HttpStatus.CONFLICT.value()) {
+                return refusal.body(new PolicyConflictResponse(response.getMessage(), response.getDetails()));
+            }
+            return refusal.body(new GenericResponse(response.getMessage()));
         }
 
         // Policies saved via the API become active immediately. Record the activation so it is

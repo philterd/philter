@@ -51,6 +51,10 @@ import java.util.List;
  */
 public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
 
+    /** Reasons a hold change is refused with 409, carried in the response's details. */
+    public static final String REASON_HOLD_EXISTS = "hold_exists";
+    public static final String REASON_OPERATION_IN_PROGRESS = "operation_in_progress";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(LegalHoldDataService.class);
     private final EvidenceOperationGuard guard;
     private final MongoCollection<Document> holds;
@@ -91,7 +95,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
 
         return guard.execute(userId, "create_hold", () -> {
             if (findByReference(reference, userId) != null) {
-                return new ServiceResponse("A hold with reference '" + reference + "' already exists.", false, 409);
+                return new ServiceResponse("A hold with reference '" + reference + "' already exists.", false, 409, REASON_HOLD_EXISTS);
             }
 
             final LegalHoldEntity hold = new LegalHoldEntity();

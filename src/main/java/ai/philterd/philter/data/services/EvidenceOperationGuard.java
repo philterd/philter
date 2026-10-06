@@ -54,7 +54,7 @@ final class EvidenceOperationGuard {
                 Updates.combine(Updates.set("token", token), Updates.set("operation", operation),
                         Updates.set("started_at", new Date()))).getModifiedCount() != 1) {
             return new ServiceResponse("An evidence or legal-hold operation is active or requires recovery for this owner.",
-                    false, 409);
+                    false, 409, LegalHoldDataService.REASON_OPERATION_IN_PROGRESS);
         }
         // Deliberately not a finally block: a timeout can leave a server-side mutation running.
         // Releasing after an uncertain failure would let a hold succeed before that mutation ends.

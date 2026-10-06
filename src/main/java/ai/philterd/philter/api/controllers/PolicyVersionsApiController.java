@@ -17,6 +17,8 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.PolicyConflictResponse;
 import ai.philterd.philter.api.responses.PolicyRollbackResponse;
 import ai.philterd.philter.api.responses.PolicyVersionSummary;
 import ai.philterd.philter.api.security.RequiresScope;
@@ -38,6 +40,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -272,16 +276,24 @@ public class PolicyVersionsApiController extends AbstractApiController {
                     + "and its revision counter is incremented. The rollback is audited. Admins may roll "
                     + "back another user's policy via the owner parameter.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Rollback succeeded. Body contains the new revision number."),
-            @ApiResponse(responseCode = "400", description = "The policy name or target revision is missing."),
+            @ApiResponse(responseCode = "201", description = "Rollback succeeded. Body contains the new revision number.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyRollbackResponse.class))),
+            @ApiResponse(responseCode = "400", description = "The policy name or target revision is missing.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The policy or the target revision does not exist."),
-            @ApiResponse(responseCode = "409", description = "Managed policies cannot be rolled back.")
+            @ApiResponse(responseCode = "404", description = "The policy or the target revision does not exist.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The policy was not rolled back, and reason says why: "
+                    + "policy_managed (managed policies cannot be rolled back) or policy_changed (the policy changed "
+                    + "concurrently; reload it and retry).",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}/rollback", method = RequestMethod.POST,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<PolicyRollbackResponse> rollback(
+    public @ResponseBody ResponseEntity<Object> rollback(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable("policyName") final String policyName,
             @RequestParam("revision") final int targetRevision,
@@ -316,10 +328,11 @@ public class PolicyVersionsApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         if (response.getStatusCode() == 409) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new PolicyConflictResponse(response.getMessage(), response.getDetails()));
         }
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new GenericResponse(response.getMessage()));
         }
 
         // Fetch the live policy to return the authoritative new revision number.

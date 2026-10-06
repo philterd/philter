@@ -3692,24 +3692,17 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegalHoldResponse"
-                }
-              }
-            }
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
           },
           "406": {
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "A hold with this reference exists, or an evidence/hold operation is active or requires recovery.",
+            "description": "The hold was not set, and reason says why: hold_exists (a hold with this reference exists) or operation_in_progress (an evidence or hold operation for the owner is active or requires recovery).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegalHoldResponse"
+                  "$ref": "#/components/schemas/LegalHoldConflictResponse"
                 }
               }
             }
@@ -3819,13 +3812,27 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "No hold with the given reference exists for this user."
+            "description": "No hold with the given reference exists for this user. When the owner was reached, the body carries a message; an unreachable owner returns no body, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "An evidence or hold operation is active or requires recovery."
+            "description": "The hold was not released because an evidence or hold operation for the owner is active or requires recovery; reason is operation_in_progress.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalHoldConflictResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -5663,7 +5670,14 @@
         },
         "responses": {
           "201": {
-            "description": "The policy was saved and is now active. A policy_activated audit event is recorded."
+            "description": "The policy was saved and is now active. A policy_activated audit event is recorded.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "400": {
             "description": "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long.",
@@ -5689,10 +5703,27 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. Also returned, with a message, when the policy was deleted while it was being updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The policy was not saved, and reason says why: policy_changed (it changed concurrently; reload it and retry) or policy_exists (a policy with this name was created concurrently).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyConflictResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -6748,24 +6779,17 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The policy or the target revision does not exist.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PolicyRollbackResponse"
-                }
-              }
-            }
+            "description": "The policy or the target revision does not exist."
           },
           "406": {
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "Managed policies cannot be rolled back.",
+            "description": "The policy was not rolled back, and reason says why: policy_managed (managed policies cannot be rolled back) or policy_changed (the policy changed concurrently; reload it and retry).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PolicyRollbackResponse"
+                  "$ref": "#/components/schemas/PolicyConflictResponse"
                 }
               }
             }
@@ -11344,6 +11368,22 @@
           }
         }
       },
+      "LegalHoldConflictResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the hold was not changed: hold_exists (the owner already has a hold with this reference) or operation_in_progress (another evidence or hold operation for the owner is active or requires recovery).",
+            "type": "string",
+            "enum": [
+              "hold_exists",
+              "operation_in_progress"
+            ]
+          }
+        }
+      },
       "LegalHoldRequest": {
         "type": "object",
         "properties": {
@@ -11529,6 +11569,23 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PolicyConflictResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the policy was not changed: policy_managed (it is a built-in managed policy), policy_changed (it changed concurrently; reload it and retry), or policy_exists (a policy with this name was created concurrently).",
+            "type": "string",
+            "enum": [
+              "policy_managed",
+              "policy_changed",
+              "policy_exists"
+            ]
           }
         }
       },

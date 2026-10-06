@@ -59,6 +59,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
@@ -504,12 +505,41 @@ class PolicyVersionsApiControllerTest {
     @Test
     void rollbackReturns409ForManagedPolicy() throws Exception {
         when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Managed policies cannot be rolled back.", false, 409));
+                .thenReturn(new ServiceResponse("Managed policies cannot be rolled back.", false, 409,
+                        PolicyDataService.REASON_POLICY_MANAGED));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
                         .param("revision", "1"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Managed policies cannot be rolled back."))
+                .andExpect(jsonPath("$.reason").value("policy_managed"));
+    }
+
+    @Test
+    void rollbackReturns409WithAReasonWhenThePolicyChangedConcurrently() throws Exception {
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
+                .thenReturn(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
+                        PolicyDataService.REASON_POLICY_CHANGED));
+
+        mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("revision", "1"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Policy changed concurrently. Reload and retry."))
+                .andExpect(jsonPath("$.reason").value("policy_changed"));
+    }
+
+    @Test
+    void rollbackReturnsTheServiceMessageWithAnyOtherFailure() throws Exception {
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
+                .thenReturn(new ServiceResponse("Something else.", false, 400));
+
+        mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("revision", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Something else."));
     }
 
     @Test

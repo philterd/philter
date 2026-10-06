@@ -109,7 +109,7 @@ Returns `201 Created` with the new revision number:
 { "revision": 4 }
 ```
 
-Managed policies cannot be rolled back (returns `409 Conflict`). If the target revision does not exist, returns `404 Not Found`.
+A refused rollback returns `409 Conflict` with a `message` and a `reason`: `policy_managed` for a managed policy, which cannot be rolled back, or `policy_changed` when the policy changed during the rollback. If the target revision does not exist, returns `404 Not Found`.
 
 ### HTTP status codes
 
@@ -120,7 +120,7 @@ Managed policies cannot be rolled back (returns `409 Conflict`). If the target r
 | `400 Bad Request` | The policy name is missing, fewer than two revisions exist for a default diff, or only one of `from`/`to` was supplied. |
 | `401 Unauthorized` | The `Authorization` header is absent or the API key is not recognized. |
 | `404 Not Found` | The policy or the requested revision does not exist, or a non-admin caller named another user as `owner`. |
-| `409 Conflict` | Rollback attempted on a managed policy. |
+| `409 Conflict` | The rollback was refused; `reason` is `policy_managed` or `policy_changed`. |
 
 ### Admin cross-user access
 

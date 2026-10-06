@@ -58,7 +58,7 @@ Authorization: Bearer <api-key>
 }
 ```
 
-A successful response returns **HTTP 201 Created** with the hold details. If the reference already exists for the calling user, **HTTP 409 Conflict** is returned. Choose a different reference or release the existing one first.
+A successful response returns **HTTP 201 Created** with the hold details. If the reference already exists for the calling user, **HTTP 409 Conflict** is returned with the reason `hold_exists`. Choose a different reference or release the existing one first.
 
 ### 2. View active holds
 
@@ -137,16 +137,16 @@ The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdk
 
 Hold creation, hold release, individual-chain deletion, age purge, and bulk owner-evidence deletion
 share one persistent guard per evidence owner in MongoDB. If deletion acquires it first, a competing
-hold request returns HTTP 409 and has not established a hold. If hold creation acquires it first,
+hold request returns HTTP 409 with the reason `operation_in_progress` and has not established a hold. If hold creation acquires it first,
 deletion cannot proceed until the hold is visible; subsequent protected deletion returns HTTP 423.
-Unrelated owners proceed independently. A busy guard also returns HTTP 409 for release requests.
+Unrelated owners proceed independently. A busy guard also returns HTTP 409 with that reason for release requests.
 
 The guard has no timeout or automatic takeover. Expiring it could let a delayed server-side deletion
 continue after a new hold has been acknowledged. Successful operations release it; an exception,
 process crash, or uncertain database result leaves it held. Normal redaction and reads do not acquire
 this guard. It coordinates hold/deletion ordering; it does not make multi-row deletion transactional.
 
-If an owner's operations keep returning 409 after an interruption:
+If an owner's operations keep returning 409 with `operation_in_progress` after an interruption:
 
 1. Inspect that owner's record in the evidence_operation_guards collection. Its _id is the owner's
    ObjectId; token, operation, and started_at identify the retained operation.

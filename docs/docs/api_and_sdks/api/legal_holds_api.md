@@ -29,7 +29,9 @@ All endpoints require authentication with a Bearer token. See [API Keys](../../a
 
 * `201 Created` - The hold was set and is now active. The body contains the hold details.
 * `400 Bad Request` - A required field is missing or `scopeType` is not recognized.
-* `409 Conflict` - A hold with this reference already exists for the user.
+* `409 Conflict` - The hold was not set. The body carries a `message` and a `reason`:
+    * `hold_exists` - A hold with this reference already exists for the user.
+    * `operation_in_progress` - Another evidence or hold operation for the user is active, or was interrupted and requires recovery. Retry once it finishes.
 
 Example request:
 
@@ -99,12 +101,22 @@ Once released, evidence previously covered by this hold becomes eligible for del
 ### Responses
 
 * `200 OK` - The hold was released.
-* `404 Not Found` - No hold with that reference exists for the user.
+* `404 Not Found` - No hold with that reference exists for the user. The body carries a `message`, except when the `owner` does not exist or may not be reached.
+* `409 Conflict` - The hold was not released because another evidence or hold operation for the user is active or requires recovery. The body carries a `message` and the `reason` `operation_in_progress`.
 
 Example request:
 
 ```bash
 curl -k -X DELETE -H "Authorization: Bearer <token>" "https://localhost:8080/api/holds/LIT-2026-001"
+```
+
+Example `409` response:
+
+```json
+{
+  "message": "An evidence or legal-hold operation is active or requires recovery for this owner.",
+  "reason": "operation_in_progress"
+}
 ```
 
 ## Blocked Deletions

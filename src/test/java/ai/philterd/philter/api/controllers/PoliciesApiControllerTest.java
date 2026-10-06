@@ -59,6 +59,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -220,6 +221,60 @@ class PoliciesApiControllerTest {
                 isNull(),
                 isNull(),
                 eq("policy: my-policy"));
+    }
+
+    @Test
+    void createReturns409WithAReasonWhenTheNameWasTakenConcurrently() throws Exception {
+        when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+        when(policyDataService.create(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString()))
+                .thenReturn(new ServiceResponse("A policy with this name already exists.", false, 409,
+                        PolicyDataService.REASON_POLICY_EXISTS));
+
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("name", "my-policy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A policy with this name already exists."))
+                .andExpect(jsonPath("$.reason").value("policy_exists"));
+    }
+
+    @Test
+    void updateReturns409WithAReasonWhenThePolicyChangedConcurrently() throws Exception {
+        final PolicyEntity existing = new PolicyEntity();
+        existing.setId(new ObjectId());
+        when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
+        when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString()))
+                .thenReturn(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
+                        PolicyDataService.REASON_POLICY_CHANGED));
+
+        // An Accept header that excludes JSON still gets the JSON refusal.
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .accept(MediaType.TEXT_PLAIN)
+                        .param("name", "my-policy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Policy changed concurrently. Reload and retry."))
+                .andExpect(jsonPath("$.reason").value("policy_changed"));
+    }
+
+    @Test
+    void updateReturnsTheServiceMessageWhenThePolicyWasDeletedMeanwhile() throws Exception {
+        final PolicyEntity existing = new PolicyEntity();
+        existing.setId(new ObjectId());
+        when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
+        when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
+        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString()))
+                .thenReturn(new ServiceResponse("Policy does not exist.", false, 404));
+
+        mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("name", "my-policy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_POLICY_BODY))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Policy does not exist."));
     }
 
     @Test

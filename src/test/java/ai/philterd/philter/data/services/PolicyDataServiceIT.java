@@ -34,7 +34,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import java.util.ArrayList;
 
 /**
@@ -98,6 +100,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final ServiceResponse response = create(user, "dup");
         assertFalse(response.isSuccessful());
         assertEquals(409, response.getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_EXISTS, response.getDetails());
     }
 
     @Test
@@ -366,6 +369,24 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
         assertTrue(service.rollback("req", "p", userId, afterRollback, userId, "10.0.0.1").isSuccessful(),
                 "the revision a rollback lands on must itself be resolvable");
+    }
+
+    @Test
+    @DisplayName("A rollback that read the policy before another change is refused with policy_changed")
+    void aRollbackOverAConcurrentChangeIsRefused() {
+        final ObjectId userId = new ObjectId();
+        service.create("req", userId, validPolicyJson(), null, null, "p", "test");
+        final PolicyEntity stale = service.findOne("p", userId);
+
+        // Another change lands after the rollback read the policy.
+        service.update("req", userId, stale.getId(), validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
+        final PolicyDataService racing = spy(service);
+        doReturn(stale).when(racing).findOne("p", userId);
+
+        final ServiceResponse response = racing.rollback("req", "p", userId, 0, userId, "10.0.0.1");
+        assertEquals(409, response.getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_CHANGED, response.getDetails());
+        assertTrue(service.findOne("p", userId).getPolicy().contains("MASK"), "the other change is kept");
     }
 
     @Test

@@ -378,6 +378,7 @@ class PolicyDataServiceTest {
 
         assertFalse(response.isSuccessful());
         assertEquals(409, response.getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_MANAGED, response.getDetails());
     }
 
     @Test

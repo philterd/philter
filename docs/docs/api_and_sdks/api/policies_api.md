@@ -91,12 +91,24 @@ The policy is validated before it is stored. It must be valid JSON in the native
 
 * `201 Created` - The policy was saved.
 * `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the description or notes are too long. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
-* `409 Conflict` - The named policy is a managed policy and cannot be overwritten.
+* `404 Not Found` - The owner does not exist or may not be reached, with no body. Also returned, with a `message`, when the policy was deleted while it was being updated.
+* `409 Conflict` - The policy was not saved. The body carries a `message` and a `reason`:
+    * `policy_changed` - The policy changed after this request read it. Reload it and retry.
+    * `policy_exists` - Another request created a policy with this name at the same time.
 
 Example request:
 
 ```
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies?name=my-policy" -d @policy.json
+```
+
+Example `409` response:
+
+```json
+{
+  "message": "Policy changed concurrently. Reload and retry.",
+  "reason": "policy_changed"
+}
 ```
 
 ## Delete a Policy
@@ -342,9 +354,11 @@ Rollback restores the content of the specified revision as a **new** revision. H
 #### Responses
 
 * `201 Created` - Rollback succeeded. Body contains the new revision number.
-* `400 Bad Request` - The `revision` parameter is missing or is not a number.
+* `400 Bad Request` - The `revision` parameter is missing or is not a number. The body carries a `message`.
 * `404 Not Found` - The policy or the target revision does not exist.
-* `409 Conflict` - Managed policies cannot be rolled back.
+* `409 Conflict` - The policy was not rolled back. The body carries a `message` and a `reason`:
+    * `policy_managed` - Managed policies cannot be rolled back.
+    * `policy_changed` - The policy changed after this request read it. Reload it and retry.
 
 Example request:
 
@@ -361,4 +375,4 @@ Example response:
 
 ## Native JSON and concurrent changes
 
-Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Policy names are supplied in the `name` query parameter. Concurrent saves or rollback operations can return 409 if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.
+Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Policy names are supplied in the `name` query parameter. Concurrent saves or rollback operations can return 409 with the reason `policy_changed` if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.

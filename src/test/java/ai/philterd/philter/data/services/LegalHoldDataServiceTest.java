@@ -105,6 +105,7 @@ class LegalHoldDataServiceTest {
         final ServiceResponse r = service.create("req", "REF-1", LegalHoldEntity.SCOPE_USER, userId.toHexString(), null, userId, setByUserId);
         assertFalse(r.isSuccessful());
         assertEquals(409, r.getStatusCode());
+        assertEquals(LegalHoldDataService.REASON_HOLD_EXISTS, r.getDetails());
     }
 
     @Test

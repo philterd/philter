@@ -59,6 +59,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public static final String INVALID_POLICY_NAME_MESSAGE = "The policy name must only contain letters, numbers, dashes, and underscores.";
     public static final int MAX_LIMIT = 100;
 
+    /** Reasons a policy change is refused with 409, carried in the response's details. */
+    public static final String REASON_POLICY_MANAGED = "policy_managed";
+    public static final String REASON_POLICY_CHANGED = "policy_changed";
+    public static final String REASON_POLICY_EXISTS = "policy_exists";
+
     private final Gson gson;
     private final PolicyVersionDataService policyVersionDataService;
 
@@ -100,7 +105,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         // Make sure the policy is not managed.
         if(policyEntity.isManaged()) {
-            return new ServiceResponse("You cannot update a managed policy.", false, 409);
+            return new ServiceResponse("You cannot update a managed policy.", false, 409, REASON_POLICY_MANAGED);
         }
 
         final int expectedRevision = policyEntity.getRevision();
@@ -156,7 +161,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             policyVersionDataService.snapshot(policyEntity);
             if (!replaceRevision(policyEntity, expectedRevision)) {
-                return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409);
+                return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED);
             }
 
             redactionCache.evictPolicy(userId, policyEntity.getName());
@@ -197,7 +202,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         // Make sure the policy name is unique.
         if (!isPolicyNameUnique(policyName, userId)) {
-            return new ServiceResponse("A policy with this name already exists.", false, 409);
+            return new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS);
         }
 
         // The policy must be validated to ensure it is syntactically correct and does not contain any invalid values.
@@ -732,7 +737,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         // Make sure the new name is unique.
         if(!isPolicyNameUnique(newName, userId)) {
-            return new ServiceResponse("A policy with this name already exists.", false, 409);
+            return new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS);
         }
 
         final PolicyEntity policyEntity = findOne(name, userId);
@@ -782,7 +787,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         if (live.isManaged()) {
-            return new ServiceResponse("Managed policies cannot be rolled back.", false, 409);
+            return new ServiceResponse("Managed policies cannot be rolled back.", false, 409, REASON_POLICY_MANAGED);
         }
 
         final PolicyVersionEntity targetVersion =
@@ -799,7 +804,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         final int newRevision = live.getRevision();
         policyVersionDataService.snapshot(live);
         if (!replaceRevision(live, expectedRevision)) {
-            return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409);
+            return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED);
         }
 
         redactionCache.evictPolicy(userId, policyName);

@@ -47,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
@@ -146,12 +147,28 @@ class LegalHoldsApiControllerTest {
     void setHoldReturns409WhenDuplicateReference() throws Exception {
         when(legalHoldDataService.create(anyString(), eq("LIT-001"), anyString(),
                 anyString(), any(), eq(userId), eq(userId)))
-                .thenReturn(new ServiceResponse("Duplicate.", false, 409));
+                .thenReturn(new ServiceResponse("Duplicate.", false, 409, LegalHoldDataService.REASON_HOLD_EXISTS));
 
         mockMvc.perform(post("/api/holds").header("Authorization", AUTH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SET_HOLD_BODY))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Duplicate."))
+                .andExpect(jsonPath("$.reason").value("hold_exists"));
+    }
+
+    @Test
+    void setHoldReturns409WithAReasonWhenAnOperationIsActive() throws Exception {
+        when(legalHoldDataService.create(anyString(), eq("LIT-001"), anyString(),
+                anyString(), any(), eq(userId), eq(userId)))
+                .thenReturn(new ServiceResponse("Busy.", false, 409, LegalHoldDataService.REASON_OPERATION_IN_PROGRESS));
+
+        mockMvc.perform(post("/api/holds").header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SET_HOLD_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Busy."))
+                .andExpect(jsonPath("$.reason").value("operation_in_progress"));
     }
 
     @Test
@@ -323,16 +340,19 @@ class LegalHoldsApiControllerTest {
                 .thenReturn(new ServiceResponse("Not found.", false, 404));
 
         mockMvc.perform(delete("/api/holds/MISSING").header("Authorization", AUTH))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Not found."));
     }
 
     @Test
     void releaseHoldReturns409WhenOperationActive() throws Exception {
-        when(legalHoldDataService.release(anyString(), eq("MISSING"), eq(userId)))
-                .thenReturn(new ServiceResponse("Not found.", false, 409));
+        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId)))
+                .thenReturn(new ServiceResponse("Busy.", false, 409, LegalHoldDataService.REASON_OPERATION_IN_PROGRESS));
 
-        mockMvc.perform(delete("/api/holds/MISSING").header("Authorization", AUTH))
-                .andExpect(status().isConflict());
+        mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Busy."))
+                .andExpect(jsonPath("$.reason").value("operation_in_progress"));
     }
 
     @Test

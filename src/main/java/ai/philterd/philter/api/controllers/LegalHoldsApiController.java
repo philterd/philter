@@ -18,6 +18,8 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.LegalHoldRequest;
+import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.LegalHoldConflictResponse;
 import ai.philterd.philter.api.responses.LegalHoldResponse;
 import ai.philterd.philter.api.responses.OwnedLegalHoldResponse;
 import ai.philterd.philter.api.security.RequiresScope;
@@ -83,16 +85,23 @@ public class LegalHoldsApiController extends AbstractApiController {
                     + "'user' protects all governance evidence owned by the user. "
                     + "Admins may place a hold on another user's evidence via the owner parameter.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The hold was set and is now active."),
+            @ApiResponse(responseCode = "201", description = "The hold was set and is now active.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = LegalHoldResponse.class))),
             @ApiResponse(responseCode = "400", description = "Required fields are missing or the scope type is invalid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."),
-            @ApiResponse(responseCode = "409", description = "A hold with this reference exists, or an evidence/hold operation is active or requires recovery.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+                    content = @Content),
+            @ApiResponse(responseCode = "409", description = "The hold was not set, and reason says why: hold_exists (a hold "
+                    + "with this reference exists) or operation_in_progress (an evidence or hold operation for the owner is "
+                    + "active or requires recovery).",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = LegalHoldConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.HOLDS_WRITE)
     @RequestMapping(value = "/api/holds", method = RequestMethod.POST,
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<LegalHoldResponse> setHold(
+    public @ResponseBody ResponseEntity<Object> setHold(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody LegalHoldRequest request) {
@@ -126,7 +135,8 @@ public class LegalHoldsApiController extends AbstractApiController {
                 request.getScopeValue(), request.getReason(), userId, apiKeyEntity.getUserId());
 
         if (response.getStatusCode() == 409) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new LegalHoldConflictResponse(response.getMessage(), response.getDetails()));
         }
         if (!response.isSuccessful()) {
             throw new BadRequestException(response.getMessage());
@@ -231,15 +241,22 @@ public class LegalHoldsApiController extends AbstractApiController {
                     + "this hold may become eligible for deletion or purge if no other holds remain. "
                     + "Releasing a hold is audited. Admins may release another user's hold via the owner parameter.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The hold was released."),
-            @ApiResponse(responseCode = "409", description = "An evidence or hold operation is active or requires recovery."),
+            @ApiResponse(responseCode = "200", description = "The hold was released.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The hold was not released because an evidence or hold operation "
+                    + "for the owner is active or requires recovery; reason is operation_in_progress.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = LegalHoldConflictResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user.")
+            @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user. When the "
+                    + "owner was reached, the body carries a message; an unreachable owner returns no body, so an owner value "
+                    + "cannot be used to discover accounts.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
     })
     @RequiresScope(ApiKeyScope.HOLDS_WRITE)
     @RequestMapping(value = "/api/holds/{reference}", method = RequestMethod.DELETE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<Void> releaseHold(
+    public @ResponseBody ResponseEntity<Object> releaseHold(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable("reference") final String reference,
             final @RequestParam(value = "owner", required = false) String owner) {
@@ -259,8 +276,12 @@ public class LegalHoldsApiController extends AbstractApiController {
                 apiKeyEntity.getUserId(), userId, "release legal hold '" + reference + "'");
 
         final ServiceResponse response = legalHoldDataService.release(requestId, reference, userId);
+        if (response.getStatusCode() == 409) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new LegalHoldConflictResponse(response.getMessage(), response.getDetails()));
+        }
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(response.getStatusCode()).build();
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
         }
 
         return ResponseEntity.ok().build();

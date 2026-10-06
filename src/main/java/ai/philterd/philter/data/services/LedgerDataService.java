@@ -295,6 +295,19 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
+    /**
+     * A chain head for a listing. One that cannot be read is listed marked unreadable rather than failing
+     * the page, so the other chains on it are still shown.
+     */
+    private LedgerEntity chainHead(final Document document) {
+        final LedgerEntity head = LedgerEntity.fromDocumentOrUnreadable(document, encryptionService);
+        if (head.isUnreadable()) {
+            LOGGER.warn("The head entry {} of the ledger chain for document {} could not be read.",
+                    head.getId(), head.getDocumentId(), head.getUnreadableCause());
+        }
+        return head;
+    }
+
     /** Built in one place so a search and its count cannot describe different result sets. */
     private Bson searchQuery(final ObjectId userId, final String searchTerm) {
 
@@ -329,7 +342,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         final List<LedgerEntity> ledgerEntries = new ArrayList<>();
 
         for(final Document document : documents) {
-            ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+            ledgerEntries.add(chainHead(document));
         }
 
         // Audit the query, recording a hash of the search term rather than the term itself so the
@@ -426,7 +439,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         final List<LedgerEntity> ledgerEntries = new ArrayList<>();
 
         for(final Document document : documents) {
-            ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+            ledgerEntries.add(chainHead(document));
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, userId, null, source);
@@ -451,7 +464,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         final List<LedgerEntity> ledgerEntries = new ArrayList<>();
 
         for (final Document document : documents) {
-            ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+            ledgerEntries.add(chainHead(document));
         }
 
         return ledgerEntries;
@@ -491,7 +504,13 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         final List<LedgerEntity> ledgerEntries = new ArrayList<>();
 
         for(final Document document : documents) {
-            ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+            try {
+                ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+            } catch (final MongoException e) {
+                throw e;
+            } catch (final RuntimeException e) {
+                throw new UnreadableLedgerEntryException(documentId, e);
+            }
         }
 
         return Collections.unmodifiableList(ledgerEntries);

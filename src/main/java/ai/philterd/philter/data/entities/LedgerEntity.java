@@ -52,6 +52,9 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     private int policyVersion;
     private String policyContentHash;
     private String effectiveHash;
+    /** Set only on an entry read with {@link #fromDocumentOrUnreadable}; never stored. */
+    private boolean unreadable;
+    private RuntimeException unreadableCause;
     public String getEffectiveHash() { return effectiveHash; }
     public void setEffectiveHash(String value) { effectiveHash = value; }
 
@@ -83,6 +86,47 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         this.hash = calculateHash();
 
     }
+
+    /**
+     * Reads an entry, or, when it cannot be read (its token or replacement no longer decrypts, or a field
+     * has the wrong type), an entry marked unreadable that carries only the fields stored in the clear, so
+     * a listing can still show it. The encrypted token and replacement are left null.
+     */
+    public static LedgerEntity fromDocumentOrUnreadable(final Document document, final EncryptionService encryptionService) {
+        try {
+            return fromDocument(document, encryptionService);
+        } catch (final RuntimeException unreadableEntry) {
+            final LedgerEntity entity = new LedgerEntity();
+            entity.unreadable = true;
+            entity.unreadableCause = unreadableEntry;
+            entity.id = document.get("_id") instanceof ObjectId id ? id : null;
+            entity.userId = document.get("user_id") instanceof ObjectId user ? user : null;
+            entity.documentId = text(document, "document_id");
+            entity.filename = text(document, "filename");
+            entity.type = text(document, "type");
+            entity.documentHash = text(document, "document_hash");
+            entity.previousHash = text(document, "previous_hash");
+            entity.hash = text(document, "hash");
+            entity.policyName = text(document, "policy_name");
+            entity.policyContentHash = text(document, "policy_content_hash");
+            entity.effectiveHash = text(document, "effective_hash");
+            entity.signature = text(document, "signature");
+            entity.signingKeyId = text(document, "signing_key_id");
+            entity.timestamp = document.get("timestamp") instanceof Date date ? date : null;
+            entity.startPosition = document.get("start_position") instanceof Number number ? number.longValue() : 0;
+            entity.policyVersion = document.get("policy_version") instanceof Number number ? number.intValue() : 0;
+            return entity;
+        }
+    }
+
+    private static String text(final Document document, final String field) {
+        return document.get(field) instanceof String value ? value : null;
+    }
+
+    public boolean isUnreadable() { return unreadable; }
+
+    /** Why the entry could not be read, for the log, or null. Carries no entry value. */
+    public RuntimeException getUnreadableCause() { return unreadableCause; }
 
     public static LedgerEntity fromDocument(final Document document, final EncryptionService encryptionService) {
 

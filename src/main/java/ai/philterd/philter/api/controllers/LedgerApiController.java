@@ -21,6 +21,8 @@ import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetLedgerResponse;
 import ai.philterd.philter.api.responses.LedgerChainResponse;
 import ai.philterd.philter.api.responses.LedgerEntryView;
+import ai.philterd.philter.data.services.UnreadableLedgerEntryException;
+import ai.philterd.philter.api.responses.LedgerRefusalResponse;
 import ai.philterd.philter.api.responses.LedgerExport;
 import ai.philterd.philter.api.responses.OwnedLedgerEntryView;
 import ai.philterd.philter.api.security.RequiresScope;
@@ -38,6 +40,8 @@ import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -142,8 +146,14 @@ public class LedgerApiController extends AbstractApiController {
                 entry.getPolicyVersion(),
                 entry.getPolicyContentHash());
         view.setEffectiveHash(entry.getEffectiveHash());
+        if (entry.isUnreadable()) {
+            view.setReadError(ENTRY_UNREADABLE);
+        }
         return view;
     }
+
+    /** Said of an entry that could not be read. Names no cause, which is in the log. */
+    private static final String ENTRY_UNREADABLE = "This entry could not be read, so its replacement is not shown.";
 
     @Operation(summary = "List redaction-ledger chains.",
             description = "Returns the head (genesis entry) of each redacted document's ledger chain, most recent "
@@ -151,7 +161,8 @@ public class LedgerApiController extends AbstractApiController {
                     + "passing that user's email as owner, or every user's with all_users=true, which adds each "
                     + "chain's owner, cannot be combined with q, and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The matching ledger chains. With all_users, each entry also has an owner field."),
+            @ApiResponse(responseCode = "200", description = "The matching ledger chains. With all_users, each entry also has an owner field. "
+                    + "A chain whose head entry cannot be read is still listed, with a readError and without its replacement."),
             @ApiResponse(responseCode = "400", description = "all_users was combined with owner or q."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
@@ -312,8 +323,13 @@ public class LedgerApiController extends AbstractApiController {
     @Operation(summary = "Export a document's ledger chain.",
             description = "Returns the full ledger chain for a document as a portable JSON document that can be archived "
                     + "and later re-verified. The export contains the decrypted token and replacement values, so treat it "
-                    + "as sensitive.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+                    + "as sensitive. A chain with an entry that cannot be read is not exported, even in part.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404"),
+            @ApiResponse(responseCode = "422", description = "An entry in the chain could not be read, so the chain is "
+                    + "not exported; reason is entry_unreadable. The attempt is audited as redaction_ledger_exported "
+                    + "with refused in its details.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = LedgerRefusalResponse.class)))})
     @RequiresScope(ApiKeyScope.LEDGER_EXPORT)
     @RequestMapping(value = "/api/ledger/{documentId}/export", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> exportChain(
@@ -333,7 +349,20 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<LedgerEntity> chain = ledgerService.getChain(userId, documentId);
+        final List<LedgerEntity> chain;
+        try {
+            chain = ledgerService.getChain(userId, documentId);
+        } catch (final UnreadableLedgerEntryException e) {
+            // No partial export: an export is evidence meant to be re-verified, and a chain with an entry left
+            // out or blanked would not verify while looking complete. Audited as an export attempt.
+            LOGGER.warn("Refused to export the ledger chain for document {}: an entry could not be read.", documentId, e);
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_EXPORTED, apiKeyEntity.getUserId(), null,
+                    getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId
+                            + ", count: 0, refused: " + LedgerRefusalResponse.REASON_ENTRY_UNREADABLE);
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).contentType(MediaType.APPLICATION_JSON)
+                    .body(gson.toJson(new LedgerRefusalResponse("An entry in this chain could not be read, so the chain "
+                            + "cannot be exported.", LedgerRefusalResponse.REASON_ENTRY_UNREADABLE)));
+        }
         if (chain.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }

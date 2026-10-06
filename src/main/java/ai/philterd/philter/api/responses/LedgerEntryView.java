@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
 /**
@@ -43,6 +45,7 @@ public class LedgerEntryView {
     /** ES256 signature over {@code hash}, and the id of the key that produced it. */
     private String signature;
     private String signingKeyId;
+    private String readError;
 
     public String getSignature() {
         return signature;
@@ -54,6 +57,16 @@ public class LedgerEntryView {
 
     public String getSigningKeyId() {
         return signingKeyId;
+    }
+
+    @Schema(description = "Present only when the entry could not be read, for "
+            + "example because it no longer decrypts. The fields stored in the clear are still given; replacement is not.")
+    public String getReadError() {
+        return readError;
+    }
+
+    public void setReadError(final String readError) {
+        this.readError = readError;
     }
 
     public void setSigningKeyId(final String signingKeyId) {

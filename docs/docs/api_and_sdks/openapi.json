@@ -4883,7 +4883,7 @@
           "Redaction Ledger"
         ],
         "summary": "Export a document's ledger chain.",
-        "description": "Returns the full ledger chain for a document as a portable JSON document that can be archived and later re-verified. The export contains the decrypted token and replacement values, so treat it as sensitive. Requires the `ledger:export` scope.",
+        "description": "Returns the full ledger chain for a document as a portable JSON document that can be archived and later re-verified. The export contains the decrypted token and replacement values, so treat it as sensitive. A chain with an entry that cannot be read is not exported, even in part. Requires the `ledger:export` scope.",
         "operationId": "exportChain",
         "parameters": [
           {
@@ -4981,6 +4981,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An entry in the chain could not be read, so the chain is not exported; reason is entry_unreadable. The attempt is audited as redaction_ledger_exported with refused in its details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerRefusalResponse"
                 }
               }
             }
@@ -12062,6 +12072,10 @@
           "previousHash": {
             "type": "string"
           },
+          "readError": {
+            "description": "Present only when the entry could not be read, for example because it no longer decrypts. The fields stored in the clear are still given; replacement is not.",
+            "type": "string"
+          },
           "replacement": {
             "type": "string"
           },
@@ -12108,6 +12122,21 @@
             "additionalProperties": {
               "type": "string"
             }
+          }
+        }
+      },
+      "LedgerRefusalResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the request was refused: entry_unreadable (an entry in the chain could not be read).",
+            "type": "string",
+            "enum": [
+              "entry_unreadable"
+            ]
           }
         }
       },
@@ -12253,6 +12282,10 @@
             "format": "int32"
           },
           "previousHash": {
+            "type": "string"
+          },
+          "readError": {
+            "description": "Present only when the entry could not be read, for example because it no longer decrypts. The fields stored in the clear are still given; replacement is not.",
             "type": "string"
           },
           "replacement": {

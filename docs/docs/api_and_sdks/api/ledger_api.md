@@ -28,6 +28,8 @@ Returns the most recent chains first. Each item is the chain's genesis entry, wh
 
 Returns `200 OK` with `{ "chains": [ ... ], "total": <count> }`. `total` is the number of chains the request matched: your whole ledger when `q` is absent, or the number of chains matching `q` when it is present. Paging with `offset` and `limit` applies either way, so `total` always describes the set the returned chains were drawn from.
 
+A chain whose head entry can no longer be read, for example because it no longer decrypts after a key change, is still listed, so the rest of the page is unaffected and `total` is unchanged. Its entry has a `readError` and the fields stored in the clear (`documentId`, `filename`, `type`, the hashes, `timestamp`, and the policy fields), but no `replacement`. Philter logs the failure with the document id.
+
 ```bash
 curl -k -H "Authorization: Bearer <token>" \
   "https://localhost:8080/api/ledger?limit=25"
@@ -92,6 +94,8 @@ A database error while reading the chain is still a `500 Internal Server Error`,
 | `GET`  | `/api/ledger/{documentId}/export` | Export the chain as portable JSON for offline archival. |
 
 Returns `200 OK` with the export document and a `Content-Disposition` header so it can be saved directly to a file, or `404 Not Found` if no such chain exists. Every entry includes its `hash` and `previousHash`, and the export encloses the public key of each signing key used, so the chain's linkage and its signatures can be checked independently of Philter. Recomputing the hashes themselves additionally needs the owning account's internal user id, which is part of the hash but is not carried in the export; see [What the Ledger Proves](../../redaction/ledgers.md#what-the-ledger-proves).
+
+If any entry in the chain cannot be read, the chain is not exported, even in part: an export is evidence meant to be re-verified, and one with an entry missing would not verify while looking complete. The response is `422 Unprocessable Content` with a `message` and the `reason` `entry_unreadable`, and the attempt is recorded as `redaction_ledger_exported` with `refused: entry_unreadable` in its details. [Get a document's ledger chain](#get-a-documents-ledger-chain) still shows such a chain, as [one that cannot be validated](#a-chain-that-cannot-be-validated).
 
 ```bash
 curl -k -H "Authorization: Bearer <token>" \

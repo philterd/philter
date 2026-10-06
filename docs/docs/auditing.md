@@ -109,7 +109,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `redacted_file_deleted` | An asynchronous redaction record was deleted. |
 | `redaction_ledger_query` | The redaction ledger was queried or searched. |
 | `redaction_ledger_deleted` | Ledger entries were deleted (by document or by retention). |
-| `redaction_ledger_exported` | A ledger chain was exported. |
+| `redaction_ledger_exported` | A ledger chain was exported, or an export was refused because an entry could not be read; the details then say `count: 0, refused: entry_unreadable`. |
 | `redaction_reversed` | A cryptographic redaction was reversed via `/api/reidentify`. See [Re-identification](#re-identification) below. |
 
 For these events the `details` field carries extra context: `document_redaction_initiated` records the name and pinned version of the policy applied (along with the input and output content types), while `document_redaction_completed` records the number of redactions performed and the name and version of the policy that governed them.

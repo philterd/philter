@@ -118,7 +118,7 @@ The order of the filters in the policy does not matter and has no impact on perf
 
 Repeat these steps until you have added a filter for each of the types of sensitive information you want to redact. Typically, the default redaction `strategy` and `redactionFormat` values for each filter should be fine for evaluation.
 
-When finished modifying the policy, save it with [`POST /api/policies`](api_and_sdks/api/policies_api.md#save-a-policy). There is no need to restart Philter; the policy will be available immediately for use.
+When finished modifying the policy, create it with [`POST /api/policies`](api_and_sdks/api/policies_api.md#save-a-policy), or, if it already exists (such as a copy of the default policy), replace it with [`PUT /api/policies/{policyName}`](api_and_sdks/api/policies_api.md#replace-a-policy). There is no need to restart Philter; the policy will be available immediately for use.
 
 #### Submitting Text for Redaction
 

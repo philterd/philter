@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.responses.CustomListConflictResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetListsResponse;
 import ai.philterd.philter.api.responses.ListSummaryResponse;
@@ -33,6 +34,8 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -194,27 +197,72 @@ public class CustomListsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create or update a list.", description = "Creates a list whose items are the request body, or "
-            + "replaces the items of an existing list with the same name. description is optional: left out, an existing "
-            + "list keeps its description; given as an empty string, it is cleared.")
+    @Operation(summary = "Create a list.", description = "Creates a list whose items are the request body. A name the "
+            + "owner already uses is refused with 409; replace an existing list with PUT /api/lists/{name}. description "
+            + "is optional and defaults to an empty string.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The list was created."),
-            @ApiResponse(responseCode = "200", description = "An existing list with the same name was updated."),
+            @ApiResponse(responseCode = "201", description = "The list was created.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "400", description = "The list name is empty, the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."),
-            @ApiResponse(responseCode = "412", description = "The maximum number of lists already exists.")
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "The list was not created because the owner already has a list "
+                    + "with this name; reason is list_exists. Nothing is changed.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = CustomListConflictResponse.class))),
+            @ApiResponse(responseCode = "412", description = "The maximum number of lists already exists.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)
     @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GenericResponse> createList(
+    public ResponseEntity<Object> createList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String list,
-            final @Parameter(description = "The list's description. Left out, an existing list keeps its own; an empty string clears it.")
+            final @Parameter(description = "The list's description. Defaults to an empty string.")
             @RequestParam(value = "description", required = false) String description,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody List<String> listItems,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
+
+        return write(authorizationHeader, list, description, owner, listItems, requestId, httpServletRequest, false);
+
+    }
+
+    @Operation(summary = "Replace a list.", description = "Replaces the items of an existing list with the request body. "
+            + "description is optional: left out, the list keeps its description; given as an empty string, it is cleared.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The list was replaced.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "400", description = "The list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
+            @ApiResponse(responseCode = "404", description = "There is no such list, or the owner does not exist or the caller may not reach it.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.LISTS_WRITE)
+    @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Object> replaceList(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @PathVariable("name") String list,
+            final @Parameter(description = "The list's description. Left out, the list keeps its own; an empty string clears it.")
+            @RequestParam(value = "description", required = false) String description,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestBody List<String> listItems,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
+
+        return write(authorizationHeader, list, description, owner, listItems, requestId, httpServletRequest, true);
+
+    }
+
+    /** Creates or replaces a list; neither falls back to the other, so a create never overwrites. */
+    private ResponseEntity<Object> write(final String authorizationHeader, final String list, final String description,
+                                         final String owner, final List<String> listItems, final String requestId,
+                                         final HttpServletRequest httpServletRequest, final boolean replace) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -228,10 +276,17 @@ public class CustomListsApiController extends AbstractApiController {
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
-                "create/update custom list '" + list + "'");
+                (replace ? "replace" : "create") + " custom list '" + list + "'");
 
-        final ServiceResponse serviceResponse = customListService.saveOrUpdate(requestId, userId, list, description, listItems, true, getClientIpAddress(httpServletRequest));
+        final String origin = getClientIpAddress(httpServletRequest);
+        final ServiceResponse serviceResponse = replace
+                ? customListService.replace(requestId, userId, list, description, listItems, origin)
+                : customListService.saveOrUpdate(requestId, userId, list, description, listItems, false, origin);
 
+        if (serviceResponse.getStatusCode() == HttpStatus.CONFLICT.value()) {
+            return new ResponseEntity<>(new CustomListConflictResponse(serviceResponse.getMessage(),
+                    serviceResponse.getDetails()), HttpStatus.CONFLICT);
+        }
         return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.valueOf(serviceResponse.getStatusCode()));
 
     }

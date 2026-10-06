@@ -160,21 +160,21 @@ class CustomListsApiIT {
     }
 
     @Test
-    @DisplayName("A save without a description keeps it; an empty description clears it")
+    @DisplayName("A replace without a description keeps it; an empty description clears it")
     void keepsOrClearsTheDescription() throws Exception {
 
         assertEquals(201, send("POST", "/api/lists/terms?description=" + encode("Internal terms"), key, "[\"one\"]").statusCode());
 
-        assertEquals(200, send("POST", "/api/lists/terms", key, "[\"two\",\"three\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/terms", key, "[\"two\",\"three\"]").statusCode());
         JsonObject list = getList("/api/lists/terms", key);
         assertEquals("Internal terms", list.get("description").getAsString(), "left out, the description is kept");
         assertEquals(2, list.getAsJsonArray("lists").size(), "the items are still replaced");
 
-        assertEquals(200, send("POST", "/api/lists/terms?description=", key, "[\"two\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/terms?description=", key, "[\"two\"]").statusCode());
         list = getList("/api/lists/terms", key);
         assertEquals("", list.get("description").getAsString(), "an empty description clears it");
 
-        assertEquals(200, send("POST", "/api/lists/terms?description=" + encode("Renamed"), key, "[\"two\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/terms?description=" + encode("Renamed"), key, "[\"two\"]").statusCode());
         assertEquals("Renamed", getList("/api/lists/terms", key).get("description").getAsString());
 
     }
@@ -213,6 +213,45 @@ class CustomListsApiIT {
         assertEquals("Belongs to a user", summary.get("description").getAsString());
         assertEquals(3, summary.get("size").getAsInt());
 
+    }
+
+    @Test
+    @DisplayName("Creating a list whose name is taken is refused with list_exists and changes nothing")
+    void createRefusesATakenName() throws Exception {
+        assertEquals(201, send("POST", "/api/lists/taken?description=" + encode("First"), key, "[\"one\"]").statusCode());
+
+        final HttpResponse<String> refused = send("POST", "/api/lists/taken?description=" + encode("Second"), key, "[\"two\"]");
+        assertEquals(409, refused.statusCode(), refused.body());
+        assertEquals("list_exists", gson.fromJson(refused.body(), JsonObject.class).get("reason").getAsString());
+
+        final JsonObject list = getList("/api/lists/taken", key);
+        assertEquals("First", list.get("description").getAsString());
+        assertEquals("one", list.getAsJsonArray("lists").get(0).getAsString());
+    }
+
+    @Test
+    @DisplayName("Replacing a list that does not exist returns 404 and creates nothing")
+    void replaceRefusesAMissingList() throws Exception {
+        final HttpResponse<String> refused = send("PUT", "/api/lists/missing", key, "[\"one\"]");
+        assertEquals(404, refused.statusCode(), refused.body());
+        assertEquals("List does not exist.", gson.fromJson(refused.body(), JsonObject.class).get("message").getAsString());
+        assertEquals(404, send("GET", "/api/lists/missing", key, null).statusCode(), "nothing was created");
+    }
+
+    @Test
+    @DisplayName("An administrator creates and replaces another user's list with owner")
+    void administratorCreatesAndReplaces() throws Exception {
+        AdminAccessConfig.setOverrideForTesting(true);
+        final String adminKey = seedKey(seedUser("admin"));
+        final String owner = "?owner=" + encode(username);
+
+        assertEquals(201, send("POST", "/api/lists/managed-by-admin" + owner, adminKey, "[\"one\"]").statusCode());
+        assertEquals(409, send("POST", "/api/lists/managed-by-admin" + owner, adminKey, "[\"one\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/managed-by-admin" + owner, adminKey, "[\"two\"]").statusCode());
+
+        // The list is the user's, not the administrator's.
+        assertEquals("two", getList("/api/lists/managed-by-admin", key).getAsJsonArray("lists").get(0).getAsString());
+        assertEquals(404, send("GET", "/api/lists/managed-by-admin", adminKey, null).statusCode());
     }
 
 }

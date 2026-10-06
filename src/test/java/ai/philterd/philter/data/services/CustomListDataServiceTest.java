@@ -65,6 +65,7 @@ class CustomListDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("custom_lists")).thenReturn(mongoCollection);
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         customListDataService = new CustomListDataService(mongoClient, encryptionService, auditEventPublisher);
     }
 

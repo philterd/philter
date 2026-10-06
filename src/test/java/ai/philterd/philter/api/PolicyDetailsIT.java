@@ -118,8 +118,8 @@ class PolicyDetailsIT {
         assertEquals("Line one\nline two", details.get("notes").getAsString());
         assertFalse(details.get("managed").getAsBoolean());
 
-        // Updating the policy without them keeps them.
-        assertEquals(201, send("POST", "/api/policies?name=court", "application/json", POLICY).statusCode());
+        // Replacing the policy without them keeps them.
+        assertEquals(200, send("PUT", "/api/policies/court", "application/json", POLICY).statusCode());
         assertEquals("Court filings", details("court").get("description").getAsString());
 
         // The policy JSON itself does not carry them.

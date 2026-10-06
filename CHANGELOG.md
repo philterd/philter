@@ -53,6 +53,9 @@ for migration steps.
   data and ledger evidence are kept.
 - **`PUT /api/contexts/{name}` changes only the settings given**, rather than resetting an omitted one
   to `false`. `GET /api/contexts/{name}` returns both settings.
+- **`POST /api/policies` and `POST /api/lists/{name}` only create.** A name you already use is refused
+  with `409` and the reason `policy_exists` or `list_exists` instead of being overwritten. Replace an
+  existing policy with `PUT /api/policies/{name}` and a list with `PUT /api/lists/{name}`.
 - **`DELETE /api/policies/{name}` reports refusals**: `404` for a policy that does not exist and `409`
   for the `default` policy, each with a `message`. It returned `200` whatever happened.
 - **`GET /api/lists` returns objects**, each with the list's `name`, `description`, and `size`, rather

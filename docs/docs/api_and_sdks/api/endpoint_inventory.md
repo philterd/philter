@@ -49,11 +49,13 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | DELETE | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | GET | `/api/lists/{name}` | application/json | `lists:read` | [Details](custom_lists_api.md) |
 | POST | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
+| PUT | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | GET | `/api/policies` | application/json | `policies:read` | [Details](policies_api.md) |
 | POST | `/api/policies` | See reference | `policies:write` | [Details](policies_api.md) |
 | POST | `/api/policies/compile` | application/json | `policies:read` | [Details](policies_api.md) |
 | DELETE | `/api/policies/{policyName}` | See reference | `policies:write` | [Details](policies_api.md) |
 | GET | `/api/policies/{policyName}` | application/json | `policies:read` | [Details](policies_api.md) |
+| PUT | `/api/policies/{policyName}` | See reference | `policies:write` | [Details](policies_api.md) |
 | POST | `/api/policies/{policyName}/copy` | application/json | `policies:write` | [Details](policies_api.md) |
 | GET | `/api/policies/{policyName}/details` | application/json | `policies:read` | [Details](policies_api.md) |
 | PUT | `/api/policies/{policyName}/details` | application/json | `policies:write` | [Details](policies_api.md) |

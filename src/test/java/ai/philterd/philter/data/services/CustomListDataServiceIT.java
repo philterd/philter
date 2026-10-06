@@ -36,7 +36,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 /**
  * Custom lists hold the terms a deployment always or never redacts, so their contents are as sensitive
@@ -103,8 +105,80 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
         assertFalse(second.isSuccessful());
         assertEquals(409, second.getStatusCode());
+        assertEquals(CustomListDataService.REASON_LIST_EXISTS, second.getDetails());
         assertEquals(List.of("Alice"), service.findOneByName("names", user).getItems(),
                 "the refused save must not have changed anything");
+
+    }
+
+    @Test
+    @DisplayName("A create that loses a race for the name is refused by the unique index")
+    void aRacingCreateIsRefused() {
+
+        final ObjectId user = new ObjectId();
+        save(user, "names", List.of("Alice"));
+
+        // The name check saw no list, as it would if the other create had not landed yet.
+        final CustomListDataService racing = spy(service);
+        doReturn(false).when(racing).existsForUser("names", user);
+
+        final ServiceResponse refused = racing.saveOrUpdate("req", user, "names", "d", List.of("Bob"), false, "test");
+        assertEquals(409, refused.getStatusCode());
+        assertEquals(CustomListDataService.REASON_LIST_EXISTS, refused.getDetails());
+        assertEquals(1, service.findAll(user).size(), "only one list has the name");
+
+    }
+
+    @Test
+    @DisplayName("The non-unique index of earlier builds is replaced by the unique one")
+    void theLegacyIndexIsReplaced() {
+
+        final var collection = mongoClient.getDatabase("philter").getCollection("custom_lists");
+        collection.drop();
+        assertEquals("user_id_1_name_1", collection.createIndex(new Document("user_id", 1).append("name", 1)),
+                "the index earlier builds made, under its default name");
+
+        new CustomListDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
+
+        final List<String> names = new ArrayList<>();
+        for (final Document index : collection.listIndexes()) {
+            names.add(index.getString("name"));
+            if ("user_id_name_unique".equals(index.getString("name"))) {
+                assertTrue(index.getBoolean("unique", false), "the name index is unique");
+            }
+        }
+        assertTrue(names.contains("user_id_name_unique"), names.toString());
+        assertFalse(names.contains("user_id_1_name_1"), names.toString());
+
+    }
+
+    @Test
+    @DisplayName("Replacing a list changes its items, keeps an omitted description, and clears an empty one")
+    void replaceChangesAnExistingList() {
+
+        final ObjectId user = new ObjectId();
+        save(user, "names", List.of("Alice"));
+
+        final ServiceResponse replaced = service.replace("req", user, "names", null, List.of("Bob", "Carol"), "test");
+        assertEquals(200, replaced.getStatusCode());
+        assertEquals(List.of("Bob", "Carol"), service.findOneByName("names", user).getItems());
+        assertEquals("a description", service.findOneByName("names", user).getDescription());
+
+        assertEquals(200, service.replace("req", user, "names", "", List.of("Bob"), "test").getStatusCode());
+        assertEquals("", service.findOneByName("names", user).getDescription());
+
+    }
+
+    @Test
+    @DisplayName("Replacing a list that does not exist is refused and creates nothing")
+    void replaceRefusesAMissingList() {
+
+        final ObjectId user = new ObjectId();
+        final ServiceResponse refused = service.replace("req", user, "missing", "d", List.of("Bob"), "test");
+
+        assertFalse(refused.isSuccessful());
+        assertEquals(404, refused.getStatusCode());
+        assertNull(service.findOneByName("missing", user), "nothing was created");
 
     }
 

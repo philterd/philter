@@ -193,36 +193,76 @@ public class PoliciesApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create or update a policy.",
-            description = "Saves the policy supplied in the request body under the given name, overwriting any "
-                    + "existing policy of the same name. The policy is validated before it is stored. description (up to "
-                    + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH + " characters) and notes (up to "
-                    + PolicyDataService.POLICY_NOTES_MAX_LENGTH + ") are optional; when updating, leaving either out "
-                    + "keeps its current value. Admins may save into another user's account by passing that user's "
-                    + "email as owner.")
+    @Operation(summary = "Create a policy.",
+            description = "Creates a policy from the request body under the given name. A name the owner already uses is "
+                    + "refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is "
+                    + "validated before it is stored. description (up to " + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH
+                    + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + ") are optional. "
+                    + "Admins may create a policy in another user's account by passing that user's email as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The policy was saved and is now active. A policy_activated audit event is recorded."),
+            @ApiResponse(responseCode = "201", description = "The policy was created and is now active. A policy_activated audit event is recorded."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. "
-                    + "Also returned, with a message, when the policy was deleted while it was being updated.",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "409", description = "The policy was not saved, and reason says why: policy_changed "
-                    + "(it changed concurrently; reload it and retry) or policy_exists (a policy with this name was "
-                    + "created concurrently).",
+            @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+                    content = @Content),
+            @ApiResponse(responseCode = "409", description = "The policy was not created because the owner already has a "
+                    + "policy with this name; reason is policy_exists. Nothing is changed.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Object> save(
+    public ResponseEntity<Object> create(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "description", required = false) String description,
             final @RequestParam(value = "notes", required = false) String notes,
             @RequestBody String policyJson) throws IOException {
+
+        return write(authorizationHeader, name, owner, description, notes, policyJson, false);
+
+    }
+
+    @Operation(summary = "Replace a policy.",
+            description = "Replaces an existing policy with the request body, as a new revision. The policy is validated "
+                    + "before it is stored. description (up to " + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH
+                    + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + ") are optional; "
+                    + "leaving either out keeps its current value. Admins may replace another user's policy by passing "
+                    + "that user's email as owner.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The policy was replaced and is now active. A policy_activated audit event is recorded.",
+                    content = @Content),
+            @ApiResponse(responseCode = "400", description = "The policy is invalid, or the description or notes are too long."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, with no "
+                    + "body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
+                    + "to discover accounts.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "The policy was not replaced because it changed concurrently; "
+                    + "reason is policy_changed. Reload it and retry.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyConflictResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.POLICIES_WRITE)
+    @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.PUT, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Object> replace(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @PathVariable("policyName") final String name,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "description", required = false) String description,
+            final @RequestParam(value = "notes", required = false) String notes,
+            @RequestBody String policyJson) throws IOException {
+
+        return write(authorizationHeader, name, owner, description, notes, policyJson, true);
+
+    }
+
+    /** Creates or replaces a policy; neither falls back to the other, so a create never overwrites. */
+    private ResponseEntity<Object> write(final String authorizationHeader, final String name, final String owner,
+                                         final String description, final String notes, final String policyJson,
+                                         final boolean replace) {
 
         if (StringUtils.isBlank(name)) {
             throw new BadRequestException("The policy name is missing.");
@@ -250,16 +290,19 @@ public class PoliciesApiController extends AbstractApiController {
         final String requestId = RequestIdGenerator.generate();
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
-                "create policy '" + name + "'");
+                (replace ? "replace" : "create") + " policy '" + name + "'");
 
         // Through create/update rather than save: those enforce the name rules, retain the version
-        // snapshot, and evict the redaction cache. This endpoint is an upsert, so which one depends on
-        // whether the policy already exists.
-        final PolicyEntity existing = policyDataService.findOne(name, userId);
-
-        final ServiceResponse response = existing == null
-                ? policyDataService.create(requestId, userId, policyJson, description, notes, name, Source.API.getSource())
-                : policyDataService.update(requestId, userId, existing.getId(), policyJson, description, notes, Source.API.getSource());
+        // snapshot, and evict the redaction cache.
+        final ServiceResponse response;
+        if (replace) {
+            final PolicyEntity existing = policyDataService.findOne(name, userId);
+            response = existing == null
+                    ? new ServiceResponse("Policy does not exist.", false, 404)
+                    : policyDataService.update(requestId, userId, existing.getId(), policyJson, description, notes, Source.API.getSource());
+        } else {
+            response = policyDataService.create(requestId, userId, policyJson, description, notes, name, Source.API.getSource());
+        }
 
         if (!response.isSuccessful()) {
             if (response.getStatusCode() == HttpStatus.BAD_REQUEST.value()) {
@@ -279,7 +322,7 @@ public class PoliciesApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
                 apiKeyEntity.getUserId(), null, null, "policy: " + name);
 
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(replace ? HttpStatus.OK : HttpStatus.CREATED).build();
 
     }
 

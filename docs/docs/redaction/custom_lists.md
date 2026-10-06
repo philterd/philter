@@ -19,11 +19,12 @@ Custom lists are managed with the [Custom Lists API](../api_and_sdks/api/custom_
 | --- | --- |
 | List your lists | [`GET /api/lists`](../api_and_sdks/api/custom_lists_api.md#get-list-names) |
 | Read a list | [`GET /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#get-a-list) |
-| Create or replace a list | [`POST /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#create-or-update-a-list), with the terms as a JSON array and an optional `description` |
+| Create a list | [`POST /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#create-a-list), with the terms as a JSON array and an optional `description` |
+| Replace a list | [`PUT /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#replace-a-list), with the complete new terms as a JSON array |
 | Delete a list | [`DELETE /api/lists/{name}`](../api_and_sdks/api/custom_lists_api.md#delete-a-list) |
 
 * **Name**: the identifier you use to reference the list in your [policy JSON](../policies/policy_schema.md). Use clear, descriptive names (for example, `Employee-Names-2024` or `Project-Codenames`). A list cannot be renamed; create a new list instead.
-* **Items**: each list can contain a maximum of 100 items. Saving a list replaces its items, and every policy that references it uses the new set immediately.
+* **Items**: each list can contain a maximum of 100 items. Replacing a list replaces its items, and every policy that references it uses the new set immediately.
 * **Deleting**: if any of your [redaction policies](policies.md) reference the list, those policies may fail or behave unexpectedly once it is gone.
 
 ## Using Custom Lists in Policies
@@ -67,7 +68,7 @@ a list used by a policy, update the policy's references or expect subsequent red
 For developers and organizations with dynamic data protection needs, Philter provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with the Philterd platform, among other use-cases.
 
 *   **List Retrieval**: Programmatically fetch your custom lists, each with its name, description, and number of items.
-*   **Item Management**: Retrieve, add, or update the specific items within any list.
+*   **Item Management**: Retrieve the items within any list, or replace them.
 *   **Automated Lifecycle**: Create and delete lists as part of your automated CI/CD or data governance pipelines.
 
 For detailed information on authenticating these API calls, please refer to the [API](../api_and_sdks/api.md) documentation.

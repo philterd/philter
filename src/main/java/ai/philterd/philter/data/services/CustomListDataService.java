@@ -24,6 +24,7 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
@@ -44,14 +45,45 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
     public static final int MAXIMUM_ITEM_LENGTH = 50;
     public static final int MAX_LIMIT = 100;
 
+    /** Why a create is refused with 409, carried in the response's details. */
+    public static final String REASON_LIST_EXISTS = "list_exists";
+
+    private static final String NAME_INDEX = "user_id_name_unique";
+
+    /** The non-unique index earlier builds made on the same keys, which would block the unique one. */
+    private static final String LEGACY_NAME_INDEX = "user_id_1_name_1";
+
     public CustomListDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "custom_lists", encryptionService, auditEventPublisher);
 
-        // Custom lists are listed by user and looked up by (user_id, name).
-        ensureIndex(Indexes.ascending("user_id", "name"));
+        // Custom lists are listed by user and looked up by (user_id, name), which is unique, so two
+        // concurrent creates cannot both succeed. Existing duplicate names fail startup.
+        for (final Document index : collection.listIndexes()) {
+            if (LEGACY_NAME_INDEX.equals(index.getString("name")) && !index.getBoolean("unique", false)) {
+                try {
+                    collection.dropIndex(LEGACY_NAME_INDEX);
+                } catch (final com.mongodb.MongoCommandException alreadyDropped) {
+                    // Another instance starting at the same time dropped it first.
+                    if (alreadyDropped.getErrorCode() != 27) throw alreadyDropped;
+                }
+            }
+        }
+        ensureIndex(Indexes.ascending("user_id", "name"), new IndexOptions().unique(true).name(NAME_INDEX));
+    }
+
+    /** Replaces an existing list's items, and its description when one is given; 404 if there is no such list. */
+    public ServiceResponse replace(final String requestId, final ObjectId userId, final String listName,
+                                   final String description, final List<String> listItems, final String origin) {
+        return write(requestId, userId, listName, description, listItems, true, false, origin);
     }
 
     public ServiceResponse saveOrUpdate(final String requestId, final ObjectId userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {
+        return write(requestId, userId, listName, description, listItems, allowUpdate, true, origin);
+    }
+
+    private ServiceResponse write(final String requestId, final ObjectId userId, final String listName,
+                                  final String description, final List<String> listItems, final boolean allowUpdate,
+                                  final boolean allowCreate, final String origin) {
 
         if(listItems == null) {
             return new ServiceResponse("List items cannot be empty.", false, 400);
@@ -106,9 +138,13 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             } else {
 
                 // Not allowed to update the existing list.
-                return new ServiceResponse("A list with this name already exists.", false, 409);
+                return new ServiceResponse("A list with this name already exists.", false, 409, REASON_LIST_EXISTS);
 
             }
+
+        } else if (!allowCreate) {
+
+            return new ServiceResponse("List does not exist.", false, 404);
 
         } else {
 
@@ -117,7 +153,14 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             customListEntity.setName(listName);
             customListEntity.setDescription(description == null ? "" : description);
             customListEntity.setItems(trimmedListItems);
-            final ObjectId objectId = save(customListEntity);
+            final ObjectId objectId;
+            try {
+                objectId = save(customListEntity);
+            } catch (final com.mongodb.MongoWriteException race) {
+                // A concurrent create took the name after the check above; the unique index refused this one.
+                if (race.getError().getCode() != 11000) throw race;
+                return new ServiceResponse("A list with this name already exists.", false, 409, REASON_LIST_EXISTS);
+            }
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_CREATED, objectId, origin);
 

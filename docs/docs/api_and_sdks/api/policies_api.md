@@ -2,7 +2,7 @@
 
 The Policies API provides endpoints for retrieving, uploading, and deleting [policies](../../policies/filter_policies.md).
 
-> **Admin cross-user access:** by default each endpoint operates on the calling user's own policies. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, get, create, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
+> **Admin cross-user access:** by default each endpoint operates on the calling user's own policies. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, get, create, replace, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
@@ -75,13 +75,13 @@ Example response:
 
 | Method | Endpoint                     | Description                                                                       |
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
-| `POST` | `/api/policies` | Save a policy. If a policy with this name already exists it will be overwritten.|
+| `POST` | `/api/policies` | Create a policy. A name you already use is refused; to change an existing policy, [replace it](#replace-a-policy). |
 
 ### Query Parameters
 
-* `name` (required) - The name of the policy to save.
-* `description` (optional) - Up to 200 characters. When updating a policy, leaving it out keeps the current description.
-* `notes` (optional) - Up to 1000 characters. When updating a policy, leaving it out keeps the current notes.
+* `name` (required) - The name of the policy to create.
+* `description` (optional) - Up to 200 characters.
+* `notes` (optional) - Up to 1000 characters.
 
 ### Validation
 
@@ -89,12 +89,10 @@ The policy is validated before it is stored. It must be valid JSON in the native
 
 ### Responses
 
-* `201 Created` - The policy was saved.
+* `201 Created` - The policy was created.
 * `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the description or notes are too long. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
-* `404 Not Found` - The owner does not exist or may not be reached, with no body. Also returned, with a `message`, when the policy was deleted while it was being updated.
-* `409 Conflict` - The policy was not saved. The body carries a `message` and a `reason`:
-    * `policy_changed` - The policy changed after this request read it. Reload it and retry.
-    * `policy_exists` - Another request created a policy with this name at the same time.
+* `404 Not Found` - The owner does not exist or may not be reached.
+* `409 Conflict` - You already have a policy with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `policy_exists`.
 
 Example request:
 
@@ -106,9 +104,36 @@ Example `409` response:
 
 ```json
 {
-  "message": "Policy changed concurrently. Reload and retry.",
-  "reason": "policy_changed"
+  "message": "A policy with this name already exists.",
+  "reason": "policy_exists"
 }
+```
+
+## Replace a Policy
+
+| Method | Endpoint                     | Description                                                                       |
+| ------ |------------------------------|-----------------------------------------------------------------------------------|
+| `PUT` | `/api/policies/{policyName}` | Replace an existing policy with the request body, as a new revision. |
+
+The policy is validated as when [creating one](#validation), and the replaced content is kept in the [version history](#policy-version-history).
+
+### Query Parameters
+
+* `description` (optional) - Up to 200 characters. Leaving it out keeps the current description.
+* `notes` (optional) - Up to 1000 characters. Leaving it out keeps the current notes.
+* `owner` (optional, admin only) - Username of another user whose policy to replace.
+
+### Responses
+
+* `200 OK` - The policy was replaced.
+* `400 Bad Request` - The policy is invalid, or the description or notes are too long.
+* `404 Not Found` - There is no such policy. The body carries a `message`, except when the `owner` does not exist or may not be reached.
+* `409 Conflict` - The policy changed after this request read it. Nothing is changed. The body carries a `message` and the `reason` `policy_changed`; reload the policy and retry.
+
+Example request:
+
+```
+curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies/my-policy" -d @policy.json
 ```
 
 ## Delete a Policy
@@ -391,4 +416,4 @@ Example response:
 
 ## Native JSON and concurrent changes
 
-Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Policy names are supplied in the `name` query parameter. Concurrent saves or rollback operations can return 409 with the reason `policy_changed` if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.
+Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Policy names are supplied in the `name` query parameter. Concurrent replace or rollback operations can return 409 with the reason `policy_changed` if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.

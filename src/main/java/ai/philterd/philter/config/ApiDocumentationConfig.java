@@ -20,8 +20,10 @@ public class ApiDocumentationConfig {
         return api -> {
             response(op(api, "/api/policies/{policyName}", "get"), "200", "Native policy JSON, preserving field names.",
                     content("application/json", new ObjectSchema().additionalProperties(true)));
-            op(api, "/api/policies", "post").getRequestBody().setContent(content("application/json",
-                    new ObjectSchema().additionalProperties(true).description("Native Phileas policy. identifiers is required; custom dictionaries use dictionaries.")));
+            for (String[] write : new String[][]{{"/api/policies", "post"}, {"/api/policies/{policyName}", "put"}}) {
+                op(api, write[0], write[1]).getRequestBody().setContent(content("application/json",
+                        new ObjectSchema().additionalProperties(true).description("Native Phileas policy. identifiers is required; custom dictionaries use dictionaries.")));
+            }
             json(api, "/api/audit", "get", GetAuditResponse.class);
             // With all_users, these listings name each item's owner.
             response(op(api, "/api/contexts", "get"), "200", "Context names; with all_users, each context's name and owner.",

@@ -297,13 +297,17 @@ class ApiFilterChainIT {
             "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
     @Test
-    @DisplayName("Saving a policy twice overwrites it rather than creating a duplicate")
-    void savingAPolicyTwiceOverwritesIt() throws Exception {
+    @DisplayName("Creating a policy twice is refused, and replacing it keeps a single policy")
+    void creatingAPolicyTwiceIsRefused() throws Exception {
 
-        final String name = "upsert-" + System.nanoTime();
+        final String name = "twice-" + System.nanoTime();
 
         assertEquals(201, savePolicy(name, SSN_POLICY).statusCode());
-        assertEquals(201, savePolicy(name, SSN_POLICY).statusCode(), "the endpoint is documented as an upsert");
+        assertEquals(409, savePolicy(name, SSN_POLICY).statusCode(), "a create never overwrites");
+        assertEquals(200, send(authenticated(baseUrl + "/api/policies/" + name)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(SSN_POLICY))
+                .build()).statusCode());
 
         // The raw save path inserted a second document under the same name.
         final HttpResponse<String> list = send(authenticated(baseUrl + "/api/policies").GET().build());
@@ -661,7 +665,8 @@ class ApiFilterChainIT {
         assertEquals(200, fetched.statusCode());
         assertTrue(fetched.headers().firstValue("Content-Type").orElse("").startsWith("application/json"));
         assertTrue(fetched.body().contains("one"));
-        assertEquals(200, apiRequest("POST", "/api/lists/audit-list", "[\"three\"]").statusCode());
+        assertEquals(409, apiRequest("POST", "/api/lists/audit-list", "[\"three\"]").statusCode());
+        assertEquals(200, apiRequest("PUT", "/api/lists/audit-list", "[\"three\"]").statusCode());
         fetched = apiRequest("GET", "/api/lists/audit-list", null);
         assertTrue(fetched.body().contains("three"));
         assertFalse(fetched.body().contains("one"));

@@ -248,7 +248,14 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             }
 
-            final ObjectId policyId = save(policyEntity);
+            final ObjectId policyId;
+            try {
+                policyId = save(policyEntity);
+            } catch (final com.mongodb.MongoWriteException race) {
+                // A concurrent create took the name after the check above; the unique index refused this one.
+                if (race.getError().getCode() != 11000) throw race;
+                return new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS);
+            }
 
             policyEntity.setId(policyId);
 

@@ -25,6 +25,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import org.springframework.http.MediaType;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -213,7 +215,7 @@ class CustomListsApiControllerTest {
     void createListStoresTheItemsForTheOwningUser() throws Exception {
         // No description is sent, so the service is told to leave it as it is.
         when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), isNull(),
-                eq(List.of("alpha", "beta")), eq(true), any()))
+                eq(List.of("alpha", "beta")), eq(false), any()))
                 .thenReturn(new ServiceResponse("Created.", true, 201));
 
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
@@ -222,15 +224,16 @@ class CustomListsApiControllerTest {
                         .requestAttr("requestId", "req-create-list"))
                 .andExpect(status().isCreated());
 
+        // allowUpdate is false: a create never replaces an existing list.
         verify(customListService).saveOrUpdate(anyString(), eq(userId), eq("my-list"), isNull(),
-                eq(List.of("alpha", "beta")), eq(true), any());
+                eq(List.of("alpha", "beta")), eq(false), any());
     }
 
     @Test
     void createListPropagatesTheServiceStatusCode() throws Exception {
         // The service reports rejections (too many items, item too long) through the status code.
         when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), any(),
-                any(), eq(true), any()))
+                any(), eq(false), any()))
                 .thenReturn(new ServiceResponse("Too many items.", false, 400));
 
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
@@ -260,6 +263,91 @@ class CustomListsApiControllerTest {
 
         verify(customListService, never()).saveOrUpdate(anyString(), any(), anyString(), anyString(),
                 any(), anyBoolean(), any());
+    }
+
+    @Test
+    void createListReturns409WithAReasonWhenTheNameIsTaken() throws Exception {
+        when(customListService.saveOrUpdate(anyString(), eq(userId), eq("my-list"), any(), any(), eq(false), any()))
+                .thenReturn(new ServiceResponse("A list with this name already exists.", false, 409,
+                        CustomListDataService.REASON_LIST_EXISTS));
+
+        mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"alpha\"]")
+                        .requestAttr("requestId", "req-create-taken"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A list with this name already exists."))
+                .andExpect(jsonPath("$.reason").value("list_exists"));
+    }
+
+    @Test
+    void replaceListReplacesTheItemsOfTheOwningUsersList() throws Exception {
+        when(customListService.replace(anyString(), eq(userId), eq("my-list"), isNull(), eq(List.of("gamma")), any()))
+                .thenReturn(new ServiceResponse("List was updated", true, 200));
+
+        mockMvc.perform(put("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"gamma\"]")
+                        .requestAttr("requestId", "req-replace-list"))
+                .andExpect(status().isOk());
+
+        verify(customListService, never()).saveOrUpdate(any(), any(), any(), any(), any(), anyBoolean(), any());
+    }
+
+    @Test
+    void replaceListReturns404WithAMessageWhenTheListDoesNotExist() throws Exception {
+        when(customListService.replace(anyString(), eq(userId), eq("missing"), any(), any(), any()))
+                .thenReturn(new ServiceResponse("List does not exist.", false, 404));
+
+        mockMvc.perform(put("/api/lists/missing").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"gamma\"]")
+                        .requestAttr("requestId", "req-replace-missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("List does not exist."));
+    }
+
+    @Test
+    void adminCanReplaceAnotherUsersListViaOwner() throws Exception {
+        final ObjectId otherUser = new ObjectId();
+        final UserEntity admin = new UserEntity();
+        admin.setId(userId);
+        admin.setRole("admin");
+        when(userService.findOneById(userId)).thenReturn(admin);
+        final UserEntity owner = new UserEntity();
+        owner.setId(otherUser);
+        owner.setEmail("other@example.com");
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+        when(customListService.replace(anyString(), eq(otherUser), eq("their-list"), any(), any(), any()))
+                .thenReturn(new ServiceResponse("List was updated", true, 200));
+
+        mockMvc.perform(put("/api/lists/their-list").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"gamma\"]")
+                        .requestAttr("requestId", "req-replace-admin"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void replaceListForAnotherOwnerReturns404ForANonAdmin() throws Exception {
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+        final UserEntity owner = new UserEntity();
+        owner.setId(new ObjectId());
+        owner.setEmail("other@example.com");
+        when(userService.findByUsername("other@example.com")).thenReturn(owner);
+
+        mockMvc.perform(put("/api/lists/my-list").header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[\"alpha\"]")
+                        .requestAttr("requestId", "req-replace-forbidden"))
+                .andExpect(status().isNotFound());
+
+        verify(customListService, never()).replace(any(), any(), any(), any(), any(), any());
     }
 
 }

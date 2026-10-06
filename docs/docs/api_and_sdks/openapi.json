@@ -5280,8 +5280,8 @@
         "tags": [
           "Custom Lists"
         ],
-        "summary": "Create or update a list.",
-        "description": "Creates a list whose items are the request body, or replaces the items of an existing list with the same name. description is optional: left out, an existing list keeps its description; given as an empty string, it is cleared. Requires the `lists:write` scope.",
+        "summary": "Create a list.",
+        "description": "Creates a list whose items are the request body. A name the owner already uses is refused with 409; replace an existing list with PUT /api/lists/{name}. description is optional and defaults to an empty string. Requires the `lists:write` scope.",
         "operationId": "createList",
         "parameters": [
           {
@@ -5301,7 +5301,7 @@
             }
           },
           {
-            "description": "The list's description. Left out, an existing list keeps its own; an empty string clears it.",
+            "description": "The list's description. Defaults to an empty string.",
             "name": "description",
             "in": "query",
             "required": false,
@@ -5332,16 +5332,6 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "An existing list with the same name was updated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
-          },
           "201": {
             "description": "The list was created.",
             "content": {
@@ -5388,6 +5378,16 @@
           "406": {
             "description": "No representation matches Accept."
           },
+          "409": {
+            "description": "The list was not created because the owner already has a list with this name; reason is list_exists. Nothing is changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomListConflictResponse"
+                }
+              }
+            }
+          },
           "412": {
             "description": "The maximum number of lists already exists.",
             "content": {
@@ -5397,6 +5397,150 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Custom Lists"
+        ],
+        "summary": "Replace a list.",
+        "description": "Replaces the items of an existing list with the request body. description is optional: left out, the list keeps its description; given as an empty string, it is cleared. Requires the `lists:write` scope.",
+        "operationId": "replaceList",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The list's description. Left out, the list keeps its own; an empty string clears it.",
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The list was replaced.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The list contains too many items (maximum 100), or an item is too long (maximum 50 characters).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no such list, or the owner does not exist or the caller may not reach it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
           },
           "413": {
             "description": "Content Too Large",
@@ -5611,9 +5755,9 @@
         "tags": [
           "Policies"
         ],
-        "summary": "Create or update a policy.",
-        "description": "Saves the policy supplied in the request body under the given name, overwriting any existing policy of the same name. The policy is validated before it is stored. description (up to 200 characters) and notes (up to 1000) are optional; when updating, leaving either out keeps its current value. Admins may save into another user's account by passing that user's email as owner. Requires the `policies:write` scope.",
-        "operationId": "save",
+        "summary": "Create a policy.",
+        "description": "Creates a policy from the request body under the given name. A name the owner already uses is refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is validated before it is stored. description (up to 200 characters) and notes (up to 1000) are optional. Admins may create a policy in another user's account by passing that user's email as owner. Requires the `policies:write` scope.",
+        "operationId": "create",
         "parameters": [
           {
             "name": "Authorization",
@@ -5670,7 +5814,7 @@
         },
         "responses": {
           "201": {
-            "description": "The policy was saved and is now active. A policy_activated audit event is recorded.",
+            "description": "The policy was created and is now active. A policy_activated audit event is recorded.",
             "content": {
               "*/*": {
                 "schema": {
@@ -5703,20 +5847,13 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts. Also returned, with a message, when the policy was deleted while it was being updated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
           },
           "406": {
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy was not saved, and reason says why: policy_changed (it changed concurrently; reload it and retry) or policy_exists (a policy with this name was created concurrently).",
+            "description": "The policy was not created because the owner already has a policy with this name; reason is policy_exists. Nothing is changed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6094,6 +6231,159 @@
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Policies"
+        ],
+        "summary": "Replace a policy.",
+        "description": "Replaces an existing policy with the request body, as a new revision. The policy is validated before it is stored. description (up to 200 characters) and notes (up to 1000) are optional; leaving either out keeps its current value. Admins may replace another user's policy by passing that user's email as owner. Requires the `policies:write` scope.",
+        "operationId": "replace",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "notes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Native Phileas policy. identifiers is required; custom dictionaries use dictionaries.",
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The policy was replaced and is now active. A policy_activated audit event is recorded."
+          },
+          "400": {
+            "description": "The policy is invalid, or the description or notes are too long.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no such policy, with a message. Also returned, with no body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The policy was not replaced because it changed concurrently; reason is policy_changed. Reload it and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyConflictResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -11084,6 +11374,21 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "CustomListConflictResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the list was not created: list_exists (the owner already has a list with this name).",
+            "type": "string",
+            "enum": [
+              "list_exists"
+            ]
           }
         }
       },

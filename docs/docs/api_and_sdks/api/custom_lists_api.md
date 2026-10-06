@@ -1,8 +1,8 @@
 # Custom Lists API
 
-The Custom Lists API provides endpoints for retrieving, creating, and deleting custom lists.
+The Custom Lists API provides endpoints for retrieving, creating, replacing, and deleting custom lists.
 
-> **Admin cross-user access:** by default each endpoint operates on the calling user's own lists. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, get, create, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
+> **Admin cross-user access:** by default each endpoint operates on the calling user's own lists. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, get, create, replace, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`.
 
 > The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
 
@@ -68,15 +68,15 @@ Example response:
 * `lists` - The list's items.
 * `description` - The list's description, or an empty string if it has none.
 
-## Create or Update a List
+## Create a List
 
 | Method | Endpoint                     | Description                                                                       |
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
-| `POST` | `/api/lists/{name}` | Create or update a custom list. |
+| `POST` | `/api/lists/{name}` | Create a custom list. A name you already use is refused; to change an existing list, [replace it](#replace-a-list). |
 
 ### Query Parameters
 
-* `description` (optional) - A description of the custom list. Left out, an existing list keeps its description and a new list has none. An empty value (`description=`) clears it.
+* `description` (optional) - A description of the custom list. Left out, the list has none.
 
 ### Request Body
 
@@ -84,13 +84,50 @@ A JSON array of strings containing the items for the list.
 
 ### Responses
 
-* `201 Created` - A new list was created.
-* `200 OK` - The items of an existing list with the same name were replaced.
+* `201 Created` - The list was created.
+* `400 Bad Request` - The name is empty, there are too many items, or an item is too long.
+* `404 Not Found` - The owner does not exist or may not be reached.
+* `409 Conflict` - You already have a list with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `list_exists`.
 
 Example request:
 
 ```
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/lists/my-list?description=My%20description" -d '["item1", "item2"]'
+```
+
+Example `409` response:
+
+```json
+{
+  "message": "A list with this name already exists.",
+  "reason": "list_exists"
+}
+```
+
+## Replace a List
+
+| Method | Endpoint                     | Description                                                                       |
+| ------ |------------------------------|-----------------------------------------------------------------------------------|
+| `PUT` | `/api/lists/{name}` | Replace the items of an existing custom list. |
+
+### Query Parameters
+
+* `description` (optional) - Left out, the list keeps its description. An empty value (`description=`) clears it.
+
+### Request Body
+
+A JSON array of strings containing the complete new items for the list.
+
+### Responses
+
+* `200 OK` - The list was replaced.
+* `400 Bad Request` - There are too many items, or an item is too long.
+* `404 Not Found` - There is no such list, or the owner does not exist or may not be reached. The body carries a `message`.
+
+Example request:
+
+```
+curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/lists/my-list" -d '["item1", "item2", "item3"]'
 ```
 
 ## Delete a List

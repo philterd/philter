@@ -6468,7 +6468,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy was not deleted because it is the default policy; reason is policy_default.",
+            "description": "The policy was not deleted, and reason says why: policy_default (the default policy) or policy_managed (a managed policy).",
             "content": {
               "application/json": {
                 "schema": {
@@ -6728,7 +6728,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy was not replaced because it changed concurrently; reason is policy_changed. Reload it and retry.",
+            "description": "The policy was not replaced, and reason says why: policy_managed (a managed policy, which cannot be replaced) or policy_changed (it changed concurrently; reload it and retry).",
             "content": {
               "application/json": {
                 "schema": {
@@ -7136,11 +7136,11 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy is a managed policy.",
+            "description": "The policy is a managed policy; reason is policy_managed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PolicyConflictResponse"
                 }
               }
             }

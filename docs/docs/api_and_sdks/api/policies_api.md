@@ -138,7 +138,9 @@ The policy's description and notes are kept. Change them with [`PUT /api/policie
 * `200 OK` - The policy was replaced.
 * `400 Bad Request` - The policy is invalid, or the request has a `description` or `notes` parameter.
 * `404 Not Found` - There is no such policy. The body carries a `message`, except when the `owner` does not exist or may not be reached.
-* `409 Conflict` - The policy changed after this request read it. Nothing is changed. The body carries a `message` and the `reason` `policy_changed`; reload the policy and retry.
+* `409 Conflict` - The policy was not replaced, and nothing is changed. The body carries a `message` and a `reason`:
+    * `policy_managed` - The policy is a [managed policy](../../policies/sample_policies.md#managed-policies), which cannot be replaced. Copy it and change the copy instead.
+    * `policy_changed` - The policy changed after this request read it. Reload the policy and retry.
 
 Example request:
 
@@ -157,7 +159,9 @@ curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token
 * `200 OK` - The policy was deleted.
 * `400 Bad Request` - The policy name is missing.
 * `404 Not Found` - There is no such policy. The body carries a `message`, except when the `owner` does not exist or may not be reached.
-* `409 Conflict` - The policy is the `default` policy, which cannot be deleted, and it is kept. The body carries a `message` and the `reason` `policy_default`.
+* `409 Conflict` - The policy was not deleted, and it is kept. The body carries a `message` and a `reason`:
+    * `policy_default` - The policy is the `default` policy.
+    * `policy_managed` - The policy is a managed policy.
 
 Example request:
 
@@ -268,7 +272,7 @@ A field left out is left as it is, and an empty value clears it. The description
 
 * `400 Bad Request` - The description or notes are too long.
 * `404 Not Found` - There is no such policy.
-* `409 Conflict` - The policy is a managed policy, which cannot be changed.
+* `409 Conflict` - The policy is a managed policy, which cannot be changed. The body carries a `message` and the `reason` `policy_managed`.
 
 ## Copy a Policy
 

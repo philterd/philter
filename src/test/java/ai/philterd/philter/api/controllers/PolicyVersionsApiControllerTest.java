@@ -506,11 +506,11 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns409ForManagedPolicy() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
+        when(policyDataService.rollback(anyString(), eq("managed_common_pii"), eq(userId), eq(1), eq(userId), anyString()))
                 .thenReturn(new ServiceResponse("Managed policies cannot be rolled back.", false, 409,
                         PolicyDataService.REASON_POLICY_MANAGED));
 
-        mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
+        mockMvc.perform(post("/api/policies/managed_common_pii/rollback")
                         .header("Authorization", AUTH_HEADER)
                         .param("revision", "1"))
                 .andExpect(status().isConflict())

@@ -40,6 +40,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -243,6 +244,47 @@ class PolicyDetailsIT {
         assertTrue(gson.fromJson(taken.body(), JsonObject.class).has("message"), taken.body());
         assertEquals(400, send("POST", "/api/policies/pii/copy?name=managed_mine", null, null).statusCode());
         assertEquals(404, send("POST", "/api/policies/nope/copy?name=x", null, null).statusCode());
+    }
+
+    @Test
+    @DisplayName("A real managed policy is refused with policy_managed on rollback, replace, delete, and details, and is unchanged")
+    void writesToAManagedPolicyAreRefused() throws Exception {
+        final String before = send("GET", "/api/policies/managed_common_pii", null, null).body();
+        final int revision = details("managed_common_pii").get("revision").getAsInt();
+
+        final Map<String, HttpResponse<String>> refused = new java.util.LinkedHashMap<>();
+        refused.put("rollback", send("POST", "/api/policies/managed_common_pii/rollback?revision=1", null, null));
+        refused.put("replace", send("PUT", "/api/policies/managed_common_pii", "application/json", POLICY));
+        refused.put("delete", send("DELETE", "/api/policies/managed_common_pii", null, null));
+        refused.put("details", send("PUT", "/api/policies/managed_common_pii/details", "application/json", "{\"notes\":\"n\"}"));
+
+        for (final Map.Entry<String, HttpResponse<String>> entry : refused.entrySet()) {
+            final HttpResponse<String> response = entry.getValue();
+            assertEquals(409, response.statusCode(), entry.getKey() + ": " + response.body());
+            final JsonObject body = gson.fromJson(response.body(), JsonObject.class);
+            assertEquals("policy_managed", body.get("reason").getAsString(), entry.getKey() + ": " + response.body());
+            assertTrue(body.has("message"), entry.getKey() + ": " + response.body());
+        }
+        assertEquals("Managed policies cannot be rolled back.",
+                gson.fromJson(refused.get("rollback").body(), JsonObject.class).get("message").getAsString());
+
+        assertEquals(before, send("GET", "/api/policies/managed_common_pii", null, null).body(), "the policy is unchanged");
+        assertEquals(revision, details("managed_common_pii").get("revision").getAsInt(), "no version was recorded");
+
+        // Nothing was activated: the audit log, read by an administrator, has no activation for it.
+        final String admin = "managed-admin-" + java.util.UUID.randomUUID();
+        assertTrue(userService.createUser("req", admin, null, "admin", policyDataService, contextDataService, "test").isSuccessful());
+        final String adminKey = apiKeyDataService.createApiKey("req", userService.findByUsername(admin).getId(), "test",
+                ApiKeyScope.all()).getMessage();
+        final HttpResponse<String> audit = httpClient.send(HttpRequest.newBuilder(
+                        URI.create(baseUrl + "/api/audit?event=policy_activated&limit=100"))
+                .header("Authorization", "Bearer " + adminKey).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, audit.statusCode(), audit.body());
+        for (final var event : gson.fromJson(audit.body(), JsonObject.class).getAsJsonArray("events")) {
+            // A copy made from it is recorded as "copied from"; only the policy itself being activated counts.
+            assertFalse(event.getAsJsonObject().get("details").getAsString().startsWith("policy: managed_common_pii"),
+                    event.toString());
+        }
     }
 
 }

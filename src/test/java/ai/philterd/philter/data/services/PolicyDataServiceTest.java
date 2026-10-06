@@ -363,22 +363,29 @@ class PolicyDataServiceTest {
 
     @Test
     void rollbackReturns409WhenPolicyIsManaged() {
+        // A managed policy has no owner, so it is refused by name before any per-user lookup.
         final ObjectId userId = new ObjectId();
-        final Document managedDoc = new Document("_id", new ObjectId())
-                .append("name", "managed-policy")
-                .append("user_id", userId)
-                .append("managed", true);
-
-        final FindIterable<Document> fi = mock(FindIterable.class);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
-        when(fi.first()).thenReturn(managedDoc);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "managed-policy", userId, 1, userId, "10.0.0.1");
+                policyDataService.rollback("req", "managed_common_pii", userId, 1, userId, "10.0.0.1");
 
         assertFalse(response.isSuccessful());
         assertEquals(409, response.getStatusCode());
+        assertEquals("Managed policies cannot be rolled back.", response.getMessage());
         assertEquals(PolicyDataService.REASON_POLICY_MANAGED, response.getDetails());
+        verify(mongoCollection, never()).find(any(Bson.class));
+    }
+
+    @Test
+    void deleteByNameReturns409WhenPolicyIsManaged() {
+        final ObjectId userId = new ObjectId();
+
+        final ServiceResponse response =
+                policyDataService.deleteByName("req", "managed_common_pii", userId, Source.API, userId, "10.0.0.1");
+
+        assertEquals(409, response.getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_MANAGED, response.getDetails());
+        verify(mongoCollection, never()).deleteOne(any(Bson.class));
     }
 
     @Test

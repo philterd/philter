@@ -240,8 +240,9 @@ public class PoliciesApiController extends AbstractApiController {
                     + "to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "409", description = "The policy was not replaced because it changed concurrently; "
-                    + "reason is policy_changed. Reload it and retry.",
+            @ApiResponse(responseCode = "409", description = "The policy was not replaced, and reason says why: policy_managed "
+                    + "(a managed policy, which cannot be replaced) or policy_changed (it changed concurrently; reload "
+                    + "it and retry).",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
@@ -272,6 +273,13 @@ public class PoliciesApiController extends AbstractApiController {
         if (httpServletRequest.getParameter("description") != null || httpServletRequest.getParameter("notes") != null) {
             throw new BadRequestException("description and notes are not accepted here. Set them with "
                     + "PUT /api/policies/{policyName}/details, which takes them in a JSON body.");
+        }
+
+        // A managed policy has no owner, so the per-user lookup below would answer 404. Creating one is
+        // refused by the name rules with 400.
+        if (replace && PolicyDataService.isManagedName(name)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON)
+                    .body(new PolicyConflictResponse("Managed policies cannot be replaced.", PolicyDataService.REASON_POLICY_MANAGED));
         }
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -343,8 +351,8 @@ public class PoliciesApiController extends AbstractApiController {
                     + "to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "409", description = "The policy was not deleted because it is the default policy; "
-                    + "reason is policy_default.",
+            @ApiResponse(responseCode = "409", description = "The policy was not deleted, and reason says why: policy_default "
+                    + "(the default policy) or policy_managed (a managed policy).",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
@@ -493,7 +501,9 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "400", description = "The description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "There is no such policy, or the owner does not exist or the caller may not reach it."),
-            @ApiResponse(responseCode = "409", description = "The policy is a managed policy.")
+            @ApiResponse(responseCode = "409", description = "The policy is a managed policy; reason is policy_managed.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.POLICIES_WRITE)
     @RequestMapping(value = "/api/policies/{policyName}/details", method = RequestMethod.PUT,
@@ -507,7 +517,8 @@ public class PoliciesApiController extends AbstractApiController {
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
         if (PolicyDataService.isManagedName(policyName)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("Managed policies cannot be changed."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new PolicyConflictResponse(
+                    "Managed policies cannot be changed.", PolicyDataService.REASON_POLICY_MANAGED));
         }
         requireDetailLengths(request.getDescription(), request.getNotes());
 

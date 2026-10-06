@@ -788,13 +788,15 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
                                     final ObjectId userId, final int targetRevision,
                                     final ObjectId principalId, final String clientIpAddress) {
 
+        // Checked by name, before the lookup: managed policies have no owner, so the per-user lookup below
+        // never finds one, and checking the record instead would answer 404.
+        if (isManagedName(policyName)) {
+            return new ServiceResponse("Managed policies cannot be rolled back.", false, 409, REASON_POLICY_MANAGED);
+        }
+
         final PolicyEntity live = findOne(policyName, userId);
         if (live == null) {
             return new ServiceResponse("Policy does not exist.", false, 404);
-        }
-
-        if (live.isManaged()) {
-            return new ServiceResponse("Managed policies cannot be rolled back.", false, 409, REASON_POLICY_MANAGED);
         }
 
         final PolicyVersionEntity targetVersion =
@@ -838,6 +840,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      */
     public ServiceResponse deleteByName(final String requestId, final String policyName, final ObjectId userId,
                                         final Source source, final ObjectId principalId, final String clientIpAddress) {
+
+        // By name, before the lookup, as in rollback: a managed policy has no owner to find it under.
+        if (isManagedName(policyName)) {
+            return new ServiceResponse("Managed policies cannot be deleted.", false, 409, REASON_POLICY_MANAGED);
+        }
 
         final PolicyEntity policyEntity = findOne(policyName, userId);
 

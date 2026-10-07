@@ -239,7 +239,7 @@ class AuditApiIT {
         assertEquals(200, export.statusCode(), export.body());
         assertTrue(export.headers().firstValue("Content-Type").orElse("").startsWith("text/csv"), export.headers().toString());
         assertTrue(export.body().startsWith(
-                "timestamp,event,request_id,api_key_id,associated_object,client_ip_address,details\n"), export.body());
+                "timestamp,event,request_id,api_key_id,associated_object,client_ip_address,source,details\n"), export.body());
         // The users created for this test were created today, so the export has rows: at most the default
         // page of 100, and a next offset exactly when other tests' events today filled more than one page.
         final int rows = Integer.parseInt(export.headers().firstValue("X-Philter-Export-Rows").orElseThrow());

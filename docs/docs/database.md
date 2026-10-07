@@ -54,7 +54,8 @@ id, a client address and a short detail string, not document content.
 
 **Not encrypted:** API keys (stored as a hash), context entries (stored as a token hash, not the
 original value), policies and their version snapshots, contexts, legal holds, disambiguation vectors (`vectors`, hashes only), sign-in challenges (stored as a hash), the rest of the admin
-settings, webhook delivery metadata and payloads, and the audit log. These hold no recoverable secret, with one
+settings, webhook delivery metadata and payloads, a pending document's submitting client address (recorded on its
+audit events, which hold it in the clear too), and the audit log. These hold no recoverable secret, with one
 exception you control.
 
 > **A policy can hold a secret, and then it is stored in the clear.** The `crypto` and `fpe` sections

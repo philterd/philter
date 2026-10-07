@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
 class AuditLogServiceTest {
 
     private static final String HEADER =
-            "timestamp,event,request_id,api_key_id,associated_object,client_ip_address,details";
+            "timestamp,event,request_id,api_key_id,associated_object,client_ip_address,source,details";
 
     @Mock private MongoClient mongoClient;
     @Mock private MongoDatabase mongoDatabase;
@@ -103,7 +103,7 @@ class AuditLogServiceTest {
     void writesHeaderAndOneRowPerEvent() {
         final Document a = new Document("event", "user_created").append("request_id", "r1")
                 .append("api_key_id", "k1").append("associated_object", "o1")
-                .append("client_ip_address", "1.2.3.4").append("details", "role: admin")
+                .append("client_ip_address", "1.2.3.4").append("source", "api").append("details", "role: admin")
                 .append("timestamp", Date.from(Instant.parse("2026-06-08T12:00:00Z")));
         final Document b = new Document("event", "user_deleted").append("request_id", "r2")
                 .append("timestamp", Date.from(Instant.parse("2026-06-07T08:30:00Z")));
@@ -113,9 +113,9 @@ class AuditLogServiceTest {
         final String[] lines = export(FROM, TO).split("\n");
 
         assertEquals(HEADER, lines[0]);
-        assertEquals("2026-06-08T12:00:00Z,user_created,r1,k1,o1,1.2.3.4,role: admin", lines[1]);
-        // Missing fields render as empty cells (b has no api_key_id/associated_object/ip/details).
-        assertEquals("2026-06-07T08:30:00Z,user_deleted,r2,,,,", lines[2]);
+        assertEquals("2026-06-08T12:00:00Z,user_created,r1,k1,o1,1.2.3.4,api,role: admin", lines[1]);
+        // Missing fields render as empty cells (b has no api_key_id/associated_object/ip/source/details).
+        assertEquals("2026-06-07T08:30:00Z,user_deleted,r2,,,,,", lines[2]);
         assertEquals(3, lines.length);
     }
 

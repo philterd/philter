@@ -44,6 +44,7 @@ curl -k -H "Authorization: Bearer <token>" \
       "apiKeyId": "6aa5792a403075186a843960",
       "associatedObject": "6aa57a01403075186a843971",
       "clientIpAddress": "192.168.64.1",
+      "source": "api",
       "details": "policy: audit-probe-policy, source: api"
     }
   ],
@@ -51,7 +52,7 @@ curl -k -H "Authorization: Bearer <token>" \
 }
 ```
 
-Every field except `timestamp` and `event` may be absent for an event that did not record it. `apiKeyId` is the acting principal, `associatedObject` the entity the action concerned, and `details` a short, non-sensitive description. Audit events never carry the redacted values themselves; see [Auditing](../../auditing.md) for the full field reference and the list of events.
+Every field except `timestamp` and `event` may be absent for an event that did not record it. `apiKeyId` is the acting principal, `associatedObject` the entity the action concerned, `clientIpAddress` the address of the client whose request caused the event, `source` where the event came from (`api` or `system`), and `details` a short, non-sensitive description. Audit events never carry the redacted values themselves; see [Auditing](../../auditing.md) for the full field reference and the list of events.
 
 ## Export audit events as CSV
 

@@ -29,6 +29,7 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.audit.ClientAddress;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -283,6 +284,7 @@ public class FilterApiController extends AbstractApiController {
         entity.setOutputMimeType(outputMimeType);
         entity.setPolicyName(policyName);
         entity.setContextName(contextName);
+        entity.setClientIpAddress(ClientAddress.current());
         entity.setStatus(PendingDocumentEntity.STATUS_PENDING);
         entity.setInput(body);
         entity.setSubmittedAt(new Date());

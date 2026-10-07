@@ -18,6 +18,7 @@ package ai.philterd.philter.services.filtering;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
+import ai.philterd.philter.audit.ClientAddress;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
@@ -131,6 +132,9 @@ public class RedactionWorker {
             }
         }, heartbeatIntervalMs, heartbeatIntervalMs, TimeUnit.MILLISECONDS);
 
+        // The events this redaction records carry the address of the request that submitted it.
+        ClientAddress.setSubmittedBy(job.getClientIpAddress());
+
         try {
             final MimeType inputMimeType = MimeType.valueOf(job.getInputMimeType());
 
@@ -194,6 +198,7 @@ public class RedactionWorker {
             reconcileNotifications();
         } finally {
             heartbeat.shutdownNow();
+            ClientAddress.clear();
         }
 
     }

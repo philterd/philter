@@ -49,6 +49,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     public void setEffectiveHash(String value) { effectiveHash = value; }
 
     private String contextName;
+    // The address of the request that submitted the document, recorded on the audit events the worker writes.
+    private String clientIpAddress;
     private String status;
     private String errorMessage;
     private byte[] input;
@@ -75,6 +77,7 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         entity.setPolicyVersion(document.getInteger("policy_version", -1));
         entity.setPolicyContentHash(document.getString("policy_content_hash"));
         entity.setContextName(document.getString("context_name"));
+        entity.setClientIpAddress(document.getString("client_ip_address"));
         entity.effectiveHash = document.getString("effective_hash");
         if (document.getString("effective_json") != null) {
             entity.effectiveJson = encryptionService.decrypt(document.getString("effective_json"), document.getString("effective_key"));
@@ -123,6 +126,7 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         document.put("policy_version", policyVersion);
         document.put("policy_content_hash", policyContentHash);
         document.put("context_name", contextName);
+        document.put("client_ip_address", clientIpAddress);
         document.put("input_size", input == null ? 0L : (long) input.length);
         document.put("effective_hash", effectiveHash);
         if (effectiveJson != null) {
@@ -232,6 +236,14 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
 
     public void setContextName(final String contextName) {
         this.contextName = contextName;
+    }
+
+    public String getClientIpAddress() {
+        return clientIpAddress;
+    }
+
+    public void setClientIpAddress(final String clientIpAddress) {
+        this.clientIpAddress = clientIpAddress;
     }
 
     public String getStatus() {

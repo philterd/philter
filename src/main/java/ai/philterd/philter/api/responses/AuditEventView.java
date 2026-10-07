@@ -29,16 +29,19 @@ public class AuditEventView {
     private final String apiKeyId;
     private final String associatedObject;
     private final String clientIpAddress;
+    private final String source;
     private final String details;
 
     public AuditEventView(final Date timestamp, final String event, final String requestId, final String apiKeyId,
-                          final String associatedObject, final String clientIpAddress, final String details) {
+                          final String associatedObject, final String clientIpAddress, final String source,
+                          final String details) {
         this.timestamp = timestamp;
         this.event = event;
         this.requestId = requestId;
         this.apiKeyId = apiKeyId;
         this.associatedObject = associatedObject;
         this.clientIpAddress = clientIpAddress;
+        this.source = source;
         this.details = details;
     }
 
@@ -64,8 +67,14 @@ public class AuditEventView {
         return associatedObject;
     }
 
+    /** The address of the client whose request caused the event, when a request did. */
     public String getClientIpAddress() {
         return clientIpAddress;
+    }
+
+    /** Where the event came from: {@code api} for a request, or {@code system} for Philter's own work. */
+    public String getSource() {
+        return source;
     }
 
     public String getDetails() {

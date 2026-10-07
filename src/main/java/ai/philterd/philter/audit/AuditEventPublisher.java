@@ -20,8 +20,13 @@ import org.bson.types.ObjectId;
 
 import java.util.Map;
 
+/**
+ * Records audit events. Where a method takes {@code clientIpAddress}, it is a client address or, from code
+ * with no request behind it, a {@link ai.philterd.philter.model.Source}. While a request is being served,
+ * that request's address is recorded whatever is passed; see {@link ClientAddress}. A value that is not an
+ * address is recorded as the event's {@code source}, never as its address.
+ */
 public interface AuditEventPublisher {
-
 
     void publishAuditEvent(final Map<String, Object> auditEvent);
 

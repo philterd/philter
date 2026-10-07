@@ -61,11 +61,11 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("America/New_York"));
 
         final String[] lines = lines(export);
-        assertEquals("timestamp,event,request_id,api_key_id,associated_object,client_ip_address,details", lines[0]);
+        assertEquals("timestamp,event,request_id,api_key_id,associated_object,client_ip_address,source,details", lines[0]);
         assertEquals(2, export.rows());
         assertFalse(export.truncated());
         assertEquals("America/New_York", export.zone().getId());
-        assertEquals("2026-10-02T03:59:59Z,last,,,,,\"detail, with a comma\"", lines[1]);
+        assertEquals("2026-10-02T03:59:59Z,last,,,,,,\"detail, with a comma\"", lines[1]);
         assertTrue(lines[2].startsWith("2026-10-01T04:00:00Z,first,"), lines[2]);
         assertEquals(3, lines.length);
     }
@@ -119,8 +119,8 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC")));
 
         assertEquals("2026-10-01T12:00:00Z,api_authentication_failed,'-1+1,,'\tcmd,"
-                + "\"'=HYPERLINK(\"\"https://attacker.example\"\",\"\"x\"\")\",'@SUM(1)", lines[1]);
-        assertEquals("2026-10-01T11:00:00Z,ordinary,,,,,\"detail, with a comma\"", lines[2]);
+                + "\"'=HYPERLINK(\"\"https://attacker.example\"\",\"\"x\"\")\",,'@SUM(1)", lines[1]);
+        assertEquals("2026-10-01T11:00:00Z,ordinary,,,,,,\"detail, with a comma\"", lines[2]);
     }
 
     @Test

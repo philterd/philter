@@ -17,6 +17,7 @@ package ai.philterd.philter.audit;
 
 import ai.philterd.philter.config.AuditConfig;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.Source;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -104,12 +105,23 @@ public class MongoDBAuditEventPublisher implements AuditEventPublisher {
             return;
         }
 
+        // Callers pass a client address or, from code that has no request, a source such as "system".
+        // The request being served decides both, so a caller cannot record a different address and a
+        // service called from a request records it without being given it; the field holds only
+        // addresses, and where the event came from is the source.
+        final boolean givenAnAddress = ClientAddress.isAddress(clientIpAddress);
+        final String requestAddress = ClientAddress.current();
+        final String address = requestAddress != null ? requestAddress : givenAnAddress ? clientIpAddress : null;
+        final String source = requestAddress == null && clientIpAddress != null && !givenAnAddress ? clientIpAddress
+                : address != null ? Source.API.getSource() : Source.SYSTEM.getSource();
+
         final Document document = new Document()
                 .append("request_id", requestId)
                 .append("event", auditLogEvent == null ? null : auditLogEvent.getAuditLogEvent())
                 .append("api_key_id", apiKeyId)
                 .append("associated_object", associatedObject)
-                .append("client_ip_address", clientIpAddress)
+                .append("client_ip_address", address)
+                .append("source", source)
                 .append("details", details)
                 .append("timestamp", new Date());
 

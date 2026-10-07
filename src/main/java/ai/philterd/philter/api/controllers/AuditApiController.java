@@ -201,6 +201,7 @@ public class AuditApiController extends AbstractApiController {
                 asString(document.get("api_key_id")),
                 asString(document.get("associated_object")),
                 document.getString("client_ip_address"),
+                document.getString("source"),
                 document.getString("details"));
     }
 

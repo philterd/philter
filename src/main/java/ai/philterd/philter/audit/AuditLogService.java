@@ -43,7 +43,7 @@ public class AuditLogService {
 
     /** The columns, in order, written to the CSV export. */
     private static final String[] COLUMNS =
-            {"timestamp", "event", "request_id", "api_key_id", "associated_object", "client_ip_address", "details"};
+            {"timestamp", "event", "request_id", "api_key_id", "associated_object", "client_ip_address", "source", "details"};
 
     /**
      * The maximum number of (most recent) events included in an export, to bound memory use. If the log

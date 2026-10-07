@@ -12,7 +12,7 @@ Terms added to this list will always be redacted in your documents, even if they
 
 - Each term is one entry in the list (`alwaysRedact` or `neverRedact`).
 - Terms are case-insensitive.
-- Saving replaces the whole list, so send every term you want to keep.
+- [`POST /api/redact-lists`](../api_and_sdks/api/redact_lists_api.md#replace-the-lists) replaces both lists at once: send every term you want to keep in each, since a list left out or sent empty is cleared. [`PUT`](../api_and_sdks/api/redact_lists_api.md#append-to-the-lists) adds terms without removing any.
 
 #### Fuzzy Matching
 
@@ -28,4 +28,4 @@ Terms added to this list will never be redacted, effectively acting as an allow-
 
 - Each term is one entry in the list (`alwaysRedact` or `neverRedact`).
 - Terms are case-insensitive.
-- Saving replaces the whole list, so send every term you want to keep.
+- [`POST /api/redact-lists`](../api_and_sdks/api/redact_lists_api.md#replace-the-lists) replaces both lists at once: send every term you want to keep in each, since a list left out or sent empty is cleared. [`PUT`](../api_and_sdks/api/redact_lists_api.md#append-to-the-lists) adds terms without removing any.

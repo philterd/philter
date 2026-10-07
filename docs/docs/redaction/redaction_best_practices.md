@@ -27,7 +27,7 @@ While Philter uses advanced AI and machine learning, automated redaction is not 
 
 ## Start with a Risk Assessment
 
-Before performing redaction, assess the risk in your documents. A quantitative overview of the sensitive information present helps you prioritize which documents need the most attention and which policies might be most effective.
+Before redacting at scale, review a representative sample of your data to learn which types of sensitive information it contains, then test your policy against that sample and check the output. Philter Scope can score a policy's precision and recall against gold-standard data so you can measure the effect of policy changes.
 
 ## Use Custom Lists for Known Terms
 

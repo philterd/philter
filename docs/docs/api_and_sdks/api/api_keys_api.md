@@ -61,7 +61,19 @@ Lists the active keys belonging to the calling key's user, oldest first, and the
 
 ```json
 {
-  "apiKeys": [ { "id": "6a0f1c2e9b1d4e3f2a1b0c9d", "prefix": "sk_AbCdEfGhI...", "scopes": ["redact"], "created": "2026-10-05T14:03:11.000Z", "bootstrap": false } ],
+  "apiKeys": [
+    {
+      "id": "6a0f1c2e9b1d4e3f2a1b0c9d",
+      "prefix": "sk_AbCdEfGhI...",
+      "scopes": ["redact"],
+      "created": "2026-10-05T14:03:11.000Z",
+      "bootstrap": false,
+      "session": false,
+      "expiresAt": null,
+      "idleExpiresAt": null,
+      "lastUsedAt": null
+    }
+  ],
   "total": 1
 }
 ```

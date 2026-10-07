@@ -35,7 +35,6 @@ For example, if you have a custom list named `my-custom-list`, you would referen
 
 ```json
 {
-  "name": "my-policy",
   "ignored": [
     {
       "name": "my-ignored-terms",
@@ -65,7 +64,7 @@ a list used by a policy, update the policy's references or expect subsequent red
 
 ## Programmatic Management via API
 
-For developers and organizations with dynamic data protection needs, Philter provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with the Philterd platform, among other use-cases.
+For developers and organizations with dynamic data protection needs, Philter provides a set of API endpoints for managing custom lists. This enables you to automate the synchronization of your internal "ignore" or "redact" lists with Philter.
 
 *   **List Retrieval**: Programmatically fetch your custom lists, each with its name, description, and number of items.
 *   **Item Management**: Retrieve the items within any list, or replace them.

@@ -7,13 +7,7 @@ Philter has settings to control how it operates. The settings and how to configu
 
 ## Configuring Philter
 
-### The Philter Settings File
-
-Philter looks for its settings in a `philter.properties` file in the current directory.
-
-### Using Environment Variables
-
-Properties can also be set via environment variables. Environment variables take precedence over properties set in `philter.properties`.
+Philter reads its settings from environment variables. There is no settings file.
 
 ## Database Settings
 
@@ -41,8 +35,10 @@ The cache is used for API key and context caching. Philter supports Valkey/Redis
 | `CACHE_PORT` | The Valkey port. | `6379` |
 | `CACHE_PASSWORD` | The Valkey password. | (empty) |
 | `CACHE_SSL` | Whether to use SSL for communication with the Valkey cache. | `false` |
-| `SCHEDULER_POOL_SIZE` | Threads available to Philter's background workers: one redacts asynchronous documents, the other delivers webhooks. With a single thread they block each other, so a slow document delays delivery. Raise it only if you add further scheduled work. | `2` |
-| `ADMIN_SETTINGS_CACHE_TTL_SECONDS` | How long an instance caches the admin settings (output signing, Phield, Diffuse) before re-reading them. They are read on every redaction, so caching keeps that off the database. A change made through this instance's [Settings API](api_and_sdks/api/settings_api.md) applies immediately; one made on another instance is picked up within this window. | `60` |
+| `SCHEDULER_POOL_SIZE` | Threads shared by Philter's four scheduled background tasks: claiming and redacting asynchronous documents, reconciling their completion notifications, delivering webhooks, and expiring session keys. Tasks wait for a free thread, so with a single thread a slow document delays webhook delivery. | `2` |
+| `API_KEY_CACHE_TTL_SECONDS` | How long a resolved API key is cached. Revoking a key through the API evicts it immediately; this bounds how long a key revoked out-of-band keeps working. See [Caching](caching.md). | `60` |
+| `REDACTION_CACHE_TTL_SECONDS` | How long the filtering endpoints cache a user's policy and always/never redact lists in-process, and so the longest an edited or deleted policy or redact list keeps being used. Never written to Valkey/Redis. See [Caching](caching.md). | `60` |
+| `ADMIN_SETTINGS_CACHE_TTL_SECONDS` | How long an instance caches the admin settings (output signing, Phield, Diffuse, the webhook allowlist, and MFA availability and requirement) before re-reading them. They are read on every redaction, so caching keeps that off the database. A change made through this instance's [Settings API](api_and_sdks/api/settings_api.md) applies immediately; one made on another instance is picked up within this window. | `60` |
 
 ## Metrics
 
@@ -130,15 +126,15 @@ user account changes, policy changes, ledger access, export and deletion, admin 
 legal holds, and signing key lifecycle. Disabling the audit trail is a compliance decision rather
 than a tuning setting, so Philter does not offer it.
 
-**Redaction-activity events are optional.** Two are recorded per redaction
-(`document_redaction_initiated` and `document_redaction_completed`). They are the only audit events
+**Redaction-activity events are optional.** A redaction records `document_redaction_completed`; an
+asynchronous document submission also records `document_redaction_initiated` when it is queued. They are the only audit events
 on the redaction path and the only unbounded source of growth in the audit log, so a deployment
 running Philter as a plain redaction engine can turn them off. Doing so does not reduce what a
 security review can see; it removes the per-redaction volume.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `AUDIT_REDACTION_EVENTS_ENABLED` | Whether the two per-redaction audit events are recorded. Set to `false` for a lean, high-volume deployment. Security events are unaffected. | `true` |
+| `AUDIT_REDACTION_EVENTS_ENABLED` | Whether the redaction-activity audit events are recorded. Set to `false` for a lean, high-volume deployment. Security events are unaffected. | `true` |
 
 ## Redaction Ledger
 
@@ -188,7 +184,9 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `INCREMENTAL_REDACTIONS_ENABLED` | Whether Phileas computes incremental redactions. These are required to populate the redaction ledger; leave enabled if any context uses the ledger. | `true` |
 | `MAX_FILE_SIZE_BYTES` | Maximum request body size, in bytes, for the endpoints that accept a document to redact: `POST /api/filter` and `POST /api/explain`. | `10485760` (10 MB) |
 | `MAX_FILE_SIZE_BYTES_OTHER` | Maximum request body size, in bytes, for every other `POST` and `PUT`. These carry configuration (policies, contexts, lists), not documents. The default accommodates the largest body these endpoints accept: a [redact lists](redaction/redact_lists.md) `POST` replaces both lists at once, so at the documented maximum of 1,000 terms of 100 characters per list it reaches roughly 203 KB. | `262144` (256 KB) |
-| `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service used by policies that perform named-entity recognition. | (none) |
+| `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service, used by a policy's ph-eye filter when the policy sets no endpoint. | `http://philter-ph-eye-1:5000/` |
+| `PHEYE_BEARER_TOKEN` | Bearer token sent to ph-eye, used when the policy sets none. | (none) |
+| `PHEYE_TIMEOUT` | Connection-request and response timeout, in seconds, for calls to ph-eye, used when the policy sets none. | `600` |
 
 ## Output Signing
 

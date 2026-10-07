@@ -158,7 +158,7 @@ public class LedgerApiController extends AbstractApiController {
     @Operation(summary = "List redaction-ledger chains.",
             description = "Returns the head (genesis entry) of each redacted document's ledger chain, most recent "
                     + "first. Pass q to filter by document id or filename. Admins may list another user's chains by "
-                    + "passing that user's email as owner, or every user's with all_users=true, which adds each "
+                    + "passing that user's username as owner, or every user's with all_users=true, which adds each "
                     + "chain's owner, cannot be combined with q, and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The matching ledger chains. With all_users, each entry also has an owner field. "

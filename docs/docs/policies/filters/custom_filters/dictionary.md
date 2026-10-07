@@ -17,15 +17,16 @@ At least one of `terms` or `files` must be provided.
 
 | Parameter        | Description                                                                                                                                                                                                                      | Default Value         |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `customFilterStrategies` | A list of filter strategies. | None |
 | `enabled`        | When set to false, the filter will be disabled and not applied                                                                                                                                                                   | `true`                |
 | `ignored`        | A list of terms to be ignored by the filter.                                                                                                                                                                                     | None                  |
 | `fuzzy`          | When set to true, the dictionary will employ fuzzy comparisons. Use the `sensitivity` parameter to control the level of fuzziness. Setting this value to false will disable fuzziness and provide a higher level of performance. | `false`               |
-| `classification` | Used to apply an arbitrary label to the identifier, such as "patient-id", or "account-number."                                                                                                                                   | `"custom-identifier"` |
-| `sensitivity`    | Controls the "fuzziness" of allowed values to account for misspellings and derivations. Valid values are `low`, `medium`, and `high`. Only applies when `fuzzy` is set to `true`.                                                | `medium`              |
+| `classification` | Used to apply an arbitrary label to the identifier, such as "patient-id", or "account-number."                                                                                                                                   | None                  |
+| `sensitivity`    | Controls the "fuzziness" of allowed values to account for misspellings and derivations. Valid values are `auto`, `off`, `low`, `medium`, and `high`. Only applies when `fuzzy` is set to `true`.                                 | `medium`              |
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in as they are listed. See [Filter Strategies ](../../filter_strategies.md)for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies ](../../filter_strategies.md)for details.
 
 | Strategy              | Description                                              |
 | --------------------- | -------------------------------------------------------- |
@@ -41,7 +42,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
@@ -49,15 +50,14 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 ```
 {
-   "name": "dictionary-example",
    "identifiers": {
       "dictionaries": [
-         "customDictionary": {
+         {
             "terms": ["john", "jane", "doe"],
-            "files": "c:\temp\dictionary.txt",
+            "files": ["/tmp/dictionary.txt"],
             "fuzzy": true,
             "sensitivity": "medium",
-            "sectionFilterStrategies": [
+            "customFilterStrategies": [
                {
                   "strategy": "REDACT",
                   "redactionFormat": "{{{REDACTED-%t}}}"

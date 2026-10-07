@@ -1,10 +1,10 @@
 # Contexts API
 
-The Contexts API provides endpoints for retrieving, creating, and deleting contexts, and for listing, exporting, and importing the token-to-replacement mappings within a context.
+The Contexts API provides endpoints for retrieving, creating, updating, and deleting contexts, and for listing, exporting, and importing the token-to-replacement mappings within a context.
 
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own contexts. Because context names are unique only per user, an **admin** identifies another user's context by adding an `owner=<username>` query parameter. A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
+> Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.
 
 ## Get Context Names
 
@@ -144,6 +144,13 @@ Returns `200 OK` on success, `400 Bad Request` if neither setting is given, and 
 
 A delete is **rejected with `409 Conflict`** if any asynchronously-submitted document referencing the context is still pending or processing. Either wait for the jobs to finish (poll the [Documents API](documents_api.md)) or delete the pending jobs first.
 
+### Responses
+
+* `200 OK` - The context was deleted.
+* `400 Bad Request` - No context with that name exists for the user. The body's `message` is `Context does not exist.`
+* `404 Not Found` - The `owner` does not exist or may not be reached.
+* `409 Conflict` - The context has pending or processing asynchronous jobs.
+
 Example request:
 
 ```bash
@@ -185,7 +192,7 @@ Example response:
       "replacement": "{{{REDACTED-person}}}",
       "filterType": "PERSON",
       "reads": 14,
-      "timestamp": "2026-05-22T20:00:00.000+00:00"
+      "timestamp": "2026-05-22T20:00:00.000Z"
     }
   ],
   "total": 1
@@ -244,9 +251,9 @@ Exports every token-to-replacement mapping in the context in a JSON form that ca
 
 Returns `200 OK` with the export document. The response is sent with a `Content-Disposition` header so it can be saved directly to a file.
 
-> **Security:** the export contains a **keyed hash** (HMAC-SHA256) of each original token, never the original value, along with its replacement. The key is derived from `PHILTER_ENCRYPTION_KEY` and never leaves the deployment, so the hash cannot be reversed by guessing candidate values — which matters because most of what Philter detects is low-entropy: an SSN is only 10<sup>9</sup> possibilities, a date of birth far fewer. A bare digest of one is recoverable by enumeration in seconds. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
+> **Security:** the export contains a **keyed hash** (HMAC-SHA256) of each original token, never the original value, along with its replacement. The key is derived from `PHILTER_ENCRYPTION_KEY` and never leaves the deployment, so the hash cannot be reversed by guessing candidate values. That matters because most of what Philter detects is low-entropy: an SSN is only 10<sup>9</sup> possibilities, a date of birth far fewer. A bare digest of one is recoverable by enumeration in seconds. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
 
-> **Portability:** because the hash is keyed to the deployment, an export can be imported into another context or account **within the same Philter deployment**, but not into a different one — the hashes would not match, and the original tokens are not stored, so they cannot be recomputed. Moving pseudonymization consistency between installations requires the same `PHILTER_ENCRYPTION_KEY`.
+> **Portability:** because the hash is keyed to the deployment, an export can be imported into another context or account **within the same Philter deployment**, but not into a different one: the hashes would not match, and the original tokens are not stored, so they cannot be recomputed. Moving pseudonymization consistency between installations requires the same `PHILTER_ENCRYPTION_KEY`.
 
 Example request:
 

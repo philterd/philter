@@ -21,7 +21,7 @@ This filter has no required parameters.
 ### Filter Strategies
 
 The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is
-used. When multiple filter strategies are given the filter strategies will be applied in order as they are listed.
+used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied.
 See [Filter Strategies](../../filter_strategies.md) for details.
 
 | Strategy              | Description                                              |
@@ -38,7 +38,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 |--------------|--------------------------------------------------------------------------|------------------------------------|
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
@@ -46,7 +46,6 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 ```
 {
-   "name": "email-address-example",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [

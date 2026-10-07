@@ -37,10 +37,9 @@ POLICY clinical_notes
   DESCRIPTION 'De-identify clinical notes before analytics.';
 
 DEIDENTIFY
-  PHYSICIAN_NAME AS RANDOM_REPLACE,
+  EMAIL_ADDRESS  AS RANDOM_REPLACE,
   SSN            AS REDACT,
   PHONE_NUMBER   AS REDACT,
-  EMAIL_ADDRESS  AS REDACT,
   DATE           AS TRUNCATE;
 
 REDACT CREDIT_CARD WITH LAST_4 WHERE CONFIDENCE > 0.85;
@@ -51,8 +50,8 @@ compiles to:
 ```json
 {
   "identifiers": {
-    "physicianName": {
-      "physicianNameFilterStrategies": [ { "strategy": "RANDOM_REPLACE" } ]
+    "emailAddress": {
+      "emailAddressFilterStrategies": [ { "strategy": "RANDOM_REPLACE" } ]
     },
     "ssn": {
       "ssnFilterStrategies": [ { "strategy": "REDACT" } ]
@@ -60,17 +59,17 @@ compiles to:
     "phoneNumber": {
       "phoneNumberFilterStrategies": [ { "strategy": "REDACT" } ]
     },
-    "emailAddress": {
-      "emailAddressFilterStrategies": [ { "strategy": "REDACT" } ]
-    },
     "date": {
       "dateFilterStrategies": [ { "strategy": "TRUNCATE" } ]
     },
     "creditCard": {
       "creditCardFilterStrategies": [
-        { "strategy": "LAST_4", "conditions": "confidence > 0.85" }
+        { "strategy": "LAST_4", "condition": "confidence > 0.85" }
       ]
     }
+  },
+  "metadata": {
+    "description": "De-identify clinical notes before analytics."
   }
 }
 ```
@@ -124,7 +123,7 @@ A source that fails to parse or compile returns `400 Bad Request` with the compi
 {"message": "Unknown entity type: NOT_A_THING"}
 ```
 
-Philter also validates the compiled output against the policy schema before returning it, so a policy that compiles but would be rejected by `POST /api/policies` fails at compile time instead, with the validation message.
+Philter also validates the compiled output with the same check `POST /api/policies` applies (the policy parses, has a non-empty `identifiers` object, and maps to the policy model; it is not validated against the JSON schema), so a policy that compiles but would be rejected on save fails at compile time instead, with the validation message.
 
 ## Language Reference
 

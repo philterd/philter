@@ -4,7 +4,7 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own policies. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, get, create, replace, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
+> Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.
 
 
 ## Get Policy Names
@@ -26,6 +26,15 @@ Example request:
 curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies?offset=0&limit=100"
 ```
 
+Example response, a JSON array of the caller's policy names:
+
+```json
+[
+  "default",
+  "my-policy"
+]
+```
+
 Example response with `all_users=true`:
 
 ```json
@@ -41,7 +50,7 @@ Example response with `managed=true`:
 [
   { "name": "managed_common_pii", "description": "Common PII including names, emails, phone numbers, and SSNs" },
   { "name": "managed_financial_pii", "description": "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses" },
-  { "name": "managed_healthcare_phi", "description": "Healthcare PHI including names, dates, addresses, and medical identifiers" }
+  { "name": "managed_healthcare_phi", "description": "Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs" }
 ]
 ```
 
@@ -296,7 +305,7 @@ curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/p
 
 ## Policy Version History
 
-Every time a policy's content changes, Philter automatically retains an immutable snapshot of it and advances the policy's revision. Saving a policy without changing its content — or changing only its description or notes — is not a new revision. The following endpoints expose that history and allow any prior revision to be restored.
+Every time a policy's content changes, Philter automatically retains an immutable snapshot of it and advances the policy's revision. Saving a policy without changing its content, or changing only its description or notes, is not a new revision. The following endpoints expose that history and allow any prior revision to be restored.
 
 ### List Versions
 
@@ -430,4 +439,4 @@ Example response:
 
 ## Native JSON and concurrent changes
 
-Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Policy names are supplied in the `name` query parameter. Concurrent replace or rollback operations can return 409 with the reason `policy_changed` if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.
+Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Create (`POST /api/policies`) takes the new policy's name in the `name` query parameter, and copy takes the copy's name there; every other operation names the policy in the path. Concurrent replace or rollback operations can return 409 with the reason `policy_changed` if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.

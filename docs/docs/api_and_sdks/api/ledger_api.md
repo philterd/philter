@@ -47,6 +47,10 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
 {
   "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
   "valid": true,
+  "hashChainValid": true,
+  "signaturesValid": true,
+  "signedEntries": 1,
+  "unsignedEntries": 0,
   "entries": [
     {
       "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
@@ -57,11 +61,19 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
       "documentHash": "…",
       "previousHash": "…",
       "hash": "…",
-      "timestamp": "2026-06-08T14:11:33.000+00:00"
+      "timestamp": "2026-06-08T14:11:33.000Z",
+      "policyName": "default",
+      "policyVersion": 3,
+      "policyContentHash": "…",
+      "effectiveHash": "…",
+      "signature": "…",
+      "signingKeyId": "…"
     }
   ]
 }
 ```
+
+`valid` is `true` only when `hashChainValid` and `signaturesValid` are both `true`; an unsigned entry makes `signaturesValid` `false`. Fields with no value are omitted: `effectiveHash` appears only on entries from asynchronous requests, and `signature` and `signingKeyId` only on signed entries.
 
 > **Security:** reading a chain does not return the original values that were redacted, only the replacements that appear in the redacted document. The originals are carried by the [export](#export-a-documents-ledger-chain), which requires the separate `ledger:export` scope. Access is restricted to the chain's owner either way.
 
@@ -71,7 +83,7 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
 |--------|----------------------------------|----------------------------------------------|
 | `GET`  | `/api/ledger/{documentId}/valid` | Check whether the hash chain still verifies.  |
 
-Returns `200 OK` with `{ "documentId": "…", "valid": true }` (the `entries` array is omitted), or `404 Not Found` if no such chain exists. `valid` is `false` if any entry was altered or a link in the chain is broken.
+Returns `200 OK` with `documentId`, `valid`, `hashChainValid`, `signaturesValid`, `signedEntries`, and `unsignedEntries` (the `entries` array is omitted), or `404 Not Found` if no such chain exists. `valid` is `false` if any entry was altered or a link in the chain is broken.
 
 ### A chain that cannot be validated
 
@@ -107,12 +119,35 @@ The export body has the shape:
 
 ```json
 {
-  "version": 1,
+  "version": 3,
   "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
   "count": 3,
-  "entries": [ /* LedgerEntryView objects, as in "Get a document's ledger chain" */ ]
+  "entries": [
+    {
+      "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
+      "filename": "note.txt",
+      "type": "PERSON",
+      "token": "George Washington",
+      "replacement": "{{{REDACTED-person}}}",
+      "startPosition": 11,
+      "documentHash": "…",
+      "previousHash": "…",
+      "hash": "…",
+      "timestamp": "2026-06-08T14:11:33.000Z",
+      "policyName": "default",
+      "policyVersion": 3,
+      "policyContentHash": "…",
+      "signature": "…",
+      "signingKeyId": "…"
+    }
+  ],
+  "signingKeys": {
+    "<signingKeyId>": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n"
+  }
 }
 ```
+
+Each entry has the fields shown in [Get a document's ledger chain](#get-a-documents-ledger-chain), plus `token`, the original value. Only the first of the three entries is shown.
 
 > **Security:** unlike reading a chain, and unlike a context export (token hashes only), a ledger export contains the **decrypted original values**. That is why it needs `ledger:export` rather than `ledger:read`. Treat the file as sensitive and store and transmit it securely.
 
@@ -148,7 +183,7 @@ The ledger is kept indefinitely by default (see [How and When Ledger Entries Are
 * `older_than_days` (required) - Delete complete chains whose completion time and newest entry are older than this many days. Must be zero or greater (`0` purges completed chains; unfinished chains remain).
 * `owner` - Optional. Admin only. The username of the user whose entries to purge. Defaults to the caller.
 
-Returns `200 OK` with the number of entries deleted, or `400 Bad Request` if `older_than_days` is missing, is not a number, or is negative.
+Returns `200 OK` with a `message` such as `"Deleted 42 ledger entries in 3 completed chains older than 90 days."`, or `400 Bad Request` if `older_than_days` is missing, is not a number, or is negative.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \

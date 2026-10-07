@@ -2,13 +2,13 @@
 
 A **legal hold** is a named, audited instruction to Philter to never delete the redaction evidence for a specific scope of data. Legal holds are the primary mechanism for preserving governance evidence during litigation, regulatory investigation, or any situation where data must not be destroyed.
 
-When a legal hold is active on a user's data, every deletion path in Philter is blocked. A blocked operation returns an **HTTP 423 Locked** response and the attempt is written to the audit log. The hold must be explicitly released before any deletion proceeds.
+When a legal hold is active, Philter blocks deletion of the [redaction ledger](ledgers.md) evidence it covers. A blocked operation returns an **HTTP 423 Locked** response and the attempt is written to the audit log. The hold must be explicitly released before that deletion proceeds. Holds apply only to ledger evidence: deleting contexts, mappings, documents, or policies does not consult them.
 
 ## Why Legal Holds Exist
 
 Redaction ledgers record a tamper-evident history of every redaction performed on every document. This history is normally deletable: an administrator can purge old entries on demand or delete individual document chains. For most purposes that is fine, but when evidence is needed for a legal or regulatory matter, accidental or routine deletion would destroy it.
 
-Legal holds block every deletion path through Philter for as long as the hold is active. The hold is named (so it can be referenced in legal correspondence), scoped (so it only protects what it should), audited (so the hold lifecycle is part of the permanent record), and independently releasable (so removing one hold does not unblock evidence still covered by another).
+Legal holds block every ledger deletion path through Philter for as long as the hold is active. The hold is named (so it can be referenced in legal correspondence), scoped (so it only protects what it should), audited (so the hold lifecycle is part of the permanent record), and independently releasable (so removing one hold does not unblock evidence still covered by another).
 
 Enforcement is within Philter. Anyone with direct access to the underlying MongoDB can still remove data, so secure and back up the database to the standard your retention obligations require.
 
@@ -95,15 +95,14 @@ A successful release returns **HTTP 200 OK**. If the hold does not exist, **HTTP
 
 ## How Holds Block Deletions
 
-The hold check runs on every deletion Philter performs. There is no way to bypass a hold through the API.
+The hold check runs on every deletion of ledger evidence Philter performs. There is no way to bypass a hold through the API. Other deletions (contexts, mappings, documents, policies) are not hold-checked.
 
 | Deletion operation | Hold check applied |
 |--------------------|--------------------|
 | `DELETE /api/ledger/{documentId}` (delete a specific document's chain) | `isProtectedDocument`: blocks if a `document_chain` hold covers that document, or if a `user` hold covers the owning user. |
 | `DELETE /api/ledger?older_than_days=N` (bulk age-based purge) | `hasAnyHold`: blocks the entire purge if the user has **any** active hold. Because a bulk purge cannot selectively skip held documents, the entire operation is blocked while any hold remains. |
-| Internal bulk delete during user removal | `hasAnyHold`: same as bulk purge above. |
 
-Philter has no automatic ledger expiry, so this table is exhaustive: there is no path by which held evidence is removed without a hold check.
+Users are deactivated, not deleted, and deactivation does not remove ledger evidence. Philter has no automatic ledger expiry, so this table is exhaustive: there is no API path by which held ledger evidence is removed without a hold check. (An internal owner-wide ledger delete exists in the service layer and applies the same `hasAnyHold` check, but no API endpoint calls it.)
 
 When a deletion is blocked:
 
@@ -111,7 +110,7 @@ When a deletion is blocked:
 - The response body lists the references of every hold that blocked the operation.
 - The event `legal_hold_blocked_deletion` is written to the [audit log](../auditing.md), including the hold references and the user involved.
 
-No partial deletion occurs. Either the entire requested deletion succeeds or it is blocked in full.
+A blocked deletion removes nothing: the hold check runs before any entry is deleted. A deletion that passes the check is not transactional, so a database failure partway through can leave it partially applied. See [Concurrent operations and recovery](#concurrent-operations-and-recovery).
 
 ## Admin Access
 
@@ -131,7 +130,7 @@ Every hold lifecycle action is recorded in the audit log. See [Auditing](../audi
 
 ## API Reference
 
-The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md) page: `POST /api/holds`, `GET /api/holds`, `GET /api/holds/{reference}`, and `DELETE /api/holds/{reference}`, including the admin `owner` parameter.
+The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md) page: `POST /api/holds`, `GET /api/holds`, `GET /api/holds/{reference}`, `DELETE /api/holds/{reference}`, and `DELETE /api/holds?reference=` (for a hold whose reference cannot be used in a path), including the admin `owner` parameter.
 
 ## Concurrent operations and recovery
 

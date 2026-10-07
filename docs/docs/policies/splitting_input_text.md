@@ -6,8 +6,13 @@ An example split configuration in a policy is shown below
 
 ```
 {
-  "name": "default",
-  "identifiers": {}, 
+  "identifiers": {
+    "ssn": {
+      "ssnFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    }
+  },
   "config": {
     "splitting": {
       "enabled": true,
@@ -20,7 +25,7 @@ An example split configuration in a policy is shown below
 
 In this example policy, splitting is enabled for inputs greater than equal to 10,000 characters in length.
 
-The method of splitting the text will be the `newline` method. This method will cause Philter to split the text based on the locations of new line characters in the input text. Additional methods of text splitting may be added in future versions.
+The method of splitting the text will be the `newline` method. This method will cause Philter to split the text based on the locations of new line characters in the input text. The `width` method wraps the text at word boundaries into pieces of at most `threshold` characters, and the `characters` method splits the text into pieces of `threshold` characters. An unrecognized method falls back to `newline`.
 
 Because the newline method splits text based on the locations of new line characters in the text, the text contained in the reassembled filter responses may not be an exact match of the input text. This is due to white space and other characters that may reside near the new line characters that get omitted during processing.
 
@@ -28,9 +33,10 @@ Because the newline method splits text based on the locations of new line charac
 
 | Property    | Description                                                                                                                                                                                | Allowed Values     | Default Value |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ | ------------- |
-| `enabled`   | Whether or not input texts are split. Whether or not input texts are split. When `false`, requests with text exceeding the threshold generate a `HTTP 413 PayloadTooLarge` error response. | `true` or `false`  | `false`       |
-| `threshold` | When to split the input text. Set to `-1` to disable splitting.                                                                                                                            | Any integer value. | `10000`       |
-| `method`    | How to split the text.                                                                                                                                                                     | `newline`          | `newline`     |
+| `enabled`   | Whether or not input texts are split. Set to `false` to disable splitting; the `threshold` is then not checked. | `true` or `false`  | `false`       |
+| `threshold` | Input text whose length is greater than or equal to this number of characters is split. For the `width` and `characters` methods, also the maximum piece length. | Any integer value. | `10000`       |
+| `method`    | How to split the text.                                                                                                                                                                     | `newline`, `width`, `characters` | `newline`     |
+| `overlap`   | Number of characters each piece shares with the end of the previous piece, so a value that crosses a piece boundary can be detected whole. Spans found in the overlap are de-duplicated. | `0` or greater | `0` |
 
 ### Alternative to Philter Splitting Text
 

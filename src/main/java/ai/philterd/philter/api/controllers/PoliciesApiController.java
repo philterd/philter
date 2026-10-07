@@ -93,7 +93,7 @@ public class PoliciesApiController extends AbstractApiController {
 
     @Operation(summary = "Get the names of existing policies.",
             description = "Returns the names of the caller's policies, paged. Admins may list another user's "
-                    + "policies by passing that user's email as owner, or every user's with all_users=true, which "
+                    + "policies by passing that user's username as owner, or every user's with all_users=true, which "
                     + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With "
                     + "managed=true, returns the built-in managed policies instead, each with its name and description.")
     @ApiResponses(value = {
@@ -156,7 +156,7 @@ public class PoliciesApiController extends AbstractApiController {
 
     @Operation(summary = "Get a policy.",
             description = "Returns the full policy with the given name. A name starting with managed_ returns that "
-                    + "built-in managed policy. Admins may retrieve another user's policy by passing that user's email "
+                    + "built-in managed policy. Admins may retrieve another user's policy by passing that user's username "
                     + "as owner. The policy's description and notes are at /api/policies/{policyName}/details.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy JSON."),
@@ -200,7 +200,7 @@ public class PoliciesApiController extends AbstractApiController {
                     + "refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is "
                     + "validated before it is stored. Set its description and notes afterwards with "
                     + "PUT /api/policies/{policyName}/details. Admins may create a policy in another user's account by "
-                    + "passing that user's email as owner.")
+                    + "passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The policy was created and is now active. A policy_activated audit event is recorded."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the request has a description or notes parameter."),
@@ -229,7 +229,7 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Replaces an existing policy with the request body, as a new revision. The policy is validated "
                     + "before it is stored. Its description and notes are kept; change them with "
                     + "PUT /api/policies/{policyName}/details. Admins may replace another user's policy by passing "
-                    + "that user's email as owner.")
+                    + "that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy was replaced and is now active. A policy_activated audit event is recorded.",
                     content = @Content),
@@ -341,7 +341,7 @@ public class PoliciesApiController extends AbstractApiController {
 
     @Operation(summary = "Delete a policy.",
             description = "Deletes the policy with the given name. Admins may delete another user's policy by passing "
-                    + "that user's email as owner.")
+                    + "that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy was deleted.", content = @Content),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
@@ -456,7 +456,7 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Returns a policy's name, description, notes, current revision, whether it is a built-in "
                     + "managed policy, and when it was created and last updated: everything except the policy itself. "
                     + "A name starting with managed_ returns that managed policy's details. Admins may read another "
-                    + "user's by passing that user's email as owner.")
+                    + "user's by passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy's details.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -493,7 +493,7 @@ public class PoliciesApiController extends AbstractApiController {
                     + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + "). A field "
                     + "left out is left as it is; an empty value clears it. They are not part of the policy, so this "
                     + "does not create a new version. Managed policies cannot be changed. Admins may change another "
-                    + "user's by passing that user's email as owner.")
+                    + "user's by passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The policy's details after the change.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -546,7 +546,7 @@ public class PoliciesApiController extends AbstractApiController {
                     + "starting with managed_, from a built-in managed policy. The copy has the source's policy and "
                     + "description; a copy of a managed policy notes which one it came from, and a copy of the caller's "
                     + "own policy keeps its notes. The copy starts its own version history and is active at once. "
-                    + "Admins may copy within another user's account by passing that user's email as owner.")
+                    + "Admins may copy within another user's account by passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The copy's details.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,

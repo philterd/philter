@@ -74,7 +74,7 @@ Regeneration preserves previous public keys and does not invalidate historical s
 When signing is enabled and the request succeeds (HTTP 200), Philter adds the `X-Philter-Signature` header containing a compact JWT:
 
 ```
-X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLiIsInBvbGljeU5hbWUiOiJkZWZhdWx0IiwicG9saWN5VmVyc2lvbiI6MSxyZXNwb25zZUlkIjoiLi4uIiwiaWF0IjoxNzE3MDAwMDAwfQ.MEQCIB...
+X-Philter-Signature: <base64url header>.<base64url payload>.<base64url signature>
 ```
 
 ### JWT structure
@@ -86,6 +86,10 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 ```
 
 **Payload:**
+
+```json
+{"bodyHash":"<sha-256 hex of the response body>","policyName":"default","policyVersion":1,"documentId":"<document id>","iat":1717000000}
+```
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -103,7 +107,7 @@ X-Philter-Signature: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJib2R5SGFzaCI6Ii4uLi
 |----------|---------|-------|
 | `POST /api/filter` (text/plain) | Yes (200 only) | Signed when enabled, or when the request passes `sign=true`. |
 | `POST /api/explain` | Yes (200 only) | Signed when enabled, or when the request passes `sign=true`. |
-| `POST /api/filter` (PDF) | No | PDF paths are async; signing is planned for a future release (see [#72](https://github.com/philterd/philter/issues/72)). `sign=true` is refused with `400`, never answered unsigned. |
+| `POST /api/filter` (PDF) | No | Not signed, with `async=true` (the default) or `async=false`; signing is planned for a future release (see [#72](https://github.com/philterd/philter/issues/72)). `sign=true` is refused with `400`, never answered unsigned. |
 | Error responses (4xx, 5xx) | Never | Error bodies are never signed. |
 
 ### Requesting a signature per request
@@ -165,7 +169,7 @@ import hashlib, jwt, requests
 # Verify a response
 response = requests.post(
     "https://philter.example.com/api/filter",
-    headers={"Authorization": "Bearer sk_..."},
+    headers={"Authorization": "Bearer sk_...", "Content-Type": "text/plain"},
     data="My name is John Smith.",
     params={"p": "default"},
 )

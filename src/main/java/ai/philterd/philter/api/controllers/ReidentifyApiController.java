@@ -92,7 +92,7 @@ public class ReidentifyApiController extends AbstractApiController {
                     + "FPE_ENCRYPT_REPLACE strategy. The caller must supply a stated reason, which is "
                     + "recorded in the audit log alongside the actor, timestamp, and count of reversals. "
                     + "A user may re-identify their own values; an admin may re-identify any user's values "
-                    + "by supplying that user's email via the owner parameter. "
+                    + "by supplying that user's username via the owner parameter. "
                     + "CRYPTO_REPLACE requires policyName so the key can be resolved from the stored policy. "
                     + "FPE_ENCRYPT_REPLACE uses the user's per-account FPE key; if the policy specified a "
                     + "custom FPE configuration, also pass policyName so its key and tweak are used instead."

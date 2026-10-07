@@ -38,7 +38,7 @@ curl -k -H "Authorization: Bearer <token>" \
 {
   "events": [
     {
-      "timestamp": "2026-09-12T16:12:06.481+00:00",
+      "timestamp": "2026-09-12T16:12:06.481Z",
       "event": "policy_deleted",
       "requestId": "b0e1f6c2-1d3a-4f88-9a7e-2c5d0a6f1b34",
       "apiKeyId": "6aa5792a403075186a843960",

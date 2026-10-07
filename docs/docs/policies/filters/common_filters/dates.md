@@ -27,7 +27,7 @@ This filter has no required parameters.
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in order as they are listed. See [Filter Strategies](../../filter_strategies.md) for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies](../../filter_strategies.md) for details.
 
 | Strategy              | Description                                                   |
 | --------------------- | ------------------------------------------------------------- |
@@ -36,9 +36,13 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 | `STATIC_REPLACE`      | Replace the sensitive text with a given value.                |
 | `CRYPTO_REPLACE`      | Replace the sensitive text with its encrypted value.          |
 | `HASH_SHA256_REPLACE` | Replace the sensitive text with its SHA256 hash value.        |
-| `SHIFT`               | Shift the date by a number of months, days, and/or years.     |
-| `SHIFTRANDOM`         | Shift the data by a random number of months, days, and years. |
+| `MASK`                | Replace the sensitive text with a repeated mask character.    |
+| `TRUNCATE`            | Keep some characters of the sensitive text and mask the rest. |
+| `TRUNCATE_TO_YEAR`    | Replace the date with its year.                               |
+| `SHIFT`               | Shift the date by a number of months, days, and/or years, or by a random amount with `shiftRandom`. |
 | `RELATIVE`            | Replace the date by a words relative to the date.             |
+
+`TRUNCATE_TO_YEAR` and `SHIFT` fall back to `REDACT` when the date cannot be parsed.
 
 ### Filter Strategy Options
 
@@ -53,8 +57,9 @@ The following filter strategy options are available for the `SHIFT` filter strat
 | Option         | Description                                                                                                       | Default Value |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- | ------------- |
 | `shiftDays`    | The number of days to shift the date. Can be a negative or positive integer. Defaults to `0` if not specified.    | `0`           |
-| `shiftMinutes` | The number of minutes to shift the date. Can be a negative or positive integer. Defaults to `0` if not specified. | `0`           |
+| `shiftMonths`  | The number of months to shift the date. Can be a negative or positive integer. Defaults to `0` if not specified.  | `0`           |
 | `shiftYears`   | The number of years to shift the date. Can be a negative or positive integer. Defaults to `0` if not specified.   | `0`           |
+| `shiftRandom`  | When `true`, shift the date by a random number of days, months, and years instead of `shiftDays`, `shiftMonths`, and `shiftYears`. | `false`       |
 
 ### Conditions
 
@@ -62,14 +67,14 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
-| `TOKEN`      | Compares the sensitive text to some category, e.g. `birthdate`.          | `is`                               |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
+| `TOKEN`      | Compares the sensitive text to some category, e.g. `"birthdate"`.        | `is`, `is not`                     |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
 #### Differentiating Between Dates and Birth Dates
 
-In some cases it may be necessary to redact birth dates and dates differently. Using conditions it is possible to determine if an identified date is a birth date. The conditional `token is birthdate` will determine if the identified date (token) is a birth date by analyzing the content surrounding the date.
+In some cases it may be necessary to redact birth dates and dates differently. Using conditions it is possible to determine if an identified date is a birth date. The conditional `token is "birthdate"` will determine if the identified date (token) is a birth date by analyzing the content surrounding the date. The supported categories are `"birthdate"`, `"deathdate"`, and `"birthdate or deathdate"`.
 
 ## Example Policy to Redact Dates
 
@@ -77,7 +82,6 @@ The following policy redacts dates.
 
 ```
 {
-   "name": "dates-example",
    "identifiers": {
       "date": {
          "onlyValidDates": false,
@@ -98,7 +102,6 @@ The following policy to shift dates forward by 2 days and 4 months.
 
 ```
 {
-   "name": "dates-example",
    "identifiers": {
       "date": {
          "onlyValidDates": false,

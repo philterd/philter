@@ -4,7 +4,7 @@ The Custom Lists API provides endpoints for retrieving, creating, replacing, and
 
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own lists. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, get, create, replace, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
+> Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.
 
 ## Get List Names
 
@@ -80,14 +80,14 @@ Example response:
 
 ### Request Body
 
-A JSON array of strings containing the items for the list.
+A JSON array of strings containing the items for the list. A list holds at most 100 items of at most 50 characters each. Items are trimmed; `null` and empty items are dropped.
 
 The name is part of the path, so it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including spaces and periods, is allowed when percent-encoded.
 
 ### Responses
 
 * `201 Created` - The list was created.
-* `400 Bad Request` - The name is empty or breaks the rule above, there are too many items, or an item is too long. The body carries a `message`.
+* `400 Bad Request` - The name is empty or breaks the rule above, the list has no items (`List items cannot be empty.`), there are too many items, or an item is too long. The body carries a `message`.
 * `404 Not Found` - The owner does not exist or may not be reached.
 * `409 Conflict` - You already have a list with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `list_exists`.
 
@@ -118,12 +118,12 @@ Example `409` response:
 
 ### Request Body
 
-A JSON array of strings containing the complete new items for the list.
+A JSON array of strings containing the complete new items for the list, with the same limits as [create](#create-a-list).
 
 ### Responses
 
 * `200 OK` - The list was replaced.
-* `400 Bad Request` - There are too many items, or an item is too long.
+* `400 Bad Request` - The list has no items (`List items cannot be empty.`), there are too many items, or an item is too long. The body carries a `message`.
 * `404 Not Found` - There is no such list, or the owner does not exist or may not be reached. The body carries a `message`.
 
 Example request:
@@ -143,6 +143,11 @@ Example request:
 ```
 curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/lists/my-list
 ```
+
+### Responses
+
+* `204 No Content` - The list was deleted.
+* `404 Not Found` - There is no such list, or the owner does not exist or may not be reached. No body.
 
 A list created before names were checked may have a name that cannot be used in a path, such as one containing `/`. Delete it with the name in the query instead: `DELETE /api/lists?name=<name>`, which behaves the same way.
 

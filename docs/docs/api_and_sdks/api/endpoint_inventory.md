@@ -1,10 +1,10 @@
 # Endpoint inventory
 
-Philter 4.0 exposes 70 HTTP operations implemented by 72 handlers. The three `/api/filter` handlers select text, PDF, or ZIP via request and response media types. Every operation is listed below; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
+Every HTTP operation Philter 4.0 exposes is listed below. The three `/api/filter` rows are one operation served by three handlers, selected by the request and response media types; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
 
 Send `Authorization: Bearer <api key>` unless the scope is Public. "Any key" accepts any valid key, whatever its scopes. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
-JSON responses use `application/json`; dates in API response objects use ISO 8601 strings with an offset. Empty responses have no JSON body. Bad parameter values return 400, unsupported request media types 415, incompatible Accept headers 406, and oversized bodies 413. Error responses are a JSON object whose `message` field explains the error, whatever the request's `Accept` header asked for. The one exception is a `403` from `GET /api/audit/export` for a caller who is not an administrator, which is plain text.
+JSON responses use `application/json`; dates in API response objects use ISO 8601 strings with an offset. Empty responses have no JSON body. Bad parameter values return 400, unsupported request media types 415, incompatible Accept headers 406, and oversized bodies 413. An error response that has a body is a JSON object whose `message` field explains the error, whatever the request's `Accept` header asked for. The exception is a `403` from `GET /api/audit/export` for a caller who is not an administrator, which is plain text. Some 404s have no body, such as one for an owner that does not exist or cannot be reached.
 
 | Method | Endpoint | Success format | Required scope | Reference |
 |--------|----------|----------------|----------------|-----------|

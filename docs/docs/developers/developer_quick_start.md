@@ -22,7 +22,6 @@ Save the following as `my-policy.json`:
 
 ```json
 {
-  "name": "my-custom-policy",
   "identifiers": {
     "ssn": {
       "ssnFilterStrategies": [
@@ -40,7 +39,7 @@ Save the following as `my-policy.json`:
 
 `REDACT` replaces the match with a label, and `MASK` replaces each character with a mask character. See [Filter Strategies](../policies/filter_strategies.md) for the full set and [Policy Schema](../policies/policy_schema.md) for every field.
 
-The policy name comes from the required `name` query parameter. A policy with the same name is overwritten.
+The policy name comes from the required `name` query parameter. If a policy with that name already exists, the request is refused with `409` and the reason `policy_exists`; replace an existing policy with `PUT /api/policies/{name}`.
 
 ### Using curl
 
@@ -104,7 +103,7 @@ Send the results to **************** and reference SSN {{{REDACTED-ssn}}}.
 
 The policy created in Step 1 covers only SSNs and email addresses, so nothing else in the text is changed. Person names, dates, and the rest require their own entries in the policy; the `default` policy is a broader starting point.
 
-The response carries `X-Philter-Policy-Name` and `X-Philter-Policy-Version` recording which policy version governed the request, and `X-Document-Id` identifying the redaction (the ID of its [ledger](../redaction/ledgers.md) chain when the context has the ledger enabled). When [output signing](../output_signing.md) is enabled, an `X-Philter-Signature` JWT attests the response body.
+The response carries `X-Philter-Policy-Name` and `X-Philter-Policy-Version` recording which policy version governed the request, and `X-Document-Id` identifying the redaction (the ID of its [ledger](../redaction/ledgers.md) chain when the context has the ledger enabled). When [output signing](../output_signing.md) is enabled, or the request passes `sign=true`, an `X-Philter-Signature` JWT attests the response body.
 
 ### Using Python
 
@@ -141,6 +140,7 @@ The body may be up to `MAX_FILE_SIZE_BYTES` (10 MB by default); a larger body is
 curl -k -X POST "https://localhost:8080/api/filter?c=default&p=my-custom-policy" \
      -H "Authorization: Bearer YOUR_API_KEY" \
      -H "Content-Type: application/pdf" \
+     -H "Accept: application/pdf" \
      --data-binary @sample_document.pdf
 ```
 
@@ -186,7 +186,7 @@ with open("sample_document.pdf", "rb") as f:
     submit = requests.post(
         f"{base_url}/api/filter",
         params={"c": "default", "p": "my-custom-policy"},
-        headers={**headers, "Content-Type": "application/pdf"},
+        headers={**headers, "Content-Type": "application/pdf", "Accept": "application/pdf"},
         data=f,
         verify=False,
     )

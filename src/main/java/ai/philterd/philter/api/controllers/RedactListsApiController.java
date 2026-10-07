@@ -91,7 +91,7 @@ public class RedactListsApiController extends AbstractApiController {
     @Operation(summary = "Get the always-redact and never-redact lists.",
             description = "Returns the account's always-redact and never-redact lists. Both lists are always "
                     + "present; an account with no saved terms returns empty arrays. Admins may read another user's "
-                    + "lists by passing that user's email as owner.")
+                    + "lists by passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The always-redact and never-redact lists."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
@@ -135,7 +135,7 @@ public class RedactListsApiController extends AbstractApiController {
                     + "is the complete desired contents of that list; a list that is omitted or sent as an empty array "
                     + "is cleared. Terms are trimmed and blank entries are dropped. Each list may contain up to "
                     + MAXIMUM_TERMS_PER_LIST + " terms, and each term may be up to " + MAXIMUM_TERM_LENGTH + " characters. "
-                    + "Admins may replace another user's lists by passing that user's email as owner.")
+                    + "Admins may replace another user's lists by passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The lists were replaced."),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, a list has too many terms, or a term is too long."),
@@ -208,7 +208,7 @@ public class RedactListsApiController extends AbstractApiController {
                     + "and terms already present are not added again. The resulting list may contain up to "
                     + MAXIMUM_TERMS_PER_LIST + " terms, and each term may be up to " + MAXIMUM_TERM_LENGTH + " characters; "
                     + "an append that would exceed the limit is rejected. Admins may append to another user's lists by "
-                    + "passing that user's email as owner.")
+                    + "passing that user's username as owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The terms were appended."),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, the resulting list has too many terms, or a term is too long."),

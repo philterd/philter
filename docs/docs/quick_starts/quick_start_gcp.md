@@ -14,7 +14,7 @@ Philter on Google Cloud is a virtual machine-based product. A free trial period 
 
 **Virtual Machine Recommendations**
 
-The general purpose machine type is n2-standard-2 and this machine type should be adequate for most use-cases. We recommend 8 vCPUs and 8-16 GB of RAM for a production deployment.
+The general purpose machine type is n2-standard-2 and this machine type should be adequate for most use-cases. See [System Requirements](../system_requirements.md) for the minimum and recommended resources.
 
 > Google Cloud will automatically open ports `22` (SSH) and `8080` (Philter API). These ports are required to be open but you may want to modify the security groups to limit their scope of availability by restricting access to specific CIDR ranges.
 
@@ -32,7 +32,7 @@ Set `API_KEY` in your shell to the bootstrap key. Every request below authentica
 
 For applications, create keys holding only the scopes they need, such as `redact`, with [`POST /api/api-keys`](../api_and_sdks/api/api_keys_api.md#create-a-key). To retire the bootstrap key, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks. [Philter UI](https://github.com/philterd/philter-ui), a separate web application in development, is being built to sign people in through Philter with their own username and password once `PASSWORD_SIGN_IN_ENABLED` is set; see [Sign-in Security](../sign_in_security.md).
 
-With Philter now running we can take it for a spin. We will send some text to Philter and inspect at the response we get back. The Philter virtual machine running in your cloud account should have a public IP address (unless you customized the deployment). We will use that public IP address to interact with Philter.
+With Philter now running we can take it for a spin. We will send some text to Philter and inspect the response we get back. The Philter virtual machine running in your cloud account should have a public IP address (unless you customized the deployment). We will use that public IP address to interact with Philter.
 
 Philter, by default, will be configured with an HTTPS listener on port 8080 using a self-signed certificate. It is recommended that prior to use in a production environment the self-signed certificate is replaced by a valid certificate owned by your organization.
 
@@ -46,7 +46,7 @@ With this command we are sending the text in the command to Philter for filterin
 
 ### Redacting Sensitive Information from Text
 
-The types of sensitive information that Philter identifies and removes is controlled by policies. By default, Philter includes a filter profile that includes many of the types of sensitive information, such as names and social security numbers. We can send text to filter to Philter for filtering using this default filter profile with the following command:
+The types of sensitive information that Philter identifies and removes is controlled by policies. By default, Philter includes a policy that includes many of the types of sensitive information, such as names and social security numbers. We can send text to Philter for filtering using this default policy with the following command:
 
 ```
 curl -k -X POST https://localhost:8080/api/filter --data-binary @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer $API_KEY"

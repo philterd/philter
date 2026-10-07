@@ -1,6 +1,6 @@
 # Redaction Contexts
 
-Redaction Contexts are a powerful organizational and functional feature of Philter. They serve two primary purposes: logically grouping related document processing tasks and ensuring referential integrity when using replacement strategies like anonymization.
+Redaction Contexts are a powerful organizational and functional feature of Philter. They serve two primary purposes: logically grouping related document processing tasks and ensuring referential integrity when using replacement strategies like pseudonymization.
 
 By utilizing contexts, you can manage your data protection activities more effectively, whether you are organizing by department, project, or individual client.
 
@@ -8,7 +8,7 @@ By utilizing contexts, you can manage your data protection activities more effec
 
 The most critical technical feature of a context is its ability to maintain referential integrity during redaction.
 
-When you redact a document within a specific context using an anonymizing strategy like `RANDOM_REPLACE` configured with `CONTEXT` replacement scope, the platform remembers the mapping between the original sensitive information and the replacement value it generated. If you subsequently process another document within the same context that contains the same sensitive information (e.g., the same patient name), Philter will use the exact same replacement value.
+When you redact a document within a specific context using a pseudonymizing strategy like `RANDOM_REPLACE` configured with `CONTEXT` replacement scope, the platform remembers the mapping between the original sensitive information and the replacement value it generated. If you subsequently process another document within the same context that contains the same sensitive information (e.g., the same patient name), Philter will use the exact same replacement value.
 
 This ensures that your redacted datasets remain analytically useful. You can still tell that the same individual is being referenced across multiple documents without ever knowing their actual identity.
 
@@ -70,7 +70,7 @@ A context's mapping table can be exported and imported through the [Contexts API
 *   **Export** returns the context's mappings as a JSON document. Only a keyed hash of each original value is exported, never the original value itself, so the same value continues to map to the same replacement wherever the table is imported. The key is derived from `PHILTER_ENCRYPTION_KEY`, so an export can be imported elsewhere in the same deployment but not into a different one.
 *   **Import** loads such a document into an existing context. By default an incoming value that already exists is skipped; you can choose to overwrite instead.
 
-Export and import are restricted to the user that **created** the context or to an **admin**. Because context names are unique only per user, an admin reaching another user's context supplies that user's username in the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.
+Export and import are restricted to the user that **created** the context or to an **admin** with `ADMIN_CROSS_USER_ACCESS_ENABLED=true`. Because context names are unique only per user, an admin reaching another user's context supplies that user's username in the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.
 
 ## Integration and Best Practices
 

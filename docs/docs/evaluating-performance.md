@@ -31,7 +31,6 @@ When creating a new policy, the configuration will be similar to what's shown be
 
 ```
 {
-   "name": "default",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -53,7 +52,7 @@ When creating a new policy, the configuration will be similar to what's shown be
 }
 ```
 
-The first thing we need to do is to set the name of the policy. Set the name to `evaluation` and save the policy.
+A policy's name is not part of its JSON: it is the `name` query parameter of `POST /api/policies`. This walkthrough names the policy `evaluation`.
 
 #### Identifying the Filters You Need
 
@@ -84,7 +83,6 @@ We can copy this configuration and paste it into our policy:
 
 ```
 {
-   "name": "evaluation",
    "identifiers": {
       "bitcoinAddress": {
          "bitcoinFilterStrategies": [
@@ -118,21 +116,17 @@ The order of the filters in the policy does not matter and has no impact on perf
 
 Repeat these steps until you have added a filter for each of the types of sensitive information you want to redact. Typically, the default redaction `strategy` and `redactionFormat` values for each filter should be fine for evaluation.
 
-When finished modifying the policy, create it with [`POST /api/policies`](api_and_sdks/api/policies_api.md#save-a-policy), or, if it already exists (such as a copy of the default policy), replace it with [`PUT /api/policies/{policyName}`](api_and_sdks/api/policies_api.md#replace-a-policy). There is no need to restart Philter; the policy will be available immediately for use.
+When finished modifying the policy, create it with [`POST /api/policies?name=evaluation`](api_and_sdks/api/policies_api.md#save-a-policy), or, if it already exists (such as a copy of the default policy), replace it with [`PUT /api/policies/{policyName}`](api_and_sdks/api/policies_api.md#replace-a-policy). There is no need to restart Philter; the policy will be available immediately for use.
 
 #### Submitting Text for Redaction
 
 With our policy in place we can now send text to Philter for redaction using that policy:
 
 ```
-PhilterConfiguration philterConfiguration = new PhilterConfiguration.Builder()
-        .withEndpoint("https://localhost:8080")
-        .withToken("your-api-token")
-        .build();
-
-FilterService redactionService = new PhilterFilterService(philterConfiguration);
-
-FilterResponse response = redactionService.filter("evaluation", "context", "documentId", body, MimeType.TEXT_PLAIN);
+curl -k -X POST "https://localhost:8080/api/filter?p=evaluation" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: text/plain" \
+  --data-binary @document.txt
 ```
 
 The `explain` API [endpoint](api_and_sdks/api/filtering_api.md) produces a detailed description of the redaction. The response will include a list of spans that contain the start and stop positions of redacted text and the type of sensitive information that was redacted. Using this information we can compare the redacted information to our annotated file to calculate precision and recall metrics.

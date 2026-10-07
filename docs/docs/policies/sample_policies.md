@@ -2,8 +2,6 @@
 
 This page lists some sample policies. You can use these policies either as-is or as starting points for customizing them to meet your specific de-identification needs.
 
-<!--To use a policy, download the policy to Philter' `policies` directory, which by default is `/opt/philter/policies`. Then restart Philter with `sudo systemctl restart Philter`. The new policy will now be available for use when submitting filter API requests to Philter. (Specify the policy's name in the request. See the [API](../api_and_sdks/api/filtering_api.md) for examples.)-->
-
 ## Managed Policies
 
 Philter includes built-in managed policies that can be used as starting points:
@@ -11,7 +9,7 @@ Philter includes built-in managed policies that can be used as starting points:
 | Name | Description |
 |------|-------------|
 | `managed_common_pii` | Common PII including names, emails, phone numbers, and SSNs |
-| `managed_healthcare_phi` | Healthcare PHI including names, dates, addresses, and medical identifiers |
+| `managed_healthcare_phi` | Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs |
 | `managed_financial_pii` | Financial PII including credit cards, bank routing numbers, and Bitcoin addresses |
 
 A managed policy can be read but not changed. To use one as the basis for your own, copy it and edit the copy:
@@ -33,7 +31,6 @@ This policy finds email addresses and phone numbers and redacts them with `{{{RE
 
 ```
 {
-  "name": "email-and-phone-numbers",
   "identifiers": {
     "emailAddress": {
       "emailAddressFilterStrategies": [
@@ -61,7 +58,6 @@ This policy finds persons names and SSNs and redacts them with `{{{REDACTED-enti
 
 ```
 {
-  "name": "persons-names-ssn",
   "identifiers": {
     "person": {
       "phEyeFilterStrategies": [
@@ -89,7 +85,6 @@ This policy finds dates, URLs, and VINs. Dates and URLs are redacted with `{{{RE
 
 ```
 {
-  "name": "dates-urls-vin",
   "identifiers": {
     "date": {
       "dateFilterStrategies": [
@@ -120,18 +115,17 @@ This policy finds dates, URLs, and VINs. Dates and URLs are redacted with `{{{RE
 
 ### IP Addresses
 
-This policy finds IP addresses and replaces each identified IP address with the static text `IP_ADDRESS` as long as the IP address is not `127.0.0.1`. (A condition on the filter strategy sets the IP address requirement.)
+This policy finds IP addresses and replaces each identified IP address with the static text `IP_ADDRESS` as long as the IP address is not `127.0.0.1`. (The filter's `ignored` list excludes `127.0.0.1`.)
 
 ```
 {
-  "name": "ip-addresses",
   "identifiers": {
     "ipAddress": {
+      "ignored": ["127.0.0.1"],
       "ipAddressFilterStrategies": [
         {
           "strategy": "STATIC_REPLACE",
-          "staticReplacement": "IP_ADDRESS",
-          "condition": "token != \"127.0.0.1\""
+          "staticReplacement": "IP_ADDRESS"
         }
       ]
     }
@@ -141,18 +135,17 @@ This policy finds IP addresses and replaces each identified IP address with the 
 
 ### Zip Codes
 
-This policy finds ZIP codes starting with `90` and truncates the zip code to just the first two digits.
+This policy finds ZIP codes starting with `90` and truncates the zip code to its first two digits, for example `90210` to `90***`.
 
 ```
 {
-  "name": "zip-codes",
   "identifiers": {
     "zipCode": {
-      "zipCodeFilterStrategy": [
+      "zipCodeFilterStrategies": [
         {
           "condition": "token startswith \"90\"",
           "strategy": "TRUNCATE",
-          "truncateDigits": 2
+          "truncateLeaveCharacters": 2
         }
       ]
     }
@@ -166,7 +159,6 @@ This policy enables text splitting for input over 10,000 characters.
 
 ```
 {
-  "name": "default-split-enabled",
   "config": {
     "splitting": {
       "enabled": true,
@@ -193,7 +185,6 @@ This policy has a list of globally ignored terms.
 
 ```
 {
-  "name": "default-global-ignore",
   "ignored": [
     {
       "name": "ignored credit cards",
@@ -213,21 +204,19 @@ This policy has a list of globally ignored terms.
 }
 ```
 
-### Generating Alerts
+### Redacting a Specific Value
 
-This policy generates an alert when a matching email address is identified.
+This policy redacts an email address only when it is `test@example.com`.
 
 ```
 {
-  "name": "email-address-alert",
   "identifiers": {
     "emailAddress": {
       "emailAddressFilterStrategies": [
         {
           "strategy": "REDACT",
           "redactionFormat": "{{{REDACTED-%t}}}",
-          "condition": "token == \"test@test.com\"",
-          "alert": true
+          "condition": "token == \"test@example.com\""
         }
       ]
     }

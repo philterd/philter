@@ -15,10 +15,11 @@ This filter has no required parameters.
 | `phoneNumberFilterStrategies` | A list of filter strategies.                                   | None          |
 | `enabled`                     | When set to false, the filter will be disabled and not applied | `true`        |
 | `ignored`                     | A list of terms to be ignored by the filter.                   | None          |
+| `region`                      | The region or regions (ISO 3166-1 alpha-2 codes, as a string or an array) used to detect phone numbers written without a `+` country code. Numbers with a `+` prefix are detected regardless of this value. | `US` |
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in order as they are listed. See [Filter Strategies](../../filter_strategies.md) for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies](../../filter_strategies.md) for details.
 
 | Strategy              | Description                                              |
 | --------------------- | -------------------------------------------------------- |
@@ -34,7 +35,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
@@ -42,7 +43,6 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 ```
 {
-   "name": "phone-number-example",
    "identifiers": {
       "phoneNumber": {
          "phoneNumberFilterStrategies": [

@@ -44,7 +44,7 @@ Every time a policy is created or updated, Philter automatically retains an immu
 
 ```bash
 curl -s https://philter:8080/api/policies/my-policy/versions \
-  -H "Authorization: YOUR_API_KEY"
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 Returns a summary list ordered by revision descending (most recent first):
@@ -63,7 +63,7 @@ Supports `?offset=` and `?limit=` for pagination.
 
 ```bash
 curl -s https://philter:8080/api/policies/my-policy/versions/2 \
-  -H "Authorization: YOUR_API_KEY"
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 Returns the full policy JSON as it existed at revision 2, using the same format as `GET /api/policies/{policyName}`.
@@ -73,11 +73,11 @@ Returns the full policy JSON as it existed at revision 2, using the same format 
 ```bash
 # Diff the two most recent revisions (omit from/to to use this default)
 curl -s "https://philter:8080/api/policies/my-policy/diff" \
-  -H "Authorization: YOUR_API_KEY"
+  -H "Authorization: Bearer YOUR_API_KEY"
 
 # Diff specific revisions
 curl -s "https://philter:8080/api/policies/my-policy/diff?from=1&to=3" \
-  -H "Authorization: YOUR_API_KEY"
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 Returns an envelope with the compared revision numbers and an RFC 6902 JSON Patch array describing what changed. Object-level changes (adds, removes, replaces) are reported per field path:
@@ -101,7 +101,7 @@ Rollback restores the content of a prior revision as a **new** revision. History
 
 ```bash
 curl -s -X POST "https://philter:8080/api/policies/my-policy/rollback?revision=1" \
-  -H "Authorization: YOUR_API_KEY"
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 Returns `201 Created` with the new revision number:
@@ -125,10 +125,10 @@ A refused rollback returns `409 Conflict` with a `message` and a `reason`: `poli
 
 ### Admin cross-user access
 
-All version history endpoints support the `?owner=` parameter. Admins may browse and roll back another user's policies by supplying that user's email:
+All version history endpoints support the `?owner=` parameter. Admins may browse and roll back another user's policies by supplying that user's username, which requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`:
 
 ```bash
-curl -s "https://philter:8080/api/policies/my-policy/versions?owner=other@example.com" \
-  -H "Authorization: ADMIN_API_KEY"
+curl -s "https://philter:8080/api/policies/my-policy/versions?owner=other-user" \
+  -H "Authorization: Bearer ADMIN_API_KEY"
 ```
 

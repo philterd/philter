@@ -10,7 +10,6 @@ A sample policy containing a filter strategy is shown below. In this example, em
 
 ```
 {
-   "name": "email-address",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -24,12 +23,12 @@ A sample policy containing a filter strategy is shown below. In this example, em
 }
 ```
 
-> Most of the filter strategies apply to all types of data, however, some filter strategies only apply to a few types. For example, the `TRUNCATE` filter strategy only applies to a zip code filter.
+> Most of the filter strategies apply to all types of data, however, some filter strategies only apply to a few types. For example, the `ZERO_LEADING` filter strategy only applies to a zip code filter. A strategy a filter does not support falls back to `REDACT`.
 
 
 ## Filter Strategies
 
-The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to `REDACT` for that filter type. When multiple filter strategies are given for a single filter type, the filter strategies will be applied in order as they are listed in the policy, top to bottom.
+The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to `REDACT` for that filter type. When multiple filter strategies are given for a single filter type, they are evaluated in the order listed, top to bottom, and only the first one whose condition is satisfied, or that has no condition, is applied. If no strategy's condition is satisfied, the text is not filtered.
 
 * [REDACT](#the-redact-filter-strategy)
 * [CRYPTO_REPLACE](#the-crypto_replace-filter-strategy)
@@ -37,8 +36,13 @@ The filter strategies are described below. Each filter type can specify zero or 
 * [FPE_ENCRYPT_REPLACE](#the-fpe_encrypt_replace-filter-strategy)
 * [RANDOM_REPLACE](#the-random_replace-filter-strategy)
 * [STATIC_REPLACE](#the-static_replace-filter-strategy)
+* [MASK](#the-mask-filter-strategy)
+* [LAST_4](#the-last_4-filter-strategy)
+* [ABBREVIATE](#the-abbreviate-filter-strategy)
+* [MAP_REPLACE](#the-map_replace-filter-strategy)
 * [TRUNCATE](#the-truncate-filter-strategy)
 * [ZERO_LEADING](#the-zero_leading-filter-strategy)
+* [Date strategies](#date-filter-strategies) (`TRUNCATE_TO_YEAR`, `SHIFT`, `RELATIVE`)
 
 ### The `REDACT` Filter Strategy
 
@@ -58,7 +62,6 @@ An example filter using the `REDACT` filter strategy:
 
 ```
 {
-   "name": "email-address",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -80,7 +83,6 @@ To use this filter strategy, the policy must provide an encryption `key` in a to
 
 ```
 {
-   "name": "sample-profile",
    "crypto": {
      "key": "...."
    },
@@ -109,7 +111,6 @@ An example policy using the `CRYPTO_REPLACE` filter strategy:
 
 ```
 {
-   "name": "email-address",
    "crypto": {
      "key": "env:PHILTER_CRYPTO_KEY"
    },
@@ -133,7 +134,6 @@ An example policy using the `HASH_SHA256_REPLACE` filter strategy:
 
 ```
 {
-   "name": "email-address",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -154,7 +154,6 @@ By default you do not need to supply a key. Philter manages a stable format-pres
 
 ```
 {
-   "name": "credit-cards",
    "identifiers": {
       "creditCard": {
          "creditCardFilterStrategies": [
@@ -173,7 +172,6 @@ To use your own key instead of the managed one, supply a top-level `fpe` object 
 
 ```
 {
-   "name": "credit-cards",
    "fpe": {
      "key": "...",
      "tweak": "..."
@@ -208,13 +206,12 @@ For more information on these values and format-preserving encryption, refer to 
 
 Replaces the identified text with a fake value but of the same type. For example, an SSN will be replaced by a random text having the format `###-##-####`, such as 123-45-6789. An email address will be replaced with a randomly generated email address. Available to all filter types.
 
-By default each document is anonymized independently. To make the same value map to the same fake value across every document in a [context](../redaction/contexts.md), set `"replacementScope": "CONTEXT"` on the strategy. See [Consistent Pseudonymization](../redaction/replacement_scope.md).
+By default each document is pseudonymized independently. To make the same value map to the same fake value across every document in a [context](../redaction/contexts.md), set `"replacementScope": "CONTEXT"` on the strategy. See [Consistent Pseudonymization](../redaction/replacement_scope.md).
 
 An example policy using the `RANDOM_REPLACE` filter strategy:
 
 ```
 {
-   "name": "email-address",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -235,7 +232,6 @@ An example policy using the `STATIC_REPLACE` filter strategy:
 
 ```
 {
-   "name": "email-address",
    "identifiers": {
       "emailAddress": {
          "emailAddressFilterStrategies": [
@@ -249,21 +245,92 @@ An example policy using the `STATIC_REPLACE` filter strategy:
 }
 ```
 
-### The `TRUNCATE` Filter Strategy
+### The `MASK` Filter Strategy
 
-Available only to zip codes, this strategy allows for truncating zip codes to only a select number of digits. Specify `truncateDigits` to set the desired number of leading digits to leave. For example, if `truncateDigits` is 2, the zip code 90210 will be truncated to `90***`.&#x20;
-
-The TRUNCATE filter strategy is available only to the zip code filter. An example policy using the `TRUNCATE` filter strategy:
+Replaces the identified text with a repeated mask character. `maskCharacter` sets the character (default `*`). `maskLength` sets the number of characters, either a number or `SAME` (default) to match the length of the identified text.
 
 ```
 {
-   "name": "zip-codes",
+   "identifiers": {
+      "emailAddress": {
+         "emailAddressFilterStrategies": [
+            {
+               "strategy": "MASK",
+               "maskCharacter": "#",
+               "maskLength": "SAME"
+            }
+         ]
+      }
+   }
+}
+```
+
+### The `LAST_4` Filter Strategy
+
+Replaces the identified text with its last four characters. For example, `4111111111111111` becomes `1111`. Not available to the date, zip code, and PhEye filters.
+
+### The `ABBREVIATE` Filter Strategy
+
+Replaces the identified text with the uppercase initials of its words. For example, `John Smith` becomes `JS`. Not available to the date and zip code filters.
+
+### The `MAP_REPLACE` Filter Strategy
+
+Replaces the identified text using a lookup table. Not available to the date, zip code, and PhEye filters.
+
+| Property           | Description                                                                                                                                       | Default  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `mappings`         | An object mapping an identified value to its replacement. Inline entries take precedence over entries loaded from `mappingFiles`.                 | None     |
+| `mappingFiles`     | A list of local file paths. Each file is tab-delimited with one key and replacement per line.                                                    | None     |
+| `caseSensitive`    | Whether lookup keys are matched case-sensitively.                                                                                                 | `false`  |
+| `generator`        | The name of a generator in the policy's top-level `generators` object, called for a value not in the lookup table.                                | None     |
+| `fallbackStrategy` | The strategy applied when the value is not in the lookup table and no generator produces an accepted value. `MAP_REPLACE` is treated as `REDACT`. | `REDACT` |
+
+A generated value is rejected, and the fallback strategy applied, when it is blank, equals the original value, or contains sensitive information detected by the policy's filters. With `"replacementScope": "CONTEXT"`, a value receives the same replacement across the documents in a context.
+
+Generators are declared by name in the top-level `generators` object. The only supported `type` is `ollama`, which calls an Ollama-compatible `/api/generate` endpoint. `prompt` may contain `{{token}}` and `{{label}}` placeholders. `timeoutMs` sets the request timeout in milliseconds.
+
+```
+{
+   "generators": {
+      "local-llm": {
+         "type": "ollama",
+         "endpoint": "http://localhost:11434",
+         "model": "llama3",
+         "prompt": "Return a fictitious replacement for the {{label}} value {{token}}. Return only the value.",
+         "timeoutMs": 5000
+      }
+   },
+   "identifiers": {
+      "emailAddress": {
+         "emailAddressFilterStrategies": [
+            {
+               "strategy": "MAP_REPLACE",
+               "mappings": {
+                  "jane@example.com": "user1@example.org"
+               },
+               "generator": "local-llm",
+               "fallbackStrategy": "REDACT"
+            }
+         ]
+      }
+   }
+}
+```
+
+### The `TRUNCATE` Filter Strategy
+
+Keeps a number of characters of the identified text and replaces the rest with a truncate character. `truncateLeaveCharacters` sets the number of characters to keep (default `4`, minimum `1`). `truncateCharacter` sets the replacement character (default `*`). `truncateDirection` is `LEADING` (default) to keep the leading characters or `TRAILING` to keep the trailing characters. For the zip code filter, `truncateLeaveCharacters` must be between `1` and `4`; with the default of `4`, the zip code 90210 is truncated to `9021*`, and with `2` it is truncated to `90***`.
+
+An example policy using the `TRUNCATE` filter strategy:
+
+```
+{
    "identifiers": {
       "zipCode": {
-         "zipCodeFilterStrategy": [
+         "zipCodeFilterStrategies": [
             {
                "strategy": "TRUNCATE",
-               "truncateDigits": 3
+               "truncateLeaveCharacters": 3
             }
          ]
       }
@@ -279,10 +346,9 @@ The `ZERO_LEADING` filter strategy is only available to zip code filters. An exa
 
 ```
 {
-   "name": "zip-codes",
    "identifiers": {
       "zipCode": {
-         "zipCodeFilterStrategy": [
+         "zipCodeFilterStrategies": [
             {
                "strategy": "ZERO_LEADING"
             }
@@ -292,15 +358,18 @@ The `ZERO_LEADING` filter strategy is only available to zip code filters. An exa
 }
 ```
 
+### Date Filter Strategies
+
+The date filter also supports `TRUNCATE_TO_YEAR` (replace the date with its year), `SHIFT` (shift the date by `shiftDays`, `shiftMonths`, and `shiftYears`, or by a random amount with `"shiftRandom": true`), and `RELATIVE` (replace the date with a relative description such as "3 months ago"). See [Dates](filters/common_filters/dates.md).
+
 ## Filter Strategy Conditions
 
-A replacement strategy can be applied based on the sensitive information meeting one or more conditions. For example, you can create a condition such that only dates of `11/05/2010` are replaced by using the condition `token == "11/05/2010"`. The conditions that can be applied vary based on the type of sensitive information. For instance, zip codes can have conditions based on their population. Refer to each specific [filter type](filters.md) for the conditions available.
+A replacement strategy can be applied based on the sensitive information meeting one or more conditions. For example, you can create a condition such that only dates of `11/05/2010` are replaced by using the condition `token == "11/05/2010"`. The conditions that can be applied vary based on the type of sensitive information. For instance, zip codes can have conditions based on their population. Refer to each specific [filter type](filters.md) for the conditions available. For `token`, `==` compares case-insensitively and `startswith` compares case-sensitively. To exclude specific values from a filter, use [ignored terms](ignoring_specific_information.md).
 
 The following is an example policy for credit cards that contains a condition to only redact credit card numbers that start with the digits `3000`:
 
 ```
 {
-  "name": "default",
   "identifiers": {
     "creditCard": {
       "creditCardFilterStrategies": [
@@ -320,17 +389,17 @@ The following is an example policy for credit cards that contains a condition to
 Conditions can be joined through the use of the `and` keyword. When conditions are joined, each condition must be satisfied for the identified text to be filtered. If any of the conditions are not satisfied the identified text will not be filtered. Below is an example joined condition:
 
 ```
-token != "123-45-6789" and context == "my-context"
+token == "123-45-6789" and context == "my-context"
 ```
 
-This condition requires that the identified text (the token) not be equal to `123-45-6789` and the context be equal to `my-context`. Both of these conditions must be satisfied for the identified text to be filtered.
+This condition requires that the identified text (the token) be equal to `123-45-6789` and the context be equal to `my-context`. Both of these conditions must be satisfied for the identified text to be filtered.
 
 Conversely, conditions can be `OR`'d through the use of multiple filter strategies. For example, if we want to `OR` a condition on the token and a condition on the context, we would use two filter strategies:
 
 ```
 "ssnFilterStrategies": [
   {
-    "condition": "token != \"123-45-6789\"",
+    "condition": "token == \"123-45-6789\"",
     "strategy": "REDACT",
     "redactionFormat": "{{{REDACTED-%t}}}"
   },

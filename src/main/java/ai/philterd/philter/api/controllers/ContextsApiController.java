@@ -120,7 +120,7 @@ public class ContextsApiController extends AbstractApiController {
     /**
      * Resolves the context that the caller is allowed to export from or import into. Context names are
      * unique per user, so a bare name identifies the caller's own context. To reach a context owned by
-     * a different user, an admin supplies that user's email via {@code ownerEmail}; this is an
+     * a different user, an admin supplies that user's username via {@code ownerEmail}; this is an
      * admin-only capability.
      *
      * <p>Returns {@code null} when the caller is not authorized (a non-admin naming another user as
@@ -709,7 +709,7 @@ public class ContextsApiController extends AbstractApiController {
         // partially-imported mapping table.
         for (final ContextEntryExport entry : payload.getEntries()) {
             if (entry == null || entry.getTokenHash() == null || !TOKEN_HASH_HEX.matcher(entry.getTokenHash()).matches()) {
-                return new ResponseEntity<>(new GenericResponse("Each entry requires a valid token_hash: 64 hexadecimal characters, as produced by an export from this deployment."), HttpStatus.BAD_REQUEST);
+                return new ResponseEntity<>(new GenericResponse("Each entry requires a valid tokenHash: 64 hexadecimal characters, as produced by an export from this deployment."), HttpStatus.BAD_REQUEST);
             }
             if (entry.getReplacement() == null || entry.getReplacement().isEmpty()) {
                 return new ResponseEntity<>(new GenericResponse("Each entry requires a non-empty replacement."), HttpStatus.BAD_REQUEST);

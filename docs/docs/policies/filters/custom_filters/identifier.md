@@ -20,11 +20,13 @@ This filter has no required parameters.
 | `ignored`        | A list of terms to be ignored by the filter.                                                   | None                  |
 | `caseSensitive`  | When set to true, the regular expression will be case sensitive.                               | `true`                |
 | `classification` | Used to apply an arbitrary label to the identifier, such as "patient-id", or "account-number." | `"custom-identifier"` |
-| `pattern`        | A regular expression for the identifier. _Note that backslashes will need to be escaped._      | `\b[A-Z0-9_-]{4,}\b`  |
+| `pattern`        | A regular expression for the identifier. _Note that backslashes will need to be escaped._      | `\b[A-Z0-9_-]{6,}\b`  |
+| `groupNumber`    | The regex capture group to use as the identifier. `0` is the entire match.                     | `0`                   |
+| `validator`      | A built-in validator a match must pass to be kept: `luhn`, `bic-structural`, `de-personalausweis`, `de-steuerid`, `mod11`, `mod97`, `mod23-letter`, or `es-cif`. Either the name as a string or an object with `name` and `params`. An unknown name is a policy error. | None |
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in as they are listed. See [Filter Strategies ](../../filter_strategies.md)for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies ](../../filter_strategies.md)for details.
 
 | Strategy              | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -41,16 +43,14 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional      | Description                                                              | Operators                          |
 | ---------------- | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`          | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`          | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`        | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE`     | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
-| `CLASSIFICATION` | Compares the classification of the sensitive text.                       | `==` , `!=`                        |
 
 ## Example Policy
 
 ```
 {
-  "name": "default",
   "identifiers": {
     "identifiers": [
       {

@@ -42,7 +42,7 @@ When you identify mistakes in the automated redaction process, Philter provides 
 One of the most effective ways to handle consistent mistakes is by using "Always Redact" and "Never Redact" lists. These lists allow you to explicitly define terms that the system should either always target or always ignore.
 
 *   **Terms to Always Redact**: If you find that certain sensitive terms (like project codenames or internal IDs) are consistently missed by automated filters (False Negatives), you can add them to an "Always Redact" list.
-*   **Terms to Never Redact**: If the system is over-redacting non-sensitive terms (like your company name or common industry terms) (False Positives), you can add them to a "Never Redact" list to ensure they are always protected.
+*   **Terms to Never Redact**: If the system is over-redacting non-sensitive terms (like your company name or common industry terms) (False Positives), you can add them to a "Never Redact" list so they are left unredacted.
 
 ### Global vs. Per-Policy Configuration
 
@@ -61,7 +61,7 @@ Automated redaction should be viewed as a powerful tool to accelerate the protec
 2.  **The document remains readable and useful** (ensuring non-sensitive information was not over-redacted).
 3.  **Contextual nuances are correctly handled** that an algorithm might misunderstand.
 
-Philter provides tools like **Redaction Summaries** and the [redaction ledger](redaction/ledgers.md) to assist in this review process, allowing you to quickly see what was changed and verify the results.
+The [explain endpoint](api_and_sdks/api/filtering_api.md#explain) (`POST /api/explain`) and the [redaction ledger](redaction/ledgers.md) assist in this review: explain lists every span identified and every span redacted, so you can see what was changed and verify the results.
 
 ### Best Practices for Review
 

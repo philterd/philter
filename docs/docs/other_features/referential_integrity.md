@@ -6,9 +6,9 @@ Referential integrity is useful in instances where you want to remove sensitive 
 
 ## Referential Integrity
 
-Referential integrity refers to the process of always anonymizing the same sensitive information with the same replacement values. For example, if the name "John Smith" is randomly replaced with "Pete Baker", all other occurrences of "John Smith" will also be replaced by "Pete Baker."
+Referential integrity refers to the process of always pseudonymizing the same sensitive information with the same replacement values. For example, if the name "John Smith" is randomly replaced with "Pete Baker", all other occurrences of "John Smith" will also be replaced by "Pete Baker."
 
-Referential integrity can be done on the document level or on the context level. When enabled on the document level, "John Smith" will only be replaced by "Pete Baker" in the same document. If "John Smith" occurs in a separate document it will be anonymized with a different random name. When enabled on the context level, "John Smith" will be replaced by "Pete Baker" whenever "John Smith" is found in all documents in the same context.
+Referential integrity can be done on the document level or on the context level. When enabled on the document level, "John Smith" will only be replaced by "Pete Baker" in the same document. If "John Smith" occurs in a separate document it will be replaced with a different random name. When enabled on the context level, "John Smith" will be replaced by "Pete Baker" whenever "John Smith" is found in all documents in the same context.
 
 Context-level referential integrity stores mappings in MongoDB. Philter uses Valkey when configured, or an in-memory cache otherwise, to accelerate access. See [Settings](../settings.md#cache-settings).
 

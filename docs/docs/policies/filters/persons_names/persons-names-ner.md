@@ -2,7 +2,7 @@
 
 ## Filter
 
-This filter identifies person's names based on natural language processing (NLP) and named-entity recognition (NER) in text.
+This filter identifies person's names in text using a PhEye model. It is configured as an entry in the `pheyes` array. The earlier single-object `person` key is deprecated but still accepted, with the same properties.
 
 ### Required Parameters
 
@@ -12,6 +12,7 @@ This filter has no required parameters.
 
 | Parameter                   | Description                                                      | Default Value |
 | --------------------------- | ---------------------------------------------------------------- | ------------- |
+| `phEyeConfiguration`        | Connection settings for the PhEye service. See the [Policy Schema](../../policy_schema.md#filters-with-extra-properties). | None |
 | `removePunctuation`         | When set to true, punctuation will be removed prior to analysis. | `false`       |
 | `phEyeFilterStrategies`     | A list of filter strategies.                                     | None          |
 | `enabled`                   | When set to false, the filter will be disabled and not applied   | `true`        |
@@ -19,7 +20,7 @@ This filter has no required parameters.
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in as they are listed. See [Filter Strategies](../../filter_strategies.md) for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies](../../filter_strategies.md) for details.
 
 | Strategy              | Description                                               |
 | --------------------- | --------------------------------------------------------- |
@@ -36,7 +37,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
@@ -44,16 +45,17 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 ```
 {
-   "name": "ner-example",
    "identifiers": {
-      "person": {
-         "phEyeFilterStrategies": [
-            {
-               "strategy": "REDACT",
-               "redactionFormat": "{{{REDACTED-%t}}}"
-            }
-         ]
-      }
+      "pheyes": [
+         {
+            "phEyeFilterStrategies": [
+               {
+                  "strategy": "REDACT",
+                  "redactionFormat": "{{{REDACTED-%t}}}"
+               }
+            ]
+         }
+      ]
    }
 }
 ```

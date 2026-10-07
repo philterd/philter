@@ -17,12 +17,12 @@ This filter has no required parameters.
 | `ignored`                    | A list of terms to be ignored by the filter.                                                                                                                                                                                                                                                                                                                                                                | None          |
 | `onlyValidCreditCardNumbers` | When set to true, only credit card numbers satisfying a [Luhn](https://en.wikipedia.org/wiki/Luhn_algorithm) check will be filtered.                                                                                                                                                                                                                                                                        | `true`        |
 | `ignoreWhenInUnixTimestamp`  | When set to true, only credit card numbers that do not match the pattern for a Unix timestamp will be filtered.                                                                                                                                                                                                                                                                                             | `false`       |
-| `onlyWordBoundaries`          | When set to true, only credit card numbers at [regex word boundaries](https://www.regular-expressions.info/wordboundaries.html) are considered. If `false` then preceding and succeeding characters will be ignored. This can have performance impacts on large documents with many large numbers in them. The `onlyValidCreditCardNumbers` option must be set to `true` for this parameter to have effect. | `true`        |
+| `onlyWordBoundaries`          | When set to true, only credit card numbers at [regex word boundaries](https://www.regular-expressions.info/wordboundaries.html) are considered. If `false` then preceding and succeeding characters will be ignored. This can have performance impacts on large documents with many large numbers in them. Independent of `onlyValidCreditCardNumbers`.                                                       | `true`        |
 
 ### Filter Strategies
 
 The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is
-used. When multiple filter strategies are given the filter strategies will be applied in order as they are listed.
+used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied.
 See [Filter Strategies](#filter-strategies) for details.
 
 | Strategy              | Description                                                                                                         |
@@ -41,7 +41,7 @@ Each filter strategy may have one condition. See [Conditions](#conditions) for d
 
 | Conditional  | Description                                                              | Operators                          |
 |--------------|--------------------------------------------------------------------------|------------------------------------|
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
@@ -49,9 +49,8 @@ Each filter strategy may have one condition. See [Conditions](#conditions) for d
 
 ```
 {
-   "name": "credit-cards-example",
    "identifiers": {
-      "creditcard": {
+      "creditCard": {
          "onlyValidCreditCardNumbers": false,
          "onlyWordBoundaries": false,
          "creditCardFilterStrategies": [

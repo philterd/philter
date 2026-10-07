@@ -10,21 +10,24 @@ Philter publishes metrics at:
 /actuator/prometheus
 ```
 
-Point your Prometheus scraper at this endpoint (for example, `http://your-philter-endpoint:8080/actuator/prometheus`).
+Point your Prometheus scraper at this endpoint (for example, `https://your-philter-endpoint:8080/actuator/prometheus`). The Docker image serves HTTPS by default; use `http` when `SSL_ENABLED=false` (see [TLS](settings.md#tls)). With the generated self-signed certificate, the scraper must skip verification or trust that certificate.
 
 The actuator endpoints are served **without authentication**, so a scraper needs no API key. Only `health` and `prometheus` are exposed, and the metrics carry low-cardinality labels only (`filter_type`, `method`, `status`), never a user, context, policy name, or any redacted value. They do reveal redaction volume, so restrict `/actuator/**` to your monitoring network at the firewall or ingress if that is sensitive in your deployment.
 
 ## Captured Metrics
 
-Philter exposes the following counters, in addition to the standard JVM and HTTP server metrics provided by the runtime:
+Philter exposes the following counters and gauges, in addition to the standard JVM and HTTP server metrics provided by the runtime:
 
 | Metric | Description |
 |--------|-------------|
 | `philter_redactions_total` | Total redactions performed, labeled by `filter_type`. |
 | `philter_tokens_total` | Total tokens processed during redaction. |
 | `philter_api_requests_total` | Total API requests, labeled by `method` and `status`. |
+| `philter_async_queue_jobs` | Gauge: asynchronous document jobs currently pending or processing, across all accounts. |
+| `philter_async_queue_bytes` | Gauge: total input bytes of those jobs. |
+| `philter_async_queue_oldest_seconds` | Gauge: age, in seconds, of the oldest pending or processing job (`0` when there are none). |
 
-Because Prometheus counters are cumulative, query them with `rate()` or `increase()` over a time window rather than reading their absolute value. Counters reset to zero when Philter restarts; Prometheus handles these resets automatically, and the history scraped before a restart is retained by Prometheus.
+Because the counters are cumulative, query them with `rate()` or `increase()` over a time window rather than reading their absolute value. Counters reset to zero when Philter restarts; Prometheus handles these resets automatically, and the history scraped before a restart is retained by Prometheus.
 
 > Metrics are intentionally low-cardinality and are not labeled by user or API key. To analyze usage by user, consume Philter's application logs.
 

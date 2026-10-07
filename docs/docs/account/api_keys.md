@@ -146,6 +146,8 @@ A small number of endpoints do not require an API key:
 * `/api/health` (the health endpoint).
 * `POST /api/sign-in` and `POST /api/sign-in/mfa` ([password sign-in](../api_and_sdks/api/sign_in_api.md)), which take a username and password, or a challenge and code, instead, and answer `404 Not Found` unless `PASSWORD_SIGN_IN_ENABLED` is `true`.
 * `/v3/api-docs` and `/swagger-ui/` (the OpenAPI specification and Swagger UI).
+* `GET /api/signing-key` and `GET /api/signing-key/{keyId}` (the public [output signing](../output_signing.md) keys). Other requests under `/api/signing-key`, such as `POST /api/signing-key/regenerate`, require an API key.
+* `/actuator/health` and `/actuator/prometheus` (see [Monitoring and Logging](../monitoring_and_logging.md)).
 
 All other `/api/` endpoints require a valid API key.
 

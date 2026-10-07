@@ -2,13 +2,13 @@
 
 Philter’s Redaction API provides access to Philter’s ability to redact sensitive information from text and to retrieve the health status of Philter. The endpoint path is `/api/filter` (Philter is named for the filter engine that powers redaction).
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS ](../../settings.md) settings for more information.
+> Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.
 
 Each filter request can optionally have a `context`. The context is optional: when it is omitted (or sent as an empty value) the request uses no context features. Token replacements are not persisted or shared across requests, and any entity-type disambiguation is limited to the single document being filtered. Contexts provide a means for logically grouping your documents during filtering. For example, documents pertaining to one health care provider may be submitted under the context `hospital1`, and documents pertaining to another health care provider may be submitted under the context `hospital2`.
 
 The context for each filter request impacts how sensitive information is replaced when found in the text. [Referential integrity](../../other_features/referential_integrity.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
 
-Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the `x-document-id` header with each `filter` or `explain` API response.
+Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the `X-Document-Id` header of each synchronous `filter` or `explain` response. An asynchronous PDF request's `202 Accepted` response returns it in the JSON body as `documentId`.
 
 ## Filter
 
@@ -26,6 +26,7 @@ The types of sensitive information found and how each type is redacted is determ
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
+* `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF and ZIP requests with `sign=true` are refused with `400 Bad Request`, because PDF responses are not signed.
 
 ### Headers
 
@@ -63,7 +64,7 @@ Every successful plain-text `filter` response (200 OK) also includes:
 
 * `X-Document-Id` - The ID this redaction was recorded under. When the request's [context](../../redaction/contexts.md) has the [redaction ledger](../../redaction/ledgers.md) enabled, it is the ID of the ledger chain written for the document, so `GET /api/ledger/{documentId}` retrieves that chain. It is also bound into the `X-Philter-Signature` JWT payload as `documentId` when output signing is enabled. For an asynchronous PDF redaction, this is the same `documentId` returned in the `202 Accepted` body, so one ID identifies the job, the downloaded result, and the ledger chain.
 
-When [output signing](../../output_signing.md) is enabled with the [Settings API](settings_api.md), successful plain-text `filter` responses additionally include:
+When [output signing](../../output_signing.md) is enabled with the [Settings API](settings_api.md), or the request passes `sign=true`, successful plain-text `filter` responses additionally include:
 
 * `X-Philter-Signature` - A compact ES256 JWT that cryptographically attests the response body. The JWT payload contains:
   * `bodyHash`: SHA-256 (lowercase hex) of the response body.
@@ -131,6 +132,7 @@ The types of sensitive information found and how each type is redacted is determ
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
+* `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) in the `X-Philter-Signature` header when the deployment has not enabled signing. The signature covers the JSON response body.
 
 ### Headers
 
@@ -145,44 +147,61 @@ curl -k -X POST "https://localhost:8080/api/explain" -d @file.txt -H "Content-Ty
 
 Example explain response:
 
-The response also reports which policy version was applied, in the `policyName` and `policyVersion` fields.
+The response body carries the applied policy's `policyName`, `policyVersion`, and `policyContentHash`; the explain response does not set the `X-Philter-Policy-*` headers. The document ID is in the `X-Document-Id` response header. `identifiedSpans` lists every span the filters found; `appliedSpans` lists the spans that were redacted.
 
-```
+```json
 {
-  "filteredText": "{{{REDACTED-entity}}} was a patient and his ssn was {{{REDACTED-ssn}}}.",
+  "filteredText": "{{{REDACTED-person}}} was a patient.",
+  "piece": 0,
   "context": "",
-  "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
-  "policyName": "default",
-  "policyVersion": 3,
   "explanation": {
     "appliedSpans": [
       {
-        "id": "c78fb69c-84d6-4189-b376-63791793cbd2",
         "characterStart": 0,
         "characterEnd": 17,
-        "filterType": "NER_ENTITY",
-        "context": "C1",
-        "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
-        "confidence": 0.9189682900905609,
+        "filterType": "PERSON",
+        "context": "",
+        "confidence": 0.92,
         "text": "George Washington",
-        "replacement": "{{{REDACTED-entity}}}",
-        "ignored": false
-      },
-      {
-        "id": "f4556f62-2f80-4edc-96f0-aa1d44802157",
-        "characterStart": 48,
-        "characterEnd": 59,
-        "filterType": "SSN",
-        "context": "C1",
-        "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
-        "confidence": 1,
-        "text": "123-45-6789",
-        "replacement": "{{{REDACTED-ssn}}}",
-        "ignored": false
+        "replacement": "{{{REDACTED-person}}}",
+        "ignored": false,
+        "applied": true,
+        "priority": 0,
+        "lineNumber": 0,
+        "pageNumber": 0,
+        "paragraphNumber": 0,
+        "lowerLeftX": 0.0,
+        "lowerLeftY": 0.0,
+        "upperRightX": 0.0,
+        "upperRightY": 0.0
       }
     ],
-    "ignoredSpans": []
-  }
+    "identifiedSpans": [
+      {
+        "characterStart": 0,
+        "characterEnd": 17,
+        "filterType": "PERSON",
+        "context": "",
+        "confidence": 0.92,
+        "text": "George Washington",
+        "replacement": "{{{REDACTED-person}}}",
+        "ignored": false,
+        "applied": true,
+        "priority": 0,
+        "lineNumber": 0,
+        "pageNumber": 0,
+        "paragraphNumber": 0,
+        "lowerLeftX": 0.0,
+        "lowerLeftY": 0.0,
+        "upperRightX": 0.0,
+        "upperRightY": 0.0
+      }
+    ]
+  },
+  "tokens": 5,
+  "policyName": "default",
+  "policyVersion": 3,
+  "policyContentHash": "9f2c4e1a7b3d5f60812a4c6e8b0d2f4a6c8e0b2d4f6a8c0e2b4d6f8a0c2e4b6d"
 }
 ```
 
@@ -221,7 +240,7 @@ Philterd products.
 
 Text requests use `Content-Type: text/plain` and `Accept: text/plain`. PDF requests use `Content-Type: application/pdf` and select `Accept: application/pdf` or `Accept: application/zip`. A ZIP contains one entry named `redacted.pdf`. Both synchronous responses and completed asynchronous downloads contain actual ZIP bytes when ZIP is selected. PDF async acceptance returns JSON regardless of the selected download format. Set `async=false` for an inline PDF or ZIP.
 
-Synchronous text, PDF, and ZIP responses expose `X-Document-Id`, allowing lookup of the corresponding ledger when the context records one. All filtering responses report raw policy identity through `X-Philter-Policy-Name`, `X-Philter-Policy-Version`, and `X-Philter-Policy-Hash`. Async acceptance additionally reports `X-Effective-Configuration-SHA256`; see [captured configuration](documents_api.md#configuration-captured-at-submission).
+Synchronous text, PDF, and ZIP responses expose `X-Document-Id`, allowing lookup of the corresponding ledger when the context records one. `/api/filter` responses, including async acceptance, report raw policy identity through `X-Philter-Policy-Name`, `X-Philter-Policy-Version`, and `X-Philter-Policy-Hash`; `/api/explain` reports it in the response body instead. Async acceptance additionally reports `X-Effective-Configuration-SHA256`; see [captured configuration](documents_api.md#configuration-captured-at-submission).
 
 Account async capacity returns 429; global capacity, admission contention, or required recovery returns 503, with `Retry-After: 5`. An incompatible `Accept` returns 406 and an unsupported `Content-Type` returns 415. `/api/explain` returns a JSON object containing `filteredText`, `explanation`, and governing-policy metadata; it does not return plain text.
 

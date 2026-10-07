@@ -47,7 +47,7 @@ public class ManagedPolicyLoader {
             new ManagedPolicy("common-pii.json", "managed_common_pii",
                     "Common PII including names, emails, phone numbers, and SSNs"),
             new ManagedPolicy("healthcare-phi.json", "managed_healthcare_phi",
-                    "Healthcare PHI including names, dates, addresses, and medical identifiers"),
+                    "Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs"),
             new ManagedPolicy("financial-pii.json", "managed_financial_pii",
                     "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses")
     );

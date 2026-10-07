@@ -6,7 +6,7 @@ These are predefined filters that are ready to be used as well as custom filters
 
 Each filter is capable of identifying and redacting a specific type of sensitive information. For example, there is a filter for phone numbers, a filter for US social security numbers, and a filter for person's names. You can enable any combination of these filters based on the types of sensitive information you need to redact.
 
-This section of the documentation describes the filters available in Philter. The configuration options for each filter can vary due to the type of the sensitive information. For instance, only the zip code filter has a configuration to truncate the zip code.
+This section of the documentation describes the filters available in Philter. The configuration options for each filter can vary due to the type of the sensitive information. For instance, only the zip code filter has a condition on the zip code's population.
 
 A selection of filters and their configurations is called a [policy](filter_policies.md). A policy describes how to de-identify a document.
 
@@ -21,7 +21,6 @@ Philter uses several methods to identify person's names.
 | [First Names](filters/persons_names/first-names.md)                     | Identifies common first names                                        |
 | [Surnames](filters/persons_names/surnames.md)                           | Identifies common surnames                                           |
 | [Person's Names (NER)](filters/persons_names/persons-names-ner.md)      | Identifies full names using natural language processing analysis     |
-| [Physician's Names (NER)](filters/persons_names/physician-names-ner.md) | Identifies physican names using natural language processing analysis |
 
 ### Other Filters
 
@@ -33,8 +32,10 @@ Philter uses several methods to identify person's names.
 | [Cities](filters/locations/cities.md)                                                                                       | Identifies common cities                                                        |
 | [Counties](filters/locations/counties.md)                                                                                   | Identifies common counties                                                      |
 | [Credit Card Numbers](filters/common_filters/creditcards.md)                                                                    | Identifies VISA, American Express, MasterCard, and Discover credit card numbers |
+| Currency (`currency`, see the [Policy Schema](policy_schema.md#available-filters))                                               | Identifies currency values such as `$100.00` and `50 EUR`                       |
 | [Dates](filters/common_filters/dates.md)                                                                                         | Identifies dates in many formats such as May 22, 1999                           |
 | [Driver's License Numbers](filters/common_filters/drivers-license-numbers.md)                                                    | Identifies driver's license numbers for all 50 US states                        |
+| EINs (`ein`, see the [Policy Schema](policy_schema.md#available-filters))                                                        | Identifies US Employer Identification Numbers                                   |
 | [Email Addresses](filters/common_filters/email-addresses.md)                                                                     | Identifies email addresses                                                      |
 | [Hospitals](filters/locations/hospitals.md)                                                                                      | Identifies common hospital names                                                |
 | [IBAN Codes](filters/common_filters/iban-codes.md)                                                                               | Identifies international bank account numbers                                   |
@@ -47,6 +48,7 @@ Philter uses several methods to identify person's names.
 | [SSNs and TINs](filters/common_filters/ssns-and-tins.md)                                                                         | Identifies US SSNs and TINs                                                     |
 | [States](filters/locations/states.md)                 | Identifies US state names                                    |
 | [State Abbreviations](filters/locations/state-abbreviations.md) | Identifies US state names by their abbreviations                                |
+| Street Addresses (`streetAddress`, see the [Policy Schema](policy_schema.md#available-filters))                                   | Identifies street addresses                                                     |
 | [Tracking Numbers](filters/common_filters/tracking-numbers.md)                                                                   | Identifies UPS, FedEx, and USPS tracking numbers                                |
 | [URLs](filters/common_filters/urls.md)                                                                                           | Identifies URLs                                                                 |
 | [VINs](filters/common_filters/vins.md)                                                                                           | Identifies vehicle identification numbers                                       |
@@ -58,7 +60,7 @@ In addition to the predefined types of sensitive information listed in the table
 
 Philter can be configured to look identify sensitive information based on custom dictionaries. When a term in the dictionary is found in the text, Philter will treat the term as sensitive information and apply the given filter strategy.
 
-Custom dictionaries support fuzziness to accommodate for misspellings. The replacement strategy for a custom dictionary has a `sensitivityLevel` that controls the amount of allowed fuzziness.
+Custom dictionaries support fuzziness to accommodate for misspellings. Set `fuzzy` to `true` on the dictionary; its `sensitivity` property controls the amount of allowed fuzziness.
 
 | Type                                                        | Description                                                                                                                                                |
 |-------------------------------------------------------------| ---------------------------------------------------------------------------------------------------------------------------------------------------------- |

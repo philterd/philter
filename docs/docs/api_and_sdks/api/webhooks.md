@@ -174,7 +174,7 @@ Retries use this backoff schedule, regenerating the timestamp and signature on e
 |     7   | 2h                        |
 |     8   | No retry                  |
 
-Each attempt is bounded: Philter waits `WEBHOOK_CONNECT_TIMEOUT_SECONDS` (default 5) to connect and `WEBHOOK_RESPONSE_TIMEOUT_SECONDS` (default 10) for your response. Exceeding either counts as a failed attempt and is retried on the schedule above, so **acknowledge the delivery promptly and do your processing asynchronously** — holding the connection open while you work will time out. See [Settings](../../settings.md#asynchronous-documents-and-webhooks).
+Each attempt is bounded: Philter waits `WEBHOOK_CONNECT_TIMEOUT_SECONDS` (default 5) to connect and `WEBHOOK_RESPONSE_TIMEOUT_SECONDS` (default 10) for your response. Exceeding either counts as a failed attempt and is retried on the schedule above, so **acknowledge the delivery promptly and do your processing asynchronously**: holding the connection open while you work will time out. See [Settings](../../settings.md#asynchronous-documents-and-webhooks).
 
 After the 8th failure, the delivery is marked `FAILED` and no further attempts are made. Both delivered and failed records receive `completed_at` and expire after `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days). This includes exhausted abandoned claims; pending retries do not expire.
 

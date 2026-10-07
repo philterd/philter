@@ -58,7 +58,7 @@ curl --fail-with-body -k -X POST "https://localhost:8080/api/policies?name=email
   --data-binary @email-and-phone-numbers.json
 ```
 
-A successful save returns 201. Saving the same name updates that account's policy. The policy is available immediately; no restart is needed. Apply it to a text file:
+A successful save returns 201. Saving a name that already exists returns 409 with reason `policy_exists`; replace an existing policy with `PUT /api/policies/{name}`. The policy is available immediately; no restart is needed. Apply it to a text file:
 
 ```bash
 curl --fail-with-body -k -X POST "https://localhost:8080/api/filter?p=email-and-phone-numbers" \

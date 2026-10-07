@@ -13,7 +13,7 @@ Each filter strategy has an optional `replacementScope` field. It accepts two va
 | `DOCUMENT` | **(Default.)** Each document is pseudonymized independently. The same value may receive a different replacement in a different document. |
 | `CONTEXT` | The same value receives the same replacement across every document processed in the same [context](contexts.md). |
 
-Set it on the strategy in your [policy](../policies/filter_strategies.md). For example, to anonymize SSNs consistently across a context:
+Set it on the strategy in your [policy](../policies/filter_strategies.md). For example, to pseudonymize SSNs consistently across a context:
 
 ```json
 {
@@ -47,7 +47,8 @@ Replacement scope matters only for strategies that generate a value that would o
 
 | Strategy | Effect of `CONTEXT` scope |
 | -------- | ------------------------- |
-| `RANDOM_REPLACE` (anonymize) | **Primary use.** The randomly generated surrogate is stored and reused, so the same value maps to the same surrogate across documents. |
+| `RANDOM_REPLACE` (pseudonymize) | **Primary use.** The randomly generated surrogate is stored and reused, so the same value maps to the same surrogate across documents. |
+| `MAP_REPLACE` | A value the lookup table does not map gets a generated replacement, which is stored and reused, so it maps to the same replacement across documents. |
 | `FPE_ENCRYPT_REPLACE` | No table needed. Format-preserving encryption is already deterministic for a given key, so the same input always encrypts to the same value. See [FPE](../policies/filter_strategies.md#the-fpe_encrypt_replace-filter-strategy). |
 | `HASH_SHA256_REPLACE` | Deterministic on its own (unless salted), so it is consistent regardless of scope. |
 | `STATIC_REPLACE`, `MASK`, `REDACT` | Produce a fixed output for a given input, so scope has no effect. |

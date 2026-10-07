@@ -12,14 +12,15 @@ This filter has no required parameters.
 
 | Parameter                 | Description                                                                                                                                                        | Default Value |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
-| `zipCodeFilterStrategy`   | A list of filter strategies.                                                                                                                                       | None          |
+| `zipCodeFilterStrategies` | A list of filter strategies. The earlier singular key `zipCodeFilterStrategy` is still accepted.                                                                    | None          |
 | `enabled`                 | When set to false, the filter will be disabled and not applied                                                                                                     | `true`        |
 | `ignored`                 | A list of terms to be ignored by the filter.                                                                                                                       | None          |
-| `requireDelimiter`        | When set to false, the filter will not require a dash in 9 digit zip codes, e.g. 12345-6789. Setting to false may increase the number of zip code false positives. | `true`        |
+| `requireDelimiter`        | When set to false, the filter will not require a dash in 9 digit zip codes, e.g. 12345-6789. Setting to false may increase the number of zip code false positives. | `false`       |
+| `validate`                | When set to true, a zip code whose first five digits are not in the bundled 2020 census zip code data is not redacted.                                           | `false`       |
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in order as they are listed. See [Filter Strategies](../../filter_strategies.md) for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies](../../filter_strategies.md) for details.
 
 | Strategy              | Description                                                                                                                                         |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,7 +29,7 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 | `STATIC_REPLACE`      | Replace the sensitive text with a given value.                                                                                                      |
 | `CRYPTO_REPLACE`      | Replace the sensitive text with its encrypted value.                                                                                                |
 | `HASH_SHA256_REPLACE` | Replace the sensitive text with its SHA256 hash value.                                                                                              |
-| `TRUNCATE`            | Replace the sensitive text by removing the last `x` digits. (Set the number of digits using the `truncateDigits` parameter of the filter strategy.) |
+| `TRUNCATE`            | Keep the leading `truncateLeaveCharacters` digits (1 to 4, default 4) and replace the rest with `truncateCharacter` (default `*`).                |
 | `ZERO_LEADING`        | Replace the sensitive text by zeroing the first 3 digits.                                                                                           |
 
 ### Conditions
@@ -37,19 +38,18 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
-| `POPULATION` | Compares the population of the zip code against the 2010 census values.  | `<` , `<=`, `>` , `>=`, `==`, `!=` |
+| `POPULATION` | Compares the population of the zip code against the 2020 census values.  | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
 ## Example Policy
 
 ```
 {
-   "name": "zip-code-example",
    "identifiers": {
       "zipCode": {
-         "zipCodeFilterStrategy": [
+         "zipCodeFilterStrategies": [
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"

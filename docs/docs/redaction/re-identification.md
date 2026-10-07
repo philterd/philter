@@ -10,10 +10,10 @@ Not all redaction strategies support reversal. Re-identification works only when
 
 | Strategy | How it works |
 |---|---|
-| `CRYPTO_REPLACE` | The original value is encrypted with AES-256-GCM using a key stored in the policy. The replacement is a Base64-encoded ciphertext. |
+| `CRYPTO_REPLACE` | The original value is encrypted with AES-256-GCM using a key stored in the policy. The replacement is the Base64-encoded ciphertext wrapped in double braces: `{{<base64>}}`. |
 | `FPE_ENCRYPT_REPLACE` | The original value is encrypted using FF3-1 format-preserving encryption. The replacement looks like the original (digits stay digits, letters stay letters). |
 
-Strategies that produce random or static replacements (such as `REDACT`, `RANDOM_REPLACE`, or `HASH_REPLACE`) cannot be reversed through this endpoint. If you need to recover those originals, consult the [Redaction Ledger](ledgers.md), which stores the original token alongside its replacement for every redaction in a ledger-enabled context.
+Strategies that produce random or static replacements (such as `REDACT`, `RANDOM_REPLACE`, or `HASH_SHA256_REPLACE`) cannot be reversed through this endpoint. If you need to recover those originals, consult the [Redaction Ledger](ledgers.md), which stores the original token alongside its replacement for every redaction in a ledger-enabled context.
 
 ## Making a re-identification request
 
@@ -39,7 +39,7 @@ Send a `POST` request to `/api/reidentify` with a JSON body:
 
 ```bash
 curl -s -X POST https://philter:8080/api/reidentify \
-  -H "Authorization: YOUR_API_KEY" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "values": ["k7Xv2...base64ciphertext...=="],
@@ -53,7 +53,7 @@ curl -s -X POST https://philter:8080/api/reidentify \
 
 ```bash
 curl -s -X POST https://philter:8080/api/reidentify \
-  -H "Authorization: YOUR_API_KEY" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "values": ["750918814058654607"],
@@ -72,7 +72,7 @@ For example:
 
 ```bash
 curl -s -X POST https://philter:8080/api/reidentify \
-  -H "Authorization: YOUR_API_KEY" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "values": ["750918814058654607", "018989839189395384"],
@@ -84,11 +84,11 @@ curl -s -X POST https://philter:8080/api/reidentify \
 
 ### Authorization
 
-A user may re-identify their own values. An admin may re-identify values belonging to any user by supplying that user's email in the `owner` query parameter:
+A user may re-identify their own values. An admin may re-identify values belonging to any user by supplying that user's username in the `owner` query parameter, which requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`:
 
 ```bash
-curl -s -X POST "https://philter:8080/api/reidentify?owner=other@example.com" \
-  -H "Authorization: ADMIN_API_KEY" \
+curl -s -X POST "https://philter:8080/api/reidentify?owner=other-user" \
+  -H "Authorization: Bearer ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "values": ["k7Xv2...base64ciphertext...=="],
@@ -113,14 +113,13 @@ The response contains one result per input value, in the same order:
     },
     {
       "encrypted": "<encrypted-value-2>",
-      "decrypted": null,
       "error": "Decryption failed."
     }
   ]
 }
 ```
 
-A successful reversal has `decrypted` set and no `error` field. A failed reversal has `error` set (for example, if the value was tampered with or encrypted with a different key) and `decrypted` is null. The overall HTTP status is `200` even when individual values fail; inspect each result's `error` field.
+A successful reversal has `decrypted` set and no `error` field. A failed reversal has `error` set (for example, if the value was tampered with or encrypted with a different key) and no `decrypted` field. The overall HTTP status is `200` even when individual values fail; inspect each result's `error` field.
 
 ## HTTP status codes
 
@@ -129,6 +128,7 @@ A successful reversal has `decrypted` set and no `error` field. A failed reversa
 | `200 OK` | Request accepted. Check each result's `error` field for per-value failures. |
 | `400 Bad Request` | Invalid request: `values` is empty, `reason` is blank, `strategy` is unrecognized, `policyName` is missing for `CRYPTO_REPLACE`, or the named policy has no crypto key configured. |
 | `401 Unauthorized` | The `Authorization` header is absent or the API key is not recognized. |
+| `403 Forbidden` | The API key does not have the `reidentify` scope. |
 | `404 Not Found` | The specified `policyName` does not exist, or a non-admin caller supplied an `owner` that is not their own account. |
 | `500 Internal Server Error` | An unexpected server-side error occurred. |
 

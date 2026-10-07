@@ -11,7 +11,7 @@ Every redaction is governed by a user-defined [redaction policy](policies.md) an
 Philter redacts the following content types, selected by the request's `Content-Type`:
 
 *   **Plain Text (`text/plain`)**: Identified information is replaced according to the [filter strategy](../policies/filter_strategies.md) in your policy, for example redaction, masking, or encryption.
-*   **PDF (`application/pdf`)**: The engine detects supported page text and obscures matched regions in the output. PDF redaction is [asynchronous by default](../api_and_sdks/api/documents_api.md). Sensitive content in FreeText annotations can survive processing; a successful response does not certify that every PDF surface has been redacted. Review both rendered output and extractable text, including annotations. Philter does not implement OCR or redact image-only PDFs.
+*   **PDF (`application/pdf`)**: The engine detects supported page text and obscures matched regions in the output. PDF redaction is [asynchronous by default](../api_and_sdks/api/documents_api.md). Sensitive content in FreeText annotations can survive processing; a successful response does not certify that every PDF surface has been redacted. Review both rendered output and extractable text, including annotations. Philter does not implement OCR or redact image-only PDFs. The `Accept` header selects the output: `application/pdf` returns the redacted PDF, and `application/zip` returns a ZIP archive containing it as a single `redacted.pdf` entry.
 
 Philter does not redact Microsoft Word (`.docx`), other Office formats, or images.
 
@@ -19,7 +19,7 @@ Philter does not redact Microsoft Word (`.docx`), other Office formats, or image
 
 When you submit a document to Philter for redaction:
 
-1.  **Submission**: The document is sent to `POST /api/filter`. Its `Content-Type` selects the processing engine; Philter does not inspect the bytes to guess the format.
+1.  **Submission**: The document is sent to `POST /api/filter`. Its `Content-Type` selects the processing engine. Philter checks the leading bytes against the declared type and rejects a body that contradicts it (for example, a PDF sent as `text/plain`) with `415 Unsupported Media Type`; it does not use the bytes to choose a different format.
 2.  **Policy-driven identification**: The engine applies the selected [redaction policy](policies.md), which defines what counts as sensitive and how each type is handled.
 3.  **Redacted output**: A redacted copy is produced. Text is returned in the response; PDFs are queued and retrieved from the [Documents API](../api_and_sdks/api/documents_api.md) when processing finishes.
 4.  **Ledgering**: If the [redaction ledger](ledgers.md) is enabled for the context, each redaction is recorded as a hash-chained entry stamped with the policy version that governed it.

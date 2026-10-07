@@ -18,7 +18,7 @@ Philter writes aggregated, time-bucketed **document-presence** counts to a Mongo
 }
 ```
 
-For each redaction, every distinct PII type present increments that type's counter by one, and `total_documents` increments by one. So `counts.SSN` is the number of **documents** in that day's bucket (for that context) that contained at least one SSN.
+For each redaction that finds PII, every distinct PII type present increments that type's counter by one, and `total_documents` increments by one. A redaction that finds no PII is not recorded, so `total_documents` counts documents that contained PII, not all documents redacted. `counts.SSN` is the number of **documents** in that day's bucket (for that context) that contained at least one SSN.
 
 This "document-presence" counting is deliberate: it ensures each redaction contributes at most one to any count, which preserves the `sensitivity = 1` assumption that Diffuse's differential-privacy guarantee depends on. (Counting the total number of SSN spans instead would let a single document contribute many, which would weaken the privacy guarantee Diffuse reports.)
 

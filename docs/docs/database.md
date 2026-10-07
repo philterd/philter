@@ -22,7 +22,8 @@ Philter is developed and tested against **MongoDB 8.2**, which is what the bundl
 | Active signing key | The signing_key_state collection contains the single active-key pointer. Key history remains in signing_keys so earlier signatures can be verified after rotation. |
 | Ledger chain lifecycle | The `ledger_chains` collection tracks open, writing, failed, completed, and purged chains. Purged markers prevent late appends; they contain owner/document IDs and lifecycle timestamps, not tokens or replacements. |
 | Redaction ledger | The cryptographic ledger of redactions, when enabled for a context. See [Redaction Ledgers](redaction/ledgers.md). |
-| Disambiguation vectors | The per-`(user, context)` vectors learned for [span disambiguation](other_features/span_disambiguation.md), bounded by `MAX_VECTORS_PER_CONTEXT`. |
+| Disambiguation vectors | The `vectors` collection: per-`(user, context)` vector hashes learned for [span disambiguation](other_features/span_disambiguation.md), bounded by `MAX_VECTORS_PER_CONTEXT`. |
+| Sign-in challenges | The `sign_in_challenges` collection: short-lived, single-use MFA sign-in challenges, stored as a hash and expired by a TTL index. |
 | Admin settings | Instance-wide administrator settings, such as output signing and Phield publishing. See the [Settings API](api_and_sdks/api/settings_api.md). |
 | Audit events | The audit log of security-relevant actions. See [Auditing](auditing.md). |
 
@@ -42,7 +43,8 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 | `custom_lists` | List items |
 | `redact_lists` | Always/never redact terms |
 | `webhook_deliveries` | The queued webhook signing secret; delivery metadata and payload remain readable |
-| `pending_documents` | The submitted document and the redacted result |
+| `pending_documents` | The submitted document, the redacted result, and the resolved configuration captured for the job |
+| `execution_snapshots` | The resolved configuration retained for asynchronous jobs |
 | `signing_keys` | The private half of the signing keypair (the public half stays readable, since verifiers need it) |
 | `admin_settings` | The Phield API key |
 
@@ -51,7 +53,7 @@ it unusable for the reporting it exists for. It records event names, the acting 
 id, a client address and a short detail string, not document content.
 
 **Not encrypted:** API keys (stored as a hash), context entries (stored as a token hash, not the
-original value), policies and their version snapshots, contexts, legal holds, the rest of the admin
+original value), policies and their version snapshots, contexts, legal holds, disambiguation vectors (`vectors`, hashes only), sign-in challenges (stored as a hash), the rest of the admin
 settings, webhook delivery metadata and payloads, and the audit log. These hold no recoverable secret, with one
 exception you control.
 
@@ -72,7 +74,7 @@ Philter connects to MongoDB using a standard [MongoDB connection string](https:/
 |----------------------|-------------|---------------|
 | `MONGODB_CONNECTION_STRING` | The MongoDB connection string Philter uses to connect to the database. | `mongodb://localhost:27017` |
 
-The connection string also selects the database name. Philter uses the `philter` database.
+Philter always uses the database named `philter`. A database name in the connection string does not change it; there it only serves as the default authentication database when `authSource` is not set.
 
 ### Examples
 

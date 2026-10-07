@@ -14,7 +14,6 @@ In the policy shown below, an ignore list is set at the level of the policy. The
 
 ```
 {
-   "name": "example-policy",
    "ignored": [
      {
        "name": "names to ignore",
@@ -39,12 +38,11 @@ Terms to be ignored at the policy level can also be read from one or more files 
 
 ```
 {
-   "name": "example-policy",
    "ignored": [
      {
        "name": "names to ignore",
        "terms": ["john smith", "jane doe"],
-       "files": ["/tmp/names.txt"]
+       "files": ["/tmp/names.txt"],
        "caseSensitive": false
      }
    ],   
@@ -63,11 +61,10 @@ Terms to be ignored at the policy level can also be read from one or more files 
 
 ### Ignore List for a Filter
 
-In the policy shown below, an ignore list is set at the level of a filter. The terms specified in the list will be ignored _only_ for that filter type. Each filter in a policy can have its own list of ignored terms. The terms listed will be ignored case-sensitive, meaning, "John" will be ignored if "John" is an ignored term but will not be ignored if "john" is an ignored term.
+In the policy shown below, an ignore list is set at the level of a filter. The terms specified in the list will be ignored _only_ for that filter type. Each filter in a policy can have its own list of ignored terms. The terms listed are matched case-insensitively, meaning "John" and "john" are both ignored if either is an ignored term.
 
 ```
 {
-   "name": "example-filter-profile",
    "identifiers": {
       "emailAddress": {
          "ignored": ["john smith", "jane doe"],
@@ -75,6 +72,30 @@ In the policy shown below, an ignore list is set at the level of a filter. The t
             {
                "strategy": "REDACT",
                "redactionFormat": "{{{REDACTED-%t}}}"
+            }
+         ]
+      }
+   }
+}
+```
+
+### Custom List References
+
+In a policy-level ignore list's `terms`, an entry of the form `list:<name>` is replaced with the items of the named [custom list](../redaction/custom_lists.md). The same applies to the `terms` of a [custom dictionary](filters/custom_filters/dictionary.md). A filter's own `ignored` terms are not expanded. Redaction with a policy that references a custom list that does not exist fails.
+
+```
+{
+   "ignored": [
+     {
+       "name": "names to ignore",
+       "terms": ["list:staff-names", "jane doe"]
+     }
+   ],
+   "identifiers": {
+      "emailAddress": {
+         "emailAddressFilterStrategies": [
+            {
+               "strategy": "REDACT"
             }
          ]
       }
@@ -96,7 +117,6 @@ In the policy shown below, ignore patterns are set at the level of the policy. T
 
 ```
 {
-   "name": "example-policy",
    "ignoredPatterns": [
      {
        "name": "ignore-room-numbers",
@@ -122,7 +142,6 @@ In the policy shown below, ignore patterns are set at the level of a filter. The
 
 ```
 {
-   "name": "example-policy",
    "identifiers": {
       "emailAddress": {
          "ignoredPatterns": [

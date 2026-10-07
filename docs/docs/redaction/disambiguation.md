@@ -38,9 +38,10 @@ This applies only to spans covering identical text. Spans that merely overlap (o
 
 ## Confidence Thresholds
 
-Every identified span is assigned a confidence score. You can control which spans are considered for redaction by setting a Confidence Threshold value in your [redaction policy](../policies/policy_schema.md).
+Every identified span is assigned a confidence score. There is no policy-wide threshold; you can act on confidence in two ways in your [redaction policy](../policies/policy_schema.md):
 
-*   Spans with a confidence score below your chosen threshold are automatically discarded. (For instance, set the threshold to 0.5 to discard spans with a confidence score less than 0.5)
+*   On PhEye filters (`pheyes`), `thresholds` sets a per-label confidence floor. Spans below it are discarded. (For instance, `"thresholds": { "PER": 0.5 }` discards `PER` spans with a confidence score less than 0.5.)
+*   On any filter strategy, a `condition` such as `confidence > 0.9` applies that strategy only to spans that meet it. See [Conditions](../policies/policy_schema.md#conditions).
 *   If multiple filters identify overlapping spans with different types, Philter uses the confidence scores (adjusted by context) to help decide which span to redact.
 
 ## Partial Overlaps
@@ -52,5 +53,5 @@ In cases where spans partially overlap but neither entirely contains the other, 
 1.  Identification: All filters in the chosen redaction policy are used to scan the text and identify potential sensitive spans.
 2.  Scoring: Each span is assigned a confidence score.
 3.  Contextual Adjustment: Philter adjusts these scores based on the text surrounding each span.
-4.  Filtering: Spans below the policy's confidence threshold are removed.
+4.  Filtering: PhEye spans below a configured per-label threshold are removed.
 5.  Resolution: The span with the longest length and confidence-based resolution rules are applied to the remaining spans to produce the final set of redacted spans.

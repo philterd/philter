@@ -33,7 +33,7 @@ The field to think about is `context`, which Philter forwards verbatim as the ca
 ## How it works
 
 - **Disabled by default.** The integration is inactive unless an administrator enables it (see below).
-- **Fire-and-forget.** Counts are sent asynchronously with a short timeout, and any failure is ignored and logged at debug level. A slow or unavailable Phield never affects redaction latency or availability.
+- **Fire-and-forget.** Counts are sent asynchronously with a short timeout, and a failure is ignored. The first failure is logged at WARN; later ones are logged at debug until a publish succeeds again. A slow or unavailable Phield never affects redaction latency or availability.
 - **Per-context baselines.** Phield tracks a separate baseline for each `(source, organization, context, PII type)` combination. Because Philter sends the redaction [context](redaction/contexts.md), each context is monitored for drift independently. Redactions made without an explicit context are grouped under the empty (blank) context.
 
 ## Enabling the integration
@@ -54,7 +54,7 @@ Once enabled, view PII flows, baselines, and drift alerts in Phield's own dashbo
 
 ### Authenticating to Phield
 
-Phield's `/ingest` endpoint requires a bearer token when the Phield instance is run with `PHIELD_API_KEY` set. Put that same key in **Phield API Key** and Philter sends it on each request. A mismatched or missing key gets `401 Unauthorized` from Phield, which Philter logs as a publishing failure; redaction is unaffected.
+Phield's `/ingest` endpoint requires a bearer token when the Phield instance is run with `PHIELD_API_KEY` set. Set the `phieldApiKey` admin setting to that same key with the [Settings API](api_and_sdks/api/settings_api.md) and Philter sends it on each request. A mismatched or missing key gets `401 Unauthorized` from Phield, which Philter logs as a publishing failure; redaction is unaffected.
 
 The key is [encrypted at rest](database.md#what-is-encrypted-at-rest) under `PHILTER_ENCRYPTION_KEY`, so a database dump alone does not yield it.
 

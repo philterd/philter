@@ -27,8 +27,9 @@ All endpoints require authentication with a Bearer token. See [API Keys](../../a
 
 ### Responses
 
-* `201 Created` - The hold was set and is now active. The body contains the hold details.
+* `201 Created` - The hold was set and is now active. The body is the [hold](#hold-object).
 * `400 Bad Request` - A required field is missing, `scopeType` is not recognized, or the `reference` breaks the rule above. The body carries a `message` naming the problem.
+* `404 Not Found` - The `owner` does not exist or may not be reached. No body.
 * `409 Conflict` - The hold was not set. The body carries a `message` and a `reason`:
     * `hold_exists` - A hold with this reference already exists for the user.
     * `operation_in_progress` - Another evidence or hold operation for the user is active, or was interrupted and requires recovery. Retry once it finishes.
@@ -39,6 +40,29 @@ Example request:
 curl -k -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   "https://localhost:8080/api/holds" \
   -d '{"reference":"LIT-2026-001","scopeType":"document_chain","scopeValue":"doc-abc123","reason":"Preserve pending resolution"}'
+```
+
+### Hold object
+
+Set, list, and get return holds with these fields:
+
+| Field | Description |
+|-------|-------------|
+| `reference` | The hold identifier. |
+| `scopeType` | `document_chain` or `user`. |
+| `scopeValue` | The document id, or for a `user` hold the owner's username. |
+| `reason` | The reason given when the hold was set, or `null`. |
+| `setAt` | When the hold was set (ISO 8601, UTC). |
+| `owner` | The owner's username. Present only in a listing with `all_users=true`. |
+
+```json
+{
+  "reference": "LIT-2026-001",
+  "scopeType": "document_chain",
+  "scopeValue": "doc-abc123",
+  "reason": "Preserve pending resolution",
+  "setAt": "2026-06-08T14:11:33.000Z"
+}
 ```
 
 ## List Holds

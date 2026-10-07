@@ -2,13 +2,13 @@
 
 The Always/Never Redact Lists API provides endpoints for retrieving and replacing an account's always-redact and never-redact lists. These are the terms that are unconditionally redacted, or unconditionally preserved, across all of your redaction policies and contexts. See [Always/Never Redact Lists](../../redaction/redact_lists.md) for an overview of the feature.
 
-The lists are a per-account singleton resource: there is always exactly one (possibly empty) pair of lists per account, so there is no create or delete, only get and replace.
+The lists are a per-account singleton resource: there is always exactly one (possibly empty) pair of lists per account, so there is no create or delete, only get, replace (`POST`), and append (`PUT`).
 
 > **Scoped to your own account.** These lists apply only to your own account's redactions and are never shared with or applied to other users.
 
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own lists. An **admin** may target another user by adding an `owner=<username>` query parameter. A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
-> The `curl` example commands shown on this page are written assuming Philter has been enabled for SSL, and it is using a self-signed certificate. If launched from a cloud marketplace, SSL will be enabled automatically with a self-signed SSL certificate. See the [SSL/TLS](../../settings.md) settings for more information.
+> Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.
 
 ## Get the Lists
 
@@ -94,7 +94,7 @@ The same shape as the replace request, a JSON object with two optional string-ar
 * `alwaysRedact` - Terms to add to the always-redact list.
 * `neverRedact` - Terms to add to the never-redact list.
 
-Terms are trimmed, blank entries are dropped, and a term that is **already present is not added again** (so appending the same term twice is a no-op). After appending, each list may still contain at most **1000** terms; an append that would exceed the limit is rejected and nothing is changed.
+Terms are trimmed, blank entries are dropped, and a term that is **already present is not added again** (so appending the same term twice is a no-op). The duplicate check is an exact, case-sensitive comparison, although matching during redaction is case-insensitive: appending `project falcon` to a list holding `Project Falcon` adds a second term. After appending, each list may still contain at most **1000** terms; an append that would exceed the limit is rejected and nothing is changed.
 
 ### Responses
 

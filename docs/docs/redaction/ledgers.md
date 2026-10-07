@@ -1,6 +1,6 @@
 # Redaction Ledgers
 
-A Redaction Ledger is a core security feature of Philter, providing a cryptographically-verifiable and immutable log of every redaction performed on your documents. In an era where data integrity and transparency are paramount, ledgers offer a definitive way to audit and trust the automated redaction process.
+A Redaction Ledger is a core security feature of Philter, providing a cryptographically verifiable, tamper-evident, append-only log of the redactions performed in [contexts](contexts.md) that have the ledger enabled. In an era where data integrity and transparency are paramount, ledgers offer a definitive way to audit and trust the automated redaction process.
 
 By maintaining a verifiable record of what was changed, why it was changed, and how it was changed, Philter empowers your organization to demonstrate compliance with rigorous data privacy standards like HIPAA, GDPR, and CCPA. The chain is **tamper-evident** and each entry is **signed**, so an altered entry is detectable and its origin is provable. See [What the Ledger Proves](#what-the-ledger-proves). As described under [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted), entries can still be removed deliberately for data-minimization or lifecycle reasons.
 
@@ -8,9 +8,9 @@ By maintaining a verifiable record of what was changed, why it was changed, and 
 
 The Philterd ledger system is built on the principles of cryptographic chaining, similar to a blockchain. 
 
-1.  **Granular Recording**: When a document is processed, every single instance of identified PII or PHI is recorded as an individual entry in that document's specific ledger.
+1.  **Granular Recording**: When a plain-text document is processed in a ledger-enabled context, each identified PII or PHI span is recorded as an individual entry in that document's ledger. PDFs are recorded as a chain without per-redaction entries (see [Important Considerations and Limitations](#important-considerations-and-limitations)).
 2.  **Cryptographic Chaining**: Each ledger entry contains a cryptographic hash of its own data plus the hash of the preceding entry. This creates a "chain of trust."
-3.  **Immutability**: Because each entry is linked to the previous one, any attempt to retroactively modify or delete a redaction record would break the cryptographic chain, making the tampering immediately evident.
+3.  **Tamper Evidence**: Because each entry is linked to the previous one, retroactively modifying an entry or removing one from within a chain breaks the cryptographic chain, which validation detects. Whole chains can still be deleted deliberately when deletion is enabled (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
 4.  **Verifiability**: This architecture allows you to mathematically prove the integrity of your redaction history at any point in time.
 
 ## What the Ledger Proves
@@ -26,7 +26,7 @@ follow, producing a chain that verifies perfectly.
 Every recorded value is covered by that hash: the owning user and document, the redacted value and
 its replacement, its position, the document fingerprint, the timestamp, the link to the previous
 entry, the [governing policy](#which-policy-version-governed-a-redaction) name, version and
-fingerprint, the filename, and the PII type. None can be changed without the entry failing
+fingerprint, the effective configuration hash, the filename, and the PII type. None can be changed without the entry failing
 validation. Only the signature and the id of the key that made it sit outside the hash, because the
 signature is taken *over* the hash.
 
@@ -47,13 +47,13 @@ other without breaking the chain.
 
 The length is counted in bytes, not characters, because those differ for anything outside ASCII and a
 name with an accent is ordinary in this data. `café` is 5 bytes but 4 characters, and `a🙂b` is 6
-bytes, 3 code points and 4 UTF-16 units — so a verifier counting characters would compute a different
+bytes, 3 code points and 4 UTF-16 units, so a verifier counting characters would compute a different
 digest from Philter for exactly the values a redaction ledger is most likely to hold.
 
 One field is not in the export: the owning account's internal user id, which is part of the hash but
-is not a value the export carries. An exported chain can therefore be checked for linkage — each
+is not a value the export carries. An exported chain can therefore be checked for linkage (each
 entry's `previousHash` matching the hash before it, and each signature verifying against the enclosed
-public key — but recomputing the hashes themselves outside Philter also needs that id.
+public key), but recomputing the hashes themselves outside Philter also needs that id.
 
 **The signature proves origin.** Every entry is signed with the deployment's ES256 key, so an entry
 rewritten in the database cannot be re-signed without that key. Signing is always on and is not tied
@@ -121,7 +121,7 @@ The applied policy name and version are also returned at redaction time, on the 
 
 ## Enabling Redaction Ledgers
 
-Redaction ledgers are controlled on a per-context basis. When creating or editing a [context](contexts.md), use the **Enable the redaction ledger** option to turn the ledger on for that context. The option is unchecked (disabled) by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.
+Redaction ledgers are controlled on a per-context basis. Pass `ledger=true` when creating a [context](contexts.md) (`POST /api/contexts`) or updating one (`PUT /api/contexts/{name}`) to turn the ledger on for that context. It is `false` by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.
 
 ## How and When Ledger Entries Are Deleted
 
@@ -168,7 +168,7 @@ A document's full ledger chain can be exported as a portable JSON document so it
 
 `GET /api/ledger/{documentId}/export` returns the chain as a downloadable JSON document. See the [Ledger API](../api_and_sdks/api/ledger_api.md#export-a-documents-ledger-chain).
 
-> **Security:** unlike a context export (which contains only token hashes), a ledger export includes the **decrypted original token and its replacement**, because the ledger's purpose is to record exactly what was redacted to what. Both values are also inputs to each entry's hash, so they are what makes the chain verifiable offline; an export stripped of them could not be re-verified. Treat an export as sensitive and store and transmit it securely. Any valid API key for the account can produce one.
+> **Security:** unlike a context export (which contains only token hashes), a ledger export includes the **decrypted original token and its replacement**, because the ledger's purpose is to record exactly what was redacted to what. Both values are also inputs to each entry's hash, so they are what makes the chain verifiable offline; an export stripped of them could not be re-verified. Treat an export as sensitive and store and transmit it securely. Producing one requires an API key with the `ledger:export` scope.
 
 ## Viewing Ledgers
 
@@ -179,6 +179,8 @@ Ledgers are read with the [Ledger API](../api_and_sdks/api/ledger_api.md):
 * [`GET /api/ledger/{documentId}/valid`](../api_and_sdks/api/ledger_api.md#verify-a-documents-ledger-chain) checks whether the chain still verifies.
 
 An administrator can list every user's chains with `GET /api/ledger?all_users=true`, which requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`.
+
+A chain whose head entry cannot be read (for example, it no longer decrypts after a key change) is still listed, with a `readError` and no `replacement`. Exporting a chain with an unreadable entry returns `422` with the reason `entry_unreadable`; nothing is exported. See the [Ledger API](../api_and_sdks/api/ledger_api.md).
 
 ## Important Considerations and Limitations
 

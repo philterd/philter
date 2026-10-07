@@ -4,7 +4,7 @@ The Documents API exposes the lifecycle of asynchronously-submitted PDF redactio
 
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own documents. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, status, download, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
-> The `curl` examples assume Philter is enabled for SSL with a self-signed certificate. See the [SSL/TLS settings](../../settings.md) for details.
+> Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.
 
 ## How the queue is worked
 
@@ -42,7 +42,7 @@ Terminal records are retained for `PENDING_DOCUMENTS_TTL_SECONDS` (default 7 day
 
 | Method | Endpoint         | Description                                              |
 |--------|------------------|----------------------------------------------------------|
-| `GET`  | `/api/documents` | Paginated list of submissions for the calling API key.   |
+| `GET`  | `/api/documents` | Paginated list of submissions for the calling user.      |
 
 ### Query Parameters
 
@@ -60,7 +60,7 @@ curl -k -H "Authorization: Bearer <token>" \
     {
       "fileName": "patient-record.pdf",
       "status": "COMPLETE",
-      "timestamp": "2026-05-22T20:00:00.000+00:00",
+      "timestamp": "2026-05-22T20:00:00.000Z",
       "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f"
     }
   ]

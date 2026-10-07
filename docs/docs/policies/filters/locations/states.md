@@ -15,10 +15,12 @@ This filter has no required parameters.
 | `stateFilterStrategies` | A list of filter strategies.                                   | None          |
 | `enabled`               | When set to false, the filter will be disabled and not applied | `true`        |
 | `ignored`               | A list of terms to be ignored by the filter.                   | None          |
+| `fuzzy`                | When set to true, matching is fuzzy, using `sensitivity` to control the fuzziness. When false, terms are matched exactly, ignoring case. | `false`       |
+| `sensitivity`          | Controls the "fuzziness" of allowed values to account for misspellings and derivations. Valid values are `auto`, `off`, `low`, `medium`, and `high`. Only applies when `fuzzy` is set to `true`. | `medium`      |
 
 ### Filter Strategies
 
-The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given the filter strategies will be applied in as they are listed. See [Filter Strategies](../../filter_strategies.md) for details.
+The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies](../../filter_strategies.md) for details.
 
 | Strategy              | Description                                              |
 | --------------------- | -------------------------------------------------------- |
@@ -34,7 +36,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==` , `!=`                        |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
@@ -42,7 +44,6 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 
 ```
 {
-   "name": "states-example",
    "identifiers": {
       "state": {
          "stateFilterStrategies": [

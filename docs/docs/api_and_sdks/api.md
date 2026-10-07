@@ -23,7 +23,7 @@ Philter's API has the following sections:
 
 Philter's API is described by an OpenAPI specification generated from the application's source. The OpenAPI export integration test regenerates it and checks it against the registered routes and the committed copy. Run that test when changing an endpoint; a successful ordinary compilation alone does not refresh the published artifact. You can always find it in any of these places:
 
-* **In this documentation:** [openapi.json](openapi.json). This matches the released version of Philter and needs no running instance.
+* **In this documentation:** [openapi.json](openapi.json). This is the copy built with these pages, from the same source revision, and needs no running instance.
 * **In the GitHub repository:** [`docs/docs/api_and_sdks/openapi.json`](https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.json). This is the committed copy, reflecting the latest code on `main`.
 * **From a running Philter instance:** `https://<your-philter-host>:8080/v3/api-docs`. This is the live specification served by that instance, reflecting its version and configuration.
 

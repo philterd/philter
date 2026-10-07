@@ -130,16 +130,42 @@ class RedactionDisambiguationIT extends AbstractMongoIT {
 
     }
 
+    @Test
+    void contextScopeStoresVectorsForTheContextAndDocumentScopeStoresNone() throws Exception {
+
+        stubContext("ctx-document", true, ContextEntity.DISAMBIGUATION_SCOPE_DOCUMENT);
+        stubContext("ctx-context", true, ContextEntity.DISAMBIGUATION_SCOPE_CONTEXT);
+
+        // Document scope learns in memory for the one request, so nothing reaches MongoDB.
+        redact("ctx-document");
+        assertEquals(0, vectorCount(), "document scope must use the in-memory vector service");
+
+        // Context scope persists what it learns, under the context, for later documents in it.
+        redact("ctx-context");
+        final long stored = vectorCount();
+        assertTrue(stored > 0, "context scope must use the MongoDB vector service");
+        assertEquals(stored, mongoClient.getDatabase("philter").getCollection("vectors")
+                .countDocuments(new org.bson.Document("context", "ctx-context")), "the vectors belong to the context");
+
+        redact("ctx-document");
+        assertEquals(stored, vectorCount(), "document scope must not use the MongoDB vector service after context scope did");
+
+    }
+
     // ---- helpers ---------------------------------------------------------------------------------
 
     private void stubContext(final String name, final boolean disambiguationEnabled) {
+        stubContext(name, disambiguationEnabled, ContextEntity.DISAMBIGUATION_SCOPE_CONTEXT);
+    }
+
+    private void stubContext(final String name, final boolean disambiguationEnabled, final String scope) {
         final ContextEntity context = mock(ContextEntity.class);
         when(context.getContextName()).thenReturn(name);
         when(context.isDisambiguation()).thenReturn(disambiguationEnabled);
         when(context.isLedger()).thenReturn(false);
         // Context scope persists the engine's vectors to Mongo, which is what makes the enabled case
         // observable. Only read when disambiguation is enabled.
-        when(context.getDisambiguationScope()).thenReturn("Context");
+        when(context.getDisambiguationScope()).thenReturn(scope);
         when(contextService.findOneByNameAndUserId(name, userId)).thenReturn(context);
     }
 

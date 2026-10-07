@@ -133,7 +133,7 @@ class ContextsApiControllerTest {
 
         assertTrue(body.contains("name"), "the response should name the missing parameter: " + body);
 
-        verify(contextService, never()).create(anyString(), any(), anyBoolean(), anyBoolean());
+        verify(contextService, never()).create(anyString(), any(), anyBoolean(), anyString(), anyBoolean());
     }
 
     @Test
@@ -195,7 +195,7 @@ class ContextsApiControllerTest {
 
     @Test
     void createScopesToOwningUserId() throws Exception {
-        when(contextService.create(eq("ctx"), eq(userId), anyBoolean(), anyBoolean()))
+        when(contextService.create(eq("ctx"), eq(userId), anyBoolean(), anyString(), anyBoolean()))
                 .thenReturn(ServiceResponse.success("Context created."));
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
@@ -204,13 +204,13 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-2"))
                 .andExpect(status().isOk());
 
-        verify(contextService).create(eq("ctx"), eq(userId), anyBoolean(), anyBoolean());
+        verify(contextService).create(eq("ctx"), eq(userId), anyBoolean(), anyString(), anyBoolean());
     }
 
     @Test
     void createReturns409ForDuplicateName() throws Exception {
         // A name the caller already uses yields a 409 ServiceResponse, which must surface as HTTP 409.
-        when(contextService.create(eq("dup"), eq(userId), anyBoolean(), anyBoolean()))
+        when(contextService.create(eq("dup"), eq(userId), anyBoolean(), anyString(), anyBoolean()))
                 .thenReturn(new ServiceResponse("Context already exists.", false, 409, "context_exists"));
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
@@ -744,8 +744,72 @@ class ContextsApiControllerTest {
     }
 
     @Test
+    void createPassesTheDisambiguationScope() throws Exception {
+        when(contextService.create(eq("scoped"), eq(userId), eq(true), eq("context"), eq(false)))
+                .thenReturn(new ServiceResponse("Context created", true, 201));
+
+        mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-create")
+                        .param("name", "scoped")
+                        .param("entity_type_disambiguation", "true")
+                        .param("disambiguation_scope", "context"))
+                .andExpect(status().isOk());
+
+        verify(contextService).create(eq("scoped"), eq(userId), eq(true), eq("context"), eq(false));
+    }
+
+    @Test
+    void createDefaultsTheDisambiguationScopeToDocument() throws Exception {
+        when(contextService.create(eq("plain"), eq(userId), eq(false), eq("document"), eq(false)))
+                .thenReturn(new ServiceResponse("Context created", true, 201));
+
+        mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-create")
+                        .param("name", "plain"))
+                .andExpect(status().isOk());
+
+        verify(contextService).create(eq("plain"), eq(userId), eq(false), eq("document"), eq(false));
+    }
+
+    @Test
+    void createRefusesAnUnknownDisambiguationScope() throws Exception {
+        mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-create")
+                        .param("name", "scoped")
+                        .param("disambiguation_scope", "global"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("disambiguation_scope must be document or context."));
+
+        verify(contextService, never()).create(anyString(), any(), anyBoolean(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void updateContextRefusesAnUnknownDisambiguationScope() throws Exception {
+        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
+                        .param("disambiguation_scope", "global"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("disambiguation_scope must be document or context."));
+
+        verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateContextPassesTheScopeAlone() throws Exception {
+        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq("context"), isNull(), any(), any()))
+                .thenReturn(ServiceResponse.success("Context updated."));
+
+        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
+                        .param("disambiguation_scope", "context"))
+                .andExpect(status().isOk());
+
+        verify(contextService).updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq("context"), isNull(), eq(userId), any());
+    }
+
+    @Test
     void updateContextAppliesTheSettingsToTheOwningUser() throws Exception {
-        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), eq(true), eq(true), any(), any()))
+        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), eq(true), isNull(), eq(true), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
         mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
@@ -754,12 +818,12 @@ class ContextsApiControllerTest {
                         .param("ledger", "true"))
                 .andExpect(status().isOk());
 
-        verify(contextService).updateSettings(eq("req-update"), eq("my-context"), eq(userId), eq(true), eq(true), eq(userId), any());
+        verify(contextService).updateSettings(eq("req-update"), eq("my-context"), eq(userId), eq(true), isNull(), eq(true), eq(userId), any());
     }
 
     @Test
     void updateContextPassesAnOmittedSettingAsUnchanged() throws Exception {
-        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq(false), any(), any()))
+        when(contextService.updateSettings(any(), eq("my-context"), eq(userId), isNull(), isNull(), eq(false), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
         mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
@@ -767,7 +831,7 @@ class ContextsApiControllerTest {
                         .param("ledger", "false"))
                 .andExpect(status().isOk());
 
-        verify(contextService).updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq(false), any(), any());
+        verify(contextService).updateSettings(any(), eq("my-context"), eq(userId), isNull(), isNull(), eq(false), any(), any());
     }
 
     @Test
@@ -776,12 +840,12 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-update"))
                 .andExpect(status().isBadRequest());
 
-        verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any());
+        verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void updateContextReturns404WhenTheContextDoesNotExist() throws Exception {
-        when(contextService.updateSettings(any(), eq("missing"), eq(userId), any(), any(), any(), any()))
+        when(contextService.updateSettings(any(), eq("missing"), eq(userId), any(), any(), any(), any(), any()))
                 .thenReturn(ServiceResponse.failure("Context not found."));
 
         mockMvc.perform(put("/api/contexts/missing").header("Authorization", AUTH_HEADER)
@@ -920,7 +984,7 @@ class ContextsApiControllerTest {
     @Test
     void adminCanUpdateAnotherUsersContextViaOwner() throws Exception {
         final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
-        when(contextService.updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), any(), any()))
+        when(contextService.updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), isNull(), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
         mockMvc.perform(put("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
@@ -929,8 +993,8 @@ class ContextsApiControllerTest {
                         .param("entity_type_disambiguation", "true"))
                 .andExpect(status().isOk());
 
-        verify(contextService).updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), eq(userId), any());
-        verify(contextService, never()).updateSettings(any(), anyString(), eq(userId), any(), any(), any(), any());
+        verify(contextService).updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), isNull(), eq(userId), any());
+        verify(contextService, never()).updateSettings(any(), anyString(), eq(userId), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -967,7 +1031,7 @@ class ContextsApiControllerTest {
     @Test
     void adminCanCreateAContextForAnotherUserViaOwner() throws Exception {
         final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
-        when(contextService.create(eq("ctx"), eq(otherUserId), anyBoolean(), anyBoolean()))
+        when(contextService.create(eq("ctx"), eq(otherUserId), anyBoolean(), anyString(), anyBoolean()))
                 .thenReturn(ServiceResponse.success("Context created."));
 
         mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
@@ -976,7 +1040,7 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-x-create"))
                 .andExpect(status().isOk());
 
-        verify(contextService).create(eq("ctx"), eq(otherUserId), anyBoolean(), anyBoolean());
+        verify(contextService).create(eq("ctx"), eq(otherUserId), anyBoolean(), anyString(), anyBoolean());
     }
 
     @Test

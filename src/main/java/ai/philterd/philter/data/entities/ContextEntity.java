@@ -30,6 +30,23 @@ public class ContextEntity extends AbstractEntity {
     public static final String DISAMBIGUATION_SCOPE_DOCUMENT = "Document";
     public static final String DISAMBIGUATION_SCOPE_CONTEXT = "Context";
 
+    /** The disambiguation scope values the API accepts, worded for an error message and the documentation. */
+    public static final String DISAMBIGUATION_SCOPE_VALUES = "document or context";
+
+    /**
+     * The stored disambiguation scope for an API value, {@code document} or {@code context} in any case, or
+     * null if the value is neither.
+     */
+    public static String disambiguationScopeOf(final String value) {
+        if (DISAMBIGUATION_SCOPE_DOCUMENT.equalsIgnoreCase(value)) {
+            return DISAMBIGUATION_SCOPE_DOCUMENT;
+        }
+        if (DISAMBIGUATION_SCOPE_CONTEXT.equalsIgnoreCase(value)) {
+            return DISAMBIGUATION_SCOPE_CONTEXT;
+        }
+        return null;
+    }
+
     private ObjectId id;
     private String contextName;
     private int maxSize;

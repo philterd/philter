@@ -38,6 +38,7 @@ import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ContextDataService extends AbstractService<ContextEntity> {
 
@@ -46,6 +47,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     /** Reasons a create is refused with 409, carried in the response's details. */
     public static final String REASON_CONTEXT_EXISTS = "context_exists";
     public static final String REASON_CONTEXT_LIMIT_REACHED = "context_limit_reached";
+
+    /** The refusal of a disambiguation scope that is not one of the allowed values. */
+    public static final String DISAMBIGUATION_SCOPE_REFUSAL =
+            "disambiguation_scope must be " + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + ".";
     public static final int MAX_LIMIT = 100;
 
     private final ContextEntryDataService contextEntryService;
@@ -110,6 +115,12 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     }
 
     public ServiceResponse create(final String contextName, final ObjectId userId, final boolean disambiguation, final boolean ledger) {
+        return create(contextName, userId, disambiguation, ContextEntity.DISAMBIGUATION_SCOPE_DOCUMENT, ledger);
+    }
+
+    /** As above, with a disambiguation scope: {@code document} or {@code context}, in any case. */
+    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean disambiguation,
+                                  final String disambiguationScope, final boolean ledger) {
 
         if(contextName == null || contextName.isBlank()) {
             return new ServiceResponse("Context name cannot be blank.", false, 400);
@@ -117,6 +128,11 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         if (!PathSafeNames.isPathSafe(contextName)) {
             return new ServiceResponse("The context name " + PathSafeNames.RULE + ".", false, 400);
+        }
+
+        final String scope = ContextEntity.disambiguationScopeOf(disambiguationScope);
+        if (scope == null) {
+            return new ServiceResponse(DISAMBIGUATION_SCOPE_REFUSAL, false, 400);
         }
 
         // Context names are unique per user, so reject a name the caller already uses. Another user may
@@ -136,6 +152,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         contextEntity.setUserId(userId);
         contextEntity.setContextName(contextName);
         contextEntity.setDisambiguation(disambiguation);
+        contextEntity.setDisambiguationScope(scope);
         contextEntity.setLedger(ledger);
 
         // Claim the lowest free slot. The checks above are not atomic with the insert, so concurrent
@@ -348,13 +365,20 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     }
 
     /**
-     * Changes a context's settings. A {@code null} setting keeps its current value, so turning one on never
-     * turns the other off. Audited as {@code context_updated}, naming each setting whose value changed, the
-     * acting user, and the acting API key.
+     * Changes a context's settings. A {@code null} setting keeps its current value, so changing one never
+     * changes another. The disambiguation scope is {@code document} or {@code context}, in any case. Audited
+     * as {@code context_updated}, naming each setting whose value changed, the acting user, and the acting
+     * API key.
      */
     public ServiceResponse updateSettings(final String requestId, final String contextName, final ObjectId userId,
-                                          final Boolean disambiguation, final Boolean ledger,
-                                          final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                          final Boolean disambiguation, final String disambiguationScope,
+                                          final Boolean ledger, final ObjectId actingUserId,
+                                          final ObjectId actingApiKeyId) {
+
+        final String scope = disambiguationScope == null ? null : ContextEntity.disambiguationScopeOf(disambiguationScope);
+        if (disambiguationScope != null && scope == null) {
+            return new ServiceResponse(DISAMBIGUATION_SCOPE_REFUSAL, false, 400);
+        }
 
         final ContextEntity existing = findOne(contextName, userId);
         if (existing == null) {
@@ -367,6 +391,12 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             sets.add(Updates.set("disambiguation", disambiguation));
             if (disambiguation != existing.isDisambiguation()) {
                 changed.add("entity_type_disambiguation: " + disambiguation);
+            }
+        }
+        if (scope != null) {
+            sets.add(Updates.set("disambiguation_scope", scope));
+            if (!scope.equals(existing.getDisambiguationScope())) {
+                changed.add("disambiguation_scope: " + scope.toLowerCase(Locale.ROOT));
             }
         }
         if (ledger != null) {

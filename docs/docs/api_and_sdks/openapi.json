@@ -1339,6 +1339,20 @@
             }
           },
           {
+            "description": "Whether span disambiguation learns within each document (document) or across every document redacted in the context (context). Applies when entity_type_disambiguation is on.",
+            "name": "disambiguation_scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "document",
+              "enum": [
+                "document",
+                "context"
+              ]
+            }
+          },
+          {
             "name": "ledger",
             "in": "query",
             "required": false,
@@ -1368,7 +1382,7 @@
             }
           },
           "400": {
-            "description": "The name is missing or blank, or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., since it must be usable in a request path.",
+            "description": "The name is missing or blank, or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., since it must be usable in a request path; or disambiguation_scope is not document or context.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1706,7 +1720,7 @@
           "Contexts"
         ],
         "summary": "Update a context's settings.",
-        "description": "Changes a context's entity_type_disambiguation and ledger settings. Only the settings given change; one left out keeps its current value. Recorded as a context_updated audit event naming each setting that changed. Requires the `contexts:write` scope.",
+        "description": "Changes a context's entity_type_disambiguation, disambiguation_scope, and ledger settings. Only the settings given change; one left out keeps its current value. Recorded as a context_updated audit event naming each setting that changed. Requires the `contexts:write` scope.",
         "operationId": "updateContext",
         "parameters": [
           {
@@ -1732,6 +1746,19 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "description": "Whether span disambiguation learns within each document (document) or across every document redacted in the context (context). Left out, it keeps its current value.",
+            "name": "disambiguation_scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "document",
+                "context"
+              ]
             }
           },
           {
@@ -1764,7 +1791,7 @@
             }
           },
           "400": {
-            "description": "Neither setting was given.",
+            "description": "No setting was given, or disambiguation_scope is not document or context.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11902,6 +11929,13 @@
       },
       "GetContextResponse": {
         "properties": {
+          "disambiguationScope": {
+            "type": "string",
+            "enum": [
+              "document",
+              "context"
+            ]
+          },
           "entityTypeDisambiguation": {
             "type": "boolean"
           },

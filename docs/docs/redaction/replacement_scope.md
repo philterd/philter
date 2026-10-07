@@ -69,10 +69,10 @@ Deleting a mapping means the next occurrence of that value is treated as new and
 
 ## Not the same as disambiguation scope
 
-Replacement scope is distinct from **[disambiguation scope](disambiguation.md)**, despite the similar `Document`/`Context` wording:
+Replacement scope is distinct from **[disambiguation scope](disambiguation.md)**, despite the similar document and context wording:
 
 * **Replacement scope** (this page) is set **per filter strategy** in the policy and controls whether *generated replacements* are reused across documents.
-* **Disambiguation scope** is set **on the context** and controls whether Philter shares *entity-type disambiguation* knowledge across documents to improve detection accuracy.
+* **Disambiguation scope** is set **on the context**, with its `disambiguation_scope` parameter (`document` or `context`), and controls whether Philter shares *entity-type disambiguation* knowledge across documents to improve detection accuracy.
 
 ## See Also
 

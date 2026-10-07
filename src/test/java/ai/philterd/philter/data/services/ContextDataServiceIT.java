@@ -316,7 +316,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
         final ObjectId owner = new ObjectId();
         assertTrue(service.create("c", owner, false, false).isSuccessful());
 
-        assertTrue(service.updateSettings("req", "c", owner, true, true, owner, null).isSuccessful());
+        assertTrue(service.updateSettings("req", "c", owner, true, null, true, owner, null).isSuccessful());
 
         final ContextEntity updated = service.findOne("c", owner);
         assertTrue(updated.isDisambiguation());
@@ -329,13 +329,13 @@ class ContextDataServiceIT extends AbstractMongoIT {
         assertTrue(service.create("partial", owner, false, true).isSuccessful());
 
         // Turning disambiguation on must not turn the ledger off.
-        assertTrue(service.updateSettings("req", "partial", owner, true, null, owner, null).isSuccessful());
+        assertTrue(service.updateSettings("req", "partial", owner, true, null, null, owner, null).isSuccessful());
         ContextEntity stored = service.findOne("partial", owner);
         assertTrue(stored.isDisambiguation());
         assertTrue(stored.isLedger(), "the ledger keeps recording evidence");
 
         // And turning the ledger off must not touch disambiguation.
-        assertTrue(service.updateSettings("req", "partial", owner, null, false, owner, null).isSuccessful());
+        assertTrue(service.updateSettings("req", "partial", owner, null, null, false, owner, null).isSuccessful());
         stored = service.findOne("partial", owner);
         assertTrue(stored.isDisambiguation());
         assertFalse(stored.isLedger());
@@ -345,10 +345,54 @@ class ContextDataServiceIT extends AbstractMongoIT {
     void neitherSettingChangesNothingAndIsRefused() {
         final ObjectId owner = new ObjectId();
         assertTrue(service.create("neither", owner, true, true).isSuccessful());
-        final ServiceResponse response = service.updateSettings("req", "neither", owner, null, null, owner, null);
+        final ServiceResponse response = service.updateSettings("req", "neither", owner, null, null, null, owner, null);
         assertFalse(response.isSuccessful());
         assertEquals(400, response.getStatusCode());
         assertTrue(service.findOne("neither", owner).isLedger());
+    }
+
+    @Test
+    void createStoresEachDisambiguationScopeAndDefaultsToDocument() {
+        final ObjectId owner = new ObjectId();
+        assertTrue(service.create("default-scope", owner, true, false).isSuccessful());
+        assertTrue(service.create("document-scope", owner, true, "document", false).isSuccessful());
+        assertTrue(service.create("context-scope", owner, true, "CONTEXT", false).isSuccessful());
+
+        assertEquals(ContextEntity.DISAMBIGUATION_SCOPE_DOCUMENT, service.findOne("default-scope", owner).getDisambiguationScope());
+        assertEquals(ContextEntity.DISAMBIGUATION_SCOPE_DOCUMENT, service.findOne("document-scope", owner).getDisambiguationScope());
+        assertEquals(ContextEntity.DISAMBIGUATION_SCOPE_CONTEXT, service.findOne("context-scope", owner).getDisambiguationScope());
+    }
+
+    @Test
+    void createRefusesAnUnknownDisambiguationScope() {
+        final ObjectId owner = new ObjectId();
+        final ServiceResponse response = service.create("bad-scope", owner, true, "user", false);
+        assertFalse(response.isSuccessful());
+        assertEquals(400, response.getStatusCode());
+        assertEquals(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL, response.getMessage());
+        assertNull(service.findOne("bad-scope", owner));
+    }
+
+    @Test
+    void updateSettingsChangesTheScopeAloneAndRefusesAnUnknownOne() {
+        final ObjectId owner = new ObjectId();
+        assertTrue(service.create("scoped", owner, true, true).isSuccessful());
+
+        assertTrue(service.updateSettings("req", "scoped", owner, null, "context", null, owner, null).isSuccessful());
+        ContextEntity stored = service.findOne("scoped", owner);
+        assertEquals(ContextEntity.DISAMBIGUATION_SCOPE_CONTEXT, stored.getDisambiguationScope());
+        assertTrue(stored.isDisambiguation(), "changing the scope leaves disambiguation on");
+        assertTrue(stored.isLedger(), "changing the scope leaves the ledger on");
+
+        final ServiceResponse refused = service.updateSettings("req", "scoped", owner, false, "sentence", null, owner, null);
+        assertEquals(400, refused.getStatusCode());
+        assertEquals(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL, refused.getMessage());
+        stored = service.findOne("scoped", owner);
+        assertEquals(ContextEntity.DISAMBIGUATION_SCOPE_CONTEXT, stored.getDisambiguationScope());
+        assertTrue(stored.isDisambiguation(), "a refused request changes nothing, including the settings it also gave");
+
+        assertTrue(service.updateSettings("req", "scoped", owner, null, "Document", null, owner, null).isSuccessful());
+        assertEquals(ContextEntity.DISAMBIGUATION_SCOPE_DOCUMENT, service.findOne("scoped", owner).getDisambiguationScope());
     }
 
 }

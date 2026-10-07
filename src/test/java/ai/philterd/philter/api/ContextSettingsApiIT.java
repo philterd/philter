@@ -187,4 +187,67 @@ class ContextSettingsApiIT {
         assertTrue(auditDetails(name).isEmpty());
     }
 
+    @Test
+    @DisplayName("The disambiguation scope defaults to document, is set at creation, and is returned")
+    void setsAndReadsTheDisambiguationScope() throws Exception {
+        assertEquals("document", read(create(true, false), key, "").get("disambiguationScope").getAsString());
+
+        final String name = "scope-" + UUID.randomUUID();
+        assertEquals(200, send("POST", "/api/contexts?name=" + name
+                + "&entity_type_disambiguation=true&disambiguation_scope=Context", key).statusCode());
+        assertEquals("context", read(name, key, "").get("disambiguationScope").getAsString());
+
+        AdminAccessConfig.setOverrideForTesting(true);
+        final String owned = "scope-owned-" + UUID.randomUUID();
+        assertEquals(200, send("POST", "/api/contexts?name=" + owned + "&disambiguation_scope=context&owner="
+                + username, adminKey).statusCode());
+        assertEquals("context", read(owned, key, "").get("disambiguationScope").getAsString());
+    }
+
+    @Test
+    @DisplayName("An unknown disambiguation scope is refused, naming the allowed values, and creates or changes nothing")
+    void refusesAnUnknownDisambiguationScope() throws Exception {
+        final String missing = "scope-bad-" + UUID.randomUUID();
+        final HttpResponse<String> created = send("POST", "/api/contexts?name=" + missing + "&disambiguation_scope=global", key);
+        assertEquals(400, created.statusCode(), created.body());
+        assertEquals("disambiguation_scope must be document or context.",
+                gson.fromJson(created.body(), JsonObject.class).get("message").getAsString());
+        assertEquals(404, send("GET", "/api/contexts/" + missing, key).statusCode(), "no context was created");
+
+        final String name = create(false, false);
+        final HttpResponse<String> updated = send("PUT", "/api/contexts/" + name
+                + "?disambiguation_scope=global&ledger=true", key);
+        assertEquals(400, updated.statusCode(), updated.body());
+        assertEquals("disambiguation_scope must be document or context.",
+                gson.fromJson(updated.body(), JsonObject.class).get("message").getAsString());
+        final JsonObject context = read(name, key, "");
+        assertEquals("document", context.get("disambiguationScope").getAsString());
+        assertFalse(context.get("ledger").getAsBoolean(), "the setting given with it is not applied either");
+        assertTrue(auditDetails(name).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Changing the scope leaves the other settings as they were and is audited")
+    void changesTheScopeAlone() throws Exception {
+        final String name = create(true, true);
+
+        assertEquals(200, send("PUT", "/api/contexts/" + name + "?disambiguation_scope=context", key).statusCode());
+        JsonObject context = read(name, key, "");
+        assertEquals("context", context.get("disambiguationScope").getAsString());
+        assertTrue(context.get("entityTypeDisambiguation").getAsBoolean());
+        assertTrue(context.get("ledger").getAsBoolean());
+
+        // Other settings leave the scope as it is.
+        assertEquals(200, send("PUT", "/api/contexts/" + name + "?entity_type_disambiguation=false", key).statusCode());
+        assertEquals("context", read(name, key, "").get("disambiguationScope").getAsString());
+
+        // Sending the scope at its current value is not a change.
+        assertEquals(200, send("PUT", "/api/contexts/" + name + "?disambiguation_scope=CONTEXT", key).statusCode());
+
+        final List<String> details = auditDetails(name);
+        assertEquals(2, details.size(), "one event per change: " + details);
+        assertTrue(details.stream().anyMatch(d -> d.contains("disambiguation_scope: context")
+                && !d.contains("entity_type_disambiguation") && !d.contains("ledger:")), details.toString());
+    }
+
 }

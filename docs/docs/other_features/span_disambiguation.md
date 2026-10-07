@@ -1,6 +1,6 @@
 # Span Disambiguation
 
-Span disambiguation is an optional feature that is enabled per [context](../redaction/contexts.md). It is disabled by default; turn it on with the `entity_type_disambiguation=true` parameter when creating a context (`POST /api/contexts`) or updating one (`PUT /api/contexts/{name}`).
+Span disambiguation is an optional feature that is enabled per [context](../redaction/contexts.md). It is disabled by default; turn it on with the `entity_type_disambiguation=true` parameter when creating a context (`POST /api/contexts`) or updating one (`PUT /api/contexts/{name}`). The `disambiguation_scope` parameter sets what it learns from: `document` (the default) or `context`. See the [Contexts API](../api_and_sdks/api/contexts_api.md#create-a-context).
 
 In Philter, a _span_ is a piece of the input text that Philter has identified as sensitive information. A span has a start and end positions, a confidence, a type, and other attributes. Ideally, each piece of identified sensitive information will only have a single span associated with it. In this case, the type of sensitive information is unambiguous. The goal of span disambiguation is to provide more accurate filtering by removing the potential ambiguities in the types of sensitive information for duplicate spans.
 
@@ -16,9 +16,9 @@ That is how Philter's span disambiguation works. When presented with competing s
 
 ### Improves Over Time
 
-Philter learns the context associated with each type from the unambiguous spans it sees: when only one filter claims a piece of text, Philter records the surrounding words as an example of that type within the context. Future competing spans are then compared against this accumulated knowledge, so disambiguation becomes more accurate as more text is filtered within the same context.
+Philter learns the context associated with each type from the unambiguous spans it sees: when only one filter claims a piece of text, Philter records the surrounding words as an example of that type within the context. Future competing spans are then compared against this accumulated knowledge, so disambiguation becomes more accurate as more text is filtered within the same context. At the default **document** scope, what Philter learns applies only within the document being redacted.
 
-When a context is new and has not yet seen any examples, there is no learned signal to compare against. In that case Philter makes a deterministic default choice among the competing types; accuracy improves once the context has processed unambiguous examples of the types involved. Use a [context](../redaction/contexts.md) with disambiguation enabled at the **context** scope (rather than the document scope) so this learning persists across documents.
+When a context is new and has not yet seen any examples, there is no learned signal to compare against. In that case Philter makes a deterministic default choice among the competing types; accuracy improves once the context has processed unambiguous examples of the types involved. Use a [context](../redaction/contexts.md) with disambiguation enabled at the **context** scope (`disambiguation_scope=context`) rather than the document scope so this learning persists across documents.
 
 ### More Details
 

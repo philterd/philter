@@ -14,7 +14,7 @@ Entity type disambiguation is a specific form of disambiguation that uses contex
 
 When enabled for a context, Philter will utilize the context's accumulated knowledge to improve the accuracy of entity type identification across all documents processed within that context.
 
-The option between disambiguation at the document level and the context level is called **disambiguation scope** and is configured on the [context](contexts.md), not in the policy. See [Span Disambiguation](../other_features/span_disambiguation.md).
+The option between disambiguation at the document level and the context level is called **disambiguation scope** and is configured on the [context](contexts.md), not in the policy, with the `disambiguation_scope` parameter: `document` (the default) or `context`. See the [Contexts API](../api_and_sdks/api/contexts_api.md#create-a-context). See [Span Disambiguation](../other_features/span_disambiguation.md).
 
 When disambiguation is performed on the context level, you can think of Philter as "getting smarter" over time. Philter learns from unambiguous spans (text that only one filter claimed) by recording the surrounding words as an example of that type, then compares future competing spans against this accumulated knowledge. As more documents are processed under a context, the engine has more examples to draw on, which can lead to more accurate redactions. A brand-new context has no examples yet, so its first decisions fall back to a deterministic default and improve as examples accumulate.
 

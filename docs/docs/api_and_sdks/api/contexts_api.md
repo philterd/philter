@@ -63,11 +63,13 @@ Example response:
   },
   "untyped": 2,
   "entityTypeDisambiguation": true,
+  "disambiguationScope": "document",
   "ledger": false
 }
 ```
 
 * `entityTypeDisambiguation` - Whether entity type disambiguation is enabled for the context.
+* `disambiguationScope` - `document` or `context`: whether disambiguation learns within each document or across the context. See `disambiguation_scope` under [Create a Context](#create-a-context).
 * `ledger` - Whether the context records redactions in the [ledger](../../redaction/ledgers.md).
 * `size` - The number of entries in the context.
 * `filterTypes` - The number of entries for each filter type, sorted by filter type.
@@ -85,13 +87,16 @@ The counts are computed in the database in one query and sum to `size`.
 
 * `name` (required) - The name of the context to create. Context names are **unique per user**: if you already have a context with this name the request is rejected with `409 Conflict`. A name you use does not prevent another user from using the same name. Each user can have at most 10 contexts; see [Capacity](#capacity). Because the name is how the context is addressed in a request path, it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`.
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
+* `disambiguation_scope` (optional, default: `document`) - What [span disambiguation](../../other_features/span_disambiguation.md) learns from, when `entity_type_disambiguation` is enabled. Case does not matter.
+    * `document` - Each document is disambiguated on its own, from what Philter learns in that document. Nothing is stored.
+    * `context` - What Philter learns is stored in MongoDB and used for every later document redacted in the context, up to `MAX_VECTORS_PER_CONTEXT` vectors. Stored vectors are kept if the scope or disambiguation changes, and deleted when the context is [emptied](#empty-a-context) or deleted.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 * `owner` (optional, admin only) - Username of another user whose context to create the context for. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 ### Responses
 
 * `200 OK` - The context was created.
-* `400 Bad Request` - The `name` parameter is missing or blank, or breaks the rule above. The body carries a `message`.
+* `400 Bad Request` - The `name` parameter is missing or blank or breaks the rule above, or `disambiguation_scope` is not `document` or `context`. The body carries a `message`.
 * `409 Conflict` - The context was not created because of your existing contexts. The body's `reason` says which, so a client need not read the message:
     * `context_exists` - You already have a context with this name.
     * `context_limit_reached` - You already have 10 contexts.
@@ -106,20 +111,21 @@ The counts are computed in the database in one query and sum to `size`.
 Example request:
 
 ```bash
-curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/contexts?name=my-context&entity_type_disambiguation=true"
+curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/contexts?name=my-context&entity_type_disambiguation=true&disambiguation_scope=context"
 ```
 
 ## Update a Context
 
 | Method | Endpoint               | Description                                                                   |
 |--------|------------------------|-------------------------------------------------------------------------------|
-| `PUT`  | `/api/contexts/{name}` | Change a context's `entity_type_disambiguation` and `ledger` settings.        |
+| `PUT`  | `/api/contexts/{name}` | Change a context's `entity_type_disambiguation`, `disambiguation_scope`, and `ledger` settings. |
 
-Only the settings given change. A setting left out keeps its current value, so turning one on never turns the other off. Read the current values with [Get Context Details](#get-context-details).
+Only the settings given change. A setting left out keeps its current value, so changing one never changes another. Read the current values with [Get Context Details](#get-context-details).
 
 ### Query Parameters
 
 * `entity_type_disambiguation` (optional) - Whether to enable entity type disambiguation. Left out, it is unchanged.
+* `disambiguation_scope` (optional) - `document` or `context`, as for [Create a Context](#create-a-context). Left out, it is unchanged.
 * `ledger` (optional) - Whether to enable the redaction ledger. Left out, it is unchanged; turning it off stops recording redaction evidence for the context.
 * `owner` (optional, admin only) - Username of another user whose context to update. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
@@ -130,7 +136,7 @@ curl -X PUT -k -H "Authorization: Bearer <token>" \
   "https://localhost:8080/api/contexts/my-context?entity_type_disambiguation=false&ledger=true"
 ```
 
-Returns `200 OK` on success, `400 Bad Request` if neither setting is given, and `404 Not Found` if no context with that name exists for the calling user. Each change is recorded as a `context_updated` [audit event](../../auditing.md) naming the settings whose values changed.
+Returns `200 OK` on success, `400 Bad Request` if no setting is given or `disambiguation_scope` is not `document` or `context` (nothing changes, including the other settings given), and `404 Not Found` if no context with that name exists for the calling user. Each change is recorded as a `context_updated` [audit event](../../auditing.md) naming the settings whose values changed.
 
 ## Delete a Context
 
@@ -205,6 +211,8 @@ The original token is never returned by this endpoint; only a keyed hash of it i
 | Method   | Endpoint                          | Description                                |
 |----------|-----------------------------------|--------------------------------------------|
 | `DELETE` | `/api/contexts/{name}/entries`    | Remove all entries from a context.         |
+
+Emptying a context also deletes the span-disambiguation vectors stored for it under the `context` [disambiguation scope](#create-a-context). Its settings are unchanged.
 
 ### Query Parameters
 

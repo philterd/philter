@@ -71,6 +71,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -275,7 +276,8 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         final GetContextResponse getContextResponse = new GetContextResponse(size, filterTypes, untyped,
-                contextEntity.isDisambiguation(), contextEntity.isLedger());
+                contextEntity.isDisambiguation(), contextEntity.getDisambiguationScope().toLowerCase(Locale.ROOT),
+                contextEntity.isLedger());
 
         return new ResponseEntity<>(gson.toJson(getContextResponse), HttpStatus.OK);
 
@@ -286,7 +288,8 @@ public class ContextsApiController extends AbstractApiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was created."),
             @ApiResponse(responseCode = "400", description = "The name is missing or blank, or "
-                    + PathSafeNames.RULE + ", since it must be usable in a request path."),
+                    + PathSafeNames.RULE + ", since it must be usable in a request path; or disambiguation_scope is not "
+                    + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + "."),
             @ApiResponse(responseCode = "409", description = "The context was not created, and reason says why: "
                     + "context_exists (the caller already has a context with this name) or context_limit_reached "
                     + "(the caller already has the most contexts a user may have).",
@@ -299,6 +302,11 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam("name") String name,
             final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
+            final @Parameter(description = "Whether span disambiguation learns within each document (document) or "
+                    + "across every document redacted in the context (context). Applies when "
+                    + "entity_type_disambiguation is on.",
+                    schema = @Schema(allowableValues = {"document", "context"}, defaultValue = "document"))
+            @RequestParam(value = "disambiguation_scope", required = false, defaultValue = "document") String disambiguationScope,
             final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestAttribute("requestId") String requestId,
@@ -315,10 +323,14 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
 
+        if (ContextEntity.disambiguationScopeOf(disambiguationScope) == null) {
+            throw new BadRequestException(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL);
+        }
+
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "create context '" + name + "'");
 
-        final ServiceResponse serviceResponse = contextService.create(name, userId, disambiguation, ledger);
+        final ServiceResponse serviceResponse = contextService.create(name, userId, disambiguation, disambiguationScope, ledger);
 
         if(serviceResponse.isSuccessful()) {
 
@@ -424,12 +436,13 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Update a context's settings.", description = "Changes a context's entity_type_disambiguation "
-            + "and ledger settings. Only the settings given change; one left out keeps its current value. Recorded as a "
-            + "context_updated audit event naming each setting that changed.")
+    @Operation(summary = "Update a context's settings.", description = "Changes a context's entity_type_disambiguation, "
+            + "disambiguation_scope, and ledger settings. Only the settings given change; one left out keeps its current "
+            + "value. Recorded as a context_updated audit event naming each setting that changed.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was updated."),
-            @ApiResponse(responseCode = "400", description = "Neither setting was given."),
+            @ApiResponse(responseCode = "400", description = "No setting was given, or disambiguation_scope is not "
+                    + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + "."),
             @ApiResponse(responseCode = "404", description = "Context not found.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
@@ -439,6 +452,10 @@ public class ContextsApiController extends AbstractApiController {
             final @PathVariable("name") String name,
             final @Parameter(description = "Whether to apply entity-type span disambiguation. Left out, it keeps its current value.")
             @RequestParam(value = "entity_type_disambiguation", required = false) Boolean disambiguation,
+            final @Parameter(description = "Whether span disambiguation learns within each document (document) or "
+                    + "across every document redacted in the context (context). Left out, it keeps its current value.",
+                    schema = @Schema(allowableValues = {"document", "context"}))
+            @RequestParam(value = "disambiguation_scope", required = false) String disambiguationScope,
             final @Parameter(description = "Whether to record redactions in the ledger. Left out, it keeps its current value.")
             @RequestParam(value = "ledger", required = false) Boolean ledger,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -455,18 +472,21 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         // Refused rather than done as nothing, so a caller who misspelled a parameter learns of it.
-        if (disambiguation == null && ledger == null) {
-            throw new BadRequestException("Give entity_type_disambiguation, ledger, or both.");
+        if (disambiguation == null && disambiguationScope == null && ledger == null) {
+            throw new BadRequestException("Give at least one of entity_type_disambiguation, disambiguation_scope, or ledger.");
+        }
+        if (disambiguationScope != null && ContextEntity.disambiguationScopeOf(disambiguationScope) == null) {
+            throw new BadRequestException(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL);
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "update context '" + name + "'");
 
-        final ServiceResponse response = contextService.updateSettings(requestId, name, userId, disambiguation, ledger,
-                apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        final ServiceResponse response = contextService.updateSettings(requestId, name, userId, disambiguation,
+                disambiguationScope, ledger, apiKeyEntity.getUserId(), apiKeyEntity.getId());
 
-        return new ResponseEntity<>(new GenericResponse(response.getMessage()),
-                response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(new GenericResponse(response.getMessage()), response.isSuccessful() ? HttpStatus.OK
+                : response.getStatusCode() == 400 ? HttpStatus.BAD_REQUEST : HttpStatus.NOT_FOUND);
 
     }
 

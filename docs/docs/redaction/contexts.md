@@ -16,7 +16,7 @@ Enabling this is covered in detail, along with the strategy interactions and the
 
 ### Entity Type Disambiguation
 
-Entity type disambiguation helps resolve ambiguity when the identical piece of text is identified as more than one entity type. For example, a nine-digit number could be claimed by both the SSN filter and a custom identifier filter. When enabled for a context, Philter compares the words surrounding the text against what it has learned for each candidate type in that context and keeps the most likely one. This uses a vector-based comparison of the surrounding words (not a machine learning model), and it improves as more text is processed in the same context. See [Span Disambiguation](../other_features/span_disambiguation.md) for details.
+Entity type disambiguation helps resolve ambiguity when the identical piece of text is identified as more than one entity type. For example, a nine-digit number could be claimed by both the SSN filter and a custom identifier filter. When enabled for a context, Philter compares the words surrounding the text against what it has learned for each candidate type in that context and keeps the most likely one. This uses a vector-based comparison of the surrounding words (not a machine learning model). By default it learns within each document; with the context's `disambiguation_scope` set to `context`, what it learns is kept and it improves as more text is processed in the same context. See [Span Disambiguation](../other_features/span_disambiguation.md) for details.
 
 This feature is optional and can be enabled or disabled on a per-context basis. Enabling disambiguation can improve the accuracy of redaction in complex documents where entity types are frequently ambiguous.
 
@@ -55,7 +55,7 @@ Deleting a context removes the context, its internal mappings, and its learned d
 Each context is bounded so that referential-integrity storage does not grow without limit:
 
 *   **Token mappings**. Each context stores up to `MAX_CONTEXT_SIZE` entries (default `10000`, overridable via the `MAX_CONTEXT_SIZE` environment variable). When the limit is reached, the **least-read** entry is evicted before the new one is inserted (ties broken by oldest entry first). Read counts are updated on every lookup, including cache hits.
-*   **Disambiguation vectors**. When entity-type disambiguation is enabled, each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`). Eviction here is FIFO by insertion order.
+*   **Disambiguation vectors**. When entity-type disambiguation is enabled with `disambiguation_scope` set to `context`, each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`). Eviction here is FIFO by insertion order.
 
 In practice this means a long-running context will retain its most actively-referenced mappings indefinitely while quietly discarding entries that no incoming document has touched in a long time.
 

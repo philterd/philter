@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Map;
 
 /**
@@ -27,14 +29,18 @@ public class GetContextResponse {
     private final Map<String, Long> filterTypes;
     private final long untyped;
     private final boolean entityTypeDisambiguation;
+    @Schema(allowableValues = {"document", "context"})
+    private final String disambiguationScope;
     private final boolean ledger;
 
     public GetContextResponse(final long size, final Map<String, Long> filterTypes, final long untyped,
-                              final boolean entityTypeDisambiguation, final boolean ledger) {
+                              final boolean entityTypeDisambiguation, final String disambiguationScope,
+                              final boolean ledger) {
         this.size = size;
         this.filterTypes = filterTypes;
         this.untyped = untyped;
         this.entityTypeDisambiguation = entityTypeDisambiguation;
+        this.disambiguationScope = disambiguationScope;
         this.ledger = ledger;
     }
 
@@ -56,6 +62,11 @@ public class GetContextResponse {
     /** Whether entity-type span disambiguation applies to redactions in this context. */
     public boolean isEntityTypeDisambiguation() {
         return entityTypeDisambiguation;
+    }
+
+    /** Whether span disambiguation learns within each document ({@code document}) or across the context ({@code context}). */
+    public String getDisambiguationScope() {
+        return disambiguationScope;
     }
 
     /** Whether redactions in this context are recorded in the ledger. */

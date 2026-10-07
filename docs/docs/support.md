@@ -14,7 +14,7 @@ If a support request requires the analysis of a specific document to diagnose an
 
 1.  Notify us in your initial email that you have a sample document for review.
 2.  **Do not attach the file to the email.**
-3.  Our team will provide you with a **secure, encrypted, and HIPAA-compliant channel** through which you can safely transmit the sample for our review.
+3.  Our team will provide you with a **secure, encrypted channel** for transferring the sample for our review. If the sample contains PHI, a business associate agreement (BAA) may be needed first, so tell us before you share it.
 
 ## How to Contact Us
 

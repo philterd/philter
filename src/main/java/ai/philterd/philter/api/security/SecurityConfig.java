@@ -15,6 +15,11 @@
  */
 package ai.philterd.philter.api.security;
 
+import java.nio.charset.StandardCharsets;
+import org.springframework.security.web.firewall.RequestRejectedHandler;
+import org.springframework.http.MediaType;
+import jakarta.servlet.http.HttpServletResponse;
+import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.content.ContentTypeVerifyingFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
@@ -55,6 +60,24 @@ public class SecurityConfig {
     @Bean
     public SizeLimitingFilter sizeLimitingFilter(@Qualifier("handlerExceptionResolver") final HandlerExceptionResolver resolver) {
         return new SizeLimitingFilter(resolver);
+    }
+
+    /**
+     * Answers a request the firewall refuses for its path with {@code {"message": ...}} JSON, as Philter's other
+     * errors are, rather than Spring's default error body. The message never echoes the path.
+     */
+    /** The message for a request the firewall refuses for its path. */
+    public static final String REQUEST_REJECTED = "The request was refused: its path contains a character or segment "
+            + "that is not allowed, such as ;, an encoded %, an empty segment (//), or a . or .. segment.";
+
+    @Bean
+    public RequestRejectedHandler requestRejectedHandler() {
+        return (request, response, requestRejectedException) -> {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.getWriter().write(gson.toJson(new GenericResponse(REQUEST_REJECTED)));
+        };
     }
 
     @Bean

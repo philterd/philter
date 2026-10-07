@@ -215,6 +215,20 @@ class UsersApiControllerTest {
     }
 
     @Test
+    @DisplayName("A username that cannot be used in a request path is refused, naming the rule")
+    void createUserRefusesAUsernameThatCannotBeUsedInAPath() throws Exception {
+        callerIsAdministrator(true);
+
+        final String body = createUser("{\"username\":\"ops/ci\"}")
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("The username cannot contain"), "the refusal must state the rule: " + body);
+        verify(userService, never()).createUser(anyString(), anyString(), any(), anyString(), any(),
+                any(), any(), anyString(), any(), any());
+    }
+
+    @Test
     @DisplayName("A non-administrator is refused, and told that is what is missing")
     void createUserRefusesANonAdministrator() throws Exception {
         callerIsAdministrator(false);

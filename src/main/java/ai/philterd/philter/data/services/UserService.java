@@ -24,6 +24,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.mfa.TotpService;
 import ai.philterd.philter.services.policies.DefaultPolicy;
 import ai.philterd.philter.services.webhook.WebhookSettings;
+import ai.philterd.philter.utils.PathSafeNames;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -193,7 +194,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * As above, with an optional password, which the user must change at next sign-in because someone
      * else chose it. Setting it is audited as {@code user_password_set}, without the password.
      *
-     * @throws IllegalArgumentException if the password is not acceptable; see {@link #passwordProblem(String)}.
+     * @throws IllegalArgumentException if the password is not acceptable (see {@link #passwordProblem(String)}),
+     *         or the username cannot be used in a request path (see {@link PathSafeNames}).
      */
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
                                       final String password, final PolicyDataService policyService,
@@ -202,6 +204,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         if (password != null && passwordProblem(password) != null) {
             throw new IllegalArgumentException(passwordProblem(password));
+        }
+        if (!PathSafeNames.isPathSafe(username)) {
+            throw new IllegalArgumentException("The username " + PathSafeNames.RULE + ".");
         }
 
         final UserEntity existing = findAnyByUsername(username);

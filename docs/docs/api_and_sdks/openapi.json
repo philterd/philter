@@ -9269,7 +9269,7 @@
             }
           },
           "400": {
-            "description": "The username is missing or reserved, the role is not user or admin, or the password is shorter than 16 characters or longer than 72 bytes in UTF-8.",
+            "description": "The username is missing, is reserved, or is not usable in a request path (it cannot contain /, \\, ;, %, or control characters, and cannot be . or ..), the role is not user or admin, or the password is shorter than 16 characters or longer than 72 bytes in UTF-8.",
             "content": {
               "application/json": {
                 "schema": {

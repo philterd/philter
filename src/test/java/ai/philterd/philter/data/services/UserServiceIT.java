@@ -26,6 +26,7 @@ import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.KeyProvider;
 import ai.philterd.philter.services.encryption.KeyResponse;
 import ai.philterd.philter.testutil.AbstractMongoIT;
+import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
@@ -216,6 +217,15 @@ class UserServiceIT extends AbstractMongoIT {
         assertNotNull(byId);
         assertEquals(byEmail.getId(), byId.getId());
         assertEquals("alice@example.com", byId.getUsername());
+    }
+
+    @Test
+    void createUserRefusesAUsernameThatCannotBeUsedInAPath() {
+        final IllegalArgumentException refused = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> service.createUser(
+                        "req", "ops/ci", "user", policyDataService, contextDataService, "system"));
+        assertTrue(refused.getMessage().contains(PathSafeNames.RULE), refused.getMessage());
+        assertEquals(0, service.count());
     }
 
     @Test

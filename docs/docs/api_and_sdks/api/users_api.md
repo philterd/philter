@@ -87,7 +87,7 @@ Creates a user with a default policy and a default context. Requires `users:writ
 }
 ```
 
-* `username` (required) - Must not already belong to a user, including a deactivated one holding the name in reserve, and must not be `me`.
+* `username` (required) - Must not already belong to a user, including a deactivated one holding the name in reserve, and must not be `me`. Because the username is how the user is addressed in a request path, it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including an email address, is allowed.
 * `email` (optional) - The user's email address.
 * `role` (optional) - `user` (the default) or `admin`.
 * `password` (optional) - See [password rules](#password-rules). The user must change it at next sign-in, because an administrator chose it. Without one, the user can only use API keys.
@@ -103,7 +103,7 @@ Creates a user with a default policy and a default context. Requires `users:writ
 
 | Status | Meaning |
 |--------|---------|
-| 400 | The username is missing or is `me`, the role is not `user` or `admin`, or the password breaks the [password rules](#password-rules). |
+| 400 | The username is missing, is `me`, or cannot be used in a request path, the role is not `user` or `admin`, or the password breaks the [password rules](#password-rules). |
 | 409 | A user with that username already exists, active or deactivated. |
 
 ```

@@ -57,7 +57,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Names that cannot be used in a request path are refused, and ones made before that can still be removed. */
+/**
+ * Names and usernames that cannot be used in a request path are refused, and names made before that can still
+ * be removed.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {"spring.main.allow-bean-definition-overriding=true"})
 class PathSafeNamesApiIT {
@@ -151,6 +154,43 @@ class PathSafeNamesApiIT {
             final HttpResponse<String> read = send("GET", "/api/holds/" + encode(reference), null);
             assertEquals(200, read.statusCode(), reference + ": " + read.body());
             assertEquals(reference, gson.fromJson(read.body(), JsonObject.class).get("reference").getAsString());
+        }
+    }
+
+    /** An administrator's key, since only an administrator creates users. */
+    private String adminKey() {
+        final String admin = "path-admin-" + UUID.randomUUID();
+        assertTrue(userService.createUser("req", admin, null, "admin", policyDataService, contextDataService, "test")
+                .isSuccessful());
+        return apiKeyDataService.createApiKey("req", userService.findByUsername(admin).getId(), "test",
+                ApiKeyScope.all()).getMessage();
+    }
+
+    private static String user(final String username) {
+        return new Gson().toJson(java.util.Map.of("username", username));
+    }
+
+    @Test
+    @DisplayName("A username that cannot be used in a path is refused")
+    void refusesUsernamesThatCannotBeUsedInAPath() throws Exception {
+        key = adminKey();
+        for (final String username : List.of("ops/ci", "ops\\ci", "ops;ci", "ops%2Fci", "ops\tci", "..", " . ")) {
+            assertRefusedNamingTheRule(send("POST", "/api/users", user(username)));
+            assertNull(userService.findAnyByUsername(username.trim()), "no user was created for " + username);
+        }
+    }
+
+    @Test
+    @DisplayName("Usernames the rule allows, including an email address, are created and read back through the path")
+    void allowedUsernamesRoundTrip() throws Exception {
+        key = adminKey();
+        final String suffix = UUID.randomUUID().toString().substring(0, 8);
+        for (final String username : List.of("first.last+ci-" + suffix + "@example.com", "ops ci " + suffix,
+                "..." + suffix, "Équipe-" + suffix)) {
+            assertEquals(201, send("POST", "/api/users", user(username)).statusCode(), username);
+            final HttpResponse<String> read = send("GET", "/api/users/" + encode(username), null);
+            assertEquals(200, read.statusCode(), username + ": " + read.body());
+            assertEquals(username, gson.fromJson(read.body(), JsonObject.class).get("username").getAsString());
         }
     }
 

@@ -16,10 +16,10 @@
 package ai.philterd.philter.utils;
 
 /**
- * The rule for names a client puts in a request path: a legal hold reference, a custom list name, and a
- * context name. Each of these characters, percent-encoded in a path, is refused by Tomcat or Spring before
- * Philter sees the request, so an item named with one could be created but never read, changed, or
- * removed through its path. Policy names follow a stricter rule of their own.
+ * The rule for names a client puts in a request path: a legal hold reference, a custom list name, a
+ * context name, and a username. Each of these characters, percent-encoded in a path, is refused by Tomcat
+ * or Spring before Philter sees the request, so an item named with one could be created but never read,
+ * changed, or removed through its path. Policy names follow a stricter rule of their own.
  */
 public final class PathSafeNames {
 

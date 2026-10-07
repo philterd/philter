@@ -41,6 +41,7 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.utils.PathSafeNames;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -214,7 +215,8 @@ public class UsersApiController extends AbstractApiController {
             @ApiResponse(responseCode = "201", description = "The user was created.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = CreatedUserResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The username is missing or reserved, the role is not user or admin, or the password is "
+            @ApiResponse(responseCode = "400", description = "The username is missing, is reserved, or is not usable in a request "
+                    + "path (it " + PathSafeNames.RULE + "), the role is not user or admin, or the password is "
                     + "shorter than 16 characters or longer than 72 bytes in UTF-8."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
@@ -245,6 +247,10 @@ public class UsersApiController extends AbstractApiController {
         }
         if (SELF.equalsIgnoreCase(username)) {
             throw new BadRequestException("'" + SELF + "' is reserved and cannot be a username.");
+        }
+        if (!PathSafeNames.isPathSafe(username)) {
+            // Every per-user route addresses the user by path.
+            throw new BadRequestException("The username " + PathSafeNames.RULE + ".");
         }
         if (request.getPassword() != null && UserService.passwordProblem(request.getPassword()) != null) {
             throw new BadRequestException(UserService.passwordProblem(request.getPassword()));

@@ -345,7 +345,8 @@ public class ContextsApiController extends AbstractApiController {
                     + "used in a request path. Otherwise the same as DELETE /api/contexts/{name}.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was deleted."),
-            @ApiResponse(responseCode = "400", description = "The context could not be deleted."),
+            @ApiResponse(responseCode = "404", description = "There is no context with that name, or the owner does not exist "
+                    + "or the caller may not reach it. The body carries a message."),
             @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
@@ -363,7 +364,8 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Delete a context.", description = "Delete an existing context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was deleted."),
-            @ApiResponse(responseCode = "400", description = "The context could not be deleted."),
+            @ApiResponse(responseCode = "404", description = "There is no context with that name, or the owner does not exist "
+                    + "or the caller may not reach it. The body carries a message."),
             @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
@@ -408,6 +410,11 @@ public class ContextsApiController extends AbstractApiController {
         } else if(serviceResponse.getStatusCode() == 403) {
 
             return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.FORBIDDEN);
+
+        } else if(serviceResponse.getStatusCode() == 404) {
+
+            // A missing context is 404, as a missing policy, list, or hold is.
+            return new ResponseEntity<>(new GenericResponse(serviceResponse.getMessage()), HttpStatus.NOT_FOUND);
 
         } else {
 

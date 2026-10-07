@@ -397,7 +397,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final ContextEntity contextEntity = findOne(contextName, userId);
 
         if(contextEntity == null) {
-            return new ServiceResponse("Context does not exist.", false, 400);
+            return new ServiceResponse("Context does not exist.", false, 404);
         }
 
         // Delete the individual context entries for this context.
@@ -426,7 +426,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final ContextEntity contextEntity = findOne(contextName, requesterUserId);
 
         if(contextEntity == null) {
-            return new ServiceResponse("Context does not exist.", false, 400);
+            return new ServiceResponse("Context does not exist.", false, 404);
         }
 
         // A context may be deleted only by the user that created it or by an admin. This is the

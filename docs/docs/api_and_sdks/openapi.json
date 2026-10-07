@@ -1068,7 +1068,7 @@
             }
           },
           "400": {
-            "description": "The context could not be deleted.",
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -1089,6 +1089,16 @@
           },
           "403": {
             "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no context with that name, or the owner does not exist or the caller may not reach it. The body carries a message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
@@ -1482,7 +1492,7 @@
             }
           },
           "400": {
-            "description": "The context could not be deleted.",
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -1503,6 +1513,16 @@
           },
           "403": {
             "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no context with that name, or the owner does not exist or the caller may not reach it. The body carries a message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."

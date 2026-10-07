@@ -201,9 +201,20 @@ class ContextDataServiceIT extends AbstractMongoIT {
         final ObjectId owner = new ObjectId();
         assertTrue(service.create("c", owner).isSuccessful());
 
-        // A different, non-admin user cannot delete a context they do not own; it remains.
-        assertFalse(service.deleteByName("c", new ObjectId(), false).isSuccessful());
+        // A different, non-admin user cannot delete a context they do not own; it remains. The lookup is
+        // scoped to the requester, so to them the context does not exist.
+        final ServiceResponse refused = service.deleteByName("c", new ObjectId(), false);
+        assertFalse(refused.isSuccessful());
+        assertEquals(404, refused.getStatusCode());
         assertNotNull(service.findOne("c", owner));
+    }
+
+    @Test
+    void deleteByNameReturns404ForAMissingContext() {
+        final ServiceResponse response = service.deleteByName("missing", new ObjectId(), false);
+        assertFalse(response.isSuccessful());
+        assertEquals(404, response.getStatusCode());
+        assertEquals("Context does not exist.", response.getMessage());
     }
 
     @Test

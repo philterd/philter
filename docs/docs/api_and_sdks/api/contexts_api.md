@@ -147,8 +147,7 @@ A delete is **rejected with `409 Conflict`** if any asynchronously-submitted doc
 ### Responses
 
 * `200 OK` - The context was deleted.
-* `400 Bad Request` - No context with that name exists for the user. The body's `message` is `Context does not exist.`
-* `404 Not Found` - The `owner` does not exist or may not be reached.
+* `404 Not Found` - No context with that name exists for the user (the body's `message` is `Context does not exist.`), or the `owner` does not exist or may not be reached.
 * `409 Conflict` - The context has pending or processing asynchronous jobs.
 
 Example request:

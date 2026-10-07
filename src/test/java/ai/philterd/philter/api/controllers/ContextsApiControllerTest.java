@@ -62,6 +62,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -252,6 +253,21 @@ class ContextsApiControllerTest {
 
         // An admin caller must have the admin flag forwarded to the service.
         verify(contextService).deleteByName(eq("ctx"), eq(userId), eq(true));
+    }
+
+    @Test
+    void deleteReturns404WithAMessageForAMissingContext() throws Exception {
+        when(pendingDocumentDataService.hasOpenJobsForContext(eq(userId), eq("missing"))).thenReturn(false);
+        when(contextService.deleteByName(eq("missing"), eq(userId), anyBoolean()))
+                .thenReturn(new ServiceResponse("Context does not exist.", false, 404));
+
+        mockMvc.perform(request(HttpMethod.DELETE, "/api/contexts/missing")
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Context does not exist."));
+
+        verify(auditEventPublisher, never()).auditEvent(anyString(), eq(AuditLogEvent.CONTEXT_DELETED), any(ObjectId.class), anyString());
     }
 
     private static ContextEntity contextOwnedBy(final ObjectId owner) {

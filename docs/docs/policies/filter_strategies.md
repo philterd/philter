@@ -28,7 +28,7 @@ A sample policy containing a filter strategy is shown below. In this example, em
 
 ## Filter Strategies
 
-The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to `REDACT` for that filter type. When multiple filter strategies are given for a single filter type, they are evaluated in the order listed, top to bottom, and only the first one whose condition is satisfied, or that has no condition, is applied. If no strategy's condition is satisfied, the text is not filtered.
+The filter strategies are described below. Each filter type can specify zero or more filter strategies. When no filter strategies are given, Philter will default to `REDACT` for that filter type. When multiple filter strategies are given for a single filter type, they are evaluated in the order listed, top to bottom, and only the first one whose condition is satisfied, or that has no condition, is applied. If no strategy's condition is satisfied, the value is left unchanged. To transform every detected value, end the list with a strategy that has no condition.
 
 * [REDACT](#the-redact-filter-strategy)
 * [CRYPTO_REPLACE](#the-crypto_replace-filter-strategy)
@@ -384,15 +384,30 @@ The following is an example policy for credit cards that contains a condition to
 }
 ```
 
+With this policy, credit card numbers that do not start with `3000` are left unchanged. To transform them too, end the list with a strategy that has no condition. Here, numbers starting with `3000` are masked and all others are redacted:
+
+```
+"creditCardFilterStrategies": [
+  {
+    "condition": "token startswith \"3000\"",
+    "strategy": "MASK"
+  },
+  {
+    "strategy": "REDACT",
+    "redactionFormat": "{{{REDACTED-%t}}}"
+  }
+]
+```
+
 #### Combining Conditions
 
-Conditions can be joined through the use of the `and` keyword. When conditions are joined, each condition must be satisfied for the identified text to be filtered. If any of the conditions are not satisfied the identified text will not be filtered. Below is an example joined condition:
+Conditions can be joined through the use of the `and` keyword. When conditions are joined, each condition must be satisfied for the strategy to be applied. If any of the conditions is not satisfied, the strategy is skipped and the next strategy in the list is evaluated. Below is an example joined condition:
 
 ```
 token == "123-45-6789" and context == "my-context"
 ```
 
-This condition requires that the identified text (the token) be equal to `123-45-6789` and the context be equal to `my-context`. Both of these conditions must be satisfied for the identified text to be filtered.
+This condition requires that the identified text (the token) be equal to `123-45-6789` and the context be equal to `my-context`. Both of these conditions must be satisfied for the strategy to be applied.
 
 Conversely, conditions can be `OR`'d through the use of multiple filter strategies. For example, if we want to `OR` a condition on the token and a condition on the context, we would use two filter strategies:
 

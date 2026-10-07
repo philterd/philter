@@ -30,7 +30,7 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 
 ### Conditions
 
-Each filter strategy may have one condition. The filter will only be applied when the condition is satisfied. See [Conditions](../../filter_strategies.md#filter-strategy-conditions) for details.
+Each filter strategy may have one condition. The strategy is only applied when the condition is satisfied. See [Conditions](../../filter_strategies.md#filter-strategy-conditions) for details.
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |

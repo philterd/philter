@@ -230,7 +230,7 @@ Most filters only add their strategies list to the common properties. The follow
 
 ## Filter strategies
 
-A filter strategy determines the transformation applied to each match. A filter's strategies array is evaluated in order; the first strategy whose `condition` is satisfied, or that has no `condition`, is applied. A strategy a filter does not support falls back to `REDACT`.
+A filter strategy determines the transformation applied to each match. A filter's strategies array is evaluated in order; the first strategy whose `condition` is satisfied, or that has no `condition`, is applied. Only that one strategy is applied. If no strategy's `condition` is satisfied, the value is left unchanged; end the array with a strategy that has no `condition` to transform every match. A strategy a filter does not support falls back to `REDACT`.
 
 ### Common strategy properties
 

@@ -89,6 +89,10 @@ docker pull philterd/philter:3.4.0
 
 The `docker-compose.yml` in this repository builds the image from source instead, so it runs the code on your current branch.
 
+## Community
+
+Users and developers are welcome to join the [Philterd Slack workspace](https://philterd.ai/slack/) to ask questions, share feedback, and talk about Philter and the rest of the Philterd toolkit.
+
 ## License
 
 As of Philter 2.6.0, Philter is licensed under the Apache License, version 2.0. Previous versions were under a proprietary license.

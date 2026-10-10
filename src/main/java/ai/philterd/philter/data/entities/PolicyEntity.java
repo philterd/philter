@@ -34,6 +34,12 @@ public class PolicyEntity extends AbstractEntity {
     private boolean managed;
     private ObjectId userId;
 
+    /**
+     * Who is making the change being saved, recorded on the version snapshot it produces. Not stored
+     * on the policy itself, so it is set for each write and is {@code null} for a policy read back.
+     */
+    private transient ObjectId authorId;
+
     public static PolicyEntity fromDocument(final Document document) {
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setId(document.getObjectId("_id"));
@@ -155,6 +161,14 @@ public class PolicyEntity extends AbstractEntity {
 
     public void setUserId(ObjectId userId) {
         this.userId = userId;
+    }
+
+    public ObjectId getAuthorId() {
+        return authorId;
+    }
+
+    public void setAuthorId(final ObjectId authorId) {
+        this.authorId = authorId;
     }
 
     public ObjectId getUserId() {

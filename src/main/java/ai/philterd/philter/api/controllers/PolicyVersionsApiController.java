@@ -90,7 +90,9 @@ public class PolicyVersionsApiController extends AbstractApiController {
     @Operation(summary = "List retained versions of a policy.",
             description = "Returns a summary of each retained snapshot for the named policy, ordered by "
                     + "revision descending (most recent first). Each entry carries the revision number, "
-                    + "the timestamp the snapshot was captured, and its content hash. Admins may browse "
+                    + "the timestamp the snapshot was captured, its content hash, and the username of the user "
+                    + "whose change produced it. The history of a deleted policy is kept and listed the same "
+                    + "way; GET /api/policies?deleted=true lists deleted policies. Admins may browse "
                     + "another user's history via the owner parameter.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Array of version summaries, most recent first."),
@@ -132,8 +134,13 @@ public class PolicyVersionsApiController extends AbstractApiController {
         final List<PolicyVersionEntity> versions =
                 policyVersionDataService.findAllByName(policyName, userId, normalizeOffset(offset), normalizeLimit(limit));
 
+        // Authors are stored by id and named here, in one query for the page.
+        final java.util.Map<ObjectId, String> authors = userService.findUsernamesByIds(versions.stream()
+                .map(PolicyVersionEntity::getAuthorId).filter(java.util.Objects::nonNull).distinct().toList());
+
         final List<PolicyVersionSummary> summaries = versions.stream()
-                .map(v -> new PolicyVersionSummary(v.getRevision(), v.getCapturedTimestamp(), v.getContentHash()))
+                .map(v -> new PolicyVersionSummary(v.getRevision(), v.getCapturedTimestamp(), v.getContentHash(),
+                        v.getAuthorId() == null ? null : authors.get(v.getAuthorId())))
                 .toList();
 
         auditEventPublisher.auditEvent(requestId,

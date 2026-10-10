@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
 /** Lightweight summary of a retained policy version, used in the version-history list. */
@@ -23,12 +25,14 @@ public class PolicyVersionSummary {
     private final int revision;
     private final Date capturedTimestamp;
     private final String contentHash;
+    private final String author;
 
     public PolicyVersionSummary(final int revision, final Date capturedTimestamp,
-                                 final String contentHash) {
+                                 final String contentHash, final String author) {
         this.revision = revision;
         this.capturedTimestamp = capturedTimestamp;
         this.contentHash = contentHash;
+        this.author = author;
     }
 
     public int getRevision() {
@@ -41,6 +45,13 @@ public class PolicyVersionSummary {
 
     public String getContentHash() {
         return contentHash;
+    }
+
+    @Schema(description = "The username of the user whose change produced this revision, or null when it is not "
+            + "known: for a revision made before Philter recorded authors, for a managed policy, or for a revision "
+            + "first captured when the policy was used to redact.")
+    public String getAuthor() {
+        return author;
     }
 
 }

@@ -59,12 +59,17 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     /** Serializes canonicalized policy JSON compactly for hashing. */
     private final com.mongodb.client.MongoCollection<Document> contents;
 
+    /** When each of a user's policies was last deleted, and by whom, so deleted policies can be listed. */
+    private final com.mongodb.client.MongoCollection<Document> deletions;
+
     private static final Gson CANONICAL_GSON = new Gson();
 
     public PolicyVersionDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
         super(mongoClient, "policy_versions", auditEventPublisher);
 
         contents = mongoClient.getDatabase("philter").getCollection("policy_contents");
+        deletions = mongoClient.getDatabase("philter").getCollection("policy_deletions");
+        RequiredSchema.ensureIndex(deletions, Indexes.ascending("user_id", "name"), new IndexOptions().unique(true));
 
         // A snapshot is identified by the revision it was taken at, not by its content: the same
         // content legitimately reappears at a later revision, through a rollback or an edit that
@@ -168,6 +173,7 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         version.setPolicy(policyJson);
         version.setUserId(policyEntity.getUserId());
         version.setCapturedTimestamp(new Date());
+        version.setAuthorId(policyEntity.getAuthorId());
 
         try {
             save(version);
@@ -237,6 +243,30 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
      */
     public List<PolicyVersionEntity> findTwoMostRecent(final String name, final ObjectId userId) {
         return findAllByName(name, userId, 0, 2);
+    }
+
+    /**
+     * Records that a user's policy was deleted, replacing any earlier deletion of a policy with that
+     * name, so the most recent deletion is the one reported.
+     */
+    public void recordDeletion(final ObjectId userId, final String name, final int revision,
+                               final ObjectId deletedBy, final Date deletedAt) {
+        deletions.updateOne(Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name)),
+                new Document("$set", new Document("revision", revision).append("deleted_by", deletedBy)
+                        .append("deleted_at", deletedAt)),
+                new com.mongodb.client.model.UpdateOptions().upsert(true));
+    }
+
+    /** The names of every policy the user has retained versions of, deleted or not. */
+    public List<String> findNames(final ObjectId userId) {
+        final List<String> names = new ArrayList<>();
+        collection.distinct("name", Filters.eq("user_id", userId), String.class).into(names);
+        return names;
+    }
+
+    /** The user's most recent deletion of a policy with this name, or {@code null} when none was recorded. */
+    public Document findDeletion(final ObjectId userId, final String name) {
+        return deletions.find(Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name))).first();
     }
 
     @Override

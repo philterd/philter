@@ -107,6 +107,14 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @return A {@link ServiceResponse} indicating the result of the operation.
      */
     public ServiceResponse update(final String requestId, final ObjectId userId, final ObjectId policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source) {
+        return update(requestId, userId, policyId, policyJson, policyDescription, policyNotes, source, null);
+    }
+
+    /**
+     * As above, recording {@code authorId} as the author of the new revision. It is the caller, not
+     * necessarily {@code userId}: an admin may change another user's policy.
+     */
+    public ServiceResponse update(final String requestId, final ObjectId userId, final ObjectId policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source, final ObjectId authorId) {
 
         final PolicyEntity policyEntity = findOneById(policyId, userId);
 
@@ -171,6 +179,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             warnAboutLiteralKeys(policyEntity.getName(), policyJson);
 
+            policyEntity.setAuthorId(authorId);
             policyVersionDataService.snapshot(policyEntity);
             if (!replaceRevision(policyEntity, expectedRevision)) {
                 return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED);
@@ -191,6 +200,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     }
 
     public ServiceResponse create(final String requestId, final ObjectId userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source) {
+        return create(requestId, userId, policyJson, policyDescription, policyNotes, policyName, source, null);
+    }
+
+    /** As above, recording {@code authorId}, the caller, as the author of the policy's first revision. */
+    public ServiceResponse create(final String requestId, final ObjectId userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final ObjectId authorId) {
 
         // Make sure the policy name is not empty.
         if (policyName == null || policyName.isEmpty()) {
@@ -236,6 +250,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
             final PolicyEntity policyEntity = new PolicyEntity();
             policyEntity.setUserId(userId);
+            policyEntity.setAuthorId(authorId);
             policyEntity.setPolicy(policyJson);
             policyEntity.setName(policyName);
             policyEntity.setCreatedTimestamp(new Date());
@@ -833,6 +848,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         live.setLastUpdatedTimestamp(new Date());
 
         final int newRevision = live.getRevision();
+        live.setAuthorId(principalId);
         policyVersionDataService.snapshot(live);
         if (!replaceRevision(live, expectedRevision)) {
             return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED);
@@ -885,6 +901,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         if(deleteResult.getDeletedCount() == 1) {
 
             redactionCache.evictPolicy(userId, policyName);
+            policyVersionDataService.recordDeletion(userId, policyName, policyEntity.getRevision(), principalId, new Date());
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, principalId, policyEntity.getId(),
                     clientIpAddress, "policy: " + policyName + ", source: " + source.getSource());
@@ -896,6 +913,41 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return new ServiceResponse("Policy does not exist.", false, 404);
 
         }
+
+    }
+
+    /** A policy that was deleted but whose version history is kept. */
+    public record DeletedPolicy(String name, int latestRevision, Date deletedAt, ObjectId deletedBy) {
+    }
+
+    /**
+     * A page of the user's deleted policies that still have version history, by name. A policy is
+     * deleted when it has retained versions and no live policy has its name. When and by whom it was
+     * deleted are {@code null} for a deletion made before deletions were recorded.
+     */
+    public List<DeletedPolicy> findDeleted(final ObjectId userId, final int offset, final int limit) {
+
+        final java.util.Set<String> live = new java.util.HashSet<>();
+        collection.distinct("name", Filters.and(Filters.eq("user_id", userId), Filters.ne("managed", true)), String.class)
+                .into(live);
+
+        final List<String> deletedNames = policyVersionDataService.findNames(userId).stream()
+                .filter(name -> !live.contains(name))
+                .sorted()
+                .skip(offset)
+                .limit(limit)
+                .toList();
+
+        final List<DeletedPolicy> deleted = new ArrayList<>();
+        for (final String name : deletedNames) {
+            final List<PolicyVersionEntity> latest = policyVersionDataService.findAllByName(name, userId, 0, 1);
+            final int latestRevision = latest.isEmpty() ? 0 : latest.get(0).getRevision();
+            final Document deletion = policyVersionDataService.findDeletion(userId, name);
+            deleted.add(new DeletedPolicy(name, latestRevision,
+                    deletion == null ? null : deletion.getDate("deleted_at"),
+                    deletion == null ? null : deletion.getObjectId("deleted_by")));
+        }
+        return deleted;
 
     }
 

@@ -19,6 +19,7 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 * `limit` (optional, default: `25`) - The maximum number of policy names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
 * `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item is then an object with the policy's `name` and its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 * `managed` (optional, default: `false`) - List the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Each item is then an object with the policy's `name` and `description`. Cannot be combined with `owner` or `all_users`.
+* `deleted` (optional, default: `false`) - List the caller's deleted policies whose [version history](#policy-version-history) is kept, by name, instead of the live ones. Each item is then an object with the policy's `name`, its `latestRevision`, when it was deleted (`deletedAt`), and the username of who deleted it (`deletedBy`). `deletedAt` and `deletedBy` are `null` for a policy deleted before Philter recorded deletions. A policy created again under a deleted name is live, and is no longer listed. Can be combined with `owner`, but not with `all_users` or `managed`.
 
 Example request:
 
@@ -43,6 +44,16 @@ Example response with `all_users=true`:
   { "name": "default", "owner": "bob" }
 ]
 ```
+
+Example response with `deleted=true`:
+
+```json
+[
+  { "name": "claims-2025", "latestRevision": 4, "deletedAt": "2026-10-02T15:20:41.000Z", "deletedBy": "jordan" }
+]
+```
+
+Read a deleted policy's history with [List Versions](#list-versions) and [Fetch a Specific Revision](#fetch-a-specific-revision), by its name. To restore one, fetch the revision you want and save it under the name with [Save a Policy](#save-a-policy); the restored policy continues the same revision numbers. [Rollback](#rollback-to-a-prior-revision) only applies to a live policy.
 
 Example response with `managed=true`:
 
@@ -368,11 +379,15 @@ Returns an array of version summaries. The full policy JSON is **not** included;
 
 ```json
 [
-  { "revision": 3, "capturedTimestamp": "2026-06-09T14:23:00Z", "contentHash": "a1b2c3..." },
-  { "revision": 2, "capturedTimestamp": "2026-06-08T09:11:00Z", "contentHash": "d4e5f6..." },
-  { "revision": 1, "capturedTimestamp": "2026-06-07T16:04:00Z", "contentHash": "g7h8i9..." }
+  { "revision": 3, "capturedTimestamp": "2026-06-09T14:23:00.000Z", "contentHash": "a1b2c3...", "author": "admin" },
+  { "revision": 2, "capturedTimestamp": "2026-06-08T09:11:00.000Z", "contentHash": "d4e5f6...", "author": "jordan" },
+  { "revision": 1, "capturedTimestamp": "2026-06-07T16:04:00.000Z", "contentHash": "g7h8i9...", "author": "jordan" }
 ]
 ```
+
+* `author` - The username of the user whose change produced the revision: the caller who created, replaced, or rolled back the policy, which may be an administrator acting for its owner. It is `null` when that is not known: for a revision made before Philter recorded authors, for a managed policy, or for a revision first captured when the policy was used to redact.
+
+A deleted policy's history is kept and listed the same way. List deleted policies with [`GET /api/policies?deleted=true`](#get-policy-names).
 
 Example request:
 

@@ -24,6 +24,7 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
@@ -61,6 +62,7 @@ class PoliciesApiIT {
     @Autowired private ApiKeyDataService apiKeyDataService;
     @Autowired private PolicyDataService policyDataService;
     @Autowired private ContextDataService contextDataService;
+    @Autowired private com.mongodb.client.MongoClient mongoClient;
 
     private final Gson gson = new Gson();
 
@@ -252,6 +254,84 @@ class PoliciesApiIT {
         final HttpResponse<String> noPolicy = send("POST", "/api/policies/missing/rollback?revision=0", null);
         assertEquals(404, noPolicy.statusCode(), noPolicy.body());
         assertEquals("Policy does not exist.", json(noPolicy).get("message").getAsString());
+    }
+
+
+    private String username() {
+        return userService.findOneById(userId).getUsername();
+    }
+
+    @Test
+    @DisplayName("Each new revision names the user who made it, including an administrator acting for its owner")
+    void versionsNameTheirAuthor() throws Exception {
+        assertEquals(201, send("POST", "/api/policies?name=authored", POLICY).statusCode());
+        assertEquals(200, send("PUT", "/api/policies/authored", POLICY.replace("REDACT", "MASK")).statusCode());
+
+        AdminAccessConfig.setOverrideForTesting(true);
+        try {
+            final String adminName = "policies-admin-" + UUID.randomUUID();
+            assertTrue(userService.createUser("req", adminName, null, "admin", policyDataService, contextDataService, "test").isSuccessful());
+            final String adminKey = apiKeyDataService.createApiKey("req", userService.findByUsername(adminName).getId(), "test",
+                    ApiKeyScope.all()).getMessage();
+            assertEquals(200, sendAs(adminKey, "PUT", "/api/policies/authored?owner=" + username(), POLICY).statusCode());
+
+            final JsonArray versions = gson.fromJson(send("GET", "/api/policies/authored/versions", null).body(), JsonArray.class);
+            assertEquals(3, versions.size());
+            assertEquals(adminName, versions.get(0).getAsJsonObject().get("author").getAsString(), "the administrator made the newest");
+            assertEquals(username(), versions.get(1).getAsJsonObject().get("author").getAsString());
+            assertEquals(username(), versions.get(2).getAsJsonObject().get("author").getAsString());
+        } finally {
+            AdminAccessConfig.setOverrideForTesting(null);
+        }
+    }
+
+    @Test
+    @DisplayName("A revision recorded before authors were is listed with no author rather than an error")
+    void aRevisionWithoutAnAuthorIsListed() throws Exception {
+        mongoClient.getDatabase("philter").getCollection("policy_versions").insertOne(new org.bson.Document("name", "legacy")
+                .append("revision", 0).append("content_hash", "abc").append("policy", POLICY)
+                .append("user_id", userId).append("captured_timestamp", new java.util.Date()));
+
+        final HttpResponse<String> listed = send("GET", "/api/policies/legacy/versions", null);
+        assertEquals(200, listed.statusCode(), listed.body());
+        final JsonArray versions = gson.fromJson(listed.body(), JsonArray.class);
+        assertEquals(1, versions.size());
+        assertTrue(!versions.get(0).getAsJsonObject().has("author") || versions.get(0).getAsJsonObject().get("author").isJsonNull());
+    }
+
+    @Test
+    @DisplayName("A deleted policy is listed with when and by whom it was deleted, and its history can still be read")
+    void deletedPoliciesAreListedWithTheirHistory() throws Exception {
+        assertEquals(201, send("POST", "/api/policies?name=retired", POLICY).statusCode());
+        assertEquals(200, send("PUT", "/api/policies/retired", POLICY.replace("REDACT", "MASK")).statusCode());
+        assertEquals(201, send("POST", "/api/policies?name=still-here", POLICY).statusCode());
+        assertEquals(200, send("DELETE", "/api/policies/retired", null).statusCode());
+
+        final HttpResponse<String> listed = send("GET", "/api/policies?deleted=true", null);
+        assertEquals(200, listed.statusCode(), listed.body());
+        final JsonArray deleted = gson.fromJson(listed.body(), JsonArray.class);
+        assertEquals(1, deleted.size(), "live policies are not listed: " + listed.body());
+        final JsonObject retired = deleted.get(0).getAsJsonObject();
+        assertEquals("retired", retired.get("name").getAsString());
+        assertEquals(username(), retired.get("deletedBy").getAsString());
+        assertTrue(retired.has("deletedAt") && !retired.get("deletedAt").isJsonNull());
+        final int latest = retired.get("latestRevision").getAsInt();
+
+        final JsonArray history = gson.fromJson(send("GET", "/api/policies/retired/versions", null).body(), JsonArray.class);
+        assertEquals(2, history.size(), "the deleted policy's history is kept");
+        assertEquals(latest, history.get(0).getAsJsonObject().get("revision").getAsInt());
+        assertEquals(200, send("GET", "/api/policies/retired/versions/" + latest, null).statusCode());
+
+        // A policy created again under the name is live, so it is no longer listed as deleted.
+        assertEquals(201, send("POST", "/api/policies?name=retired", POLICY).statusCode());
+        assertEquals(0, gson.fromJson(send("GET", "/api/policies?deleted=true", null).body(), JsonArray.class).size());
+    }
+
+    @Test
+    @DisplayName("deleted cannot be combined with managed or all_users")
+    void deletedIsNotCombinedWithOtherListings() throws Exception {
+        assertEquals(400, send("GET", "/api/policies?deleted=true&managed=true", null).statusCode());
+        assertEquals(400, send("GET", "/api/policies?deleted=true&all_users=true", null).statusCode());
     }
 
 }

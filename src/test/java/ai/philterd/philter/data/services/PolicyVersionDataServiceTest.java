@@ -55,6 +55,11 @@ class PolicyVersionDataServiceTest {
         ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("policy_versions")).thenReturn(mongoCollection);
+        // The deletions collection is only indexed here; these tests do not read or write it.
+        @SuppressWarnings("unchecked")
+        final MongoCollection<Document> deletions = org.mockito.Mockito.mock(MongoCollection.class);
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(deletions);
+        org.mockito.Mockito.lenient().when(mongoDatabase.getCollection("policy_deletions")).thenReturn(deletions);
         // ensureIndex calls createIndex; Mockito returns null by default — fine, AbstractService wraps in try/catch.
         service = new PolicyVersionDataService(mongoClient, auditEventPublisher);
     }

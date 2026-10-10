@@ -32,6 +32,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Webhook test and delivery history:** `POST /api/webhook/test` sends a signed test event and reports
   the outcome, `GET /api/webhook/deliveries` lists deliveries with their status and last error, and
   `PUT /api/webhook` keeps the existing secret when none is sent.
+- **Deleted policies and version authors:** `GET /api/policies?deleted=true` lists deleted policies
+  whose history is kept, with when and by whom each was deleted, and each policy version names the
+  user who made it.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

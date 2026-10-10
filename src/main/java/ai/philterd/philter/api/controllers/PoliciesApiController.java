@@ -20,6 +20,7 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.PolicyDetailsRequest;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
+import ai.philterd.philter.api.responses.DeletedPolicySummary;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.ManagedPolicySummary;
 import ai.philterd.philter.api.responses.OwnedNameResponse;
@@ -96,13 +97,18 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Returns the names of the caller's policies, paged. Admins may list another user's "
                     + "policies by passing that user's username as owner, or every user's with all_users=true, which "
                     + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With "
-                    + "managed=true, returns the built-in managed policies instead, each with its name and description.")
+                    + "managed=true, returns the built-in managed policies instead, each with its name and description. "
+                    + "With deleted=true, returns the caller's (or owner's) deleted policies whose version history "
+                    + "is kept, by name, each with its latest revision and when and by whom it was deleted; read a "
+                    + "deleted policy's history with GET /api/policies/{policyName}/versions.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The names of the policies; with all_users, objects naming each "
-                    + "policy and its owner; with managed, objects giving each managed policy's name and description.",
+                    + "policy and its owner; with managed, objects giving each managed policy's name and description; "
+                    + "with deleted, objects describing each deleted policy.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class, ManagedPolicySummary[].class}))),
-            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given, or managed was combined with either."),
+                            schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class, ManagedPolicySummary[].class,
+                                    DeletedPolicySummary[].class}))),
+            @ApiResponse(responseCode = "400", description = "Both owner and all_users were given, managed was combined with either, or deleted was combined with all_users or managed."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
     })
@@ -113,6 +119,7 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
             final @RequestParam(value = "managed", defaultValue = "false") boolean managed,
+            final @RequestParam(value = "deleted", defaultValue = "false") boolean deleted,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId
@@ -122,6 +129,26 @@ public class PoliciesApiController extends AbstractApiController {
 
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (deleted) {
+            if (allUsers || managed) {
+                throw new BadRequestException("deleted cannot be combined with all_users or managed.");
+            }
+            final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
+                    "list deleted policies");
+            final List<PolicyDataService.DeletedPolicy> deletedPolicies =
+                    policyDataService.findDeleted(userId, normalizeOffset(offset), normalizeLimit(limit));
+            final java.util.Map<ObjectId, String> deleters = userService.findUsernamesByIds(deletedPolicies.stream()
+                    .map(PolicyDataService.DeletedPolicy::deletedBy).filter(java.util.Objects::nonNull).distinct().toList());
+            return ResponseEntity.ok(deletedPolicies.stream()
+                    .map(policy -> new DeletedPolicySummary(policy.name(), policy.latestRevision(), policy.deletedAt(),
+                            policy.deletedBy() == null ? null : deleters.get(policy.deletedBy())))
+                    .toList());
         }
 
         if (managed) {
@@ -344,9 +371,11 @@ public class PoliciesApiController extends AbstractApiController {
             final PolicyEntity existing = policyDataService.findOne(name, userId);
             response = existing == null
                     ? new ServiceResponse("Policy does not exist.", false, 404)
-                    : policyDataService.update(requestId, userId, existing.getId(), policyJson, null, null, Source.API.getSource());
+                    : policyDataService.update(requestId, userId, existing.getId(), policyJson, null, null,
+                            Source.API.getSource(), apiKeyEntity.getUserId());
         } else {
-            response = policyDataService.create(requestId, userId, policyJson, null, null, name, Source.API.getSource());
+            response = policyDataService.create(requestId, userId, policyJson, null, null, name, Source.API.getSource(),
+                    apiKeyEntity.getUserId());
         }
 
         if (!response.isSuccessful()) {
@@ -620,7 +649,7 @@ public class PoliciesApiController extends AbstractApiController {
         final ServiceResponse response = policyDataService.create(requestId, userId, source.getPolicy(),
                 source.getDescription(),
                 source.isManaged() ? "Created from managed policy " + source.getName() : source.getNotes(),
-                name, Source.API.getSource());
+                name, Source.API.getSource(), apiKeyEntity.getUserId());
         if (!response.isSuccessful()) {
             if (response.getStatusCode() == HttpStatus.CONFLICT.value()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)

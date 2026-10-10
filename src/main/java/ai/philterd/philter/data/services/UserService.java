@@ -245,6 +245,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setUserId(userId);
         policyEntity.setName("default");
+        policyEntity.setAuthorId(actingUserId == null ? userId : actingUserId);
         policyEntity.setPolicy(DefaultPolicy.json());
         policyEntity.setCreatedTimestamp(new Date());
         policyEntity.setLastUpdatedTimestamp(new Date());

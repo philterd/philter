@@ -37,6 +37,7 @@ public class PolicyVersionEntity extends AbstractEntity {
     private String policy;
     private ObjectId userId;
     private Date capturedTimestamp;
+    private ObjectId authorId;
 
     public static PolicyVersionEntity fromDocument(final Document document) {
         final PolicyVersionEntity entity = new PolicyVersionEntity();
@@ -47,6 +48,7 @@ public class PolicyVersionEntity extends AbstractEntity {
         entity.setPolicy(document.getString("policy"));
         entity.setUserId(document.getObjectId("user_id"));
         entity.setCapturedTimestamp(document.getDate("captured_timestamp"));
+        entity.setAuthorId(document.getObjectId("author_id"));
         return entity;
     }
 
@@ -62,6 +64,9 @@ public class PolicyVersionEntity extends AbstractEntity {
         document.put("policy", policy);
         document.put("user_id", userId);
         document.put("captured_timestamp", capturedTimestamp);
+        if (authorId != null) {
+            document.put("author_id", authorId);
+        }
         return document;
     }
 
@@ -72,6 +77,15 @@ public class PolicyVersionEntity extends AbstractEntity {
 
     public void setId(final ObjectId id) {
         this.id = id;
+    }
+
+    /** The user whose change produced this revision, or {@code null} when it is not known. */
+    public ObjectId getAuthorId() {
+        return authorId;
+    }
+
+    public void setAuthorId(final ObjectId authorId) {
+        this.authorId = authorId;
     }
 
     public String getName() {

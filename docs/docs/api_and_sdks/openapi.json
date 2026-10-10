@@ -6121,7 +6121,7 @@
           "Policies"
         ],
         "summary": "Get the names of existing policies.",
-        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's username as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the built-in managed policies instead, each with its name and description. Requires the `policies:read` scope.",
+        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's username as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the built-in managed policies instead, each with its name and description. With deleted=true, returns the caller's (or owner's) deleted policies whose version history is kept, by name, each with its latest revision and when and by whom it was deleted; read a deleted policy's history with GET /api/policies/{policyName}/versions. Requires the `policies:read` scope.",
         "operationId": "getPolicyNames",
         "parameters": [
           {
@@ -6159,6 +6159,15 @@
             }
           },
           {
+            "name": "deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -6181,7 +6190,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The names of the policies; with all_users, objects naming each policy and its owner; with managed, objects giving each managed policy's name and description.",
+            "description": "The names of the policies; with all_users, objects naming each policy and its owner; with managed, objects giving each managed policy's name and description; with deleted, objects describing each deleted policy.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6203,6 +6212,12 @@
                       "items": {
                         "$ref": "#/components/schemas/ManagedPolicySummary"
                       }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeletedPolicySummary"
+                      }
                     }
                   ]
                 }
@@ -6210,7 +6225,7 @@
             }
           },
           "400": {
-            "description": "Both owner and all_users were given, or managed was combined with either.",
+            "description": "Both owner and all_users were given, managed was combined with either, or deleted was combined with all_users or managed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7778,7 +7793,7 @@
           "Policy Versions"
         ],
         "summary": "List retained versions of a policy.",
-        "description": "Returns a summary of each retained snapshot for the named policy, ordered by revision descending (most recent first). Each entry carries the revision number, the timestamp the snapshot was captured, and its content hash. Admins may browse another user's history via the owner parameter. Requires the `policies:read` scope.",
+        "description": "Returns a summary of each retained snapshot for the named policy, ordered by revision descending (most recent first). Each entry carries the revision number, the timestamp the snapshot was captured, its content hash, and the username of the user whose change produced it. The history of a deleted policy is kept and listed the same way; GET /api/policies?deleted=true lists deleted policies. Admins may browse another user's history via the owner parameter. Requires the `policies:read` scope.",
         "operationId": "listVersions",
         "parameters": [
           {
@@ -12775,6 +12790,29 @@
           }
         }
       },
+      "DeletedPolicySummary": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The policy's name. Read its history with GET /api/policies/{policyName}/versions.",
+            "type": "string"
+          },
+          "deletedAt": {
+            "description": "When the policy was deleted, or null for a policy deleted before Philter recorded deletions.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedBy": {
+            "description": "The username of the user who deleted it, or null when that is not known.",
+            "type": "string"
+          },
+          "latestRevision": {
+            "description": "The most recent retained revision.",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "GenericResponse": {
         "type": "object",
         "properties": {
@@ -13545,6 +13583,10 @@
       "PolicyVersionSummary": {
         "type": "object",
         "properties": {
+          "author": {
+            "description": "The username of the user whose change produced this revision, or null when it is not known: for a revision made before Philter recorded authors, for a managed policy, or for a revision first captured when the policy was used to redact.",
+            "type": "string"
+          },
           "capturedTimestamp": {
             "type": "string",
             "format": "date-time"

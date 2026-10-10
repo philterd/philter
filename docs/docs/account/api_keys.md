@@ -84,7 +84,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `audit:read` | `GET /api/audit`<br>`GET /api/audit/export` |
 | `signing:write` | `POST /api/signing-key/regenerate` |
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
-| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password`<br>`POST /api/users/me/mfa`<br>`POST /api/users/me/mfa/confirm`<br>`POST /api/users/me/mfa/remove`<br>`DELETE /api/users/{username}/mfa`<br>`POST /api/users/{username}/mfa/unlock` |
+| `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/email`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password`<br>`POST /api/users/me/mfa`<br>`POST /api/users/me/mfa/confirm`<br>`POST /api/users/me/mfa/remove`<br>`DELETE /api/users/{username}/mfa`<br>`POST /api/users/{username}/mfa/unlock` |
 | `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
 | `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`DELETE /api/users/{username}/session-keys`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
 | `settings:read` | `GET /api/settings` |

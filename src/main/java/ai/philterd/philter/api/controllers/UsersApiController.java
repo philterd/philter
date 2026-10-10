@@ -21,6 +21,7 @@ import ai.philterd.philter.api.requests.ChangePasswordRequest;
 import ai.philterd.philter.api.requests.CreateUserRequest;
 import ai.philterd.philter.api.requests.MfaCodeRequest;
 import ai.philterd.philter.api.requests.SetPasswordRequest;
+import ai.philterd.philter.api.requests.SetUserEmailRequest;
 import ai.philterd.philter.api.requests.SetUserRoleRequest;
 import ai.philterd.philter.api.responses.CreatedUserResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -217,7 +218,7 @@ public class UsersApiController extends AbstractApiController {
                             schema = @Schema(implementation = CreatedUserResponse.class))),
             @ApiResponse(responseCode = "400", description = "The username is missing, is reserved, or is not usable in a request "
                     + "path (it " + PathSafeNames.RULE + "), the role is not user or admin, or the password is "
-                    + "shorter than 16 characters or longer than 72 bytes in UTF-8."),
+                    + "shorter than 16 characters or longer than 72 bytes in UTF-8, or the email address is not valid."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -254,6 +255,9 @@ public class UsersApiController extends AbstractApiController {
         }
         if (request.getPassword() != null && UserService.passwordProblem(request.getPassword()) != null) {
             throw new BadRequestException(UserService.passwordProblem(request.getPassword()));
+        }
+        if (UserService.emailProblem(request.getEmail()) != null) {
+            throw new BadRequestException(UserService.emailProblem(request.getEmail()));
         }
 
         final String role = request.getRole() == null ? UserService.ROLE_USER : normalizeRole(request.getRole());
@@ -696,6 +700,58 @@ public class UsersApiController extends AbstractApiController {
                 Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage()));
+        }
+
+        return ResponseEntity.ok(new UserResponse(user));
+
+    }
+
+    @Operation(
+            summary = "Set a user's email address.",
+            description = "Sets or removes a user's email address. An address must have one @, something on each "
+                    + "side, a dot in the domain, and no whitespace, and be at most " + UserService.MAX_EMAIL_LENGTH
+                    + " characters; a null or empty email removes it. The email address is not how a user is "
+                    + "addressed or signs in, so changing it changes nothing else. Requires an administrator as well "
+                    + "as the scope. Recorded as a user_email_changed audit event naming the calling administrator as "
+                    + "the principal and the calling API key in the details; the address itself is not recorded.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The email address was set or removed.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = UserResponse.class))),
+            @ApiResponse(responseCode = "400", description = "The email address is not valid or too long.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content)
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/{username}/email", method = RequestMethod.PUT,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> setUserEmail(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @PathVariable("username") String username,
+            final @RequestBody SetUserEmailRequest request) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Setting a user's email address");
+        if (refusal != null) {
+            return refusal;
+        }
+
+        final UserEntity user = userService.findAnyByUsername(username);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        final ServiceResponse response = userService.setEmail(requestId, user, request.getEmail(),
+                Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            throw new BadRequestException(response.getMessage());
         }
 
         return ResponseEntity.ok(new UserResponse(user));

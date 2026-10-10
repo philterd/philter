@@ -72,6 +72,7 @@ public enum AuditLogEvent {
     // User account lifecycle.
     USER_CREATED("user_created"),
     USER_ROLE_CHANGED("user_role_changed"),
+    USER_EMAIL_CHANGED("user_email_changed"),
     USER_DEACTIVATED("user_deactivated"),
     USER_REACTIVATED("user_reactivated"),
     // Passwords: set without one before (or at creation), changed by the user, reset by an administrator.

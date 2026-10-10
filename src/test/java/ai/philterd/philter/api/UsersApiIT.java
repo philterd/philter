@@ -384,4 +384,48 @@ class UsersApiIT {
 
     }
 
+
+    @Test
+    @DisplayName("An administrator sets, changes, and removes a user's email, and a bad address is refused")
+    void setsAUsersEmail() throws Exception {
+
+        final String username = newUsername();
+        assertEquals(201, post("/api/users", adminKey, "{\"username\":\"" + username + "\",\"role\":\"user\"}").statusCode());
+
+        final HttpResponse<String> set = put("/api/users/" + username + "/email", adminKey, "{\"email\":\"jordan@example.com\"}");
+        assertEquals(200, set.statusCode(), set.body());
+        assertEquals("jordan@example.com", gson.fromJson(set.body(), JsonObject.class).get("email").getAsString());
+        assertEquals("jordan@example.com", gson.fromJson(get("/api/users/" + username, adminKey).body(), JsonObject.class)
+                .get("email").getAsString());
+
+        final HttpResponse<String> invalid = put("/api/users/" + username + "/email", adminKey, "{\"email\":\"not-an-address\"}");
+        assertEquals(400, invalid.statusCode(), invalid.body());
+        assertEquals("jordan@example.com", gson.fromJson(get("/api/users/" + username, adminKey).body(), JsonObject.class)
+                .get("email").getAsString(), "a refused address changes nothing");
+
+        assertEquals(200, put("/api/users/" + username + "/email", adminKey, "{\"email\":null}").statusCode());
+        final JsonObject cleared = gson.fromJson(get("/api/users/" + username, adminKey).body(), JsonObject.class);
+        assertTrue(!cleared.has("email") || cleared.get("email").isJsonNull(), cleared.toString());
+
+        assertEquals(404, put("/api/users/no-such-user/email", adminKey, "{\"email\":\"x@example.com\"}").statusCode());
+
+    }
+
+    @Test
+    @DisplayName("Only an administrator may set a user's email, and creating a user with a bad email is refused")
+    void emailRefusals() throws Exception {
+
+        final ObjectId userId = seedUser("email-user-", "user");
+        final String userKey = seedKey(userId, ApiKeyScope.all());
+        final String username = userService.findOneById(userId).getUsername();
+        assertEquals(403, put("/api/users/" + username + "/email", userKey, "{\"email\":\"x@example.com\"}").statusCode());
+
+        final String rejected = newUsername();
+        final HttpResponse<String> created = post("/api/users", adminKey,
+                "{\"username\":\"" + rejected + "\",\"email\":\"not-an-address\",\"role\":\"user\"}");
+        assertEquals(400, created.statusCode(), created.body());
+        assertEquals(null, userService.findAnyByUsername(rejected), "nothing is created");
+
+    }
+
 }

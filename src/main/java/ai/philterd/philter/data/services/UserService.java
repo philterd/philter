@@ -65,6 +65,13 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     /** bcrypt reads at most 72 bytes, so a longer password would be silently truncated. */
     public static final int MAX_PASSWORD_BYTES = 72;
 
+    /** The longest email address accepted, the most an address can be in practice (RFC 5321). */
+    public static final int MAX_EMAIL_LENGTH = 254;
+
+    /** One {@code @}, something on each side, a dot in the domain, and no whitespace. */
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+            java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /** Consecutive bad codes that lock a user's MFA until an administrator unlocks it. */
@@ -208,6 +215,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         if (!PathSafeNames.isPathSafe(username)) {
             throw new IllegalArgumentException("The username " + PathSafeNames.RULE + ".");
         }
+        if (emailProblem(email) != null) {
+            throw new IllegalArgumentException(emailProblem(email));
+        }
 
         final UserEntity existing = findAnyByUsername(username);
         if(existing != null) {
@@ -221,7 +231,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         final UserEntity userEntity = new UserEntity();
         userEntity.setUsername(username);
-        userEntity.setEmail(email);
+        userEntity.setEmail(normalizeEmail(email));
         userEntity.setRole(role);
         // A stable per-user key for the FPE_ENCRYPT_REPLACE strategy. It is generated once and never
         // changes so format-preserving encryption is deterministic for the user.
@@ -337,6 +347,58 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
             return ServiceResponse.success("User role updated.");
         }
+
+    }
+
+    /**
+     * Why an email address is not acceptable, or {@code null} when it is. No address at all is
+     * acceptable: a user need not have one. The check is deliberately loose, catching typos rather than
+     * proving the address can receive mail.
+     */
+    public static String emailProblem(final String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        final String trimmed = email.trim();
+        if (trimmed.length() > MAX_EMAIL_LENGTH) {
+            return "The email address must be at most " + MAX_EMAIL_LENGTH + " characters.";
+        }
+        if (!EMAIL_PATTERN.matcher(trimmed).matches()) {
+            return "The email address is not valid.";
+        }
+        return null;
+    }
+
+    /** The address as stored: trimmed, or {@code null} for none. */
+    private static String normalizeEmail(final String email) {
+        return email == null || email.isBlank() ? null : email.trim();
+    }
+
+    /**
+     * Sets or clears a user's email address, recording {@code actingUserId} as the audit principal (the
+     * user when null) and {@code actingApiKeyId}, if any, in the details. The address itself is not
+     * recorded in the audit log.
+     */
+    public ServiceResponse setEmail(final String requestId, final UserEntity userEntity, final String email,
+                                    final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+
+        final String problem = emailProblem(email);
+        if (problem != null) {
+            return ServiceResponse.failure(problem);
+        }
+
+        final String normalized = normalizeEmail(email);
+        userEntity.setEmail(normalized);
+        // The username is written too: records from before usernames existed kept the login under
+        // "email", and are read that way while "username" is absent, so changing the email alone would
+        // change how such a user signs in.
+        updateFields(userEntity, "username", "email");
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_EMAIL_CHANGED,
+                actingUserId == null ? userEntity.getId() : actingUserId, userEntity.getId(), source,
+                withApiKey(normalized == null ? "email: removed" : "email: changed", actingApiKeyId));
+
+        return ServiceResponse.success("Email updated.");
 
     }
 

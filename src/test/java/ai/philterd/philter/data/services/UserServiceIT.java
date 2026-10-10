@@ -51,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -570,6 +571,56 @@ class UserServiceIT extends AbstractMongoIT {
     }
 }
 
+
+    @Test
+    void setEmailSetsChangesAndRemovesTheAddressWithoutRecordingIt() {
+        final AuditEventPublisher audit = mock(AuditEventPublisher.class);
+        service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
+        final UserEntity user = createAndFind("emailed", "user");
+        final ObjectId acting = new ObjectId();
+        final ObjectId actingKey = new ObjectId();
+
+        assertTrue(service.setEmail("req", user, " jordan@example.com ", "api", acting, actingKey).isSuccessful());
+        assertEquals("jordan@example.com", service.findOneById(user.getId()).getEmail(), "the address is trimmed");
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.USER_EMAIL_CHANGED), eq(acting), eq(user.getId()), eq("api"),
+                eq("email: changed, api_key: " + actingKey));
+
+        // Refused: nothing changes and nothing more is audited.
+        for (final String invalid : List.of("not-an-address", "two@@example.com", "spaced name@example.com",
+                "nodot@example", "a@" + "b".repeat(UserService.MAX_EMAIL_LENGTH) + ".com")) {
+            assertFalse(service.setEmail("req", user, invalid, "api", acting, actingKey).isSuccessful(), invalid);
+        }
+        assertEquals("jordan@example.com", service.findOneById(user.getId()).getEmail());
+
+        assertTrue(service.setEmail("req", user, "", "api", acting, actingKey).isSuccessful());
+        assertNull(service.findOneById(user.getId()).getEmail(), "an empty address removes it");
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.USER_EMAIL_CHANGED), eq(acting), eq(user.getId()), eq("api"),
+                eq("email: removed, api_key: " + actingKey));
+        verify(audit, times(2)).auditEvent(any(), eq(AuditLogEvent.USER_EMAIL_CHANGED), any(), any(), any(), any());
+    }
+
+    @Test
+    void setEmailKeepsTheUsernameOfARecordFromBeforeUsernames() {
+        // Such a record kept the login under "email" and has no "username" field.
+        final ObjectId id = new ObjectId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new org.bson.Document("_id", id)
+                .append("email", "legacy-login").append("role", "user"));
+        final UserEntity legacy = service.findOneById(id);
+        assertEquals("legacy-login", legacy.getUsername());
+
+        assertTrue(service.setEmail("req", legacy, "legacy@example.com", "api", null, null).isSuccessful());
+
+        final UserEntity after = service.findOneById(id);
+        assertEquals("legacy-login", after.getUsername(), "changing the email must not change how the user signs in");
+        assertEquals("legacy@example.com", after.getEmail());
+    }
+
+    @Test
+    void createUserRefusesAnInvalidEmail() {
+        assertThrows(IllegalArgumentException.class, () -> service.createUser("req", "bad-email", "not-an-address",
+                "user", policyDataService, contextDataService, "system"));
+        assertNull(service.findAnyByUsername("bad-email"));
+    }
 
     private UserEntity createAndFind(final String username, final String role) {
         assertTrue(service.createUser("req", username, role, policyDataService, contextDataService, "system").isSuccessful());

@@ -90,7 +90,7 @@ Creates a user with a default policy and a default context. Requires `users:writ
 ```
 
 * `username` (required) - Must not already belong to a user, including a deactivated one holding the name in reserve, and must not be `me`. Because the username is how the user is addressed in a request path, it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including an email address, is allowed.
-* `email` (optional) - The user's email address.
+* `email` (optional) - The user's email address, under the [email rules](#set-a-users-email-address). Change it later with [`PUT /api/users/{username}/email`](#set-a-users-email-address).
 * `role` (optional) - `user` (the default) or `admin`.
 * `password` (optional) - See [password rules](#password-rules). The user must change it at next sign-in, because an administrator chose it. Without one, the user can only use API keys.
 
@@ -106,7 +106,7 @@ Creates a user with a default policy and a default context. Requires `users:writ
 
 | Status | Meaning |
 |--------|---------|
-| 400 | The username is missing, is `me`, or cannot be used in a request path, the role is not `user` or `admin`, or the password breaks the [password rules](#password-rules). |
+| 400 | The username is missing, is `me`, or cannot be used in a request path, the role is not `user` or `admin`, the password breaks the [password rules](#password-rules), or the email address is not valid. |
 | 409 | A user with that username already exists, active or deactivated. |
 
 ```
@@ -135,6 +135,36 @@ Sets the role to `user` or `admin` and returns the user. Requires `users:write` 
 | 400 | The role is missing or is not `user` or `admin`. |
 | 404 | There is no user with that username. |
 | 409 | The user is the last active administrator. Make another user an administrator first. |
+
+## Set a user's email address
+
+```
+PUT /api/users/{username}/email
+```
+
+```json
+{
+  "email": "jordan@example.com"
+}
+```
+
+Sets the user's email address and returns the user. Send `null` or an empty `email` to remove it. Requires `users:write` and an administrator.
+
+An address must have one `@`, something on each side of it, a dot in the domain, and no whitespace, and be at most 254 characters. It is trimmed before it is stored. The check catches typos; it does not confirm the address receives mail. The same rule applies when [creating a user](#create-a-user).
+
+The email address is not how a user is addressed or signs in, so changing it changes nothing else about the user.
+
+```
+curl -k -X PUT "https://localhost:8080/api/users/ci/email" \
+  -H "Authorization: Bearer <admin key>" \
+  -H "Content-Type: application/json" \
+  --data '{"email":"jordan@example.com"}'
+```
+
+| Status | Meaning |
+|--------|---------|
+| 400 | The email address is not valid or is too long. |
+| 404 | There is no user with that username. |
 
 ## Deactivate a user
 
@@ -329,6 +359,7 @@ Unlocks a user locked after five bad codes, resets the count, and returns `204 N
 |-------|---------------|
 | `user_created` | A user was created. The principal is the calling administrator, the associated object is the new user, and the details name the calling API key. |
 | `user_role_changed` | A role was set. The principal is the calling administrator, the associated object is the user, and the details name the calling API key. |
+| `user_email_changed` | An email address was set, changed, or removed. The principal is the calling administrator, the associated object is the user, and the details say whether the address was changed or removed and name the calling API key. The address itself is not recorded. |
 | `user_deactivated` | A user was deactivated. The principal is the calling administrator, the associated object is the user, and the details name the calling API key. |
 | `user_reactivated` | A user was reactivated. The principal is the calling administrator, the associated object is the user, and the details name the calling API key. |
 | `user_password_set` | A user without a password was given one, at creation or with `PUT /api/users/{username}/password`. The principal is the calling administrator, the associated object is the user, and the details name the calling API key and whether a change is required. |

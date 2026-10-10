@@ -37,6 +37,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   user who made it.
 - **Audit actors and user ids:** each event from `GET /api/audit` names its actor's `username`, and
   user responses include the user's `id`.
+- **Change a user's email:** `PUT /api/users/{username}/email` lets an administrator set, change, or
+  remove a user's email address. Email addresses are now checked for a basic format, including when a
+  user is created.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

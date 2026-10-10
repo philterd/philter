@@ -9883,7 +9883,7 @@
             }
           },
           "400": {
-            "description": "The username is missing, is reserved, or is not usable in a request path (it cannot contain /, \\, ;, %, or control characters, and cannot be . or ..), the role is not user or admin, or the password is shorter than 16 characters or longer than 72 bytes in UTF-8.",
+            "description": "The username is missing, is reserved, or is not usable in a request path (it cannot contain /, \\, ;, %, or control characters, and cannot be . or ..), the role is not user or admin, or the password is shorter than 16 characters or longer than 72 bytes in UTF-8, or the email address is not valid.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11009,6 +11009,132 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{username}/email": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Set a user's email address.",
+        "description": "Sets or removes a user's email address. An address must have one @, something on each side, a dot in the domain, and no whitespace, and be at most 254 characters; a null or empty email removes it. The email address is not how a user is addressed or signs in, so changing it changes nothing else. Requires an administrator as well as the scope. Recorded as a user_email_changed audit event naming the calling administrator as the principal and the calling API key in the details; the address itself is not recorded. Requires the `users:write` scope.",
+        "operationId": "setUserEmail",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The email address was set or removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The email address is not valid or too long.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no user with that username."
+          },
+          "406": {
+            "description": "No representation matches Accept."
           },
           "413": {
             "description": "Content Too Large",
@@ -13820,6 +13946,15 @@
         "properties": {
           "password": {
             "description": "At least 16 characters and at most 72 bytes in UTF-8.",
+            "type": "string"
+          }
+        }
+      },
+      "SetUserEmailRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "description": "The new email address. null or empty removes the user's email address.",
             "type": "string"
           }
         }

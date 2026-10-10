@@ -226,7 +226,10 @@ class SignInApiIT {
         final HttpResponse<String> disabled = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
                 .GET().build(), HttpResponse.BodyHandlers.ofString());
         assertEquals(404, disabled.statusCode());
-        assertTrue(disabled.body().isEmpty(), "a 404 here must look like any other disabled sign-in endpoint");
+        // The body an unknown path gets once a request is past authentication.
+        final HttpResponse<String> unknown = send("GET", "/api/no-such-endpoint", adminKey, null);
+        assertEquals(404, unknown.statusCode());
+        assertEquals(unknown.body(), disabled.body(), "a disabled sign-in must read like a path that does not exist");
 
         SignInConfig.setOverrideForTesting(true);
         final HttpResponse<String> enabled = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
@@ -356,7 +359,9 @@ class SignInApiIT {
         assertTrue(body.get("passwordChangeRequired").getAsBoolean());
         final String key = body.get("apiKey").getAsString();
 
-        assertEquals(403, send("GET", "/api/users/me", key, null).statusCode(), "nothing else is allowed");
+        final HttpResponse<String> restricted = send("GET", "/api/users/me", key, null);
+        assertEquals(403, restricted.statusCode(), "nothing else is allowed");
+        assertEquals("password_change_required", gson.fromJson(restricted.body(), JsonObject.class).get("reason").getAsString());
         assertEquals(403, send("GET", "/api/policies", key, null).statusCode());
         assertEquals(200, send("GET", "/api/limits", key, null).statusCode(), "the password rules can be read");
 

@@ -129,12 +129,13 @@ class RefusedPathErrorsIT {
     }
 
     @Test
-    @DisplayName("A response that deliberately has no body still has none")
-    void bodilessResponsesStayBodiless() throws Exception {
-        // A 404 for an owner that does not exist carries no body, so it cannot be told from one the caller may not reach.
+    @DisplayName("A 404 for an owner that does not exist says only not found, as an unknown path does")
+    void notFoundSaysNothingMore() throws Exception {
+        // The same body as any other 404, so it cannot be told from one the caller may not reach.
         final RawResponse response = get("/api/policies?owner=nobody-" + UUID.randomUUID(), "application/json");
         assertEquals(404, response.status());
-        assertEquals("", response.body());
+        assertEquals(get("/api/nope", "application/json").body(), response.body());
+        assertEquals("{\"message\":\"Not found.\",\"reason\":\"not_found\"}", response.body());
     }
 
     @Test

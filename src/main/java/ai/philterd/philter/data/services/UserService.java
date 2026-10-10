@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.mfa.TotpService;
@@ -224,9 +225,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             // A username belonging to a deactivated account stays reserved: reactivate it rather than
             // creating a duplicate user with the same username.
             if (existing.isDeactivated()) {
-                return ServiceResponse.failure("A deactivated user already exists with that username. Reactivate that user instead.");
+                return new ServiceResponse("A deactivated user already exists with that username. Reactivate that user instead.", false, 409, ErrorReasons.ALREADY_EXISTS);
             }
-            return ServiceResponse.failure("User already exists.");
+            return new ServiceResponse("User already exists.", false, 409, ErrorReasons.ALREADY_EXISTS);
         }
 
         final UserEntity userEntity = new UserEntity();
@@ -348,7 +349,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         } else {
             if (!ROLE_ADMIN.equalsIgnoreCase(newRole) && isLastActiveAdmin(userEntity)) {
-                return ServiceResponse.failure(LAST_ADMIN_MESSAGE);
+                return new ServiceResponse(LAST_ADMIN_MESSAGE, false, 409, ErrorReasons.LAST_ADMIN);
             }
 
             userEntity.setRole(newRole);
@@ -476,7 +477,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
 
         if (isLastActiveAdmin(userEntity)) {
-            return ServiceResponse.failure(LAST_ADMIN_MESSAGE);
+            return new ServiceResponse(LAST_ADMIN_MESSAGE, false, 409, ErrorReasons.LAST_ADMIN);
         }
 
         userEntity.setDeactivated(true);
@@ -639,7 +640,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             return new ServiceResponse("The user has no password. An administrator sets the first one.", false, 409);
         }
         if (!passwordMatches(user, currentPassword)) {
-            return new ServiceResponse("The current password is not correct.", false, 403);
+            return new ServiceResponse("The current password is not correct.", false, 403, ErrorReasons.WRONG_PASSWORD);
         }
         final String problem = passwordProblem(newPassword);
         if (problem != null) {
@@ -650,7 +651,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         }
 
         if (!writePassword(user, passwordEncoder.encode(newPassword), false)) {
-            return new ServiceResponse("The password was changed by another request. Try again.", false, 409);
+            return new ServiceResponse("The password was changed by another request. Try again.", false, 409, ErrorReasons.CHANGED_CONCURRENTLY);
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_PASSWORD_CHANGED, user.getId(), user.getId(),
@@ -680,7 +681,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         final boolean replacing = user.getPassword() != null;
         if (!writePassword(user, passwordEncoder.encode(newPassword), changeRequired)) {
-            return new ServiceResponse("The password was changed by another request. Try again.", false, 409);
+            return new ServiceResponse("The password was changed by another request. Try again.", false, 409, ErrorReasons.CHANGED_CONCURRENTLY);
         }
 
         auditEventPublisher.auditEvent(requestId,
@@ -726,14 +727,14 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                                                 final String source, final ObjectId actingApiKeyId) {
 
         if (user.isMfaEnabled()) {
-            return new ServiceResponse("MFA is already enrolled.", false, 409);
+            return new ServiceResponse("MFA is already enrolled.", false, 409, ErrorReasons.MFA_ALREADY_ENROLLED);
         }
         if (user.getMfaPendingSecret() == null) {
             return new ServiceResponse("Start enrollment first, with POST /api/users/me/mfa.", false, 409);
         }
         final long step = totpService.matchingTimeStep(user.getMfaPendingSecret(), code);
         if (step == TotpService.NO_MATCH) {
-            return new ServiceResponse("The code is not valid.", false, 400);
+            return new ServiceResponse("The code is not valid.", false, 400, ErrorReasons.INVALID_CODE);
         }
 
         user.setMfaEnabled(true);
@@ -751,7 +752,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         // Only one of two concurrent confirmations enrolls.
         if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.ne("mfa_enabled", true)),
                 new Document("$set", selected)).getMatchedCount() != 1) {
-            return new ServiceResponse("MFA is already enrolled.", false, 409);
+            return new ServiceResponse("MFA is already enrolled.", false, 409, ErrorReasons.MFA_ALREADY_ENROLLED);
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_ENROLLED, user.getId(), user.getId(),
@@ -826,7 +827,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                                      final ObjectId actingUserId, final ObjectId actingApiKeyId) {
 
         if (!user.isMfaEnabled() && user.getMfaPendingSecret() == null) {
-            return new ServiceResponse("MFA is not enrolled.", false, 409);
+            return new ServiceResponse("MFA is not enrolled.", false, 409, ErrorReasons.MFA_NOT_ENROLLED);
         }
 
         user.setMfaEnabled(false);

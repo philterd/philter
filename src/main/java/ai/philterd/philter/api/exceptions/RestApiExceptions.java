@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.exceptions;
 
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.policies.PolicyResolutionException;
@@ -57,10 +58,7 @@ public class RestApiExceptions {
 	 */
 	private static void write(final HttpServletResponse response, final HttpStatus status, final String message)
 			throws IOException {
-		response.setStatus(status.value());
-		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-		response.getWriter().write(GSON.toJson(new GenericResponse(message)));
+		ApiErrors.write(response, status.value(), message, null);
 	}
 
 	// Each handler sets its status itself. @ResponseStatus states the same status so the generated OpenAPI
@@ -75,9 +73,9 @@ public class RestApiExceptions {
 	public void handleBadRequestException(final BadRequestException ex, final HttpServletResponse response)
 			throws IOException {
 		LOGGER.error("Bad request: {}", ex.getMessage());
-		write(response, HttpStatus.BAD_REQUEST, ex.getMessage() == null || ex.getMessage().isBlank()
+		ApiErrors.write(response, HttpStatus.BAD_REQUEST.value(), ex.getMessage() == null || ex.getMessage().isBlank()
 				? "A required parameter is missing or contains an invalid value."
-				: ex.getMessage());
+				: ex.getMessage(), ErrorReasons.INVALID_REQUEST, ex.getField());
 	}
 
 	/**
@@ -109,6 +107,21 @@ public class RestApiExceptions {
 			throws IOException {
 		LOGGER.error("Unable to resolve redaction policy.", ex);
 		write(response, HttpStatus.BAD_REQUEST, ex.getMessage());
+	}
+
+	/** A refusal from a handler whose successful response is not JSON. */
+	@ExceptionHandler(RefusedException.class)
+	public void handleRefusedException(final RefusedException ex, final HttpServletResponse response) throws IOException {
+		ApiErrors.write(response, ex.getStatus(), ex.getMessage(), ex.getReason());
+	}
+
+	/** Says only "not found", the same as an unknown path, so it cannot be used to discover what exists. */
+	@ExceptionHandler(NotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
+	public void handleNotFoundException(final NotFoundException ex, final HttpServletResponse response) throws IOException {
+		ApiErrors.notFound(response);
 	}
 
 	@ExceptionHandler(PolicyNotFoundException.class)
@@ -151,7 +164,8 @@ public class RestApiExceptions {
 		// Spring throws this before the handler method runs, so nothing has been read or written.
 		// It is a client error, so it is reported as 400 naming the parameter rather than falling
 		// through to the catch-all below, which would report a 500 and say nothing useful.
-		write(response, HttpStatus.BAD_REQUEST, "The required parameter '" + ex.getParameterName() + "' is missing.");
+		ApiErrors.write(response, HttpStatus.BAD_REQUEST.value(), "The required parameter '" + ex.getParameterName() + "' is missing.",
+				ErrorReasons.INVALID_REQUEST, ex.getParameterName());
 	}
 
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -161,7 +175,8 @@ public class RestApiExceptions {
 	public void handleParameterTypeMismatchException(final MethodArgumentTypeMismatchException ex,
 	                                                 final HttpServletResponse response) throws IOException {
 		// The parameter name is declared in the controller; the submitted value is not echoed back.
-		write(response, HttpStatus.BAD_REQUEST, "The parameter '" + ex.getName() + "' has an invalid value.");
+		ApiErrors.write(response, HttpStatus.BAD_REQUEST.value(), "The parameter '" + ex.getName() + "' has an invalid value.",
+				ErrorReasons.INVALID_REQUEST, ex.getName());
 	}
 
 	@ExceptionHandler(ServiceUnavailableException.class)
@@ -233,7 +248,7 @@ public class RestApiExceptions {
 			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleNotFound(final Exception ex, final HttpServletResponse response) throws IOException {
 		// No endpoint or static resource at this path. Without this, the catch-all below made it a 500.
-		write(response, HttpStatus.NOT_FOUND, "Not found.");
+		ApiErrors.notFound(response);
 	}
 
 	@ExceptionHandler({IOException.class, Exception.class})

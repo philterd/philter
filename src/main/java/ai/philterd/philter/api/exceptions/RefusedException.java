@@ -17,26 +17,30 @@ package ai.philterd.philter.api.exceptions;
 
 import java.io.Serial;
 
-public final class BadRequestException extends RuntimeException {
+/**
+ * A refusal with a status, message, and reason, for a handler whose successful response is not JSON, such
+ * as a file download, and so cannot return Philter's error body itself.
+ */
+public final class RefusedException extends RuntimeException {
 
     @Serial
-    private static final long serialVersionUID = 8498236096061129077L;
+    private static final long serialVersionUID = 5410238702934512398L;
 
-    private final String field;
+    private final int status;
+    private final String reason;
 
-    public BadRequestException(String message) {
-        this(message, null);
-    }
-
-    /** As above, naming the parameter or body field that was invalid. */
-    public BadRequestException(String message, String field) {
+    public RefusedException(final int status, final String message, final String reason) {
         super(message);
-        this.field = field;
+        this.status = status;
+        this.reason = reason;
     }
 
-    /** The parameter or body field that was invalid, or {@code null} when none is named. */
-    public String getField() {
-        return field;
+    public int getStatus() {
+        return status;
+    }
+
+    public String getReason() {
+        return reason;
     }
 
 }

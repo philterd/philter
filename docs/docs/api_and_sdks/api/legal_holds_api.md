@@ -29,7 +29,7 @@ All endpoints require authentication with a Bearer token. See [API Keys](../../a
 
 * `201 Created` - The hold was set and is now active. The body is the [hold](#hold-object).
 * `400 Bad Request` - A required field is missing, `scopeType` is not recognized, or the `reference` breaks the rule above. The body carries a `message` naming the problem.
-* `404 Not Found` - The `owner` does not exist or may not be reached. No body.
+* `404 Not Found` - The `owner` does not exist or may not be reached. The `reason` is `not_found`.
 * `409 Conflict` - The hold was not set. The body carries a `message` and a `reason`:
     * `hold_exists` - A hold with this reference already exists for the user.
     * `operation_in_progress` - Another evidence or hold operation for the user is active, or was interrupted and requires recovery. Retry once it finishes.
@@ -127,7 +127,7 @@ Once released, evidence previously covered by this hold becomes eligible for del
 ### Responses
 
 * `200 OK` - The hold was released.
-* `404 Not Found` - No hold with that reference exists for the user. The body carries a `message`, except when the `owner` does not exist or may not be reached.
+* `404 Not Found` - No hold with that reference exists for the user. An `owner` that does not exist or may not be reached gets the same `not_found` body.
 * `409 Conflict` - The hold was not released because another evidence or hold operation for the user is active or requires recovery. The body carries a `message` and the `reason` `operation_in_progress`.
 
 Example request:

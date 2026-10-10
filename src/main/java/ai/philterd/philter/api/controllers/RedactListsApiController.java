@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.RedactListRequest;
 import ai.philterd.philter.api.requests.RedactListsRequest;
@@ -124,7 +125,7 @@ public class RedactListsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final RedactListsEntity entity = redactListsService.find(userId);

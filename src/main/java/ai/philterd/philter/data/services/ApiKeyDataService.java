@@ -218,6 +218,16 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
+    /**
+     * Whether the key is a session key that has ended: signed out, revoked, or expired. Lets a refusal
+     * tell a person to sign in again rather than calling their key unknown. Only session keys are
+     * reported, so a revoked long-lived key reads like any unknown key.
+     */
+    public boolean isEndedSessionKey(final String apiKey) {
+        return collection.find(new Document("api_key_hash", EncryptionService.hashSha256(apiKey))
+                .append("session", true).append("deleted", true)).first() != null;
+    }
+
     public ApiKeyEntity findOneByApiKey(final String apiKey) {
 
         final String apiKeyHash = EncryptionService.hashSha256(apiKey);

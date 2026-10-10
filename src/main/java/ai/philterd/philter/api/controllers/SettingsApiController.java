@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.requests.UpdateSettingsRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.SettingsResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
@@ -150,7 +151,7 @@ public class SettingsApiController extends AbstractApiController {
         } catch (final AccessDeniedException ex) {
             // The caller stopped being an active administrator after the check above.
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
-                    "Changing the admin settings requires an administrator."));
+                    "Changing the admin settings requires an administrator.", ErrorReasons.ADMIN_REQUIRED));
         }
 
         return ResponseEntity.ok(settings(warnings));

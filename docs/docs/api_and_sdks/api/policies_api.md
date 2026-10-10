@@ -217,7 +217,7 @@ The policy's description and notes are kept. Change them with [`PUT /api/policie
 
 * `200 OK` - The policy was replaced.
 * `400 Bad Request` - The policy is invalid, or the request has a `description` or `notes` parameter.
-* `404 Not Found` - There is no such policy. The body carries a `message`, except when the `owner` does not exist or may not be reached.
+* `404 Not Found` - There is no such policy. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not replaced, and nothing is changed. The body carries a `message` and a `reason`:
     * `policy_managed` - The policy is a [managed policy](../../policies/sample_policies.md#managed-policies), which cannot be replaced. Copy it and change the copy instead.
     * `policy_changed` - The policy changed after this request read it. Reload the policy and retry.
@@ -238,7 +238,7 @@ curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token
 
 * `200 OK` - The policy was deleted.
 * `400 Bad Request` - The policy name is missing.
-* `404 Not Found` - There is no such policy. The body carries a `message`, except when the `owner` does not exist or may not be reached.
+* `404 Not Found` - There is no such policy. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not deleted, and it is kept. The body carries a `message` and a `reason`:
     * `policy_default` - The policy is the `default` policy.
     * `policy_managed` - The policy is a managed policy.
@@ -501,7 +501,7 @@ Rollback restores the content of the specified revision as a **new** revision. H
 
 * `201 Created` - Rollback succeeded. Body contains the new revision number.
 * `400 Bad Request` - The `revision` parameter is missing or is not a number. The body carries a `message`.
-* `404 Not Found` - The policy or the target revision does not exist. The body's `message` says which, for example `Revision 99 does not exist.`, except when the `owner` does not exist or may not be reached.
+* `404 Not Found` - The policy or the target revision does not exist. The body's `message` says which, for example `Revision 99 does not exist.`. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not rolled back. The body carries a `message` and a `reason`:
     * `policy_managed` - Managed policies cannot be rolled back.
     * `policy_changed` - The policy changed after this request read it. Reload it and retry.

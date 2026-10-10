@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -145,7 +146,7 @@ public class PoliciesApiController extends AbstractApiController {
             final boolean descending = listingSort(sort, order, NAME_SORT, "name", false).descending();
             final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
             if (userId == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                throw new NotFoundException();
             }
             auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                     "list deleted policies");
@@ -173,7 +174,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                throw new NotFoundException();
             }
             final Listings.Page<PolicyEntity> page = policyDataService.listAcrossUsers(q, policySort, pageOffset, pageLimit);
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list policies");
@@ -183,7 +184,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final Listings.Page<PolicyEntity> page = policyDataService.listOwn(userId, q, policySort, pageOffset, pageLimit);
@@ -228,12 +229,12 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
         if (policyEntity == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
         return ResponseEntity.status(HttpStatus.OK)
                 .body(policyEntity.getPolicy());
@@ -311,8 +312,8 @@ public class PoliciesApiController extends AbstractApiController {
                     content = @Content),
             @ApiResponse(responseCode = "400", description = "The policy is invalid, or the request has a description or notes parameter."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, with no "
-                    + "body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
+            @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, saying only "
+                    + "not found, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
                     + "to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
@@ -366,7 +367,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // Validate the policy before persisting it so an invalid policy is rejected at creation rather
@@ -424,8 +425,8 @@ public class PoliciesApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "The policy was deleted.", content = @Content),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, with no "
-                    + "body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
+            @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, saying only "
+                    + "not found, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
                     + "to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
@@ -454,7 +455,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String requestId = RequestIdGenerator.generate();
@@ -554,12 +555,12 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
         if (policyEntity == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok(new PolicyDetailsResponse(policyEntity));
@@ -602,7 +603,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String requestId = RequestIdGenerator.generate();
@@ -649,12 +650,12 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final PolicyEntity source = policyDataService.findOneOrManaged(policyName, userId);
         if (source == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String requestId = RequestIdGenerator.generate();

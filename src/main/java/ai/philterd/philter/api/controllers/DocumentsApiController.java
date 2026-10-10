@@ -15,8 +15,11 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
+import ai.philterd.philter.api.exceptions.RefusedException;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.api.responses.GetDocumentsResponse;
 import ai.philterd.philter.api.responses.GetRedactionStatusResponse;
@@ -101,7 +104,7 @@ public class DocumentsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
         final Listings.Page<PendingDocumentEntity> page = pendingDocumentDataService.list(userId, statusFilter, documentSort,
                 normalizeOffset(offset), normalizeLimit(limit));
@@ -139,7 +142,7 @@ public class DocumentsApiController extends AbstractApiController {
                 return known;
             }
         }
-        throw new BadRequestException("status must be one of: " + String.join(", ", DOCUMENT_STATUSES) + ".");
+        throw new BadRequestException("status must be one of: " + String.join(", ", DOCUMENT_STATUSES) + ".", "status");
     }
 
     @Operation(summary = "Get the status of an async redaction.")
@@ -161,12 +164,12 @@ public class DocumentsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId);
         if (entity == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final GetRedactionStatusResponse response = new GetRedactionStatusResponse(entity.getStatus(), entity.getDocumentId());
@@ -197,20 +200,22 @@ public class DocumentsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId);
         if (entity == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         if (PendingDocumentEntity.STATUS_FAILED.equals(entity.getStatus())) {
-            return new ResponseEntity<>(HttpStatus.GONE);
+            throw new RefusedException(HttpStatus.GONE.value(),
+                    "The document's redaction failed, so there is nothing to download.", ErrorReasons.DOCUMENT_FAILED);
         }
 
         if (!PendingDocumentEntity.STATUS_COMPLETE.equals(entity.getStatus())) {
-            return new ResponseEntity<>(HttpStatus.CONFLICT);
+            throw new RefusedException(HttpStatus.CONFLICT.value(),
+                    "The document is still being redacted. Check its status and try again.", ErrorReasons.DOCUMENT_NOT_READY);
         }
 
         final MediaType mediaType = entity.getOutputMimeType() != null
@@ -246,7 +251,7 @@ public class DocumentsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
@@ -260,7 +265,7 @@ public class DocumentsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.OK);
         }
 
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        throw new NotFoundException();
 
     }
 

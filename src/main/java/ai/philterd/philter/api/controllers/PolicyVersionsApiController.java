@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -134,7 +135,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // One correlation ID per request, so both events below tie together.
@@ -198,7 +199,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
@@ -208,7 +209,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
         final PolicyVersionEntity version =
                 policyVersionDataService.findByNameAndRevision(policyName, userId, revision);
         if (version == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok()
@@ -251,7 +252,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
@@ -272,7 +273,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             fromVersion = policyVersionDataService.findByNameAndRevision(policyName, userId, fromRevision);
             toVersion = policyVersionDataService.findByNameAndRevision(policyName, userId, toRevision);
             if (fromVersion == null || toVersion == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                throw new NotFoundException();
             }
         } else {
             throw new BadRequestException("Supply both 'from' and 'to' revision parameters, or omit both to diff the two most recent revisions.");
@@ -310,7 +311,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The policy or the target revision does not exist; the message says which. "
-                    + "No body when the owner does not exist or the caller may not reach it.",
+                    + "When the owner does not exist or the caller may not reach it, the body only says not found.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "409", description = "The policy was not rolled back, and reason says why: "
@@ -340,7 +341,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String requestId = RequestIdGenerator.generate();

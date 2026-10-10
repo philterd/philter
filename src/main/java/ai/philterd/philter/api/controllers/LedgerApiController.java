@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -190,7 +191,7 @@ public class LedgerApiController extends AbstractApiController {
 
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+                throw new NotFoundException();
             }
             final Listings.Page<LedgerEntity> page = ledgerService.listChains(requestId, null, query, chainSort,
                     normalizeOffset(offset), normalizeLimit(limit), Source.API.getSource());
@@ -206,7 +207,7 @@ public class LedgerApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final int pageOffset = normalizeOffset(offset);
@@ -251,12 +252,12 @@ public class LedgerApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         // Checked without reading an entry, so a damaged one is reported by validation rather than thrown here.
         if (!ledgerService.chainExists(userId, documentId)) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final LedgerDataService.ChainValidation chainValidation = ledgerService.validateChain(userId, documentId);
@@ -301,11 +302,11 @@ public class LedgerApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         if (!ledgerService.chainExists(userId, documentId)) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final LedgerDataService.ChainValidation validation = ledgerService.validateChain(userId, documentId);
@@ -346,7 +347,7 @@ public class LedgerApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final List<LedgerEntity> chain;
@@ -364,7 +365,7 @@ public class LedgerApiController extends AbstractApiController {
                             + "cannot be exported.", LedgerRefusalResponse.REASON_ENTRY_UNREADABLE)));
         }
         if (chain.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final List<LedgerEntryView> entries = new ArrayList<>(chain.size());

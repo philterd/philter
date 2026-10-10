@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.ChangePasswordRequest;
@@ -40,6 +41,7 @@ import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -210,7 +212,7 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok(new UserResponse(user));
@@ -257,20 +259,20 @@ public class UsersApiController extends AbstractApiController {
 
         final String username = request.getUsername() == null ? null : request.getUsername().trim();
         if (username == null || username.isBlank()) {
-            throw new BadRequestException("username is required.");
+            throw new BadRequestException("username is required.", "username");
         }
         if (SELF.equalsIgnoreCase(username)) {
-            throw new BadRequestException("'" + SELF + "' is reserved and cannot be a username.");
+            throw new BadRequestException("'" + SELF + "' is reserved and cannot be a username.", "username");
         }
         if (!PathSafeNames.isPathSafe(username)) {
             // Every per-user route addresses the user by path.
-            throw new BadRequestException("The username " + PathSafeNames.RULE + ".");
+            throw new BadRequestException("The username " + PathSafeNames.RULE + ".", "username");
         }
         if (request.getPassword() != null && UserService.passwordProblem(request.getPassword()) != null) {
-            throw new BadRequestException(UserService.passwordProblem(request.getPassword()));
+            throw new BadRequestException(UserService.passwordProblem(request.getPassword()), "password");
         }
         if (UserService.emailProblem(request.getEmail()) != null) {
-            throw new BadRequestException(UserService.emailProblem(request.getEmail()));
+            throw new BadRequestException(UserService.emailProblem(request.getEmail()), "email");
         }
 
         final String role = request.getRole() == null ? UserService.ROLE_USER : normalizeRole(request.getRole());
@@ -282,7 +284,7 @@ public class UsersApiController extends AbstractApiController {
         if (!response.isSuccessful()) {
             // The only way creation fails is a username that is already taken, by an active account or
             // by a deactivated one holding the name in reserve.
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         final UserEntity created = userService.findAnyByUsername(username);
@@ -335,7 +337,7 @@ public class UsersApiController extends AbstractApiController {
         final ServiceResponse response = userService.changeOwnPassword(requestId, user, request.getCurrentPassword(),
                 request.getNewPassword(), Source.API.getSource(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(), "reason: password changed");
@@ -386,25 +388,26 @@ public class UsersApiController extends AbstractApiController {
         }
 
         if (request.getPassword() == null) {
-            throw new BadRequestException("password is required.");
+            throw new BadRequestException("password is required.", "password");
         }
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // Without this, a stolen session key could replace its own user's password without knowing it.
         final boolean self = user.getId().equals(apiKeyEntity.getUserId());
         if (self && user.getPassword() != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "Change your own password with PUT /api/users/me/password, which requires the current one."));
+                    "Change your own password with PUT /api/users/me/password, which requires the current one.",
+                    ErrorReasons.SELF_ACTION_REFUSED));
         }
 
         final ServiceResponse response = userService.setPassword(requestId, user, request.getPassword(), !self,
                 Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(),
@@ -442,12 +445,13 @@ public class UsersApiController extends AbstractApiController {
 
         if (!mfaAvailable()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "MFA is not available. An administrator turns it on with the mfaAvailable setting."));
+                    "MFA is not available. An administrator turns it on with the mfaAvailable setting.", ErrorReasons.MFA_UNAVAILABLE));
         }
 
         final String secret = userService.startMfaEnrollment(user);
         if (secret == null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is already enrolled."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is already enrolled.",
+                    ErrorReasons.MFA_ALREADY_ENROLLED));
         }
 
         return ResponseEntity.ok(new MfaEnrollmentResponse(secret, userService.mfaOtpauthUri(user, secret)));
@@ -486,16 +490,16 @@ public class UsersApiController extends AbstractApiController {
 
         if (!mfaAvailable()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "MFA is not available. An administrator turns it on with the mfaAvailable setting."));
+                    "MFA is not available. An administrator turns it on with the mfaAvailable setting.", ErrorReasons.MFA_UNAVAILABLE));
         }
         if (request.getCode() == null) {
-            throw new BadRequestException("code is required.");
+            throw new BadRequestException("code is required.", "code");
         }
 
         final ServiceResponse response = userService.confirmMfaEnrollment(requestId, user, request.getCode(),
                 Source.API.getSource(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(), "reason: MFA enrolled");
@@ -533,10 +537,11 @@ public class UsersApiController extends AbstractApiController {
         final UserEntity user = callingUser(apiKeyEntity);
 
         if (request.getCode() == null) {
-            throw new BadRequestException("code is required.");
+            throw new BadRequestException("code is required.", "code");
         }
         if (!user.isMfaEnabled()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is not enrolled."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is not enrolled.",
+                    ErrorReasons.MFA_NOT_ENROLLED));
         }
 
         return switch (userService.checkMfaCode(requestId, user, request.getCode(), Source.API.getSource())) {
@@ -544,11 +549,12 @@ public class UsersApiController extends AbstractApiController {
                 final ServiceResponse response = userService.removeMfa(requestId, user, Source.API.getSource(),
                         user.getId(), apiKeyEntity.getId());
                 yield response.isSuccessful() ? ResponseEntity.noContent().build()
-                        : ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+                        : ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
             }
             case LOCKED -> ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
-                    "MFA is locked after repeated bad codes. An administrator must unlock it."));
-            case REFUSED -> ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse("The code is not valid."));
+                    "MFA is locked after repeated bad codes. An administrator must unlock it.", ErrorReasons.MFA_LOCKED));
+            case REFUSED -> ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse("The code is not valid.",
+                    ErrorReasons.INVALID_CODE));
         };
 
     }
@@ -587,18 +593,19 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
         // Without this, a stolen administrator session key could turn off its own user's MFA without a code.
         if (user.getId().equals(apiKeyEntity.getUserId())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "Remove your own MFA with POST /api/users/me/mfa/remove, which takes a code."));
+                    "Remove your own MFA with POST /api/users/me/mfa/remove, which takes a code.",
+                    ErrorReasons.SELF_ACTION_REFUSED));
         }
 
         final ServiceResponse response = userService.removeMfa(requestId, user, Source.API.getSource(),
                 apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         return ResponseEntity.noContent().build();
@@ -638,13 +645,13 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final ServiceResponse response = userService.unlockMfa(requestId, user, Source.API.getSource(),
                 apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         return ResponseEntity.noContent().build();
@@ -700,19 +707,19 @@ public class UsersApiController extends AbstractApiController {
         }
 
         if (request.getRole() == null) {
-            throw new BadRequestException("role is required.");
+            throw new BadRequestException("role is required.", "role");
         }
         final String role = normalizeRole(request.getRole());
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final ServiceResponse response = userService.setUserRole(requestId, user, role,
                 Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         return ResponseEntity.ok(new UserResponse(user));
@@ -758,13 +765,13 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final ServiceResponse response = userService.setEmail(requestId, user, request.getEmail(),
                 Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            throw new BadRequestException(response.getMessage());
+            throw new BadRequestException(response.getMessage(), "email");
         }
 
         return ResponseEntity.ok(new UserResponse(user));
@@ -808,19 +815,19 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // The request would end with the caller locked out by their own key.
         if (user.getId().equals(apiKeyEntity.getUserId())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                    new GenericResponse("An administrator cannot deactivate their own user."));
+                    new GenericResponse("An administrator cannot deactivate their own user.", ErrorReasons.SELF_ACTION_REFUSED));
         }
 
         final ServiceResponse response = userService.deactivateUser(requestId, user,
                 Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         return ResponseEntity.ok(new UserResponse(user));
@@ -862,13 +869,13 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final ServiceResponse response = userService.reactivateUser(requestId, user,
                 Source.API.getSource(), apiKeyEntity.getUserId(), apiKeyEntity.getId());
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
 
         return ResponseEntity.ok(new UserResponse(user));
@@ -878,7 +885,7 @@ public class UsersApiController extends AbstractApiController {
     private static String normalizeRole(final String role) {
         final String normalized = role.trim().toLowerCase(Locale.ROOT);
         if (!UserService.ROLE_USER.equals(normalized) && !UserService.ROLE_ADMIN.equals(normalized)) {
-            throw new BadRequestException("role must be " + UserService.ROLE_USER + " or " + UserService.ROLE_ADMIN + ".");
+            throw new BadRequestException("role must be " + UserService.ROLE_USER + " or " + UserService.ROLE_ADMIN + ".", "role");
         }
         return normalized;
     }

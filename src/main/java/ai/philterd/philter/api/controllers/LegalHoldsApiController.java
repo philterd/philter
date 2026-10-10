@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.LegalHoldRequest;
@@ -136,7 +137,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // A user hold covers everything its owner holds, so the owner is the scope. scopeValue may be left
@@ -207,7 +208,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                throw new NotFoundException();
             }
             final Listings.Page<LegalHoldEntity> page =
                     legalHoldDataService.list(null, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
@@ -220,7 +221,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
@@ -258,7 +259,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
@@ -266,7 +267,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final LegalHoldEntity hold = legalHoldDataService.findByReference(reference, userId);
         if (hold == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok(toResponse(hold));
@@ -283,9 +284,9 @@ public class LegalHoldsApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = LegalHoldConflictResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user. When the "
-                    + "owner was reached, the body carries a message; an unreachable owner returns no body, so an owner value "
-                    + "cannot be used to discover accounts.",
+            @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user, or the owner does not exist or may "
+                    + "not be reached. An unreachable owner gets the same not_found body as anything else not found, so an "
+                    + "owner value cannot be used to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class)))
     })
@@ -304,7 +305,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String requestId = RequestIdGenerator.generate();

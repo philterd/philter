@@ -115,6 +115,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -228,6 +238,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -308,6 +328,16 @@
           },
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -413,6 +443,16 @@
           },
           "401": {
             "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -528,7 +568,8 @@
             }
           },
           "404": {
-            "description": "There is no active key with that ID that the caller may manage."
+            "description": "There is no active key with that ID that the caller may manage.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -664,7 +705,8 @@
             }
           },
           "404": {
-            "description": "There is no active key with that ID that the caller may manage."
+            "description": "There is no active key with that ID that the caller may manage.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -846,7 +888,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -996,6 +1038,16 @@
               "text/csv": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1171,7 +1223,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1319,6 +1371,16 @@
           },
           "403": {
             "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
@@ -1581,7 +1643,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -1854,7 +1916,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "Not Found",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -2016,7 +2078,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2147,7 +2209,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2290,7 +2352,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2418,7 +2480,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "Not Found",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -2578,7 +2640,14 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "Owner unavailable or inaccessible."
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
@@ -2688,7 +2757,14 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "Unknown document id."
+            "description": "Unknown document id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
@@ -2838,10 +2914,9 @@
           "404": {
             "description": "Unknown document id.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "string",
-                  "format": "byte"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -2987,7 +3062,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3560,6 +3635,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -3724,7 +3809,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetHoldsResponse"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3844,7 +3929,8 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -3964,7 +4050,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "No hold with the given reference exists for this user. When the owner was reached, the body carries a message; an unreachable owner returns no body, so an owner value cannot be used to discover accounts.",
+            "description": "No hold with the given reference exists for this user, or the owner does not exist or may not be reached. An unreachable owner gets the same not_found body as anything else not found, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4100,7 +4186,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegalHoldResponse"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4228,7 +4314,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -4438,7 +4524,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -4855,11 +4941,11 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "Not Found",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5110,6 +5196,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -5274,7 +5370,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5398,7 +5494,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -5520,7 +5616,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetListsResponse"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6005,7 +6101,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6135,7 +6231,8 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts."
+            "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -6266,6 +6363,16 @@
           },
           "403": {
             "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "406": {
             "description": "No representation matches Accept."
@@ -6492,7 +6599,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "There is no such policy, with a message. Also returned, with no body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used to discover accounts.",
+            "description": "There is no such policy, with a message. Also returned, saying only not found, when the owner does not exist or the caller may not reach it, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6629,7 +6736,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -6752,7 +6859,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "There is no such policy, with a message. Also returned, with no body, when the owner does not exist or the caller may not reach it, so an owner value cannot be used to discover accounts.",
+            "description": "There is no such policy, with a message. Also returned, saying only not found, when the owner does not exist or the caller may not reach it, so an owner value cannot be used to discover accounts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6898,7 +7005,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7032,7 +7139,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7164,7 +7271,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7346,7 +7453,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7475,7 +7582,7 @@
             "description": "Insufficient scope, disabled API, or access denied."
           },
           "404": {
-            "description": "The policy or the target revision does not exist; the message says which. No body when the owner does not exist or the caller may not reach it.",
+            "description": "The policy or the target revision does not exist; the message says which. When the owner does not exist or the caller may not reach it, the body only says not found.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7649,7 +7756,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetPolicyVersionsResponse"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7783,7 +7890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -7899,7 +8006,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8020,7 +8127,7 @@
           "404": {
             "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
                 }
@@ -8143,7 +8250,7 @@
           "404": {
             "description": "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
                 }
@@ -8544,7 +8651,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -8646,6 +8753,16 @@
           },
           "403": {
             "description": "The key does not hold settings:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -8767,6 +8884,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -8854,7 +8981,8 @@
             }
           },
           "404": {
-            "description": "Password sign-in is not enabled."
+            "description": "Password sign-in is not enabled.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -8968,7 +9096,8 @@
             }
           },
           "404": {
-            "description": "Password sign-in is not enabled."
+            "description": "Password sign-in is not enabled.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -9087,7 +9216,8 @@
             }
           },
           "404": {
-            "description": "Password sign-in is not enabled."
+            "description": "Password sign-in is not enabled.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -9192,6 +9322,16 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -9306,6 +9446,16 @@
               "application/json": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9432,7 +9582,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -9602,6 +9752,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -9707,6 +9867,16 @@
           },
           "403": {
             "description": "The key does not hold users:write, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -9830,6 +10000,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -9927,6 +10107,16 @@
           },
           "403": {
             "description": "The key does not hold users:write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -10053,6 +10243,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -10163,6 +10363,16 @@
           },
           "403": {
             "description": "The key does not hold users:write, the code is not valid, or the user's MFA is locked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -10289,6 +10499,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
           "406": {
             "description": "No representation matches Accept."
           },
@@ -10396,6 +10616,16 @@
           },
           "403": {
             "description": "The key does not hold api-keys:write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -10518,7 +10748,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -10679,7 +10910,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -10803,7 +11035,8 @@
             }
           },
           "404": {
-            "description": "There is no active user with that username."
+            "description": "There is no active user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -10919,7 +11152,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11055,7 +11289,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11164,7 +11399,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11283,7 +11519,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11412,7 +11649,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11538,7 +11776,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11674,7 +11913,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11800,7 +12040,8 @@
             }
           },
           "404": {
-            "description": "There is no user with that username."
+            "description": "There is no user with that username.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -11909,7 +12150,8 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it."
+            "description": "The owner does not exist, or the caller may not reach it.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -12023,7 +12265,8 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it."
+            "description": "The owner does not exist, or the caller may not reach it.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -12147,7 +12390,8 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it."
+            "description": "The owner does not exist, or the caller may not reach it.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -12291,7 +12535,8 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it."
+            "description": "The owner does not exist, or the caller may not reach it.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -12407,7 +12652,8 @@
             }
           },
           "404": {
-            "description": "The owner does not exist, or the caller may not reach it."
+            "description": "The owner does not exist, or the caller may not reach it.",
+            "content": {}
           },
           "406": {
             "description": "No representation matches Accept."
@@ -12874,7 +13120,16 @@
       "GenericResponse": {
         "type": "object",
         "properties": {
+          "field": {
+            "description": "For a request refused as invalid, the parameter or body field that was invalid, when one is.",
+            "type": "string"
+          },
           "message": {
+            "description": "What happened, written for a person to read. It may change; use reason in code.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "For an error, why the request was refused, as a stable code a client can act on. The codes are listed in the API documentation under Errors.",
             "type": "string"
           }
         }

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.phileas.policy.Crypto;
 import ai.philterd.phileas.policy.FPE;
 import ai.philterd.phileas.policy.Policy;
@@ -137,7 +138,7 @@ public class ReidentifyApiController extends AbstractApiController {
 
         final ObjectId targetUserId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (targetUserId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), targetUserId,

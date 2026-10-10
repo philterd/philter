@@ -160,7 +160,10 @@ class SessionKeysApiIT {
 
         expireIdleWindow(key);
 
-        assertEquals(401, send("GET", "/api/users/me", key).statusCode(), "the cached copy must not keep it alive");
+        final HttpResponse<String> ended = send("GET", "/api/users/me", key);
+        assertEquals(401, ended.statusCode(), "the cached copy must not keep it alive");
+        assertEquals("session_expired", gson.fromJson(ended.body(), com.google.gson.JsonObject.class).get("reason").getAsString(),
+                ended.body());
         assertEquals(401, send("GET", "/api/users/me", key).statusCode());
         assertTrue(audited("api_key_expired", "reason: idle timeout"), "the expiry is audited");
         assertTrue(apiKeyDataService.findAll(user, 0, 10, true).stream()

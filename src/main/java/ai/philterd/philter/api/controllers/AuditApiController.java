@@ -15,7 +15,9 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
+import ai.philterd.philter.api.exceptions.RefusedException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.AuditEventView;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -127,7 +129,7 @@ public class AuditApiController extends AbstractApiController {
         if (owner != null && !owner.isBlank()) {
             principalId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
             if (principalId == null) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+                throw new NotFoundException();
             }
         }
 
@@ -278,7 +280,9 @@ public class AuditApiController extends AbstractApiController {
         final ResponseEntity<GenericResponse> refusal =
                 authorizeAdminOnly(userService, apiKeyEntity.getUserId(), "Exporting the audit log");
         if (refusal != null) {
-            return ResponseEntity.status(refusal.getStatusCode()).body(refusal.getBody().getMessage());
+            // Thrown rather than returned, so the refusal is Philter's JSON error, not text in a CSV response.
+            throw new RefusedException(refusal.getStatusCode().value(), refusal.getBody().getMessage(),
+                    refusal.getBody().getReason());
         }
 
         final LocalDate fromDate = parseDate(from, "from");

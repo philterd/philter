@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.requests.SetWebhookRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -34,6 +35,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -122,7 +124,7 @@ public class WebhookApiController extends AbstractApiController {
 
         final UserEntity user = targetUser(requestId, caller, owner, "read webhook");
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok(new WebhookResponse(user));
@@ -161,7 +163,7 @@ public class WebhookApiController extends AbstractApiController {
 
         final UserEntity user = targetUser(requestId, caller, owner, "set webhook");
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
@@ -200,7 +202,7 @@ public class WebhookApiController extends AbstractApiController {
 
         final UserEntity user = targetUser(requestId, caller, owner, "remove webhook");
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         userService.removeWebhook(requestId, user, Source.API.getSource(), caller.getUserId(), caller.getId());
@@ -242,12 +244,13 @@ public class WebhookApiController extends AbstractApiController {
 
         final UserEntity user = targetUser(requestId, caller, owner, "test webhook");
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         if (user.getWebhookUrl() == null || user.getWebhookUrl().isBlank()
                 || user.getWebhookSecret() == null || user.getWebhookSecret().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("No webhook is set, so there is nothing to test."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("No webhook is set, so there is nothing to test.",
+                    ErrorReasons.WEBHOOK_NOT_SET));
         }
 
         final String deliveryId = new ObjectId().toHexString();
@@ -301,7 +304,7 @@ public class WebhookApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, caller.getUserId(), owner);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
         auditAdminCrossUserAccess(auditEventPublisher, requestId, caller.getUserId(), userId, "list webhook deliveries");
 

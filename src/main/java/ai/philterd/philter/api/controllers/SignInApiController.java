@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.requests.SignInMfaRequest;
 import ai.philterd.philter.api.requests.SignInRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -33,6 +34,7 @@ import ai.philterd.philter.data.services.SignInChallengeDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.SignInThrottle;
@@ -169,7 +171,7 @@ public class SignInApiController extends AbstractApiController {
             final HttpServletRequest httpRequest) {
 
         if (!SignInConfig.isPasswordSignInEnabled()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String username = request.getUsername() == null ? null : request.getUsername().trim();
@@ -256,7 +258,7 @@ public class SignInApiController extends AbstractApiController {
             final HttpServletRequest httpRequest) {
 
         if (!SignInConfig.isPasswordSignInEnabled()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final String clientIp = getClientIpAddress(httpRequest);
@@ -331,7 +333,7 @@ public class SignInApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_FAILED, user.getId(), user.getId(), clientIp,
                 "username: " + user.getUsername() + ", reason: MFA locked");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
-                "MFA is locked after repeated bad codes. An administrator must unlock it."));
+                "MFA is locked after repeated bad codes. An administrator must unlock it.", ErrorReasons.MFA_LOCKED));
     }
 
     /**

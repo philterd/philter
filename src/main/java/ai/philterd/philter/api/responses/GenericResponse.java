@@ -15,16 +15,48 @@
  */
 package ai.philterd.philter.api.responses;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * A message, and for a refusal, a machine-readable reason. Every error Philter returns under /api has
+ * this shape. {@code reason} and {@code field} are left out when they do not apply.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class GenericResponse {
 
     private final String message;
+    private final String reason;
+    private final String field;
 
     public GenericResponse(final String message) {
-        this.message = message;
+        this(message, null, null);
     }
 
+    public GenericResponse(final String message, final String reason) {
+        this(message, reason, null);
+    }
+
+    public GenericResponse(final String message, final String reason, final String field) {
+        this.message = message;
+        this.reason = reason;
+        this.field = field;
+    }
+
+    @Schema(description = "What happened, written for a person to read. It may change; use reason in code.")
     public String getMessage() {
         return message;
+    }
+
+    @Schema(description = "For an error, why the request was refused, as a stable code a client can act on. The codes "
+            + "are listed in the API documentation under Errors.")
+    public String getReason() {
+        return reason;
+    }
+
+    @Schema(description = "For a request refused as invalid, the parameter or body field that was invalid, when one is.")
+    public String getField() {
+        return field;
     }
 
 }

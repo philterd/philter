@@ -17,6 +17,7 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -265,7 +266,7 @@ public abstract class AbstractApiController {
         final String apiField = sort == null || sort.isBlank() ? defaultSort : sort.trim();
         final String storedField = fields.get(apiField);
         if (storedField == null) {
-            throw new BadRequestException("sort must be one of: " + String.join(", ", fields.keySet()) + ".");
+            throw new BadRequestException("sort must be one of: " + String.join(", ", fields.keySet()) + ".", "sort");
         }
 
         final boolean descending;
@@ -276,7 +277,7 @@ public abstract class AbstractApiController {
         } else if ("desc".equalsIgnoreCase(order.trim())) {
             descending = true;
         } else {
-            throw new BadRequestException("order must be asc or desc.");
+            throw new BadRequestException("order must be asc or desc.", "order");
         }
 
         return new ai.philterd.philter.data.services.Listings.Sort(storedField, descending);
@@ -320,10 +321,10 @@ public abstract class AbstractApiController {
                                                                  final String disabledMessage) {
         if (!isAdmin(userService, callerUserId)) {
             return new ResponseEntity<>(
-                    new GenericResponse(operation + " requires an administrator."), HttpStatus.FORBIDDEN);
+                    new GenericResponse(operation + " requires an administrator.", ErrorReasons.ADMIN_REQUIRED), HttpStatus.FORBIDDEN);
         }
         if (!featureEnabled) {
-            return new ResponseEntity<>(new GenericResponse(disabledMessage), HttpStatus.FORBIDDEN);
+            return new ResponseEntity<>(new GenericResponse(disabledMessage, ErrorReasons.FEATURE_DISABLED), HttpStatus.FORBIDDEN);
         }
         return null;
     }

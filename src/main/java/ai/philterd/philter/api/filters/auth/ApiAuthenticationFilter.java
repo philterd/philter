@@ -16,6 +16,8 @@
 package ai.philterd.philter.api.filters.auth;
 
 import ai.philterd.philter.api.controllers.AbstractApiController;
+import ai.philterd.philter.api.exceptions.ApiErrors;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.SignInConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
@@ -45,6 +47,12 @@ import java.util.regex.Pattern;
 public class ApiAuthenticationFilter extends GenericFilterBean {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiAuthenticationFilter.class);
+    /** The same for a missing, malformed, unknown, or revoked key, so a refusal does not say which. */
+    private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid or missing credentials.";
+
+    /** For a session key that expired, was revoked, or signed out. */
+    private static final String SESSION_ENDED_MESSAGE = "The session has ended. Sign in again.";
+
     private static final Pattern API_KEY_PATTERN = Pattern.compile("^sk_[a-zA-Z0-9]{32}$");
 
     private final ApiKeyDataService apiKeyService;
@@ -110,7 +118,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
             // Sign-in takes a username and password, not a key. While it is disabled it answers 404
             // here, before the body is read, so no malformed request can show that it exists.
             if (!SignInConfig.isPasswordSignInEnabled()) {
-                ((HttpServletResponse) response).setStatus(HttpServletResponse.SC_NOT_FOUND);
+                // The same body as anything else not found, so the response does not say the endpoint exists.
+                ApiErrors.notFound((HttpServletResponse) response);
                 return;
             }
             request.setAttribute("requestId", RequestIdGenerator.generate());
@@ -145,11 +154,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                     auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, null, null,
                             AbstractApiController.getClientIpAddress(httpRequest), "reason: malformed API key");
 
-                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-                    httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
-                    final String errorMessage = "{\"error\": \"Unauthorized\", \"message\": \"Unauthorized request\"}";
-                    response.getWriter().write(errorMessage);
+                    ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_UNAUTHORIZED,
+                            INVALID_CREDENTIALS_MESSAGE, ErrorReasons.INVALID_CREDENTIALS);
                     return;
 
                 }
@@ -172,10 +178,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                     auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, apiKeyEntity.getUserId(), null,
                             AbstractApiController.getClientIpAddress(httpRequest), "reason: user deactivated");
 
-                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-                    httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Invalid or missing credentials\"}");
+                    ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_UNAUTHORIZED,
+                            "The API key's user is deactivated.", ErrorReasons.USER_DEACTIVATED);
                     return;
 
                 }
@@ -193,10 +197,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                     auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, apiKeyEntity.getUserId(), null,
                             AbstractApiController.getClientIpAddress(httpRequest), "reason: session key expired or revoked");
 
-                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-                    httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Invalid or missing credentials\"}");
+                    ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_UNAUTHORIZED,
+                            SESSION_ENDED_MESSAGE, ErrorReasons.SESSION_EXPIRED);
                     return;
 
                 }
@@ -205,12 +207,15 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                 // read the limits, and sign out, nothing else.
                 if (apiKeyEntity.isRestricted() && !isAllowedForRestrictedKey(apiKeyEntity, path, httpRequest.getMethod())) {
 
-                    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-                    httpServletResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \""
-                            + (apiKeyEntity.isPasswordChangeOnly() ? "The password must be changed first, with PUT /api/users/me/password."
-                            : "MFA enrollment is required first, with POST /api/users/me/mfa.") + "\"}");
+                    if (apiKeyEntity.isPasswordChangeOnly()) {
+                        ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_FORBIDDEN,
+                                "The password must be changed first, with PUT /api/users/me/password.",
+                                ErrorReasons.PASSWORD_CHANGE_REQUIRED);
+                    } else {
+                        ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_FORBIDDEN,
+                                "MFA enrollment is required first, with POST /api/users/me/mfa.",
+                                ErrorReasons.MFA_ENROLLMENT_REQUIRED);
+                    }
                     return;
 
                 }
@@ -222,15 +227,21 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 LOGGER.warn("Unauthorized access attempt: invalid or missing API key.");
 
+                // A session that ended is told to sign in again; any other key reads as unknown.
+                final boolean endedSession = apiKey != null && apiKeyService.isEndedSessionKey(apiKey);
+
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_AUTHENTICATION_FAILED, null, null,
                         AbstractApiController.getClientIpAddress(httpRequest),
-                        apiKey == null ? "reason: missing credentials" : "reason: invalid or unknown API key");
+                        apiKey == null ? "reason: missing credentials"
+                                : endedSession ? "reason: session key expired or revoked" : "reason: invalid or unknown API key");
 
-                HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-                httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                String errorMessage = "{\"error\": \"Unauthorized\", \"message\": \"Invalid or missing credentials\"}";
-                response.getWriter().write(errorMessage);
+                if (endedSession) {
+                    ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_UNAUTHORIZED,
+                            SESSION_ENDED_MESSAGE, ErrorReasons.SESSION_EXPIRED);
+                } else {
+                    ApiErrors.write((HttpServletResponse) response, HttpServletResponse.SC_UNAUTHORIZED,
+                            INVALID_CREDENTIALS_MESSAGE, ErrorReasons.INVALID_CREDENTIALS);
+                }
                 return;
 
             }

@@ -15,8 +15,10 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -106,7 +108,7 @@ public class SigningApiController extends AbstractApiController {
         final String pem = signingKeyDataService.getPublicKeyPem(keyId);
 
         if (pem == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final boolean active = keyId.equals(signingKeyDataService.getActiveKeyId());
@@ -156,7 +158,7 @@ public class SigningApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body("{\"message\":\"The signing key is managed by PHILTER_SIGNING_KEY_PATH; "
-                            + "replace the file and restart all instances.\"}");
+                            + "replace the file and restart all instances.\",\"reason\":\"" + ErrorReasons.EXTERNALLY_MANAGED + "\"}");
         }
 
         // The principal recorded is always the user; the key that carried the request goes in details.

@@ -16,6 +16,8 @@
 package ai.philterd.philter.api.security;
 
 import ai.philterd.philter.api.controllers.AbstractApiController;
+import ai.philterd.philter.api.exceptions.ApiErrors;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
@@ -76,7 +78,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
         if (requiresScope == null && handlerMethod.hasMethodAnnotation(AnyApiKey.class)) {
             if (request.getAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE) == null) {
                 LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), path);
-                return refuse(response, "Unauthorized.");
+                return refuse(response, "Unauthorized.", ErrorReasons.INVALID_CREDENTIALS);
             }
             return true;
         }
@@ -84,7 +86,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
         if (requiresScope == null) {
             LOGGER.error("Refusing {} {}: the handler declares no required scope. Annotate it with @RequiresScope.",
                     request.getMethod(), path);
-            return refuse(response, "This endpoint is not available.");
+            return refuse(response, "This endpoint is not available.", ErrorReasons.FORBIDDEN);
         }
 
         final ApiKeyEntity apiKeyEntity =
@@ -94,7 +96,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
             // The authentication filter should already have refused this. Treat a missing key as a
             // refusal rather than assuming the request is authorized.
             LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), path);
-            return refuse(response, "Unauthorized.");
+            return refuse(response, "Unauthorized.", ErrorReasons.INVALID_CREDENTIALS);
         }
 
         final ApiKeyScope scope = requiresScope.value();
@@ -102,7 +104,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
         if (!apiKeyEntity.hasScope(scope)) {
             LOGGER.warn("Refusing {} {}: the API key does not carry the '{}' scope.",
                     request.getMethod(), path, scope.getScope());
-            return refuse(response, "This API key does not have the '" + scope.getScope() + "' scope.");
+            return refuse(response, "This API key does not have the '" + scope.getScope() + "' scope.", ErrorReasons.MISSING_SCOPE);
         }
 
         return true;
@@ -119,10 +121,9 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
                 || ApiAuthenticationFilter.isSignIn(path, method);
     }
 
-    private static boolean refuse(final HttpServletResponse response, final String message) throws Exception {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json");
-        response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"" + message + "\"}");
+    private static boolean refuse(final HttpServletResponse response, final String message, final String reason)
+            throws Exception {
+        ApiErrors.write(response, HttpServletResponse.SC_FORBIDDEN, message, reason);
         return false;
     }
 

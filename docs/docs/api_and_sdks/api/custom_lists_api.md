@@ -154,4 +154,4 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/
 ### Responses
 
 * `204 No Content` - The list was deleted.
-* `404 Not Found` - There is no such list, or the owner does not exist or may not be reached. No body.
+* `404 Not Found` - There is no such list, or the owner does not exist or may not be reached. The `reason` is `not_found`.

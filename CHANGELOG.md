@@ -55,8 +55,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Outbound HTTPS verifies certificates.** `TLS_TRUST_ALL_ENABLED=true` restores the previous behavior.
 - **`POST /api/policies` only creates.** A name in use returns `409`; replace a policy with
   `PUT /api/policies/{name}`.
-- **Errors are JSON** with a `message`, plus a `reason` where one status has several causes. Some
-  have no body, such as a `404` that would otherwise reveal whether an account exists.
+- **Errors are JSON** with a `message` and a `reason` code, and a `field` when an invalid parameter is
+  known, from every refusal, including authentication, scope checks, and the audit export. A `404`
+  that would otherwise reveal whether an account exists says only `not_found`, the same as any other.
 - **Users are deactivated rather than deleted,** keeping their data and ledger evidence.
 - **Listings return an object with `total`,** and accept `sort`, `order`, and, where it applies, a `q`
   search. `GET /api/policies`, `/versions`, `/api/holds`, and `/api/lists` returned bare arrays;

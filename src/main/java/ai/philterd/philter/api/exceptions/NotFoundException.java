@@ -17,26 +17,17 @@ package ai.philterd.philter.api.exceptions;
 
 import java.io.Serial;
 
-public final class BadRequestException extends RuntimeException {
+/**
+ * A 404 that says only "not found", for something that does not exist or that the caller may not
+ * reach. The two read the same, so an owner or a name cannot be used to discover what exists.
+ */
+public final class NotFoundException extends RuntimeException {
 
     @Serial
-    private static final long serialVersionUID = 8498236096061129077L;
+    private static final long serialVersionUID = 2214503925412216831L;
 
-    private final String field;
-
-    public BadRequestException(String message) {
-        this(message, null);
-    }
-
-    /** As above, naming the parameter or body field that was invalid. */
-    public BadRequestException(String message, String field) {
-        super(message);
-        this.field = field;
-    }
-
-    /** The parameter or body field that was invalid, or {@code null} when none is named. */
-    public String getField() {
-        return field;
+    public NotFoundException() {
+        super(ApiErrors.NOT_FOUND_MESSAGE);
     }
 
 }

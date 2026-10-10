@@ -56,6 +56,52 @@ Items with the same value for the sort field are kept in a stable order, so pagi
 | [`GET /api/audit`](api/audit_api.md) | `events` | `timestamp` (newest first), by `order` only | | `event`, `from`, `to`, `owner` |
 | [`GET /api/webhook/deliveries`](api/webhooks.md#list-the-deliveries) | `deliveries` | `created` (newest first), by `order` only | | |
 
+## Errors
+
+Every error Philter returns under `/api` is a JSON object with the same fields, whatever refused the request and whatever the request's `Accept` header asked for:
+
+```json
+{
+  "message": "This API key does not have the 'policies:read' scope.",
+  "reason": "missing_scope"
+}
+```
+
+* `message` - What happened, written for a person to read. It may change between releases; do not match on it.
+* `reason` - Why the request was refused, as a stable code. Use it in code to decide what to do.
+* `field` - Present when a request is refused as invalid and the invalid parameter or body field is known, such as `sort` or `password`.
+
+A refusal with a specific reason gives it, as listed below. Any other error gives the reason its status implies: `invalid_request` (400), `invalid_credentials` (401), `forbidden` (403), `not_found` (404), `method_not_allowed` (405), `not_acceptable` (406), `conflict` (409), `payload_too_large` (413), `unsupported_media_type` (415), `rate_limited` (429), `service_unavailable` (503), or `internal_error` (500).
+
+| Status | `reason` | Meaning |
+|--------|----------|---------|
+| 401 | `invalid_credentials` | The API key is missing, malformed, or unknown, or is a revoked long-lived key. Sign-in also gives it for a wrong username or password, without saying which. |
+| 401 | `session_expired` | The session key has ended: it passed its idle timeout or maximum lifetime, was revoked, or signed out. Sign in again. |
+| 401 | `user_deactivated` | The API key's user is deactivated. |
+| 403 | `missing_scope` | The API key does not hold the scope the endpoint requires. |
+| 403 | `admin_required` | The operation requires an administrator. |
+| 403 | `feature_disabled` | The operation is turned off in this deployment, such as ledger deletion. |
+| 403 | `password_change_required` | The session key may only change its user's password until it is changed. |
+| 403 | `mfa_enrollment_required` | The session key may only enroll its user in MFA until enrollment is confirmed. |
+| 403 | `wrong_password` | The current password is not correct. |
+| 400, 403 | `invalid_code` | The MFA code is not valid: 400 when confirming enrollment, 403 when removing it. |
+| 403 | `mfa_locked` | The user's MFA is locked after repeated bad codes; an administrator must unlock it. |
+| 403 | `scope_not_held` | The calling key cannot create a key, widen a key's scopes, or grant scopes it does not hold. |
+| 404 | `not_found` | Nothing with that name, id, or path exists, or the `owner` does not exist or may not be reached. The two read the same, so a value cannot be used to discover what exists. |
+| 409 | `self_action_refused` | The caller cannot do this to their own user or to the key making the request, such as deactivating themselves or revoking the calling key. |
+| 409 | `last_admin` | The user is the last active administrator. |
+| 409 | `already_exists` | A user with that username already exists, active or deactivated. |
+| 409 | `mfa_unavailable`, `mfa_already_enrolled`, `mfa_not_enrolled` | MFA is not turned on in this deployment, or the user is already enrolled, or not enrolled. |
+| 409 | `changed_concurrently` | Another request changed the same thing first, such as the password. Read it again and retry. |
+| 409 | `not_a_session_key` | Only a session key can sign itself out. |
+| 409 | `webhook_not_set` | No webhook is set, so there is nothing to test. |
+| 409 | `externally_managed` | The signing key is managed outside Philter. |
+| 409 | `context_in_use` | The context has queued or running redactions. |
+| 409 | `document_not_ready` | The document is still being redacted. |
+| 410 | `document_failed` | The document's redaction failed, so there is nothing to download. |
+
+Some refusals carry their own reasons, documented with their endpoints: the policy conflicts (`policy_exists`, `policy_managed`, `policy_changed`, `policy_default`), `context_exists` and `context_limit_reached`, `list_exists`, `hold_exists` and `operation_in_progress`, `redact_list_changed`, `entry_unreadable`, and sign-in's `locked` and `rate_limited`.
+
 ## OpenAPI Specification
 
 Philter's API is described by an OpenAPI specification generated from the application's source. The OpenAPI export integration test regenerates it and checks it against the registered routes and the committed copy. Run that test when changing an endpoint; a successful ordinary compilation alone does not refresh the published artifact. You can always find it in any of these places:

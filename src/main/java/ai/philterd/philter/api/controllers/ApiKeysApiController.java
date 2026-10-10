@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.requests.CreateApiKeyRequest;
 import ai.philterd.philter.api.requests.SetApiKeyScopesRequest;
@@ -31,6 +32,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
@@ -155,7 +157,7 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok(page(user.getId(), caller.getId(), sort, order, offset, limit, session));
@@ -255,7 +257,7 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final UserEntity user = userService.findByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return mint(requestId, caller, user, scopes);
@@ -299,13 +301,13 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final ApiKeyEntity target = findManageableKey(keyId, caller);
         if (target == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // Refused as revoking it is: a client narrowing the key it is using would break its own access.
         if (target.getId().equals(caller.getId())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "This is the key making the request. Change its scopes with another key."));
+                    "This is the key making the request. Change its scopes with another key.", ErrorReasons.SELF_ACTION_REFUSED));
         }
 
         ResponseEntity<Object> refusal = refuseScopesNotHeld(caller, scopes);
@@ -322,7 +324,7 @@ public class ApiKeysApiController extends AbstractApiController {
         final ServiceResponse response = apiKeyService.updateScopes(requestId, target.getUserId(), target, scopes,
                 Source.API.getSource(), actingPrincipal(caller));
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.ok(new ApiKeyResponse(target, caller.getId()));
@@ -360,14 +362,14 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final ApiKeyEntity target = findManageableKey(keyId, caller);
         if (target == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         // Refused rather than allowed: a caller that revoked its own key would learn so only from the
         // next request failing.
         if (target.getId().equals(caller.getId())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "This is the key making the request. Revoke it with another key."));
+                    "This is the key making the request. Revoke it with another key.", ErrorReasons.SELF_ACTION_REFUSED));
         }
 
         final ResponseEntity<Object> refusal = refuseWiderTarget(caller, target, "revoke");
@@ -378,7 +380,7 @@ public class ApiKeysApiController extends AbstractApiController {
         final ServiceResponse response = apiKeyService.deleteByApiKey(requestId, target.getUserId(), target,
                 Source.API.getSource(), actingPrincipal(caller));
         if (!response.isSuccessful()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         return ResponseEntity.noContent().build();
@@ -430,7 +432,8 @@ public class ApiKeysApiController extends AbstractApiController {
 
         if (!caller.isSession()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
-                    "Only a session key can revoke itself. Revoke a long-lived key with another key."));
+                    "Only a session key can revoke itself. Revoke a long-lived key with another key.",
+                    ErrorReasons.NOT_A_SESSION_KEY));
         }
 
         apiKeyService.deleteByApiKey(requestId, caller.getUserId(), caller, Source.API.getSource(), "reason: signed out");
@@ -502,7 +505,7 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final UserEntity user = userService.findAnyByUsername(username);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            throw new NotFoundException();
         }
 
         final long revoked = apiKeyService.revokeSessionKeys(requestId, user.getId(), Source.API.getSource(),
@@ -576,7 +579,7 @@ public class ApiKeysApiController extends AbstractApiController {
             return null;
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
-                "A session key cannot create API keys. Use a long-lived key."));
+                "A session key cannot create API keys. Use a long-lived key.", ErrorReasons.SCOPE_NOT_HELD));
     }
 
     /**
@@ -600,7 +603,7 @@ public class ApiKeysApiController extends AbstractApiController {
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
                 "A session key can narrow a key's scopes but not widen them. Adding " + String.join(", ", added)
-                        + " needs a long-lived key."));
+                        + " needs a long-lived key.", ErrorReasons.SCOPE_NOT_HELD));
     }
 
     private static String actingPrincipal(final ApiKeyEntity caller) {
@@ -624,7 +627,7 @@ public class ApiKeysApiController extends AbstractApiController {
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
                 "The calling API key does not hold: " + String.join(", ", missing)
-                        + ". A key cannot grant a scope it does not carry."));
+                        + ". A key cannot grant a scope it does not carry.", ErrorReasons.SCOPE_NOT_HELD));
     }
 
     /** A key may not change or revoke one more powerful than itself. */
@@ -636,7 +639,7 @@ public class ApiKeysApiController extends AbstractApiController {
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
                 "The key to " + operation + " holds scopes the calling API key does not: "
-                        + String.join(", ", missing) + "."));
+                        + String.join(", ", missing) + ".", ErrorReasons.SCOPE_NOT_HELD));
     }
 
     /**

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
@@ -42,6 +43,7 @@ import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.utils.PathSafeNames;
@@ -194,7 +196,7 @@ public class ContextsApiController extends AbstractApiController {
 
         if (allUsers) {
             if (!mayListAllUsers(userService, callerUserId, owner)) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+                throw new NotFoundException();
             }
             final Listings.Page<ContextEntity> page =
                     contextService.list(null, q, contextSort, normalizeOffset(offset), normalizeLimit(limit));
@@ -208,7 +210,7 @@ public class ContextsApiController extends AbstractApiController {
         // (non-admin naming another user, or unknown user) maps to 404 so it never reveals the user's existence.
         final ObjectId userId = resolveTargetUserId(userService, callerUserId, owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final Listings.Page<ContextEntity> page =
@@ -262,7 +264,7 @@ public class ContextsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
@@ -271,7 +273,7 @@ public class ContextsApiController extends AbstractApiController {
         final ContextEntity contextEntity = contextService.findOne(name, userId);
 
         if(contextEntity == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         // One aggregation, so the per-type counts always sum to the size, even while entries are written.
@@ -396,7 +398,8 @@ public class ContextsApiController extends AbstractApiController {
 
         if (pendingDocumentDataService.hasOpenJobsForContext(userId, name)) {
             return new ResponseEntity<>(
-                    new GenericResponse("Context has pending or processing redaction jobs; cannot delete."),
+                    new GenericResponse("Context has pending or processing redaction jobs; cannot delete.",
+                            ErrorReasons.CONTEXT_IN_USE),
                     HttpStatus.CONFLICT);
         }
 
@@ -504,14 +507,14 @@ public class ContextsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
                 "list entries in context '" + name + "'");
 
         if (contextService.findOne(name, userId) == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(userId, name, normalizeOffset(offset), normalizeLimit(limit),
@@ -640,7 +643,7 @@ public class ContextsApiController extends AbstractApiController {
             // the response does not reveal whether the context exists.
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_EXPORT_DENIED, userId, null,
                     getClientIpAddress(httpServletRequest), "context: " + name);
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final ObjectId ownerUserId = context.getUserId();

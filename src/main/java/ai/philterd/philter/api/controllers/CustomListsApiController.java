@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.CustomListConflictResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -121,7 +122,7 @@ public class CustomListsApiController extends AbstractApiController {
 
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+                throw new NotFoundException();
             }
             final Listings.Page<CustomListEntity> page =
                     customListService.list(null, q, listSort, normalizeOffset(offset), normalizeLimit(limit));
@@ -138,7 +139,7 @@ public class CustomListsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final Listings.Page<CustomListEntity> page =
@@ -187,14 +188,14 @@ public class CustomListsApiController extends AbstractApiController {
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
         }
 
         final CustomListEntity customListEntity = customListService.findOneByName(name, userId);
 
         if(customListEntity == null) {
 
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
 
         } else {
 
@@ -322,7 +323,7 @@ public class CustomListsApiController extends AbstractApiController {
 
          final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
          if (userId == null) {
-             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+             throw new NotFoundException();
          }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
@@ -333,7 +334,7 @@ public class CustomListsApiController extends AbstractApiController {
 
         if(customListEntity == null) {
 
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            throw new NotFoundException();
 
         } else {
 

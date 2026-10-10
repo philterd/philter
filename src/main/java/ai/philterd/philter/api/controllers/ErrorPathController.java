@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.RequestDispatcher;
@@ -46,7 +47,8 @@ public class ErrorPathController implements ErrorController {
         final String message = status == null ? "The request could not be processed." : status.getReasonPhrase() + ".";
 
         // The content type is set rather than negotiated, so the body is sent whatever Accept asked for.
-        return ResponseEntity.status(statusCode).contentType(MediaType.APPLICATION_JSON).body(new GenericResponse(message));
+        return ResponseEntity.status(statusCode).contentType(MediaType.APPLICATION_JSON)
+                .body(new GenericResponse(message, ErrorReasons.forStatus(statusCode)));
 
     }
 

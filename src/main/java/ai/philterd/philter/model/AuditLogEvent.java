@@ -88,6 +88,7 @@ public enum AuditLogEvent {
     // Account and admin configuration changes.
     WEBHOOK_CONFIGURED("webhook_configured"),
     WEBHOOK_REMOVED("webhook_removed"),
+    WEBHOOK_TESTED("webhook_tested"),
     REDACT_LISTS_RETRIEVED("redact_lists_retrieved"),
     REDACT_LISTS_UPDATED("redact_lists_updated"),
 

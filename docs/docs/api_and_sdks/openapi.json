@@ -12010,7 +12010,7 @@
           "Webhook"
         ],
         "summary": "Set the webhook.",
-        "description": "Sets the webhook URL and secret. The URL must be http or https and its host must be permitted by the administrator's webhook destination allowlist, which refuses private and loopback addresses when empty. The secret must be at least 16 characters. Admins may set another user's webhook via the owner parameter. Recorded as a webhook_configured audit event naming the calling user and API key; the URL and secret are not recorded. Requires the `webhooks:write` scope.",
+        "description": "Sets the webhook URL and secret. The URL must be http or https and its host must be permitted by the administrator's webhook destination allowlist, which refuses private and loopback addresses when empty. The secret must be at least 16 characters. Leave the secret out to keep the one already set, so the URL can change without rotating it. Admins may set another user's webhook via the owner parameter. Recorded as a webhook_configured audit event naming the calling user and API key; the URL and secret are not recorded. Requires the `webhooks:write` scope.",
         "operationId": "setWebhook",
         "parameters": [
           {
@@ -12052,7 +12052,7 @@
             }
           },
           "400": {
-            "description": "The URL or secret is missing, the URL is invalid or not permitted, or the secret is too short. The message says which.",
+            "description": "The URL is missing, the secret is missing and none is set yet, the URL is invalid or not permitted, or the secret is too short. The message says which.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12086,6 +12086,268 @@
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhook/deliveries": {
+      "get": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "List the webhook's deliveries.",
+        "description": "Lists the user's webhook deliveries, newest first, with each one's status, attempts, last error, and when it was queued, last changed, is next due, and was delivered, so a failing webhook can be diagnosed. The secret and the event body are not included. A delivery that ended, delivered or failed, is kept for WEBHOOK_DELIVERIES_TTL_SECONDS (30 days by default). Paged with offset and limit (25 by default, at most 100). Admins may list another user's deliveries via the owner parameter. Requires the `webhooks:read` scope.",
+        "operationId": "getDeliveries",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of deliveries and the total.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeliveriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold webhooks:read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The owner does not exist, or the caller may not reach it."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhook/test": {
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Send a test event to the webhook.",
+        "description": "Sends one signed WEBHOOK_TEST event to the webhook now, signed and checked against the destination allowlist as a real delivery is, and returns what happened: whether the receiver answered 2xx, its status code, and any error. The event is not queued or retried and does not appear in GET /api/webhook/deliveries. Its body has \"test\": true so a receiver can ignore it. Waits for the receiver up to WEBHOOK_CONNECT_TIMEOUT_SECONDS and WEBHOOK_RESPONSE_TIMEOUT_SECONDS. Admins may test another user's webhook via the owner parameter. Recorded as a webhook_tested audit event with the outcome; the URL and secret are not recorded. Requires the `webhooks:write` scope.",
+        "operationId": "testWebhook",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The test was attempted. delivered says whether the receiver accepted it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold webhooks:write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The owner does not exist, or the caller may not reach it."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "No webhook is set, so there is nothing to test.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -13804,6 +14066,83 @@
           }
         }
       },
+      "WebhookDeliveriesResponse": {
+        "type": "object",
+        "properties": {
+          "deliveries": {
+            "description": "The deliveries on this page, newest first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookDeliveryView"
+            }
+          },
+          "total": {
+            "description": "How many deliveries the user has.",
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "WebhookDeliveryView": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "description": "Where the delivery is sent: the webhook URL when the event was queued.",
+            "type": "string"
+          },
+          "attempts": {
+            "description": "How many attempts have been made.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "description": "When the event was queued.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "deliveredAt": {
+            "description": "When the receiver accepted the delivery.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "documentId": {
+            "description": "The document the event is about.",
+            "type": "string"
+          },
+          "event": {
+            "description": "The event: DOCUMENT_REDACTION_COMPLETE or DOCUMENT_REDACTION_FAILED.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The delivery's id, sent as X-Philter-Delivery-Id with each attempt.",
+            "type": "string"
+          },
+          "lastError": {
+            "description": "Why the most recent attempt failed, or null.",
+            "type": "string"
+          },
+          "nextAttemptAt": {
+            "description": "When the next attempt is due, for a delivery that is PENDING.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "description": "PENDING (waiting for its next attempt), PROCESSING (being sent), DELIVERED, or FAILED (every attempt failed).",
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "DELIVERED",
+              "FAILED"
+            ]
+          },
+          "updatedAt": {
+            "description": "When the delivery last changed.",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "WebhookResponse": {
         "type": "object",
         "properties": {
@@ -13820,6 +14159,33 @@
         "properties": {
           "secretMinLength": {
             "description": "The fewest characters a webhook secret can have.",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WebhookTestResponse": {
+        "type": "object",
+        "properties": {
+          "delivered": {
+            "description": "Whether the receiver answered with a 2xx status.",
+            "type": "boolean"
+          },
+          "deliveryId": {
+            "description": "The test event's X-Philter-Delivery-Id, to find it in the receiver's logs.",
+            "type": "string"
+          },
+          "durationMillis": {
+            "description": "How long the attempt took, in milliseconds.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "error": {
+            "description": "Why the test was not delivered, or null when it was.",
+            "type": "string"
+          },
+          "statusCode": {
+            "description": "The status the receiver answered with, or null when there was no answer, such as when the connection failed, timed out, or the destination is not permitted.",
             "type": "integer",
             "format": "int32"
           }

@@ -468,17 +468,23 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
                                       final String secret, final String allowlist, final String source,
                                       final ObjectId actingUserId, final ObjectId actingApiKeyId) {
 
-        final String problem = WebhookSettings.validate(url, secret, allowlist);
+        // Without a new secret the one already set is kept, so the URL can change without rotating it.
+        final boolean keepsSecret = (secret == null || secret.isEmpty())
+                && user.getWebhookSecret() != null && !user.getWebhookSecret().isEmpty();
+        final String effectiveSecret = keepsSecret ? user.getWebhookSecret() : secret;
+
+        final String problem = WebhookSettings.validate(url, effectiveSecret, allowlist);
         if (problem != null) {
             return ServiceResponse.failure(problem);
         }
 
         user.setWebhookUrl(url.trim());
-        user.setWebhookSecret(secret);
+        user.setWebhookSecret(effectiveSecret);
         updateFields(user, "webhook_url", "webhook_secret", "webhook_secret_key");
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.WEBHOOK_CONFIGURED,
-                actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source,
+                withApiKey(keepsSecret ? "secret: kept" : "secret: set", actingApiKeyId));
 
         return ServiceResponse.success("Webhook saved.");
     }

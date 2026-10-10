@@ -637,6 +637,33 @@ class UserServiceIT extends AbstractMongoIT {
     }
 
     @Test
+    void setWebhookWithoutASecretKeepsTheOneAlreadySet() {
+        final AuditEventPublisher audit = mock(AuditEventPublisher.class);
+        service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
+        final UserEntity user = createAndFind("rehooked", "user");
+
+        // With no secret set yet, one is required.
+        assertFalse(service.setWebhook("req", user, "https://93.184.216.34/hook", null, null, "api", null, null).isSuccessful());
+        assertNull(service.findOneById(user.getId()).getWebhookUrl());
+
+        assertTrue(service.setWebhook("req", user, "https://93.184.216.34/hook", "a-secret-of-16ch", null, "api", null, null).isSuccessful());
+
+        // A new URL without a secret keeps the secret already set.
+        final UserEntity before = service.findOneById(user.getId());
+        assertTrue(service.setWebhook("req", before, "https://93.184.216.35/hook", null, null, "api", null, null).isSuccessful());
+        final UserEntity moved = service.findOneById(user.getId());
+        assertEquals("https://93.184.216.35/hook", moved.getWebhookUrl());
+        assertEquals("a-secret-of-16ch", moved.getWebhookSecret());
+        verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.WEBHOOK_CONFIGURED), eq(user.getId()), eq(user.getId()),
+                eq("api"), eq("secret: kept"));
+
+        // A secret that is sent is still checked, and replaces the old one.
+        assertFalse(service.setWebhook("req", moved, "https://93.184.216.35/hook", "short", null, "api", null, null).isSuccessful());
+        assertTrue(service.setWebhook("req", moved, "https://93.184.216.35/hook", "another-secret-16", null, "api", null, null).isSuccessful());
+        assertEquals("another-secret-16", service.findOneById(user.getId()).getWebhookSecret());
+    }
+
+    @Test
     void setWebhookValidatesBeforeSavingAndAuditsTheActor() {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
@@ -657,7 +684,7 @@ class UserServiceIT extends AbstractMongoIT {
                 .find(new org.bson.Document("_id", user.getId())).first();
         assertFalse(String.valueOf(stored.get("webhook_secret")).contains("a-secret-of-16ch"), "the secret is encrypted at rest");
         verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.WEBHOOK_CONFIGURED), eq(acting), eq(user.getId()), eq("api"),
-                eq("api_key: " + actingKey));
+                eq("secret: set, api_key: " + actingKey));
 
         assertTrue(service.removeWebhook("req", saved, "api", acting, actingKey).isSuccessful());
         final UserEntity removed = service.findOneById(user.getId());

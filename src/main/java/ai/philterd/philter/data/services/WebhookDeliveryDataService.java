@@ -23,6 +23,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Sorts;
@@ -33,7 +34,9 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -58,6 +61,8 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
         claimLeaseMillis = leaseSeconds * 1000L;
         ensureIndex(Indexes.ascending("status", "next_attempt_at"));
         ensureIndex(Indexes.ascending("status", "claim_expires_at"));
+        // A user's deliveries are listed newest first.
+        ensureIndex(Indexes.compoundIndex(Indexes.ascending("user_id"), Indexes.descending("created_at")));
 
         final long ttlSeconds = EnvUtils.getLong("WEBHOOK_DELIVERIES_TTL_SECONDS", DEFAULT_TTL_SECONDS);
 
@@ -132,6 +137,26 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
                 Updates.set("last_error", errorMessage), Updates.set("updated_at", now), scheduling,
                 exhausted ? Updates.set("completed_at", now) : Updates.unset("completed_at"),
                 Updates.unset("claim_token"), Updates.unset("claim_expires_at"))).getModifiedCount() == 1;
+    }
+
+    /**
+     * A page of the user's deliveries, newest first, without their secrets or payloads, which a listing
+     * has no use for.
+     */
+    public List<WebhookDeliveryEntity> findByUserId(final ObjectId userId, final int offset, final int limit) {
+        final List<WebhookDeliveryEntity> deliveries = new ArrayList<>();
+        for (final Document document : collection.find(Filters.eq("user_id", userId))
+                .projection(Projections.exclude("secret", "secret_encrypted_key", "payload", "claim_token"))
+                .sort(Sorts.orderBy(Sorts.descending("created_at"), Sorts.descending("_id")))
+                .skip(offset).limit(limit)) {
+            deliveries.add(WebhookDeliveryEntity.fromDocument(document, encryptionService));
+        }
+        return deliveries;
+    }
+
+    /** How many deliveries the user has, for paging {@link #findByUserId}. */
+    public long countByUserId(final ObjectId userId) {
+        return collection.countDocuments(Filters.eq("user_id", userId));
     }
 
     /** A terminal job has one stable event ID. Reconciliation may safely retry after uncertainty. */

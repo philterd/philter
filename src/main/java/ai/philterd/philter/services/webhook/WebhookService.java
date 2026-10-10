@@ -45,35 +45,71 @@ public class WebhookService {
 
     public void deliver(final WebhookDeliveryEntity delivery) throws Exception {
 
+        final int code = post(delivery.getUrl(), delivery.getEventType(), delivery.getId().toHexString(),
+                delivery.getPayload(), delivery.getSecret());
+        if (code < 200 || code >= 300) {
+            throw new WebhookDeliveryException("Webhook responded with HTTP " + code);
+        }
+        LOGGER.debug("Delivered webhook {} to {}: HTTP {}", delivery.getId(), delivery.getUrl(), code);
+
+    }
+
+    /**
+     * Sends one signed test event now, outside the delivery queue, and reports what happened rather
+     * than throwing: the receiver's status code, or why there was none.
+     */
+    public TestResult test(final String url, final String deliveryId, final String payload, final String secret) {
+
+        final long started = System.nanoTime();
+        try {
+            final int code = post(url, WebhookDeliveryEntity.EVENT_WEBHOOK_TEST, deliveryId, payload, secret);
+            final boolean delivered = code >= 200 && code < 300;
+            return new TestResult(delivered, code, delivered ? null : "Webhook responded with HTTP " + code,
+                    elapsedMillis(started));
+        } catch (final Exception e) {
+            final String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            return new TestResult(false, null, message, elapsedMillis(started));
+        }
+
+    }
+
+    /** What a test delivery did: whether the receiver accepted it, its status code, and any error. */
+    public record TestResult(boolean delivered, Integer statusCode, String error, long durationMillis) {
+    }
+
+    /** POSTs a signed event and returns the receiver's status code. */
+    private int post(final String url, final String eventType, final String deliveryId, final String payload,
+                     final String secret) throws Exception {
+
         // Re-checked here, not only when the URL was saved, so narrowing the allowlist takes effect on
         // destinations already configured.
-        final String host = URI.create(delivery.getUrl()).getHost();
+        final String host = URI.create(url).getHost();
 
         if (!destinationPolicy.get().isHostAllowed(host)) {
             throw new WebhookDeliveryException("Delivery to " + host + " is not permitted by the webhook allowlist.");
         }
 
         final long timestamp = System.currentTimeMillis() / 1000L;
-        final String signature = sign(timestamp, delivery.getPayload(), delivery.getSecret());
+        final String signature = sign(timestamp, payload, secret);
 
-        final HttpPost post = new HttpPost(delivery.getUrl());
-        post.setHeader("X-Philter-Event", delivery.getEventType());
-        post.setHeader("X-Philter-Delivery-Id", delivery.getId().toHexString());
+        final HttpPost post = new HttpPost(url);
+        post.setHeader("X-Philter-Event", eventType);
+        post.setHeader("X-Philter-Delivery-Id", deliveryId);
         post.setHeader("X-Philter-Timestamp", Long.toString(timestamp));
         post.setHeader("X-Philter-Signature", "sha256=" + signature);
-        post.setEntity(new StringEntity(delivery.getPayload(), ContentType.APPLICATION_JSON));
+        post.setEntity(new StringEntity(payload, ContentType.APPLICATION_JSON));
 
         final ClassicHttpResponse response = (ClassicHttpResponse) httpClient.executeOpen(null, post, null);
         try {
-            final int code = response.getCode();
-            if (code < 200 || code >= 300) {
-                throw new WebhookDeliveryException("Webhook responded with HTTP " + code);
-            }
-            LOGGER.debug("Delivered webhook {} to {}: HTTP {}", delivery.getId(), delivery.getUrl(), code);
+            return response.getCode();
         } finally {
             response.close();
         }
 
+    }
+
+    private static long elapsedMillis(final long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 
     public static String sign(final long timestampSeconds, final String payload, final String secret) {

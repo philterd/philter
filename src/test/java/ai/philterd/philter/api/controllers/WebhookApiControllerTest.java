@@ -25,11 +25,15 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.data.services.WebhookDeliveryDataService;
+import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.services.webhook.WebhookService;
+import org.mockito.ArgumentCaptor;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +49,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -61,7 +66,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Validation is UserService's and tested there; this covers routing, the owner rules, and refusals. */
@@ -77,6 +84,8 @@ class WebhookApiControllerTest {
     @Mock private UserService userService;
     @Mock private AdminSettingsDataService adminSettingsDataService;
     @Mock private AuditEventPublisher auditEventPublisher;
+    @Mock private WebhookService webhookService;
+    @Mock private WebhookDeliveryDataService webhookDeliveryDataService;
 
     private ObjectId callerUserId;
     private ObjectId callerApiKeyId;
@@ -96,7 +105,8 @@ class WebhookApiControllerTest {
         lenient().when(userService.findOneById(callerUserId)).thenReturn(caller);
 
         mockMvc = MockMvcBuilders.standaloneSetup(new WebhookApiController(apiKeyDataService, apiKeyCache,
-                        userService, adminSettingsDataService, auditEventPublisher))
+                        userService, adminSettingsDataService, auditEventPublisher, webhookService,
+                        webhookDeliveryDataService))
                 .addInterceptors(new ApiKeyScopeInterceptor())
                 .setControllerAdvice(new RestApiExceptions())
                 .build();
@@ -245,6 +255,90 @@ class WebhookApiControllerTest {
                 .andReturn().getResponse().getContentAsString().contains("webhooks:read"));
 
         verifyNoInteractions(adminSettingsDataService);
+    }
+
+
+    @Test
+    @DisplayName("Testing with no webhook set is a 409 and sends nothing")
+    void testingWithNoWebhookSendsNothing() throws Exception {
+        perform(post("/api/webhook/test")).andExpect(status().isConflict());
+
+        verifyNoInteractions(webhookService);
+    }
+
+    @Test
+    @DisplayName("A test sends a signed event marked as a test, reports the outcome, and is audited")
+    void testsTheWebhook() throws Exception {
+        caller.setWebhookUrl("https://hooks.example.com/philter");
+        caller.setWebhookSecret("a-shared-secret-of-at-least-16-characters");
+        when(webhookService.test(eq("https://hooks.example.com/philter"), anyString(), anyString(),
+                eq("a-shared-secret-of-at-least-16-characters")))
+                .thenReturn(new WebhookService.TestResult(true, 204, null, 42L));
+
+        perform(post("/api/webhook/test"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.delivered").value(true))
+                .andExpect(jsonPath("$.statusCode").value(204))
+                .andExpect(jsonPath("$.durationMillis").value(42));
+
+        final ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(webhookService).test(anyString(), anyString(), payload.capture(), anyString());
+        assertTrue(payload.getValue().contains("\"event\":\"WEBHOOK_TEST\""), payload.getValue());
+        assertTrue(payload.getValue().contains("\"test\":true"), payload.getValue());
+        verify(auditEventPublisher).auditEvent(eq("req-hook"), eq(AuditLogEvent.WEBHOOK_TESTED), eq(callerUserId),
+                eq(callerUserId), anyString(), contains("delivered: true, status: 204"));
+    }
+
+    @Test
+    @DisplayName("A test the receiver refuses is still a 200, with delivered false and the reason")
+    void reportsAFailedTest() throws Exception {
+        caller.setWebhookUrl("https://hooks.example.com/philter");
+        caller.setWebhookSecret("a-shared-secret-of-at-least-16-characters");
+        when(webhookService.test(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new WebhookService.TestResult(false, null, "Connect timed out", 5000L));
+
+        perform(post("/api/webhook/test"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.delivered").value(false))
+                .andExpect(jsonPath("$.statusCode").doesNotExist())
+                .andExpect(jsonPath("$.error").value("Connect timed out"));
+    }
+
+    @Test
+    @DisplayName("Deliveries are listed a page at a time with the total, and the page size is capped")
+    void listsDeliveries() throws Exception {
+        final WebhookDeliveryEntity delivery = new WebhookDeliveryEntity();
+        delivery.setId(new ObjectId());
+        delivery.setDocumentId("doc-1");
+        delivery.setEventType(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE);
+        delivery.setStatus(WebhookDeliveryEntity.STATUS_PENDING);
+        delivery.setAttempts(2);
+        delivery.setLastError("Webhook responded with HTTP 500");
+        delivery.setSecret("must-never-be-returned-0123");
+        when(webhookDeliveryDataService.findByUserId(callerUserId, 0, 100)).thenReturn(List.of(delivery));
+        when(webhookDeliveryDataService.countByUserId(callerUserId)).thenReturn(7L);
+
+        final String body = perform(get("/api/webhook/deliveries").param("limit", "500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(7))
+                .andExpect(jsonPath("$.deliveries[0].documentId").value("doc-1"))
+                .andExpect(jsonPath("$.deliveries[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.deliveries[0].attempts").value(2))
+                .andExpect(jsonPath("$.deliveries[0].lastError").value("Webhook responded with HTTP 500"))
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(body.contains("must-never-be-returned"), body);
+    }
+
+    @Test
+    @DisplayName("Testing needs webhooks:write and listing deliveries needs webhooks:read")
+    void testingAndListingNeedTheirScopes() throws Exception {
+        callerKey = keyHolding(Set.of(ApiKeyScope.WEBHOOKS_READ.getScope()));
+        perform(post("/api/webhook/test")).andExpect(status().isForbidden());
+
+        callerKey = keyHolding(Set.of(ApiKeyScope.WEBHOOKS_WRITE.getScope()));
+        perform(get("/api/webhook/deliveries")).andExpect(status().isForbidden());
+
+        verifyNoInteractions(webhookService, webhookDeliveryDataService);
     }
 
 }

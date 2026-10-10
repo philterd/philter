@@ -36,7 +36,7 @@ With no webhook set, `url` is `null` and `secretSet` is `false`.
 PUT /api/webhook
 ```
 
-Requires `webhooks:write`. Replaces the URL and secret and returns the configuration as above.
+Requires `webhooks:write`. Replaces the URL and secret and returns the configuration as above. Leave `secret` out to keep the secret already set, so the URL can change without rotating the secret; a secret is required when none is set yet.
 
 ```json
 {
@@ -45,7 +45,9 @@ Requires `webhooks:write`. Replaces the URL and secret and returns the configura
 }
 ```
 
-A missing URL or secret, a URL that is not `http` or `https`, a destination that is not permitted, or a secret shorter than 16 characters is refused with `400 Bad Request` and a message saying which.
+A missing URL, a missing secret when none is set yet, a URL that is not `http` or `https`, a destination that is not permitted, or a secret shorter than 16 characters is refused with `400 Bad Request` and a message saying which.
+
+Deliveries already queued keep the URL and secret they were queued with; a change applies to events queued afterwards.
 
 ```
 curl -k -X PUT "https://localhost:8080/api/webhook" \
@@ -62,13 +64,84 @@ DELETE /api/webhook
 
 Requires `webhooks:write`. Removes the URL and secret, so results are no longer delivered, and returns `204 No Content`.
 
+### Send a test event
+
+```
+POST /api/webhook/test
+```
+
+Requires `webhooks:write`. Sends one `WEBHOOK_TEST` event to the webhook now, signed with the secret and checked against the [destination rules](#where-a-webhook-may-point) like a real delivery, and returns what happened. Use it to check a webhook after setting it, without waiting for a redaction to finish.
+
+```json
+{
+  "delivered": true,
+  "statusCode": 204,
+  "error": null,
+  "durationMillis": 118,
+  "deliveryId": "6a1106e9f5b4e90cb1d35a7c"
+}
+```
+
+* `delivered` - Whether your endpoint answered with a `2xx` status.
+* `statusCode` - The status your endpoint answered with, or `null` when there was no answer: the connection failed or timed out, or the destination is not permitted.
+* `error` - Why the test was not delivered, or `null`.
+* `durationMillis` - How long the attempt took.
+* `deliveryId` - The event's `X-Philter-Delivery-Id`, to find it in your endpoint's logs.
+
+The test is a single attempt. It is not queued, not retried, and does not appear in the [delivery list](#list-the-deliveries). Philter waits for your endpoint up to `WEBHOOK_CONNECT_TIMEOUT_SECONDS` and `WEBHOOK_RESPONSE_TIMEOUT_SECONDS`, as for a real delivery. The response is `200 OK` whether or not your endpoint accepted the event; with no webhook set it is `409 Conflict`. The event's body is marked as a test, so your endpoint can acknowledge it and do nothing else:
+
+```json
+{
+  "event": "WEBHOOK_TEST",
+  "test": true,
+  "timestamp": "2026-10-10T21:00:00Z"
+}
+```
+
+### List the deliveries
+
+```
+GET /api/webhook/deliveries?offset=0&limit=25
+```
+
+Requires `webhooks:read`. Lists your deliveries, newest first, and the total, so you can see why a webhook is failing. `limit` defaults to 25 and is capped at 100.
+
+```json
+{
+  "deliveries": [
+    {
+      "id": "6a1106e9f5b4e90cb1d35a01",
+      "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f",
+      "event": "DOCUMENT_REDACTION_COMPLETE",
+      "url": "https://hooks.example.com/philter",
+      "status": "PENDING",
+      "attempts": 3,
+      "lastError": "Webhook responded with HTTP 503",
+      "createdAt": "2026-10-10T20:41:07.000Z",
+      "updatedAt": "2026-10-10T20:42:44.000Z",
+      "nextAttemptAt": "2026-10-10T20:47:44.000Z",
+      "deliveredAt": null
+    }
+  ],
+  "total": 1
+}
+```
+
+* `id` - The delivery's id, sent as `X-Philter-Delivery-Id` with every attempt.
+* `status` - `PENDING` (waiting for its next attempt), `PROCESSING` (being sent), `DELIVERED`, or `FAILED` (every attempt failed). See [Retry behavior](#retry-behavior).
+* `attempts` and `lastError` - How many attempts have been made, and why the latest one failed.
+* `nextAttemptAt` - When a `PENDING` delivery is next attempted.
+* `url` - Where the delivery is sent: the webhook URL when the event was queued.
+
+The secret and the event body are not returned. A delivery that is `DELIVERED` or `FAILED` is kept for `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days) and then removed.
+
 ### Another user's webhook
 
-An administrator can read, set, or remove another user's webhook by adding `owner=<username>` to any of these requests. This requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, as for other cross-user access. An owner that does not exist or cannot be reached returns `404 Not Found`. A deactivated user may be named as `owner`.
+An administrator can read, set, remove, or test another user's webhook, or list its deliveries, by adding `owner=<username>` to any of these requests. This requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`, as for other cross-user access. An owner that does not exist or cannot be reached returns `404 Not Found`. A deactivated user may be named as `owner`.
 
 ### Auditing
 
-Setting and removing a webhook are recorded as `webhook_configured` and `webhook_removed` [audit events](../../auditing.md), naming the calling user and API key. The URL and secret are not recorded. A refused attempt is not recorded.
+Setting, removing, and testing a webhook are recorded as `webhook_configured`, `webhook_removed`, and `webhook_tested` [audit events](../../auditing.md), naming the calling user and API key. `webhook_configured` says whether a new secret was set or the existing one kept, and `webhook_tested` records whether the test was accepted and the status code. The URL and secret are not recorded. A refused attempt to set a webhook is not recorded.
 
 ## Events
 
@@ -76,6 +149,7 @@ Setting and removing a webhook are recorded as `webhook_configured` and `webhook
 |------------------------------------|------------------------------------------------------------|
 | `DOCUMENT_REDACTION_COMPLETE`      | The async worker successfully redacted a document.         |
 | `DOCUMENT_REDACTION_FAILED`        | The async worker could not complete the redaction.         |
+| `WEBHOOK_TEST`                     | Someone [sent a test event](#send-a-test-event). Sent once, never retried. |
 
 ## Request shape
 

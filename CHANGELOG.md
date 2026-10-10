@@ -29,6 +29,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Policy templates:** `GET /api/policies/templates/{templateName}` returns a starting point for a new
   policy; `default` is the template new users' default policy is created from. `templates` is now a
   reserved policy name.
+- **Webhook test and delivery history:** `POST /api/webhook/test` sends a signed test event and reports
+  the outcome, `GET /api/webhook/deliveries` lists deliveries with their status and last error, and
+  `PUT /api/webhook` keeps the existing secret when none is sent.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

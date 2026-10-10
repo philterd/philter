@@ -37,7 +37,7 @@ public final class WebhookSettings {
     public static String validate(final String url, final String secret, final String allowlist) {
 
         if (url == null || url.isBlank() || secret == null || secret.isEmpty()) {
-            return "Both a URL and a secret are required. Remove the webhook to clear it.";
+            return "A URL is required, and a secret unless one is already set. Remove the webhook to clear it.";
         }
 
         // Any failure parsing the URL or resolving its host is reported as an invalid URL rather than

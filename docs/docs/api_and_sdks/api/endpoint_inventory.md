@@ -102,5 +102,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | DELETE | `/api/webhook` | See reference | `webhooks:write` | [Details](webhooks.md) |
 | GET | `/api/webhook` | application/json | `webhooks:read` | [Details](webhooks.md) |
 | PUT | `/api/webhook` | application/json | `webhooks:write` | [Details](webhooks.md) |
+| GET | `/api/webhook/deliveries` | application/json | `webhooks:read` | [Details](webhooks.md#list-the-deliveries) |
+| POST | `/api/webhook/test` | application/json | `webhooks:write` | [Details](webhooks.md#send-a-test-event) |
 
 PDF async acceptance returns `application/json` with status 202, regardless of the selected download format. A ZIP result contains `redacted.pdf`. Health is a liveness response, not a dependency-readiness probe. Webhooks are outbound notifications; they are documented separately and are not inbound API routes.

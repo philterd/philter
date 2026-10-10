@@ -32,6 +32,9 @@ public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
     public static final String EVENT_DOCUMENT_REDACTION_COMPLETE = "DOCUMENT_REDACTION_COMPLETE";
     public static final String EVENT_DOCUMENT_REDACTION_FAILED = "DOCUMENT_REDACTION_FAILED";
 
+    /** A test event sent on request to check a webhook, never queued or retried. */
+    public static final String EVENT_WEBHOOK_TEST = "WEBHOOK_TEST";
+
     private ObjectId id;
     private ObjectId userId;
     private String documentId;

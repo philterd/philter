@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
 /**
@@ -27,18 +29,20 @@ public class AuditEventView {
     private final String event;
     private final String requestId;
     private final String apiKeyId;
+    private final String username;
     private final String associatedObject;
     private final String clientIpAddress;
     private final String source;
     private final String details;
 
     public AuditEventView(final Date timestamp, final String event, final String requestId, final String apiKeyId,
-                          final String associatedObject, final String clientIpAddress, final String source,
-                          final String details) {
+                          final String username, final String associatedObject, final String clientIpAddress,
+                          final String source, final String details) {
         this.timestamp = timestamp;
         this.event = event;
         this.requestId = requestId;
         this.apiKeyId = apiKeyId;
+        this.username = username;
         this.associatedObject = associatedObject;
         this.clientIpAddress = clientIpAddress;
         this.source = source;
@@ -60,6 +64,16 @@ public class AuditEventView {
     /** The acting principal, when one was recorded. */
     public String getApiKeyId() {
         return apiKeyId;
+    }
+
+    /**
+     * The username of the user {@link #getApiKeyId()} names, when the acting principal is a user,
+     * including a user since deactivated.
+     */
+    @Schema(description = "The username of the user who performed the action, when the actor is a user, including "
+            + "a user since deactivated. null for an event with no user actor, such as one Philter recorded itself.")
+    public String getUsername() {
+        return username;
     }
 
     /** The entity the action concerned, when applicable. */

@@ -359,4 +359,29 @@ class UsersApiIT {
 
     }
 
+
+    @Test
+    @DisplayName("Every user response carries the user's id")
+    void userResponsesCarryTheId() throws Exception {
+
+        final String username = newUsername();
+        final HttpResponse<String> created = post("/api/users", adminKey,
+                "{\"username\":\"" + username + "\",\"role\":\"user\"}");
+        assertEquals(201, created.statusCode(), created.body());
+        final String id = userService.findByUsername(username).getId().toHexString();
+        assertEquals(id, gson.fromJson(created.body(), JsonObject.class).get("id").getAsString());
+
+        assertEquals(id, gson.fromJson(get("/api/users/" + username, adminKey).body(), JsonObject.class)
+                .get("id").getAsString());
+
+        final JsonObject me = gson.fromJson(get("/api/users/me", adminKey).body(), JsonObject.class);
+        assertEquals(adminUserId.toHexString(), me.get("id").getAsString());
+
+        final JsonObject page = gson.fromJson(get("/api/users?limit=100", adminKey).body(), JsonObject.class);
+        assertTrue(page.getAsJsonArray("users").size() > 0);
+        page.getAsJsonArray("users").forEach(user -> assertTrue(
+                user.getAsJsonObject().get("id").getAsString().matches("[0-9a-f]{24}"), user.toString()));
+
+    }
+
 }

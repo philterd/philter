@@ -56,6 +56,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Read access to the audit log over HTTP, so it can reach a SIEM or an auditor without a database
@@ -143,9 +144,18 @@ public class AuditApiController extends AbstractApiController {
         final List<Document> documents =
                 auditLogService.find(principalId, eventFilter, fromInclusive, toExclusive, pageOffset, pageLimit);
 
+        // The actor is stored by id; name the users among them in one query for the page.
+        final List<ObjectId> actorIds = new ArrayList<>();
+        for (final Document document : documents) {
+            if (document.get("api_key_id") instanceof final ObjectId actorId && !actorIds.contains(actorId)) {
+                actorIds.add(actorId);
+            }
+        }
+        final Map<ObjectId, String> usernames = userService.findUsernamesByIds(actorIds);
+
         final List<AuditEventView> events = new ArrayList<>(documents.size());
         for (final Document document : documents) {
-            events.add(toView(document));
+            events.add(toView(document, usernames));
         }
 
         final long total = auditLogService.count(principalId, eventFilter, fromInclusive, toExclusive);
@@ -193,12 +203,14 @@ public class AuditApiController extends AbstractApiController {
 
     }
 
-    private static AuditEventView toView(final Document document) {
+    private static AuditEventView toView(final Document document, final Map<ObjectId, String> usernames) {
+        final Object actor = document.get("api_key_id");
         return new AuditEventView(
                 document.getDate("timestamp"),
                 document.getString("event"),
                 document.getString("request_id"),
-                asString(document.get("api_key_id")),
+                asString(actor),
+                actor instanceof final ObjectId actorId ? usernames.get(actorId) : null,
                 asString(document.get("associated_object")),
                 document.getString("client_ip_address"),
                 document.getString("source"),

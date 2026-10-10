@@ -177,7 +177,10 @@ Administrators can export the audit log as a CSV file with [`GET /api/audit/expo
 `GET /api/audit` returns audit events as JSON so the log can be shipped to a SIEM, pulled for a
 compliance review, or alerted on without a database connection. It requires an administrator and an
 API key holding the `audit:read` scope, and each read records an `audit_log_retrieved` event of its
-own. See the [Audit Log API](api_and_sdks/api/audit_api.md) for parameters and examples.
+own. Each event it returns also carries `username`: the username of the user `api_key_id` names, when
+it names a user, including one since deactivated. It is resolved when the log is read, and absent when
+`api_key_id` names something other than a user, such as a policy or a key. See the
+[Audit Log API](api_and_sdks/api/audit_api.md) for parameters and examples.
 
 ## Reviewing the audit log
 

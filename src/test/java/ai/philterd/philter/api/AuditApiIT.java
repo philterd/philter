@@ -217,6 +217,29 @@ class AuditApiIT {
     }
 
     @Test
+    @DisplayName("Each event names the user who performed it, and still does once that user is deactivated")
+    void eventsNameTheirActor() throws Exception {
+
+        final String actor = createUser("audit-actor-", "user");
+        final String actorId = userId(actor).toString();
+
+        final JsonObject before = gson.fromJson(get(baseUrl + "/api/audit?owner=" + actor, adminKey).body(), JsonObject.class);
+        assertTrue(before.getAsJsonArray("events").size() > 0, "creating the user is audited against it");
+        before.getAsJsonArray("events").forEach(event -> {
+            assertEquals(actorId, event.getAsJsonObject().get("apiKeyId").getAsString());
+            assertEquals(actor, event.getAsJsonObject().get("username").getAsString());
+        });
+
+        assertTrue(userService.deactivateUser("req", userService.findByUsername(actor), "test").isSuccessful());
+
+        final JsonObject after = gson.fromJson(get(baseUrl + "/api/audit?owner=" + actor, adminKey).body(), JsonObject.class);
+        after.getAsJsonArray("events").forEach(event ->
+                assertEquals(actor, event.getAsJsonObject().get("username").getAsString(),
+                        "a deactivated user's events still name them"));
+
+    }
+
+    @Test
     @DisplayName("An owner that does not exist is a 404, not an empty page")
     void anUnknownOwnerIsNotFound() throws Exception {
         assertEquals(404, get(baseUrl + "/api/audit?owner=nobody@example.com", adminKey).statusCode());

@@ -14,6 +14,7 @@ The first administrator key comes from [`PHILTER_BOOTSTRAP_API_KEY`](../../accou
 
 ```json
 {
+  "id": "6a0f1c2e9b1d4e3f2a1b0c9d",
   "username": "ci",
   "email": "ci@example.com",
   "role": "user",
@@ -27,6 +28,7 @@ The first administrator key comes from [`PHILTER_BOOTSTRAP_API_KEY`](../../accou
 }
 ```
 
+* `id` - The user's id. Audit events name their actor by this id, as `apiKeyId`, alongside its `username`.
 * `role` - `user` or `admin`.
 * `active` - `false` once the user is deactivated. A deactivated user's API keys are rejected.
 * `deactivatedAt` - When the user was deactivated, or `null`.
@@ -45,7 +47,7 @@ Returns users sorted by username, including deactivated users, and the total num
 
 ```json
 {
-  "users": [ { "username": "ci", "email": "ci@example.com", "role": "user", "active": true, "created": "2026-10-05T14:03:11.000Z", "deactivatedAt": null, "passwordSet": false, "passwordChangeRequired": false, "mfaEnabled": false, "mfaLocked": false } ],
+  "users": [ { "id": "6a0f1c2e9b1d4e3f2a1b0c9d", "username": "ci", "email": "ci@example.com", "role": "user", "active": true, "created": "2026-10-05T14:03:11.000Z", "deactivatedAt": null, "passwordSet": false, "passwordChangeRequired": false, "mfaEnabled": false, "mfaLocked": false } ],
   "total": 1
 }
 ```
@@ -96,6 +98,7 @@ Creates a user with a default policy and a default context. Requires `users:writ
 
 ```json
 {
+  "id": "6a0f1c2e9b1d4e3f2a1b0c9d",
   "username": "ci",
   "role": "user"
 }

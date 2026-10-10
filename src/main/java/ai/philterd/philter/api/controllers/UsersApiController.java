@@ -268,7 +268,9 @@ public class UsersApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(response.getMessage()));
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(new CreatedUserResponse(username, role));
+        final UserEntity created = userService.findAnyByUsername(username);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new CreatedUserResponse(
+                created == null ? null : created.getId().toHexString(), username, role));
 
     }
 

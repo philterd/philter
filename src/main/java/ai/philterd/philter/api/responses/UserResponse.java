@@ -23,6 +23,7 @@ import java.util.Date;
 /** A user as the API returns it. Says whether a password and MFA are set, never the password, hash, or secret. */
 public class UserResponse {
 
+    private final String id;
     private final String username;
     private final String email;
     private final String role;
@@ -35,6 +36,7 @@ public class UserResponse {
     private final boolean mfaLocked;
 
     public UserResponse(final UserEntity user) {
+        this.id = user.getId() == null ? null : user.getId().toHexString();
         this.username = user.getUsername();
         this.email = user.getEmail();
         this.role = user.getRole();
@@ -47,6 +49,9 @@ public class UserResponse {
         this.mfaEnabled = user.isMfaEnabled();
         this.mfaLocked = user.isMfaLocked();
     }
+
+    @Schema(description = "The user's id, which audit events and other records refer to the user by.")
+    public String getId() { return id; }
 
     public String getUsername() { return username; }
 

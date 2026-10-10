@@ -35,6 +35,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Deleted policies and version authors:** `GET /api/policies?deleted=true` lists deleted policies
   whose history is kept, with when and by whom each was deleted, and each policy version names the
   user who made it.
+- **Audit actors and user ids:** each event from `GET /api/audit` names its actor's `username`, and
+  user responses include the user's `id`.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

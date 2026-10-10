@@ -18,13 +18,18 @@ package ai.philterd.philter.api.responses;
 /** Response body for a successful {@code POST /api/users}. */
 public class CreatedUserResponse {
 
+    private final String id;
     private final String username;
     private final String role;
 
-    public CreatedUserResponse(final String username, final String role) {
+    public CreatedUserResponse(final String id, final String username, final String role) {
+        this.id = id;
         this.username = username;
         this.role = role;
     }
+
+    /** The new user's id, which audit events and other records refer to the user by. */
+    public String getId() { return id; }
 
     public String getUsername() { return username; }
 

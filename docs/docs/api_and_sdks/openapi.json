@@ -12503,6 +12503,10 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          },
+          "username": {
+            "description": "The username of the user who performed the action, when the actor is a user, including a user since deactivated. null for an event with no user actor, such as one Philter recorded itself.",
+            "type": "string"
           }
         }
       },
@@ -12703,6 +12707,9 @@
       "CreatedUserResponse": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string"
+          },
           "role": {
             "type": "string"
           },
@@ -12727,6 +12734,10 @@
           "deactivatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "id": {
+            "description": "The user's id, which audit events and other records refer to the user by.",
+            "type": "string"
           },
           "mfaAvailable": {
             "description": "Whether this deployment lets users enroll in MFA.",
@@ -14064,6 +14075,10 @@
           "deactivatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "id": {
+            "description": "The user's id, which audit events and other records refer to the user by.",
+            "type": "string"
           },
           "mfaEnabled": {
             "description": "Whether the user is enrolled in TOTP multi-factor authentication. The secret is never returned.",

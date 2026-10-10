@@ -72,6 +72,12 @@ public class PolicyVersionsApiController extends AbstractApiController {
     private final AuditEventPublisher auditEventPublisher;
     private final Gson gson;
 
+    /**
+     * Writes a diff with JSON nulls kept: a value that is null is still a value, and RFC 6902 requires
+     * value on add and replace, so leaving it out would make the operation invalid.
+     */
+    private static final Gson DIFF_GSON = new com.google.gson.GsonBuilder().serializeNulls().create();
+
     public PolicyVersionsApiController(final PolicyDataService policyDataService,
                                         final PolicyVersionDataService policyVersionDataService,
                                         final UserService userService,
@@ -204,7 +210,9 @@ public class PolicyVersionsApiController extends AbstractApiController {
                     + "'from' revision and the 'to' revision. If from and to are omitted, the two most "
                     + "recent retained revisions are compared. Object-level changes (adds, removes, "
                     + "replaces) are reported per field path; array values that differ are reported as a "
-                    + "single replace at the array path. Admins may diff another user's policy via owner.")
+                    + "single replace at the array path. Each replace and remove also carries oldValue, the "
+                    + "value before the change, so a client can show both sides; RFC 6902 has a client applying "
+                    + "the patch ignore it. Admins may diff another user's policy via owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Diff envelope containing the compared revision numbers and an RFC 6902 changes array."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing, fewer than two retained revisions exist for a default diff, or only one of from/to was supplied."),
@@ -274,7 +282,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(gson.toJson(envelope));
+                .body(DIFF_GSON.toJson(envelope));
     }
 
     @Operation(summary = "Roll back a policy to a prior revision.",
@@ -370,27 +378,36 @@ public class PolicyVersionsApiController extends AbstractApiController {
             for (final String key : fromObj.keySet()) {
                 final String childPath = path + "/" + escapePointer(key);
                 if (!toObj.has(key)) {
-                    ops.add(op("remove", childPath, null));
+                    ops.add(op("remove", childPath, null, fromObj.get(key)));
                 } else {
                     computeDiff(fromObj.get(key), toObj.get(key), childPath, ops);
                 }
             }
             for (final String key : toObj.keySet()) {
                 if (!fromObj.has(key)) {
-                    ops.add(op("add", path + "/" + escapePointer(key), toObj.get(key)));
+                    ops.add(op("add", path + "/" + escapePointer(key), toObj.get(key), null));
                 }
             }
         } else {
-            ops.add(op("replace", path, to));
+            ops.add(op("replace", path, to, from));
         }
     }
 
-    private static JsonObject op(final String opType, final String path, final JsonElement value) {
+    /**
+     * One RFC 6902 operation. {@code oldValue}, the value before the change, is a member RFC 6902 does
+     * not define, so a client applying the patch ignores it, as the RFC requires; a client showing the
+     * change reads it.
+     */
+    private static JsonObject op(final String opType, final String path, final JsonElement value,
+                                 final JsonElement oldValue) {
         final JsonObject o = new JsonObject();
         o.addProperty("op", opType);
         o.addProperty("path", path);
         if (value != null) {
             o.add("value", value);
+        }
+        if (oldValue != null) {
+            o.add("oldValue", oldValue);
         }
         return o;
     }

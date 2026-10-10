@@ -40,6 +40,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Change a user's email:** `PUT /api/users/{username}/email` lets an administrator set, change, or
   remove a user's email address. Email addresses are now checked for a basic format, including when a
   user is created.
+- **Policy diffs show both sides:** each `replace` and `remove` from `GET /api/policies/{name}/diff`
+  carries `oldValue`, the value before the change.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

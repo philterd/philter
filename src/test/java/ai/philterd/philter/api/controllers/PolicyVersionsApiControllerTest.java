@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -437,6 +438,65 @@ class PolicyVersionsApiControllerTest {
 
         assertTrue(body.contains("\"op\":\"remove\""), "should report a remove operation");
         assertTrue(body.contains("emailAddress"), "should identify the removed field");
+    }
+
+    @Test
+    void diffGivesTheValueBeforeEachReplaceAndRemove() throws Exception {
+        final String from = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]},"
+                + "\"emailAddress\":{\"priority\":1}},\"a/b\":\"old\"}";
+        final String to = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"MASK\"}]},"
+                + "\"phoneNumber\":{}},\"a/b\":\"new\"}";
+        when(policyVersionDataService.findTwoMostRecent(eq(POLICY_NAME), eq(userId)))
+                .thenReturn(List.of(version(2, to), version(1, from)));
+
+        final String body = mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/diff")
+                        .header("Authorization", AUTH_HEADER))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        final java.util.Map<String, com.google.gson.JsonObject> byPath = new java.util.HashMap<>();
+        com.google.gson.JsonParser.parseString(body).getAsJsonObject().getAsJsonArray("changes")
+                .forEach(change -> byPath.put(change.getAsJsonObject().get("path").getAsString(), change.getAsJsonObject()));
+
+        final com.google.gson.JsonObject replaced = byPath.get("/identifiers/ssn/ssnFilterStrategies");
+        assertEquals("replace", replaced.get("op").getAsString());
+        assertEquals(com.google.gson.JsonParser.parseString("[{\"strategy\":\"MASK\"}]"), replaced.get("value"));
+        assertEquals(com.google.gson.JsonParser.parseString("[{\"strategy\":\"REDACT\"}]"), replaced.get("oldValue"));
+
+        final com.google.gson.JsonObject removed = byPath.get("/identifiers/emailAddress");
+        assertEquals("remove", removed.get("op").getAsString());
+        assertFalse(removed.has("value"), "a remove has no new value");
+        assertEquals(com.google.gson.JsonParser.parseString("{\"priority\":1}"), removed.get("oldValue"));
+
+        final com.google.gson.JsonObject added = byPath.get("/identifiers/phoneNumber");
+        assertEquals("add", added.get("op").getAsString());
+        assertFalse(added.has("oldValue"), "an added field had no value before");
+
+        // A key with a slash is still escaped per RFC 6901, and its replace carries the old value too.
+        final com.google.gson.JsonObject escaped = byPath.get("/a~1b");
+        assertEquals("new", escaped.get("value").getAsString());
+        assertEquals("old", escaped.get("oldValue").getAsString());
+    }
+
+    @Test
+    void diffKeepsNullValuesOnBothSides() throws Exception {
+        when(policyVersionDataService.findTwoMostRecent(eq(POLICY_NAME), eq(userId)))
+                .thenReturn(List.of(version(2, "{\"a\":null,\"b\":2}"), version(1, "{\"a\":1,\"b\":null}")));
+
+        final String body = mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/diff")
+                        .header("Authorization", AUTH_HEADER))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        final java.util.Map<String, com.google.gson.JsonObject> byPath = new java.util.HashMap<>();
+        com.google.gson.JsonParser.parseString(body).getAsJsonObject().getAsJsonArray("changes")
+                .forEach(change -> byPath.put(change.getAsJsonObject().get("path").getAsString(), change.getAsJsonObject()));
+
+        // A replace must carry value (RFC 6902), even when the new value is null.
+        assertTrue(byPath.get("/a").has("value") && byPath.get("/a").get("value").isJsonNull(), body);
+        assertEquals(1, byPath.get("/a").get("oldValue").getAsInt());
+        assertTrue(byPath.get("/b").has("oldValue") && byPath.get("/b").get("oldValue").isJsonNull(), body);
+        assertEquals(2, byPath.get("/b").get("value").getAsInt());
     }
 
     // ============================================================

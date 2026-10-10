@@ -431,12 +431,15 @@ If both `from` and `to` are omitted, the two most recent retained revisions are 
 
 Returns an envelope with the compared revision numbers and an [RFC 6902 JSON Patch](https://jsonpatch.com/) array. Object-level changes (adds, removes, replaces) are reported per field path; array values that differ are reported as a single `replace` at the array path.
 
+Each `replace` and `remove` also carries `oldValue`, the value at that path before the change, so the change can be shown side by side without fetching both revisions. RFC 6902 has a client that applies the patch ignore members it does not define, so the changes still apply as a standard patch. An `add` has no `oldValue`, since the path had no value before. A value that is JSON `null` is written as `null`, not left out.
+
 ```json
 {
   "from": 1,
   "to": 3,
   "changes": [
-    { "op": "replace", "path": "/identifiers/ssn/ssnFilterStrategies/0/strategy", "value": "MASK" },
+    { "op": "replace", "path": "/identifiers/ssn/ssnFilterStrategies", "value": [{ "strategy": "MASK" }], "oldValue": [{ "strategy": "REDACT" }] },
+    { "op": "remove",  "path": "/identifiers/phoneNumber", "oldValue": { "phoneNumberFilterStrategies": [{ "strategy": "REDACT" }] } },
     { "op": "add",     "path": "/identifiers/emailAddress", "value": {} }
   ]
 }

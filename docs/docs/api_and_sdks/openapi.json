@@ -7478,7 +7478,7 @@
           "Policy Versions"
         ],
         "summary": "Diff two revisions of a policy.",
-        "description": "Returns an RFC 6902 JSON Patch array describing what changed between the 'from' revision and the 'to' revision. If from and to are omitted, the two most recent retained revisions are compared. Object-level changes (adds, removes, replaces) are reported per field path; array values that differ are reported as a single replace at the array path. Admins may diff another user's policy via owner. Requires the `policies:read` scope.",
+        "description": "Returns an RFC 6902 JSON Patch array describing what changed between the 'from' revision and the 'to' revision. If from and to are omitted, the two most recent retained revisions are compared. Object-level changes (adds, removes, replaces) are reported per field path; array values that differ are reported as a single replace at the array path. Each replace and remove also carries oldValue, the value before the change, so a client can show both sides; RFC 6902 has a client applying the patch ignore it. Admins may diff another user's policy via owner. Requires the `policies:read` scope.",
         "operationId": "diff",
         "parameters": [
           {

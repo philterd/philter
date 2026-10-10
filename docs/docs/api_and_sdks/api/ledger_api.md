@@ -24,7 +24,8 @@ Returns the most recent chains first. Each item is the chain's genesis entry, wh
 * `owner` - Optional. Admin only. The username of the user whose ledger to list. Defaults to the caller.
 * `offset` - Optional. Number of chains to skip (default `0`).
 * `limit` - Optional. Maximum chains to return (default `25`, max `100`).
-* `all_users` - Optional. List every user's chains instead of the caller's; each chain then also has an `owner` field with its owner's username, and `total` counts every user's chains. Cannot be combined with `q`. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
+* `sort` - Optional. `created` (the default, newest first) or `filename`. With `order`, `asc` or `desc`; see [Listings](../api.md#listings).
+* `all_users` - Optional. List every user's chains instead of the caller's; each chain then also has an `owner` field with its owner's username, and `total` counts every user's chains that match `q`. Can be combined with `q`. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
 Returns `200 OK` with `{ "chains": [ ... ], "total": <count> }`. `total` is the number of chains the request matched: your whole ledger when `q` is absent, or the number of chains matching `q` when it is present. Paging with `offset` and `limit` applies either way, so `total` always describes the set the returned chains were drawn from.
 

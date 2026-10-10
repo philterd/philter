@@ -121,13 +121,33 @@ class PoliciesApiControllerTest {
 
     @Test
     void listScopesToOwningUserId() throws Exception {
-        when(policyDataService.findAll(eq(userId), anyInt(), anyInt(), eq(false)))
-                .thenReturn(Collections.emptyList());
+        when(policyDataService.listOwn(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-1"))
                 .andExpect(status().isOk());
 
-        verify(policyDataService).findAll(eq(userId), anyInt(), anyInt(), eq(false));
+        verify(policyDataService).listOwn(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("name", false)), anyInt(), anyInt());
+    }
+
+    @Test
+    void listReturnsNamesWithTheTotalAndPassesSearchAndOrder() throws Exception {
+        final PolicyEntity entity = new PolicyEntity();
+        entity.setName("claims");
+        when(policyDataService.listOwn(eq(userId), eq("cla"), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(java.util.List.of(entity), 12));
+
+        final String body = mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("q", "cla").param("sort", "updated").param("order", "desc").requestAttr("requestId", "req-s"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"policies\":[\"claims\"]") && body.contains("\"total\":12"), body);
+        verify(policyDataService).listOwn(eq(userId), eq("cla"), eq(new ai.philterd.philter.data.services.Listings.Sort("last_updated_timestamp", true)), eq(0), eq(25));
+
+        final String refused = mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)
+                        .param("sort", "size").requestAttr("requestId", "req-bad"))
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
+        assertTrue(refused.contains("name, created, updated"), refused);
     }
 
     @Test
@@ -415,14 +435,14 @@ class PoliciesApiControllerTest {
         final ObjectId otherUser = new ObjectId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
-        when(policyDataService.findAll(eq(otherUser), anyInt(), anyInt(), eq(false)))
-                .thenReturn(Collections.emptyList());
+        when(policyDataService.listOwn(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-1")
                         .param("owner", "other@example.com"))
                 .andExpect(status().isOk());
 
-        verify(policyDataService).findAll(eq(otherUser), anyInt(), anyInt(), eq(false));
+        verify(policyDataService).listOwn(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("name", false)), anyInt(), anyInt());
     }
 
     @Test

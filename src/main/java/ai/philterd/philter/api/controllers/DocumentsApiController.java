@@ -16,6 +16,8 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.exceptions.BadRequestException;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.api.responses.GetDocumentsResponse;
 import ai.philterd.philter.api.responses.GetRedactionStatusResponse;
 import ai.philterd.philter.api.responses.PendingRedactedDocuments;
@@ -83,6 +85,9 @@ public class DocumentsApiController extends AbstractApiController {
     public ResponseEntity<String> listDocuments(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "status", required = false) String status,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit) {
 
@@ -91,11 +96,16 @@ public class DocumentsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final String statusFilter = documentStatus(status);
+        final Listings.Sort documentSort = listingSort(sort, order, DOCUMENT_SORT, "submitted", true);
+
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        final List<PendingDocumentEntity> entities = pendingDocumentDataService.findAllByUserId(userId, normalizeOffset(offset), normalizeLimit(limit));
+        final Listings.Page<PendingDocumentEntity> page = pendingDocumentDataService.list(userId, statusFilter, documentSort,
+                normalizeOffset(offset), normalizeLimit(limit));
+        final List<PendingDocumentEntity> entities = page.items();
 
         final List<PendingRedactedDocuments> documents = new ArrayList<>();
         for (final PendingDocumentEntity entity : entities) {
@@ -107,9 +117,29 @@ public class DocumentsApiController extends AbstractApiController {
             ));
         }
 
-        final GetDocumentsResponse response = new GetDocumentsResponse(documents);
+        final GetDocumentsResponse response = new GetDocumentsResponse(documents, page.total());
         return new ResponseEntity<>(gson.toJson(response), HttpStatus.OK);
 
+    }
+
+    /** The order a listing of documents can take. */
+    private static final java.util.Map<String, String> DOCUMENT_SORT = sortFields("submitted", "submitted_at", "fileName", "file_name");
+
+    /** The statuses a listing can be narrowed to. */
+    private static final List<String> DOCUMENT_STATUSES = List.of(PendingDocumentEntity.STATUS_PENDING,
+            PendingDocumentEntity.STATUS_PROCESSING, PendingDocumentEntity.STATUS_COMPLETE, PendingDocumentEntity.STATUS_FAILED);
+
+    /** The stored status a status parameter names, or {@code null} for none. Matched without regard to case. */
+    private static String documentStatus(final String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        for (final String known : DOCUMENT_STATUSES) {
+            if (known.equalsIgnoreCase(status.trim())) {
+                return known;
+            }
+        }
+        throw new BadRequestException("status must be one of: " + String.join(", ", DOCUMENT_STATUSES) + ".");
     }
 
     @Operation(summary = "Get the status of an async redaction.")

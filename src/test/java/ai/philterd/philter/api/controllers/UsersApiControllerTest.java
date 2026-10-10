@@ -328,9 +328,8 @@ class UsersApiControllerTest {
     @DisplayName("An administrator lists users, deactivated ones included, with the total")
     void listsUsers() throws Exception {
         callerIsAdministrator(true);
-        when(userService.findAll(0, 25)).thenReturn(List.of(
-                storedUser("alice", "admin", false), storedUser("bob", "user", true)));
-        when(userService.count()).thenReturn(2);
+        when(userService.list(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(storedUser("alice", "admin", false), storedUser("bob", "user", true)), 2));
 
         final String body = perform(get("/api/users"))
                 .andExpect(status().isOk())
@@ -345,11 +344,33 @@ class UsersApiControllerTest {
     @DisplayName("Paging is clamped to the API's limits")
     void listingClampsPaging() throws Exception {
         callerIsAdministrator(true);
-        when(userService.findAll(0, 100)).thenReturn(List.of());
+        when(userService.list(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(), 0));
 
         perform(get("/api/users").param("offset", "-5").param("limit", "1000")).andExpect(status().isOk());
 
-        verify(userService).findAll(0, 100);
+        verify(userService).list(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.eq(new ai.philterd.philter.data.services.Listings.Sort("username", false)), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(100));
+    }
+
+    @Test
+    @DisplayName("Search, role, active, and order are passed through, and an unknown sort is refused")
+    void listingPassesSearchFiltersAndOrder() throws Exception {
+        callerIsAdministrator(true);
+        when(userService.list(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(), 7));
+
+        final String body = perform(get("/api/users").param("q", "jor").param("role", "ADMIN").param("active", "false")
+                .param("sort", "created").param("order", "desc"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(body.contains("\"total\":7"), body);
+        verify(userService).list(org.mockito.ArgumentMatchers.eq("jor"), org.mockito.ArgumentMatchers.eq("admin"), org.mockito.ArgumentMatchers.eq(Boolean.FALSE),
+                org.mockito.ArgumentMatchers.eq(new ai.philterd.philter.data.services.Listings.Sort("_id", true)), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(25));
+
+        final String refused = perform(get("/api/users").param("sort", "email"))
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
+        assertTrue(refused.contains("username, created"), refused);
+        perform(get("/api/users").param("order", "sideways")).andExpect(status().isBadRequest());
     }
 
     @Test

@@ -188,7 +188,7 @@ class PolicyDetailsIT {
     void managedPolicies() throws Exception {
         final HttpResponse<String> listed = send("GET", "/api/policies?managed=true", null, null);
         assertEquals(200, listed.statusCode(), listed.body());
-        final JsonArray managed = gson.fromJson(listed.body(), JsonArray.class);
+        final JsonArray managed = gson.fromJson(listed.body(), JsonObject.class).getAsJsonArray("policies");
         assertFalse(managed.isEmpty(), listed.body());
 
         // Each entry carries its description, the same one the policy's details return.
@@ -231,7 +231,7 @@ class PolicyDetailsIT {
                 send("GET", "/api/policies/pii", null, null).body(), "the copy has the same policy");
         final HttpResponse<String> versions = send("GET", "/api/policies/pii/versions", null, null);
         assertEquals(200, versions.statusCode(), versions.body());
-        assertEquals(1, gson.fromJson(versions.body(), JsonArray.class).size(), "the copy starts its own history: " + versions.body());
+        assertEquals(1, gson.fromJson(versions.body(), JsonObject.class).getAsJsonArray("versions").size(), "the copy starts its own history: " + versions.body());
 
         // The copy is the caller's own: editable, and copyable in turn, keeping its notes.
         assertEquals(200, send("PUT", "/api/policies/pii/details", "application/json", "{\"notes\":\"tuned\"}").statusCode());

@@ -26,6 +26,7 @@ Authorization: Bearer <token>
 * `owner` - Optional. Return only events whose acting principal is this user, named by username. Resolved by the usual rules: a username that does not exist, or one the caller may not reach, returns `404 Not Found`; a deactivated user may be named. Note that some events record the affected entity rather than the acting principal in `api_key_id` and so are not returned by an `owner` filter; an unfiltered listing always returns them.
 * `offset` - Optional. Number of events to skip (default `0`).
 * `limit` - Optional. Maximum events to return (default `25`, max `100`).
+* `order` - Optional. `desc` (the default) lists the newest event first, `asc` the oldest. See [Listings](../api.md#listings).
 
 Returns `200 OK` with `{ "events": [ ... ], "total": <count> }`. `total` is the number of events matching the filters, so paging with `offset` and `limit` always describes the set the returned events were drawn from.
 

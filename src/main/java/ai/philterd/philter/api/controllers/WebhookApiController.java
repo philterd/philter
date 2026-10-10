@@ -293,6 +293,7 @@ public class WebhookApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestAttribute("requestId") String requestId,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit) {
 
@@ -305,12 +306,16 @@ public class WebhookApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, caller.getUserId(), userId, "list webhook deliveries");
 
         final List<WebhookDeliveryView> deliveries = webhookDeliveryDataService
-                .findByUserId(userId, normalizeOffset(offset), normalizeLimit(limit)).stream()
+                .findByUserId(userId, normalizeOffset(offset), normalizeLimit(limit),
+                        listingSort(null, order, DELIVERY_SORT, "created", true).descending()).stream()
                 .map(WebhookDeliveryView::new).toList();
 
         return ResponseEntity.ok(new WebhookDeliveriesResponse(deliveries, webhookDeliveryDataService.countByUserId(userId)));
 
     }
+
+    /** The order a listing of deliveries can take. */
+    private static final Map<String, String> DELIVERY_SORT = sortFields("created", "created_at");
 
     /**
      * The user whose webhook the request targets, resolved by the usual {@code owner} rules, or

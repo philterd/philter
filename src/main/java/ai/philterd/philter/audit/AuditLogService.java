@@ -172,11 +172,17 @@ public class AuditLogService {
      */
     public List<Document> find(final ObjectId principalId, final String event, final Date from,
                                final Date toExclusive, final int offset, final int limit) {
+        return find(principalId, event, from, toExclusive, offset, limit, true);
+    }
+
+    /** As above, oldest first unless {@code descending}. */
+    public List<Document> find(final ObjectId principalId, final String event, final Date from,
+                               final Date toExclusive, final int offset, final int limit, final boolean descending) {
 
         final List<Document> events = new ArrayList<>();
 
         collection.find(filter(principalId, event, from, toExclusive))
-                .sort(Sorts.descending("timestamp"))
+                .sort(descending ? Sorts.descending("timestamp", "_id") : Sorts.ascending("timestamp", "_id"))
                 .skip(offset)
                 .limit(limit)
                 .forEach(events::add);

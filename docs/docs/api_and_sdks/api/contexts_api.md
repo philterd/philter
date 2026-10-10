@@ -14,8 +14,13 @@ The Contexts API provides endpoints for retrieving, creating, updating, and dele
 
 ### Query Parameters
 
-* `offset` (optional, default: `0`) - The number of context names to skip.
-* `limit` (optional, default: `25`) - The maximum number of context names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
+Returns the contexts on the requested page in `contexts` and `total`, how many there are across every page. See [Listings](../api.md#listings) for paging, sorting, and searching.
+
+* `offset` (optional, default: `0`) - The number of contexts to skip.
+* `limit` (optional, default: `25`, max: `100`) - The maximum number of contexts to return.
+* `q` (optional) - Only contexts whose name contains `q`, ignoring case.
+* `sort` (optional, default: `name`) - `name` or `created`.
+* `order` (optional, default: `asc`) - `asc` or `desc`.
 * `owner` (optional) - The username of the user whose contexts to list. When omitted, the caller's own contexts are listed. Supplying an `owner` other than yourself requires admin privileges and cross-user access being enabled (`ADMIN_CROSS_USER_ACCESS_ENABLED=true`; disabled by default); otherwise it receives `404 Not Found`.
 * `all_users` (optional, default: `false`) - List every user's contexts instead of the caller's. Each item in `contexts` is then an object with the context's `name` and its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
@@ -32,7 +37,8 @@ Example response:
   "contexts": [
     "default",
     "my-context"
-  ]
+  ],
+  "total": 2
 }
 ```
 
@@ -178,6 +184,8 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" "https://localhost:8080/api
 
 * `offset` (optional, default: `0`)
 * `limit` (optional, default: `25`, max: `100`)
+* `sort` (optional, default: `created`) - `created`, newest first by default, or `reads`. See [Listings](../api.md#listings).
+* `order` (optional) - `asc` or `desc`.
 * `owner` (optional, admin only) - Username of another user whose context to list entries from. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 Example request:

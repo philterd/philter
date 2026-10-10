@@ -244,6 +244,44 @@ public abstract class AbstractApiController {
         return limit <= 0 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
     }
 
+    /** The fields a listing can be sorted by, API name then stored field, in the order they are documented. */
+    protected static Map<String, String> sortFields(final String... apiAndStored) {
+        final Map<String, String> fields = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < apiAndStored.length; i += 2) {
+            fields.put(apiAndStored[i], apiAndStored[i + 1]);
+        }
+        return java.util.Collections.unmodifiableMap(fields);
+    }
+
+    /**
+     * The order a listing request asks for. {@code sort} names one of the listing's {@code fields} (API
+     * name to stored field) and {@code order} is {@code asc} or {@code desc}; either may be left out for
+     * the listing's default. An unknown field or order is a 400 naming what is accepted.
+     */
+    protected static ai.philterd.philter.data.services.Listings.Sort listingSort(
+            final String sort, final String order, final Map<String, String> fields,
+            final String defaultSort, final boolean defaultDescending) {
+
+        final String apiField = sort == null || sort.isBlank() ? defaultSort : sort.trim();
+        final String storedField = fields.get(apiField);
+        if (storedField == null) {
+            throw new BadRequestException("sort must be one of: " + String.join(", ", fields.keySet()) + ".");
+        }
+
+        final boolean descending;
+        if (order == null || order.isBlank()) {
+            descending = apiField.equals(defaultSort) ? defaultDescending : false;
+        } else if ("asc".equalsIgnoreCase(order.trim())) {
+            descending = false;
+        } else if ("desc".equalsIgnoreCase(order.trim())) {
+            descending = true;
+        } else {
+            throw new BadRequestException("order must be asc or desc.");
+        }
+
+        return new ai.philterd.philter.data.services.Listings.Sort(storedField, descending);
+    }
+
     /** The calling key, or a 401 when the request carries none that is recognized. */
     protected ApiKeyEntity requireApiKey(final String authorizationHeader) {
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);

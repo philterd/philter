@@ -20,13 +20,20 @@ import java.util.List;
 public class GetContextsResponse {
 
     private final List<String> contexts;
+    private final long total;
 
-    public GetContextsResponse(List<String> contexts) {
+    public GetContextsResponse(final List<String> contexts, final long total) {
         this.contexts = contexts;
+        this.total = total;
     }
 
     public List<String> getContexts() {
         return contexts;
+    }
+
+    /** How many items the listing has across every page. */
+    public long getTotal() {
+        return total;
     }
 
 }

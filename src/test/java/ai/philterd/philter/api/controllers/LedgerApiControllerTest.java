@@ -132,11 +132,14 @@ class LedgerApiControllerTest {
         return entity;
     }
 
+    private void listingReturns(final List<LedgerEntity> chains, final long total) {
+        when(ledgerService.listChains(any(), any(), any(), any(), anyInt(), anyInt(), any()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(chains, total));
+    }
+
     @Test
     void listScopesToUserAndReturnsChains() throws Exception {
-        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
-                .thenReturn(List.of(chainHead("doc-1", "a.txt")));
-        when(ledgerService.countChainsByUserId(userId)).thenReturn(1);
+        listingReturns(List.of(chainHead("doc-1", "a.txt")), 1);
 
         final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-list"))
@@ -144,46 +147,29 @@ class LedgerApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("doc-1"));
-        verify(ledgerService).findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any());
+        verify(ledgerService).listChains(any(), eq(userId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("timestamp", true)),
+                eq(0), eq(25), any());
     }
 
     @Test
-    void listWithQueryUsesSearch() throws Exception {
-        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
-
-        mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
-                        .param("q", "invoice")
-                        .requestAttr("requestId", "req-search"))
-                .andExpect(status().isOk());
-
-        verify(ledgerService).searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any());
-        verify(ledgerService, never()).findChainsByUserId(any(), any(), anyInt(), anyInt(), any());
-    }
-
-    @Test
-    void searchReportsTheMatchingTotalNotTheUserTotal() throws Exception {
+    void listWithQueryPassesTheSearchAndReportsTheMatchingTotal() throws Exception {
         final LedgerEntity match = new LedgerEntity();
         match.setDocumentId("doc-1");
-        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any()))
-                .thenReturn(List.of(match));
-        // `total` must count the matches, not the caller's whole ledger.
-        when(ledgerService.countChainsByUserIdMatching(eq(userId), eq("invoice"))).thenReturn(1);
+        listingReturns(List.of(match), 1);
 
         final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .param("q", "invoice")
-                        .requestAttr("requestId", "req-search-total"))
+                        .requestAttr("requestId", "req-search"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"total\":1"), "total should count the matches, was: " + body);
-        verify(ledgerService, never()).countChainsByUserId(any());
+        verify(ledgerService).listChains(any(), eq(userId), eq("invoice"), any(), eq(0), eq(25), any());
     }
 
     @Test
     void searchPassesOffsetAndLimitThrough() throws Exception {
-        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), eq(50), eq(10), any()))
-                .thenReturn(Collections.emptyList());
+        listingReturns(Collections.emptyList(), 0);
 
         mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .param("q", "invoice")
@@ -192,26 +178,24 @@ class LedgerApiControllerTest {
                         .requestAttr("requestId", "req-search-paged"))
                 .andExpect(status().isOk());
 
-        verify(ledgerService).searchChainsByUserId(any(), eq(userId), eq("invoice"), eq(50), eq(10), any());
+        verify(ledgerService).listChains(any(), eq(userId), eq("invoice"), any(), eq(50), eq(10), any());
     }
 
     @Test
     void negativeOffsetIsClampedToZero() throws Exception {
-        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
+        listingReturns(Collections.emptyList(), 0);
 
         mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .param("offset", "-5")
                         .requestAttr("requestId", "req-neg-offset"))
                 .andExpect(status().isOk());
 
-        verify(ledgerService).findChainsByUserId(any(), eq(userId), eq(0), anyInt(), any());
+        verify(ledgerService).listChains(any(), eq(userId), any(), any(), eq(0), anyInt(), any());
     }
 
     @Test
     void nonPositiveLimitFallsBackToTheDefault() throws Exception {
-        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
+        listingReturns(Collections.emptyList(), 0);
 
         // Passed straight through, a negative limit means "return |n| and close the cursor" to
         // MongoDB, which silently yields a short page.
@@ -220,26 +204,24 @@ class LedgerApiControllerTest {
                         .requestAttr("requestId", "req-neg-limit"))
                 .andExpect(status().isOk());
 
-        verify(ledgerService).findChainsByUserId(any(), eq(userId), anyInt(), eq(25), any());
+        verify(ledgerService).listChains(any(), eq(userId), any(), any(), anyInt(), eq(25), any());
     }
 
     @Test
     void limitIsCappedAtTheMaximum() throws Exception {
-        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
+        listingReturns(Collections.emptyList(), 0);
 
         mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .param("limit", "5000")
                         .requestAttr("requestId", "req-big-limit"))
                 .andExpect(status().isOk());
 
-        verify(ledgerService).findChainsByUserId(any(), eq(userId), anyInt(), eq(100), any());
+        verify(ledgerService).listChains(any(), eq(userId), any(), any(), anyInt(), eq(100), any());
     }
 
     @Test
     void searchIsNormalizedTheSameWayAsTheUnfilteredListing() throws Exception {
-        when(ledgerService.searchChainsByUserId(any(), eq(userId), eq("invoice"), anyInt(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
+        listingReturns(Collections.emptyList(), 0);
 
         mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .param("q", "invoice")
@@ -248,14 +230,12 @@ class LedgerApiControllerTest {
                         .requestAttr("requestId", "req-neg-search"))
                 .andExpect(status().isOk());
 
-        verify(ledgerService).searchChainsByUserId(any(), eq(userId), eq("invoice"), eq(0), eq(25), any());
+        verify(ledgerService).listChains(any(), eq(userId), eq("invoice"), any(), eq(0), eq(25), any());
     }
 
     @Test
-    void unfilteredListStillReportsTheUserTotal() throws Exception {
-        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
-        when(ledgerService.countChainsByUserId(eq(userId))).thenReturn(7);
+    void unfilteredListReportsTheUserTotal() throws Exception {
+        listingReturns(Collections.emptyList(), 7);
 
         final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-list-total"))
@@ -263,7 +243,36 @@ class LedgerApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"total\":7"), "total should count the user's chains, was: " + body);
-        verify(ledgerService, never()).countChainsByUserIdMatching(any(), any());
+    }
+
+    @Test
+    void listOrdersByFilenameOnRequestAndRefusesAnUnknownSort() throws Exception {
+        listingReturns(Collections.emptyList(), 0);
+
+        mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("sort", "filename")
+                        .requestAttr("requestId", "req-sort"))
+                .andExpect(status().isOk());
+
+        verify(ledgerService).listChains(any(), eq(userId), any(), eq(new ai.philterd.philter.data.services.Listings.Sort("filename", false)), anyInt(), anyInt(), any());
+
+        mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("sort", "size")
+                        .requestAttr("requestId", "req-bad-sort"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void allUsersCanBeSearched() throws Exception {
+        makeCallerAdmin();
+        listingReturns(Collections.emptyList(), 0);
+
+        mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
+                        .param("all_users", "true").param("q", "invoice")
+                        .requestAttr("requestId", "req-all-search"))
+                .andExpect(status().isOk());
+
+        verify(ledgerService).listChains(any(), org.mockito.ArgumentMatchers.isNull(), eq("invoice"), any(), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -561,7 +570,7 @@ class LedgerApiControllerTest {
                         .requestAttr("requestId", "req-401"))
                 .andExpect(status().isUnauthorized());
 
-        verify(ledgerService, never()).findChainsByUserId(any(), any(), anyInt(), anyInt(), any());
+        verify(ledgerService, never()).listChains(any(), any(), any(), any(), anyInt(), anyInt(), any());
     }
 
     // ----- Admin cross-user access via the owner parameter -----
@@ -688,9 +697,7 @@ class LedgerApiControllerTest {
     @Test
     @DisplayName("Listing chains does not return the redacted values")
     void listingChainsDoesNotReturnTheValues() throws Exception {
-        when(ledgerService.findChainsByUserId(any(), eq(userId), anyInt(), anyInt(), any()))
-                .thenReturn(List.of(chainHead("doc-1", "a.txt")));
-        when(ledgerService.countChainsByUserId(userId)).thenReturn(1);
+        listingReturns(List.of(chainHead("doc-1", "a.txt")), 1);
 
         final String body = mockMvc.perform(get("/api/ledger").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req"))

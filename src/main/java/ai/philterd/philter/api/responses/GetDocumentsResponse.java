@@ -20,13 +20,20 @@ import java.util.List;
 public class GetDocumentsResponse {
 
     private final List<PendingRedactedDocuments> pendingRedactedDocuments;
+    private final long total;
 
-    public GetDocumentsResponse(List<PendingRedactedDocuments> pendingRedactedDocuments) {
+    public GetDocumentsResponse(final List<PendingRedactedDocuments> pendingRedactedDocuments, final long total) {
         this.pendingRedactedDocuments = pendingRedactedDocuments;
+        this.total = total;
     }
 
     public List<PendingRedactedDocuments> getPendingRedactedDocuments() {
         return pendingRedactedDocuments;
+    }
+
+    /** How many items the listing has across every page. */
+    public long getTotal() {
+        return total;
     }
 
 }

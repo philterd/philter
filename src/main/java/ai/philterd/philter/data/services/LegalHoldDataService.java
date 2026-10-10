@@ -174,6 +174,16 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
     /**
      * Returns a page of all holds owned by the given user, most recently set first.
      */
+    /**
+     * A page of the user's holds, or every user's when {@code userId} is null, whose references contain
+     * {@code q}, and their total.
+     */
+    public Listings.Page<LegalHoldEntity> list(final ObjectId userId, final String q, final Listings.Sort sort,
+                                               final int offset, final int limit) {
+        return Listings.page(holds, Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+                Listings.contains("reference", q)), sort, offset, limit, LegalHoldEntity::fromDocument);
+    }
+
     public List<LegalHoldEntity> findAllByUserId(final ObjectId userId, final int offset, final int limit) {
         final FindIterable<Document> docs = holds.find(Filters.eq("user_id", userId))
                 .sort(Sorts.descending("set_at"))

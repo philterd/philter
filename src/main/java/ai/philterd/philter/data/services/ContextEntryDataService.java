@@ -79,13 +79,19 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     }
 
     public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int offset, int limit) {
+        return findAllByUserIdAndContext(userId, contextName, offset, limit, new Listings.Sort("timestamp", true));
+    }
+
+    /** A page of the context's entries in {@code sort} order. */
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int offset, int limit,
+                                                              final Listings.Sort sort) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
         final Document query = new Document("user_id", userId).append("context_name", contextName);
 
         final Iterable<Document> documents = collection.find(query)
-                .sort(Sorts.descending("timestamp"))
+                .sort(sort.toBson())
                 .skip(Math.max(0, offset))
                 .limit(effectiveLimit);
 

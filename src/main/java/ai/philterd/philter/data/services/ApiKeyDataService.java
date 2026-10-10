@@ -243,9 +243,15 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * long-lived keys when false, and both when null.
      */
     public List<ApiKeyEntity> findAllBySession(final ObjectId userId, final int offset, final int limit, final Boolean session) {
+        return findAllBySession(userId, offset, limit, session, false);
+    }
+
+    /** As above, newest first when {@code descending}. */
+    public List<ApiKeyEntity> findAllBySession(final ObjectId userId, final int offset, final int limit, final Boolean session,
+                                               final boolean descending) {
         final List<ApiKeyEntity> keys = new ArrayList<>();
         for (final Document document : collection.find(activeKeys(userId, session))
-                .sort(Sorts.ascending("timestamp")).skip(offset).limit(limit)) {
+                .sort(new Listings.Sort("timestamp", descending).toBson()).skip(offset).limit(limit)) {
             keys.add(ApiKeyEntity.fromDocument(document));
         }
         return keys;

@@ -297,6 +297,16 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
+    /**
+     * A page of the user's contexts, or every user's when {@code userId} is null, whose names contain
+     * {@code q}, and their total.
+     */
+    public Listings.Page<ContextEntity> list(final ObjectId userId, final String q, final Listings.Sort sort,
+                                             final int offset, final int limit) {
+        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+                Listings.contains("context_name", q)), sort, offset, limit, ContextEntity::fromDocument);
+    }
+
     public List<ContextEntity> findAll(final ObjectId userId, final int offset, final int limit) {
         return findAll(userId, offset, limit, null, null);
     }

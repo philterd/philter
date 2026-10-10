@@ -15,26 +15,25 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
-/** {@code GET /api/contexts?all_users=true}: the per-user shape, with each context naming its owner. */
-public class GetAllUsersContextsResponse {
+/** A page of custom lists and how many there are. With all_users, each list also names its owner. */
+public class GetCustomListsResponse {
 
-    private final List<OwnedNameResponse> contexts;
+    private final List<ListSummaryResponse> lists;
     private final long total;
 
-    public GetAllUsersContextsResponse(final List<OwnedNameResponse> contexts, final long total) {
-        this.contexts = contexts;
+    public GetCustomListsResponse(final List<ListSummaryResponse> lists, final long total) {
+        this.lists = lists;
         this.total = total;
     }
 
-    public List<OwnedNameResponse> getContexts() {
-        return contexts;
-    }
+    @Schema(description = "The lists on this page, each with its name, description, and number of items.")
+    public List<ListSummaryResponse> getLists() { return lists; }
 
-    /** How many items the listing has across every page. */
-    public long getTotal() {
-        return total;
-    }
+    @Schema(description = "How many lists the listing has across every page.")
+    public long getTotal() { return total; }
 
 }

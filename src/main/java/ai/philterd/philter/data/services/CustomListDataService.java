@@ -336,6 +336,17 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
+    /**
+     * A page of the user's custom lists, or every user's when {@code userId} is null, whose names contain
+     * {@code q}, and their total.
+     */
+    public Listings.Page<CustomListEntity> list(final ObjectId userId, final String q, final Listings.Sort sort,
+                                                final int offset, final int limit) {
+        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+                Listings.contains("name", q)), sort, offset, limit,
+                document -> CustomListEntity.fromDocument(document, encryptionService));
+    }
+
     public List<CustomListEntity> findAll(final ObjectId userId, final int offset, final int limit) {
         return findAll(userId, offset, limit, null, null);
     }

@@ -150,7 +150,7 @@ class AllUsersListingsIT {
     @DisplayName("Each listing returns every user's resources, naming the owner, with stable paging")
     void listsAcrossUsers() throws Exception {
 
-        final Set<String> policies = allPages("/api/policies", null, "name");
+        final Set<String> policies = allPages("/api/policies", "policies", "name");
         assertTrue(policies.containsAll(Set.of("default|" + alice, "default|" + bob)), policies.toString());
         assertEquals(policyDataService.countAllAcrossUsers(false), policies.size(),
                 "paging through every user's policies returns each exactly once");
@@ -158,13 +158,13 @@ class AllUsersListingsIT {
         final Set<String> contexts = allPages("/api/contexts", "contexts", "name");
         assertTrue(contexts.containsAll(Set.of("default|" + alice, "default|" + bob)), contexts.toString());
 
-        final Set<String> lists = allPages("/api/lists", null, "name");
+        final Set<String> lists = allPages("/api/lists", "lists", "name");
         assertTrue(lists.containsAll(Set.of("names-" + alice + "|" + alice, "names-" + bob + "|" + bob)), lists.toString());
 
         final Set<String> chains = allPages("/api/ledger", "chains", "documentId");
         assertTrue(chains.containsAll(Set.of("doc-" + alice + "|" + alice, "doc-" + bob + "|" + bob)), chains.toString());
 
-        final Set<String> holds = allPages("/api/holds", null, "reference");
+        final Set<String> holds = allPages("/api/holds", "holds", "reference");
         assertTrue(holds.containsAll(Set.of("hold-" + alice + "|" + alice, "hold-" + bob + "|" + bob)), holds.toString());
 
     }
@@ -178,15 +178,15 @@ class AllUsersListingsIT {
         managed.setPolicy("{}");
         policyDataService.save(managed);
 
-        assertFalse(allPages("/api/policies", null, "name").stream().anyMatch(item -> item.startsWith(managed.getName())));
+        assertFalse(allPages("/api/policies", "policies", "name").stream().anyMatch(item -> item.startsWith(managed.getName())));
     }
 
     @Test
     @DisplayName("Per-user listings are unchanged: names only, no owner")
     void perUserListingsAreUnchanged() throws Exception {
         final String aliceKey = seedKey(userService.findByUsername(alice).getId());
-        assertEquals("[\"default\"]", get("/api/policies", aliceKey).body());
-        assertEquals("{\"contexts\":[\"default\"]}", get("/api/contexts", aliceKey).body());
+        assertEquals("{\"policies\":[\"default\"],\"total\":1}", get("/api/policies", aliceKey).body());
+        assertEquals("{\"contexts\":[\"default\"],\"total\":1}", get("/api/contexts", aliceKey).body());
         assertFalse(get("/api/holds", aliceKey).body().contains("owner"));
         assertFalse(get("/api/ledger", aliceKey).body().contains("owner"));
     }
@@ -202,7 +202,8 @@ class AllUsersListingsIT {
             AdminAccessConfig.setOverrideForTesting(true);
             assertEquals(400, get(path + "?all_users=true&owner=" + alice, adminKey).statusCode(), path);
         }
-        assertEquals(400, get("/api/ledger?all_users=true&q=doc", adminKey).statusCode());
+        // A search across every user's ledger is allowed, as it is for one user's.
+        assertEquals(200, get("/api/ledger?all_users=true&q=doc", adminKey).statusCode());
     }
 
     @Test

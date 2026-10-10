@@ -117,14 +117,33 @@ class CustomListsApiControllerTest {
 
     @Test
     void listScopesToOwningUserId() throws Exception {
-        when(customListService.findAll(eq(userId))).thenReturn(Collections.emptyList());
+        when(customListService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         // The endpoint reads the requestId request attribute set by the auth filter.
         mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-1"))
                 .andExpect(status().isOk());
 
-        verify(customListService).findAll(eq(userId));
+        verify(customListService).list(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("name", false)), eq(0), eq(25));
+    }
+
+    @Test
+    void listPagesSearchesAndReportsTheTotal() throws Exception {
+        when(customListService.list(eq(userId), eq("drug"), org.mockito.ArgumentMatchers.any(), eq(25), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 30));
+
+        final String body = mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER)
+                        .param("q", "drug").param("order", "desc").param("offset", "25")
+                        .requestAttr("requestId", "req-page"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("\"lists\":[]") && body.contains("\"total\":30"), body);
+        verify(customListService).list(eq(userId), eq("drug"), eq(new ai.philterd.philter.data.services.Listings.Sort("name", true)), eq(25), eq(25));
+
+        mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER).param("sort", "size")
+                        .requestAttr("requestId", "req-bad"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -153,14 +172,15 @@ class CustomListsApiControllerTest {
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
         when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
-        when(customListService.findAll(eq(otherUser))).thenReturn(Collections.emptyList());
+        when(customListService.list(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/lists").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-admin"))
                 .andExpect(status().isOk());
 
-        verify(customListService).findAll(eq(otherUser));
+        verify(customListService).list(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("name", false)), eq(0), eq(25));
     }
 
     @Test

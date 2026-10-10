@@ -22,6 +22,7 @@ import ai.philterd.philter.api.requests.PolicyDetailsRequest;
 import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.DeletedPolicySummary;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.GetPoliciesResponse;
 import ai.philterd.philter.api.responses.ManagedPolicySummary;
 import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.api.responses.PolicyConflictResponse;
@@ -32,6 +33,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -102,12 +104,11 @@ public class PoliciesApiController extends AbstractApiController {
                     + "is kept, by name, each with its latest revision and when and by whom it was deleted; read a "
                     + "deleted policy's history with GET /api/policies/{policyName}/versions.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The names of the policies; with all_users, objects naming each "
+            @ApiResponse(responseCode = "200", description = "A page of policies in policies, and the total. Each is a policy's name; with all_users, an object naming each "
                     + "policy and its owner; with managed, objects giving each managed policy's name and description; "
                     + "with deleted, objects describing each deleted policy.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(oneOf = {String[].class, OwnedNameResponse[].class, ManagedPolicySummary[].class,
-                                    DeletedPolicySummary[].class}))),
+                            schema = @Schema(implementation = GetPoliciesResponse.class))),
             @ApiResponse(responseCode = "400", description = "Both owner and all_users were given, managed was combined with either, or deleted was combined with all_users or managed."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
@@ -120,6 +121,9 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
             final @RequestParam(value = "managed", defaultValue = "false") boolean managed,
             final @RequestParam(value = "deleted", defaultValue = "false") boolean deleted,
+            final @RequestParam(value = "q", required = false) String q,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId
@@ -131,42 +135,50 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final int pageOffset = normalizeOffset(offset);
+        final int pageLimit = normalizeLimit(limit);
+
         if (deleted) {
             if (allUsers || managed) {
                 throw new BadRequestException("deleted cannot be combined with all_users or managed.");
             }
+            final boolean descending = listingSort(sort, order, NAME_SORT, "name", false).descending();
             final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
             auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                     "list deleted policies");
-            final List<PolicyDataService.DeletedPolicy> deletedPolicies =
-                    policyDataService.findDeleted(userId, normalizeOffset(offset), normalizeLimit(limit));
-            final java.util.Map<ObjectId, String> deleters = userService.findUsernamesByIds(deletedPolicies.stream()
+            final Listings.Page<PolicyDataService.DeletedPolicy> page =
+                    policyDataService.findDeleted(userId, q, descending, pageOffset, pageLimit);
+            final java.util.Map<ObjectId, String> deleters = userService.findUsernamesByIds(page.items().stream()
                     .map(PolicyDataService.DeletedPolicy::deletedBy).filter(java.util.Objects::nonNull).distinct().toList());
-            return ResponseEntity.ok(deletedPolicies.stream()
+            return ResponseEntity.ok(new GetPoliciesResponse(page.items().stream()
                     .map(policy -> new DeletedPolicySummary(policy.name(), policy.latestRevision(), policy.deletedAt(),
                             policy.deletedBy() == null ? null : deleters.get(policy.deletedBy())))
-                    .toList());
+                    .toList(), page.total()));
         }
 
         if (managed) {
             if (allUsers || (owner != null && !owner.isBlank())) {
                 throw new BadRequestException("managed cannot be combined with owner or all_users.");
             }
-            return ResponseEntity.ok(policyDataService.findManagedPolicies(normalizeOffset(offset), normalizeLimit(limit))
-                    .stream().map(policy -> new ManagedPolicySummary(policy.getName(), policy.getDescription())).toList());
+            final Listings.Page<PolicyEntity> page = policyDataService.listManaged(q,
+                    listingSort(sort, order, NAME_SORT, "name", false), pageOffset, pageLimit);
+            return ResponseEntity.ok(new GetPoliciesResponse(page.items().stream()
+                    .map(policy -> new ManagedPolicySummary(policy.getName(), policy.getDescription())).toList(), page.total()));
         }
+
+        final Listings.Sort policySort = listingSort(sort, order, POLICY_SORT, "name", false);
 
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-            final List<PolicyEntity> policies =
-                    policyDataService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit), false);
+            final Listings.Page<PolicyEntity> page = policyDataService.listAcrossUsers(q, policySort, pageOffset, pageLimit);
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list policies");
-            return ResponseEntity.ok(ownedNames(userService, policies, PolicyEntity::getName, PolicyEntity::getUserId));
+            return ResponseEntity.ok(new GetPoliciesResponse(
+                    ownedNames(userService, page.items(), PolicyEntity::getName, PolicyEntity::getUserId), page.total()));
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -174,13 +186,18 @@ public class PoliciesApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        final List<PolicyEntity> policies = policyDataService.findAll(userId, normalizeOffset(offset), normalizeLimit(limit), false);
-        final List<String> policyNames = policies.stream().map(PolicyEntity::getName).toList();
+        final Listings.Page<PolicyEntity> page = policyDataService.listOwn(userId, q, policySort, pageOffset, pageLimit);
 
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(policyNames);
+        return ResponseEntity.ok(new GetPoliciesResponse(page.items().stream().map(PolicyEntity::getName).toList(),
+                page.total()));
 
     }
+
+    /** The order a listing of policies can take. */
+    private static final java.util.Map<String, String> POLICY_SORT = sortFields("name", "name", "created", "created_timestamp", "updated", "last_updated_timestamp");
+
+    /** A listing that can only be ordered by name. */
+    private static final java.util.Map<String, String> NAME_SORT = sortFields("name", "name");
 
     @Operation(summary = "Get a policy.",
             description = "Returns the full policy with the given name. A name starting with managed_ returns that "

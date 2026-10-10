@@ -43,7 +43,12 @@ The first administrator key comes from [`PHILTER_BOOTSTRAP_API_KEY`](../../accou
 GET /api/users?offset=0&limit=25
 ```
 
-Returns users sorted by username, including deactivated users, and the total number of users. Requires `users:read` and an administrator. `limit` is capped at 100.
+Returns users sorted by username, including deactivated users, and the total number that match. Requires `users:read` and an administrator. `limit` is capped at 100.
+
+* `q` (optional) - Only users whose username contains `q`, ignoring case.
+* `role` (optional) - Only users with this role, `user` or `admin`.
+* `active` (optional) - `true` lists only active users, `false` only deactivated ones. Left out, both.
+* `sort` (optional, default `username`) - `username` or `created`. With `order`, `asc` or `desc`; see [Listings](../api.md#listings).
 
 ```json
 {

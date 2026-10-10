@@ -20,6 +20,42 @@ Philter's API has the following sections:
 * [Settings API](api/settings_api.md) - Read and change the deployment's administrator settings.
 * [Audit API](api/audit_api.md) - List and export the [audit log](../auditing.md).
 
+## Listings
+
+Every endpoint that lists things returns an object with the items on the requested page and `total`, how many items the listing has across every page, so a client can show a count and page through without guessing:
+
+```json
+{
+  "policies": ["default", "claims-2025"],
+  "total": 2
+}
+```
+
+Listings share these query parameters:
+
+* `offset` (default `0`) - How many items to skip.
+* `limit` (default `25`, at most `100`) - How many items to return. A larger value is reduced to `100`.
+* `sort` - The field to order by, from the listing's fields in the table below. An unknown field is refused with `400 Bad Request` naming the fields it accepts.
+* `order` - `asc` or `desc`. Left out, the listing's default sort keeps its default direction, and any other sort is ascending. Anything else is refused with `400 Bad Request`.
+* `q` - Where a listing supports it, only items whose field (see the table) contains `q`, ignoring case. `q` is matched as plain text, not as a pattern.
+
+Items with the same value for the sort field are kept in a stable order, so paging does not skip or repeat them. `total` counts the items that match `q` and any filters.
+
+| Listing | Items | `sort` (default first) | `q` searches | Other filters |
+|---------|-------|------------------------|--------------|---------------|
+| [`GET /api/policies`](api/policies_api.md#get-policy-names) | `policies` | `name`, `created`, `updated` | name | `all_users`, `managed`, `deleted` (the `managed` and `deleted` listings sort by `name` only) |
+| [`GET /api/policies/{policyName}/versions`](api/policies_api.md#list-versions) | `versions` | `revision` (newest first) | | |
+| [`GET /api/contexts`](api/contexts_api.md) | `contexts` | `name`, `created` | name | `all_users` |
+| [`GET /api/contexts/{name}/entries`](api/contexts_api.md) | `entries` | `created` (newest first), `reads` | | |
+| [`GET /api/lists`](api/custom_lists_api.md) | `lists` | `name` | name | `all_users` |
+| [`GET /api/holds`](api/legal_holds_api.md) | `holds` | `set` (newest first), `reference` | reference | `all_users` |
+| [`GET /api/documents`](api/documents_api.md) | `pendingRedactedDocuments` | `submitted` (newest first), `fileName` | | `status` |
+| [`GET /api/ledger`](api/ledger_api.md) | `chains` | `created` (newest first), `filename` | document id or file name | `all_users` |
+| [`GET /api/users`](api/users_api.md#list-users) | `users` | `username`, `created` | username | `role`, `active` |
+| [`GET /api/api-keys`](api/api_keys_api.md#list-your-keys) and `GET /api/users/{username}/api-keys` | `apiKeys` | `created` (oldest first) | | `session` |
+| [`GET /api/audit`](api/audit_api.md) | `events` | `timestamp` (newest first), by `order` only | | `event`, `from`, `to`, `owner` |
+| [`GET /api/webhook/deliveries`](api/webhooks.md#list-the-deliveries) | `deliveries` | `created` (newest first), by `order` only | | |
+
 ## OpenAPI Specification
 
 Philter's API is described by an OpenAPI specification generated from the application's source. The OpenAPI export integration test regenerates it and checks it against the registered routes and the committed copy. Run that test when changing an endpoint; a successful ordinary compilation alone does not refresh the published artifact. You can always find it in any of these places:

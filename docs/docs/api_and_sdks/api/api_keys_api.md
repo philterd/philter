@@ -58,6 +58,7 @@ GET /api/api-keys?offset=0&limit=25
 Lists the active keys belonging to the calling key's user, oldest first, and the total. Requires `api-keys:read`. `limit` is capped at 100.
 
 * `session` (optional) - `true` lists only [session keys](../../account/api_keys.md#session-keys), `false` only long-lived keys. Left out, both are listed. `total` counts only the keys listed, so paging works the same either way.
+* `order` (optional, default `asc`) - `asc` lists the oldest key first, `desc` the newest. `sort` accepts only `created`; see [Listings](../api.md#listings).
 
 ```json
 {

@@ -347,7 +347,7 @@ class ApiKeysApiControllerTest {
         final ApiKeyEntity key = storedKey(callerUserId, Set.of("redact"));
         key.setApiKeyHash("0123456789abcdef-hash");
         key.setBootstrap(true);
-        when(apiKeyDataService.findAllBySession(callerUserId, 0, 25, (Boolean) null)).thenReturn(List.of(key));
+        when(apiKeyDataService.findAllBySession(callerUserId, 0, 25, (Boolean) null, false)).thenReturn(List.of(key));
         when(apiKeyDataService.countBySession(callerUserId, (Boolean) null)).thenReturn(1);
 
         final String body = perform(get("/api/api-keys"))
@@ -365,7 +365,7 @@ class ApiKeysApiControllerTest {
     @DisplayName("session filters the listing, and total counts only the matching keys")
     void filtersBySession() throws Exception {
         final ApiKeyEntity key = storedKey(callerUserId, Set.of("redact"));
-        when(apiKeyDataService.findAllBySession(callerUserId, 0, 25, Boolean.FALSE)).thenReturn(List.of(key));
+        when(apiKeyDataService.findAllBySession(callerUserId, 0, 25, Boolean.FALSE, false)).thenReturn(List.of(key));
         when(apiKeyDataService.countBySession(callerUserId, Boolean.FALSE)).thenReturn(1);
 
         final String body = perform(get("/api/api-keys").param("session", "false"))
@@ -373,7 +373,7 @@ class ApiKeysApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("\"total\":1"), body);
-        verify(apiKeyDataService).findAllBySession(callerUserId, 0, 25, Boolean.FALSE);
+        verify(apiKeyDataService).findAllBySession(callerUserId, 0, 25, Boolean.FALSE, false);
     }
 
     @Test
@@ -395,7 +395,7 @@ class ApiKeysApiControllerTest {
         final UserEntity bob = targetUser("bob");
         when(userService.findAnyByUsername("bob")).thenReturn(bob);
         final ApiKeyEntity bobsKey = storedKey(bob.getId(), Set.of("redact"));
-        when(apiKeyDataService.findAllBySession(bob.getId(), 0, 25, (Boolean) null)).thenReturn(List.of(bobsKey));
+        when(apiKeyDataService.findAllBySession(bob.getId(), 0, 25, (Boolean) null, false)).thenReturn(List.of(bobsKey));
         when(apiKeyDataService.countBySession(bob.getId(), (Boolean) null)).thenReturn(1);
 
         perform(get("/api/users/bob/api-keys")).andExpect(status().isOk());

@@ -104,6 +104,8 @@ public class ApiKeysApiController extends AbstractApiController {
     @RequestMapping(value = "/api/api-keys", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<Object> getApiKeys(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @Parameter(description = "true lists only session keys, false only long-lived keys; left out, both. "
@@ -112,7 +114,7 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
 
-        return ResponseEntity.ok(page(caller.getUserId(), offset, limit, session));
+        return ResponseEntity.ok(page(caller.getUserId(), sort, order, offset, limit, session));
 
     }
 
@@ -136,6 +138,8 @@ public class ApiKeysApiController extends AbstractApiController {
     public @ResponseBody ResponseEntity<Object> getUserApiKeys(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("username") String username,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @Parameter(description = "true lists only session keys, false only long-lived keys; left out, both. "
@@ -154,7 +158,7 @@ public class ApiKeysApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        return ResponseEntity.ok(page(user.getId(), offset, limit, session));
+        return ResponseEntity.ok(page(user.getId(), sort, order, offset, limit, session));
 
     }
 
@@ -477,9 +481,15 @@ public class ApiKeysApiController extends AbstractApiController {
 
     }
 
-    private GetApiKeysResponse page(final ObjectId userId, final int offset, final int limit, final Boolean session) {
+    /** The order a listing of keys can take. */
+    private static final java.util.Map<String, String> KEY_SORT = sortFields("created", "timestamp");
+
+    private GetApiKeysResponse page(final ObjectId userId, final String sort, final String order, final int offset,
+                                    final int limit, final Boolean session) {
+        final boolean descending = listingSort(sort, order, KEY_SORT, "created", false).descending();
         final List<ApiKeyResponse> keys = new ArrayList<>();
-        for (final ApiKeyEntity key : apiKeyService.findAllBySession(userId, normalizeOffset(offset), normalizeLimit(limit), session)) {
+        for (final ApiKeyEntity key : apiKeyService.findAllBySession(userId, normalizeOffset(offset), normalizeLimit(limit),
+                session, descending)) {
             keys.add(new ApiKeyResponse(key));
         }
         return new GetApiKeysResponse(keys, apiKeyService.countBySession(userId, session));

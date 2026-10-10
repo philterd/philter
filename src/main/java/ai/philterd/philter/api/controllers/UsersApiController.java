@@ -36,6 +36,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -118,6 +119,11 @@ public class UsersApiController extends AbstractApiController {
     @RequestMapping(value = "/api/users", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<Object> getUsers(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestParam(value = "q", required = false) String q,
+            final @RequestParam(value = "role", required = false) String role,
+            final @RequestParam(value = "active", required = false) Boolean active,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit) {
 
@@ -128,14 +134,21 @@ public class UsersApiController extends AbstractApiController {
             return refusal;
         }
 
+        final String roleFilter = role == null || role.isBlank() ? null : normalizeRole(role);
+        final Listings.Page<UserEntity> page = userService.list(q, roleFilter, active,
+                listingSort(sort, order, USER_SORT, "username", false), normalizeOffset(offset), normalizeLimit(limit));
+
         final List<UserResponse> users = new ArrayList<>();
-        for (final UserEntity user : userService.findAll(normalizeOffset(offset), normalizeLimit(limit))) {
+        for (final UserEntity user : page.items()) {
             users.add(new UserResponse(user));
         }
 
-        return ResponseEntity.ok(new GetUsersResponse(users, userService.count()));
+        return ResponseEntity.ok(new GetUsersResponse(users, page.total()));
 
     }
+
+    /** The order a listing of users can take. The id carries the creation time. */
+    private static final java.util.Map<String, String> USER_SORT = sortFields("username", "username", "created", "_id");
 
     @Operation(
             summary = "Get the calling key's user.",

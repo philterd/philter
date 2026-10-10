@@ -16,7 +16,11 @@ The Custom Lists API provides endpoints for retrieving, creating, replacing, and
 
 * `owner` (optional, admin only) - Username of another user whose lists to get. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 * `all_users` (optional, default: `false`) - List every user's custom lists instead of the caller's. Each list then also has its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
-* `offset` (optional, default: `0`) and `limit` (optional, default: `25`, max `100`) - Page through the lists. These apply only with `all_users`; without it, every one of the caller's lists is returned.
+* `offset` (optional, default: `0`) and `limit` (optional, default: `25`, max `100`) - Page through the lists.
+* `q` (optional) - Only lists whose name contains `q`, ignoring case.
+* `sort` (optional, default: `name`) and `order` (optional, default: `asc`) - See [Listings](../api.md#listings).
+
+Returns the lists on the requested page in `lists` and `total`, how many there are across every page.
 
 Example request:
 
@@ -27,13 +31,16 @@ curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/lists
 Example response:
 
 ```json
-[
-  {
-    "name": "my-list",
-    "description": "My description",
-    "size": 2
-  }
-]
+{
+  "lists": [
+    {
+      "name": "my-list",
+      "description": "My description",
+      "size": 2
+    }
+  ],
+  "total": 1
+}
 ```
 
 * `name` - The list's name.

@@ -53,8 +53,8 @@ public class ApiDocumentationConfig {
             }
             op(api, "/api/redact-lists/{list}", "put").getRequestBody()
                     .setContent(content("application/json", model(api, RedactListRequest.class)));
-            response(op(api, "/api/lists", "get"), "200", "Each list's name, description, and size; with all_users, its owner too.",
-                    content("application/json", new ArraySchema().items(model(api, ListSummaryResponse.class))));
+            response(op(api, "/api/lists", "get"), "200", "A page of lists, each with its name, description, and size (with all_users, its owner too), and the total.",
+                    content("application/json", model(api, GetCustomListsResponse.class)));
             json(api, "/api/reidentify", "post", ReidentifyResponse.class);
             response(op(api, "/api/policies/compile", "post"), "200", "Compiled native policy; does not save it.",
                     content("application/json", object("name", new StringSchema(), "description", new StringSchema(),

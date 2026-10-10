@@ -222,6 +222,13 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
         return versions;
     }
 
+    /** A page of the policy's retained versions, by revision, and how many there are. */
+    public Listings.Page<PolicyVersionEntity> listByName(final String name, final ObjectId userId,
+                                                         final boolean descending, final int offset, final int limit) {
+        return Listings.page(collection, Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name)),
+                new Listings.Sort("revision", descending), offset, limit, PolicyVersionEntity::fromDocument);
+    }
+
     /**
      * Resolves a specific retained snapshot by policy name, owner, and revision number, or
      * {@code null} if no snapshot for that revision has been retained.

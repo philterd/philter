@@ -15,26 +15,28 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
-/** {@code GET /api/contexts?all_users=true}: the per-user shape, with each context naming its owner. */
-public class GetAllUsersContextsResponse {
+/**
+ * A page of policies and how many there are. Each item is a policy's name; with all_users, its name and
+ * owner; with managed, its name and description; with deleted, a {@link DeletedPolicySummary}.
+ */
+public class GetPoliciesResponse {
 
-    private final List<OwnedNameResponse> contexts;
+    private final List<?> policies;
     private final long total;
 
-    public GetAllUsersContextsResponse(final List<OwnedNameResponse> contexts, final long total) {
-        this.contexts = contexts;
+    public GetPoliciesResponse(final List<?> policies, final long total) {
+        this.policies = policies;
         this.total = total;
     }
 
-    public List<OwnedNameResponse> getContexts() {
-        return contexts;
-    }
+    @Schema(description = "The policies on this page: names, or with all_users, managed, or deleted, objects describing each.")
+    public List<?> getPolicies() { return policies; }
 
-    /** How many items the listing has across every page. */
-    public long getTotal() {
-        return total;
-    }
+    @Schema(description = "How many policies the listing has across every page.")
+    public long getTotal() { return total; }
 
 }

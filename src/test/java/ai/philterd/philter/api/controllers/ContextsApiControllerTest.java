@@ -138,19 +138,21 @@ class ContextsApiControllerTest {
 
     @Test
     void listScopesToOwningUserId() throws Exception {
-        when(contextService.findAll(eq(userId), eq(0), eq(25))).thenReturn(Collections.emptyList());
+        when(contextService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-1"))
                 .andExpect(status().isOk());
 
         // Defaults to the first page (offset 0, limit 25), scoped to the owning user id.
-        verify(contextService).findAll(eq(userId), eq(0), eq(25));
+        verify(contextService).list(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("context_name", false)), eq(0), eq(25));
     }
 
     @Test
     void listAppliesPagingParameters() throws Exception {
-        when(contextService.findAll(eq(userId), eq(50), eq(10))).thenReturn(Collections.emptyList());
+        when(contextService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(50), eq(10)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
                         .param("offset", "50")
@@ -158,7 +160,25 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-paging"))
                 .andExpect(status().isOk());
 
-        verify(contextService).findAll(eq(userId), eq(50), eq(10));
+        verify(contextService).list(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("context_name", false)), eq(50), eq(10));
+    }
+
+    @Test
+    void listPassesSearchAndOrderAndReportsTheTotal() throws Exception {
+        when(contextService.list(eq(userId), eq("clin"), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 6));
+
+        final String body = mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
+                        .param("q", "clin").param("sort", "created").param("order", "desc")
+                        .requestAttr("requestId", "req-sort"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("\"total\":6"), body);
+        verify(contextService).list(eq(userId), eq("clin"), eq(new ai.philterd.philter.data.services.Listings.Sort("timestamp", true)), eq(0), eq(25));
+
+        mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER).param("sort", "size")
+                        .requestAttr("requestId", "req-bad-sort"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -166,7 +186,8 @@ class ContextsApiControllerTest {
         final ObjectId otherOwner = new ObjectId();
         makeUserAdmin();
         makeOwnerLookup("other@example.com", otherOwner);
-        when(contextService.findAll(eq(otherOwner), eq(0), eq(25))).thenReturn(Collections.emptyList());
+        when(contextService.list(eq(otherOwner), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/contexts").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
@@ -174,7 +195,7 @@ class ContextsApiControllerTest {
                 .andExpect(status().isOk());
 
         // The list is scoped to the named owner, not the admin caller, and the cross-user access is audited.
-        verify(contextService).findAll(eq(otherOwner), eq(0), eq(25));
+        verify(contextService).list(eq(otherOwner), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("context_name", false)), eq(0), eq(25));
         verify(auditEventPublisher).auditEvent(eq("req-list-admin"), eq(AuditLogEvent.ADMIN_CROSS_USER_ACCESS),
                 eq(userId), eq(otherOwner), isNull(), eq("action: list contexts"));
     }

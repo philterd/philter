@@ -29,6 +29,22 @@
             }
           },
           {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -756,6 +772,14 @@
             }
           },
           {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -1186,6 +1210,30 @@
             "schema": {
               "type": "boolean",
               "default": false
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -2027,6 +2075,22 @@
             }
           },
           {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -2560,6 +2624,30 @@
           },
           {
             "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
             "in": "query",
             "required": false,
             "schema": {
@@ -3810,6 +3898,30 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -3832,24 +3944,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Array of legal holds, most recently set first. With all_users, each hold also has an owner field.",
+            "description": "A page of legal holds in holds, most recently set first by default, and the total. With all_users, each hold also has an owner field.",
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/LegalHoldResponse"
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/OwnedLegalHoldResponse"
-                      }
-                    }
-                  ]
+                  "$ref": "#/components/schemas/GetHoldsResponse"
                 }
               }
             }
@@ -3882,10 +3981,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LegalHoldResponse"
-                  }
+                  "$ref": "#/components/schemas/GetHoldsResponse"
                 }
               }
             }
@@ -4502,6 +4598,22 @@
             "schema": {
               "type": "boolean",
               "default": false
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -5458,6 +5570,30 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -5480,14 +5616,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Each list's name, description, and size; with all_users, its owner too.",
+            "description": "A page of lists, each with its name, description, and size (with all_users, its owner too), and the total.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ListSummaryResponse"
-                  }
+                  "$ref": "#/components/schemas/GetCustomListsResponse"
                 }
               }
             }
@@ -6168,6 +6301,30 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -6190,36 +6347,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The names of the policies; with all_users, objects naming each policy and its owner; with managed, objects giving each managed policy's name and description; with deleted, objects describing each deleted policy.",
+            "description": "A page of policies in policies, and the total. Each is a policy's name; with all_users, an object naming each policy and its owner; with managed, objects giving each managed policy's name and description; with deleted, objects describing each deleted policy.",
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/OwnedNameResponse"
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/ManagedPolicySummary"
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/DeletedPolicySummary"
-                      }
-                    }
-                  ]
+                  "$ref": "#/components/schemas/GetPoliciesResponse"
                 }
               }
             }
@@ -7821,6 +7953,22 @@
             }
           },
           {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -7843,14 +7991,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Array of version summaries, most recent first.",
+            "description": "A page of version summaries, most recent first by default, and the total.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PolicyVersionSummary"
-                  }
+                  "$ref": "#/components/schemas/GetPolicyVersionsResponse"
                 }
               }
             }
@@ -7883,10 +8028,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PolicyVersionSummary"
-                  }
+                  "$ref": "#/components/schemas/GetPolicyVersionsResponse"
                 }
               }
             }
@@ -9738,6 +9880,46 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -10679,6 +10861,22 @@
             "name": "username",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -12297,6 +12495,14 @@
             }
           },
           {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -12927,29 +13133,6 @@
           }
         }
       },
-      "DeletedPolicySummary": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "description": "The policy's name. Read its history with GET /api/policies/{policyName}/versions.",
-            "type": "string"
-          },
-          "deletedAt": {
-            "description": "When the policy was deleted, or null for a policy deleted before Philter recorded deletions.",
-            "type": "string",
-            "format": "date-time"
-          },
-          "deletedBy": {
-            "description": "The username of the user who deleted it, or null when that is not known.",
-            "type": "string"
-          },
-          "latestRevision": {
-            "description": "The most recent retained revision.",
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "GenericResponse": {
         "type": "object",
         "properties": {
@@ -12965,6 +13148,10 @@
             "items": {
               "$ref": "#/components/schemas/OwnedNameResponse"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -13050,6 +13237,26 @@
             "items": {
               "type": "string"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GetCustomListsResponse": {
+        "properties": {
+          "lists": {
+            "description": "The lists on this page, each with its name, description, and number of items.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListSummaryResponse"
+            }
+          },
+          "total": {
+            "description": "How many lists the listing has across every page.",
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -13060,6 +13267,27 @@
             "items": {
               "$ref": "#/components/schemas/PendingRedactedDocuments"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GetHoldsResponse": {
+        "type": "object",
+        "properties": {
+          "holds": {
+            "description": "The holds on this page.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegalHoldResponse"
+            }
+          },
+          "total": {
+            "description": "How many holds the listing has across every page.",
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -13088,6 +13316,38 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        }
+      },
+      "GetPoliciesResponse": {
+        "type": "object",
+        "properties": {
+          "policies": {
+            "description": "The policies on this page: names, or with all_users, managed, or deleted, objects describing each.",
+            "type": "array",
+            "items": {}
+          },
+          "total": {
+            "description": "How many policies the listing has across every page.",
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GetPolicyVersionsResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "description": "How many versions the policy has retained.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "versions": {
+            "description": "The versions on this page.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyVersionSummary"
             }
           }
         }
@@ -13403,6 +13663,7 @@
         }
       },
       "ListSummaryResponse": {
+        "description": "The lists on this page, each with its name, description, and number of items.",
         "properties": {
           "description": {
             "description": "The list's description, or an empty string if it has none.",
@@ -13419,19 +13680,6 @@
             "description": "How many items the list holds.",
             "type": "integer",
             "format": "int32"
-          }
-        }
-      },
-      "ManagedPolicySummary": {
-        "type": "object",
-        "properties": {
-          "description": {
-            "description": "What the managed policy redacts, or an empty string if it has no description.",
-            "type": "string"
-          },
-          "name": {
-            "description": "The managed policy's name, beginning with managed_.",
-            "type": "string"
           }
         }
       },
@@ -13515,30 +13763,6 @@
           },
           "token": {
             "type": "string"
-          }
-        }
-      },
-      "OwnedLegalHoldResponse": {
-        "type": "object",
-        "properties": {
-          "owner": {
-            "type": "string"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "reference": {
-            "type": "string"
-          },
-          "scopeType": {
-            "type": "string"
-          },
-          "scopeValue": {
-            "type": "string"
-          },
-          "setAt": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },

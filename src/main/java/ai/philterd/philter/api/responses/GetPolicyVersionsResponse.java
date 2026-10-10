@@ -15,26 +15,25 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
-/** {@code GET /api/contexts?all_users=true}: the per-user shape, with each context naming its owner. */
-public class GetAllUsersContextsResponse {
+/** A page of a policy's retained versions and how many there are. */
+public class GetPolicyVersionsResponse {
 
-    private final List<OwnedNameResponse> contexts;
+    private final List<PolicyVersionSummary> versions;
     private final long total;
 
-    public GetAllUsersContextsResponse(final List<OwnedNameResponse> contexts, final long total) {
-        this.contexts = contexts;
+    public GetPolicyVersionsResponse(final List<PolicyVersionSummary> versions, final long total) {
+        this.versions = versions;
         this.total = total;
     }
 
-    public List<OwnedNameResponse> getContexts() {
-        return contexts;
-    }
+    @Schema(description = "The versions on this page.")
+    public List<PolicyVersionSummary> getVersions() { return versions; }
 
-    /** How many items the listing has across every page. */
-    public long getTotal() {
-        return total;
-    }
+    @Schema(description = "How many versions the policy has retained.")
+    public long getTotal() { return total; }
 
 }

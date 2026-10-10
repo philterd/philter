@@ -21,6 +21,7 @@ import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.PolicyConflictResponse;
 import ai.philterd.philter.api.responses.PolicyRollbackResponse;
 import ai.philterd.philter.api.responses.PolicyVersionSummary;
+import ai.philterd.philter.api.responses.GetPolicyVersionsResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -30,6 +31,7 @@ import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
@@ -101,7 +103,9 @@ public class PolicyVersionsApiController extends AbstractApiController {
                     + "way; GET /api/policies?deleted=true lists deleted policies. Admins may browse "
                     + "another user's history via the owner parameter.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Array of version summaries, most recent first."),
+            @ApiResponse(responseCode = "200", description = "A page of version summaries, most recent first by default, and the total.",
+                    content = @io.swagger.v3.oas.annotations.media.Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GetPolicyVersionsResponse.class))),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The named policy does not exist, or a non-admin caller named another user as owner.")
@@ -109,10 +113,12 @@ public class PolicyVersionsApiController extends AbstractApiController {
     @RequiresScope(ApiKeyScope.POLICIES_READ)
     @RequestMapping(value = "/api/policies/{policyName}/versions", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<List<PolicyVersionSummary>> listVersions(
+    public @ResponseBody ResponseEntity<GetPolicyVersionsResponse> listVersions(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @PathVariable("policyName") final String policyName,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final HttpServletRequest httpServletRequest) {
@@ -137,8 +143,10 @@ public class PolicyVersionsApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "list versions of policy '" + policyName + "'");
 
-        final List<PolicyVersionEntity> versions =
-                policyVersionDataService.findAllByName(policyName, userId, normalizeOffset(offset), normalizeLimit(limit));
+        final boolean descending = listingSort(sort, order, VERSION_SORT, "revision", true).descending();
+        final Listings.Page<PolicyVersionEntity> page = policyVersionDataService.listByName(policyName, userId,
+                descending, normalizeOffset(offset), normalizeLimit(limit));
+        final List<PolicyVersionEntity> versions = page.items();
 
         // Authors are stored by id and named here, in one query for the page.
         final java.util.Map<ObjectId, String> authors = userService.findUsernamesByIds(versions.stream()
@@ -154,8 +162,11 @@ public class PolicyVersionsApiController extends AbstractApiController {
                 getClientIpAddress(httpServletRequest),
                 "policy: " + policyName + ", versions returned: " + summaries.size());
 
-        return ResponseEntity.ok(summaries);
+        return ResponseEntity.ok(new GetPolicyVersionsResponse(summaries, page.total()));
     }
+
+    /** The order a listing of versions can take. */
+    private static final java.util.Map<String, String> VERSION_SORT = sortFields("revision", "revision");
 
     @Operation(summary = "Fetch a specific revision of a policy.",
             description = "Returns the full policy JSON as it existed at the given revision. The response "

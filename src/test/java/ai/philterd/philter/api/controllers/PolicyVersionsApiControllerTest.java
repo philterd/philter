@@ -162,21 +162,21 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void listVersionsReturnsEmptyListWhenNoVersionsExist() throws Exception {
-        when(policyVersionDataService.findAllByName(eq(POLICY_NAME), eq(userId), anyInt(), anyInt()))
-                .thenReturn(Collections.emptyList());
+        when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         final String body = mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
                         .header("Authorization", AUTH_HEADER))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertEquals("[]", body);
+        assertEquals("{\"versions\":[],\"total\":0}", body);
     }
 
     @Test
     void listVersionsReturnsSummaryForEachVersion() throws Exception {
-        when(policyVersionDataService.findAllByName(eq(POLICY_NAME), eq(userId), anyInt(), anyInt()))
-                .thenReturn(List.of(version(2, POLICY_JSON_V2), version(1, POLICY_JSON_V1)));
+        when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(version(2, POLICY_JSON_V2), version(1, POLICY_JSON_V1)), 2));
 
         final String body = mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
                         .header("Authorization", AUTH_HEADER))
@@ -192,8 +192,8 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void listVersionsAuditsTheCallerAndTheClientIpAddress() throws Exception {
-        when(policyVersionDataService.findAllByName(eq(POLICY_NAME), eq(userId), anyInt(), anyInt()))
-                .thenReturn(List.of(version(1, POLICY_JSON_V1)));
+        when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(version(1, POLICY_JSON_V1)), 1));
 
         mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
                         .header("Authorization", AUTH_HEADER)
@@ -211,8 +211,8 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void listVersionsPassesPaginationParameters() throws Exception {
-        when(policyVersionDataService.findAllByName(eq(POLICY_NAME), eq(userId), eq(5), eq(10)))
-                .thenReturn(Collections.emptyList());
+        when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.anyBoolean(), eq(5), eq(10)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
                         .header("Authorization", AUTH_HEADER)
@@ -220,7 +220,24 @@ class PolicyVersionsApiControllerTest {
                         .param("limit", "10"))
                 .andExpect(status().isOk());
 
-        verify(policyVersionDataService).findAllByName(eq(POLICY_NAME), eq(userId), eq(5), eq(10));
+        verify(policyVersionDataService).listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.eq(true), eq(5), eq(10));
+    }
+
+    @Test
+    void listVersionsOrdersOldestFirstOnRequestAndRefusesAnUnknownSort() throws Exception {
+        when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 9));
+
+        final String body = mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
+                        .header("Authorization", AUTH_HEADER).param("order", "asc"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"total\":9"), body);
+        verify(policyVersionDataService).listByName(eq(POLICY_NAME), eq(userId), org.mockito.ArgumentMatchers.eq(false), eq(0), eq(25));
+
+        mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
+                        .header("Authorization", AUTH_HEADER).param("sort", "author"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -243,15 +260,15 @@ class PolicyVersionsApiControllerTest {
         final ObjectId otherUser = new ObjectId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
-        when(policyVersionDataService.findAllByName(eq(POLICY_NAME), eq(otherUser), anyInt(), anyInt()))
-                .thenReturn(List.of(version(1, POLICY_JSON_V1)));
+        when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(otherUser), org.mockito.ArgumentMatchers.anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(version(1, POLICY_JSON_V1)), 1));
 
         mockMvc.perform(get("/api/policies/" + POLICY_NAME + "/versions")
                         .header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com"))
                 .andExpect(status().isOk());
 
-        verify(policyVersionDataService).findAllByName(eq(POLICY_NAME), eq(otherUser), anyInt(), anyInt());
+        verify(policyVersionDataService).listByName(eq(POLICY_NAME), eq(otherUser), org.mockito.ArgumentMatchers.eq(true), anyInt(), anyInt());
     }
 
     // ============================================================

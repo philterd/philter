@@ -32,6 +32,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -174,6 +175,8 @@ public class LedgerApiController extends AbstractApiController {
             final @RequestParam(value = "q", required = false) String query,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId) {
@@ -183,22 +186,22 @@ public class LedgerApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final Listings.Sort chainSort = listingSort(sort, order, CHAIN_SORT, "created", true);
+
         if (allUsers) {
-            if (query != null && !query.isBlank()) {
-                throw new BadRequestException("q cannot be combined with all_users.");
-            }
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
-            final List<LedgerEntity> chains =
-                    ledgerService.findAllChainHeadsAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
+            final Listings.Page<LedgerEntity> page = ledgerService.listChains(requestId, null, query, chainSort,
+                    normalizeOffset(offset), normalizeLimit(limit), Source.API.getSource());
+            final List<LedgerEntity> chains = page.items();
             final Map<ObjectId, String> owners = ownerNames(userService, chains, LedgerEntity::getUserId);
             final List<LedgerEntryView> views = new ArrayList<>(chains.size());
             for (final LedgerEntity chain : chains) {
                 views.add(signed(buildView(chain, null, owners.get(chain.getUserId())), chain));
             }
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list ledger chains");
-            return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, ledgerService.countAllChainHeads())), HttpStatus.OK);
+            return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, (int) page.total())), HttpStatus.OK);
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -211,24 +214,21 @@ public class LedgerApiController extends AbstractApiController {
 
         // A search is paged and counted the same way an unfiltered listing is, so `total` always
         // describes the set the returned chains were taken from.
-        final boolean searching = query != null && !query.isBlank();
-
-        final List<LedgerEntity> chains = searching
-                ? ledgerService.searchChainsByUserId(requestId, userId, query, pageOffset, pageLimit, Source.API.getSource())
-                : ledgerService.findChainsByUserId(requestId, userId, pageOffset, pageLimit, Source.API.getSource());
+        final Listings.Page<LedgerEntity> page = ledgerService.listChains(requestId, userId, query, chainSort,
+                pageOffset, pageLimit, Source.API.getSource());
+        final List<LedgerEntity> chains = page.items();
 
         final List<LedgerEntryView> views = new ArrayList<>(chains.size());
         for (final LedgerEntity chain : chains) {
             views.add(toView(chain));
         }
 
-        final int total = searching
-                ? ledgerService.countChainsByUserIdMatching(userId, query)
-                : ledgerService.countChainsByUserId(userId);
-
-        return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, total)), HttpStatus.OK);
+        return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, (int) page.total())), HttpStatus.OK);
 
     }
+
+    /** The order a listing of ledger chains can take. */
+    private static final Map<String, String> CHAIN_SORT = sortFields("created", "timestamp", "filename", "filename");
 
     @Operation(summary = "Get a document's ledger chain.",
             description = "Returns the full ordered chain of ledger entries for a document, along with whether the "

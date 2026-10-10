@@ -105,6 +105,7 @@ public class AuditApiController extends AbstractApiController {
             final @RequestParam(value = "from", required = false) String from,
             final @RequestParam(value = "to", required = false) String to,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
@@ -142,7 +143,8 @@ public class AuditApiController extends AbstractApiController {
         final int pageLimit = normalizeLimit(limit);
 
         final List<Document> documents =
-                auditLogService.find(principalId, eventFilter, fromInclusive, toExclusive, pageOffset, pageLimit);
+                auditLogService.find(principalId, eventFilter, fromInclusive, toExclusive, pageOffset, pageLimit,
+                        listingSort(null, order, EVENT_SORT, "timestamp", true).descending());
 
         // The actor is stored by id; name the users among them in one query for the page.
         final List<ObjectId> actorIds = new ArrayList<>();
@@ -169,6 +171,9 @@ public class AuditApiController extends AbstractApiController {
         return new ResponseEntity<>(gson.toJson(new GetAuditResponse(events, total)), HttpStatus.OK);
 
     }
+
+    /** The order a listing of audit events can take. */
+    private static final Map<String, String> EVENT_SORT = sortFields("timestamp", "timestamp");
 
     /** Rejects an unknown event name: an empty page would read as "this never happened". */
     private static String normalizeEvent(final String event) {

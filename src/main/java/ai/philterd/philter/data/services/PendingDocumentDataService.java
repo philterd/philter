@@ -211,6 +211,23 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     }
 
+    /**
+     * A page of the user's queued documents, with the given status when one is given, and their total.
+     * The documents themselves are left out: a listing has no use for them, and they are large.
+     */
+    public Listings.Page<PendingDocumentEntity> list(final ObjectId userId, final String status, final Listings.Sort sort,
+                                                     final int offset, final int limit) {
+        final Bson filter = Listings.all(Filters.eq("user_id", userId), status == null ? null : Filters.eq("status", status));
+        final List<PendingDocumentEntity> items = new ArrayList<>();
+        for (final Document document : jobs.find(filter)
+                .projection(com.mongodb.client.model.Projections.exclude("input", "input_encrypted_key", "output",
+                        "output_encrypted_key", "effective_json", "effective_key"))
+                .sort(sort.toBson()).skip(offset).limit(limit)) {
+            items.add(PendingDocumentEntity.fromDocument(document, encryptionService));
+        }
+        return new Listings.Page<>(items, jobs.countDocuments(filter));
+    }
+
     public List<PendingDocumentEntity> findAllByUserId(final ObjectId userId, final int offset, final int limit) {
 
         final Bson query = Filters.eq("user_id", userId);

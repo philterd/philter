@@ -246,20 +246,20 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void listHoldsReturnsEmptyArrayWhenNoneExist() throws Exception {
-        when(legalHoldDataService.findAllByUserId(eq(userId), anyInt(), anyInt()))
-                .thenReturn(Collections.emptyList());
+        when(legalHoldDataService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         final String body = mockMvc.perform(get("/api/holds").header("Authorization", AUTH))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertEquals("[]", body);
+        assertEquals("{\"holds\":[],\"total\":0}", body);
     }
 
     @Test
     void listHoldsReturnsHoldSummaries() throws Exception {
-        when(legalHoldDataService.findAllByUserId(eq(userId), anyInt(), anyInt()))
-                .thenReturn(List.of(holdEntity("LIT-001", "document_chain", "doc123")));
+        when(legalHoldDataService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(holdEntity("LIT-001", "document_chain", "doc123")), 1));
 
         final String body = mockMvc.perform(get("/api/holds").header("Authorization", AUTH))
                 .andExpect(status().isOk())
@@ -267,6 +267,22 @@ class LegalHoldsApiControllerTest {
 
         assertTrue(body.contains("LIT-001"));
         assertTrue(body.contains("document_chain"));
+    }
+
+    @Test
+    void listHoldsPassesSearchAndOrderAndRefusesAnUnknownSort() throws Exception {
+        when(legalHoldDataService.list(eq(userId), eq("LIT"), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 3));
+
+        final String body = mockMvc.perform(get("/api/holds").header("Authorization", AUTH)
+                        .param("q", "LIT").param("sort", "reference").param("order", "desc"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("\"total\":3"), body);
+        verify(legalHoldDataService).list(eq(userId), eq("LIT"), eq(new ai.philterd.philter.data.services.Listings.Sort("reference", true)), anyInt(), anyInt());
+
+        mockMvc.perform(get("/api/holds").header("Authorization", AUTH).param("sort", "reason"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -287,8 +303,8 @@ class LegalHoldsApiControllerTest {
         final ObjectId otherUserId = new ObjectId();
         makeCallerAdmin();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
-        when(legalHoldDataService.findAllByUserId(eq(otherUserId), anyInt(), anyInt()))
-                .thenReturn(List.of(holdEntity("LIT-ADM", "user", otherUserId.toHexString())));
+        when(legalHoldDataService.list(eq(otherUserId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(holdEntity("LIT-ADM", "user", otherUserId.toHexString())), 1));
 
         final String body = mockMvc.perform(get("/api/holds").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -296,7 +312,7 @@ class LegalHoldsApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("LIT-ADM"));
-        verify(legalHoldDataService).findAllByUserId(eq(otherUserId), anyInt(), anyInt());
+        verify(legalHoldDataService).list(eq(otherUserId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("set_at", true)), anyInt(), anyInt());
     }
 
     // -------------------------------------------------------------------------

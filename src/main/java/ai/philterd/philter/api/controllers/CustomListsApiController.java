@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.CustomListConflictResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.GetCustomListsResponse;
 import ai.philterd.philter.api.responses.GetListsResponse;
 import ai.philterd.philter.api.responses.ListSummaryResponse;
 import ai.philterd.philter.api.security.RequiresScope;
@@ -27,6 +28,7 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
@@ -101,6 +103,9 @@ public class CustomListsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
+            final @RequestParam(value = "q", required = false) String q,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
@@ -112,14 +117,15 @@ public class CustomListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final Listings.Sort listSort = listingSort(sort, order, LIST_SORT, "name", false);
+
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
-            // Paged only here: the per-user listing has always returned every list, so a default page
-            // size there would silently cut off existing callers.
-            final List<CustomListEntity> lists =
-                    customListService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
+            final Listings.Page<CustomListEntity> page =
+                    customListService.list(null, q, listSort, normalizeOffset(offset), normalizeLimit(limit));
+            final List<CustomListEntity> lists = page.items();
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list custom lists");
             final Map<ObjectId, String> owners = ownerNames(userService, lists, CustomListEntity::getUserId);
@@ -127,7 +133,7 @@ public class CustomListsApiController extends AbstractApiController {
             for (final CustomListEntity entity : lists) {
                 summaries.add(summary(entity, owners.get(entity.getUserId())));
             }
-            return new ResponseEntity<>(gson.toJson(summaries), HttpStatus.OK);
+            return new ResponseEntity<>(gson.toJson(new GetCustomListsResponse(summaries, page.total())), HttpStatus.OK);
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -135,7 +141,9 @@ public class CustomListsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<CustomListEntity> customListEntities = customListService.findAll(userId);
+        final Listings.Page<CustomListEntity> page =
+                customListService.list(userId, q, listSort, normalizeOffset(offset), normalizeLimit(limit));
+        final List<CustomListEntity> customListEntities = page.items();
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LISTS_RETRIEVED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
 
@@ -145,9 +153,12 @@ public class CustomListsApiController extends AbstractApiController {
             lists.add(summary(customListEntity, null));
         }
 
-        return new ResponseEntity<>(gson.toJson(lists), HttpStatus.OK);
+        return new ResponseEntity<>(gson.toJson(new GetCustomListsResponse(lists, page.total())), HttpStatus.OK);
 
     }
+
+    /** The order a listing of custom lists can take. */
+    private static final Map<String, String> LIST_SORT = sortFields("name", "name");
 
     private static ListSummaryResponse summary(final CustomListEntity entity, final String owner) {
         return new ListSummaryResponse(entity.getName(), entity.getDescription(),

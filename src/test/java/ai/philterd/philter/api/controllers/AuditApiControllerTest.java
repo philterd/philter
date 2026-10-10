@@ -47,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -155,7 +156,7 @@ class AuditApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("administrator"), "the refusal should say what is required: " + body);
-        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -164,7 +165,7 @@ class AuditApiControllerTest {
 
         perform("/api/audit?owner=someone@example.com").andExpect(status().isForbidden());
 
-        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean());
     }
 
     // ----- listing -----
@@ -172,7 +173,7 @@ class AuditApiControllerTest {
     @Test
     void returnsEventsAndTheTotal() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.find(isNull(), isNull(), isNull(), isNull(), eq(0), eq(25)))
+        when(auditLogService.find(isNull(), isNull(), isNull(), isNull(), eq(0), eq(25), anyBoolean()))
                 .thenReturn(List.of(auditEvent("policy_deleted")));
         when(auditLogService.count(isNull(), isNull(), isNull(), isNull())).thenReturn(7L);
 
@@ -188,34 +189,34 @@ class AuditApiControllerTest {
     @Test
     void pagesWithOffsetAndLimitAndClampsThem() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.find(any(), any(), any(), any(), eq(0), eq(100))).thenReturn(List.of());
+        when(auditLogService.find(any(), any(), any(), any(), eq(0), eq(100), anyBoolean())).thenReturn(List.of());
 
         perform("/api/audit?offset=-5&limit=5000").andExpect(status().isOk());
 
-        verify(auditLogService).find(isNull(), isNull(), isNull(), isNull(), eq(0), eq(100));
+        verify(auditLogService).find(isNull(), isNull(), isNull(), isNull(), eq(0), eq(100), eq(true));
     }
 
     @Test
     void filtersByEventType() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.find(any(), eq("policy_deleted"), any(), any(), anyInt(), anyInt()))
+        when(auditLogService.find(any(), eq("policy_deleted"), any(), any(), anyInt(), anyInt(), anyBoolean()))
                 .thenReturn(List.of(auditEvent("policy_deleted")));
 
         perform("/api/audit?event=policy_deleted").andExpect(status().isOk());
 
-        verify(auditLogService).find(isNull(), eq("policy_deleted"), isNull(), isNull(), eq(0), eq(25));
+        verify(auditLogService).find(isNull(), eq("policy_deleted"), isNull(), isNull(), eq(0), eq(25), eq(true));
     }
 
     @Test
     void filtersByTimeRangeWithAnExclusiveUpperBound() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.find(any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(auditLogService.find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(List.of());
 
         perform("/api/audit?from=2026-09-01T00:00:00Z&to=2026-09-02T00:00:00Z").andExpect(status().isOk());
 
         final ArgumentCaptor<Date> from = ArgumentCaptor.forClass(Date.class);
         final ArgumentCaptor<Date> to = ArgumentCaptor.forClass(Date.class);
-        verify(auditLogService).find(isNull(), isNull(), from.capture(), to.capture(), anyInt(), anyInt());
+        verify(auditLogService).find(isNull(), isNull(), from.capture(), to.capture(), anyInt(), anyInt(), eq(true));
 
         assertEquals("2026-09-01T00:00:00Z", from.getValue().toInstant().toString());
         assertEquals("2026-09-02T00:00:00Z", to.getValue().toInstant().toString());
@@ -226,11 +227,11 @@ class AuditApiControllerTest {
         makeCallerAdmin();
         final ObjectId otherUser = new ObjectId();
         makeOwnerLookup("other@example.com", otherUser);
-        when(auditLogService.find(eq(otherUser), any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(auditLogService.find(eq(otherUser), any(), any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(List.of());
 
         perform("/api/audit?owner=other@example.com").andExpect(status().isOk());
 
-        verify(auditLogService).find(eq(otherUser), isNull(), isNull(), isNull(), eq(0), eq(25));
+        verify(auditLogService).find(eq(otherUser), isNull(), isNull(), isNull(), eq(0), eq(25), eq(true));
     }
 
     // ----- rejected input -----
@@ -242,7 +243,7 @@ class AuditApiControllerTest {
 
         perform("/api/audit?owner=nobody@example.com").andExpect(status().isNotFound());
 
-        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -254,7 +255,7 @@ class AuditApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("event parameter"), "the error must say which parameter: " + body);
-        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -263,7 +264,7 @@ class AuditApiControllerTest {
 
         perform("/api/audit?from=2026-09-01").andExpect(status().isBadRequest());
 
-        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -273,7 +274,7 @@ class AuditApiControllerTest {
         perform("/api/audit?from=2026-09-02T00:00:00Z&to=2026-09-01T00:00:00Z")
                 .andExpect(status().isBadRequest());
 
-        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean());
     }
 
     // ----- reading the log is itself audited -----
@@ -281,7 +282,7 @@ class AuditApiControllerTest {
     @Test
     void readingTheLogRecordsAnAuditEventNamingTheReader() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.find(any(), any(), any(), any(), anyInt(), anyInt()))
+        when(auditLogService.find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean()))
                 .thenReturn(List.of(auditEvent("policy_deleted")));
         when(auditLogService.count(any(), any(), any(), any())).thenReturn(1L);
 
@@ -305,7 +306,7 @@ class AuditApiControllerTest {
     @Test
     void totalIsReportedAsALong() throws Exception {
         makeCallerAdmin();
-        when(auditLogService.find(any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(auditLogService.find(any(), any(), any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(List.of());
         when(auditLogService.count(any(), any(), any(), any())).thenReturn(5_000_000_000L);
 
         final String body = perform("/api/audit")

@@ -325,6 +325,31 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     }
 
     /** Counts the chain heads a search matches. Does not audit; the search it accompanies does. */
+    /**
+     * A page of chain heads, the user's or every user's when {@code userId} is null, whose document id or
+     * file name contains {@code q} when one is given, and their total. A user's listing is audited as a
+     * ledger query, with a hash of the search term rather than the term.
+     */
+    public Listings.Page<LedgerEntity> listChains(final String requestId, final ObjectId userId, final String q,
+                                                  final Listings.Sort sort, final int offset, final int limit,
+                                                  final String source) {
+
+        final boolean searching = q != null && !q.isBlank();
+        final Bson filter = Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+                Filters.eq("previous_hash", GENESIS),
+                searching ? Filters.or(Listings.contains("document_id", q), Listings.contains("filename", q)) : null);
+
+        final Listings.Page<LedgerEntity> page = Listings.page(collection, filter, sort, offset, limit, this::chainHead);
+
+        if (userId != null) {
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, userId, null, source,
+                    searching ? "searchTermHash: " + DigestUtils.sha256Hex(q) : null);
+        }
+
+        return page;
+
+    }
+
     public int countChainsByUserIdMatching(final ObjectId userId, final String searchTerm) {
         return (int) collection.countDocuments(searchQuery(userId, searchTerm));
     }

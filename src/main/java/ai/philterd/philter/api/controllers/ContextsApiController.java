@@ -37,6 +37,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.RequestIdGenerator;
@@ -174,6 +175,9 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
+            final @RequestParam(value = "q", required = false) String q,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
@@ -186,17 +190,18 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         final ObjectId callerUserId = apiKeyEntity.getUserId();
+        final Listings.Sort contextSort = listingSort(sort, order, CONTEXT_SORT, "name", false);
 
         if (allUsers) {
             if (!mayListAllUsers(userService, callerUserId, owner)) {
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
-            final List<ContextEntity> contextEntities =
-                    contextService.findAllAcrossUsers(normalizeOffset(offset), normalizeLimit(limit));
+            final Listings.Page<ContextEntity> page =
+                    contextService.list(null, q, contextSort, normalizeOffset(offset), normalizeLimit(limit));
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
             auditAllUsersListing(auditEventPublisher, requestId, callerUserId, "list contexts");
-            return new ResponseEntity<>(gson.toJson(new GetAllUsersContextsResponse(ownedNames(userService, contextEntities,
-                    ContextEntity::getContextName, ContextEntity::getUserId))), HttpStatus.OK);
+            return new ResponseEntity<>(gson.toJson(new GetAllUsersContextsResponse(ownedNames(userService, page.items(),
+                    ContextEntity::getContextName, ContextEntity::getUserId), page.total())), HttpStatus.OK);
         }
 
         // The caller's own contexts, or — for an admin supplying owner — another user's. A null result
@@ -206,22 +211,29 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<ContextEntity> contextEntities = contextService.findAll(userId, normalizeOffset(offset), normalizeLimit(limit));
+        final Listings.Page<ContextEntity> page =
+                contextService.list(userId, q, contextSort, normalizeOffset(offset), normalizeLimit(limit));
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
         auditAdminCrossUserAccess(auditEventPublisher, requestId, callerUserId, userId, "list contexts");
 
         final List<String> contexts = new ArrayList<>();
 
-        for(final ContextEntity contextEntity : contextEntities) {
+        for(final ContextEntity contextEntity : page.items()) {
             contexts.add(contextEntity.getContextName());
         }
 
-        final GetContextsResponse getContextsResponse = new GetContextsResponse(contexts);
+        final GetContextsResponse getContextsResponse = new GetContextsResponse(contexts, page.total());
 
         return new ResponseEntity<>(gson.toJson(getContextsResponse), HttpStatus.OK);
 
     }
+
+    /** The order a listing of a context's entries can take. */
+    private static final java.util.Map<String, String> ENTRY_SORT = sortFields("created", "timestamp", "reads", "reads");
+
+    /** The order a listing of contexts can take. */
+    private static final java.util.Map<String, String> CONTEXT_SORT = sortFields("name", "context_name", "created", "timestamp");
 
     @Operation(summary = "Get the details of a context.",
             description = "Get the details of a context with the provided name: its size and its entries counted "
@@ -501,6 +513,8 @@ public class ContextsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestParam(value = "owner", required = false) String owner) {
 
@@ -521,7 +535,8 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
-        final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(userId, name, normalizeOffset(offset), normalizeLimit(limit));
+        final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(userId, name, normalizeOffset(offset), normalizeLimit(limit),
+                listingSort(sort, order, ENTRY_SORT, "created", true));
         final int total = contextEntryService.countByUserIdAndContext(userId, name);
 
         final List<ContextEntryView> views = new ArrayList<>(entries.size());

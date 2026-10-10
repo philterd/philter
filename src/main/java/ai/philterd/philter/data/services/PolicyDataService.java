@@ -437,6 +437,27 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     }
 
+    /** A page of the user's own policies whose names contain {@code q} (any, when null), and their total. */
+    public Listings.Page<PolicyEntity> listOwn(final ObjectId userId, final String q, final Listings.Sort sort,
+                                               final int offset, final int limit) {
+        return Listings.page(collection, Listings.all(Filters.or(Filters.eq("user_id", userId), Filters.eq("shared", true)),
+                Filters.ne("managed", true), Listings.contains("name", q)), sort, offset, limit, PolicyEntity::fromDocument);
+    }
+
+    /** A page of every user's policies, managed ones excluded, whose names contain {@code q}, and their total. */
+    public Listings.Page<PolicyEntity> listAcrossUsers(final String q, final Listings.Sort sort, final int offset,
+                                                       final int limit) {
+        return Listings.page(collection, Listings.all(acrossUsers(false), Listings.contains("name", q)), sort, offset,
+                limit, PolicyEntity::fromDocument);
+    }
+
+    /** A page of the managed policies whose names contain {@code q}, and their total. */
+    public Listings.Page<PolicyEntity> listManaged(final String q, final Listings.Sort sort, final int offset,
+                                                   final int limit) {
+        return Listings.page(collection, Listings.all(Filters.eq("managed", true), Listings.contains("name", q)), sort,
+                offset, limit, PolicyEntity::fromDocument);
+    }
+
     /** Returns the total number of managed policies (for paging). */
     public int countManagedPolicies() {
         return (int) collection.countDocuments(Filters.eq("managed", true));
@@ -925,21 +946,23 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * deleted when it has retained versions and no live policy has its name. When and by whom it was
      * deleted are {@code null} for a deletion made before deletions were recorded.
      */
-    public List<DeletedPolicy> findDeleted(final ObjectId userId, final int offset, final int limit) {
+    public Listings.Page<DeletedPolicy> findDeleted(final ObjectId userId, final String q, final boolean descending,
+                                                    final int offset, final int limit) {
 
         final java.util.Set<String> live = new java.util.HashSet<>();
         collection.distinct("name", Filters.and(Filters.eq("user_id", userId), Filters.ne("managed", true)), String.class)
                 .into(live);
 
-        final List<String> deletedNames = policyVersionDataService.findNames(userId).stream()
+        final String search = q == null || q.isBlank() ? null : q.trim().toLowerCase(java.util.Locale.ROOT);
+        final java.util.Comparator<String> byName = descending ? java.util.Comparator.reverseOrder() : java.util.Comparator.naturalOrder();
+        final List<String> matching = policyVersionDataService.findNames(userId).stream()
                 .filter(name -> !live.contains(name))
-                .sorted()
-                .skip(offset)
-                .limit(limit)
+                .filter(name -> search == null || name.toLowerCase(java.util.Locale.ROOT).contains(search))
+                .sorted(byName)
                 .toList();
 
         final List<DeletedPolicy> deleted = new ArrayList<>();
-        for (final String name : deletedNames) {
+        for (final String name : matching.stream().skip(offset).limit(limit).toList()) {
             final List<PolicyVersionEntity> latest = policyVersionDataService.findAllByName(name, userId, 0, 1);
             final int latestRevision = latest.isEmpty() ? 0 : latest.get(0).getRevision();
             final Document deletion = policyVersionDataService.findDeletion(userId, name);
@@ -947,7 +970,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
                     deletion == null ? null : deletion.getDate("deleted_at"),
                     deletion == null ? null : deletion.getObjectId("deleted_by")));
         }
-        return deleted;
+        return new Listings.Page<>(deleted, matching.size());
 
     }
 

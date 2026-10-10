@@ -144,10 +144,16 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
      * has no use for.
      */
     public List<WebhookDeliveryEntity> findByUserId(final ObjectId userId, final int offset, final int limit) {
+        return findByUserId(userId, offset, limit, true);
+    }
+
+    /** As above, oldest first unless {@code descending}. */
+    public List<WebhookDeliveryEntity> findByUserId(final ObjectId userId, final int offset, final int limit,
+                                                    final boolean descending) {
         final List<WebhookDeliveryEntity> deliveries = new ArrayList<>();
         for (final Document document : collection.find(Filters.eq("user_id", userId))
                 .projection(Projections.exclude("secret", "secret_encrypted_key", "payload", "claim_token"))
-                .sort(Sorts.orderBy(Sorts.descending("created_at"), Sorts.descending("_id")))
+                .sort(new Listings.Sort("created_at", descending).toBson())
                 .skip(offset).limit(limit)) {
             deliveries.add(WebhookDeliveryEntity.fromDocument(document, encryptionService));
         }

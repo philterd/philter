@@ -275,7 +275,7 @@ class PoliciesApiIT {
                     ApiKeyScope.all()).getMessage();
             assertEquals(200, sendAs(adminKey, "PUT", "/api/policies/authored?owner=" + username(), POLICY).statusCode());
 
-            final JsonArray versions = gson.fromJson(send("GET", "/api/policies/authored/versions", null).body(), JsonArray.class);
+            final JsonArray versions = gson.fromJson(send("GET", "/api/policies/authored/versions", null).body(), JsonObject.class).getAsJsonArray("versions");
             assertEquals(3, versions.size());
             assertEquals(adminName, versions.get(0).getAsJsonObject().get("author").getAsString(), "the administrator made the newest");
             assertEquals(username(), versions.get(1).getAsJsonObject().get("author").getAsString());
@@ -294,7 +294,7 @@ class PoliciesApiIT {
 
         final HttpResponse<String> listed = send("GET", "/api/policies/legacy/versions", null);
         assertEquals(200, listed.statusCode(), listed.body());
-        final JsonArray versions = gson.fromJson(listed.body(), JsonArray.class);
+        final JsonArray versions = gson.fromJson(listed.body(), JsonObject.class).getAsJsonArray("versions");
         assertEquals(1, versions.size());
         assertTrue(!versions.get(0).getAsJsonObject().has("author") || versions.get(0).getAsJsonObject().get("author").isJsonNull());
     }
@@ -309,7 +309,8 @@ class PoliciesApiIT {
 
         final HttpResponse<String> listed = send("GET", "/api/policies?deleted=true", null);
         assertEquals(200, listed.statusCode(), listed.body());
-        final JsonArray deleted = gson.fromJson(listed.body(), JsonArray.class);
+        final JsonArray deleted = gson.fromJson(listed.body(), JsonObject.class).getAsJsonArray("policies");
+        assertEquals(deleted.size(), gson.fromJson(listed.body(), JsonObject.class).get("total").getAsInt());
         assertEquals(1, deleted.size(), "live policies are not listed: " + listed.body());
         final JsonObject retired = deleted.get(0).getAsJsonObject();
         assertEquals("retired", retired.get("name").getAsString());
@@ -317,14 +318,14 @@ class PoliciesApiIT {
         assertTrue(retired.has("deletedAt") && !retired.get("deletedAt").isJsonNull());
         final int latest = retired.get("latestRevision").getAsInt();
 
-        final JsonArray history = gson.fromJson(send("GET", "/api/policies/retired/versions", null).body(), JsonArray.class);
+        final JsonArray history = gson.fromJson(send("GET", "/api/policies/retired/versions", null).body(), JsonObject.class).getAsJsonArray("versions");
         assertEquals(2, history.size(), "the deleted policy's history is kept");
         assertEquals(latest, history.get(0).getAsJsonObject().get("revision").getAsInt());
         assertEquals(200, send("GET", "/api/policies/retired/versions/" + latest, null).statusCode());
 
         // A policy created again under the name is live, so it is no longer listed as deleted.
         assertEquals(201, send("POST", "/api/policies?name=retired", POLICY).statusCode());
-        assertEquals(0, gson.fromJson(send("GET", "/api/policies?deleted=true", null).body(), JsonArray.class).size());
+        assertEquals(0, gson.fromJson(send("GET", "/api/policies?deleted=true", null).body(), JsonObject.class).get("total").getAsInt());
     }
 
     @Test

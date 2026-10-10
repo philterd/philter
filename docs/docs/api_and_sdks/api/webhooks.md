@@ -104,7 +104,7 @@ The test is a single attempt. It is not queued, not retried, and does not appear
 GET /api/webhook/deliveries?offset=0&limit=25
 ```
 
-Requires `webhooks:read`. Lists your deliveries, newest first, and the total, so you can see why a webhook is failing. `limit` defaults to 25 and is capped at 100.
+Requires `webhooks:read`. Lists your deliveries, newest first, and the total, so you can see why a webhook is failing. `limit` defaults to 25 and is capped at 100. `order=asc` lists the oldest first; see [Listings](../api.md#listings).
 
 ```json
 {

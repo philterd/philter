@@ -15,26 +15,25 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
-/** {@code GET /api/contexts?all_users=true}: the per-user shape, with each context naming its owner. */
-public class GetAllUsersContextsResponse {
+/** A page of legal holds and how many there are. With all_users, each hold also names its owner. */
+public class GetHoldsResponse {
 
-    private final List<OwnedNameResponse> contexts;
+    private final List<? extends LegalHoldResponse> holds;
     private final long total;
 
-    public GetAllUsersContextsResponse(final List<OwnedNameResponse> contexts, final long total) {
-        this.contexts = contexts;
+    public GetHoldsResponse(final List<? extends LegalHoldResponse> holds, final long total) {
+        this.holds = holds;
         this.total = total;
     }
 
-    public List<OwnedNameResponse> getContexts() {
-        return contexts;
-    }
+    @Schema(description = "The holds on this page.")
+    public List<? extends LegalHoldResponse> getHolds() { return holds; }
 
-    /** How many items the listing has across every page. */
-    public long getTotal() {
-        return total;
-    }
+    @Schema(description = "How many holds the listing has across every page.")
+    public long getTotal() { return total; }
 
 }

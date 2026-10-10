@@ -13,10 +13,15 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 | ------ |-----------------|--------------------------------| 
 | `GET` | `/api/policies` | Get the names of policies (paginated). |
 
+Returns an object with the policies on the requested page in `policies` and `total`, how many there are across every page. See [Listings](../api.md#listings) for paging, sorting, and searching.
+
 ### Query Parameters
 
-* `offset` (optional, default: `0`) - The number of policy names to skip.
-* `limit` (optional, default: `25`) - The maximum number of policy names to return. The response is paginated, so request successive pages with `offset` to retrieve all names.
+* `offset` (optional, default: `0`) - The number of policies to skip.
+* `limit` (optional, default: `25`, max: `100`) - The maximum number of policies to return.
+* `q` (optional) - Only policies whose name contains `q`, ignoring case.
+* `sort` (optional, default: `name`) - `name`, `created`, or `updated`. The `managed` and `deleted` listings sort by `name` only.
+* `order` (optional, default: `asc`) - `asc` or `desc`.
 * `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item is then an object with the policy's `name` and its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 * `managed` (optional, default: `false`) - List the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Each item is then an object with the policy's `name` and `description`. Cannot be combined with `owner` or `all_users`.
 * `deleted` (optional, default: `false`) - List the caller's deleted policies whose [version history](#policy-version-history) is kept, by name, instead of the live ones. Each item is then an object with the policy's `name`, its `latestRevision`, when it was deleted (`deletedAt`), and the username of who deleted it (`deletedBy`). `deletedAt` and `deletedBy` are `null` for a policy deleted before Philter recorded deletions. A policy created again under a deleted name is live, and is no longer listed. Can be combined with `owner`, but not with `all_users` or `managed`.
@@ -27,30 +32,39 @@ Example request:
 curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies?offset=0&limit=100"
 ```
 
-Example response, a JSON array of the caller's policy names:
+Example response, the caller's policy names:
 
 ```json
-[
-  "default",
-  "my-policy"
-]
+{
+  "policies": [
+    "default",
+    "my-policy"
+  ],
+  "total": 2
+}
 ```
 
 Example response with `all_users=true`:
 
 ```json
-[
-  { "name": "default", "owner": "alice" },
-  { "name": "default", "owner": "bob" }
-]
+{
+  "policies": [
+    { "name": "default", "owner": "alice" },
+    { "name": "default", "owner": "bob" }
+  ],
+  "total": 2
+}
 ```
 
 Example response with `deleted=true`:
 
 ```json
-[
-  { "name": "claims-2025", "latestRevision": 4, "deletedAt": "2026-10-02T15:20:41.000Z", "deletedBy": "jordan" }
-]
+{
+  "policies": [
+    { "name": "claims-2025", "latestRevision": 4, "deletedAt": "2026-10-02T15:20:41.000Z", "deletedBy": "jordan" }
+  ],
+  "total": 1
+}
 ```
 
 Read a deleted policy's history with [List Versions](#list-versions) and [Fetch a Specific Revision](#fetch-a-specific-revision), by its name. To restore one, fetch the revision you want and save it under the name with [Save a Policy](#save-a-policy); the restored policy continues the same revision numbers. [Rollback](#rollback-to-a-prior-revision) only applies to a live policy.
@@ -58,11 +72,14 @@ Read a deleted policy's history with [List Versions](#list-versions) and [Fetch 
 Example response with `managed=true`:
 
 ```json
-[
-  { "name": "managed_common_pii", "description": "Common PII including names, emails, phone numbers, and SSNs" },
-  { "name": "managed_financial_pii", "description": "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses" },
-  { "name": "managed_healthcare_phi", "description": "Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs" }
-]
+{
+  "policies": [
+    { "name": "managed_common_pii", "description": "Common PII including names, emails, phone numbers, and SSNs" },
+    { "name": "managed_financial_pii", "description": "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses" },
+    { "name": "managed_healthcare_phi", "description": "Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs" }
+  ],
+  "total": 3
+}
 ```
 
 ## Get a Policy
@@ -372,17 +389,21 @@ Every time a policy's content changes, Philter automatically retains an immutabl
 * `offset` (optional, default: `0`) - Number of entries to skip.
 * `limit` (optional, default: `25`, max: `100`) - Maximum number of entries to return.
 * `owner` (optional, admin only) - Username of another user whose policy to browse.
+* `order` (optional, default: `desc`) - `desc` lists the most recent revision first, `asc` the oldest. See [Listings](../api.md#listings).
 
 #### Response
 
-Returns an array of version summaries. The full policy JSON is **not** included; use [Fetch a Specific Revision](#fetch-a-specific-revision) to retrieve the full content of a particular revision.
+Returns the version summaries on the requested page in `versions`, and `total`, how many versions the policy has retained. The full policy JSON is **not** included; use [Fetch a Specific Revision](#fetch-a-specific-revision) to retrieve the full content of a particular revision.
 
 ```json
-[
-  { "revision": 3, "capturedTimestamp": "2026-06-09T14:23:00.000Z", "contentHash": "a1b2c3...", "author": "admin" },
-  { "revision": 2, "capturedTimestamp": "2026-06-08T09:11:00.000Z", "contentHash": "d4e5f6...", "author": "jordan" },
-  { "revision": 1, "capturedTimestamp": "2026-06-07T16:04:00.000Z", "contentHash": "g7h8i9...", "author": "jordan" }
-]
+{
+  "versions": [
+    { "revision": 3, "capturedTimestamp": "2026-06-09T14:23:00.000Z", "contentHash": "a1b2c3...", "author": "admin" },
+    { "revision": 2, "capturedTimestamp": "2026-06-08T09:11:00.000Z", "contentHash": "d4e5f6...", "author": "jordan" },
+    { "revision": 1, "capturedTimestamp": "2026-06-07T16:04:00.000Z", "contentHash": "g7h8i9...", "author": "jordan" }
+  ],
+  "total": 3
+}
 ```
 
 * `author` - The username of the user whose change produced the revision: the caller who created, replaced, or rolled back the policy, which may be an administrator acting for its owner. It is `null` when that is not known: for a revision made before Philter recorded authors, for a managed policy, or for a revision first captured when the policy was used to redact.

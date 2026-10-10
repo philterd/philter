@@ -19,6 +19,7 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.LegalHoldRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.api.responses.GetHoldsResponse;
 import ai.philterd.philter.api.responses.LegalHoldConflictResponse;
 import ai.philterd.philter.api.responses.LegalHoldResponse;
 import ai.philterd.philter.api.responses.OwnedLegalHoldResponse;
@@ -30,6 +31,7 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.RequestIdGenerator;
@@ -176,9 +178,9 @@ public class LegalHoldsApiController extends AbstractApiController {
                     + "Admins may list another user's holds via the owner parameter, or every user's with "
                     + "all_users=true, which adds each hold's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Array of legal holds, most recently set first. With all_users, each hold also has an owner field.",
+            @ApiResponse(responseCode = "200", description = "A page of legal holds in holds, most recently set first by default, and the total. With all_users, each hold also has an owner field.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(oneOf = {LegalHoldResponse[].class, OwnedLegalHoldResponse[].class}))),
+                            schema = @Schema(implementation = GetHoldsResponse.class))),
             @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
@@ -186,10 +188,13 @@ public class LegalHoldsApiController extends AbstractApiController {
     @RequiresScope(ApiKeyScope.HOLDS_READ)
     @RequestMapping(value = "/api/holds", method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<List<LegalHoldResponse>> listHolds(
+    public @ResponseBody ResponseEntity<GetHoldsResponse> listHolds(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "all_users", defaultValue = "false") boolean allUsers,
+            final @RequestParam(value = "q", required = false) String q,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit) {
 
@@ -198,16 +203,19 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final Listings.Sort holdSort = listingSort(sort, order, HOLD_SORT, "set", true);
+
         if (allUsers) {
             if (!mayListAllUsers(userService, apiKeyEntity.getUserId(), owner)) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-            final List<LegalHoldEntity> holds = legalHoldDataService.findAll(normalizeOffset(offset), normalizeLimit(limit));
-            final Map<ObjectId, String> owners = ownerNames(userService, holds, LegalHoldEntity::getUserId);
+            final Listings.Page<LegalHoldEntity> page =
+                    legalHoldDataService.list(null, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
+            final Map<ObjectId, String> owners = ownerNames(userService, page.items(), LegalHoldEntity::getUserId);
             auditAllUsersListing(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), "list legal holds");
-            return ResponseEntity.ok(holds.stream().<LegalHoldResponse>map(hold -> new OwnedLegalHoldResponse(
+            return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().<LegalHoldResponse>map(hold -> new OwnedLegalHoldResponse(
                     hold.getReference(), hold.getScopeType(), hold.getScopeValue(), hold.getReason(), hold.getSetAt(),
-                    owners.get(hold.getUserId()))).toList());
+                    owners.get(hold.getUserId()))).toList(), page.total()));
         }
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -218,11 +226,15 @@ public class LegalHoldsApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
                 apiKeyEntity.getUserId(), userId, "list legal holds");
 
-        final List<LegalHoldEntity> holds = legalHoldDataService.findAllByUserId(
-                userId, normalizeOffset(offset), normalizeLimit(limit));
+        final Listings.Page<LegalHoldEntity> page =
+                legalHoldDataService.list(userId, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
 
-        return ResponseEntity.ok(holds.stream().map(LegalHoldsApiController::toResponse).toList());
+        return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().map(LegalHoldsApiController::toResponse).toList(),
+                page.total()));
     }
+
+    /** The order a listing of holds can take. */
+    private static final Map<String, String> HOLD_SORT = sortFields("set", "set_at", "reference", "reference");
 
     @Operation(summary = "Get a legal hold.",
             description = "Returns the hold with the given reference. Admins may retrieve another user's hold via the owner parameter.")

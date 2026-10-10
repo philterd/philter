@@ -144,7 +144,7 @@ class CustomListsApiIT {
 
         final HttpResponse<String> listed = send("GET", "/api/lists", key, null);
         assertEquals(200, listed.statusCode(), listed.body());
-        final JsonObject summary = entry(gson.fromJson(listed.body(), JsonArray.class), "projects");
+        final JsonObject summary = entry(gson.fromJson(listed.body(), JsonObject.class).getAsJsonArray("lists"), "projects");
         assertEquals("Code names", summary.get("description").getAsString());
         assertEquals(2, summary.get("size").getAsInt());
         assertFalse(summary.has("owner"), "a per-user listing names no owner");
@@ -192,13 +192,13 @@ class CustomListsApiIT {
 
         final HttpResponse<String> owned = send("GET", "/api/lists?owner=" + encode(username), adminKey, null);
         assertEquals(200, owned.statusCode(), owned.body());
-        assertEquals(3, entry(gson.fromJson(owned.body(), JsonArray.class), "owned").get("size").getAsInt());
+        assertEquals(3, entry(gson.fromJson(owned.body(), JsonObject.class).getAsJsonArray("lists"), "owned").get("size").getAsInt());
 
         JsonObject summary = null;
         for (int offset = 0; summary == null; offset += 100) {
             final HttpResponse<String> page = send("GET", "/api/lists?all_users=true&limit=100&offset=" + offset, adminKey, null);
             assertEquals(200, page.statusCode(), page.body());
-            final JsonArray items = gson.fromJson(page.body(), JsonArray.class);
+            final JsonArray items = gson.fromJson(page.body(), JsonObject.class).getAsJsonArray("lists");
             for (final JsonElement element : items) {
                 final JsonObject item = element.getAsJsonObject();
                 if (item.get("name").getAsString().equals("owned") && item.get("owner").getAsString().equals(username)) {

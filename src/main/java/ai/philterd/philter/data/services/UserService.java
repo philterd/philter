@@ -307,6 +307,18 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     }
 
+    /**
+     * A page of users, deactivated ones included, whose usernames contain {@code q}, with the given role
+     * and active state when they are given, and their total.
+     */
+    public Listings.Page<UserEntity> list(final String q, final String role, final Boolean active,
+                                          final Listings.Sort sort, final int offset, final int limit) {
+        return Listings.page(collection, Listings.all(Listings.contains("username", q),
+                        role == null ? null : Filters.eq("role", role),
+                        active == null ? null : active ? Filters.ne("deactivated", true) : Filters.eq("deactivated", true)),
+                sort, offset, limit, document -> UserEntity.fromDocument(document, encryptionService));
+    }
+
     /** Counts all users, including deactivated ones. */
     public int count() {
         return count(true);

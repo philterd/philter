@@ -75,13 +75,15 @@ Set, list, and get return holds with these fields:
 
 * `owner` (optional, admin only) - Username of another user whose holds to list.
 * `offset` (optional, default `0`) - Number of holds to skip.
-* `limit` (optional, default `25`) - Maximum number of holds to return.
+* `limit` (optional, default `25`, max `100`) - Maximum number of holds to return.
+* `q` (optional) - Only holds whose reference contains `q`, ignoring case.
+* `sort` (optional, default `set`) - `set`, newest first by default, or `reference`. With `order` (`asc` or `desc`); see [Listings](../api.md#listings).
 * `all_users` (optional, default `false`) - List every user's holds instead of the caller's; each hold then also has an `owner` field with its owner's username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
 ### Responses
 
-* `200 OK` - A JSON array of holds, ordered by set date descending.
-* `400 Bad Request` - Both `owner` and `all_users` were given.
+* `200 OK` - The holds on the requested page in `holds`, each a [hold object](#hold-object), and `total`, how many there are across every page.
+* `400 Bad Request` - Both `owner` and `all_users` were given, or `sort` or `order` is not one this listing accepts.
 
 Example request:
 

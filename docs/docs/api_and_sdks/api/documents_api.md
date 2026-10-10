@@ -48,10 +48,14 @@ Terminal records are retained for `PENDING_DOCUMENTS_TTL_SECONDS` (default 7 day
 
 * `offset` (optional, default `0`)
 * `limit` (optional, default `25`, max `100`)
+* `status` (optional) - Only documents with this status: `PENDING`, `PROCESSING`, `COMPLETE`, or `FAILED`, ignoring case. Any other value is refused with `400 Bad Request`.
+* `sort` (optional, default `submitted`) - `submitted`, newest first by default, or `fileName`. With `order` (`asc` or `desc`); see [Listings](../api.md#listings).
+
+Returns the documents on the requested page in `pendingRedactedDocuments` and `total`, how many match across every page.
 
 ```bash
 curl -k -H "Authorization: Bearer <token>" \
-  "https://localhost:8080/api/documents?offset=0&limit=25"
+  "https://localhost:8080/api/documents?status=failed&offset=0&limit=25"
 ```
 
 ```json
@@ -63,7 +67,8 @@ curl -k -H "Authorization: Bearer <token>" \
       "timestamp": "2026-05-22T20:00:00.000Z",
       "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f"
     }
-  ]
+  ],
+  "total": 1
 }
 ```
 

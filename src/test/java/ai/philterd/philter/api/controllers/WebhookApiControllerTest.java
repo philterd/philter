@@ -315,7 +315,7 @@ class WebhookApiControllerTest {
         delivery.setAttempts(2);
         delivery.setLastError("Webhook responded with HTTP 500");
         delivery.setSecret("must-never-be-returned-0123");
-        when(webhookDeliveryDataService.findByUserId(callerUserId, 0, 100)).thenReturn(List.of(delivery));
+        when(webhookDeliveryDataService.findByUserId(callerUserId, 0, 100, true)).thenReturn(List.of(delivery));
         when(webhookDeliveryDataService.countByUserId(callerUserId)).thenReturn(7L);
 
         final String body = perform(get("/api/webhook/deliveries").param("limit", "500"))

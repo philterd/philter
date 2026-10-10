@@ -945,7 +945,7 @@
           "Audit Log"
         ],
         "summary": "Export the audit log as CSV.",
-        "description": "Returns the audit log for a range of whole days as CSV, most recent first. from and to are dates (YYYY-MM-DD), both inclusive, read in zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when zone is omitted. to may be at most 30 days after from. Returns up to limit events (default 100, at most 1000; a larger value is treated as the maximum, and zero or less as the default), starting offset events into the range; the X-Philter-Export-Truncated header is true when more remain, and X-Philter-Export-Next-Offset gives the offset to request next. Events are ordered by timestamp and then id, so paging a range that is no longer receiving events returns each exactly once; a range that includes the current day can repeat events across pages. Timestamps in the CSV are UTC. The export is itself audited. Requires an administrator as well as the audit:read scope. Requires the `audit:read` scope.",
+        "description": "Returns the audit log for a range of whole days as CSV, most recent first. from and to are dates (YYYY-MM-DD), both inclusive, read in zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when zone is omitted. to may be at most 30 days after from. Returns up to limit events (default 100, at most 1000; a larger value is treated as the maximum, and zero or less as the default). The X-Philter-Export-Truncated header is true when more remain, and X-Philter-Export-Next-Cursor then gives the cursor to request the next page with. Events are ordered by timestamp and then id, and a cursor continues after the last event of its page, so paging by cursor returns each event exactly once even while events are being written, including each page's own audit event. offset, with X-Philter-Export-Next-Offset, is kept for paging a range that is no longer receiving events; on a range that includes the current day it can repeat events across pages. Give offset or cursor, not both. Timestamps in the CSV are UTC. The export is itself audited. Requires an administrator as well as the audit:read scope. Requires the `audit:read` scope.",
         "operationId": "exportAuditLog",
         "parameters": [
           {
@@ -986,8 +986,15 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32",
-              "default": 0
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1013,7 +1020,7 @@
             }
           },
           "400": {
-            "description": "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, the zone is not a time zone, offset is negative or not a number, or limit is not a number. The body says which.",
+            "description": "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, the zone is not a time zone, offset is negative or not a number, the cursor is not one from an export page, both offset and cursor were given, or limit is not a number. The body says which.",
             "content": {
               "application/json": {
                 "schema": {

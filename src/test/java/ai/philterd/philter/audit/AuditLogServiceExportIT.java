@@ -189,6 +189,60 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
                 () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, AuditLogService.MAX_EXPORT_ROWS + 1));
     }
 
+    @Test
+    @DisplayName("Paging by cursor returns each event exactly once while newer events are written between pages")
+    void cursorPagingIsStableWhileEventsAreWritten() {
+        // Two pairs share a millisecond, so a page can end between events only the id orders.
+        for (int i = 0; i < 10; i++) {
+            event("e" + i, "2026-10-01T10:00:0" + (i / 2) + "Z");
+        }
+
+        final LocalDate day = LocalDate.parse("2026-10-01");
+        final ZoneId utc = ZoneId.of("UTC");
+        final AuditLogService service = new AuditLogService(mongoClient);
+        final List<String> before = eventNames(service.export(day, day, utc));
+        assertEquals(10, before.size());
+
+        // By offset, a newer event written between pages pushes the page boundary down a row.
+        final AuditLogService.CsvExport first = service.export(day, day, utc, 0, 3);
+        event("new-by-offset", "2026-10-01T23:00:00Z");
+        final List<String> byOffset = new ArrayList<>(eventNames(first));
+        byOffset.addAll(eventNames(service.export(day, day, utc, first.nextOffset(), 3)));
+        assertEquals(5, new HashSet<>(byOffset).size(), "offset paging repeats the row the new event pushed down");
+
+        // By cursor, newer events land before the cursor, so the pages after it hold the rest exactly once.
+        final List<String> paged = new ArrayList<>();
+        AuditLogService.CsvExport page = service.export(day, day, utc, 0, 3);
+        final List<String> top = eventNames(page);
+        paged.addAll(top);
+        int written = 0;
+        while (page.truncated()) {
+            event("new-" + written++, "2026-10-01T23:00:00Z");
+            page = service.export(day, day, utc, AuditLogService.ExportCursor.parse(page.nextCursor()), 3);
+            paged.addAll(eventNames(page));
+        }
+
+        assertTrue(written >= 3, "events were written between pages");
+        assertEquals(new HashSet<>(paged).size(), paged.size(), "no event repeats");
+        // The first page was read after new-by-offset was written; every other event is in the order it had.
+        assertEquals("new-by-offset", top.get(0));
+        assertEquals(before, paged.subList(1, paged.size()), "nothing is missed, in order");
+        assertFalse(paged.stream().anyMatch(name -> name.startsWith("new-") && !name.equals("new-by-offset")),
+                "events written after the first page are not in the pages after its cursor");
+    }
+
+    @Test
+    @DisplayName("A cursor survives its encoding, and a string that is not one is refused")
+    void cursorEncoding() {
+        final AuditLogService.ExportCursor cursor =
+                new AuditLogService.ExportCursor(Date.from(Instant.parse("2026-10-01T10:00:00.123Z")), new org.bson.types.ObjectId());
+        assertEquals(cursor, AuditLogService.ExportCursor.parse(cursor.encode()));
+
+        for (final String bad : List.of("", "not-a-cursor", "MTIz", java.util.Base64.getUrlEncoder().encodeToString("x:y".getBytes(StandardCharsets.US_ASCII)))) {
+            assertThrows(IllegalArgumentException.class, () -> AuditLogService.ExportCursor.parse(bad), bad);
+        }
+    }
+
     /** The event column of each data row. */
     private static List<String> eventNames(final AuditLogService.CsvExport export) {
         final List<String> names = new ArrayList<>();

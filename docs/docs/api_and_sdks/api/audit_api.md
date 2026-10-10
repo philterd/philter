@@ -62,7 +62,7 @@ Every field except `timestamp` and `event` may be absent for an event that did n
 GET /api/audit/export?from=2026-10-01&to=2026-10-05&zone=UTC
 ```
 
-Returns the audit log for a range of whole days as a CSV file (`text/csv`), newest first, one page at a time. Requires an administrator and the `audit:read` scope. Each export records an `audit_log_exported` event.
+Returns the audit log for a range of whole days as a CSV file (`text/csv`), newest first, one page at a time. Requires an administrator and the `audit:read` scope. Each page records an `audit_log_exported` event.
 
 ### Query Parameters
 
@@ -70,7 +70,8 @@ Returns the audit log for a range of whole days as a CSV file (`text/csv`), newe
 * `to` (required) - The last day, as `YYYY-MM-DD`. Included in full. It may be at most 30 days after `from`, so an export covers at most 31 days.
 * `zone` (optional) - The IANA time zone the days are read in, such as `UTC` or `America/New_York`. Defaults to the server's time zone.
 * `limit` (optional, default `100`) - The most events to return in this page, up to `1000`. A larger value is treated as `1000`, and zero or a negative value as the default.
-* `offset` (optional, default `0`) - The number of events to skip, to fetch the next page. Use the value of `X-Philter-Export-Next-Offset`.
+* `cursor` (optional) - Where to continue: the value of `X-Philter-Export-Next-Cursor` from the page before. Treat it as opaque. Leave it out for the first page. See [Paging](#paging).
+* `offset` (optional, default `0`) - The number of events to skip, the value of `X-Philter-Export-Next-Offset`. Kept for ranges that are no longer receiving events; prefer `cursor`. Give `cursor` or `offset`, not both.
 
 Timestamps in the CSV are UTC (ISO-8601), whatever `zone` is. A value beginning with `=`, `+`, `-`, `@`, a tab, or a carriage return is prefixed with an apostrophe so a spreadsheet does not run it as a formula; see [Exporting the audit log](../../auditing.md#exporting-the-audit-log).
 
@@ -79,8 +80,9 @@ Timestamps in the CSV are UTC (ISO-8601), whatever `zone` is. A value beginning 
 | Header | Value |
 |--------|-------|
 | `X-Philter-Export-Rows` | The number of events in the file. |
-| `X-Philter-Export-Truncated` | `true` when more events remain after this file. Request the next page with `offset`. |
-| `X-Philter-Export-Next-Offset` | The `offset` to request next. Present only when the export was truncated. |
+| `X-Philter-Export-Truncated` | `true` when more events remain after this file. Request the next page with `cursor`. |
+| `X-Philter-Export-Next-Cursor` | The `cursor` to request next. Present only when the export was truncated. |
+| `X-Philter-Export-Next-Offset` | The `offset` to request next. Present only when the export was truncated and the page was not requested with `cursor`. |
 | `X-Philter-Export-Time-Zone` | The time zone `from` and `to` were read in. |
 
 ```
@@ -91,13 +93,23 @@ curl -k -o audit.csv -D - \
 
 ### Paging
 
-Events are ordered newest first, then by ID, so the order is the same on every request. When a range holds more events than `limit`, request it again with `offset` set to `X-Philter-Export-Next-Offset` until `X-Philter-Export-Truncated` is `false`. For a range that is no longer receiving events, such as earlier days, the pages hold each event exactly once. For a range that includes the current day, events recorded between requests move older events to later pages, so a page can repeat events from the one before it; it never skips one. Export complete days to avoid this.
+Events are ordered newest first, then by ID, so the order is the same on every request. When a range holds more events than `limit`, request the first page without `cursor`, then request the range again with `cursor` set to `X-Philter-Export-Next-Cursor` until `X-Philter-Export-Truncated` is `false`. Keep `from`, `to`, and `zone` the same on every page; `limit` may change.
 
-A `403` because the caller is not an administrator is returned as a plain-text message. Every other error, including a `400`, a `401`, and a `403` because the key lacks `audit:read`, is a JSON object with a `message` field, as on every endpoint.
+A cursor marks the last event of its page, and the next page holds the events after it. Events recorded while you page, including the `audit_log_exported` event each page records, are newer than the cursor, so they never move events between pages: paging by cursor returns each event in the range exactly once, even when the range includes the current day. Events recorded after the first page are normally left out of the export; export again to include them. (An event written by an instance whose clock runs behind can carry an earlier timestamp and appear on a later page, still only once.)
+
+`offset` paging still works, and for a range that is no longer receiving events, such as earlier days, its pages also hold each event exactly once. For a range that includes the current day, events recorded between requests move older events to later pages, so an `offset` page can repeat events from the one before it. Use `cursor` for such a range.
+
+```
+curl -k -o page2.csv -D - \
+  "https://localhost:8080/api/audit/export?from=2026-10-01&to=2026-10-05&zone=UTC&limit=1000&cursor=<X-Philter-Export-Next-Cursor>" \
+  -H "Authorization: Bearer <administrator key>"
+```
+
+Errors are a JSON object with a `message` field and a `reason`, as on every endpoint, not CSV; see [Errors](../api.md#errors).
 
 | Status | When |
 |--------|------|
-| `400 Bad Request` | `from` or `to` is missing or not `YYYY-MM-DD`, `from` is after `to`, `to` is more than 30 days after `from`, `zone` is not a time zone, `offset` is negative or not a number, or `limit` is not a number. |
+| `400 Bad Request` | `from` or `to` is missing or not `YYYY-MM-DD`, `from` is after `to`, `to` is more than 30 days after `from`, `zone` is not a time zone, `offset` is negative or not a number, `cursor` is not one from an export page, both `cursor` and `offset` were given, or `limit` is not a number. A `cursor` error names `cursor` in `field`. |
 | `401 Unauthorized` | The `Authorization` header is absent or the API key is not recognized. |
 | `403 Forbidden` | The key does not hold `audit:read`, or the caller is not an administrator. |
 

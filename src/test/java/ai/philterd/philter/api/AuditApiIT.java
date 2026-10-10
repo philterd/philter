@@ -45,6 +45,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -269,11 +271,49 @@ class AuditApiIT {
         assertTrue(rows > 0 && rows <= 100, "rows: " + rows);
         final boolean truncated = Boolean.parseBoolean(export.headers().firstValue("X-Philter-Export-Truncated").orElseThrow());
         assertEquals(truncated, export.headers().firstValue("X-Philter-Export-Next-Offset").isPresent());
+        assertEquals(truncated, export.headers().firstValue("X-Philter-Export-Next-Cursor").isPresent());
         assertEquals("UTC", export.headers().firstValue("X-Philter-Export-Time-Zone").orElseThrow());
 
         final HttpResponse<String> audit = get(baseUrl + "/api/audit?event=audit_log_exported", adminKey);
         assertTrue(audit.body().contains("\"event\":\"audit_log_exported\""), audit.body());
         assertTrue(audit.body().contains("zone: UTC"), audit.body());
+
+    }
+
+    @Test
+    @DisplayName("The next cursor continues after the page, so the page's own audit event does not repeat a row")
+    void exportPagesByCursorOverHttp() throws Exception {
+
+        final String today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+        final String range = baseUrl + "/api/audit/export?from=" + today + "&to=" + today + "&zone=UTC&limit=1";
+
+        // The users created for this test were created today, so there is more than one event.
+        final HttpResponse<String> first = get(range, adminKey);
+        assertEquals(200, first.statusCode(), first.body());
+        assertEquals("true", first.headers().firstValue("X-Philter-Export-Truncated").orElseThrow());
+        final String cursor = first.headers().firstValue("X-Philter-Export-Next-Cursor").orElseThrow();
+
+        // The first page's audit event is now the newest row; by offset, the next page would repeat the first row.
+        final HttpResponse<String> second = get(range + "&cursor=" + cursor, adminKey);
+        assertEquals(200, second.statusCode(), second.body());
+        final String firstRow = first.body().split("\n")[1];
+        final String secondRow = second.body().split("\n")[1];
+        assertNotEquals(firstRow, secondRow);
+        assertFalse(java.time.Instant.parse(secondRow.split(",")[0]).isAfter(java.time.Instant.parse(firstRow.split(",")[0])),
+                "the second page is not newer: " + secondRow);
+        assertFalse(second.body().contains(first.headers().firstValue("X-Request-Id").orElseThrow()),
+                "the first page's audit event is not on the second page");
+        assertTrue(second.headers().firstValue("X-Philter-Export-Next-Offset").isEmpty(),
+                "a page read by cursor gives no next offset");
+
+        final HttpResponse<String> bad = get(range + "&cursor=nope", adminKey);
+        assertEquals(400, bad.statusCode());
+        assertTrue(bad.body().contains("\"field\":\"cursor\""), bad.body());
+        assertTrue(bad.body().contains("\"reason\":\"invalid_request\""), bad.body());
+
+        final HttpResponse<String> both = get(range + "&cursor=" + cursor + "&offset=1", adminKey);
+        assertEquals(400, both.statusCode());
+        assertTrue(both.body().contains("not both"), both.body());
 
     }
 

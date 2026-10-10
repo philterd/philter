@@ -162,7 +162,7 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 | Event | When it is recorded |
 |-------|---------------------|
 | `audit_log_retrieved` | The audit log was read through `GET /api/audit`. The `details` field records the filters applied and how many events matched. Reading the log is audited like any other access to evidence. |
-| `audit_log_exported` | The audit log was exported as CSV through `GET /api/audit/export`. The `details` field records the date range, time zone, how many events were exported, whether the export was truncated, and the calling API key. |
+| `audit_log_exported` | The audit log was exported as CSV through `GET /api/audit/export`. The `details` field records the date range, time zone, the `offset` or `cursor` the page started at, how many events were exported, whether the export was truncated, and the calling API key. |
 
 ## Exporting the audit log
 
@@ -171,7 +171,7 @@ Administrators can export the audit log as a CSV file with [`GET /api/audit/expo
 * **Date range with a 30-day limit.** `from` and `to` are required. `to` may be at most **30 days** after `from`; a wider range, or a `from` after `to`, is refused.
 * **Time zone.** `from` and `to` are whole calendar days, read in the time zone given by the `zone` parameter, defaulting to the server's (the JVM default). The response reports the zone used. The `to` day is included in full, so the export covers `from 00:00` up to, but not including, the start of the day after `to`, in that time zone.
 * **Contents.** The CSV has a header row followed by one row per event, newest first, with the columns `timestamp`, `event`, `request_id`, `api_key_id`, `associated_object`, `client_ip_address`, `source`, and `details` (the same fields described above; timestamps are written in ISO-8601, in UTC). As with the stored events, no sensitive values are included. A value beginning with `=`, `+`, `-`, `@`, a tab, or a carriage return is written with a leading apostrophe, so a spreadsheet shows it as text instead of running it as a formula. Most values are recorded by Philter itself, but some, such as a legal hold's reference, are written by callers.
-* **Size.** The API returns the range one page at a time: `limit` events per page (default 100, at most 1,000), with `offset` and the `X-Philter-Export-Next-Offset` header to fetch the next; see [paging](api_and_sdks/api/audit_api.md#paging), including why pages of a range that includes the current day can repeat events.
+* **Size.** The API returns the range one page at a time: `limit` events per page (default 100, at most 1,000), with `cursor` and the `X-Philter-Export-Next-Cursor` header to fetch the next. Paging by cursor returns each event once even while events are recorded, including each page's own `audit_log_exported` event; see [paging](api_and_sdks/api/audit_api.md#paging), including why `offset` paging of a range that includes the current day can repeat events.
 
 ## Reading the audit log over the API
 

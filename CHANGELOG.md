@@ -73,6 +73,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Manage your own sessions:** session key listings show each session's client address and user agent
   (kept only while the session lasts) and mark the current one, and `DELETE /api/users/me/session-keys`
   signs out every other session.
+- **Stable audit log export paging:** `GET /api/audit/export` returns `X-Philter-Export-Next-Cursor`
+  and accepts `cursor`, which continues after the last event of the page before. Paging by cursor
+  returns each event once even while events are being written, including each page's own
+  `audit_log_exported` event. `offset` still works but can repeat events on a range that includes the
+  current day.
 
 ### Removed
 

@@ -243,6 +243,9 @@ public class AuditApiController extends AbstractApiController {
     /** Response header giving the offset of the next page, present only when the export was truncated. */
     public static final String EXPORT_NEXT_OFFSET_HEADER = "X-Philter-Export-Next-Offset";
 
+    /** Response header giving the cursor of the next page, present only when the export was truncated. */
+    public static final String EXPORT_NEXT_CURSOR_HEADER = "X-Philter-Export-Next-Cursor";
+
     /** Response header naming the time zone the from and to dates were read in. */
     public static final String EXPORT_TIME_ZONE_HEADER = "X-Philter-Export-Time-Zone";
 
@@ -251,15 +254,18 @@ public class AuditApiController extends AbstractApiController {
                     + "zone (an IANA time zone such as UTC or America/New_York), or in the server's time zone when "
                     + "zone is omitted. to may be at most " + AuditLogService.MAX_EXPORT_WINDOW_DAYS
                     + " days after from. Returns up to limit events (default " + EXPORT_DEFAULT_LIMIT + ", at most "
-                    + EXPORT_MAX_LIMIT + "; a larger value is treated as the maximum, and zero or less as the default), starting "
-                    + "offset events into the range; the " + EXPORT_TRUNCATED_HEADER + " header is true when more remain, and "
-                    + EXPORT_NEXT_OFFSET_HEADER + " gives the offset to request next. Events are ordered by timestamp "
-                    + "and then id, so paging a range that is no longer receiving events returns each exactly once; a "
-                    + "range that includes the current day can repeat events across pages. Timestamps in the CSV are UTC. "
+                    + EXPORT_MAX_LIMIT + "; a larger value is treated as the maximum, and zero or less as the default). The "
+                    + EXPORT_TRUNCATED_HEADER + " header is true when more remain, and " + EXPORT_NEXT_CURSOR_HEADER
+                    + " then gives the cursor to request the next page with. Events are ordered by timestamp and then "
+                    + "id, and a cursor continues after the last event of its page, so paging by cursor returns each "
+                    + "event exactly once even while events are being written, including each page's own audit event. "
+                    + "offset, with " + EXPORT_NEXT_OFFSET_HEADER + ", is kept for paging a range that is no longer "
+                    + "receiving events; on a range that includes the current day it can repeat events across pages. "
+                    + "Give offset or cursor, not both. Timestamps in the CSV are UTC. "
                     + "The export is itself audited. Requires an administrator as well as the audit:read scope.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The CSV. Headers give the row count, whether it was truncated, and the time zone used."),
-            @ApiResponse(responseCode = "400", description = "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, the zone is not a time zone, offset is negative or not a number, or limit is not a number. The body says which."),
+            @ApiResponse(responseCode = "400", description = "A date is missing or not YYYY-MM-DD, the range is reversed or longer than the maximum, the zone is not a time zone, offset is negative or not a number, the cursor is not one from an export page, both offset and cursor were given, or limit is not a number. The body says which."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold audit:read, or the caller is not an administrator.")
     })
@@ -270,7 +276,8 @@ public class AuditApiController extends AbstractApiController {
             final @RequestParam(value = "from", required = false) String from,
             final @RequestParam(value = "to", required = false) String to,
             final @RequestParam(value = "zone", required = false) String zone,
-            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "offset", required = false) Integer offset,
+            final @RequestParam(value = "cursor", required = false) String cursor,
             final @RequestParam(value = "limit", defaultValue = "" + EXPORT_DEFAULT_LIMIT) int limit,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
@@ -288,22 +295,36 @@ public class AuditApiController extends AbstractApiController {
         final LocalDate fromDate = parseDate(from, "from");
         final LocalDate toDate = parseDate(to, "to");
 
+        final ZoneId zoneId = parseZone(zone);
+        final AuditLogService.ExportCursor exportCursor = parseCursor(cursor, offset);
+
         final AuditLogService.CsvExport export;
         try {
-            export = auditLogService.export(fromDate, toDate, parseZone(zone), offset, exportLimit(limit));
+            export = exportCursor == null
+                    ? auditLogService.export(fromDate, toDate, zoneId, offset == null ? 0 : offset, exportLimit(limit))
+                    : auditLogService.export(fromDate, toDate, zoneId, exportCursor, exportLimit(limit));
         } catch (final IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
         }
 
+        // Written after the page is read. It is newer than every event in the page, so it never shifts the
+        // pages after a cursor.
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.AUDIT_LOG_EXPORTED, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest),
                 "from: " + fromDate + ", to: " + toDate + ", zone: " + export.zone().getId()
-                        + ", offset: " + export.offset() + ", limit: " + exportLimit(limit) + ", rows: " + export.rows() + ", truncated: " + export.truncated()
+                        + (exportCursor == null ? ", offset: " + export.offset() : ", cursor: " + exportCursor.encode())
+                        + ", limit: " + exportLimit(limit) + ", rows: " + export.rows() + ", truncated: " + export.truncated()
                         + ", api_key: " + apiKeyEntity.getId());
 
         final ResponseEntity.BodyBuilder response = ResponseEntity.ok();
         if (export.truncated()) {
-            response.header(EXPORT_NEXT_OFFSET_HEADER, String.valueOf(export.nextOffset()));
+            if (export.nextCursor() != null) {
+                response.header(EXPORT_NEXT_CURSOR_HEADER, export.nextCursor());
+            }
+            // An offset means nothing to a page read by cursor, so only offset paging is told the next one.
+            if (exportCursor == null) {
+                response.header(EXPORT_NEXT_OFFSET_HEADER, String.valueOf(export.nextOffset()));
+            }
         }
 
         return response
@@ -319,6 +340,21 @@ public class AuditApiController extends AbstractApiController {
     /** Clamps a page size as the other listings do: the default when not positive, the maximum above it. */
     private static int exportLimit(final int limit) {
         return limit <= 0 ? EXPORT_DEFAULT_LIMIT : Math.min(limit, EXPORT_MAX_LIMIT);
+    }
+
+    /** The cursor to continue after, or {@code null} to page by offset. */
+    private static AuditLogService.ExportCursor parseCursor(final String cursor, final Integer offset) {
+        if (cursor == null || cursor.isBlank()) {
+            return null;
+        }
+        if (offset != null) {
+            throw new BadRequestException("Give offset or cursor, not both.", "cursor");
+        }
+        try {
+            return AuditLogService.ExportCursor.parse(cursor);
+        } catch (final IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage(), "cursor");
+        }
     }
 
     private static LocalDate parseDate(final String value, final String name) {

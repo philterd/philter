@@ -419,6 +419,57 @@ class AuditApiControllerTest {
     }
 
     @Test
+    @DisplayName("A page read by cursor continues from it and gives the next cursor, not an offset")
+    void exportPagesByCursor() throws Exception {
+        makeCallerAdmin();
+        final AuditLogService.ExportCursor cursor =
+                new AuditLogService.ExportCursor(new java.util.Date(1_791_000_000_000L), new org.bson.types.ObjectId());
+        when(auditLogService.export(any(), any(), any(), eq(cursor), eq(100))).thenReturn(new AuditLogService.CsvExport(
+                "timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), 100, true, java.time.ZoneId.of("UTC"), 0,
+                "next-cursor"));
+
+        final var response = perform("/api/audit/export?from=2026-10-01&to=2026-10-01&cursor=" + cursor.encode())
+                .andExpect(status().isOk()).andReturn().getResponse();
+
+        assertEquals("next-cursor", response.getHeader(AuditApiController.EXPORT_NEXT_CURSOR_HEADER));
+        assertNull(response.getHeader(AuditApiController.EXPORT_NEXT_OFFSET_HEADER));
+        verify(auditLogService, never()).export(any(), any(), any(), anyInt(), anyInt());
+        verify(auditEventPublisher).auditEvent(eq("req-1"), eq(AuditLogEvent.AUDIT_LOG_EXPORTED), eq(userId), isNull(),
+                any(), contains("cursor: " + cursor.encode() + ", limit: 100, rows: 100, truncated: true"));
+    }
+
+    @Test
+    @DisplayName("A page read by offset gives both the next offset and the next cursor")
+    void exportByOffsetAlsoGivesTheNextCursor() throws Exception {
+        makeCallerAdmin();
+        when(auditLogService.export(any(), any(), any(), eq(0), anyInt())).thenReturn(new AuditLogService.CsvExport(
+                "timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), 100, true, java.time.ZoneId.of("UTC"), 0,
+                "next-cursor"));
+
+        final var response = perform("/api/audit/export?from=2026-10-01&to=2026-10-01")
+                .andExpect(status().isOk()).andReturn().getResponse();
+
+        assertEquals("next-cursor", response.getHeader(AuditApiController.EXPORT_NEXT_CURSOR_HEADER));
+        assertEquals("100", response.getHeader(AuditApiController.EXPORT_NEXT_OFFSET_HEADER));
+    }
+
+    @Test
+    @DisplayName("A cursor that is not one, or a cursor with an offset, is a 400 naming the cursor")
+    void exportRejectsABadCursor() throws Exception {
+        makeCallerAdmin();
+        final String cursor = new AuditLogService.ExportCursor(new java.util.Date(), new org.bson.types.ObjectId()).encode();
+
+        for (final String query : new String[]{"&cursor=not-a-cursor", "&cursor=" + cursor + "&offset=0"}) {
+            final String body = perform("/api/audit/export?from=2026-10-01&to=2026-10-01" + query)
+                    .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
+            assertTrue(body.contains("\"field\":\"cursor\""), body);
+        }
+
+        verify(auditLogService, never()).export(any(), any(), any(), anyInt(), anyInt());
+        verify(auditLogService, never()).export(any(), any(), any(), any(AuditLogService.ExportCursor.class), anyInt());
+    }
+
+    @Test
     @DisplayName("A negative or non-numeric offset is a 400")
     void exportRejectsABadOffset() throws Exception {
         makeCallerAdmin();

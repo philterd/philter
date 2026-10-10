@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 
@@ -62,13 +63,50 @@ public class AuditLogService {
 
     /**
      * An export: the CSV, how many events it holds, whether more remain after it, the time zone its dates
-     * were read in, and the offset it started at.
+     * were read in, the offset it started at, and the cursor for the next page ({@code null} unless
+     * {@link #truncated()}).
      */
-    public record CsvExport(byte[] csv, int rows, boolean truncated, ZoneId zone, int offset) {
+    public record CsvExport(byte[] csv, int rows, boolean truncated, ZoneId zone, int offset, String nextCursor) {
+
+        /** As above, without a next cursor. */
+        public CsvExport(final byte[] csv, final int rows, final boolean truncated, final ZoneId zone, final int offset) {
+            this(csv, rows, truncated, zone, offset, null);
+        }
 
         /** The offset of the next page. Meaningful only when {@link #truncated()}. */
         public int nextOffset() {
             return offset + rows;
+        }
+
+    }
+
+    /**
+     * Where an export page ended: the last event's timestamp and id. The next page holds the events after it
+     * in the export's order (older, or as old with a lower id), so events written after the export began,
+     * which are newer, never shift it. Sent to clients as an opaque string.
+     */
+    public record ExportCursor(Date timestamp, ObjectId id) {
+
+        /** The cursor as clients see it. */
+        public String encode() {
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    (timestamp.getTime() + ":" + id.toHexString()).getBytes(StandardCharsets.US_ASCII));
+        }
+
+        /**
+         * Reads a cursor given by {@link #encode()}.
+         *
+         * @throws IllegalArgumentException if it is not one.
+         */
+        public static ExportCursor parse(final String cursor) {
+            try {
+                final String decoded = new String(Base64.getUrlDecoder().decode(cursor.trim()), StandardCharsets.US_ASCII);
+                final int colon = decoded.indexOf(':');
+                return new ExportCursor(new Date(Long.parseLong(decoded.substring(0, colon))),
+                        new ObjectId(decoded.substring(colon + 1)));
+            } catch (final RuntimeException ex) {
+                throw new IllegalArgumentException("cursor is not a cursor from an export page.");
+            }
         }
 
     }
@@ -114,6 +152,23 @@ public class AuditLogService {
      */
     public CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone,
                             final int offset, final int limit) {
+        return export(fromInclusive, toInclusive, zone, offset, null, limit);
+    }
+
+    /**
+     * As above, returning the events after {@code cursor}, a page's {@link CsvExport#nextCursor()}. Unlike an
+     * offset, a cursor is not shifted by events written while the export is paged, including the export's
+     * own audit events, so pages of a range that includes the current day still hold each event exactly once.
+     *
+     * @throws IllegalArgumentException as above.
+     */
+    public CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone,
+                            final ExportCursor cursor, final int limit) {
+        return export(fromInclusive, toInclusive, zone, 0, cursor, limit);
+    }
+
+    private CsvExport export(final LocalDate fromInclusive, final LocalDate toInclusive, final ZoneId zone,
+                             final int offset, final ExportCursor cursor, final int limit) {
 
         if (offset < 0) {
             throw new IllegalArgumentException("offset must be zero or greater.");
@@ -137,9 +192,18 @@ public class AuditLogService {
         final Date from = Date.from(fromInclusive.atStartOfDay(effectiveZone).toInstant());
         final Date toExclusive = Date.from(toInclusive.plusDays(1).atStartOfDay(effectiveZone).toInstant());
 
-        final Bson query = Filters.and(
+        final List<Bson> conditions = new ArrayList<>(List.of(
                 Filters.gte("timestamp", from),
-                Filters.lt("timestamp", toExclusive));
+                Filters.lt("timestamp", toExclusive)));
+        if (cursor != null) {
+            // After the cursor in (timestamp, _id) descending order. The plain bound lets the index narrow the
+            // range before the tie on the cursor's millisecond is broken by id.
+            conditions.add(Filters.lte("timestamp", cursor.timestamp()));
+            conditions.add(Filters.or(
+                    Filters.lt("timestamp", cursor.timestamp()),
+                    Filters.and(Filters.eq("timestamp", cursor.timestamp()), Filters.lt("_id", cursor.id()))));
+        }
+        final Bson query = Filters.and(conditions);
 
         final StringBuilder csv = new StringBuilder();
         csv.append(String.join(",", COLUMNS)).append('\n');
@@ -147,11 +211,13 @@ public class AuditLogService {
         // One more than the cap is read, only to learn whether the cap cut the export short.
         int rows = 0;
         boolean truncated = false;
+        Document last = null;
         for (final Document document : collection.find(query).sort(Sorts.descending("timestamp", "_id")).skip(offset).limit(limit + 1)) {
             if (rows == limit) {
                 truncated = true;
                 break;
             }
+            last = document;
             for (int i = 0; i < COLUMNS.length; i++) {
                 if (i > 0) {
                     csv.append(',');
@@ -162,7 +228,11 @@ public class AuditLogService {
             rows++;
         }
 
-        return new CsvExport(csv.toString().getBytes(StandardCharsets.UTF_8), rows, truncated, effectiveZone, offset);
+        final String nextCursor = truncated
+                ? new ExportCursor(last.getDate("timestamp"), last.getObjectId("_id")).encode() : null;
+
+        return new CsvExport(csv.toString().getBytes(StandardCharsets.UTF_8), rows, truncated, effectiveZone, offset,
+                nextCursor);
 
     }
 

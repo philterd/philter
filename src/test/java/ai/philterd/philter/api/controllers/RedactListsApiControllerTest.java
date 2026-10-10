@@ -23,6 +23,7 @@ import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
+import ai.philterd.philter.data.services.RedactListsDataService.RedactList;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
@@ -45,13 +46,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -250,9 +255,10 @@ class RedactListsApiControllerTest {
                         .requestAttr("requestId", "req-dedup"))
                 .andExpect(status().isOk());
 
-        // "bob" already present is not added again; only "carol" is appended.
+        // "bob" already present is not added again; only "carol" is appended. Nothing is appended to
+        // the never-redact list, so it is not written.
         verify(redactListsService).saveOrUpdate(eq("req-dedup"), eq(userId),
-                eq(List.of("alice", "bob", "carol")), eq(List.of()), anyString());
+                eq(List.of("alice", "bob", "carol")), isNull(), anyString());
     }
 
     @Test
@@ -267,7 +273,7 @@ class RedactListsApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(redactListsService).saveOrUpdate(eq("req-put-omit"), eq(userId),
-                eq(List.of("alice", "bob")), eq(List.of("acme")), anyString());
+                eq(List.of("alice", "bob")), isNull(), anyString());
     }
 
     @Test
@@ -281,7 +287,7 @@ class RedactListsApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(redactListsService).saveOrUpdate(eq("req-put-new"), eq(userId),
-                eq(List.of("alice")), eq(List.of()), anyString());
+                eq(List.of("alice")), isNull(), anyString());
     }
 
     @Test
@@ -344,6 +350,127 @@ class RedactListsApiControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(redactListsService, never()).find(otherUser);
+    }
+
+
+    // ----- One list -----
+
+    @Test
+    void getReturnsEachListsRevisionWithBothLists() throws Exception {
+        final RedactListsEntity entity = entityWith(List.of("alice"), List.of("acme"));
+        entity.setAlwaysRedactRevision(4);
+        entity.setNeverRedactRevision(2);
+        when(redactListsService.find(userId)).thenReturn(entity);
+
+        mockMvc.perform(get("/api/redact-lists").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-get-revisions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alwaysRedactRevision").value(4))
+                .andExpect(jsonPath("$.neverRedactRevision").value(2));
+    }
+
+    @Test
+    void getOneListReturnsItsTermsAndRevisionWithAnETag() throws Exception {
+        when(redactListsService.findList(userId, RedactList.NEVER))
+                .thenReturn(new RedactListsDataService.ListContents(List.of("acme"), 3L));
+
+        mockMvc.perform(get("/api/redact-lists/never").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-get-one"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"3\""))
+                .andExpect(jsonPath("$.terms[0]").value("acme"))
+                .andExpect(jsonPath("$.revision").value(3));
+    }
+
+    @Test
+    void aListOtherThanAlwaysOrNeverIsNotFound() throws Exception {
+        mockMvc.perform(get("/api/redact-lists/sometimes").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-get-unknown"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(put("/api/redact-lists/sometimes").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"terms\":[\"x\"]}")
+                        .requestAttr("requestId", "req-put-unknown"))
+                .andExpect(status().isNotFound());
+
+        verifyNoInteractions(redactListsService);
+    }
+
+    @Test
+    void replacingOneListSendsTheRevisionFromIfMatch() throws Exception {
+        when(redactListsService.replaceList(eq("req-put-one"), eq(userId), eq(RedactList.ALWAYS),
+                eq(List.of("bob")), eq(3L), anyString()))
+                .thenReturn(new RedactListsDataService.ListContents(List.of("bob"), 4L));
+
+        mockMvc.perform(put("/api/redact-lists/always").header("Authorization", AUTH_HEADER)
+                        .header("If-Match", "\"3\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"terms\":[\" bob \", \"\"]}")
+                        .requestAttr("requestId", "req-put-one"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"4\""))
+                .andExpect(jsonPath("$.revision").value(4));
+
+        verify(redactListsService, never()).saveOrUpdate(anyString(), any(), any(), any(), anyString());
+    }
+
+    @Test
+    void replacingOneListWithoutIfMatchWritesWhateverItsRevision() throws Exception {
+        when(redactListsService.replaceList(eq("req-put-any"), eq(userId), eq(RedactList.NEVER),
+                eq(List.of()), isNull(), anyString()))
+                .thenReturn(new RedactListsDataService.ListContents(List.of(), 1L));
+
+        mockMvc.perform(put("/api/redact-lists/never").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .requestAttr("requestId", "req-put-any"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void aStaleRevisionIsAConflictWithAReason() throws Exception {
+        when(redactListsService.replaceList(anyString(), eq(userId), eq(RedactList.ALWAYS), any(), eq(2L), anyString()))
+                .thenReturn(null);
+
+        mockMvc.perform(put("/api/redact-lists/always").header("Authorization", AUTH_HEADER)
+                        .header("If-Match", "2")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"terms\":[\"x\"]}")
+                        .requestAttr("requestId", "req-put-stale"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.reason").value("redact_list_changed"));
+    }
+
+    @Test
+    void anIfMatchThatIsNotARevisionIsRefusedBeforeWriting() throws Exception {
+        for (final String ifMatch : List.of("*", "W/\"3\"", "\"-1\"", "abc", "\"1\", \"2\"")) {
+            mockMvc.perform(put("/api/redact-lists/always").header("Authorization", AUTH_HEADER)
+                            .header("If-Match", ifMatch)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"terms\":[\"x\"]}")
+                            .requestAttr("requestId", "req-put-bad-match"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        verify(redactListsService, never()).replaceList(anyString(), any(), any(), any(), any(), anyString());
+    }
+
+    @Test
+    void replacingOneListIsBoundedLikeTheOthers() throws Exception {
+        final String tooLong = "x".repeat(RedactListsDataService.MAXIMUM_TERM_LENGTH + 1);
+
+        mockMvc.perform(put("/api/redact-lists/always").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"terms\":[\"" + tooLong + "\"]}")
+                        .requestAttr("requestId", "req-put-long"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/redact-lists/always").header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not json")
+                        .requestAttr("requestId", "req-put-malformed"))
+                .andExpect(status().isBadRequest());
+
+        verify(redactListsService, never()).replaceList(anyString(), any(), any(), any(), any(), anyString());
     }
 
 }

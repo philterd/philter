@@ -7945,7 +7945,7 @@
           "Always/Never Redact Lists"
         ],
         "summary": "Get the always-redact and never-redact lists.",
-        "description": "Returns the account's always-redact and never-redact lists. Both lists are always present; an account with no saved terms returns empty arrays. Admins may read another user's lists by passing that user's username as owner. Requires the `lists:read` scope.",
+        "description": "Returns the account's always-redact and never-redact lists, and each list's revision for If-Match on PUT /api/redact-lists/{list}. Both lists are always present; an account with no saved terms returns empty arrays. Admins may read another user's lists by passing that user's username as owner. Requires the `lists:read` scope.",
         "operationId": "getRedactLists",
         "parameters": [
           {
@@ -8059,7 +8059,7 @@
           "Always/Never Redact Lists"
         ],
         "summary": "Replace the always-redact and never-redact lists.",
-        "description": "Replaces both lists in full with the supplied contents - this is not a merge. Each field is the complete desired contents of that list; a list that is omitted or sent as an empty array is cleared. Terms are trimmed and blank entries are dropped. Each list may contain up to 1000 terms, and each term may be up to 100 characters. Admins may replace another user's lists by passing that user's username as owner. Requires the `lists:write` scope.",
+        "description": "Replaces both lists in full with the supplied contents - this is not a merge. Each field is the complete desired contents of that list; a list that is omitted or sent as an empty array is cleared. Terms are trimmed and blank entries are dropped. Each list may contain up to 1000 terms, and each term may be up to 100 characters. Both lists move to their next revision. Takes no If-Match; to replace one list on the condition that it has not changed, use PUT /api/redact-lists/{list}. Admins may replace another user's lists by passing that user's username as owner. Requires the `lists:write` scope.",
         "operationId": "replaceRedactLists",
         "parameters": [
           {
@@ -8182,7 +8182,7 @@
           "Always/Never Redact Lists"
         ],
         "summary": "Append to the always-redact and never-redact lists.",
-        "description": "Appends the supplied terms to the existing lists rather than replacing them - use POST to replace. Each field's terms are added to the current contents of that list; a list that is omitted or sent as an empty array is left unchanged. Terms are trimmed, blank entries are dropped, and terms already present are not added again. The resulting list may contain up to 1000 terms, and each term may be up to 100 characters; an append that would exceed the limit is rejected. Admins may append to another user's lists by passing that user's username as owner. Requires the `lists:write` scope.",
+        "description": "Appends the supplied terms to the existing lists rather than replacing them - use POST to replace. Each field's terms are added to the current contents of that list; a list that is omitted or sent as an empty array is left unchanged. Terms are trimmed, blank entries are dropped, and terms already present are not added again. The resulting list may contain up to 1000 terms, and each term may be up to 100 characters; an append that would exceed the limit is rejected. Each list appended to moves to its next revision. Admins may append to another user's lists by passing that user's username as owner. Requires the `lists:write` scope.",
         "operationId": "appendRedactLists",
         "parameters": [
           {
@@ -8257,6 +8257,279 @@
           },
           "406": {
             "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/redact-lists/{list}": {
+      "get": {
+        "tags": [
+          "Always/Never Redact Lists"
+        ],
+        "summary": "Get one redact list.",
+        "description": "Returns one list, always or never, and its revision. The ETag header carries the revision too, quoted. Send it back in If-Match when replacing the list with PUT /api/redact-lists/{list}. A list never written is empty, at revision 0. Admins may read another user's list by passing that user's username as owner. Requires the `lists:read` scope.",
+        "operationId": "getRedactList",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The list and its revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedactListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "The list is not always or never, or the owner does not exist or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Always/Never Redact Lists"
+        ],
+        "summary": "Replace one redact list.",
+        "description": "Replaces one list, always or never, in full with the terms in the body, leaving the other list as it is, and moves it to its next revision. Send the revision you read in If-Match, quoted as the ETag gives it, so the write is refused with 409 and reason redact_list_changed if someone changed the list since; without If-Match the list is replaced whatever its revision. Terms are trimmed and blank entries are dropped. The list may contain up to 1000 terms, and each term may be up to 100 characters. Admins may replace another user's list by passing that user's username as owner. Requires the `lists:write` scope.",
+        "operationId": "replaceRedactList",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedactListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The list was replaced. The body and the ETag header give its new revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedactListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is malformed, the list has too many terms, a term is too long, or If-Match is not a revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "The list is not always or never, or the owner does not exist or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "409": {
+            "description": "The list is no longer at the revision given in If-Match. Nothing was written. Read the list again and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedactListConflictResponse"
+                }
+              }
+            }
           },
           "413": {
             "description": "Content Too Large",
@@ -12899,6 +13172,50 @@
           }
         }
       },
+      "RedactListConflictResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the list was not written: redact_list_changed (the list is no longer at the revision given in If-Match).",
+            "type": "string",
+            "enum": [
+              "redact_list_changed"
+            ]
+          }
+        }
+      },
+      "RedactListRequest": {
+        "properties": {
+          "terms": {
+            "description": "The list's complete contents. An empty array or an omitted field clears the list.",
+            "type": "array",
+            "items": {
+              "description": "The list's complete contents. An empty array or an omitted field clears the list.",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RedactListResponse": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "description": "The list's revision, which every write of the list increments. Send it back in If-Match when replacing the list so the write is refused if someone changed the list since. A list never written is at 0. The ETag header carries the same value.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "terms": {
+            "description": "The list's terms. A list with no saved terms is an empty array.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "RedactListRules": {
         "type": "object",
         "properties": {
@@ -12938,11 +13255,21 @@
               "type": "string"
             }
           },
+          "alwaysRedactRevision": {
+            "description": "The always-redact list's revision, for If-Match on PUT /api/redact-lists/always.",
+            "type": "integer",
+            "format": "int64"
+          },
           "neverRedact": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "neverRedactRevision": {
+            "description": "The never-redact list's revision, for If-Match on PUT /api/redact-lists/never.",
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

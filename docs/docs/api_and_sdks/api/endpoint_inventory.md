@@ -70,6 +70,8 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/redact-lists` | application/json | `lists:read` | [Details](redact_lists_api.md) |
 | POST | `/api/redact-lists` | See reference | `lists:write` | [Details](redact_lists_api.md) |
 | PUT | `/api/redact-lists` | See reference | `lists:write` | [Details](redact_lists_api.md) |
+| GET | `/api/redact-lists/{list}` | application/json | `lists:read` | [Details](redact_lists_api.md#get-one-list) |
+| PUT | `/api/redact-lists/{list}` | application/json | `lists:write` | [Details](redact_lists_api.md#replace-one-list) |
 | GET | `/api/settings` | application/json | `settings:read` | [Details](settings_api.md) |
 | PATCH | `/api/settings` | application/json | `settings:write` | [Details](settings_api.md) |
 | POST | `/api/reidentify` | application/json | `reidentify` | [Details](../../redaction/re-identification.md) |

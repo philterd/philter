@@ -23,6 +23,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   off unless `PASSWORD_SIGN_IN_ENABLED=true`. See [Sign-in Security](docs/docs/sign_in_security.md).
 - **Limits API:** `GET /api/limits` returns the limits and rules Philter enforces and what the caller
   may do, and `GET /api/sign-in` gives a sign-in page the password rules.
+- **Per-list redact list endpoints:** `GET` and `PUT /api/redact-lists/{list}` read and replace the
+  always-redact or never-redact list on its own, with `If-Match` on the list's revision so concurrent
+  edits are refused rather than lost.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

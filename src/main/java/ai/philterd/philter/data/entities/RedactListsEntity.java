@@ -31,6 +31,8 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
     private List<String> termsToAlwaysRedact;
     private List<String> termsToNeverRedact;
     private ObjectId userId;
+    private long alwaysRedactRevision;
+    private long neverRedactRevision;
 
     public static RedactListsEntity fromDocument(final Document document, final EncryptionService encryptionService) {
 
@@ -40,6 +42,8 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
 
         redactListsEntity.setTermsToAlwaysRedact(readTerms(document, encryptionService, "terms_to_always_redact"));
         redactListsEntity.setTermsToNeverRedact(readTerms(document, encryptionService, "terms_to_never_redact"));
+        redactListsEntity.setAlwaysRedactRevision(readRevision(document, "always_redact_revision"));
+        redactListsEntity.setNeverRedactRevision(readRevision(document, "never_redact_revision"));
 
         return redactListsEntity;
     }
@@ -68,6 +72,12 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
         return terms;
     }
 
+    /** A list's revision, which counts its changes. A document written before revisions existed is at 0. */
+    private static long readRevision(final Document document, final String field) {
+        final Object raw = document.get(field);
+        return raw instanceof Number number ? number.longValue() : 0L;
+    }
+
     public SeparatedTermLists breakAlwaysRedactIntoSeparateLists() {
 
         final List<String> fuzzy = new ArrayList<>();
@@ -94,13 +104,14 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
             document.put("_id", id);
         }
         document.put("user_id", userId);
-        writeTerms(document, encryptionService, "terms_to_always_redact", termsToAlwaysRedact);
-        writeTerms(document, encryptionService, "terms_to_never_redact", termsToNeverRedact);
+        writeTerms(document, encryptionService, userId, "terms_to_always_redact", termsToAlwaysRedact);
+        writeTerms(document, encryptionService, userId, "terms_to_never_redact", termsToNeverRedact);
         return document;
     }
 
     /** Encrypts a term list and stores it as {@code <field>} (ciphertext) plus the key {@code <field>_key}. */
-    private void writeTerms(final Document document, final EncryptionService encryptionService, final String field, final List<String> terms) {
+    public static void writeTerms(final Document document, final EncryptionService encryptionService, final ObjectId userId,
+                                  final String field, final List<String> terms) {
         final String joined = String.join("\n", terms != null ? terms : new ArrayList<>());
         if (joined.isEmpty()) {
             document.put(field, "");
@@ -142,6 +153,22 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
 
     public ObjectId getUserId() {
         return userId;
+    }
+
+    public long getAlwaysRedactRevision() {
+        return alwaysRedactRevision;
+    }
+
+    public void setAlwaysRedactRevision(long alwaysRedactRevision) {
+        this.alwaysRedactRevision = alwaysRedactRevision;
+    }
+
+    public long getNeverRedactRevision() {
+        return neverRedactRevision;
+    }
+
+    public void setNeverRedactRevision(long neverRedactRevision) {
+        this.neverRedactRevision = neverRedactRevision;
     }
 
 }

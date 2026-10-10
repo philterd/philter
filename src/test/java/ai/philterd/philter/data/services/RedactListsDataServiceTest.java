@@ -22,8 +22,8 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.result.InsertOneResult;
-import org.bson.BsonObjectId;
+import com.mongodb.client.model.UpdateOptions;
+import org.mockito.ArgumentCaptor;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -62,6 +62,7 @@ class RedactListsDataServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("redact_lists")).thenReturn(mongoCollection);
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
         redactListsDataService = new RedactListsDataService(mongoClient, new TestEncryptionService(), auditEventPublisher);
     }
 
@@ -92,41 +93,35 @@ class RedactListsDataServiceTest {
     }
 
     @Test
-    void saveOrUpdateNew() {
+    void saveOrUpdateUpsertsTheUsersDocumentAndMovesBothRevisions() {
         ObjectId userId = new ObjectId();
         List<String> always = Arrays.asList("a", "b");
         List<String> never = Arrays.asList("c", "d");
 
-        FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(null);
-
-        InsertOneResult insertOneResult = mock(InsertOneResult.class);
-        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
-
         redactListsDataService.saveOrUpdate("req", userId, always, never, "source");
 
-        verify(mongoCollection).insertOne(any(Document.class));
+        final ArgumentCaptor<Bson> update = ArgumentCaptor.forClass(Bson.class);
+        final ArgumentCaptor<UpdateOptions> options = ArgumentCaptor.forClass(UpdateOptions.class);
+        verify(mongoCollection).updateOne(any(Bson.class), update.capture(), options.capture());
+        assertTrue(options.getValue().isUpsert(), "a user with no document gets one");
+        final Document applied = (Document) update.getValue();
+        assertTrue(((Document) applied.get("$set")).containsKey("terms_to_always_redact"));
+        assertTrue(((Document) applied.get("$set")).containsKey("terms_to_never_redact"));
+        assertEquals(new Document("always_redact_revision", 1L).append("never_redact_revision", 1L), applied.get("$inc"));
         verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.REDACT_LISTS_UPDATED),
                 eq(userId), eq(userId), eq("source"), any());
     }
 
     @Test
-    void saveOrUpdateExisting() {
+    void saveOrUpdateLeavesANullListAndItsRevisionAlone() {
         ObjectId userId = new ObjectId();
-        List<String> always = Arrays.asList("a", "b");
-        List<String> never = Arrays.asList("c", "d");
 
-        Document doc = new Document("_id", new ObjectId()).append("user_id", userId);
-        FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(doc);
+        redactListsDataService.saveOrUpdate("req", userId, List.of("a"), null, "source");
 
-        redactListsDataService.saveOrUpdate("req", userId, always, never, "source");
-
-        verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
-        verify(auditEventPublisher).auditEvent(eq("req"), eq(ai.philterd.philter.model.AuditLogEvent.REDACT_LISTS_UPDATED),
-                eq(userId), eq(userId), eq("source"), any());
+        final ArgumentCaptor<Bson> update = ArgumentCaptor.forClass(Bson.class);
+        verify(mongoCollection).updateOne(any(Bson.class), update.capture(), any(UpdateOptions.class));
+        final Document applied = (Document) update.getValue();
+        assertFalse(((Document) applied.get("$set")).containsKey("terms_to_never_redact"));
+        assertEquals(new Document("always_redact_revision", 1L), applied.get("$inc"));
     }
 }

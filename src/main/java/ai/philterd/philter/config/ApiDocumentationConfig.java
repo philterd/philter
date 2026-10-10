@@ -1,6 +1,7 @@
 package ai.philterd.philter.config;
 
 import ai.philterd.philter.api.responses.*;
+import ai.philterd.philter.api.requests.RedactListRequest;
 import ai.philterd.philter.api.requests.RedactListsRequest;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -50,6 +51,8 @@ public class ApiDocumentationConfig {
                 op(api, "/api/redact-lists", verb).getRequestBody()
                         .setContent(content("application/json", model(api, RedactListsRequest.class)));
             }
+            op(api, "/api/redact-lists/{list}", "put").getRequestBody()
+                    .setContent(content("application/json", model(api, RedactListRequest.class)));
             response(op(api, "/api/lists", "get"), "200", "Each list's name, description, and size; with all_users, its owner too.",
                     content("application/json", new ArraySchema().items(model(api, ListSummaryResponse.class))));
             json(api, "/api/reidentify", "post", ReidentifyResponse.class);

@@ -17,6 +17,8 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
+import ai.philterd.philter.data.services.RedactListsDataService.ListContents;
+import ai.philterd.philter.data.services.RedactListsDataService.RedactList;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoCollection;
@@ -28,8 +30,10 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -131,6 +135,109 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
         assertEquals(List.of("mine"), service.find(user).getTermsToAlwaysRedact());
         // A different user with nothing saved sees nothing — not the orphan.
         assertNull(service.find(new ObjectId()));
+    }
+
+
+    @Test
+    void replacingAListForAUserWithNoneCreatesItAtRevisionOne() {
+        final ObjectId user = new ObjectId();
+
+        final ListContents written = service.replaceList("req", user, RedactList.ALWAYS, List.of("ssn"), null, "source");
+
+        assertEquals(new ListContents(List.of("ssn"), 1L), written);
+        assertEquals(new ListContents(List.of(), 0L), service.findList(user, RedactList.NEVER));
+    }
+
+    @Test
+    void aWriteAtTheCurrentRevisionSucceedsAndAStaleOneIsRefused() {
+        final ObjectId user = new ObjectId();
+        service.replaceList("req", user, RedactList.ALWAYS, List.of("a"), 0L, "source");
+
+        assertEquals(new ListContents(List.of("b"), 2L),
+                service.replaceList("req", user, RedactList.ALWAYS, List.of("b"), 1L, "source"));
+
+        // A second client that also read revision 1 is refused, and the first client's terms stand.
+        assertNull(service.replaceList("req", user, RedactList.ALWAYS, List.of("c"), 1L, "source"));
+        assertEquals(new ListContents(List.of("b"), 2L), service.findList(user, RedactList.ALWAYS));
+    }
+
+    @Test
+    void expectingRevisionZeroIsRefusedOnceTheListHasBeenWritten() {
+        final ObjectId user = new ObjectId();
+        assertNotNull(service.replaceList("req", user, RedactList.NEVER, List.of("acme"), 0L, "source"));
+
+        // Two clients that both read the empty list: the second must not create a second document.
+        assertNull(service.replaceList("req", user, RedactList.NEVER, List.of("other"), 0L, "source"));
+        assertEquals(new ListContents(List.of("acme"), 1L), service.findList(user, RedactList.NEVER));
+        assertEquals(1L, mongoClient.getDatabase("philter").getCollection("redact_lists")
+                .countDocuments(new Document("user_id", user)));
+    }
+
+    @Test
+    void eachListHasItsOwnRevision() {
+        final ObjectId user = new ObjectId();
+        service.replaceList("req", user, RedactList.ALWAYS, List.of("a"), 0L, "source");
+
+        // The never-redact list was never written, so it is still at 0 although the document exists.
+        assertEquals(new ListContents(List.of("public"), 1L),
+                service.replaceList("req", user, RedactList.NEVER, List.of("public"), 0L, "source"));
+
+        // Writing one list leaves the other's terms and revision as they were.
+        assertEquals(new ListContents(List.of("a"), 1L), service.findList(user, RedactList.ALWAYS));
+    }
+
+    @Test
+    void writingBothListsMovesBothRevisionsSoAPerListWriterNotices() {
+        final ObjectId user = new ObjectId();
+        service.replaceList("req", user, RedactList.ALWAYS, List.of("a"), 0L, "source");
+
+        service.saveOrUpdate("req", user, List.of("a"), List.of("b"), "source");
+
+        // The terms did not change, but the list was written, so a client holding revision 1 is refused.
+        assertNull(service.replaceList("req", user, RedactList.ALWAYS, List.of("x"), 1L, "source"));
+        assertEquals(2L, service.findList(user, RedactList.ALWAYS).revision());
+        assertEquals(1L, service.findList(user, RedactList.NEVER).revision());
+    }
+
+    @Test
+    void writingOneListThroughSaveOrUpdateLeavesTheOtherAlone() {
+        final ObjectId user = new ObjectId();
+        service.saveOrUpdate("req", user, List.of("a"), List.of("b"), "source");
+
+        service.saveOrUpdate("req", user, List.of("a", "c"), null, "source");
+
+        assertEquals(new ListContents(List.of("a", "c"), 2L), service.findList(user, RedactList.ALWAYS));
+        assertEquals(new ListContents(List.of("b"), 1L), service.findList(user, RedactList.NEVER));
+    }
+
+    @Test
+    void listsWrittenBeforeRevisionsAreAtRevisionZero() {
+        final ObjectId user = new ObjectId();
+        mongoClient.getDatabase("philter").getCollection("redact_lists")
+                .insertOne(new Document("user_id", user).append("terms_to_always_redact", List.of("legacy"))
+                        .append("terms_to_never_redact", List.of()));
+
+        assertEquals(new ListContents(List.of("legacy"), 0L), service.findList(user, RedactList.ALWAYS));
+        assertEquals(new ListContents(List.of("new"), 1L),
+                service.replaceList("req", user, RedactList.ALWAYS, List.of("new"), 0L, "source"));
+    }
+
+    @Test
+    void replacesTheNonUniqueIndexEarlierBuildsMade() {
+        final MongoCollection<Document> redactLists = mongoClient.getDatabase("philter").getCollection("redact_lists");
+        for (final Document index : redactLists.listIndexes()) {
+            if (!"_id_".equals(index.getString("name"))) {
+                redactLists.dropIndex(index.getString("name"));
+            }
+        }
+        redactLists.createIndex(new Document("user_id", 1));
+
+        new RedactListsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
+
+        final List<String> names = new java.util.ArrayList<>();
+        redactLists.listIndexes().forEach(index -> names.add(index.getString("name")));
+        assertFalse(names.contains("user_id_1"), names.toString());
+        assertTrue(names.contains("user_id_unique"), names.toString());
     }
 
 }

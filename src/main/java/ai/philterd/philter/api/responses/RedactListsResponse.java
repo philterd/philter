@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
@@ -25,10 +27,15 @@ public class RedactListsResponse {
 
     private final List<String> alwaysRedact;
     private final List<String> neverRedact;
+    private final long alwaysRedactRevision;
+    private final long neverRedactRevision;
 
-    public RedactListsResponse(final List<String> alwaysRedact, final List<String> neverRedact) {
+    public RedactListsResponse(final List<String> alwaysRedact, final List<String> neverRedact,
+                               final long alwaysRedactRevision, final long neverRedactRevision) {
         this.alwaysRedact = alwaysRedact;
         this.neverRedact = neverRedact;
+        this.alwaysRedactRevision = alwaysRedactRevision;
+        this.neverRedactRevision = neverRedactRevision;
     }
 
     public List<String> getAlwaysRedact() {
@@ -37,6 +44,16 @@ public class RedactListsResponse {
 
     public List<String> getNeverRedact() {
         return neverRedact;
+    }
+
+    @Schema(description = "The always-redact list's revision, for If-Match on PUT /api/redact-lists/always.")
+    public long getAlwaysRedactRevision() {
+        return alwaysRedactRevision;
+    }
+
+    @Schema(description = "The never-redact list's revision, for If-Match on PUT /api/redact-lists/never.")
+    public long getNeverRedactRevision() {
+        return neverRedactRevision;
     }
 
 }

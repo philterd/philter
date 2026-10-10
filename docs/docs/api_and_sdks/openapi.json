@@ -5206,6 +5206,101 @@
         }
       }
     },
+    "/api/limits": {
+      "get": {
+        "tags": [
+          "Limits"
+        ],
+        "summary": "Get Philter's limits and the caller's capabilities.",
+        "description": "Returns the sizes, lengths, and name rules Philter enforces, the session key timeouts, and what the caller may do: their role, how many contexts they have, and whether they may reach other users' resources or delete ledger chains. Each value is the one Philter enforces, including any set through its environment variable. Any key may call it, whatever its scopes, including a session key that must first change its password or enroll in MFA, since it describes the API and the caller's own access. For an administrator, crossUserAccess and ledgerDeletion reflect ADMIN_CROSS_USER_ACCESS_ENABLED and LEDGER_DELETION_ENABLED; for anyone else they are false, so the response does not reveal those settings.",
+        "operationId": "getLimits",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The limits and the caller's capabilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LimitsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lists": {
       "delete": {
         "tags": [
@@ -8551,6 +8646,93 @@
       }
     },
     "/api/sign-in": {
+      "get": {
+        "security": [],
+        "tags": [
+          "Sign-in"
+        ],
+        "summary": "Get the sign-in options.",
+        "description": "Tells a sign-in page, before anyone has signed in, that password sign-in is enabled, and gives the rules a password must meet, for a page where a person sets one. Requires no API key. Returns 404 unless PASSWORD_SIGN_IN_ENABLED is true, as the other sign-in endpoints do, so a 404 means password sign-in is not available.",
+        "operationId": "getSignInOptions",
+        "responses": {
+          "200": {
+            "description": "Password sign-in is enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOptionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Password sign-in is not enabled."
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "security": [],
         "tags": [
@@ -11657,6 +11839,48 @@
           }
         }
       },
+      "AuditExportLimits": {
+        "type": "object",
+        "properties": {
+          "defaultPageSize": {
+            "description": "The rows a page of the export has when limit is not given.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxPageSize": {
+            "description": "The most rows a page of the export can have.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxWindowDays": {
+            "description": "The most days between an export's from and to dates.",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CallerCapabilities": {
+        "type": "object",
+        "properties": {
+          "contextCount": {
+            "description": "How many contexts the caller has, to compare with contexts.maxPerUser.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "crossUserAccess": {
+            "description": "Whether the caller may reach other users' resources with owner and all_users: an administrator, with ADMIN_CROSS_USER_ACCESS_ENABLED on. Always false for a user who is not an administrator.",
+            "type": "boolean"
+          },
+          "ledgerDeletion": {
+            "description": "Whether the caller may delete and purge ledger chains: an administrator, with LEDGER_DELETION_ENABLED on. Always false for a user who is not an administrator.",
+            "type": "boolean"
+          },
+          "role": {
+            "description": "The caller's role, read when the request is made.",
+            "type": "string"
+          }
+        }
+      },
       "ChangePasswordRequest": {
         "type": "object",
         "properties": {
@@ -11741,6 +11965,21 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ContextRules": {
+        "type": "object",
+        "properties": {
+          "maxEntries": {
+            "description": "The most entries a context holds. Adding one more evicts the least-read entry. Set by MAX_CONTEXT_SIZE.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxPerUser": {
+            "description": "The most contexts a user can have.",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -11866,6 +12105,21 @@
             "enum": [
               "list_exists"
             ]
+          }
+        }
+      },
+      "CustomListRules": {
+        "type": "object",
+        "properties": {
+          "itemMaxLength": {
+            "description": "The most characters an item can have.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxItems": {
+            "description": "The most items a custom list can have.",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -12252,6 +12506,75 @@
           }
         }
       },
+      "LegalHoldRules": {
+        "type": "object",
+        "properties": {
+          "scopeTypes": {
+            "description": "The scope types a legal hold can have.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "LimitsResponse": {
+        "type": "object",
+        "properties": {
+          "auditExport": {
+            "description": "Audit log export limits.",
+            "$ref": "#/components/schemas/AuditExportLimits"
+          },
+          "caller": {
+            "description": "What the caller may do.",
+            "$ref": "#/components/schemas/CallerCapabilities"
+          },
+          "contexts": {
+            "description": "Context limits.",
+            "$ref": "#/components/schemas/ContextRules"
+          },
+          "customLists": {
+            "description": "Custom list sizes.",
+            "$ref": "#/components/schemas/CustomListRules"
+          },
+          "legalHolds": {
+            "description": "Legal hold rules.",
+            "$ref": "#/components/schemas/LegalHoldRules"
+          },
+          "names": {
+            "description": "The rule for names used in a request path: custom list names, context names, legal hold references, and usernames.",
+            "$ref": "#/components/schemas/PathSafeNameRules"
+          },
+          "password": {
+            "description": "The rules a password must meet.",
+            "$ref": "#/components/schemas/PasswordRules"
+          },
+          "policies": {
+            "description": "Policy names, descriptions, and notes.",
+            "$ref": "#/components/schemas/PolicyRules"
+          },
+          "redactLists": {
+            "description": "Always-redact and never-redact list sizes.",
+            "$ref": "#/components/schemas/RedactListRules"
+          },
+          "requests": {
+            "description": "Request sizes and paging.",
+            "$ref": "#/components/schemas/RequestLimits"
+          },
+          "sessionKeys": {
+            "description": "How long a session key, the key issued by password sign-in, stays valid.",
+            "$ref": "#/components/schemas/SessionKeyLimits"
+          },
+          "users": {
+            "description": "User rules.",
+            "$ref": "#/components/schemas/UserRules"
+          },
+          "webhook": {
+            "description": "Webhook rules.",
+            "$ref": "#/components/schemas/WebhookRules"
+          }
+        }
+      },
       "ListSummaryResponse": {
         "properties": {
           "description": {
@@ -12402,6 +12725,48 @@
           }
         }
       },
+      "PasswordRules": {
+        "type": "object",
+        "properties": {
+          "maxBytes": {
+            "description": "The most bytes a password can have in UTF-8.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "minCharacters": {
+            "description": "The fewest characters a password can have.",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PathSafeNameRules": {
+        "type": "object",
+        "properties": {
+          "controlCharactersForbidden": {
+            "description": "Whether control characters are refused too.",
+            "type": "boolean"
+          },
+          "forbiddenCharacters": {
+            "description": "The characters such a name cannot contain.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reservedNames": {
+            "description": "Whole names that are refused.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rule": {
+            "description": "The rule in words, as Philter's error messages state it.",
+            "type": "string"
+          }
+        }
+      },
       "PendingRedactedDocuments": {
         "properties": {
           "documentId": {
@@ -12486,6 +12851,38 @@
           }
         }
       },
+      "PolicyRules": {
+        "type": "object",
+        "properties": {
+          "defaultPolicyName": {
+            "description": "The policy every user is given, which cannot be deleted.",
+            "type": "string"
+          },
+          "descriptionMaxLength": {
+            "description": "The most characters a policy description can have.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "nameMaxLength": {
+            "description": "The most characters a policy name can have.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "namePattern": {
+            "description": "The regular expression a policy name must match.",
+            "type": "string"
+          },
+          "notesMaxLength": {
+            "description": "The most characters a policy's notes can have.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "reservedNamePrefix": {
+            "description": "The prefix of managed policies' names, which a user's policy cannot start with.",
+            "type": "string"
+          }
+        }
+      },
       "PolicyVersionSummary": {
         "type": "object",
         "properties": {
@@ -12497,6 +12894,21 @@
             "type": "string"
           },
           "revision": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RedactListRules": {
+        "type": "object",
+        "properties": {
+          "maxTerms": {
+            "description": "The most terms each of the always-redact and never-redact lists can have.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "termMaxLength": {
+            "description": "The most characters a term can have.",
             "type": "integer",
             "format": "int32"
           }
@@ -12577,12 +12989,52 @@
           }
         }
       },
+      "RequestLimits": {
+        "type": "object",
+        "properties": {
+          "defaultPageSize": {
+            "description": "The page size a listing uses when limit is not given.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxBodyBytes": {
+            "description": "The largest body any other POST or PUT accepts, in bytes. Set by MAX_FILE_SIZE_BYTES_OTHER.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxDocumentBytes": {
+            "description": "The largest body POST /api/filter and POST /api/explain accept, in bytes. Set by MAX_FILE_SIZE_BYTES.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxPageSize": {
+            "description": "The largest limit a listing honors. A larger limit is reduced to this.",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "RevokedSessionKeysResponse": {
         "type": "object",
         "properties": {
           "revoked": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "SessionKeyLimits": {
+        "type": "object",
+        "properties": {
+          "idleTimeoutMinutes": {
+            "description": "Minutes without a request after which a session key expires. Set by SESSION_KEY_IDLE_TIMEOUT_MINUTES.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxLifetimeMinutes": {
+            "description": "Minutes after issue at which a session key expires, whatever its use. Set by SESSION_KEY_MAX_LIFETIME_MINUTES.",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -12707,6 +13159,15 @@
           },
           "code": {
             "type": "string"
+          }
+        }
+      },
+      "SignInOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "description": "The rules a password must meet, for a page where a person sets one.",
+            "$ref": "#/components/schemas/PasswordRules"
           }
         }
       },
@@ -12873,6 +13334,25 @@
           }
         }
       },
+      "UserRules": {
+        "type": "object",
+        "properties": {
+          "reservedUsernames": {
+            "description": "Usernames that cannot be used, compared without regard to case.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "roles": {
+            "description": "The roles a user can have.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "WebhookResponse": {
         "type": "object",
         "properties": {
@@ -12881,6 +13361,16 @@
           },
           "secretSet": {
             "type": "boolean"
+          }
+        }
+      },
+      "WebhookRules": {
+        "type": "object",
+        "properties": {
+          "secretMinLength": {
+            "description": "The fewest characters a webhook secret can have.",
+            "type": "integer",
+            "format": "int32"
           }
         }
       }
@@ -12946,6 +13436,10 @@
     {
       "description": "Operations for viewing, exporting, verifying, and deleting redaction-ledger chains.",
       "name": "Redaction Ledger"
+    },
+    {
+      "description": "The limits and rules Philter enforces, and what the caller may do.",
+      "name": "Limits"
     },
     {
       "description": "Create and manage users and their passwords. Requires an administrator, except for reading the calling key's own user and changing its own password.",

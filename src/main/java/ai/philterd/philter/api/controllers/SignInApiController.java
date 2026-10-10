@@ -19,6 +19,7 @@ import ai.philterd.philter.api.requests.SignInMfaRequest;
 import ai.philterd.philter.api.requests.SignInRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.SignInChallengeResponse;
+import ai.philterd.philter.api.responses.SignInOptionsResponse;
 import ai.philterd.philter.api.responses.SignInResponse;
 import ai.philterd.philter.api.responses.SignInThrottledResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -89,6 +90,26 @@ public class SignInApiController extends AbstractApiController {
         this.challenges = challenges;
         this.adminSettingsDataService = adminSettingsDataService;
         this.throttle = throttle;
+    }
+
+    @Operation(
+            summary = "Get the sign-in options.",
+            description = "Tells a sign-in page, before anyone has signed in, that password sign-in is enabled, and "
+                    + "gives the rules a password must meet, for a page where a person sets one. Requires no API key. "
+                    + "Returns 404 unless PASSWORD_SIGN_IN_ENABLED is true, as the other sign-in endpoints do, so a "
+                    + "404 means password sign-in is not available.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password sign-in is enabled.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = SignInOptionsResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Password sign-in is not enabled.", content = @Content)
+    })
+    @SecurityRequirements
+    @RequestMapping(value = "/api/sign-in", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<SignInOptionsResponse> getSignInOptions() {
+
+        return ResponseEntity.ok(new SignInOptionsResponse(LimitsApiController.passwordRules()));
+
     }
 
     @Operation(

@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.utils;
 
+import java.util.List;
+
 /**
  * The rule for names a client puts in a request path: a legal hold reference, a custom list name, a
  * context name, and a username. Each of these characters, percent-encoded in a path, is refused by Tomcat
@@ -26,6 +28,12 @@ public final class PathSafeNames {
     /** The rule, worded for an error message and the documentation. */
     public static final String RULE = "cannot contain /, \\, ;, %, or control characters, and cannot be . or ..";
 
+    /** The characters a path-safe name cannot contain, besides control characters. */
+    public static final List<String> FORBIDDEN_CHARACTERS = List.of("/", "\\", ";", "%");
+
+    /** The names that are not path-safe as a whole. */
+    public static final List<String> RESERVED_NAMES = List.of(".", "..");
+
     private PathSafeNames() {
     }
 
@@ -34,12 +42,12 @@ public final class PathSafeNames {
         if (name == null) {
             return true;
         }
-        if (".".equals(name) || "..".equals(name)) {
+        if (RESERVED_NAMES.contains(name)) {
             return false;
         }
         for (int i = 0; i < name.length(); i++) {
             final char c = name.charAt(i);
-            if (c == '/' || c == '\\' || c == ';' || c == '%' || Character.isISOControl(c)) {
+            if (FORBIDDEN_CHARACTERS.contains(String.valueOf(c)) || Character.isISOControl(c)) {
                 return false;
             }
         }

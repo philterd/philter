@@ -80,7 +80,7 @@ import java.util.Locale;
 public class UsersApiController extends AbstractApiController {
 
     /** Reserved so {@code GET /api/users/me} can never be mistaken for a user named "me". */
-    private static final String SELF = "me";
+    static final String SELF = "me";
 
     private final UserService userService;
     private final PolicyDataService policyDataService;

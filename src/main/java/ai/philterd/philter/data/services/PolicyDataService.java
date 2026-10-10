@@ -58,6 +58,12 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public static final String INVALID_POLICY_NAME_MESSAGE = "The policy name must only contain letters, numbers, dashes, and underscores.";
     public static final int MAX_LIMIT = 100;
 
+    /** The prefix of every managed policy's name, which a user's policy cannot start with. */
+    public static final String MANAGED_NAME_PREFIX = "managed_";
+
+    /** The policy every user is given, which cannot be deleted. */
+    public static final String DEFAULT_POLICY_NAME = "default";
+
     /** Reasons a policy change is refused with 409, carried in the response's details. */
     public static final String REASON_POLICY_MANAGED = "policy_managed";
     public static final String REASON_POLICY_CHANGED = "policy_changed";
@@ -186,7 +192,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         // Make sure the policy name does not start with `managed_`
-        if (policyName.startsWith("managed_")) {
+        if (policyName.startsWith(MANAGED_NAME_PREFIX)) {
             return new ServiceResponse("The policy name cannot start with managed_", false, 400);
         }
 
@@ -640,7 +646,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     /** Whether a name belongs to a managed policy; user policies cannot start with this prefix. */
     public static boolean isManagedName(final String name) {
-        return name != null && name.startsWith("managed_");
+        return name != null && name.startsWith(MANAGED_NAME_PREFIX);
     }
 
     /**
@@ -728,7 +734,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         }
 
         // Make sure the policy name does not start with `managed_`
-        if (newName.startsWith("managed_")) {
+        if (newName.startsWith(MANAGED_NAME_PREFIX)) {
             return new ServiceResponse("The policy name cannot start with managed_", false, 400);
         }
 
@@ -852,7 +858,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             return new ServiceResponse("Policy does not exist.", false, 404);
         }
 
-        if("default".equalsIgnoreCase(policyName)) {
+        if(DEFAULT_POLICY_NAME.equalsIgnoreCase(policyName)) {
             return new ServiceResponse("Cannot delete the default policy.", false, 409, REASON_POLICY_DEFAULT);
         }
 

@@ -16,6 +16,7 @@ Philter's API has the following sections:
 * [Users API](api/users_api.md) - Create, list, promote, deactivate, and reactivate users, and manage their passwords.
 * [Sign-in API](api/sign_in_api.md) - Exchange a username and password for a session key. Disabled by default.
 * [API Keys API](api/api_keys_api.md) - Create, re-scope, and revoke API keys.
+* [Limits API](api/limits_api.md) - Read the limits and rules Philter enforces, and what the caller may do.
 * [Settings API](api/settings_api.md) - Read and change the deployment's administrator settings.
 * [Audit API](api/audit_api.md) - List and export the [audit log](../auditing.md).
 

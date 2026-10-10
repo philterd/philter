@@ -20,7 +20,7 @@ Automation does not sign in. It uses long-lived [API keys](account/api_keys.md),
 
 ## First sign-in and resets
 
-A user who must change their password, or must enroll in MFA, gets a session key that can only do that and sign out; any other request is refused with `403 Forbidden`. The [sign-in response](api_and_sdks/api/sign_in_api.md#sign-in) says which with `passwordChangeRequired` and `mfaEnrollmentRequired`. Changing the password, or confirming MFA enrollment, revokes the key, and the person signs in again.
+A user who must change their password, or must enroll in MFA, gets a session key that can only do that, read the [limits](api_and_sdks/api/limits_api.md), and sign out; any other request is refused with `403 Forbidden`. The [sign-in response](api_and_sdks/api/sign_in_api.md#sign-in) says which with `passwordChangeRequired` and `mfaEnrollmentRequired`. Changing the password, or confirming MFA enrollment, revokes the key, and the person signs in again.
 
 ## Session keys
 

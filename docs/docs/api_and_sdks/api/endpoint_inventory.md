@@ -47,6 +47,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/ledger/{documentId}` | application/json | `ledger:read` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}/export` | application/json | `ledger:export` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}/valid` | application/json | `ledger:read` | [Details](ledger_api.md) |
+| GET | `/api/limits` | application/json | Any key | [Details](limits_api.md) |
 | DELETE | `/api/lists` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | GET | `/api/lists` | application/json | `lists:read` | [Details](custom_lists_api.md) |
 | DELETE | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
@@ -72,6 +73,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/settings` | application/json | `settings:read` | [Details](settings_api.md) |
 | PATCH | `/api/settings` | application/json | `settings:write` | [Details](settings_api.md) |
 | POST | `/api/reidentify` | application/json | `reidentify` | [Details](../../redaction/re-identification.md) |
+| GET | `/api/sign-in` | application/json | `Public` | [Details](sign_in_api.md#get-the-sign-in-options) |
 | POST | `/api/sign-in` | application/json | `Public` | [Details](sign_in_api.md) |
 | POST | `/api/sign-in/mfa` | application/json | `Public` | [Details](sign_in_api.md#complete-sign-in-with-a-code) |
 | GET | `/api/signing-key` | application/json | `Public` | [Details](public_api.md) |

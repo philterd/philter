@@ -173,6 +173,46 @@ class SignInApiIT {
     }
 
     @Test
+    @DisplayName("The sign-in options are not found unless sign-in is enabled, and need no key when it is")
+    void signInOptions() throws Exception {
+
+        SignInConfig.setOverrideForTesting(false);
+        final HttpResponse<String> disabled = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, disabled.statusCode());
+        assertTrue(disabled.body().isEmpty(), "a 404 here must look like any other disabled sign-in endpoint");
+
+        SignInConfig.setOverrideForTesting(true);
+        final HttpResponse<String> enabled = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, enabled.statusCode(), enabled.body());
+        final JsonObject password = gson.fromJson(enabled.body(), JsonObject.class).getAsJsonObject("password");
+        assertEquals(UserService.MIN_PASSWORD_CHARACTERS, password.get("minCharacters").getAsInt());
+        assertEquals(UserService.MAX_PASSWORD_BYTES, password.get("maxBytes").getAsInt());
+
+    }
+
+    @Test
+    @DisplayName("The limits need a key, and a session key reads its own role and capabilities")
+    void limits() throws Exception {
+
+        final HttpResponse<String> anonymous = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/limits"))
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(401, anonymous.statusCode());
+
+        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String key = gson.fromJson(signIn(username(user), PASSWORD).body(), JsonObject.class).get("apiKey").getAsString();
+        final HttpResponse<String> response = send("GET", "/api/limits", key, null);
+        assertEquals(200, response.statusCode(), response.body());
+        final JsonObject caller = gson.fromJson(response.body(), JsonObject.class).getAsJsonObject("caller");
+        assertEquals("user", caller.get("role").getAsString());
+        assertEquals(contextDataService.count(user), caller.get("contextCount").getAsInt());
+        assertFalse(caller.get("crossUserAccess").getAsBoolean());
+        assertFalse(caller.get("ledgerDeletion").getAsBoolean());
+
+    }
+
+    @Test
     @DisplayName("Valid credentials return a working session key with every scope, and the sign-in is audited")
     void signsIn() throws Exception {
 
@@ -260,7 +300,7 @@ class SignInApiIT {
     }
 
     @Test
-    @DisplayName("A user who must change their password gets a key that can only do that, then signs in again")
+    @DisplayName("A user who must change their password gets a key that can only do that and read the limits, then signs in again")
     void forcesAPasswordChange() throws Exception {
 
         final ObjectId user = seedUser("user", PASSWORD, true);
@@ -272,6 +312,7 @@ class SignInApiIT {
 
         assertEquals(403, send("GET", "/api/users/me", key, null).statusCode(), "nothing else is allowed");
         assertEquals(403, send("GET", "/api/policies", key, null).statusCode());
+        assertEquals(200, send("GET", "/api/limits", key, null).statusCode(), "the password rules can be read");
 
         assertEquals(204, send("PUT", "/api/users/me/password", key,
                 "{\"currentPassword\":\"" + PASSWORD + "\",\"newPassword\":\"" + NEW_PASSWORD + "\"}").statusCode());

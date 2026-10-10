@@ -201,8 +201,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
                 }
 
-                // A key issued to a user who must change their password or enroll in MFA can do that and
-                // sign out, nothing else.
+                // A key issued to a user who must change their password or enroll in MFA can do that,
+                // read the limits, and sign out, nothing else.
                 if (apiKeyEntity.isRestricted() && !isAllowedForRestrictedKey(apiKeyEntity, path, httpRequest.getMethod())) {
 
                     final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
@@ -270,13 +270,20 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
      * Shared with the scope interceptor so the two cannot come to different conclusions about which
      * signing-key requests are public.
      */
-    /** Password sign-in and its MFA step, served without an API key. */
+    /** Password sign-in, its MFA step, and its options, served without an API key. */
     public static boolean isSignIn(final String path, final String method) {
+        if ("GET".equals(method)) {
+            return "/api/sign-in".equals(path);
+        }
         return "POST".equals(method) && ("/api/sign-in".equals(path) || "/api/sign-in/mfa".equals(path));
     }
 
     private static boolean isAllowedForRestrictedKey(final ApiKeyEntity key, final String path, final String method) {
         if ("DELETE".equals(method) && "/api/api-keys/current".equals(path)) {
+            return true;
+        }
+        // Reading the limits shows the password rules to a person who must change their password.
+        if ("GET".equals(method) && "/api/limits".equals(path)) {
             return true;
         }
         if (key.isPasswordChangeOnly() && "PUT".equals(method) && "/api/users/me/password".equals(path)) {

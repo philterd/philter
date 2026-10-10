@@ -23,8 +23,8 @@ import java.lang.annotation.Target;
 /**
  * Admits any authenticated API key, whatever its scopes, in place of {@link RequiresScope}. Only for
  * operations that can only reduce the calling key's own access, such as signing out, or that read
- * nothing about any account, such as listing the scopes themselves. A handler with neither annotation is
- * still refused.
+ * nothing about any account but the caller's own access, such as listing the scopes or the limits. A
+ * handler with neither annotation is still refused.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

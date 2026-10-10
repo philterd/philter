@@ -2,9 +2,36 @@
 
 Password sign-in lets a person use Philter through a user interface, such as [Philter UI](https://github.com/philterd/philter-ui) (in development), without the interface holding an API key of its own. The interface sends the person's username and password, and Philter returns a [session key](../../account/api_keys.md#session-keys) for that user, which the interface uses for the person's requests until it expires or they sign out. For how sign-in is protected as a whole, see [Sign-in Security](../../sign_in_security.md).
 
-Password sign-in is **disabled by default**. Enable it with [`PASSWORD_SIGN_IN_ENABLED=true`](../../settings.md#api-access). While it is disabled, the endpoint returns `404 Not Found`, so a deployment that runs no user interface exposes no login endpoint. It is an environment variable rather than an admin setting, so an administrator's API key cannot turn it on.
+Password sign-in is **disabled by default**. Enable it with [`PASSWORD_SIGN_IN_ENABLED=true`](../../settings.md#api-access). While it is disabled, every sign-in endpoint returns `404 Not Found`, so a deployment that runs no user interface exposes no login endpoint. It is an environment variable rather than an admin setting, so an administrator's API key cannot turn it on.
 
 A user can only sign in once they have a password; see [Passwords](users_api.md#passwords). Users without one, such as automation, use long-lived API keys.
+
+## Get the sign-in options
+
+```
+GET /api/sign-in
+```
+
+Tells a sign-in page, before anyone has signed in, whether password sign-in is available, and gives the rules a password must meet, for a page where a person sets one. Requires no API key. `200 OK` means password sign-in is enabled:
+
+```json
+{
+  "password": {
+    "minCharacters": 16,
+    "maxBytes": 72
+  }
+}
+```
+
+* `password.minCharacters` - The fewest characters a password can have.
+* `password.maxBytes` - The most bytes a password can have in UTF-8.
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Password sign-in is enabled. |
+| 404 | Password sign-in is not enabled. |
+
+Once signed in, a client reads the rest of Philter's limits from [`GET /api/limits`](limits_api.md).
 
 ## Sign in
 
@@ -39,8 +66,8 @@ Requires no API key. For a user enrolled in [MFA](users_api.md#multi-factor-auth
 * `scopes` - Every scope. The user's role still decides administrator access, so a user who is not an administrator cannot reach administrator endpoints.
 * `expiresAt` - When the key's maximum lifetime ends ([`SESSION_KEY_MAX_LIFETIME_MINUTES`](../../settings.md#api-access)).
 * `idleExpiresAt` - When the key expires unless it is used first ([`SESSION_KEY_IDLE_TIMEOUT_MINUTES`](../../settings.md#api-access)). Each request moves it forward.
-* `passwordChangeRequired` - `true` when an administrator set the password. The key can then only change the password with [`PUT /api/users/me/password`](users_api.md#change-your-own-password) and [sign out](api_keys_api.md#sign-out); any other request is refused with `403 Forbidden`. Changing the password revokes the key, and the person signs in again with the new password.
-* `mfaEnrollmentRequired` - `true` when the `mfaRequired` [setting](settings_api.md) is on and the user is not enrolled in MFA. The key can then only [enroll](users_api.md#start-enrollment) and sign out. Confirming enrollment revokes the key, and the person signs in again, with a code.
+* `passwordChangeRequired` - `true` when an administrator set the password. The key can then only change the password with [`PUT /api/users/me/password`](users_api.md#change-your-own-password), read the [limits](limits_api.md), and [sign out](api_keys_api.md#sign-out); any other request is refused with `403 Forbidden`. Changing the password revokes the key, and the person signs in again with the new password.
+* `mfaEnrollmentRequired` - `true` when the `mfaRequired` [setting](settings_api.md) is on and the user is not enrolled in MFA. The key can then only [enroll](users_api.md#start-enrollment), read the [limits](limits_api.md), and sign out. Confirming enrollment revokes the key, and the person signs in again, with a code.
 
 A session key cannot create API keys, and can narrow another key's scopes but not widen them, so signing in cannot produce a long-lived credential that outlives the session or a password reset. It can list and revoke keys like any other key.
 
@@ -137,3 +164,4 @@ Both sign-in events record the client IP address. No event records the password 
 * [API Keys and Authentication](../../account/api_keys.md)
 * [Users API](users_api.md)
 * [API Keys API](api_keys_api.md)
+* [Limits API](limits_api.md)

@@ -333,7 +333,7 @@ class MfaApiIT {
     }
 
     @Test
-    @DisplayName("When MFA is required, an unenrolled user gets a key that can only enroll, then signs in with a code")
+    @DisplayName("When MFA is required, an unenrolled user gets a key that can only enroll and read the limits, then signs in with a code")
     void requiredMfaForcesEnrollment() throws Exception {
 
         settings(true, true);
@@ -343,6 +343,7 @@ class MfaApiIT {
         assertTrue(first.get("mfaEnrollmentRequired").getAsBoolean());
         final String restricted = first.get("apiKey").getAsString();
         assertEquals(403, send("GET", "/api/users/me", restricted, null).statusCode(), "nothing but enrollment");
+        assertEquals(200, send("GET", "/api/limits", restricted, null).statusCode(), "or reading the limits");
 
         final String secret = enroll(restricted);
         assertEquals(401, send("POST", "/api/users/me/mfa", restricted, null).statusCode(),

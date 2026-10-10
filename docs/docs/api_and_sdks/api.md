@@ -102,6 +102,20 @@ A refusal with a specific reason gives it, as listed below. Any other error give
 
 Some refusals carry their own reasons, documented with their endpoints: the policy conflicts (`policy_exists`, `policy_managed`, `policy_changed`, `policy_default`), `context_exists` and `context_limit_reached`, `list_exists`, `hold_exists` and `operation_in_progress`, `redact_list_changed`, `entry_unreadable`, and sign-in's `locked` and `rate_limited`.
 
+## Request ids
+
+Every response under `/api` carries an `X-Request-Id` header with an id Philter gives the request, whether the request succeeded or was refused:
+
+```
+HTTP/1.1 404
+X-Request-Id: 01929f2e-6c3a-7b1d-9e4f-3a2b1c0d9e8f
+Content-Type: application/json
+
+{"message":"Not found.","reason":"not_found"}
+```
+
+Every [audit event](../auditing.md) the request causes records the same id as its `request_id`, so a client that keeps the id, or a person who quotes it, can find exactly what the request did with [`GET /api/audit`](api/audit_api.md). The exception is redaction itself: `document_redaction_initiated` and `document_redaction_completed` record the [document id](api/filtering_api.md) (`X-Document-Id`, or `documentId` for an asynchronous PDF) as their `request_id`, so a queued redaction's start and its later completion share one id with its ledger chain. Philter always makes its own id and does not take one from the request. A request refused by the web server before it reaches Philter, such as one with a malformed path, has no id.
+
 ## OpenAPI Specification
 
 Philter's API is described by an OpenAPI specification generated from the application's source. The OpenAPI export integration test regenerates it and checks it against the registered routes and the committed copy. Run that test when changing an endpoint; a successful ordinary compilation alone does not refresh the published artifact. You can always find it in any of these places:

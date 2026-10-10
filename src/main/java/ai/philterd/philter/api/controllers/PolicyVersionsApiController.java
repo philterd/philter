@@ -36,7 +36,6 @@ import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -139,7 +138,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
         }
 
         // One correlation ID per request, so both events below tie together.
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "list versions of policy '" + policyName + "'");
@@ -202,7 +201,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(),
                 apiKeyEntity.getUserId(), userId,
                 "fetch revision " + revision + " of policy '" + policyName + "'");
 
@@ -255,7 +254,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(),
                 apiKeyEntity.getUserId(), userId, "diff policy '" + policyName + "'");
 
         final PolicyVersionEntity fromVersion;
@@ -344,7 +343,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId,

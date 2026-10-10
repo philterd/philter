@@ -41,7 +41,6 @@ import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.UserService;
-import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
@@ -510,7 +509,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId,
                 "list entries in context '" + name + "'");
 
         if (contextService.findOne(name, userId) == null) {

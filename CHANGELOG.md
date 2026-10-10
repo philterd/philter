@@ -67,6 +67,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `DELETE /api/contexts?name=`, and `DELETE /api/holds?reference=` are removed: names are checked when
   they are created, so `DELETE /api/lists/{name}`, `/api/contexts/{name}`, and `/api/holds/{reference}`
   always reach them.
+- **Request ids:** every `/api` response returns `X-Request-Id`, and the audit events the request causes
+  record the same id, so an error a client sees can be found in the audit log. Redaction events keep
+  using the document id, so a queued redaction's start and completion share one id.
 - **Manage your own sessions:** session key listings show each session's client address and user agent
   (kept only while the session lasts) and mark the current one, and `DELETE /api/users/me/session-keys`
   signs out every other session.

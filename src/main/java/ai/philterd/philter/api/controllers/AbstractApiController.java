@@ -62,6 +62,24 @@ public abstract class AbstractApiController {
      */
     public static final String API_KEY_ENTITY_ATTRIBUTE = "apiKeyEntity";
 
+    /** Request attribute holding the request's id, which the authentication filter sets for every /api request. */
+    public static final String REQUEST_ID_ATTRIBUTE = "requestId";
+
+    /** Response header returning the request's id, so a client can quote it and find it in the audit log. */
+    public static final String REQUEST_ID_HEADER = "X-Request-Id";
+
+    /**
+     * The id of the request being served, as the authentication filter set it, or a new one when there is
+     * none, such as in a unit test that calls a controller directly.
+     */
+    protected static String currentRequestId() {
+        if (RequestContextHolder.getRequestAttributes() instanceof final ServletRequestAttributes attributes
+                && attributes.getRequest().getAttribute(REQUEST_ID_ATTRIBUTE) instanceof final String requestId) {
+            return requestId;
+        }
+        return ai.philterd.philter.services.RequestIdGenerator.generate();
+    }
+
     protected final ApiKeyDataService apiKeyService;
     protected final ApiKeyCache apiKeyCache;
 

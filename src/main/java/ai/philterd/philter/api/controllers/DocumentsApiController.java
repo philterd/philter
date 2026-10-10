@@ -33,7 +33,6 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
-import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
@@ -254,7 +253,7 @@ public class DocumentsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), userId,
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId,
                 "delete document " + documentId);
 
         final long deleted = pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, userId);

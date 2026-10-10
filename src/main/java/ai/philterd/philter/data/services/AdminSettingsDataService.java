@@ -117,6 +117,12 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
      * @throws IllegalArgumentException with the reason, when a value is not valid.
      */
     public List<String> update(final Update update, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+        return update(RequestIdGenerator.generate(), update, actingUserId, actingApiKeyId);
+    }
+
+    /** As above, recording the change under {@code requestId}, the id of the request that made it. */
+    public List<String> update(final String requestId, final Update update, final ObjectId actingUserId,
+                               final ObjectId actingApiKeyId) {
 
         AdministratorAuthorization.requireActiveAdministrator(mongoClient, actingUserId);
 
@@ -189,7 +195,7 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         }
 
         if (!changed.isEmpty()) {
-            auditEventPublisher.auditEvent(RequestIdGenerator.generate(), AuditLogEvent.SETTINGS_UPDATED,
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.SETTINGS_UPDATED,
                     actingUserId, null, null, "settings: " + String.join(", ", changed) + ", api_key: " + actingApiKeyId);
         }
 

@@ -35,7 +35,6 @@ import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.utils.PathSafeNames;
 import io.swagger.v3.oas.annotations.Operation;
@@ -153,7 +152,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             scopeValue = ownerUsername;
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "set legal hold '" + request.getReference() + "'");
 
@@ -213,7 +212,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             final Listings.Page<LegalHoldEntity> page =
                     legalHoldDataService.list(null, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
             final Map<ObjectId, String> owners = ownerNames(userService, page.items(), LegalHoldEntity::getUserId);
-            auditAllUsersListing(auditEventPublisher, RequestIdGenerator.generate(), apiKeyEntity.getUserId(), "list legal holds");
+            auditAllUsersListing(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), "list legal holds");
             return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().<LegalHoldResponse>map(hold -> new OwnedLegalHoldResponse(
                     hold.getReference(), hold.getScopeType(), hold.getScopeValue(), hold.getReason(), hold.getSetAt(),
                     owners.get(hold.getUserId()))).toList(), page.total()));
@@ -224,7 +223,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(),
                 apiKeyEntity.getUserId(), userId, "list legal holds");
 
         final Listings.Page<LegalHoldEntity> page =
@@ -262,7 +261,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        auditAdminCrossUserAccess(auditEventPublisher, RequestIdGenerator.generate(),
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(),
                 apiKeyEntity.getUserId(), userId, "get legal hold '" + reference + "'");
 
         final LegalHoldEntity hold = legalHoldDataService.findByReference(reference, userId);
@@ -308,7 +307,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "release legal hold '" + reference + "'");
 

@@ -141,7 +141,7 @@ public class SettingsApiController extends AbstractApiController {
 
         final List<String> warnings;
         try {
-            warnings = adminSettingsDataService.update(new AdminSettingsDataService.Update(
+            warnings = adminSettingsDataService.update(currentRequestId(), new AdminSettingsDataService.Update(
                     request.getDiffuseCountsEnabled(), request.getSigningEnabled(), request.getWebhookAllowlist(),
                     request.getPhieldEnabled(), request.getPhieldUrl(), request.getPhieldSourceId(),
                     request.getPhieldOrganization(), request.getPhieldApiKey(), request.getMfaAvailable(),

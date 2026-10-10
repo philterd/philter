@@ -40,7 +40,6 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
-import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.policies.PolicyTemplates;
 import ai.philterd.philter.services.policies.PhiSqlCompileService;
@@ -377,7 +376,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new BadRequestException(validation.getMessage());
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 (replace ? "replace" : "create") + " policy '" + name + "'");
@@ -458,7 +457,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "delete policy '" + policyName + "'");
@@ -606,7 +605,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "set details of policy '" + policyName + "'");
 
@@ -658,7 +657,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final String requestId = RequestIdGenerator.generate();
+        final String requestId = currentRequestId();
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "copy policy '" + policyName + "' to '" + name + "'");
 

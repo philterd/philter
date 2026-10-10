@@ -97,6 +97,14 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
         LOGGER.debug("API path requested: {}", path);
 
+        // One id for the whole request, set before anything can answer it, so every audit event the request
+        // causes carries it and every response, refusals included, returns it.
+        if (path.startsWith("/api/")) {
+            final String requestId = RequestIdGenerator.generate();
+            request.setAttribute(AbstractApiController.REQUEST_ID_ATTRIBUTE, requestId);
+            ((HttpServletResponse) response).setHeader(AbstractApiController.REQUEST_ID_HEADER, requestId);
+        }
+
         // The health endpoint is unauthenticated and served by StatusApiController,
         // which reports the application version and the supported redaction policy
         // schema version.
@@ -122,7 +130,6 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
                 ApiErrors.notFound((HttpServletResponse) response);
                 return;
             }
-            request.setAttribute("requestId", RequestIdGenerator.generate());
             chain.doFilter(request, response);
 
         } else if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui/")) {
@@ -132,9 +139,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
         } else if(path.startsWith("/api/")) {
 
-            // Create a request ID.
-            final String requestId = RequestIdGenerator.generate();
-            request.setAttribute("requestId", requestId);
+            final String requestId = (String) request.getAttribute(AbstractApiController.REQUEST_ID_ATTRIBUTE);
 
             final HttpServletRequest httpRequest = (HttpServletRequest) request;
             String apiKey = httpRequest.getHeader("Authorization");

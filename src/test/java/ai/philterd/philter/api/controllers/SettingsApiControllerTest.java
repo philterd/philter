@@ -43,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.lenient;
@@ -105,7 +106,7 @@ class SettingsApiControllerTest {
     void changingTheSettingsIgnoresTheDeploymentFlags() throws Exception {
         AdminAccessConfig.setOverrideForTesting(false);
         LedgerDeletionConfig.setOverrideForTesting(false);
-        when(adminSettingsDataService.update(any(), any(), any())).thenReturn(List.of());
+        when(adminSettingsDataService.update(anyString(), any(), any(), any())).thenReturn(List.of());
 
         asAdministrator().perform(patch("/api/settings").header("Authorization", "Bearer " + API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -116,7 +117,7 @@ class SettingsApiControllerTest {
                 .andExpect(jsonPath("$.signingKeyExternallyManaged").value(false));
 
         // Nothing in the request reached the stored settings.
-        verify(adminSettingsDataService).update(eq(new AdminSettingsDataService.Update(
+        verify(adminSettingsDataService).update(anyString(), eq(new AdminSettingsDataService.Update(
                 null, null, null, null, null, null, null, null, null, null)), any(), any());
     }
 
@@ -133,7 +134,7 @@ class SettingsApiControllerTest {
         admin.setRole("admin");
         when(userService.findOneById(userId)).thenReturn(admin);
         // The controller's check passed; the service's recheck, against the stored account, does not.
-        when(adminSettingsDataService.update(any(), any(), any()))
+        when(adminSettingsDataService.update(anyString(), any(), any(), any()))
                 .thenThrow(new AccessDeniedException("Current administrator authorization required."));
 
         final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SettingsApiController(

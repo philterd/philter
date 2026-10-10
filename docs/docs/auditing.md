@@ -15,7 +15,7 @@ Audit events are written to the `audit_events` collection in Philter's MongoDB d
 | Field | Description |
 |-------|-------------|
 | `event` | The type of action (one of the event names listed below). |
-| `request_id` | A correlation id for the request or operation that produced the event. |
+| `request_id` | A correlation id for the request or operation that produced the event. For an API request, it is the id returned in the response's [`X-Request-Id`](api_and_sdks/api.md#request-ids) header, and every event the request causes shares it, except the two redaction events, which use the document id so a queued redaction's start and completion share one id. |
 | `api_key_id` | The principal the event is recorded under, when known. Usually the calling user's id; administrative changes name the calling API key in `details`. Some events record the entity concerned instead: the policy for `policy_created` and `policy_updated`, the list for `custom_list_created`, `custom_list_updated`, and `custom_list_deleted`, and the key acted on for `api_key_*` events. |
 | `associated_object` | The id of the entity the action concerned (for example, the policy or user affected), when applicable. |
 | `client_ip_address` | The address of the client whose request caused the event: the address of the connection or, for a request from a [trusted proxy](settings.md#api-access), the client address its `X-Forwarded-For` header names. It is recorded for every event a request causes, including a redaction completed later by the asynchronous worker, which records the address of the request that submitted the document. It is empty for an event with no request behind it, and never holds anything but an address. |

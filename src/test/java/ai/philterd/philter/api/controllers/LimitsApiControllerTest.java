@@ -148,6 +148,7 @@ class LimitsApiControllerTest {
                 .andExpect(jsonPath("$.policies.nameMaxLength").value(PolicyDataService.POLICY_NAME_MAX_LENGTH))
                 .andExpect(jsonPath("$.policies.namePattern").value(PolicyDataService.POLICY_NAME_REGEX))
                 .andExpect(jsonPath("$.policies.reservedNamePrefix").value("managed_"))
+                .andExpect(jsonPath("$.policies.reservedNames").value(contains("templates")))
                 .andExpect(jsonPath("$.policies.defaultPolicyName").value("default"))
                 .andExpect(jsonPath("$.policies.descriptionMaxLength").value(PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH))
                 .andExpect(jsonPath("$.policies.notesMaxLength").value(PolicyDataService.POLICY_NOTES_MAX_LENGTH))

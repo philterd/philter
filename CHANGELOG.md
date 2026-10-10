@@ -26,6 +26,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Per-list redact list endpoints:** `GET` and `PUT /api/redact-lists/{list}` read and replace the
   always-redact or never-redact list on its own, with `If-Match` on the list's revision so concurrent
   edits are refused rather than lost.
+- **Policy templates:** `GET /api/policies/templates/{templateName}` returns a starting point for a new
+  policy; `default` is the template new users' default policy is created from. `templates` is now a
+  reserved policy name.
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

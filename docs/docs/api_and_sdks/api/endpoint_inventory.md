@@ -57,6 +57,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/policies` | application/json | `policies:read` | [Details](policies_api.md) |
 | POST | `/api/policies` | See reference | `policies:write` | [Details](policies_api.md) |
 | POST | `/api/policies/compile` | application/json | `policies:read` | [Details](policies_api.md) |
+| GET | `/api/policies/templates/{templateName}` | application/json | `policies:read` | [Details](policies_api.md#get-a-policy-template) |
 | DELETE | `/api/policies/{policyName}` | See reference | `policies:write` | [Details](policies_api.md) |
 | GET | `/api/policies/{policyName}` | application/json | `policies:read` | [Details](policies_api.md) |
 | PUT | `/api/policies/{policyName}` | See reference | `policies:write` | [Details](policies_api.md) |

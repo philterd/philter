@@ -64,6 +64,12 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     /** The policy every user is given, which cannot be deleted. */
     public static final String DEFAULT_POLICY_NAME = "default";
 
+    /**
+     * Names a policy cannot have, because a request path with them means something else:
+     * {@code /api/policies/templates/...} is where policy templates are read.
+     */
+    public static final List<String> RESERVED_POLICY_NAMES = List.of("templates");
+
     /** Reasons a policy change is refused with 409, carried in the response's details. */
     public static final String REASON_POLICY_MANAGED = "policy_managed";
     public static final String REASON_POLICY_CHANGED = "policy_changed";
@@ -204,6 +210,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         // Make sure the policy name matches the regular expression.
         if (!policyName.matches(POLICY_NAME_REGEX)) {
             return new ServiceResponse(INVALID_POLICY_NAME_MESSAGE, false, 400);
+        }
+
+        // Make sure the policy name is not one the API's paths use for something else.
+        if (RESERVED_POLICY_NAMES.contains(policyName)) {
+            return new ServiceResponse("The policy name " + policyName + " is reserved.", false, 400);
         }
 
         // Make sure the policy name is unique.
@@ -746,6 +757,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         // Make sure the policy name matches the regular expression.
         if (!newName.matches(POLICY_NAME_REGEX)) {
             return new ServiceResponse("The policy name must only contain letters, numbers, dashes, and underscores.", false, 400);
+        }
+
+        // Make sure the policy name is not one the API's paths use for something else.
+        if (RESERVED_POLICY_NAMES.contains(newName)) {
+            return new ServiceResponse("The policy name " + newName + " is reserved.", false, 400);
         }
 
         // Make sure the new name is unique.

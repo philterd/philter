@@ -186,15 +186,18 @@ public class LimitsResponse {
         private final int nameMaxLength;
         private final String namePattern;
         private final String reservedNamePrefix;
+        private final List<String> reservedNames;
         private final String defaultPolicyName;
         private final int descriptionMaxLength;
         private final int notesMaxLength;
 
         public Policies(final int nameMaxLength, final String namePattern, final String reservedNamePrefix,
-                        final String defaultPolicyName, final int descriptionMaxLength, final int notesMaxLength) {
+                        final List<String> reservedNames, final String defaultPolicyName, final int descriptionMaxLength,
+                        final int notesMaxLength) {
             this.nameMaxLength = nameMaxLength;
             this.namePattern = namePattern;
             this.reservedNamePrefix = reservedNamePrefix;
+            this.reservedNames = reservedNames;
             this.defaultPolicyName = defaultPolicyName;
             this.descriptionMaxLength = descriptionMaxLength;
             this.notesMaxLength = notesMaxLength;
@@ -208,6 +211,9 @@ public class LimitsResponse {
 
         @Schema(description = "The prefix of managed policies' names, which a user's policy cannot start with.")
         public String getReservedNamePrefix() { return reservedNamePrefix; }
+
+        @Schema(description = "Whole names a policy cannot have, because the API's paths use them for something else.")
+        public List<String> getReservedNames() { return reservedNames; }
 
         @Schema(description = "The policy every user is given, which cannot be deleted.")
         public String getDefaultPolicyName() { return defaultPolicyName; }

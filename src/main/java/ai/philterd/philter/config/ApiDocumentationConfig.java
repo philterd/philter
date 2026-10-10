@@ -61,6 +61,8 @@ public class ApiDocumentationConfig {
                             "policy", new ObjectSchema().additionalProperties(true))));
             response(op(api, "/api/policies/{policyName}/versions/{revision}", "get"), "200", "Native policy JSON.",
                     content("application/json", new ObjectSchema().additionalProperties(true)));
+            response(op(api, "/api/policies/templates/{templateName}", "get"), "200", "The template's native policy JSON.",
+                    content("application/json", new ObjectSchema().additionalProperties(true)));
             Schema<?> change = object("op", new StringSchema()._enum(java.util.List.of("add", "remove", "replace")),
                     "path", new StringSchema(), "value", new Schema<>());
             response(op(api, "/api/policies/{policyName}/diff", "get"), "200", "Revision diff; value is omitted for removals.",

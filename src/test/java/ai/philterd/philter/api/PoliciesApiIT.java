@@ -150,6 +150,41 @@ class PoliciesApiIT {
     }
 
     @Test
+    @DisplayName("The default template is accepted as a new policy")
+    void theDefaultTemplateSavesAsAPolicy() throws Exception {
+        final HttpResponse<String> template = send("GET", "/api/policies/templates/default", null);
+        assertEquals(200, template.statusCode(), template.body());
+        assertTrue(template.headers().firstValue("Content-Type").orElse("").startsWith("application/json"));
+        assertTrue(json(template).has("identifiers"), "the template is native policy JSON");
+
+        final HttpResponse<String> saved = send("POST", "/api/policies?name=from-template", template.body());
+        assertEquals(201, saved.statusCode(), saved.body());
+        assertEquals(json(template), json(send("GET", "/api/policies/from-template", null)));
+    }
+
+    @Test
+    @DisplayName("An unknown template is not found, and the message names the templates there are")
+    void anUnknownTemplateIsNotFound() throws Exception {
+        final HttpResponse<String> missing = send("GET", "/api/policies/templates/missing", null);
+        assertEquals(404, missing.statusCode(), missing.body());
+        assertTrue(json(missing).get("message").getAsString().contains("default"), missing.body());
+    }
+
+    @Test
+    @DisplayName("templates cannot be a policy name, since its path is where templates are read")
+    void templatesIsAReservedPolicyName() throws Exception {
+        final HttpResponse<String> created = send("POST", "/api/policies?name=templates", POLICY);
+        assertEquals(400, created.statusCode(), created.body());
+        assertTrue(json(created).get("message").getAsString().contains("reserved"), created.body());
+
+        final HttpResponse<String> copied = send("POST", "/api/policies/default/copy?name=templates", null);
+        assertEquals(400, copied.statusCode(), copied.body());
+
+        assertEquals(404, send("GET", "/api/policies/templates/details", null).statusCode(),
+                "no policy can be named templates, so this is a template lookup");
+    }
+
+    @Test
     @DisplayName("Replacing a policy stores a new revision and keeps an omitted description")
     void replaceStoresANewRevision() throws Exception {
         assertEquals(201, send("POST", "/api/policies?name=replaced", POLICY).statusCode());

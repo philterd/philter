@@ -6545,6 +6545,123 @@
         }
       }
     },
+    "/api/policies/templates/{templateName}": {
+      "get": {
+        "tags": [
+          "Policies"
+        ],
+        "summary": "Get a policy template.",
+        "description": "Returns a starting point for a new policy: native policy JSON that Philter accepts for the running policy schema version, to edit and save with POST /api/policies. The template named default is the policy every new user's default policy is created from. A template is not a policy and cannot be used to redact until it is saved as one. Requires the `policies:read` scope.",
+        "operationId": "getTemplate",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The template's native policy JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no template with the given name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/policies/{policyName}": {
       "delete": {
         "tags": [
@@ -13153,6 +13270,13 @@
           "reservedNamePrefix": {
             "description": "The prefix of managed policies' names, which a user's policy cannot start with.",
             "type": "string"
+          },
+          "reservedNames": {
+            "description": "Whole names a policy cannot have, because the API's paths use them for something else.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

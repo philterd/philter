@@ -90,6 +90,49 @@ Example response:
 }
 ```
 
+## Get a Policy Template
+
+| Method | Endpoint                                 | Description                                  |
+| ------ |------------------------------------------|----------------------------------------------|
+| `GET`  | `/api/policies/templates/{templateName}` | Get a starting point for a new policy.       |
+
+Returns a template: native policy JSON that Philter accepts for its running policy schema version, to edit and then save with [Save a Policy](#save-a-policy). Use it instead of keeping your own starting policy, which can fall behind the schema as filters are added. Requires `policies:read`.
+
+The template named `default` is the one every new user's `default` policy is created from: it is configured to redact person names (detected by [PhEye](../../policies/policy_schema.md)), Social Security numbers, and email addresses. A template is not a policy, and cannot be used to redact until it is saved as one.
+
+Example request:
+
+```
+curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/policies/templates/default
+```
+
+Example response:
+
+```json
+{
+  "identifiers": {
+    "person": {
+      "phEyeFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "ssn": {
+      "ssnFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "emailAddress": {
+      "emailAddressFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    }
+  }
+}
+```
+
+* `200 OK` - The template's policy JSON.
+* `404 Not Found` - There is no template with that name. The message lists the templates there are.
+
 ## Save a Policy
 
 | Method | Endpoint                     | Description                                                                       |
@@ -109,7 +152,7 @@ The policy is validated before it is stored. It must be valid JSON in the native
 ### Responses
 
 * `201 Created` - The policy was created.
-* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the request has a `description` or `notes` parameter. A name may be up to 50 characters of letters, digits, `_` and `-`, and may not begin with `managed_`.
+* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the request has a `description` or `notes` parameter. A name may be up to 50 characters of letters, digits, `_` and `-`, may not begin with `managed_`, and may not be `templates`, which is where [policy templates](#get-a-policy-template) are read.
 * `404 Not Found` - The owner does not exist or may not be reached.
 * `409 Conflict` - You already have a policy with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `policy_exists`.
 

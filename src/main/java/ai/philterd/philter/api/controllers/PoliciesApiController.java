@@ -38,6 +38,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.policies.PolicyTemplates;
 import ai.philterd.philter.services.policies.PhiSqlCompileService;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
@@ -192,6 +193,37 @@ public class PoliciesApiController extends AbstractApiController {
         }
         return ResponseEntity.status(HttpStatus.OK)
                 .body(policyEntity.getPolicy());
+
+    }
+
+    @Operation(summary = "Get a policy template.",
+            description = "Returns a starting point for a new policy: native policy JSON that Philter accepts for the "
+                    + "running policy schema version, to edit and save with POST /api/policies. The template named "
+                    + "default is the policy every new user's default policy is created from. A template is not a "
+                    + "policy and cannot be used to redact until it is saved as one.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The template's policy JSON."),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "404", description = "There is no template with the given name.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.POLICIES_READ)
+    @RequestMapping(value = "/api/policies/templates/{templateName}", method = RequestMethod.GET,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> getTemplate(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @PathVariable(name = "templateName") String templateName) {
+
+        requireApiKey(authorizationHeader);
+
+        final String template = PolicyTemplates.find(templateName);
+        if (template == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new GenericResponse(
+                    "There is no template named " + templateName + ". Templates: "
+                            + String.join(", ", PolicyTemplates.names()) + "."));
+        }
+        return ResponseEntity.ok(template);
 
     }
 

@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.api;
 
-import ai.philterd.philter.data.entities.ContextEntity;
-import ai.philterd.philter.data.entities.CustomListEntity;
-import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
@@ -30,7 +27,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.mongodb.client.MongoClient;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,12 +43,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -77,7 +71,6 @@ class PathSafeNamesApiIT {
     @Autowired private ContextDataService contextDataService;
     @Autowired private CustomListDataService customListDataService;
     @Autowired private LegalHoldDataService legalHoldDataService;
-    @Autowired private MongoClient mongoClient;
 
     private final Gson gson = new Gson();
 
@@ -195,64 +188,22 @@ class PathSafeNamesApiIT {
     }
 
     @Test
-    @DisplayName("A hold made before the rule, with a / in its reference, is released through the query")
-    void releasesAnUnaddressableHold() throws Exception {
+    @DisplayName("Lists, contexts, and holds are deleted by path only; the name is never taken from the query")
+    void deletesByPathOnly() throws Exception {
 
-        // As an earlier build stored it, without the rule.
-        final LegalHoldEntity hold = new LegalHoldEntity();
-        hold.setUserId(userId);
-        hold.setReference("LIT/2026/001");
-        hold.setScopeType(LegalHoldEntity.SCOPE_USER);
-        hold.setScopeValue("all");
-        hold.setSetAt(new Date());
-        hold.setSetByUserId(userId);
-        mongoClient.getDatabase("philter").getCollection("legal_holds").insertOne(hold.toDocument());
-        assertNotNull(legalHoldDataService.findByReference("LIT/2026/001", userId));
+        assertEquals(201, send("POST", "/api/lists/kept", "[\"one\"]").statusCode());
 
-        assertEquals(400, send("DELETE", "/api/holds/" + encode("LIT/2026/001"), null).statusCode(),
-                "its path cannot reach Philter");
-
-        final HttpResponse<String> released = send("DELETE", "/api/holds?reference=" + encode("LIT/2026/001"), null);
-        assertEquals(200, released.statusCode(), released.body());
-        assertNull(legalHoldDataService.findByReference("LIT/2026/001", userId));
-
-        final HttpResponse<String> missing = send("DELETE", "/api/holds?reference=" + encode("LIT/2026/001"), null);
-        assertEquals(404, missing.statusCode(), missing.body());
-
-        // Without the parameter, the request is refused as any missing parameter is, not with a 500.
-        for (final String path : List.of("/api/holds", "/api/lists", "/api/contexts")) {
-            final HttpResponse<String> noName = send("DELETE", path, null);
-            assertEquals(400, noName.statusCode(), path + ": " + noName.body());
-            assertTrue(gson.fromJson(noName.body(), JsonObject.class).has("message"), noName.body());
+        // Every name is checked when it is created, so the path form always reaches it and there is no
+        // query-string form to fall back to.
+        for (final String path : List.of("/api/lists?name=kept", "/api/contexts?name=default", "/api/holds?reference=any")) {
+            final HttpResponse<String> refused = send("DELETE", path, null);
+            assertTrue(refused.statusCode() == 405, path + ": " + refused.statusCode() + " " + refused.body());
         }
+        assertNotNull(customListDataService.findOneByName("kept", userId), "the list was not deleted");
+        assertNotNull(contextDataService.findOne("default", userId), "the context was not deleted");
 
-    }
-
-    @Test
-    @DisplayName("A list and a context made before the rule are deleted through the query")
-    void deletesAnUnaddressableListAndContext() throws Exception {
-
-        final CustomListEntity list = new CustomListEntity();
-        list.setUserId(userId);
-        list.setName("a/b");
-        list.setDescription("");
-        list.setItems(List.of("one"));
-        customListDataService.save(list);
-
-        final ContextEntity context = new ContextEntity();
-        context.setUserId(userId);
-        context.setContextName("a/b");
-        context.setSlot(5);
-        contextDataService.save(context);
-
-        assertEquals(204, send("DELETE", "/api/lists?name=" + encode("a/b"), null).statusCode());
-        assertNull(customListDataService.findOneByName("a/b", userId));
-
-        final HttpResponse<String> deleted = send("DELETE", "/api/contexts?name=" + encode("a/b"), null);
-        assertEquals(200, deleted.statusCode(), deleted.body());
-        assertNull(contextDataService.findOne("a/b", userId));
-
-        assertFalse(send("GET", "/api/lists", null).body().contains("a/b"));
+        assertEquals(204, send("DELETE", "/api/lists/kept", null).statusCode());
+        assertNull(customListDataService.findOneByName("kept", userId));
 
     }
 

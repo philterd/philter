@@ -300,25 +300,6 @@ public class CustomListsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Delete a list by name in the query.",
-            description = "Deletes a list named in the name query parameter, for a list whose name cannot be used in "
-                    + "a request path. Otherwise the same as DELETE /api/lists/{name}.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "The list was deleted."),
-            @ApiResponse(responseCode = "404", description = "The given list does not exist.")
-    })
-    @RequiresScope(ApiKeyScope.LISTS_WRITE)
-    @RequestMapping(value = "/api/lists", method = RequestMethod.DELETE,
-            produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> deleteListNamedInQuery(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @RequestParam("name") String list,
-            final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestAttribute("requestId") String requestId,
-            final HttpServletRequest httpServletRequest) {
-        return deleteList(authorizationHeader, list, owner, requestId, httpServletRequest);
-    }
-
     @Operation(summary = "Delete a list.", description = "Delete a list with the given name.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "The list was deleted."),

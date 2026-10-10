@@ -168,12 +168,6 @@ Example request:
 curl -X DELETE -k -H "Authorization: Bearer <token>" https://localhost:8080/api/contexts/my-context
 ```
 
-A context created before names were checked may have a name that cannot be used in a path, such as one containing `/`. Delete it with the name in the query instead: `DELETE /api/contexts?name=<name>`, which behaves the same way.
-
-```bash
-curl -X DELETE -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/contexts?name=a%2Fb"
-```
-
 ## List Context Entries
 
 | Method | Endpoint                          | Description                                          |

@@ -364,27 +364,6 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Delete a context by name in the query.",
-            description = "Deletes a context named in the name query parameter, for a context whose name cannot be "
-                    + "used in a request path. Otherwise the same as DELETE /api/contexts/{name}.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The context was deleted."),
-            @ApiResponse(responseCode = "404", description = "There is no context with that name, or the owner does not exist "
-                    + "or the caller may not reach it. The body carries a message."),
-            @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
-    })
-    @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts", method = RequestMethod.DELETE,
-            produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GenericResponse> deleteContextNamedInQuery(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @RequestParam("name") String name,
-            final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestAttribute("requestId") String requestId,
-            final HttpServletRequest httpServletRequest) {
-        return deleteContext(authorizationHeader, name, owner, requestId, httpServletRequest);
-    }
-
     @Operation(summary = "Delete a context.", description = "Delete an existing context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The context was deleted."),

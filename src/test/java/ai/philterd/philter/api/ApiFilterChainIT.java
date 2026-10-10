@@ -690,12 +690,10 @@ class ApiFilterChainIT {
         assertEquals(200, apiRequest("DELETE", "/api/contexts/api-audit", null).statusCode());
         assertEquals(404, apiRequest("GET", "/api/contexts/api-audit", null).statusCode());
 
-        // Deleting it again is a 404 with a message, through either route, as for a missing policy or list.
-        for (final String path : List.of("/api/contexts/api-audit", "/api/contexts?name=api-audit")) {
-            final var missing = apiRequest("DELETE", path, null);
-            assertEquals(404, missing.statusCode(), path + ": " + missing.body());
-            assertTrue(missing.body().contains("Context does not exist."), missing.body());
-        }
+        // Deleting it again is a 404 with a message, as for a missing policy or list.
+        final var missing = apiRequest("DELETE", "/api/contexts/api-audit", null);
+        assertEquals(404, missing.statusCode(), missing.body());
+        assertTrue(missing.body().contains("Context does not exist."), missing.body());
     }
 
     @Test

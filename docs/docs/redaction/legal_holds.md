@@ -130,7 +130,7 @@ Every hold lifecycle action is recorded in the audit log. See [Auditing](../audi
 
 ## API Reference
 
-The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md) page: `POST /api/holds`, `GET /api/holds`, `GET /api/holds/{reference}`, `DELETE /api/holds/{reference}`, and `DELETE /api/holds?reference=` (for a hold whose reference cannot be used in a path), including the admin `owner` parameter.
+The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md) page: `POST /api/holds`, `GET /api/holds`, `GET /api/holds/{reference}`, and `DELETE /api/holds/{reference}`, including the admin `owner` parameter.
 
 ## Concurrent operations and recovery
 

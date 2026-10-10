@@ -272,31 +272,6 @@ public class LegalHoldsApiController extends AbstractApiController {
         return ResponseEntity.ok(toResponse(hold));
     }
 
-    @Operation(summary = "Release a legal hold by reference in the query.",
-            description = "Releases the hold whose reference is given in the reference query parameter, for a hold "
-                    + "whose reference cannot be used in a request path. Otherwise the same as "
-                    + "DELETE /api/holds/{reference}, including the audit record.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The hold was released.", content = @Content),
-            @ApiResponse(responseCode = "409", description = "The hold was not released because an evidence or hold operation "
-                    + "for the owner is active or requires recovery; reason is operation_in_progress.",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = LegalHoldConflictResponse.class))),
-            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user.",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
-    })
-    @RequiresScope(ApiKeyScope.HOLDS_WRITE)
-    @RequestMapping(value = "/api/holds", method = RequestMethod.DELETE,
-            produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody ResponseEntity<Object> releaseHoldNamedInQuery(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @RequestParam("reference") String reference,
-            final @RequestParam(value = "owner", required = false) String owner) {
-        return releaseHold(authorizationHeader, reference, owner);
-    }
-
     @Operation(summary = "Release a legal hold.",
             description = "Removes the hold with the given reference. Once released, evidence previously covered by "
                     + "this hold may become eligible for deletion or purge if no other holds remain. "

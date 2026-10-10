@@ -136,12 +136,6 @@ Example request:
 curl -k -X DELETE -H "Authorization: Bearer <token>" "https://localhost:8080/api/holds/LIT-2026-001"
 ```
 
-A hold set before references were checked may have a reference that cannot be used in a path, such as one containing `/`. Release it with the reference in the query instead, which behaves the same way, including the audit record:
-
-```bash
-curl -k -X DELETE -H "Authorization: Bearer <token>" "https://localhost:8080/api/holds?reference=LIT%2F2026%2F001"
-```
-
 Example `409` response:
 
 ```json

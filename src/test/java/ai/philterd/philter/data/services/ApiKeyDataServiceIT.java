@@ -181,6 +181,63 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
                 new org.bson.Document("$set", new org.bson.Document("expires_at", expiresAt).append("idle_expires_at", idleExpiresAt)));
     }
 
+    /** The stored document, read directly, so a field that was removed is seen to be gone. */
+    private org.bson.Document storedKey(final ObjectId keyId) {
+        return mongoClient.getDatabase("philter").getCollection("api_keys").find(new org.bson.Document("_id", keyId)).first();
+    }
+
+    private ApiKeyEntity signedIn(final ObjectId user) {
+        final ApiKeyEntity issued = service.createSessionKey("req", user, Set.of("redact"), false, false, "api", null,
+                "203.0.113.7", "Mozilla/5.0 (Test)");
+        return service.findOneByApiKey(issued.getApiKey());
+    }
+
+    @Test
+    void aSessionKeepsItsClientDetailsOnlyWhileItLasts() {
+        final ObjectId user = new ObjectId();
+
+        final ApiKeyEntity live = signedIn(user);
+        assertEquals("203.0.113.7", live.getClientAddress());
+        assertEquals("Mozilla/5.0 (Test)", live.getUserAgent());
+
+        // The authentication cache, which may be a shared Valkey/Redis server, never holds them.
+        apiKeyCache.insert(live.getApiKeyHash(), live);
+        final ApiKeyEntity cached = apiKeyCache.get(live.getApiKeyHash());
+        assertEquals(live.getId(), cached.getId());
+        assertNull(cached.getClientAddress());
+        assertNull(cached.getUserAgent());
+
+        // Revoked one at a time.
+        final ApiKeyEntity revoked = signedIn(user);
+        assertTrue(service.deleteByApiKey("req", user, revoked, "api").isSuccessful());
+
+        // Expired by the sweep.
+        final ApiKeyEntity expired = signedIn(user);
+        final java.util.Date past = new java.util.Date(System.currentTimeMillis() - 1000);
+        setSessionTimes(expired.getId(), past, past);
+        assertEquals(1L, service.expireSessionKeys(null));
+
+        // Every other session, keeping the current one.
+        final ApiKeyEntity other = signedIn(user);
+        assertEquals(1L, service.revokeSessionKeys("req", user, "api", "reason: test", live.getId()));
+
+        for (final ApiKeyEntity ended : List.of(revoked, expired, other)) {
+            final org.bson.Document stored = storedKey(ended.getId());
+            assertTrue(stored.getBoolean("deleted"), "the key ended");
+            assertFalse(stored.containsKey("client_address"), "an ended session keeps no address: " + stored.toJson());
+            assertFalse(stored.containsKey("user_agent"), "an ended session keeps no user agent: " + stored.toJson());
+        }
+
+        final org.bson.Document kept = storedKey(live.getId());
+        assertFalse(kept.getBoolean("deleted"), "the session kept is still live");
+        assertEquals("203.0.113.7", kept.getString("client_address"));
+
+        // Every key of the user, as when the user is deactivated for good.
+        service.deleteAllByUserId("req", user, "api");
+        assertFalse(storedKey(live.getId()).containsKey("client_address"));
+        assertFalse(storedKey(live.getId()).containsKey("user_agent"));
+    }
+
     @Test
     void createSessionKeyRecordsItsLimitsFromTheDefaults() {
         final ObjectId user = new ObjectId();

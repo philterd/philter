@@ -10345,6 +10345,111 @@
         }
       }
     },
+    "/api/users/me/session-keys": {
+      "delete": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Sign out every other session.",
+        "description": "Revokes every session key the caller's user holds except the key making the request, so a person can sign out the sessions they do not recognize and stay signed in where they are. Called with a long-lived key, it revokes all of the user's session keys. Long-lived keys are unaffected. Each key is recorded as an api_key_deleted audit event with the reason signed out other sessions. Requires the `api-keys:write` scope.",
+        "operationId": "revokeOtherSessionKeys",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many session keys were revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedSessionKeysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold api-keys:write.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/users/{username}": {
       "get": {
         "tags": [
@@ -12369,9 +12474,17 @@
           "bootstrap": {
             "type": "boolean"
           },
+          "clientAddress": {
+            "description": "Session keys only: the address of the client that signed in, so a person can tell their sessions apart. Null for a long-lived key.",
+            "type": "string"
+          },
           "created": {
             "type": "string",
             "format": "date-time"
+          },
+          "current": {
+            "description": "Whether this is the key making the request.",
+            "type": "boolean"
           },
           "expiresAt": {
             "description": "Session keys only: when the key's maximum lifetime ends. Null for a long-lived key.",
@@ -12403,6 +12516,10 @@
           "session": {
             "description": "Whether this is a session key, issued when a person signed in, rather than a long-lived key.",
             "type": "boolean"
+          },
+          "userAgent": {
+            "description": "Session keys only: the user agent of the client that signed in, such as a browser. Null for a long-lived key, or when the client sent none.",
+            "type": "string"
           }
         }
       },

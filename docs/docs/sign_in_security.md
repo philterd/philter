@@ -58,6 +58,7 @@ A user interface that signs people in through Philter should:
 * Pass the password straight to Philter, and never store or log it.
 * Serve its users over HTTPS and reach Philter over HTTPS.
 * Sign the person out with `DELETE /api/api-keys/current` when they sign out of the interface.
+* Show the person their sessions with `GET /api/api-keys?session=true`, which gives each one's client address, user agent, and last use and marks the current one, and let them sign out the others with `DELETE /api/users/me/session-keys`.
 
 ## Settings
 

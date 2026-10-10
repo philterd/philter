@@ -114,7 +114,7 @@ public class ApiKeysApiController extends AbstractApiController {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
 
-        return ResponseEntity.ok(page(caller.getUserId(), sort, order, offset, limit, session));
+        return ResponseEntity.ok(page(caller.getUserId(), caller.getId(), sort, order, offset, limit, session));
 
     }
 
@@ -158,7 +158,7 @@ public class ApiKeysApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        return ResponseEntity.ok(page(user.getId(), sort, order, offset, limit, session));
+        return ResponseEntity.ok(page(user.getId(), caller.getId(), sort, order, offset, limit, session));
 
     }
 
@@ -325,7 +325,7 @@ public class ApiKeysApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        return ResponseEntity.ok(new ApiKeyResponse(target));
+        return ResponseEntity.ok(new ApiKeyResponse(target, caller.getId()));
 
     }
 
@@ -440,6 +440,37 @@ public class ApiKeysApiController extends AbstractApiController {
     }
 
     @Operation(
+            summary = "Sign out every other session.",
+            description = "Revokes every session key the caller's user holds except the key making the request, so a "
+                    + "person can sign out the sessions they do not recognize and stay signed in where they are. Called "
+                    + "with a long-lived key, it revokes all of the user's session keys. Long-lived keys are unaffected. "
+                    + "Each key is recorded as an api_key_deleted audit event with the reason signed out other sessions.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "How many session keys were revoked.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = RevokedSessionKeysResponse.class))),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.API_KEYS_WRITE)
+    @RequestMapping(value = "/api/users/me/session-keys", method = RequestMethod.DELETE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> revokeOtherSessionKeys(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId) {
+
+        final ApiKeyEntity caller = requireApiKey(authorizationHeader);
+
+        final long revoked = apiKeyService.revokeSessionKeys(requestId, caller.getUserId(), Source.API.getSource(),
+                "reason: signed out other sessions, " + actingPrincipal(caller), caller.getId());
+
+        return ResponseEntity.ok(new RevokedSessionKeysResponse(revoked));
+
+    }
+
+    @Operation(
             summary = "Revoke all of a user's session keys.",
             description = "Revokes every session key the user holds, signing the person out everywhere. Long-lived "
                     + "keys are unaffected. Requires an administrator as well as the scope. Each key is recorded as "
@@ -484,13 +515,13 @@ public class ApiKeysApiController extends AbstractApiController {
     /** The order a listing of keys can take. */
     private static final java.util.Map<String, String> KEY_SORT = sortFields("created", "timestamp");
 
-    private GetApiKeysResponse page(final ObjectId userId, final String sort, final String order, final int offset,
-                                    final int limit, final Boolean session) {
+    private GetApiKeysResponse page(final ObjectId userId, final ObjectId callingKeyId, final String sort,
+                                    final String order, final int offset, final int limit, final Boolean session) {
         final boolean descending = listingSort(sort, order, KEY_SORT, "created", false).descending();
         final List<ApiKeyResponse> keys = new ArrayList<>();
         for (final ApiKeyEntity key : apiKeyService.findAllBySession(userId, normalizeOffset(offset), normalizeLimit(limit),
                 session, descending)) {
-            keys.add(new ApiKeyResponse(key));
+            keys.add(new ApiKeyResponse(key, callingKeyId));
         }
         return new GetApiKeysResponse(keys, apiKeyService.countBySession(userId, session));
     }

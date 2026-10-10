@@ -73,6 +73,23 @@ public class SignInApiController extends AbstractApiController {
 
     private static final int AUDITED_USERNAME_LENGTH = 100;
 
+    /** The most of a user agent kept with a session, enough to tell browsers and devices apart. */
+    private static final int USER_AGENT_LENGTH = 256;
+
+    /** The user agent of the request being served, cut to {@link #USER_AGENT_LENGTH}, or {@code null} when it sent none. */
+    private static String userAgent() {
+        if (!(org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
+                instanceof final org.springframework.web.context.request.ServletRequestAttributes attributes)) {
+            return null;
+        }
+        final String userAgent = attributes.getRequest().getHeader(HttpHeaders.USER_AGENT);
+        if (userAgent == null || userAgent.isBlank()) {
+            return null;
+        }
+        final String trimmed = userAgent.trim();
+        return trimmed.length() <= USER_AGENT_LENGTH ? trimmed : trimmed.substring(0, USER_AGENT_LENGTH);
+    }
+
     private final UserService userService;
     private final AuditEventPublisher auditEventPublisher;
     private final SignInChallengeDataService challenges;
@@ -274,7 +291,8 @@ public class SignInApiController extends AbstractApiController {
                                          final String clientIp, final String auditDetails) {
 
         final ApiKeyEntity sessionKey = apiKeyService.createSessionKey(requestId, user.getId(), ApiKeyScope.all(),
-                user.isPasswordChangeRequired(), mfaEnrollmentOnly, Source.API.getSource(), "signed in");
+                user.isPasswordChangeRequired(), mfaEnrollmentOnly, Source.API.getSource(), "signed in", clientIp,
+                userAgent());
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_SUCCEEDED, user.getId(), sessionKey.getId(),
                 clientIp, auditDetails + ", api_key: " + sessionKey.getId());

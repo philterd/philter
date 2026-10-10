@@ -172,6 +172,52 @@ class SignInApiIT {
         }
     }
 
+    private String signInFrom(final String username, final String userAgent) throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty("username", username);
+        body.addProperty("password", PASSWORD);
+        final HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode(), response.body());
+        return gson.fromJson(response.body(), JsonObject.class).get("apiKey").getAsString();
+    }
+
+    @Test
+    @DisplayName("A person sees which session is which and the current one, and can sign out every other session")
+    void managesOwnSessions() throws Exception {
+
+        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String laptop = signInFrom(username(user), "Laptop-Browser/1.0");
+        final String phone = signInFrom(username(user), "Phone-Browser/2.0");
+
+        final JsonObject listed = gson.fromJson(send("GET", "/api/api-keys?session=true", laptop, null).body(), JsonObject.class);
+        assertEquals(2, listed.get("total").getAsInt());
+        int current = 0;
+        for (final JsonElement element : listed.getAsJsonArray("apiKeys")) {
+            final JsonObject key = element.getAsJsonObject();
+            assertTrue(key.has("clientAddress") && !key.get("clientAddress").isJsonNull(), key.toString());
+            final String agent = key.get("userAgent").getAsString();
+            if (key.get("current").getAsBoolean()) {
+                current++;
+                assertEquals("Laptop-Browser/1.0", agent, "the current session is the one making the request");
+            } else {
+                assertEquals("Phone-Browser/2.0", agent);
+            }
+        }
+        assertEquals(1, current);
+
+        final HttpResponse<String> signedOut = send("DELETE", "/api/users/me/session-keys", laptop, null);
+        assertEquals(200, signedOut.statusCode(), signedOut.body());
+        assertEquals(1, gson.fromJson(signedOut.body(), JsonObject.class).get("revoked").getAsInt());
+
+        assertEquals(200, send("GET", "/api/users/me", laptop, null).statusCode(), "the current session stays signed in");
+        assertEquals(401, send("GET", "/api/users/me", phone, null).statusCode(), "the other session is signed out");
+
+    }
+
     @Test
     @DisplayName("The sign-in options are not found unless sign-in is enabled, and need no key when it is")
     void signInOptions() throws Exception {

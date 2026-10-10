@@ -55,6 +55,16 @@ public class ApiKeyEntity extends AbstractEntity {
     // A session key issued to a user who must enroll in MFA: it can only enroll, or sign out.
     private boolean mfaEnrollmentOnly;
 
+    /**
+     * For a session key, the address of the client that signed in, kept only while the session lasts.
+     * Transient so it is left out of the API key cache, which may be a shared Valkey/Redis server: nothing
+     * reads it from there, and it is personal data. The database mapping writes it explicitly.
+     */
+    private transient String clientAddress;
+
+    /** For a session key, the user agent that signed in, kept only while the session lasts. Transient as above. */
+    private transient String userAgent;
+
     /** The scopes this key carries. Empty means the key can call nothing. */
     private Set<String> scopes = new LinkedHashSet<>();
 
@@ -78,6 +88,8 @@ public class ApiKeyEntity extends AbstractEntity {
         apiKeyEntity.setLastUsedAt(document.getDate("last_used_at"));
         apiKeyEntity.setPasswordChangeOnly(document.getBoolean("password_change_only", false));
         apiKeyEntity.setMfaEnrollmentOnly(document.getBoolean("mfa_enrollment_only", false));
+        apiKeyEntity.setClientAddress(document.getString("client_address"));
+        apiKeyEntity.setUserAgent(document.getString("user_agent"));
 
         // A key with no scopes recorded can call nothing: scopes are always written at
         // creation, so their absence is a malformed key rather than a legacy one.
@@ -108,6 +120,12 @@ public class ApiKeyEntity extends AbstractEntity {
             document.put("last_used_at", lastUsedAt);
             document.put("password_change_only", passwordChangeOnly);
             document.put("mfa_enrollment_only", mfaEnrollmentOnly);
+            if (clientAddress != null) {
+                document.put("client_address", clientAddress);
+            }
+            if (userAgent != null) {
+                document.put("user_agent", userAgent);
+            }
         }
         document.put("scopes", new ArrayList<>(scopes));
         return document;
@@ -231,6 +249,22 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public void setPasswordChangeOnly(final boolean passwordChangeOnly) {
         this.passwordChangeOnly = passwordChangeOnly;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
+    }
+
+    public void setClientAddress(final String clientAddress) {
+        this.clientAddress = clientAddress;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(final String userAgent) {
+        this.userAgent = userAgent;
     }
 
     public boolean isMfaEnrollmentOnly() {

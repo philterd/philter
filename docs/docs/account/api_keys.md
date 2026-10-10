@@ -86,7 +86,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `users:read` | `GET /api/users`<br>`GET /api/users/me`<br>`GET /api/users/{username}` |
 | `users:write` | `POST /api/users`<br>`POST /api/users/{username}/deactivate`<br>`POST /api/users/{username}/reactivate`<br>`PUT /api/users/{username}/role`<br>`PUT /api/users/{username}/email`<br>`PUT /api/users/{username}/password`<br>`PUT /api/users/me/password`<br>`POST /api/users/me/mfa`<br>`POST /api/users/me/mfa/confirm`<br>`POST /api/users/me/mfa/remove`<br>`DELETE /api/users/{username}/mfa`<br>`POST /api/users/{username}/mfa/unlock` |
 | `api-keys:read` | `GET /api/api-keys`<br>`GET /api/users/{username}/api-keys` |
-| `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`DELETE /api/users/{username}/session-keys`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
+| `api-keys:write` | `DELETE /api/api-keys/{keyId}`<br>`DELETE /api/users/me/session-keys`<br>`DELETE /api/users/{username}/session-keys`<br>`POST /api/api-keys`<br>`POST /api/users/{username}/api-keys`<br>`PUT /api/api-keys/{keyId}/scopes` |
 | `settings:read` | `GET /api/settings` |
 | `settings:write` | `PATCH /api/settings` |
 | `webhooks:read` | `GET /api/webhook`<br>`GET /api/webhook/deliveries` |
@@ -120,7 +120,7 @@ A session key is an API key issued when a person [signs in](../api_and_sdks/api/
 
 Each key records both limits when it is issued, so changing the settings applies to keys issued afterwards. Every request with a session key is checked against the database, not a cache, so a session key that has expired or been revoked is refused on every instance at once, with or without a shared cache. An expired key is revoked and recorded as `api_key_expired` in the [audit log](../auditing.md), whether it is presented again or found by a sweep that runs every minute; until then it is still listed, with its expiry in the past. Expiry is measured with each instance's clock, so keep the instances' clocks synchronized.
 
-The holder signs out with [`DELETE /api/api-keys/current`](../api_and_sdks/api/api_keys_api.md#sign-out). An administrator revokes all of a user's session keys with [`DELETE /api/users/{username}/session-keys`](../api_and_sdks/api/api_keys_api.md#revoke-a-users-session-keys). Setting, changing, or resetting a user's password also revokes them. Key listings mark session keys with `"session": true` and give their expiry. Long-lived keys never expire.
+The holder signs out with [`DELETE /api/api-keys/current`](../api_and_sdks/api/api_keys_api.md#sign-out), and signs out every other session, keeping the current one, with [`DELETE /api/users/me/session-keys`](../api_and_sdks/api/api_keys_api.md#sign-out-every-other-session). An administrator revokes all of a user's session keys with [`DELETE /api/users/{username}/session-keys`](../api_and_sdks/api/api_keys_api.md#revoke-a-users-session-keys). Setting, changing, or resetting a user's password also revokes them. Key listings mark session keys with `"session": true`, give their expiry, and mark the key making the request `"current": true`. Each session also shows the address and user agent of the client that signed in, so a person can tell their sessions apart; Philter keeps these only while the session lasts and removes them when it is revoked or expires. Long-lived keys never expire.
 
 ## Bootstrapping an API key for automation
 

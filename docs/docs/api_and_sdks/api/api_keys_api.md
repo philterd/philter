@@ -20,7 +20,10 @@ A key is bounded by the key calling the endpoint:
   "session": false,
   "expiresAt": null,
   "idleExpiresAt": null,
-  "lastUsedAt": null
+  "lastUsedAt": null,
+  "clientAddress": null,
+  "userAgent": null,
+  "current": false
 }
 ```
 
@@ -31,6 +34,8 @@ A key is bounded by the key calling the endpoint:
 * `expiresAt` - Session keys only: when the key's maximum lifetime ends. `null` for a long-lived key.
 * `idleExpiresAt` - Session keys only: when the key expires unless it is used before then. Each request moves it forward. `null` for a long-lived key.
 * `lastUsedAt` - Session keys only: the last request made with the key. Philter does not record when a long-lived key was last used.
+* `clientAddress` and `userAgent` - Session keys only: the address and user agent (such as a browser) of the client that signed in, so a person can tell their sessions apart. The address follows the [trusted-proxy](../../settings.md#api-access) rules, and the user agent is cut to 256 characters. Both are kept only while the session lasts: when it is revoked or expires they are removed. `null` for a long-lived key, and `userAgent` is `null` when the client sent none.
+* `current` - `true` for the key making the request, so a client can mark the session it is using.
 
 ## List the scopes
 
@@ -178,6 +183,24 @@ Revokes the [session key](../../account/api_keys.md#session-keys) making the req
 |--------|---------|
 | 409 | The calling key is a long-lived key. A long-lived key cannot revoke itself; revoke it with another key. |
 
+## Sign out every other session
+
+```
+DELETE /api/users/me/session-keys
+```
+
+Revokes every session key the caller's user holds except the key making the request, so a person can sign out the sessions they do not recognize and stay signed in where they are. Called with a long-lived key, it revokes all of the user's session keys. Long-lived keys are not affected. Requires `api-keys:write`; no administrator is needed, because it only ends the caller's own sessions.
+
+List the sessions first with [`GET /api/api-keys?session=true`](#list-your-keys), which gives each one's `clientAddress`, `userAgent`, `lastUsedAt`, and whether it is `current`. To end one session, [revoke that key](#revoke-a-key).
+
+`200 OK`:
+
+```json
+{
+  "revoked": 2
+}
+```
+
 ## Revoke a user's session keys
 
 ```
@@ -215,7 +238,7 @@ Philter caches each resolved key for up to [`API_KEY_CACHE_TTL_SECONDS`](../../c
 |-------|---------------|
 | `api_key_created` | A key was created. The principal is the new key, the associated object is the user it belongs to, and the details name the calling user and API key and the scopes. |
 | `api_key_scopes_changed` | A key's scopes were changed. The details record the scopes before and after and name the calling user and API key. |
-| `api_key_deleted` | A key was revoked. The details name the calling user and API key, or give the reason, such as `signed out` or a password change. |
+| `api_key_deleted` | A key was revoked. The details name the calling user and API key, or give the reason, such as `signed out`, `signed out other sessions`, or a password change. |
 | `api_key_expired` | A session key passed its idle timeout or maximum lifetime. The principal is the key, the associated object is its user, and the details give the reason. |
 
 These are security events, so they cannot be switched off. They are readable through [`GET /api/audit`](audit_api.md).

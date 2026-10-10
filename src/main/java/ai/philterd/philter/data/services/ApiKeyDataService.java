@@ -420,7 +420,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         owned.setDeleted(true);
         owned.setDeletedAt(new Date());
         collection.updateOne(Filters.and(Filters.eq("_id", owned.getId()), Filters.eq("user_id", callerUserId)),
-                new Document("$set", new Document("deleted", true).append("deleted_at", owned.getDeletedAt())));
+                ended(owned.getDeletedAt()));
 
         // Keep the caller's copy consistent with what was stored, so a caller holding the old object
         // sees the deletion without re-reading.
@@ -453,7 +453,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
         // Mark them all deleted (revoked) in a single bulk update rather than one update per key,
         // stamping the same deletion time on each.
-        collection.updateMany(query, new Document("$set", new Document("deleted", true).append("deleted_at", new Date())));
+        collection.updateMany(query, ended(new Date()));
 
         // Evict each from the cache and preserve the per-key audit events (one API_KEY_DELETED per key).
         for (final ApiKeyEntity apiKeyEntity : affected) {
@@ -478,6 +478,16 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     }
 
     /**
+     * The update that ends a key: marks it deleted at {@code when} and removes the sign-in's client
+     * address and user agent, which are kept only while a session lasts. Deleted keys are kept, so
+     * leaving them would keep every past sign-in's address and browser for good.
+     */
+    private static Document ended(final Date when) {
+        return new Document("$set", new Document("deleted", true).append("deleted_at", when))
+                .append("$unset", new Document("client_address", "").append("user_agent", ""));
+    }
+
+    /**
      * As above, for a user who must do something before anything else: with {@code passwordChangeOnly}
      * the key can change its user's password, with {@code mfaEnrollmentOnly} it can enroll in MFA, and
      * either way it can sign out, and nothing more.
@@ -485,6 +495,18 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
                                          final boolean passwordChangeOnly, final boolean mfaEnrollmentOnly,
                                          final String source, final String auditDetails) {
+        return createSessionKey(requestId, userId, scopes, passwordChangeOnly, mfaEnrollmentOnly, source, auditDetails,
+                null, null);
+    }
+
+    /**
+     * As above, recording the address and user agent of the client that signed in, so a person can tell
+     * their sessions apart. Both are removed when the session ends.
+     */
+    public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
+                                         final boolean passwordChangeOnly, final boolean mfaEnrollmentOnly,
+                                         final String source, final String auditDetails, final String clientAddress,
+                                         final String userAgent) {
 
         final String apiKey = generateApiKey();
         final Date now = new Date();
@@ -506,6 +528,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setLastUsedAt(now);
         apiKeyEntity.setPasswordChangeOnly(passwordChangeOnly);
         apiKeyEntity.setMfaEnrollmentOnly(mfaEnrollmentOnly);
+        apiKeyEntity.setClientAddress(clientAddress);
+        apiKeyEntity.setUserAgent(userAgent);
         apiKeyEntity.setId(save(apiKeyEntity));
 
         String session = "session: true";
@@ -562,7 +586,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
             // The claim repeats the expiry condition: a request on another node may have moved the idle
             // window forward since the read, and that key is not expired.
             final boolean claimed = collection.updateOne(Filters.and(Filters.eq("_id", key.getId()), due),
-                    new Document("$set", new Document("deleted", true).append("deleted_at", now))).getMatchedCount() == 1;
+                    ended(now)).getMatchedCount() == 1;
 
             if (claimed) {
                 apiKeyCache.delete(key.getApiKeyHash());
@@ -593,10 +617,17 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      */
     public long revokeSessionKeys(final String requestId, final ObjectId userId, final String source,
                                   final String auditDetails) {
+        return revokeSessionKeys(requestId, userId, source, auditDetails, null);
+    }
+
+    /** As above, leaving {@code keepKeyId}, when given, alone: signing out every session but the current one. */
+    public long revokeSessionKeys(final String requestId, final ObjectId userId, final String source,
+                                  final String auditDetails, final ObjectId keepKeyId) {
 
         final List<ApiKeyEntity> affected = new ArrayList<>();
         for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId),
-                Filters.eq("session", true), Filters.eq("deleted", false)))) {
+                Filters.eq("session", true), Filters.eq("deleted", false),
+                keepKeyId == null ? new Document() : Filters.ne("_id", keepKeyId)))) {
             affected.add(ApiKeyEntity.fromDocument(document));
         }
 
@@ -610,7 +641,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
             ids.add(key.getId());
         }
         collection.updateMany(Filters.and(Filters.in("_id", ids), Filters.eq("deleted", false)),
-                new Document("$set", new Document("deleted", true).append("deleted_at", new Date())));
+                ended(new Date()));
 
         for (final ApiKeyEntity key : affected) {
             apiKeyCache.delete(key.getApiKeyHash());

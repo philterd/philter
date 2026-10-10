@@ -66,6 +66,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `DELETE /api/contexts?name=`, and `DELETE /api/holds?reference=` are removed: names are checked when
   they are created, so `DELETE /api/lists/{name}`, `/api/contexts/{name}`, and `/api/holds/{reference}`
   always reach them.
+- **Manage your own sessions:** session key listings show each session's client address and user agent
+  (kept only while the session lasts) and mark the current one, and `DELETE /api/users/me/session-keys`
+  signs out every other session.
 
 ### Removed
 

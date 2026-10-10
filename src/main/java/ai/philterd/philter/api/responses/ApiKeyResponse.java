@@ -17,6 +17,7 @@ package ai.philterd.philter.api.responses;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -34,8 +35,16 @@ public class ApiKeyResponse {
     private final Date expiresAt;
     private final Date idleExpiresAt;
     private final Date lastUsedAt;
+    private final String clientAddress;
+    private final String userAgent;
+    private final boolean current;
 
     public ApiKeyResponse(final ApiKeyEntity apiKeyEntity) {
+        this(apiKeyEntity, null);
+    }
+
+    /** A key, marked {@code current} when it is the key {@code callingKeyId} names. */
+    public ApiKeyResponse(final ApiKeyEntity apiKeyEntity, final ObjectId callingKeyId) {
         this.id = apiKeyEntity.getId().toHexString();
         this.prefix = apiKeyEntity.getApiKeyPrefix();
         this.scopes = new ArrayList<>(apiKeyEntity.getScopes());
@@ -45,6 +54,9 @@ public class ApiKeyResponse {
         this.expiresAt = apiKeyEntity.getExpiresAt();
         this.idleExpiresAt = apiKeyEntity.getIdleExpiresAt();
         this.lastUsedAt = apiKeyEntity.getLastUsedAt();
+        this.clientAddress = apiKeyEntity.getClientAddress();
+        this.userAgent = apiKeyEntity.getUserAgent();
+        this.current = apiKeyEntity.getId().equals(callingKeyId);
     }
 
     public String getId() { return id; }
@@ -56,6 +68,17 @@ public class ApiKeyResponse {
     public Date getCreated() { return created; }
 
     public boolean isBootstrap() { return bootstrap; }
+
+    @Schema(description = "Session keys only: the address of the client that signed in, so a person can tell their "
+            + "sessions apart. Null for a long-lived key.")
+    public String getClientAddress() { return clientAddress; }
+
+    @Schema(description = "Session keys only: the user agent of the client that signed in, such as a browser. Null for "
+            + "a long-lived key, or when the client sent none.")
+    public String getUserAgent() { return userAgent; }
+
+    @Schema(description = "Whether this is the key making the request.")
+    public boolean isCurrent() { return current; }
 
     @Schema(description = "Whether this is a session key, issued when a person signed in, rather than a long-lived key.")
     public boolean isSession() { return session; }

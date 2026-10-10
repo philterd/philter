@@ -86,6 +86,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/users/me/mfa/confirm` | application/json | `users:write` | [Details](users_api.md#confirm-enrollment) |
 | POST | `/api/users/me/mfa/remove` | application/json | `users:write` | [Details](users_api.md#remove-your-own-enrollment) |
 | PUT | `/api/users/me/password` | application/json | `users:write` | [Details](users_api.md) |
+| DELETE | `/api/users/me/session-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md#sign-out-every-other-session) |
 | GET | `/api/users/{username}` | application/json | `users:read` | [Details](users_api.md) |
 | GET | `/api/users/{username}/api-keys` | application/json | `api-keys:read` | [Details](api_keys_api.md) |
 | POST | `/api/users/{username}/api-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md) |

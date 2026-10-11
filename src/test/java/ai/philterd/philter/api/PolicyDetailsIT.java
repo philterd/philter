@@ -41,9 +41,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -103,6 +105,22 @@ class PolicyDetailsIT {
         final HttpResponse<String> response = send("GET", "/api/policies/" + name + "/details", null, null);
         assertEquals(200, response.statusCode(), response.body());
         return gson.fromJson(response.body(), JsonObject.class);
+    }
+
+    private HttpResponse<String> sendIfMatch(final String method, final String path, final String ifMatch, final String body)
+            throws Exception {
+        final HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .header("Authorization", "Bearer " + key).header("If-Match", ifMatch);
+        if (body == null) {
+            builder.method(method, HttpRequest.BodyPublishers.noBody());
+        } else {
+            builder.header("Content-Type", "application/json").method(method, HttpRequest.BodyPublishers.ofString(body));
+        }
+        return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String eTag(final HttpResponse<String> response) {
+        return response.headers().firstValue("ETag").orElseThrow(() -> new AssertionError("no ETag: " + response.headers()));
     }
 
     private static String q(final String value) {
@@ -286,5 +304,99 @@ class PolicyDetailsIT {
                     event.toString());
         }
     }
+
+
+    private static final String OTHER_POLICY =
+            "{\"identifiers\":{\"emailAddress\":{\"emailAddressFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
+
+    @Test
+    @DisplayName("A policy and its details are created and replaced in one request with details=true")
+    void detailsInTheSameRequest() throws Exception {
+        final HttpResponse<String> created = send("POST", "/api/policies?name=together&details=true", "application/json",
+                "{\"policy\":" + POLICY + ",\"description\":\"Claims\",\"notes\":\"First\"}");
+        assertEquals(201, created.statusCode(), created.body());
+        JsonObject details = details("together");
+        assertEquals("Claims", details.get("description").getAsString());
+        assertEquals("First", details.get("notes").getAsString());
+        assertEquals(eTag(created), "\"" + details.get("etag").getAsString() + "\"");
+        assertTrue(send("GET", "/api/policies/together", null, null).body().contains("ssnFilterStrategies"));
+
+        // A field left out is kept, and an empty one clears.
+        final HttpResponse<String> replaced = send("PUT", "/api/policies/together?details=true", "application/json",
+                "{\"policy\":" + OTHER_POLICY + ",\"notes\":\"\"}");
+        assertEquals(200, replaced.statusCode(), replaced.body());
+        details = details("together");
+        assertEquals("Claims", details.get("description").getAsString());
+        assertEquals("", details.get("notes").getAsString());
+        assertTrue(send("GET", "/api/policies/together", null, null).body().contains("emailAddress"));
+
+        // A body that is not a policy with details is refused, and nothing is written.
+        for (final String bad : new String[]{POLICY, "{\"policy\":\"text\"}", "{\"policy\":" + POLICY + ",\"extra\":1}",
+                "{\"policy\":" + POLICY + ",\"notes\":5}", "[1]", "not json",
+                "{\"policy\":" + POLICY + ",\"description\":\"" + "d".repeat(201) + "\"}"}) {
+            final HttpResponse<String> refused = send("PUT", "/api/policies/together?details=true", "application/json", bad);
+            assertEquals(400, refused.statusCode(), bad + " -> " + refused.body());
+        }
+        assertTrue(send("GET", "/api/policies/together", null, null).body().contains("emailAddress"));
+        assertEquals("Claims", details("together").get("description").getAsString());
+    }
+
+    @Test
+    @DisplayName("If-Match refuses a replace, details change, or rollback made against an older read, and writes nothing")
+    void ifMatchPreventsLostUpdates() throws Exception {
+        assertEquals(201, send("POST", "/api/policies?name=shared", "application/json", POLICY).statusCode());
+
+        // Two people read the policy.
+        final HttpResponse<String> read = send("GET", "/api/policies/shared", null, null);
+        final String tag = eTag(read);
+        assertEquals(tag, eTag(send("GET", "/api/policies/shared/details", null, null)));
+
+        // A conditional read of an unchanged policy is answered 304 with no body.
+        final HttpResponse<String> notModified = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies/shared"))
+                .header("Authorization", "Bearer " + key).header("If-None-Match", tag).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(304, notModified.statusCode(), notModified.body());
+
+        // The first changes only the notes, which leaves the revision as it was but changes the tag.
+        final HttpResponse<String> first = sendIfMatch("PUT", "/api/policies/shared/details", tag, "{\"notes\":\"first\"}");
+        assertEquals(200, first.statusCode(), first.body());
+        final String firstTag = eTag(first);
+        assertNotEquals(tag, firstTag);
+        assertEquals(firstTag, "\"" + gson.fromJson(first.body(), JsonObject.class).get("etag").getAsString() + "\"");
+
+        // The second, still holding the first read, is refused on every write, and nothing changes.
+        for (final HttpResponse<String> stale : List.of(
+                sendIfMatch("PUT", "/api/policies/shared", tag, OTHER_POLICY),
+                sendIfMatch("PUT", "/api/policies/shared/details", tag, "{\"notes\":\"second\"}"),
+                sendIfMatch("POST", "/api/policies/shared/rollback?revision=" + details("shared").get("revision").getAsInt(), tag, null))) {
+            assertEquals(409, stale.statusCode(), stale.body());
+            final JsonObject body = gson.fromJson(stale.body(), JsonObject.class);
+            assertEquals("policy_changed", body.get("reason").getAsString());
+        }
+        assertEquals("first", details("shared").get("notes").getAsString());
+        assertTrue(send("GET", "/api/policies/shared", null, null).body().contains("ssnFilterStrategies"));
+
+        // With the current tag the replace lands and returns the new one; the bare form works too.
+        final HttpResponse<String> replaced = sendIfMatch("PUT", "/api/policies/shared", firstTag.replace("\"", ""), OTHER_POLICY);
+        assertEquals(200, replaced.statusCode(), replaced.body());
+        final String replacedTag = eTag(replaced);
+        assertEquals(replacedTag, eTag(send("GET", "/api/policies/shared", null, null)));
+
+        final int revision = details("shared").get("revision").getAsInt();
+        final HttpResponse<String> rolledBack = sendIfMatch("POST", "/api/policies/shared/rollback?revision=" + (revision - 1),
+                replacedTag, null);
+        assertEquals(201, rolledBack.statusCode(), rolledBack.body());
+        assertEquals(eTag(rolledBack), eTag(send("GET", "/api/policies/shared", null, null)));
+
+        // Without If-Match, or with *, writes are not checked against a read.
+        assertEquals(200, send("PUT", "/api/policies/shared", "application/json", POLICY).statusCode());
+        assertEquals(200, sendIfMatch("PUT", "/api/policies/shared", "*", POLICY).statusCode());
+
+        // An If-Match that is not a policy entity tag is a 400 naming the header.
+        final HttpResponse<String> malformed = sendIfMatch("PUT", "/api/policies/shared", "\"7\"", POLICY);
+        assertEquals(400, malformed.statusCode(), malformed.body());
+        assertEquals("If-Match", gson.fromJson(malformed.body(), JsonObject.class).get("field").getAsString());
+    }
+
 
 }

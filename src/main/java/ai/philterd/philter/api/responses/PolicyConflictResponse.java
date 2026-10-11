@@ -27,7 +27,7 @@ public class PolicyConflictResponse {
     /** The policy is a built-in managed policy, which cannot be changed. */
     public static final String REASON_POLICY_MANAGED = PolicyDataService.REASON_POLICY_MANAGED;
 
-    /** The policy changed after the request read it. */
+    /** The policy changed after the request, or the read its If-Match names, read it. */
     public static final String REASON_POLICY_CHANGED = PolicyDataService.REASON_POLICY_CHANGED;
 
     /** A policy with this name was created after the request checked for one. */
@@ -47,7 +47,8 @@ public class PolicyConflictResponse {
     public String getMessage() { return message; }
 
     @Schema(description = "Why the policy was not changed: policy_managed (it is a built-in managed policy), "
-            + "policy_changed (it changed concurrently; reload it and retry), policy_exists (a policy with "
+            + "policy_changed (it changed since the read If-Match names, or concurrently; read it again and retry), "
+            + "policy_exists (a policy with "
             + "this name was created concurrently), or policy_default (the default policy cannot be deleted).",
             allowableValues = {REASON_POLICY_MANAGED, REASON_POLICY_CHANGED, REASON_POLICY_EXISTS, REASON_POLICY_DEFAULT})
     public String getReason() { return reason; }

@@ -6163,7 +6163,7 @@
           "Policies"
         ],
         "summary": "Create a policy.",
-        "description": "Creates a policy from the request body under the given name. A name the owner already uses is refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is validated before it is stored. Set its description and notes afterwards with PUT /api/policies/{policyName}/details. Admins may create a policy in another user's account by passing that user's username as owner. Requires the `policies:write` scope.",
+        "description": "Creates a policy from the request body under the given name. A name the owner already uses is refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is validated before it is stored. To set the description and notes in the same write, pass details=true and send {\"policy\": <the policy>, \"description\": \"...\", \"notes\": \"...\"}; description and notes are optional, a field left out or null is left as it is, and an empty value clears it. Without details=true the body is the policy itself. Admins may create a policy in another user's account by passing that user's username as owner. Requires the `policies:write` scope.",
         "operationId": "create",
         "parameters": [
           {
@@ -6189,6 +6189,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "details",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "requestBody": {
@@ -6205,7 +6214,7 @@
         },
         "responses": {
           "201": {
-            "description": "The policy was created and is now active. A policy_activated audit event is recorded.",
+            "description": "The policy was created and is now active. The ETag header identifies it. A policy_activated audit event is recorded.",
             "content": {
               "*/*": {
                 "schema": {
@@ -6215,7 +6224,7 @@
             }
           },
           "400": {
-            "description": "The policy name is missing or invalid, the policy is invalid, or the request has a description or notes parameter.",
+            "description": "The policy name is missing or invalid, the policy is invalid, the request has a description or notes parameter, or, with details=true, the body is not a policy with details or the description or notes are too long.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6675,7 +6684,7 @@
           "Policies"
         ],
         "summary": "Get a policy.",
-        "description": "Returns the full policy with the given name. A name starting with managed_ returns that built-in managed policy. Admins may retrieve another user's policy by passing that user's username as owner. The policy's description and notes are at /api/policies/{policyName}/details. Requires the `policies:read` scope.",
+        "description": "Returns the full policy with the given name. A name starting with managed_ returns that built-in managed policy. Admins may retrieve another user's policy by passing that user's username as owner. The policy's description and notes are at /api/policies/{policyName}/details. The ETag header identifies the policy as read, together with its description and notes; send it back in If-Match when replacing the policy, setting its details, or rolling it back, so the change is refused if someone else changed the policy since. Requires the `policies:read` scope.",
         "operationId": "get",
         "parameters": [
           {
@@ -6798,13 +6807,21 @@
           "Policies"
         ],
         "summary": "Replace a policy.",
-        "description": "Replaces an existing policy with the request body, as a new revision. The policy is validated before it is stored. Its description and notes are kept; change them with PUT /api/policies/{policyName}/details. Admins may replace another user's policy by passing that user's username as owner. Requires the `policies:write` scope.",
+        "description": "Replaces an existing policy with the request body, as a new revision. The policy is validated before it is stored. Its description and notes are kept unless the body gives them. To set the description and notes in the same write, pass details=true and send {\"policy\": <the policy>, \"description\": \"...\", \"notes\": \"...\"}; description and notes are optional, a field left out or null is left as it is, and an empty value clears it. Without details=true the body is the policy itself. Send the ETag from your read in If-Match to make the write conditional: if the policy, its description, or its notes changed since, nothing is written and the response is 409 with reason policy_changed. Without If-Match the write is not checked against an earlier read. Admins may replace another user's policy by passing that user's username as owner. Requires the `policies:write` scope.",
         "operationId": "replace",
         "parameters": [
           {
             "name": "Authorization",
             "in": "header",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -6824,6 +6841,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "details",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "requestBody": {
@@ -6840,10 +6866,10 @@
         },
         "responses": {
           "200": {
-            "description": "The policy was replaced and is now active. A policy_activated audit event is recorded."
+            "description": "The policy was replaced and is now active. The ETag header identifies it as written. A policy_activated audit event is recorded."
           },
           "400": {
-            "description": "The policy is invalid, or the request has a description or notes parameter.",
+            "description": "The policy is invalid, the request has a description or notes parameter, If-Match is not an entity tag this API returned, or, with details=true, the body is not a policy with details or the description or notes are too long.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6879,7 +6905,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy was not replaced, and reason says why: policy_managed (a managed policy, which cannot be replaced) or policy_changed (it changed concurrently; reload it and retry).",
+            "description": "The policy was not replaced, and reason says why: policy_managed (a managed policy, which cannot be replaced) or policy_changed (it changed since the read If-Match names, or concurrently; read it again and retry). Nothing was written.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6975,7 +7001,7 @@
         ],
         "responses": {
           "201": {
-            "description": "The copy's details.",
+            "description": "The copy's details. The ETag header identifies the copy.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7079,7 +7105,7 @@
           "Policies"
         ],
         "summary": "Get a policy's details.",
-        "description": "Returns a policy's name, description, notes, current revision, whether it is a built-in managed policy, and when it was created and last updated: everything except the policy itself. A name starting with managed_ returns that managed policy's details. Admins may read another user's by passing that user's username as owner. Requires the `policies:read` scope.",
+        "description": "Returns a policy's name, description, notes, current revision, entity tag, whether it is a built-in managed policy, and when it was created and last updated: everything except the policy itself. The ETag header carries the entity tag too, for If-Match. A name starting with managed_ returns that managed policy's details. Admins may read another user's by passing that user's username as owner. Requires the `policies:read` scope.",
         "operationId": "getDetails",
         "parameters": [
           {
@@ -7201,13 +7227,21 @@
           "Policies"
         ],
         "summary": "Set a policy's description and notes.",
-        "description": "Sets the description (up to 200 characters) and notes (up to 1000). A field left out is left as it is; an empty value clears it. They are not part of the policy, so this does not create a new version. Managed policies cannot be changed. Admins may change another user's by passing that user's username as owner. Requires the `policies:write` scope.",
+        "description": "Sets the description (up to 200 characters) and notes (up to 1000). A field left out is left as it is; an empty value clears it. They are not part of the policy, so this does not create a new version, and the revision stays the same, but the entity tag changes. Send the ETag from your read in If-Match to make the write conditional: if the policy, its description, or its notes changed since, nothing is written and the response is 409 with reason policy_changed. Without If-Match the write is not checked against an earlier read. Managed policies cannot be changed. Admins may change another user's by passing that user's username as owner. Requires the `policies:write` scope.",
         "operationId": "setDetails",
         "parameters": [
           {
             "name": "Authorization",
             "in": "header",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -7241,7 +7275,7 @@
         },
         "responses": {
           "200": {
-            "description": "The policy's details after the change.",
+            "description": "The policy's details after the change. The ETag header identifies them.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7251,7 +7285,7 @@
             }
           },
           "400": {
-            "description": "The description or notes are too long.",
+            "description": "The description or notes are too long, or If-Match is not an entity tag this API returned.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7287,7 +7321,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy is a managed policy; reason is policy_managed.",
+            "description": "Nothing was changed, and reason says why: policy_managed (a managed policy) or policy_changed (it changed since the read If-Match names, or concurrently; read it again and retry).",
             "content": {
               "application/json": {
                 "schema": {
@@ -7517,13 +7551,21 @@
           "Policy Versions"
         ],
         "summary": "Roll back a policy to a prior revision.",
-        "description": "Restores the content of the specified revision as a new head revision, preserving the full history. The live policy is updated with the prior content and its revision counter is incremented. The rollback is audited. Admins may roll back another user's policy via the owner parameter. Requires the `policies:write` scope.",
+        "description": "Restores the content of the specified revision as a new head revision, preserving the full history. The live policy is updated with the prior content and its revision counter is incremented. The description and notes are kept. The rollback is audited. Send the ETag from your read in If-Match to make the write conditional: if the policy, its description, or its notes changed since, nothing is written and the response is 409 with reason policy_changed. Without If-Match the write is not checked against an earlier read. Admins may roll back another user's policy via the owner parameter. Requires the `policies:write` scope.",
         "operationId": "rollback",
         "parameters": [
           {
             "name": "Authorization",
             "in": "header",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -7556,7 +7598,7 @@
         ],
         "responses": {
           "201": {
-            "description": "Rollback succeeded. Body contains the new revision number.",
+            "description": "Rollback succeeded. Body contains the new revision number, and the ETag header identifies the policy as rolled back.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7566,7 +7608,7 @@
             }
           },
           "400": {
-            "description": "The policy name or target revision is missing.",
+            "description": "The policy name or target revision is missing, or If-Match is not an entity tag this API returned.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7602,7 +7644,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The policy was not rolled back, and reason says why: policy_managed (managed policies cannot be rolled back) or policy_changed (the policy changed concurrently; reload it and retry).",
+            "description": "The policy was not rolled back, and reason says why: policy_managed (managed policies cannot be rolled back) or policy_changed (the policy changed since the read If-Match names, or concurrently; read it again and retry). Nothing was written.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13842,7 +13884,7 @@
             "type": "string"
           },
           "reason": {
-            "description": "Why the policy was not changed: policy_managed (it is a built-in managed policy), policy_changed (it changed concurrently; reload it and retry), policy_exists (a policy with this name was created concurrently), or policy_default (the default policy cannot be deleted).",
+            "description": "Why the policy was not changed: policy_managed (it is a built-in managed policy), policy_changed (it changed since the read If-Match names, or concurrently; read it again and retry), policy_exists (a policy with this name was created concurrently), or policy_default (the default policy cannot be deleted).",
             "type": "string",
             "enum": [
               "policy_managed",
@@ -13876,6 +13918,11 @@
           "created": {
             "type": "string",
             "format": "date-time"
+          },
+          "etag": {
+            "description": "Identifies the policy together with its description and notes, and changes when any of them does; the revision alone does not change when only the details do. The ETag header carries the same value, quoted. Send it in If-Match to make a replace, a details change, or a rollback conditional.",
+            "example": "7-0123456789abcdef",
+            "type": "string"
           },
           "lastUpdated": {
             "type": "string",

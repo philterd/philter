@@ -242,8 +242,8 @@ class PoliciesApiControllerTest {
     @Test
     void createValidatesAndStoresTheValidPolicy() throws Exception {
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.create(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString(), any()))
-                .thenReturn(ServiceResponse.success());
+        when(policyDataService.createPolicy(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString(), any()))
+                .thenReturn(written(ServiceResponse.success()));
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "my-policy")
@@ -254,7 +254,7 @@ class PoliciesApiControllerTest {
         // Validated, then written through create() so the name rules, the version snapshot and the
         // cache eviction all apply.
         verify(policyDataService).validatePolicy(anyString());
-        verify(policyDataService).create(anyString(), any(), anyString(), isNull(), isNull(),
+        verify(policyDataService).createPolicy(anyString(), any(), anyString(), isNull(), isNull(),
                 eq("my-policy"), anyString(), any());
         verify(policyDataService, never()).save(org.mockito.ArgumentMatchers.any());
     }
@@ -262,8 +262,8 @@ class PoliciesApiControllerTest {
     @Test
     void createEmitsActivationAuditEvent() throws Exception {
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.create(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString(), any()))
-                .thenReturn(ServiceResponse.success());
+        when(policyDataService.createPolicy(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString(), any()))
+                .thenReturn(written(ServiceResponse.success()));
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "my-policy")
@@ -283,9 +283,9 @@ class PoliciesApiControllerTest {
     @Test
     void createReturns409WithAReasonWhenTheNameWasTakenConcurrently() throws Exception {
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.create(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString(), any()))
-                .thenReturn(new ServiceResponse("A policy with this name already exists.", false, 409,
-                        PolicyDataService.REASON_POLICY_EXISTS));
+        when(policyDataService.createPolicy(anyString(), any(), anyString(), isNull(), isNull(), anyString(), anyString(), any()))
+                .thenReturn(refused(new ServiceResponse("A policy with this name already exists.", false, 409,
+                        PolicyDataService.REASON_POLICY_EXISTS)));
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "my-policy")
@@ -302,9 +302,9 @@ class PoliciesApiControllerTest {
         existing.setId(new ObjectId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any()))
-                .thenReturn(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
-                        PolicyDataService.REASON_POLICY_CHANGED));
+        when(policyDataService.replace(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
+                        PolicyDataService.REASON_POLICY_CHANGED)));
 
         // An Accept header that excludes JSON still gets the JSON refusal.
         mockMvc.perform(put("/api/policies/my-policy").header("Authorization", AUTH_HEADER)
@@ -322,8 +322,8 @@ class PoliciesApiControllerTest {
         existing.setId(new ObjectId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any()))
-                .thenReturn(new ServiceResponse("Policy does not exist.", false, 404));
+        when(policyDataService.replace(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Policy does not exist.", false, 404)));
 
         mockMvc.perform(put("/api/policies/my-policy").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -464,9 +464,9 @@ class PoliciesApiControllerTest {
     @Test
     void createNeverReplacesAnExistingPolicy() throws Exception {
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.create(anyString(), eq(userId), anyString(), isNull(), isNull(), eq("my-policy"), anyString(), any()))
-                .thenReturn(new ServiceResponse("A policy with this name already exists.", false, 409,
-                        PolicyDataService.REASON_POLICY_EXISTS));
+        when(policyDataService.createPolicy(anyString(), eq(userId), anyString(), isNull(), isNull(), eq("my-policy"), anyString(), any()))
+                .thenReturn(refused(new ServiceResponse("A policy with this name already exists.", false, 409,
+                        PolicyDataService.REASON_POLICY_EXISTS)));
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "my-policy")
@@ -475,7 +475,7 @@ class PoliciesApiControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.reason").value("policy_exists"));
 
-        verify(policyDataService, never()).update(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(policyDataService, never()).replace(any(), any(), any(), any(), any(), any(), any(), any(), any());
         verify(auditEventPublisher, never()).auditEvent(anyString(), eq(AuditLogEvent.POLICY_ACTIVATED), any(), any(), any(), any());
     }
 
@@ -485,15 +485,15 @@ class PoliciesApiControllerTest {
         existing.setId(new ObjectId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.update(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any()))
-                .thenReturn(new ServiceResponse("The policy was updated.", true, 200));
+        when(policyDataService.replace(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
+                .thenReturn(written(new ServiceResponse("The policy was updated.", true, 200)));
 
         mockMvc.perform(put("/api/policies/my-policy").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_POLICY_BODY))
                 .andExpect(status().isOk());
 
-        verify(policyDataService, never()).create(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(policyDataService, never()).createPolicy(any(), any(), any(), any(), any(), any(), any(), any());
         verify(auditEventPublisher).auditEvent(anyString(), eq(AuditLogEvent.POLICY_ACTIVATED), eq(userId), isNull(), isNull(),
                 eq("policy: my-policy"));
     }
@@ -509,8 +509,8 @@ class PoliciesApiControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Policy does not exist."));
 
-        verify(policyDataService, never()).create(any(), any(), any(), any(), any(), any(), any(), any());
-        verify(policyDataService, never()).update(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(policyDataService, never()).createPolicy(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(policyDataService, never()).replace(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -522,7 +522,7 @@ class PoliciesApiControllerTest {
                         .content("{\"identifiers\":{}}"))
                 .andExpect(status().isBadRequest());
 
-        verify(policyDataService, never()).update(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(policyDataService, never()).replace(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -534,8 +534,8 @@ class PoliciesApiControllerTest {
         existing.setId(new ObjectId());
         when(policyDataService.findOne("their-policy", otherUser)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.update(anyString(), eq(otherUser), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any()))
-                .thenReturn(new ServiceResponse("The policy was updated.", true, 200));
+        when(policyDataService.replace(anyString(), eq(otherUser), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
+                .thenReturn(written(new ServiceResponse("The policy was updated.", true, 200)));
 
         mockMvc.perform(put("/api/policies/their-policy").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
@@ -552,8 +552,8 @@ class PoliciesApiControllerTest {
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
-        when(policyDataService.create(anyString(), eq(otherUser), anyString(), isNull(), isNull(), eq("their-policy"), anyString(), any()))
-                .thenReturn(ServiceResponse.success());
+        when(policyDataService.createPolicy(anyString(), eq(otherUser), anyString(), isNull(), isNull(), eq("their-policy"), anyString(), any()))
+                .thenReturn(written(ServiceResponse.success()));
 
         mockMvc.perform(post("/api/policies").header("Authorization", AUTH_HEADER)
                         .param("name", "their-policy")
@@ -561,6 +561,17 @@ class PoliciesApiControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_POLICY_BODY))
                 .andExpect(status().isCreated());
+    }
+
+
+    /** A write that succeeded, with the policy as written. */
+    private static PolicyDataService.WriteOutcome written(final ServiceResponse response) {
+        return new PolicyDataService.WriteOutcome(response, new PolicyEntity());
+    }
+
+    /** A refused write: the service's response and no policy. */
+    private static PolicyDataService.WriteOutcome refused(final ServiceResponse response) {
+        return new PolicyDataService.WriteOutcome(response, null);
     }
 
 }

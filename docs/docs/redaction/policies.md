@@ -110,7 +110,9 @@ Returns `201 Created` with the new revision number:
 { "revision": 4 }
 ```
 
-A refused rollback returns `409 Conflict` with a `message` and a `reason`: `policy_managed` for a managed policy, which cannot be rolled back, or `policy_changed` when the policy changed during the rollback. If the target revision does not exist, returns `404 Not Found`.
+To refuse the rollback if someone changed the policy since you read it, send the `ETag` from your read in `If-Match`; see [Preventing lost updates](../api_and_sdks/api/policies_api.md#preventing-lost-updates).
+
+A refused rollback returns `409 Conflict` with a `message` and a `reason`: `policy_managed` for a managed policy, which cannot be rolled back, or `policy_changed` when the policy changed since the read named in `If-Match`, or during the rollback. If the target revision does not exist, returns `404 Not Found`.
 
 ### HTTP status codes
 

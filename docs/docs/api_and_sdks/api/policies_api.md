@@ -90,6 +90,8 @@ Example response with `managed=true`:
 
 A name beginning with `managed_` returns that [managed policy](../../policies/sample_policies.md#managed-policies). The response is the policy itself; its description and notes are returned by [Get a Policy's Details](#get-a-policys-details).
 
+The `ETag` response header identifies the policy as read, together with its description and notes, such as `"7-0123456789abcdef"`. Send it back in `If-Match` when you change the policy; see [Preventing lost updates](#preventing-lost-updates). A read that sends it in `If-None-Match` gets `304 Not Modified`, with no body, while the policy and its details are unchanged.
+
 Example request:
 
 ```
@@ -170,8 +172,26 @@ Example response:
 ### Query Parameters
 
 * `name` (required) - The name of the policy to create.
+* `details` (optional, default `false`) - `true` when the body carries the policy's description and notes as well as the policy; see [Description and notes in the same request](#description-and-notes-in-the-same-request).
 
-Set the policy's description and notes afterwards with [`PUT /api/policies/{policyName}/details`](#set-a-policys-description-and-notes), which takes them in a JSON body. They are not accepted as query parameters here, since free text in a URL can exceed request header limits in some languages and is written to access logs; a request that sends them is refused.
+### Description and notes in the same request
+
+By default the body is the policy itself. To set the description and notes in the same write, pass `details=true` and wrap the policy:
+
+```json
+{
+  "policy": { "identifiers": { "ssn": { "ssnFilterStrategies": [ { "strategy": "REDACT" } ] } } },
+  "description": "Federal court filings",
+  "notes": "Reviewed with the clerk's office."
+}
+```
+
+* `policy` (required) - The policy, as a JSON object.
+* `description` and `notes` (optional) - Up to 200 and 1000 characters. A field left out, or `null`, is left as it is; an empty value clears it.
+
+The policy and its details are written together: if the request is refused, for an invalid policy, a description or notes that is too long, or any other reason, neither is changed. [Replace a Policy](#replace-a-policy) takes the same body with `details=true`. You can also set the details on their own with [`PUT /api/policies/{policyName}/details`](#set-a-policys-description-and-notes).
+
+The description and notes are not accepted as query parameters, since free text in a URL can exceed request header limits in some languages and is written to access logs; a request that sends them is refused.
 
 ### Validation
 
@@ -179,8 +199,8 @@ The policy is validated before it is stored. It must be valid JSON in the native
 
 ### Responses
 
-* `201 Created` - The policy was created.
-* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, or the request has a `description` or `notes` parameter. A name may be up to 50 characters of letters, digits, `_` and `-`, may not begin with `managed_`, and may not be `templates`, which is where [policy templates](#get-a-policy-template) are read.
+* `201 Created` - The policy was created. The `ETag` header identifies it.
+* `400 Bad Request` - The policy name is missing or invalid, the policy is invalid, the request has a `description` or `notes` parameter, or, with `details=true`, the body is not a policy with details or the description or notes are too long. A name may be up to 50 characters of letters, digits, `_` and `-`, may not begin with `managed_`, and may not be `templates`, which is where [policy templates](#get-a-policy-template) are read.
 * `404 Not Found` - The owner does not exist or may not be reached.
 * `409 Conflict` - You already have a policy with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `policy_exists`.
 
@@ -207,25 +227,52 @@ Example `409` response:
 
 The policy is validated as when [creating one](#validation), and the replaced content is kept in the [version history](#policy-version-history).
 
-The policy's description and notes are kept. Change them with [`PUT /api/policies/{policyName}/details`](#set-a-policys-description-and-notes).
+The policy's description and notes are kept unless the request sets them: pass `details=true` and send them with the policy, as described in [Description and notes in the same request](#description-and-notes-in-the-same-request). Sending the same policy with new details changes the details without a new revision.
+
+### Headers
+
+* `If-Match` (optional) - The `ETag` from your read. The policy is replaced only if neither it nor its description or notes changed since; see [Preventing lost updates](#preventing-lost-updates).
 
 ### Query Parameters
 
 * `owner` (optional, admin only) - Username of another user whose policy to replace.
+* `details` (optional, default `false`) - `true` when the body carries the description and notes as well as the policy.
 
 ### Responses
 
-* `200 OK` - The policy was replaced.
-* `400 Bad Request` - The policy is invalid, or the request has a `description` or `notes` parameter.
+* `200 OK` - The policy was replaced. The `ETag` header identifies it as written.
+* `400 Bad Request` - The policy is invalid, the request has a `description` or `notes` parameter, `If-Match` is not an entity tag this API returned, or, with `details=true`, the body is not a policy with details or the description or notes are too long.
 * `404 Not Found` - There is no such policy. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not replaced, and nothing is changed. The body carries a `message` and a `reason`:
     * `policy_managed` - The policy is a [managed policy](../../policies/sample_policies.md#managed-policies), which cannot be replaced. Copy it and change the copy instead.
-    * `policy_changed` - The policy changed after this request read it. Reload the policy and retry.
+    * `policy_changed` - The policy, its description, or its notes changed since the read named in `If-Match`, or while this request was writing. Read the policy again and retry.
 
 Example request:
 
 ```
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/policies/my-policy" -d @policy.json
+curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -H 'If-Match: "7-0123456789abcdef"' \
+  -k "https://localhost:8080/api/policies/my-policy" -d @policy.json
+```
+
+### Preventing lost updates
+
+Two people, or two clients, editing the same policy can otherwise overwrite each other: each reads the policy, changes it, and saves, and the second save replaces the first without anyone noticing. To prevent that, make your write conditional on what you read:
+
+1. Read the policy with [Get a Policy](#get-a-policy) or its details with [Get a Policy's Details](#get-a-policys-details). Keep the `ETag` response header. The details also carry it, unquoted, as `etag`.
+2. Send it back in the `If-Match` header when you [replace the policy](#replace-a-policy), [set its description and notes](#set-a-policys-description-and-notes), or [roll it back](#rollback-to-a-prior-revision). Quoted, as the `ETag` header gives it, or bare.
+3. If the policy, its description, or its notes changed since your read, nothing is written and the response is `409 Conflict` with the `reason` `policy_changed`. Read the policy again, apply your change to what you read, and retry with the new `ETag`.
+
+Each successful write returns the policy's new `ETag`, so a client can keep editing without reading the policy again.
+
+The entity tag covers the description and notes as well as the policy, because the revision changes only when the policy's content does: two people editing only the notes would otherwise not see each other's changes. So a replace made against a read from before someone changed only the notes is refused too.
+
+Without `If-Match`, or with `If-Match: *`, a write is not checked against an earlier read and works as before. Whether or not `If-Match` is sent, a write that races another inside Philter is refused with `policy_changed` rather than overwriting it.
+
+```json
+{
+  "message": "The policy changed since it was read. Read it again and retry.",
+  "reason": "policy_changed"
+}
 ```
 
 ## Delete a Policy
@@ -321,12 +368,15 @@ See [Authoring Policies with PhiSQL](../../policies/phisql.md) for the language 
 
 Requires `policies:read`. Works for managed policies too. Supports `owner` as the other policy endpoints do.
 
+`etag` identifies the policy together with its description and notes, and changes when any of them does; `revision` changes only when the policy's content does. The `ETag` header carries the same value, quoted, for [`If-Match`](#preventing-lost-updates).
+
 ```json
 {
   "name": "court",
   "description": "Federal court filings",
   "notes": "Reviewed with the clerk's office.",
   "revision": 3,
+  "etag": "3-5d41402abc4b2a76",
   "managed": false,
   "created": "2026-10-01T14:03:11.000Z",
   "lastUpdated": "2026-10-05T09:12:40.000Z"
@@ -348,11 +398,15 @@ Requires `policies:write`. Returns the policy's details.
 }
 ```
 
-A field left out is left as it is, and an empty value clears it. The description may be up to 200 characters and the notes up to 1000, in any language. Description and notes are not part of the policy, so changing them does not create a new [version](#policy-version-history).
+A field left out is left as it is, and an empty value clears it. The description may be up to 200 characters and the notes up to 1000, in any language. Description and notes are not part of the policy, so changing them does not create a new [version](#policy-version-history), but it does change the policy's `etag`.
 
-* `400 Bad Request` - The description or notes are too long.
+Send the `ETag` from your read in `If-Match` to make the change conditional; see [Preventing lost updates](#preventing-lost-updates). The response's `ETag` header identifies the details as written.
+
+* `400 Bad Request` - The description or notes are too long, or `If-Match` is not an entity tag this API returned.
 * `404 Not Found` - There is no such policy.
-* `409 Conflict` - The policy is a managed policy, which cannot be changed. The body carries a `message` and the `reason` `policy_managed`.
+* `409 Conflict` - Nothing was changed. The body carries a `message` and a `reason`:
+    * `policy_managed` - The policy is a managed policy, which cannot be changed.
+    * `policy_changed` - The policy, its description, or its notes changed since the read named in `If-Match`, or while this request was writing. Read it again and retry.
 
 ## Copy a Policy
 
@@ -364,7 +418,7 @@ Requires `policies:write`. The source is one of the caller's policies or, for a 
 
 * `name` (required) - The name of the new policy, under the same rules as [saving a policy](#save-a-policy).
 
-The copy has the source's policy and description. A copy of a managed policy has the note `Created from managed policy <name>`; a copy of the caller's own policy keeps its notes. Returns `201 Created` with the copy's details.
+The copy has the source's policy and description. A copy of a managed policy has the note `Created from managed policy <name>`; a copy of the caller's own policy keeps its notes. Returns `201 Created` with the copy's details, and its `ETag`.
 
 * `400 Bad Request` - The new name is missing or invalid.
 * `404 Not Found` - There is no such policy to copy.
@@ -490,7 +544,9 @@ curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies/
 |---------|--------------------------------------------|-------------------------------------------------------------|
 | `POST`  | `/api/policies/{policyName}/rollback`      | Restore a prior revision as the new active policy content.  |
 
-Rollback restores the content of the specified revision as a **new** revision. History is never rewritten. The live policy's revision counter is incremented and the restored content is snapshotted. Every rollback is audited as `policy_rolled_back`.
+Rollback restores the content of the specified revision as a **new** revision. History is never rewritten. The live policy's revision counter is incremented and the restored content is snapshotted. The description and notes are kept. Every rollback is audited as `policy_rolled_back`.
+
+Send the `ETag` from your read in `If-Match` so the rollback is refused if someone changed the policy since; see [Preventing lost updates](#preventing-lost-updates).
 
 #### Query Parameters
 
@@ -499,17 +555,17 @@ Rollback restores the content of the specified revision as a **new** revision. H
 
 #### Responses
 
-* `201 Created` - Rollback succeeded. Body contains the new revision number.
-* `400 Bad Request` - The `revision` parameter is missing or is not a number. The body carries a `message`.
+* `201 Created` - Rollback succeeded. Body contains the new revision number, and the `ETag` header identifies the policy as rolled back.
+* `400 Bad Request` - The `revision` parameter is missing or is not a number, or `If-Match` is not an entity tag this API returned. The body carries a `message`.
 * `404 Not Found` - The policy or the target revision does not exist. The body's `message` says which, for example `Revision 99 does not exist.`. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not rolled back. The body carries a `message` and a `reason`:
     * `policy_managed` - Managed policies cannot be rolled back.
-    * `policy_changed` - The policy changed after this request read it. Reload it and retry.
+    * `policy_changed` - The policy, its description, or its notes changed since the read named in `If-Match`, or while this request was writing. Read it again and retry.
 
 Example request:
 
 ```
-curl -X POST -k -H "Authorization: Bearer <token>" \
+curl -X POST -k -H "Authorization: Bearer <token>" -H 'If-Match: "7-0123456789abcdef"' \
   "https://localhost:8080/api/policies/my-policy/rollback?revision=1"
 ```
 
@@ -521,4 +577,4 @@ Example response:
 
 ## Native JSON and concurrent changes
 
-Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Create (`POST /api/policies`) takes the new policy's name in the `name` query parameter, and copy takes the copy's name there; every other operation names the policy in the path. Concurrent replace or rollback operations can return 409 with the reason `policy_changed` if the governing revision changed. Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.
+Upload and retrieval preserve native Phileas JSON field names, including `identifiers.dictionaries`; policy bodies are JSON objects, not JSON-encoded strings. Create (`POST /api/policies`) takes the new policy's name in the `name` query parameter, and copy takes the copy's name there; every other operation names the policy in the path. A replace, details change, or rollback returns 409 with the reason `policy_changed` when the policy changed since the read named in `If-Match`, or while the request was writing; see [Preventing lost updates](#preventing-lost-updates). Read-only policy/history operations and compilation need `policies:read`; saves, deletion, and rollback need `policies:write`. History remains retained independently of deleting the live policy.

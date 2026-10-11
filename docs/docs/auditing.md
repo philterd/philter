@@ -73,7 +73,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 | Event | When it is recorded |
 |-------|---------------------|
 | `policy_created` | A policy was created, through `POST /api/policies` or `POST /api/policies/{name}/copy`. |
-| `policy_updated` | A policy was updated, through `POST /api/policies` naming an existing policy, or its description or notes through `PUT /api/policies/{name}/details` (details name the fields changed). |
+| `policy_updated` | A policy was updated, through `PUT /api/policies/{name}`, or its description or notes through `PUT /api/policies/{name}/details`. When the description or notes changed, the details name them. |
 | `policy_activated` | A policy was saved via the API and became active immediately. Recorded alongside `policy_created` or `policy_updated`, and attributing the change to the API key that made it. Details include the policy name. |
 | `policy_deleted` | A policy was deleted. The associated object is the deleted policy; details include the policy name and where the deletion came from. |
 | `policy_version_history_retrieved` | The version history of a policy was retrieved. Details include the policy name and the number of versions returned. |

@@ -529,12 +529,11 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackSucceedsAndReturnsNewRevision() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Policy rolled back to revision 1. New revision: 3", true, 200));
-
         final PolicyEntity live = new PolicyEntity();
         live.setRevision(3);
-        when(policyDataService.findOne(eq(POLICY_NAME), eq(userId))).thenReturn(live);
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString(), isNull()))
+                .thenReturn(new PolicyDataService.WriteOutcome(
+                        new ServiceResponse("Policy rolled back to revision 1. New revision: 3", true, 200), live));
 
         final String body = mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -554,13 +553,13 @@ class PolicyVersionsApiControllerTest {
 
         assertTrue(body.contains("revision"), "the response should name the missing parameter: " + body);
 
-        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt(), any(), any());
+        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt(), any(), any(), any());
     }
 
     @Test
     void rollbackReturns404WhenPolicyDoesNotExist() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Policy does not exist.", false, 404));
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Policy does not exist.", false, 404)));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -571,8 +570,8 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns404WhenTargetRevisionDoesNotExist() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(99), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Revision 99 does not exist.", false, 404));
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(99), eq(userId), anyString(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Revision 99 does not exist.", false, 404)));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -583,9 +582,9 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns409ForManagedPolicy() throws Exception {
-        when(policyDataService.rollback(anyString(), eq("managed_common_pii"), eq(userId), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Managed policies cannot be rolled back.", false, 409,
-                        PolicyDataService.REASON_POLICY_MANAGED));
+        when(policyDataService.rollback(anyString(), eq("managed_common_pii"), eq(userId), eq(1), eq(userId), anyString(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Managed policies cannot be rolled back.", false, 409,
+                        PolicyDataService.REASON_POLICY_MANAGED)));
 
         mockMvc.perform(post("/api/policies/managed_common_pii/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -597,9 +596,9 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns409WithAReasonWhenThePolicyChangedConcurrently() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
-                        PolicyDataService.REASON_POLICY_CHANGED));
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
+                        PolicyDataService.REASON_POLICY_CHANGED)));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -611,8 +610,8 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturnsTheServiceMessageWithAnyOtherFailure() throws Exception {
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Something else.", false, 400));
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(userId), eq(1), eq(userId), anyString(), isNull()))
+                .thenReturn(refused(new ServiceResponse("Something else.", false, 400)));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -637,7 +636,7 @@ class PolicyVersionsApiControllerTest {
                 .andExpect(status().isNotFound());
 
         // The rollback must NOT be attempted when the owner resolution fails.
-        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt(), any(), any());
+        verify(policyDataService, never()).rollback(anyString(), anyString(), any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -646,12 +645,11 @@ class PolicyVersionsApiControllerTest {
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
 
-        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1), eq(userId), anyString()))
-                .thenReturn(new ServiceResponse("Policy rolled back to revision 1. New revision: 2", true, 200));
-
         final PolicyEntity live = new PolicyEntity();
         live.setRevision(2);
-        when(policyDataService.findOne(eq(POLICY_NAME), eq(otherUser))).thenReturn(live);
+        when(policyDataService.rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1), eq(userId), anyString(), isNull()))
+                .thenReturn(new PolicyDataService.WriteOutcome(
+                        new ServiceResponse("Policy rolled back to revision 1. New revision: 2", true, 200), live));
 
         mockMvc.perform(post("/api/policies/" + POLICY_NAME + "/rollback")
                         .header("Authorization", AUTH_HEADER)
@@ -659,7 +657,13 @@ class PolicyVersionsApiControllerTest {
                         .param("owner", "other@example.com"))
                 .andExpect(status().isCreated());
 
-        verify(policyDataService).rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1), eq(userId), anyString());
+        verify(policyDataService).rollback(anyString(), eq(POLICY_NAME), eq(otherUser), eq(1), eq(userId), anyString(), isNull());
+    }
+
+
+    /** A refused write: the service's response and no policy. */
+    private static PolicyDataService.WriteOutcome refused(final ServiceResponse response) {
+        return new PolicyDataService.WriteOutcome(response, null);
     }
 
 }

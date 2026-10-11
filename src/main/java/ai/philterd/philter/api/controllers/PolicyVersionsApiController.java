@@ -299,13 +299,14 @@ public class PolicyVersionsApiController extends AbstractApiController {
     @Operation(summary = "Roll back a policy to a prior revision.",
             description = "Restores the content of the specified revision as a new head revision, "
                     + "preserving the full history. The live policy is updated with the prior content "
-                    + "and its revision counter is incremented. The rollback is audited. Admins may roll "
-                    + "back another user's policy via the owner parameter.")
+                    + "and its revision counter is incremented. The description and notes are kept. The rollback is "
+                    + "audited. " + PoliciesApiController.IF_MATCH_DESCRIPTION + " Admins may roll back another user's "
+                    + "policy via the owner parameter.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Rollback succeeded. Body contains the new revision number.",
+            @ApiResponse(responseCode = "201", description = "Rollback succeeded. Body contains the new revision number, and the ETag header identifies the policy as rolled back.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyRollbackResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The policy name or target revision is missing.",
+            @ApiResponse(responseCode = "400", description = "The policy name or target revision is missing, or If-Match is not an entity tag this API returned.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
@@ -315,7 +316,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "409", description = "The policy was not rolled back, and reason says why: "
                     + "policy_managed (managed policies cannot be rolled back) or policy_changed (the policy changed "
-                    + "concurrently; reload it and retry).",
+                    + "since the read If-Match names, or concurrently; read it again and retry). Nothing was written.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
@@ -324,6 +325,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<Object> rollback(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
             @PathVariable("policyName") final String policyName,
             @RequestParam("revision") final int targetRevision,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -338,6 +340,8 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        final String expectedETag = PoliciesApiController.ifMatchETag(ifMatch);
+
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
@@ -349,9 +353,10 @@ public class PolicyVersionsApiController extends AbstractApiController {
                 apiKeyEntity.getUserId(), userId,
                 "rollback policy '" + policyName + "' to revision " + targetRevision);
 
-        final ServiceResponse response = policyDataService.rollback(
+        final PolicyDataService.WriteOutcome outcome = policyDataService.rollback(
                 requestId, policyName, userId, targetRevision,
-                apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
+                apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest), expectedETag);
+        final ServiceResponse response = outcome.response();
 
         // The service says which was not found: the policy or the revision.
         if (response.getStatusCode() == 404) {
@@ -365,10 +370,9 @@ public class PolicyVersionsApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new GenericResponse(response.getMessage()));
         }
 
-        // Fetch the live policy to return the authoritative new revision number.
-        final PolicyEntity live = policyDataService.findOne(policyName, userId);
-        final int newRevision = live != null ? live.getRevision() : targetRevision + 1;
-        return ResponseEntity.status(HttpStatus.CREATED).body(new PolicyRollbackResponse(newRevision));
+        // The policy as this rollback left it, not as a later write might have.
+        return ResponseEntity.status(HttpStatus.CREATED).eTag(PoliciesApiController.eTag(outcome.policy()))
+                .body(new PolicyRollbackResponse(outcome.policy().getRevision()));
     }
 
     /**

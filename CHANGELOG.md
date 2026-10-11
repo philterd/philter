@@ -78,6 +78,12 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   returns each event once even while events are being written, including each page's own
   `audit_log_exported` event. `offset` still works but can repeat events on a range that includes the
   current day.
+- **No lost updates on policy edits:** policy reads return an `ETag` covering the policy and its
+  description and notes. Send it in `If-Match` on `PUT /api/policies/{name}`,
+  `PUT /api/policies/{name}/details`, or `POST /api/policies/{name}/rollback`, and the write is refused
+  with `409` and reason `policy_changed` if the policy changed since. Requests without `If-Match` work
+  as before. With `details=true`, `POST` and `PUT /api/policies` take the description and notes in the
+  same body as the policy, written together.
 
 ### Removed
 

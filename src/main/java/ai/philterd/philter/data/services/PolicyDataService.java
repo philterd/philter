@@ -25,7 +25,9 @@ import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.policies.ManagedPolicyLoader;
 import ai.philterd.philter.services.policies.PolicyValidation;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mongodb.client.FindIterable;
@@ -115,20 +117,56 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * necessarily {@code userId}: an admin may change another user's policy.
      */
     public ServiceResponse update(final String requestId, final ObjectId userId, final ObjectId policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source, final ObjectId authorId) {
+        // Here a blank description or notes keeps the current one, and a long one is cut to the limit.
+        return replace(requestId, userId, policyId, policyJson, keptIfBlank(policyDescription, POLICY_DESCRIPTION_MAX_LENGTH),
+                keptIfBlank(policyNotes, POLICY_NOTES_MAX_LENGTH), source, authorId, null).response();
+    }
+
+    /**
+     * Replaces a policy's content as a new revision, and its description and notes in the same write. A null
+     * description or notes keeps the current one; any other value, empty included, is set as given. Values over
+     * the length limits are refused.
+     *
+     * @param expectedETag The {@link #eTag} the caller read, or null to skip the check. When it is not the
+     *                     policy's current one, nothing is written and the refusal's reason is
+     *                     {@link #REASON_POLICY_CHANGED}.
+     */
+    public WriteOutcome replace(final String requestId, final ObjectId userId, final ObjectId policyId, final String policyJson,
+                                final String description, final String notes, final String source, final ObjectId authorId,
+                                final String expectedETag) {
+
+        final ServiceResponse tooLong = detailLengthProblem(description, notes);
+        if (tooLong != null) {
+            return WriteOutcome.refused(tooLong);
+        }
 
         final PolicyEntity policyEntity = findOneById(policyId, userId);
 
         // Make sure the policy exists.
         if(policyEntity == null) {
-            return new ServiceResponse("Policy does not exist.", false, 404);
+            return WriteOutcome.refused(new ServiceResponse("Policy does not exist.", false, 404));
         }
 
         // Make sure the policy is not managed.
         if(policyEntity.isManaged()) {
-            return new ServiceResponse("You cannot update a managed policy.", false, 409, REASON_POLICY_MANAGED);
+            return WriteOutcome.refused(new ServiceResponse("You cannot update a managed policy.", false, 409, REASON_POLICY_MANAGED));
         }
 
+        final ServiceResponse stale = staleRefusal(policyEntity, expectedETag);
+        if (stale != null) {
+            return WriteOutcome.refused(stale);
+        }
+
+        // The policy must be validated to ensure it is syntactically correct and does not contain any invalid values.
+        final PolicyValidation validation = validatePolicy(policyJson);
+        if (!validation.isValid()) {
+            return WriteOutcome.refused(new ServiceResponse(validation.getMessage(), false, 400));
+        }
+
+        // The write below only lands if none of these changed since the policy was read.
         final int expectedRevision = policyEntity.getRevision();
+        final String expectedDescription = policyEntity.getDescription();
+        final String expectedNotes = policyEntity.getNotes();
 
         // Metadata-only saves retain the current content revision.
         final boolean contentChanged = !Objects.equals(
@@ -142,61 +180,89 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         policyEntity.setPolicy(policyJson);
         policyEntity.setLastUpdatedTimestamp(new Date());
 
-        // Only update the notes when a value is provided. A null or blank value (e.g. an update
-        // via the API or the advanced policy editor that omits notes) preserves the existing notes
-        // rather than blanking them.
-        if(policyNotes != null && !policyNotes.isBlank()) {
-
-            // Truncate the notes to 1000 characters, if needed.
-            if(policyNotes.length() > POLICY_NOTES_MAX_LENGTH) {
-                final String truncatedNotes = policyNotes.substring(0, POLICY_NOTES_MAX_LENGTH);
-                policyEntity.setNotes(truncatedNotes);
-            } else {
-                policyEntity.setNotes(policyNotes);
-            }
-
+        final List<String> detailsChanged = new ArrayList<>();
+        if (description != null) {
+            policyEntity.setDescription(description);
+            detailsChanged.add("description");
+        }
+        if (notes != null) {
+            policyEntity.setNotes(notes);
+            detailsChanged.add("notes");
         }
 
-        // Only update the description when a value is provided. A null or blank value preserves the
-        // existing description rather than blanking it.
-        if(policyDescription != null && !policyDescription.isBlank()) {
+        warnAboutLiteralKeys(policyEntity.getName(), policyJson);
 
-            // Truncate the description to 200 characters, if needed.
-            if(policyDescription.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
-                final String truncatedDescription = policyDescription.substring(0, POLICY_DESCRIPTION_MAX_LENGTH);
-                policyEntity.setDescription(truncatedDescription);
-            } else {
-                policyEntity.setDescription(policyDescription);
-            }
-
+        policyEntity.setAuthorId(authorId);
+        policyVersionDataService.snapshot(policyEntity);
+        if (!replaceIfUnchanged(policyEntity, expectedRevision, expectedDescription, expectedNotes)) {
+            return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
         }
 
-        // The policy must be validated to ensure it is syntactically correct and does not contain any invalid values.
-        // Once validation is successful, it can be saved.
-        final PolicyValidation validation = validatePolicy(policyJson);
+        redactionCache.evictPolicy(userId, policyEntity.getName());
 
-        if(validation.isValid()) {
-
-            warnAboutLiteralKeys(policyEntity.getName(), policyJson);
-
-            policyEntity.setAuthorId(authorId);
-            policyVersionDataService.snapshot(policyEntity);
-            if (!replaceRevision(policyEntity, expectedRevision)) {
-                return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED);
-            }
-
-            redactionCache.evictPolicy(userId, policyEntity.getName());
-
+        if (detailsChanged.isEmpty()) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), source);
-
-            return new ServiceResponse("The policy was updated.", true, 200);
-
         } else {
-
-            return new ServiceResponse(validation.getMessage(), false, 400);
-
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), null, source,
+                    "details: " + String.join(", ", detailsChanged));
         }
 
+        return new WriteOutcome(new ServiceResponse("The policy was updated.", true, 200), policyEntity);
+
+    }
+
+    /** What {@link #update} sets for a description or notes: null (keep the current one) when blank, else cut to {@code max}. */
+    private static String keptIfBlank(final String value, final int max) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.length() > max ? value.substring(0, max) : value;
+    }
+
+    /** A 400 for a description or notes over its limit, or null when both fit. */
+    private static ServiceResponse detailLengthProblem(final String description, final String notes) {
+        if (description != null && description.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
+            return new ServiceResponse("The description cannot be longer than " + POLICY_DESCRIPTION_MAX_LENGTH + " characters.", false, 400);
+        }
+        if (notes != null && notes.length() > POLICY_NOTES_MAX_LENGTH) {
+            return new ServiceResponse("The notes cannot be longer than " + POLICY_NOTES_MAX_LENGTH + " characters.", false, 400);
+        }
+        return null;
+    }
+
+    /**
+     * The outcome of a policy write and, when it succeeded, the policy as this write left it, so a caller can
+     * report the {@link #eTag} its own write produced rather than one a later write produced.
+     */
+    public record WriteOutcome(ServiceResponse response, PolicyEntity policy) {
+
+        static WriteOutcome refused(final ServiceResponse response) {
+            return new WriteOutcome(response, null);
+        }
+
+    }
+
+    /** The shape of an {@link #eTag}: the revision, a dash, and 16 hex digits. */
+    public static final Pattern ETAG_PATTERN = Pattern.compile("[0-9]+-[0-9a-f]{16}");
+
+    /**
+     * The policy's entity tag: its revision and a hash of its description and notes, so it changes whenever
+     * the policy or its details change. The revision alone does not: editing only the details keeps it.
+     */
+    public static String eTag(final PolicyEntity policy) {
+        final JsonArray details = new JsonArray();
+        details.add(policy.getDescription());
+        details.add(policy.getNotes());
+        return policy.getRevision() + "-" + EncryptionService.hashSha256(details.toString()).substring(0, 16);
+    }
+
+    /** A 409 when {@code expectedETag} is given and is not the policy's current one, otherwise null. */
+    private static ServiceResponse staleRefusal(final PolicyEntity current, final String expectedETag) {
+        if (expectedETag == null || expectedETag.equals(eTag(current))) {
+            return null;
+        }
+        return new ServiceResponse("The policy changed since it was read. Read it again and retry.", false, 409,
+                REASON_POLICY_CHANGED);
     }
 
     public ServiceResponse create(final String requestId, final ObjectId userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source) {
@@ -205,35 +271,40 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     /** As above, recording {@code authorId}, the caller, as the author of the policy's first revision. */
     public ServiceResponse create(final String requestId, final ObjectId userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final ObjectId authorId) {
+        return createPolicy(requestId, userId, policyJson, policyDescription, policyNotes, policyName, source, authorId).response();
+    }
+
+    /** As above, returning the policy as created, for its {@link #eTag}. */
+    public WriteOutcome createPolicy(final String requestId, final ObjectId userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final ObjectId authorId) {
 
         // Make sure the policy name is not empty.
         if (policyName == null || policyName.isEmpty()) {
-            return new ServiceResponse("Policy name cannot be empty.", false, 400);
+            return WriteOutcome.refused(new ServiceResponse("Policy name cannot be empty.", false, 400));
         }
 
         // Make sure the policy name does not start with `managed_`
         if (policyName.startsWith(MANAGED_NAME_PREFIX)) {
-            return new ServiceResponse("The policy name cannot start with managed_", false, 400);
+            return WriteOutcome.refused(new ServiceResponse("The policy name cannot start with managed_", false, 400));
         }
 
         // Make sure the policy name is less than 50 characters long.
         if (policyName.length() > POLICY_NAME_MAX_LENGTH) {
-            return new ServiceResponse("The policy name cannot be longer than " + POLICY_NAME_MAX_LENGTH + " characters.", false, 400);
+            return WriteOutcome.refused(new ServiceResponse("The policy name cannot be longer than " + POLICY_NAME_MAX_LENGTH + " characters.", false, 400));
         }
 
         // Make sure the policy name matches the regular expression.
         if (!policyName.matches(POLICY_NAME_REGEX)) {
-            return new ServiceResponse(INVALID_POLICY_NAME_MESSAGE, false, 400);
+            return WriteOutcome.refused(new ServiceResponse(INVALID_POLICY_NAME_MESSAGE, false, 400));
         }
 
         // Make sure the policy name is not one the API's paths use for something else.
         if (RESERVED_POLICY_NAMES.contains(policyName)) {
-            return new ServiceResponse("The policy name " + policyName + " is reserved.", false, 400);
+            return WriteOutcome.refused(new ServiceResponse("The policy name " + policyName + " is reserved.", false, 400));
         }
 
         // Make sure the policy name is unique.
         if (!isPolicyNameUnique(policyName, userId)) {
-            return new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS);
+            return WriteOutcome.refused(new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS));
         }
 
         // The policy must be validated to ensure it is syntactically correct and does not contain any invalid values.
@@ -242,7 +313,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         if(!validation.isValid()) {
 
-            return new ServiceResponse(validation.getMessage(), false, 400);
+            return WriteOutcome.refused(new ServiceResponse(validation.getMessage(), false, 400));
 
         } else {
 
@@ -285,14 +356,14 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             } catch (final com.mongodb.MongoWriteException race) {
                 // A concurrent create took the name after the check above; the unique index refused this one.
                 if (race.getError().getCode() != 11000) throw race;
-                return new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS);
+                return WriteOutcome.refused(new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS));
             }
 
             policyEntity.setId(policyId);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, policyId, source);
 
-            return new ServiceResponse("The policy was created.", true, policyId, 200);
+            return new WriteOutcome(new ServiceResponse("The policy was created.", true, policyId, 200), policyEntity);
 
         }
 
@@ -714,17 +785,30 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      */
     public ServiceResponse updateDetails(final String requestId, final ObjectId userId, final String name,
                                          final String description, final String notes, final String source) {
+        return updateDetails(requestId, userId, name, description, notes, source, null).response();
+    }
 
-        if (description != null && description.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
-            return new ServiceResponse("The description cannot be longer than " + POLICY_DESCRIPTION_MAX_LENGTH + " characters.", false, 400);
-        }
-        if (notes != null && notes.length() > POLICY_NOTES_MAX_LENGTH) {
-            return new ServiceResponse("The notes cannot be longer than " + POLICY_NOTES_MAX_LENGTH + " characters.", false, 400);
+    /**
+     * As above, refused with {@link #REASON_POLICY_CHANGED} when {@code expectedETag} is given and is not the
+     * policy's current {@link #eTag}. Returns the policy as this write left it.
+     */
+    public WriteOutcome updateDetails(final String requestId, final ObjectId userId, final String name,
+                                      final String description, final String notes, final String source,
+                                      final String expectedETag) {
+
+        final ServiceResponse tooLong = detailLengthProblem(description, notes);
+        if (tooLong != null) {
+            return WriteOutcome.refused(tooLong);
         }
 
         final PolicyEntity policyEntity = findOne(name, userId);
         if (policyEntity == null) {
-            return new ServiceResponse("Policy does not exist.", false, 404);
+            return WriteOutcome.refused(new ServiceResponse("Policy does not exist.", false, 404));
+        }
+
+        final ServiceResponse stale = staleRefusal(policyEntity, expectedETag);
+        if (stale != null) {
+            return WriteOutcome.refused(stale);
         }
 
         final List<Bson> updates = new ArrayList<>();
@@ -738,17 +822,33 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             changed.add("notes");
         }
         if (updates.isEmpty()) {
-            return ServiceResponse.success();
+            return new WriteOutcome(ServiceResponse.success(), policyEntity);
         }
-        updates.add(Updates.set("last_updated_timestamp", new Date()));
+        final Date now = new Date();
+        updates.add(Updates.set("last_updated_timestamp", now));
 
-        collection.updateOne(Filters.and(Filters.eq("_id", policyEntity.getId()), Filters.eq("user_id", userId)),
-                Updates.combine(updates));
+        // Lands only if the policy and its details are as they were read, so a write between the read and
+        // this one is not overwritten.
+        final boolean written = collection.updateOne(Filters.and(Filters.eq("_id", policyEntity.getId()),
+                        Filters.eq("user_id", userId), unchanged(policyEntity.getRevision(), policyEntity.getDescription(),
+                                policyEntity.getNotes())),
+                Updates.combine(updates)).getMatchedCount() == 1;
+        if (!written) {
+            return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
+                    REASON_POLICY_CHANGED));
+        }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), null, source,
                 "details: " + String.join(", ", changed));
 
-        return ServiceResponse.success();
+        if (description != null) {
+            policyEntity.setDescription(description);
+        }
+        if (notes != null) {
+            policyEntity.setNotes(notes);
+        }
+        policyEntity.setLastUpdatedTimestamp(now);
+        return new WriteOutcome(ServiceResponse.success(), policyEntity);
 
     }
 
@@ -845,22 +945,38 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public ServiceResponse rollback(final String requestId, final String policyName,
                                     final ObjectId userId, final int targetRevision,
                                     final ObjectId principalId, final String clientIpAddress) {
+        return rollback(requestId, policyName, userId, targetRevision, principalId, clientIpAddress, null).response();
+    }
+
+    /**
+     * As above, refused with {@link #REASON_POLICY_CHANGED} when {@code expectedETag} is given and is not the
+     * policy's current {@link #eTag}. Returns the policy as this rollback left it.
+     */
+    public WriteOutcome rollback(final String requestId, final String policyName,
+                                 final ObjectId userId, final int targetRevision,
+                                 final ObjectId principalId, final String clientIpAddress,
+                                 final String expectedETag) {
 
         // Checked by name, before the lookup: managed policies have no owner, so the per-user lookup below
         // never finds one, and checking the record instead would answer 404.
         if (isManagedName(policyName)) {
-            return new ServiceResponse("Managed policies cannot be rolled back.", false, 409, REASON_POLICY_MANAGED);
+            return WriteOutcome.refused(new ServiceResponse("Managed policies cannot be rolled back.", false, 409, REASON_POLICY_MANAGED));
         }
 
         final PolicyEntity live = findOne(policyName, userId);
         if (live == null) {
-            return new ServiceResponse("Policy does not exist.", false, 404);
+            return WriteOutcome.refused(new ServiceResponse("Policy does not exist.", false, 404));
         }
 
         final PolicyVersionEntity targetVersion =
                 policyVersionDataService.findByNameAndRevision(policyName, userId, targetRevision);
         if (targetVersion == null) {
-            return new ServiceResponse("Revision " + targetRevision + " does not exist.", false, 404);
+            return WriteOutcome.refused(new ServiceResponse("Revision " + targetRevision + " does not exist.", false, 404));
+        }
+
+        final ServiceResponse stale = staleRefusal(live, expectedETag);
+        if (stale != null) {
+            return WriteOutcome.refused(stale);
         }
 
         final int expectedRevision = live.getRevision();
@@ -871,8 +987,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         final int newRevision = live.getRevision();
         live.setAuthorId(principalId);
         policyVersionDataService.snapshot(live);
-        if (!replaceRevision(live, expectedRevision)) {
-            return new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED);
+        if (!replaceIfUnchanged(live, expectedRevision, live.getDescription(), live.getNotes())) {
+            return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
         }
 
         redactionCache.evictPolicy(userId, policyName);
@@ -881,8 +997,8 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
                 clientIpAddress, "policy: " + policyName + ", rolled back to revision: " + targetRevision
                         + ", new revision: " + newRevision);
 
-        return new ServiceResponse("Policy rolled back to revision " + targetRevision
-                + ". New revision: " + newRevision, true, 200);
+        return new WriteOutcome(new ServiceResponse("Policy rolled back to revision " + targetRevision
+                + ". New revision: " + newRevision, true, 200), live);
     }
 
     /**
@@ -1064,6 +1180,19 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         policy.setRevision(reserveRevision(policy, 0));
         policyVersionDataService.snapshot(policy);
         return super.save(policy);
+    }
+
+    /** Replaces the policy only if its revision, description, and notes are still the ones given. */
+    private boolean replaceIfUnchanged(final PolicyEntity policy, final int expectedRevision,
+                                       final String expectedDescription, final String expectedNotes) {
+        return collection.replaceOne(Filters.and(Filters.eq("_id", policy.getId()),
+                unchanged(expectedRevision, expectedDescription, expectedNotes)), policy.toDocument()).getMatchedCount() == 1;
+    }
+
+    /** Matches a policy still at this revision with this description and notes; null matches null or absent. */
+    private static Bson unchanged(final int revision, final String description, final String notes) {
+        return Filters.and(Filters.eq("revision", revision), Filters.eq("description", description),
+                Filters.eq("notes", notes));
     }
 
     private boolean replaceRevision(PolicyEntity policy, int expectedRevision) {

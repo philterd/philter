@@ -458,6 +458,173 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     }
 
     /** Runs the action with PolicyDataService's logger captured, and returns what it logged. */
+    // ----- Entity tags and preconditions -----
+
+    private static final String OTHER_POLICY_JSON =
+            "{\"identifiers\":{\"emailAddress\":{\"emailAddressFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
+
+    @Test
+    @DisplayName("The entity tag changes with the details, though the revision does not")
+    void eTagFollowsTheDetails() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "tagged").isSuccessful());
+        final PolicyEntity before = service.findOne("tagged", user);
+
+        assertTrue(service.updateDetails("req", user, "tagged", null, "new notes", "source").isSuccessful());
+        final PolicyEntity after = service.findOne("tagged", user);
+
+        assertEquals(before.getRevision(), after.getRevision());
+        assertFalse(PolicyDataService.eTag(before).equals(PolicyDataService.eTag(after)));
+        assertTrue(PolicyDataService.ETAG_PATTERN.matcher(PolicyDataService.eTag(after)).matches());
+        // Null and empty are different details, so they are different tags.
+        final PolicyEntity cleared = service.updateDetails("req", user, "tagged", null, "", "source", null).policy();
+        assertFalse(PolicyDataService.eTag(after).equals(PolicyDataService.eTag(cleared)));
+    }
+
+    @Test
+    @DisplayName("A replace with a stale entity tag is refused and writes nothing; with the current one it lands")
+    void replaceHonorsTheEntityTag() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "guarded").isSuccessful());
+        final PolicyEntity read = service.findOne("guarded", user);
+        final String staleTag = PolicyDataService.eTag(read);
+
+        // Someone else edits only the notes, which leaves the revision as it was.
+        assertTrue(service.updateDetails("req", user, "guarded", null, "theirs", "source").isSuccessful());
+
+        final PolicyDataService.WriteOutcome refused = service.replace("req", user, read.getId(), OTHER_POLICY_JSON,
+                "mine", null, "source", user, staleTag);
+        assertEquals(409, refused.response().getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_CHANGED, refused.response().getDetails());
+        assertNull(refused.policy());
+        final PolicyEntity unchanged = service.findOne("guarded", user);
+        assertEquals(read.getPolicy(), unchanged.getPolicy());
+        assertEquals(read.getRevision(), unchanged.getRevision());
+        assertEquals("desc", unchanged.getDescription());
+        assertEquals("theirs", unchanged.getNotes());
+
+        final PolicyDataService.WriteOutcome written = service.replace("req", user, read.getId(), OTHER_POLICY_JSON,
+                "mine", null, "source", user, PolicyDataService.eTag(unchanged));
+        assertTrue(written.response().isSuccessful(), written.response().getMessage());
+        final PolicyEntity stored = service.findOne("guarded", user);
+        assertEquals(OTHER_POLICY_JSON, stored.getPolicy());
+        assertEquals(read.getRevision() + 1, stored.getRevision());
+        assertEquals("mine", stored.getDescription());
+        assertEquals("theirs", stored.getNotes(), "notes left out are kept");
+        assertEquals(PolicyDataService.eTag(stored), PolicyDataService.eTag(written.policy()),
+                "the outcome carries the policy as written");
+    }
+
+    @Test
+    @DisplayName("Without an entity tag, replace and details writes are not checked against an earlier read")
+    void writesWithoutAnEntityTagAreUnconditional() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "open").isSuccessful());
+        final PolicyEntity read = service.findOne("open", user);
+        assertTrue(service.updateDetails("req", user, "open", "changed", null, "source").isSuccessful());
+
+        assertTrue(service.replace("req", user, read.getId(), OTHER_POLICY_JSON, null, null, "source", user, null)
+                .response().isSuccessful());
+        assertTrue(service.updateDetails("req", user, "open", null, "x", "source", null).response().isSuccessful());
+    }
+
+    @Test
+    @DisplayName("A replace sets the description and notes with the policy: empty clears, null keeps, too long is refused")
+    void replaceWritesTheDetailsWithThePolicy() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "details").isSuccessful());
+        final PolicyEntity read = service.findOne("details", user);
+
+        assertTrue(service.replace("req", user, read.getId(), read.getPolicy(), "", null, "source", user, null)
+                .response().isSuccessful());
+        final PolicyEntity stored = service.findOne("details", user);
+        assertEquals("", stored.getDescription());
+        assertEquals("notes", stored.getNotes());
+        assertEquals(read.getRevision(), stored.getRevision(), "the same policy with new details is not a new revision");
+
+        final PolicyDataService.WriteOutcome tooLong = service.replace("req", user, read.getId(), OTHER_POLICY_JSON,
+                "d".repeat(PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH + 1), null, "source", user, null);
+        assertEquals(400, tooLong.response().getStatusCode());
+        assertEquals(read.getPolicy(), service.findOne("details", user).getPolicy(), "neither the policy nor the details were written");
+    }
+
+    @Test
+    @DisplayName("A change between the read and the write refuses the write even without an entity tag")
+    void aConcurrentDetailsChangeRefusesTheWrite() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "raced").isSuccessful());
+        final PolicyEntity read = service.findOne("raced", user);
+        // Another writer changes the notes after this service read the policy.
+        assertTrue(service.updateDetails("req", user, "raced", null, "theirs", "source").isSuccessful());
+
+        final PolicyDataService racing = spy(service);
+        doReturn(read).when(racing).findOne("raced", user);
+        final PolicyDataService.WriteOutcome details = racing.updateDetails("req", user, "raced", "mine", null, "source", null);
+        assertEquals(409, details.response().getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_CHANGED, details.response().getDetails());
+
+        final PolicyEntity readAgain = service.findOne("raced", user);
+        readAgain.setNotes("notes");
+        final PolicyDataService racingReplace = spy(service);
+        doReturn(readAgain).when(racingReplace).findOneById(read.getId(), user);
+        final PolicyDataService.WriteOutcome replaced = racingReplace.replace("req", user, read.getId(), OTHER_POLICY_JSON,
+                null, null, "source", user, null);
+        assertEquals(409, replaced.response().getStatusCode());
+
+        final PolicyEntity stored = service.findOne("raced", user);
+        assertEquals("desc", stored.getDescription());
+        assertEquals("theirs", stored.getNotes());
+        assertEquals(read.getPolicy(), stored.getPolicy());
+    }
+
+    @Test
+    @DisplayName("Details and rollback writes honor the entity tag too")
+    void detailsAndRollbackHonorTheEntityTag() {
+        final ObjectId user = new ObjectId();
+        assertTrue(create(user, "both").isSuccessful());
+        final PolicyEntity first = service.findOne("both", user);
+        assertTrue(service.replace("req", user, first.getId(), OTHER_POLICY_JSON, null, null, "source", user, null)
+                .response().isSuccessful());
+        final String staleTag = PolicyDataService.eTag(first);
+
+        final PolicyDataService.WriteOutcome details = service.updateDetails("req", user, "both", "x", null, "source", staleTag);
+        assertEquals(409, details.response().getStatusCode());
+        assertEquals("desc", service.findOne("both", user).getDescription());
+
+        final PolicyDataService.WriteOutcome rollback = service.rollback("req", "both", user, first.getRevision(), user,
+                null, staleTag);
+        assertEquals(409, rollback.response().getStatusCode());
+        assertEquals(PolicyDataService.REASON_POLICY_CHANGED, rollback.response().getDetails());
+        assertEquals(OTHER_POLICY_JSON, service.findOne("both", user).getPolicy());
+
+        final PolicyEntity current = service.findOne("both", user);
+        final PolicyDataService.WriteOutcome rolledBack = service.rollback("req", "both", user, first.getRevision(), user,
+                null, PolicyDataService.eTag(current));
+        assertTrue(rolledBack.response().isSuccessful(), rolledBack.response().getMessage());
+        assertEquals(first.getPolicy(), service.findOne("both", user).getPolicy());
+        assertEquals(PolicyDataService.eTag(service.findOne("both", user)), PolicyDataService.eTag(rolledBack.policy()));
+
+        final PolicyEntity afterRollback = service.findOne("both", user);
+        final PolicyDataService.WriteOutcome detailsWritten = service.updateDetails("req", user, "both", "y", null, "source",
+                PolicyDataService.eTag(afterRollback));
+        assertTrue(detailsWritten.response().isSuccessful());
+        assertEquals("y", service.findOne("both", user).getDescription());
+        assertEquals(PolicyDataService.eTag(service.findOne("both", user)), PolicyDataService.eTag(detailsWritten.policy()));
+    }
+
+    @Test
+    @DisplayName("A create stores the description and notes with the policy and returns it as written")
+    void createPolicyReturnsThePolicyAsWritten() {
+        final ObjectId user = new ObjectId();
+        final PolicyDataService.WriteOutcome created = service.createPolicy("req", user, validPolicyJson(), "d", "n",
+                "fresh-with-details", "source", user);
+        assertTrue(created.response().isSuccessful());
+        final PolicyEntity stored = service.findOne("fresh-with-details", user);
+        assertEquals("d", stored.getDescription());
+        assertEquals("n", stored.getNotes());
+        assertEquals(PolicyDataService.eTag(stored), PolicyDataService.eTag(created.policy()));
+    }
+
     private String capturingPolicyLogs(final Runnable action) {
 
         final List<String> messages = new ArrayList<>();

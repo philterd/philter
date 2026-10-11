@@ -16,6 +16,8 @@
 package ai.philterd.philter.api.responses;
 
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.services.PolicyDataService;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.Date;
 
@@ -26,6 +28,7 @@ public class PolicyDetailsResponse {
     private final String description;
     private final String notes;
     private final int revision;
+    private final String etag;
     private final boolean managed;
     private final Date created;
     private final Date lastUpdated;
@@ -35,6 +38,7 @@ public class PolicyDetailsResponse {
         this.description = policy.getDescription();
         this.notes = policy.getNotes();
         this.revision = policy.getRevision();
+        this.etag = PolicyDataService.eTag(policy);
         this.managed = policy.isManaged();
         this.created = policy.getCreatedTimestamp();
         this.lastUpdated = policy.getLastUpdatedTimestamp();
@@ -48,6 +52,12 @@ public class PolicyDetailsResponse {
 
     /** The policy's current version; see the version history endpoints. */
     public int getRevision() { return revision; }
+
+    @Schema(description = "Identifies the policy together with its description and notes, and changes when any of them "
+            + "does; the revision alone does not change when only the details do. The ETag header carries the same value, "
+            + "quoted. Send it in If-Match to make a replace, a details change, or a rollback conditional.",
+            example = "7-0123456789abcdef")
+    public String getEtag() { return etag; }
 
     /** Whether this is a built-in managed policy, which can be read and copied but not changed. */
     public boolean isManaged() { return managed; }

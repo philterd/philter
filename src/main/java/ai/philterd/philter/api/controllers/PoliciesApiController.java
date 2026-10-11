@@ -46,6 +46,9 @@ import ai.philterd.philter.services.policies.PhiSqlCompileService;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -202,9 +205,12 @@ public class PoliciesApiController extends AbstractApiController {
     @Operation(summary = "Get a policy.",
             description = "Returns the full policy with the given name. A name starting with managed_ returns that "
                     + "built-in managed policy. Admins may retrieve another user's policy by passing that user's username "
-                    + "as owner. The policy's description and notes are at /api/policies/{policyName}/details.")
+                    + "as owner. The policy's description and notes are at /api/policies/{policyName}/details. The ETag "
+                    + "header identifies the policy as read, together with its description and notes; send it back in "
+                    + "If-Match when replacing the policy, setting its details, or rolling it back, so the change is "
+                    + "refused if someone else changed the policy since.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The policy JSON."),
+            @ApiResponse(responseCode = "200", description = "The policy JSON. The ETag header identifies the version read."),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "A policy with the given name does not exist.")
@@ -235,7 +241,7 @@ public class PoliciesApiController extends AbstractApiController {
         if (policyEntity == null) {
             throw new NotFoundException();
         }
-        return ResponseEntity.status(HttpStatus.OK)
+        return ResponseEntity.status(HttpStatus.OK).eTag(eTag(policyEntity))
                 .body(policyEntity.getPolicy());
 
     }
@@ -274,12 +280,11 @@ public class PoliciesApiController extends AbstractApiController {
     @Operation(summary = "Create a policy.",
             description = "Creates a policy from the request body under the given name. A name the owner already uses is "
                     + "refused with 409; replace an existing policy with PUT /api/policies/{policyName}. The policy is "
-                    + "validated before it is stored. Set its description and notes afterwards with "
-                    + "PUT /api/policies/{policyName}/details. Admins may create a policy in another user's account by "
-                    + "passing that user's username as owner.")
+                    + "validated before it is stored. " + DETAILS_BODY_DESCRIPTION + " Admins may create a policy in "
+                    + "another user's account by passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The policy was created and is now active. A policy_activated audit event is recorded."),
-            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, or the request has a description or notes parameter."),
+            @ApiResponse(responseCode = "201", description = "The policy was created and is now active. The ETag header identifies it. A policy_activated audit event is recorded."),
+            @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, the request has a description or notes parameter, or, with details=true, the body is not a policy with details or the description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
                     content = @Content),
@@ -294,22 +299,23 @@ public class PoliciesApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             @RequestParam("name") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "details", defaultValue = "false") boolean details,
             @RequestBody String policyJson,
             final HttpServletRequest httpServletRequest) {
 
-        return write(authorizationHeader, name, owner, policyJson, httpServletRequest, false);
+        return write(authorizationHeader, name, owner, details, policyJson, null, httpServletRequest, false);
 
     }
 
     @Operation(summary = "Replace a policy.",
             description = "Replaces an existing policy with the request body, as a new revision. The policy is validated "
-                    + "before it is stored. Its description and notes are kept; change them with "
-                    + "PUT /api/policies/{policyName}/details. Admins may replace another user's policy by passing "
-                    + "that user's username as owner.")
+                    + "before it is stored. Its description and notes are kept unless the body gives them. "
+                    + DETAILS_BODY_DESCRIPTION + " " + IF_MATCH_DESCRIPTION + " Admins may replace another user's "
+                    + "policy by passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The policy was replaced and is now active. A policy_activated audit event is recorded.",
+            @ApiResponse(responseCode = "200", description = "The policy was replaced and is now active. The ETag header identifies it as written. A policy_activated audit event is recorded.",
                     content = @Content),
-            @ApiResponse(responseCode = "400", description = "The policy is invalid, or the request has a description or notes parameter."),
+            @ApiResponse(responseCode = "400", description = "The policy is invalid, the request has a description or notes parameter, If-Match is not an entity tag this API returned, or, with details=true, the body is not a policy with details or the description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, saying only "
                     + "not found, when the owner does not exist or the caller may not reach it, so an owner value cannot be used "
@@ -317,8 +323,8 @@ public class PoliciesApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "409", description = "The policy was not replaced, and reason says why: policy_managed "
-                    + "(a managed policy, which cannot be replaced) or policy_changed (it changed concurrently; reload "
-                    + "it and retry).",
+                    + "(a managed policy, which cannot be replaced) or policy_changed (it changed since the read If-Match "
+                    + "names, or concurrently; read it again and retry). Nothing was written.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
@@ -326,19 +332,21 @@ public class PoliciesApiController extends AbstractApiController {
     @RequestMapping(value = "/api/policies/{policyName}", method = RequestMethod.PUT, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Object> replace(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
             @PathVariable("policyName") final String name,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "details", defaultValue = "false") boolean details,
             @RequestBody String policyJson,
             final HttpServletRequest httpServletRequest) {
 
-        return write(authorizationHeader, name, owner, policyJson, httpServletRequest, true);
+        return write(authorizationHeader, name, owner, details, policyJson, ifMatch, httpServletRequest, true);
 
     }
 
     /** Creates or replaces a policy; neither falls back to the other, so a create never overwrites. */
     private ResponseEntity<Object> write(final String authorizationHeader, final String name, final String owner,
-                                         final String policyJson, final HttpServletRequest httpServletRequest,
-                                         final boolean replace) {
+                                         final boolean withDetails, final String body, final String ifMatch,
+                                         final HttpServletRequest httpServletRequest, final boolean replace) {
 
         if (StringUtils.isBlank(name)) {
             throw new BadRequestException("The policy name is missing.");
@@ -347,9 +355,14 @@ public class PoliciesApiController extends AbstractApiController {
         // Free text in the URL outgrows header limits in some languages and lands in access logs, so the
         // details travel in a body. Refused rather than ignored, so a client sending them is not misled.
         if (httpServletRequest.getParameter("description") != null || httpServletRequest.getParameter("notes") != null) {
-            throw new BadRequestException("description and notes are not accepted here. Set them with "
-                    + "PUT /api/policies/{policyName}/details, which takes them in a JSON body.");
+            throw new BadRequestException("description and notes are not accepted as parameters. Send them in the "
+                    + "body with details=true, or set them with PUT /api/policies/{policyName}/details.");
         }
+
+        final PolicyWithDetails request = withDetails ? PolicyWithDetails.parse(body) : new PolicyWithDetails(body, null, null);
+        requireDetailLengths(request.description(), request.notes());
+        final String policyJson = request.policyJson();
+        final String expectedETag = replace ? ifMatchETag(ifMatch) : null;
 
         // A managed policy has no owner, so the per-user lookup below would answer 404. Creating one is
         // refused by the name rules with 400.
@@ -383,17 +396,18 @@ public class PoliciesApiController extends AbstractApiController {
 
         // Through create/update rather than save: those enforce the name rules, retain the version
         // snapshot, and evict the redaction cache.
-        final ServiceResponse response;
+        final PolicyDataService.WriteOutcome outcome;
         if (replace) {
             final PolicyEntity existing = policyDataService.findOne(name, userId);
-            response = existing == null
-                    ? new ServiceResponse("Policy does not exist.", false, 404)
-                    : policyDataService.update(requestId, userId, existing.getId(), policyJson, null, null,
-                            Source.API.getSource(), apiKeyEntity.getUserId());
+            outcome = existing == null
+                    ? new PolicyDataService.WriteOutcome(new ServiceResponse("Policy does not exist.", false, 404), null)
+                    : policyDataService.replace(requestId, userId, existing.getId(), policyJson, request.description(),
+                            request.notes(), Source.API.getSource(), apiKeyEntity.getUserId(), expectedETag);
         } else {
-            response = policyDataService.create(requestId, userId, policyJson, null, null, name, Source.API.getSource(),
-                    apiKeyEntity.getUserId());
+            outcome = policyDataService.createPolicy(requestId, userId, policyJson, request.description(),
+                    request.notes(), name, Source.API.getSource(), apiKeyEntity.getUserId());
         }
+        final ServiceResponse response = outcome.response();
 
         if (!response.isSuccessful()) {
             if (response.getStatusCode() == HttpStatus.BAD_REQUEST.value()) {
@@ -413,7 +427,7 @@ public class PoliciesApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
                 apiKeyEntity.getUserId(), null, null, "policy: " + name);
 
-        return ResponseEntity.status(replace ? HttpStatus.OK : HttpStatus.CREATED).build();
+        return ResponseEntity.status(replace ? HttpStatus.OK : HttpStatus.CREATED).eTag(eTag(outcome.policy())).build();
 
     }
 
@@ -531,8 +545,9 @@ public class PoliciesApiController extends AbstractApiController {
     }
 
     @Operation(summary = "Get a policy's details.",
-            description = "Returns a policy's name, description, notes, current revision, whether it is a built-in "
-                    + "managed policy, and when it was created and last updated: everything except the policy itself. "
+            description = "Returns a policy's name, description, notes, current revision, entity tag, whether it is a "
+                    + "built-in managed policy, and when it was created and last updated: everything except the policy "
+                    + "itself. The ETag header carries the entity tag too, for If-Match. "
                     + "A name starting with managed_ returns that managed policy's details. Admins may read another "
                     + "user's by passing that user's username as owner.")
     @ApiResponses(value = {
@@ -562,7 +577,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        return ResponseEntity.ok(new PolicyDetailsResponse(policyEntity));
+        return ResponseEntity.ok().eTag(eTag(policyEntity)).body(new PolicyDetailsResponse(policyEntity));
 
     }
 
@@ -570,16 +585,19 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Sets the description (up to " + PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH
                     + " characters) and notes (up to " + PolicyDataService.POLICY_NOTES_MAX_LENGTH + "). A field "
                     + "left out is left as it is; an empty value clears it. They are not part of the policy, so this "
-                    + "does not create a new version. Managed policies cannot be changed. Admins may change another "
-                    + "user's by passing that user's username as owner.")
+                    + "does not create a new version, and the revision stays the same, but the entity tag changes. "
+                    + IF_MATCH_DESCRIPTION + " Managed policies cannot be changed. Admins may change another user's by "
+                    + "passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The policy's details after the change.",
+            @ApiResponse(responseCode = "200", description = "The policy's details after the change. The ETag header identifies them.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyDetailsResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The description or notes are too long."),
+            @ApiResponse(responseCode = "400", description = "The description or notes are too long, or If-Match is not an entity tag this API returned."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "There is no such policy, or the owner does not exist or the caller may not reach it."),
-            @ApiResponse(responseCode = "409", description = "The policy is a managed policy; reason is policy_managed.",
+            @ApiResponse(responseCode = "409", description = "Nothing was changed, and reason says why: policy_managed (a managed "
+                    + "policy) or policy_changed (it changed since the read If-Match names, or concurrently; read it "
+                    + "again and retry).",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyConflictResponse.class)))
     })
@@ -588,6 +606,7 @@ public class PoliciesApiController extends AbstractApiController {
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<Object> setDetails(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
             final @PathVariable("policyName") String policyName,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestBody PolicyDetailsRequest request) {
@@ -599,6 +618,7 @@ public class PoliciesApiController extends AbstractApiController {
                     "Managed policies cannot be changed.", PolicyDataService.REASON_POLICY_MANAGED));
         }
         requireDetailLengths(request.getDescription(), request.getNotes());
+        final String expectedETag = ifMatchETag(ifMatch);
 
         final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
@@ -609,13 +629,19 @@ public class PoliciesApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "set details of policy '" + policyName + "'");
 
-        final ServiceResponse response = policyDataService.updateDetails(requestId, userId, policyName,
-                request.getDescription(), request.getNotes(), Source.API.getSource());
+        final PolicyDataService.WriteOutcome outcome = policyDataService.updateDetails(requestId, userId, policyName,
+                request.getDescription(), request.getNotes(), Source.API.getSource(), expectedETag);
+        final ServiceResponse response = outcome.response();
         if (!response.isSuccessful()) {
+            if (response.getStatusCode() == HttpStatus.CONFLICT.value()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new PolicyConflictResponse(response.getMessage(), response.getDetails()));
+            }
             return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
         }
 
-        return ResponseEntity.ok(new PolicyDetailsResponse(policyDataService.findOne(policyName, userId)));
+        // The details as this write left them, not as a later write might have.
+        return ResponseEntity.ok().eTag(eTag(outcome.policy())).body(new PolicyDetailsResponse(outcome.policy()));
 
     }
 
@@ -626,7 +652,7 @@ public class PoliciesApiController extends AbstractApiController {
                     + "own policy keeps its notes. The copy starts its own version history and is active at once. "
                     + "Admins may copy within another user's account by passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The copy's details.",
+            @ApiResponse(responseCode = "201", description = "The copy's details. The ETag header identifies the copy.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PolicyDetailsResponse.class))),
             @ApiResponse(responseCode = "400", description = "The new name is missing or invalid."),
@@ -663,10 +689,11 @@ public class PoliciesApiController extends AbstractApiController {
 
         // Through create, so the copy gets the name rules, a fresh version history,
         // and an unmanaged record of its own, rather than the source's revision and timestamps.
-        final ServiceResponse response = policyDataService.create(requestId, userId, source.getPolicy(),
+        final PolicyDataService.WriteOutcome outcome = policyDataService.createPolicy(requestId, userId, source.getPolicy(),
                 source.getDescription(),
                 source.isManaged() ? "Created from managed policy " + source.getName() : source.getNotes(),
                 name, Source.API.getSource(), apiKeyEntity.getUserId());
+        final ServiceResponse response = outcome.response();
         if (!response.isSuccessful()) {
             if (response.getStatusCode() == HttpStatus.CONFLICT.value()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)
@@ -678,7 +705,95 @@ public class PoliciesApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
                 apiKeyEntity.getUserId(), null, null, "policy: " + name + ", copied from: " + policyName);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(new PolicyDetailsResponse(policyDataService.findOne(name, userId)));
+        return ResponseEntity.status(HttpStatus.CREATED).eTag(eTag(outcome.policy()))
+                .body(new PolicyDetailsResponse(outcome.policy()));
+
+    }
+
+    /** How create and replace take details in the same request. */
+    static final String DETAILS_BODY_DESCRIPTION = "To set the description and notes in the same write, pass details=true "
+            + "and send {\"policy\": <the policy>, \"description\": \"...\", \"notes\": \"...\"}; description and notes "
+            + "are optional, a field left out or null is left as it is, and an empty value clears it. Without details=true "
+            + "the body is the policy itself.";
+
+    /** How the writes take If-Match. */
+    static final String IF_MATCH_DESCRIPTION = "Send the ETag from your read in If-Match to make the write conditional: "
+            + "if the policy, its description, or its notes changed since, nothing is written and the response is 409 "
+            + "with reason policy_changed. Without If-Match the write is not checked against an earlier read.";
+
+    /** A policy's entity tag, quoted, for the ETag header. */
+    static String eTag(final PolicyEntity policy) {
+        return "\"" + PolicyDataService.eTag(policy) + "\"";
+    }
+
+    /**
+     * The entity tag an If-Match header names, unquoted, or {@code null} when there is none or it is {@code *},
+     * which any current policy matches. Takes the tag quoted, as the ETag header gives it, or bare.
+     *
+     * @throws BadRequestException when it is not an entity tag this API gives policies.
+     */
+    static String ifMatchETag(final String ifMatch) {
+        if (ifMatch == null || ifMatch.isBlank() || ifMatch.trim().equals("*")) {
+            return null;
+        }
+        String value = ifMatch.trim();
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        if (!PolicyDataService.ETAG_PATTERN.matcher(value).matches()) {
+            throw new BadRequestException("If-Match must be an entity tag this API returned for the policy, "
+                    + "such as \"7-0123456789abcdef\".", HttpHeaders.IF_MATCH);
+        }
+        return value;
+    }
+
+    /** A create or replace body: the policy and, with details=true, its description and notes. */
+    record PolicyWithDetails(String policyJson, String description, String notes) {
+
+        /**
+         * Reads {"policy": {...}, "description": "...", "notes": "..."}.
+         *
+         * @throws BadRequestException when the body is not that.
+         */
+        static PolicyWithDetails parse(final String body) {
+            final JsonObject object;
+            try {
+                final JsonElement parsed = body == null ? null : JsonParser.parseString(body);
+                if (parsed == null || !parsed.isJsonObject()) {
+                    throw new BadRequestException(SHAPE);
+                }
+                object = parsed.getAsJsonObject();
+            } catch (final JsonParseException ex) {
+                throw new BadRequestException(SHAPE);
+            }
+            for (final String key : object.keySet()) {
+                if (!key.equals("policy") && !key.equals("description") && !key.equals("notes")) {
+                    throw new BadRequestException("With details=true the body takes only policy, description, and "
+                            + "notes, not " + key + ".", key);
+                }
+            }
+            final JsonElement policy = object.get("policy");
+            if (policy == null || !policy.isJsonObject()) {
+                throw new BadRequestException("With details=true the policy goes in the body's policy field, as an "
+                        + "object.", "policy");
+            }
+            return new PolicyWithDetails(policy.toString(), text(object, "description"), text(object, "notes"));
+        }
+
+        private static final String SHAPE = "With details=true the body must be a JSON object: "
+                + "{\"policy\": {...}, \"description\": \"...\", \"notes\": \"...\"}.";
+
+        /** A string field, or null when it is absent or null. */
+        private static String text(final JsonObject object, final String key) {
+            final JsonElement value = object.get(key);
+            if (value == null || value.isJsonNull()) {
+                return null;
+            }
+            if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+                throw new BadRequestException(key + " must be a string.", key);
+            }
+            return value.getAsString();
+        }
 
     }
 

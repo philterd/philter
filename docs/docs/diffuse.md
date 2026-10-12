@@ -43,10 +43,13 @@ Recording is best-effort: any failure is ignored so it can never affect redactio
 
 ## Producing a report
 
-Philter Diffuse currently reads the counts from Philter's MongoDB, so it needs `STORAGE_TYPE=mongodb`; with SQLite storage, read the counts through the [PII Counts API](api_and_sdks/api/pii_counts_api.md). Point Diffuse at the same MongoDB and privatize the recorded counts with its `--aggregates` option, which reads and sums the `pii_count_aggregates` buckets:
+Philter Diffuse reads the recorded counts through the [PII Counts API](api_and_sdks/api/pii_counts_api.md), so it needs only a Philter API key: no access to Philter's database, and it works with either storage type. The key must hold the `pii-counts:read` scope and belong to an administrator. Put it in the `PHILTER_API_KEY` environment variable and pass Philter's URL with `--philter-url`:
 
 ```bash
-python main.py --mongo-uri "mongodb://localhost:27017/philter" --aggregates --output privatized_counts.csv
+export PHILTER_API_KEY=<api key>
+python main.py --philter-url https://localhost:8080 --aggregates --output privatized_counts.csv
 ```
 
-Add `--context <name>` to restrict the report to a single context. Reading the counts through the PII Counts API instead, so that Diffuse needs only a Philter API key, is planned for Philter Diffuse. Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.
+Add `--context <name>` to restrict the report to a single context, and `--from` and `--to` (UTC days, `YYYY-MM-DD`) to restrict it to a range of days. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with `--philter-ca-cert` (see [TLS](settings.md#tls)). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.
+
+Diffuse can still read the `pii_count_aggregates` collection directly from Philter's MongoDB (`--mongo-uri "mongodb://localhost:27017/philter" --aggregates`, with `STORAGE_TYPE=mongodb`), but that path is deprecated in Philter Diffuse and will be removed.

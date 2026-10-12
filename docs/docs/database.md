@@ -10,7 +10,7 @@ Choose the storage with `STORAGE_TYPE` before Philter's first start. Philter doe
 |---|---|---|
 | Philter instances | One. A second Philter on the same file refuses to start. | Any number, sharing one database, for [high availability](high_availability.md). |
 | What to run | Nothing: the database is a file Philter creates, at `SQLITE_PATH`. | A MongoDB server, replica set, or managed service such as Atlas, at `MONGODB_CONNECTION_STRING`. |
-| Suits | Evaluations, small single-server deployments, edge devices, and air-gapped hosts. | Production deployments that need more than one instance, or that already run MongoDB. |
+| Suits | Evaluations, small single-server deployments, edge devices, air-gapped hosts, and the cloud marketplace images. | Production deployments that need more than one instance, or that already run MongoDB. |
 | Backups | The database file, copied with SQLite's online backup. | MongoDB's own backup tools. |
 | Bundled Compose file | `docker-compose.yml` | `docker-compose.mongodb.yml` |
 | [Philter Diffuse](diffuse.md) | Cannot read the PII counts yet; read them through the [PII Counts API](api_and_sdks/api/pii_counts_api.md). | Reads the PII counts from MongoDB. |
@@ -121,7 +121,7 @@ MONGODB_CONNECTION_STRING=mongodb://user:pass@host1:27017,host2:27017,host3:2701
 MONGODB_CONNECTION_STRING=mongodb+srv://user:pass@cluster0.example.mongodb.net/philter?retryWrites=true&w=majority
 ```
 
-> When Philter is launched from a cloud marketplace image that includes a local MongoDB, set `STORAGE_TYPE=mongodb` if the image does not already; no connection string needs to be set for the local database. Set `MONGODB_CONNECTION_STRING` only when you want Philter to use a different (for example, external or managed) database.
+> Philter launched from a cloud marketplace image uses SQLite storage, with its database on the virtual machine's disk, and runs no MongoDB. To have it use MongoDB instead, for example an external or managed database, set `STORAGE_TYPE=mongodb` and `MONGODB_CONNECTION_STRING` before putting data in it.
 
 ## MongoDB indexes
 

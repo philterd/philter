@@ -21,6 +21,10 @@ Here’s a brief [screencast](https://youtu.be/E5eMC1DFw5Q) showing how to launc
 
 Congratulations! You have deployed Philter in AWS. You are now ready to filter text!
 
+## Where your data is stored
+
+Philter on the marketplace image stores its data, including policies, contexts, the redaction ledger, and the audit log, in a [SQLite](../database.md#sqlite) database on the virtual machine's disk. No database server runs beside it. Back up the disk regularly, or back up the database with SQLite's online backup as described in [Database](../database.md#sqlite), and keep `PHILTER_ENCRYPTION_KEY` with the backups, since the data cannot be read without it. One virtual machine runs one Philter; to run several instances behind a load balancer, use MongoDB storage as described in [High Availability](../high_availability.md).
+
 ## Try it out!
 
 Philter has no user interface; it is administered through its [API](../api_and_sdks/api.md). It does not start without two values, which must be set before its first start:

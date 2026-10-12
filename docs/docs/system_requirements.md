@@ -1,6 +1,6 @@
 # System Requirements
 
-When launched from a cloud marketplace, Philter is pre-configured and contains all required dependencies.
+When launched from a cloud marketplace, Philter is pre-configured and contains all required dependencies. It stores its data with SQLite, on the virtual machine's disk.
 
 Philter requires the following:
 

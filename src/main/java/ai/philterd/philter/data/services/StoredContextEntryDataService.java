@@ -82,8 +82,11 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
     /** Removes and returns the user's entry with this id, in this context when it is not null, or returns null. */
     protected abstract ContextEntryEntity deleteById(final String id, final String userId, final String contextName);
 
-    /** The context's least-read entry, the oldest among equals, or null when it is empty. */
-    protected abstract ContextEntryEntity findLeastRead(final String userId, final String contextName);
+    /**
+     * The context's least-read entry, the oldest among equals, other than the entry with id {@code keepId} when it
+     * is given, or null when there is none.
+     */
+    protected abstract ContextEntryEntity findLeastRead(final String userId, final String contextName, final String keepId);
 
     /** Removes every entry in the context. */
     protected abstract void deleteContext(final String userId, final String contextName);
@@ -118,7 +121,8 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
 
         }
 
-        evictIfFull(userId, contextName);
+        // Room is made before the insert, so the context holds at most its capacity afterwards.
+        evictWhileOver(userId, contextName, capacity - 1, null);
         insert(entry(userId, contextName, tokenHash, replacement, filterType, replacementUuid));
 
         return ImportOutcome.INSERTED;
@@ -178,10 +182,11 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
                 replacement, filterType, UUID_REGEX_PATTERN.matcher(replacement).matches()));
 
         if (stored != null && replacement.equals(stored.getReplacement())) {
-            // This call is the one that created the entry, so it is the one that may have filled the
+            // This call is the one that created the entry, so it is the one that may have overfilled the
             // context. Trimmed afterwards rather than before: a put that changes nothing must not
-            // evict anything.
-            evictIfFull(userId, contextName);
+            // evict anything. The new entry is never the one evicted: it has no reads yet, so it would
+            // otherwise be, and the replacement just returned would be forgotten at once.
+            evictWhileOver(userId, contextName, capacity, stored.getId());
         }
 
         return stored;
@@ -223,13 +228,14 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
         }
     }
 
-    private void evictIfFull(final String userId, final String contextName) {
+    /** Evicts the least read entry, other than {@code keepId}, when the context holds more than {@code limit}. */
+    private void evictWhileOver(final String userId, final String contextName, final int limit, final String keepId) {
 
-        if (countByUserIdAndContext(userId, contextName) < capacity) {
+        if (countByUserIdAndContext(userId, contextName) <= limit) {
             return;
         }
 
-        final ContextEntryEntity victim = findLeastRead(userId, contextName);
+        final ContextEntryEntity victim = findLeastRead(userId, contextName, keepId);
 
         if (victim != null && deleteById(victim.getId(), userId, contextName) != null) {
             evict(userId, contextName, victim.getTokenHash());

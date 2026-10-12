@@ -137,6 +137,11 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
+    public PendingDocumentDataService pendingDocumentsEncryptingWith(final EncryptionService encryption) {
+        return new MongoPendingDocumentDataService(mongoClient, encryption, auditEvents());
+    }
+
+    @Override
     public PendingDocumentDataService pendingDocumentsAt(final LongSupplier clock) {
         return new MongoPendingDocumentDataService(mongoClient, encryption, auditEvents(), clock);
     }
@@ -169,6 +174,11 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     @Override
     public UserService users() {
         return once("users", () -> configuration.userService(encryption));
+    }
+
+    @Override
+    public UserService usersDecryptingWith(final EncryptionService encryption) {
+        return new MongoUserService(mongoClient, encryption, auditEvents());
     }
 
     @Override

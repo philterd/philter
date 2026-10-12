@@ -161,6 +161,11 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
+    public PendingDocumentDataService pendingDocumentsEncryptingWith(final EncryptionService encryption) {
+        return new SqlitePendingDocumentDataService(database, encryption);
+    }
+
+    @Override
     public PendingDocumentDataService pendingDocumentsAt(final LongSupplier clock) {
         return new SqlitePendingDocumentDataService(database, encryption, clock);
     }
@@ -194,6 +199,11 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
     @Override
     public UserService users() {
         return once("users", () -> new SqliteUserService(database, encryption, auditEvents()));
+    }
+
+    @Override
+    public UserService usersDecryptingWith(final EncryptionService encryption) {
+        return new SqliteUserService(database, encryption, auditEvents());
     }
 
     @Override

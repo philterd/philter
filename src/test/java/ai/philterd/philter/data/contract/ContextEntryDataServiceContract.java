@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -95,22 +96,32 @@ public interface ContextEntryDataServiceContract extends StorageContract {
 
         final ContextEntryEntity third = entries.putReplacementIfAbsent(owner, "default", "third", "replacement-3", "PERSON");
         entries.incrementReads(third.getId());
-        assertNull(entries.getReplacement(owner, "default", "second"), "the entry never read is evicted");
-        assertEquals("replacement-1", entries.getReplacement(owner, "default", "first"));
-        assertEquals("replacement-3", entries.getReplacement(owner, "default", "third"));
+        assertEquals(3, entries.countByUserIdAndContext(owner, "default"), "a context fills to its capacity");
 
+        final ContextEntryEntity fourth = entries.putReplacementIfAbsent(owner, "default", "fourth", "replacement-4", "PERSON");
+        assertEquals(3, entries.countByUserIdAndContext(owner, "default"), "and stays at it");
+        assertNull(entries.findOneEntryByToken(owner, "default", "second"), "the entry never read is evicted");
+        assertNotNull(entries.findOneEntryByToken(owner, "default", "first"));
+        assertNotNull(entries.findOneEntryByToken(owner, "default", "third"));
+        assertNotNull(entries.findOneEntryByToken(owner, "default", "fourth"), "the new entry is kept");
+
+        // Every entry has been read, so the new entry has the fewest reads; it is still the one kept.
+        entries.incrementReads(fourth.getId());
         for (int i = 0; i < 5; i++) {
-            entries.putReplacementIfAbsent(owner, "default", "more-" + i, "replacement", "PERSON");
-            assertTrue(entries.countByUserIdAndContext(owner, "default") <= 3, "the context never exceeds its capacity");
+            final ContextEntryEntity added = entries.putReplacementIfAbsent(owner, "default", "more-" + i, "replacement-" + i,
+                    "PERSON");
+            assertEquals("replacement-" + i, added.getReplacement());
+            assertEquals(3, entries.countByUserIdAndContext(owner, "default"), "the context holds exactly its capacity");
+            assertEquals("replacement-" + i, entries.findOneEntryByToken(owner, "default", "more-" + i).getReplacement(),
+                    "the replacement a put returns is the one kept");
+            entries.incrementReads(added.getId());
         }
-        assertEquals("replacement-1", entries.getReplacement(owner, "default", "first"), "an entry read is kept");
-        assertEquals("replacement-3", entries.getReplacement(owner, "default", "third"));
 
         // Another owner's context is not counted or evicted from.
         final String other = RecordIds.newId();
         entries.putReplacementIfAbsent(other, "default", "first", "replacement", "PERSON");
-        assertEquals("replacement-1", entries.getReplacement(owner, "default", "first"));
-        assertEquals("replacement", entries.getReplacement(other, "default", "first"));
+        assertEquals(3, entries.countByUserIdAndContext(owner, "default"));
+        assertEquals(1, entries.countByUserIdAndContext(other, "default"));
     }
 
 }

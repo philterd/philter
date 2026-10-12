@@ -19,7 +19,10 @@ import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.QueueCapacityException;
+import ai.philterd.philter.testutil.CountingEncryptionService;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import ai.philterd.philter.utils.EnvUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -345,6 +348,17 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
             assertEquals(1, instances.get(0).queueStats(full).jobs(), "the owner's limit holds");
             assertEquals(1, statuses.stream().filter(status -> status == 200).count(), statuses.toString());
         }
+    }
+
+    @Test
+    default void pendingDocumentASubmissionEncryptsEachSecretOnce() {
+        final CountingEncryptionService encryption = new CountingEncryptionService(new TestEncryptionService());
+        final PendingDocumentEntity job = job(RecordIds.newId(), 1024);
+        job.setEffectiveJson("{\"identifiers\":{}}");
+        job.setEffectiveHash(PolicyVersionDataService.contentHash(job.getEffectiveJson()));
+        storage().pendingDocumentsEncryptingWith(encryption).save(job);
+        assertEquals(2, encryption.encryptions(), "the input and the resolved configuration, once each, kept with the job "
+                + "and in its snapshot");
     }
 
 }

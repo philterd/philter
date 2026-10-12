@@ -17,11 +17,14 @@ package ai.philterd.philter.data.sqlite;
 
 import ai.philterd.philter.config.StorageConfiguration;
 import ai.philterd.philter.data.schema.SchemaMigrator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 /**
@@ -31,6 +34,8 @@ import java.time.Duration;
 @Configuration
 @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.SQLITE, matchIfMissing = true)
 public class SqliteConnectionConfiguration {
+
+    private static final Logger LOGGER = LogManager.getLogger(SqliteConnectionConfiguration.class);
 
     /** The name of the bean that migrates the schema, which the storage beans wait for. */
     public static final String SCHEMA_VERSION = "schemaVersion";
@@ -55,6 +60,14 @@ public class SqliteConnectionConfiguration {
 
     @Bean(destroyMethod = "close")
     public SqliteDatabase sqliteDatabase(final SqliteInstanceLock sqliteInstanceLock) {
+        // Says where the data is, since a relative path, such as the default, depends on where Philter was started.
+        final Path file = Path.of(path);
+        if (file.isAbsolute()) {
+            LOGGER.info("SQLite storage keeps Philter's data in {}.", file);
+        } else {
+            LOGGER.warn("SQLite storage keeps Philter's data in {}, relative to the directory Philter was started in. "
+                    + "Set SQLITE_PATH to an absolute path so the data stays in one place.", file.toAbsolutePath());
+        }
         return new SqliteDatabase(path);
     }
 

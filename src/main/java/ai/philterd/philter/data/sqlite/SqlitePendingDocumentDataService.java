@@ -102,13 +102,15 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
     }
 
     @Override
-    protected void requireStorable(final PendingDocumentEntity entity) {
+    protected void requireStorable(final SealedJob job) {
         // SQLite's own limit on a row is far above the request size limits, so nothing is refused here.
     }
 
     @Override
-    protected void retainSnapshot(final PendingDocumentEntity entity) {
-        final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId());
+    protected void retainSnapshot(final SealedJob job) {
+        // The same ciphertext the job stores: the configuration is encrypted once.
+        final PendingDocumentEntity entity = job.entity();
+        final SecretFields.Sealed sealed = job.effective();
         database.write(connection -> Sql.update(connection, "INSERT INTO execution_snapshots (id, user_id, effective_hash, "
                 + "effective_json, effective_key) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING",
                 entity.getUserId() + ":" + entity.getEffectiveHash(), entity.getUserId(), entity.getEffectiveHash(),
@@ -138,11 +140,12 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
     }
 
     @Override
-    protected String insert(final PendingDocumentEntity entity, final long round) {
+    protected String insert(final SealedJob job, final long round) {
+        final PendingDocumentEntity entity = job.entity();
         final String id = entity.getId() != null ? entity.getId() : ai.philterd.philter.data.RecordIds.newId();
-        final SecretFields.Sealed effective = SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId());
-        final SecretFields.SealedBytes input = SecretFields.sealBytes(encryptionService, entity.getInput(), entity.getUserId());
-        final SecretFields.SealedBytes output = SecretFields.sealBytes(encryptionService, entity.getOutput(), entity.getUserId());
+        final SecretFields.Sealed effective = job.effective();
+        final SecretFields.SealedBytes input = job.input();
+        final SecretFields.SealedBytes output = job.output();
         database.write(connection -> {
             prune(connection);
             return Sql.update(connection, "INSERT INTO pending_documents (id, user_id, document_id, file_name, input_mime_type, "

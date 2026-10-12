@@ -71,6 +71,9 @@ public interface StorageUnderTest {
      */
     PendingDocumentDataService pendingDocumentsAt(LongSupplier clock);
 
+    /** A new store of pending documents over the same data that encrypts with {@code encryption}. */
+    PendingDocumentDataService pendingDocumentsEncryptingWith(ai.philterd.philter.services.encryption.EncryptionService encryption);
+
     PolicyDataService policies();
 
     PolicyVersionDataService policyVersions();
@@ -82,6 +85,9 @@ public interface StorageUnderTest {
     SigningKeyDataService signingKeys();
 
     UserService users();
+
+    /** Users over the same data that decrypt with {@code encryption}. */
+    UserService usersDecryptingWith(ai.philterd.philter.services.encryption.EncryptionService encryption);
 
     WebhookDeliveryDataService webhookDeliveries();
 

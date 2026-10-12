@@ -72,13 +72,29 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
     }
 
     /**
+     * A document being admitted with its secrets already encrypted: its resolved configuration, input, and output.
+     * Each is encrypted once, and every step of admission stores that ciphertext.
+     */
+    public record SealedJob(PendingDocumentEntity entity, SecretFields.Sealed effective, SecretFields.SealedBytes input,
+                            SecretFields.SealedBytes output) {
+    }
+
+    /** Encrypts the document's secrets once, for every step of its admission. */
+    protected final SealedJob seal(final PendingDocumentEntity entity) {
+        return new SealedJob(entity,
+                SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId()),
+                SecretFields.sealBytes(encryptionService, entity.getInput(), entity.getUserId()),
+                SecretFields.sealBytes(encryptionService, entity.getOutput(), entity.getUserId()));
+    }
+
+    /**
      * Refuses a document too large to store, with {@code PayloadTooLargeException}. Checked before anything is
      * written.
      */
-    protected abstract void requireStorable(final PendingDocumentEntity entity);
+    protected abstract void requireStorable(final SealedJob job);
 
     /** Keeps the document's effective configuration, encrypted, by its owner and hash, unless already kept. */
-    protected abstract void retainSnapshot(final PendingDocumentEntity entity);
+    protected abstract void retainSnapshot(final SealedJob job);
 
     /** The fairness round of the last document claimed, or 0. */
     protected abstract long globalRound();
@@ -90,7 +106,7 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
     protected abstract void setOwnerRound(final String userId, final long round);
 
     /** Stores an admitted document in this fairness round, and returns its id. */
-    protected abstract String insert(final PendingDocumentEntity entity, final long round);
+    protected abstract String insert(final SealedJob job, final long round);
 
     /**
      * Claims the pending document with the lowest fairness round, oldest first, for this worker with this token
@@ -137,11 +153,12 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
                 PolicyVersionDataService.contentHash(entity.getEffectiveJson()))) {
             throw new IllegalArgumentException("Effective configuration fingerprint mismatch.");
         }
-        requireStorable(entity);
+        final SealedJob sealed = seal(entity);
+        requireStorable(sealed);
         // Immutable snapshots are safe to retain before admission, even if admission later fails.
         // A snapshot failure must never strand the global queue guard.
         if (entity.getEffectiveJson() != null) {
-            retainSnapshot(entity);
+            retainSnapshot(sealed);
         }
         return admission.execute(() -> {
             final QueueStats global = queueStats(null);
@@ -155,7 +172,7 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
             }
             final long round = Math.max(globalRound(), ownerRound(entity.getUserId())) + 1;
             setOwnerRound(entity.getUserId(), round);
-            return insert(entity, round);
+            return insert(sealed, round);
         });
     }
 

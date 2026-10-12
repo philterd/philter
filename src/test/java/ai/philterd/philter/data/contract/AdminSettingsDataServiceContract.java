@@ -18,6 +18,7 @@ package ai.philterd.philter.data.contract;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.AuditLogEvent;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,6 +53,43 @@ public interface AdminSettingsDataServiceContract extends StorageContract {
                 "a key, \"quoted\", Ünïcödé", null, null), admin, null);
         assertEquals("a key, \"quoted\", Ünïcödé",
                 storage().anotherInstance().adminSettings().findAdminSettings().getPhieldApiKey());
+    }
+
+    private java.util.List<String> settingsAudited(final String admin) {
+        return storage().auditLog().find(admin, AuditLogEvent.SETTINGS_UPDATED.getAuditLogEvent(), null, null, 0, 100, false)
+                .stream().map(event -> event.details().replace(", api_key: null", "")).toList();
+    }
+
+    @Test
+    default void adminSettingsAChangeIsAuditedExactlyWhenAStoredValueChanges() {
+        final String admin = administrator();
+        storage().adminSettings().update(new AdminSettingsDataService.Update(true, null, "example.com", null,
+                null, null, null, "phield-key", null, null), admin, null);
+        // The same values again, with the allowlist differing only in surrounding spaces, change nothing.
+        storage().anotherInstance().adminSettings().update(new AdminSettingsDataService.Update(true, null, " example.com ",
+                null, null, null, null, "phield-key", null, null), admin, null);
+        // One new value among unchanged ones.
+        storage().adminSettings().update(new AdminSettingsDataService.Update(true, true, null, null,
+                null, null, null, "phield-key", null, null), admin, null);
+        storage().adminSettings().update(new AdminSettingsDataService.Update(null, null, null, null,
+                null, null, null, "another-key", null, null), admin, null);
+
+        // Events recorded in one millisecond may list in either order, so they are compared sorted.
+        assertEquals(java.util.List.of(
+                "settings: diffuse_counts_enabled, webhook_allowlist, phield_api_key",
+                "settings: phield_api_key",
+                "settings: signing_enabled"), settingsAudited(admin).stream().sorted().toList());
+        assertEquals("another-key", storage().anotherInstance().adminSettings().findAdminSettings().getPhieldApiKey());
+    }
+
+    @Test
+    default void adminSettingsABlankPhieldKeyWhenNoneIsSetChangesNothing() {
+        final String admin = administrator();
+        storage().adminSettings().update(new AdminSettingsDataService.Update(true, null, null, null,
+                null, null, null, null, null, null), admin, null);
+        storage().adminSettings().update(new AdminSettingsDataService.Update(null, null, null, null,
+                null, null, null, "", null, null), admin, null);
+        assertEquals(java.util.List.of("settings: diffuse_counts_enabled"), settingsAudited(admin));
     }
 
 }

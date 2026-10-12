@@ -16,7 +16,7 @@ Philter stores policies and other data in a SQLite file by default, which suits 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `STORAGE_TYPE` | Where Philter stores its data: `sqlite`, a file for a [single Philter instance](database.md#sqlite) with no database server, or `mongodb`, which several instances can share. Philter does not start with any other value, or when `MONGODB_CONNECTION_STRING` is set and `STORAGE_TYPE` is not, so a deployment that used MongoDB does not start on a new, empty SQLite database. | `sqlite` |
-| `SQLITE_PATH` | With SQLite storage, the database file. Its directory must exist and be writable. The Docker image sets it to `/opt/philter/data/philter.db`; mount a volume at `/opt/philter/data` to keep the data. | `philter.db` (`/opt/philter/data/philter.db` in the Docker image) |
+| `SQLITE_PATH` | With SQLite storage, the database file. Its directory must exist and be writable. A relative path, such as the default, is relative to the directory Philter is started in, so outside Docker set an absolute path; Philter logs where the database is at startup, with a warning when the path is relative. The Docker image sets it to `/opt/philter/data/philter.db`; mount a volume at `/opt/philter/data` to keep the data. | `philter.db` (`/opt/philter/data/philter.db` in the Docker image) |
 | `MONGODB_CONNECTION_STRING` | With `STORAGE_TYPE=mongodb`, the MongoDB connection string. | `mongodb://localhost:27017` |
 | `SCHEMA_MIGRATION_WAIT_SECONDS` | How long an instance waits at startup for another instance that is [migrating the data](database.md#schema-version-and-migrations) before it stops with an error. | `600` |
 

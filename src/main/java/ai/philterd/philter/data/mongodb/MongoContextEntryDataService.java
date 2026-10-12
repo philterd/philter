@@ -146,8 +146,10 @@ public class MongoContextEntryDataService extends StoredContextEntryDataService 
     }
 
     @Override
-    protected ContextEntryEntity findLeastRead(final String userId, final String contextName) {
-        final Document victim = collection.find(inContext(userId, contextName))
+    protected ContextEntryEntity findLeastRead(final String userId, final String contextName, final String keepId) {
+        final Bson candidates = keepId == null ? inContext(userId, contextName)
+                : Filters.and(inContext(userId, contextName), Filters.ne("_id", MongoIds.objectId(keepId)));
+        final Document victim = collection.find(candidates)
                 .sort(Sorts.orderBy(Sorts.ascending("reads"), Sorts.ascending("timestamp")))
                 .first();
         return victim == null ? null : ContextEntryDocuments.fromDocument(victim);

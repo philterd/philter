@@ -96,8 +96,8 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
     }
 
     @Override
-    protected void requireStorable(final PendingDocumentEntity entity) {
-        final Document document = PendingDocumentDocuments.toDocument(entity, encryptionService);
+    protected void requireStorable(final SealedJob job) {
+        final Document document = PendingDocumentDocuments.toDocument(job);
         // Include the fields added at admission.
         if (!document.containsKey("_id")) document.put("_id", new ObjectId());
         document.put("fairness_round", 0L);
@@ -117,8 +117,10 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
     }
 
     @Override
-    protected void retainSnapshot(final PendingDocumentEntity entity) {
-        final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId());
+    protected void retainSnapshot(final SealedJob job) {
+        // The same ciphertext the job stores: the configuration is encrypted once.
+        final PendingDocumentEntity entity = job.entity();
+        final SecretFields.Sealed sealed = job.effective();
         final Document retained = new Document("_id", entity.getUserId() + ":" + entity.getEffectiveHash())
                 .append("user_id", MongoIds.objectId(entity.getUserId())).append("effective_hash", entity.getEffectiveHash())
                 .append("effective_json", sealed.ciphertext())
@@ -147,8 +149,8 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
     }
 
     @Override
-    protected String insert(final PendingDocumentEntity entity, final long round) {
-        final Document document = PendingDocumentDocuments.toDocument(entity, encryptionService);
+    protected String insert(final SealedJob job, final long round) {
+        final Document document = PendingDocumentDocuments.toDocument(job);
         document.put("fairness_round", round);
         return MongoIds.hex(jobs.insertOne(document).getInsertedId().asObjectId().getValue());
     }

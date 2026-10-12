@@ -17,6 +17,7 @@ package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.SecretFields;
+import ai.philterd.philter.data.services.StoredPendingDocumentDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
@@ -67,6 +68,15 @@ public final class PendingDocumentDocuments {
     }
 
     public static Document toDocument(final PendingDocumentEntity entity, final EncryptionService encryptionService) {
+        return toDocument(new StoredPendingDocumentDataService.SealedJob(entity,
+                SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId()),
+                SecretFields.sealBytes(encryptionService, entity.getInput(), entity.getUserId()),
+                SecretFields.sealBytes(encryptionService, entity.getOutput(), entity.getUserId())));
+    }
+
+    /** The document for a job whose secrets are already encrypted, encrypting nothing again. */
+    public static Document toDocument(final StoredPendingDocumentDataService.SealedJob job) {
+        final PendingDocumentEntity entity = job.entity();
         final Document document = new Document();
         if (entity.getId() != null) {
             document.put("_id", MongoIds.objectId(entity.getId()));
@@ -83,19 +93,19 @@ public final class PendingDocumentDocuments {
         document.put("client_ip_address", entity.getClientIpAddress());
         document.put("input_size", entity.getInput() == null ? 0L : (long) entity.getInput().length);
         document.put("effective_hash", entity.getEffectiveHash());
-        final SecretFields.Sealed effective = SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId());
+        final SecretFields.Sealed effective = job.effective();
         if (effective != null) {
             document.put("effective_json", effective.ciphertext());
             document.put("effective_key", effective.key());
         }
         document.put("status", entity.getStatus());
         document.put("error_message", entity.getErrorMessage());
-        final SecretFields.SealedBytes input = SecretFields.sealBytes(encryptionService, entity.getInput(), entity.getUserId());
+        final SecretFields.SealedBytes input = job.input();
         if (input != null) {
             document.put("input", new Binary(input.ciphertext()));
             document.put("input_encrypted_key", input.key());
         }
-        final SecretFields.SealedBytes output = SecretFields.sealBytes(encryptionService, entity.getOutput(), entity.getUserId());
+        final SecretFields.SealedBytes output = job.output();
         if (output != null) {
             document.put("output", new Binary(output.ciphertext()));
             document.put("output_encrypted_key", output.key());

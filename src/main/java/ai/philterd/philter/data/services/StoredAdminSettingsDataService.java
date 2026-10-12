@@ -202,8 +202,10 @@ public abstract class StoredAdminSettingsDataService implements AdminSettingsDat
                 changed.add(entry.getKey().getName());
             }
         }
-        if (update.phieldApiKey() != null) {
-            // Always recorded as changed: the stored value is newly encrypted whatever it holds.
+        // The key is compared decrypted, and written and recorded only when it changes, so sending the key that is
+        // already set, or a blank key when none is, changes nothing.
+        final String currentApiKey = current == null || current.getPhieldApiKey() == null ? "" : current.getPhieldApiKey();
+        if (update.phieldApiKey() != null && !update.phieldApiKey().equals(currentApiKey)) {
             values.put(Setting.PHIELD_API_KEY, encryptPhieldApiKey(update.phieldApiKey()));
             changed.add(Setting.PHIELD_API_KEY.getName());
         }

@@ -15,12 +15,15 @@
  */
 package ai.philterd.philter.data.contract;
 
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.mfa.TotpService;
+import ai.philterd.philter.testutil.CountingEncryptionService;
+import ai.philterd.philter.testutil.TestEncryptionService;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -32,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The guarantees of {@link UserService}. */
@@ -212,6 +216,22 @@ public interface UserServiceContract extends StorageContract {
         assertNull(cleared.getMfaPendingSecret());
         assertEquals(0, cleared.getMfaFailedAttempts());
         assertEquals(0L, cleared.getMfaLastUsedTimeStep());
+    }
+
+    @Test
+    default void userCheckingWhetherAUserIsDeactivatedReadsNoSecret() {
+        final UserEntity user = createAndFind("jordan", UserService.ROLE_USER);
+        storage().users().startMfaEnrollment(user);
+        // Every request made with an API key asks this, so it decrypts none of the user's secrets.
+        final CountingEncryptionService encryption = new CountingEncryptionService(new TestEncryptionService());
+        final UserService users = storage().usersDecryptingWith(encryption);
+        assertFalse(users.isDeactivated(user.getId()));
+        assertTrue(storage().users().deactivateUser("req", storage().users().findOneById(user.getId()), "test").isSuccessful());
+        assertTrue(users.isDeactivated(user.getId()));
+        assertTrue(users.isDeactivated(RecordIds.newId()), "a user that does not exist counts as deactivated");
+        assertEquals(0, encryption.decryptions());
+        users.findOneById(user.getId());
+        assertTrue(encryption.decryptions() > 0, "reading the whole user does decrypt, so the count is not vacuous");
     }
 
 }

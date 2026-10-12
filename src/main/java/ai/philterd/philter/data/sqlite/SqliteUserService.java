@@ -184,6 +184,12 @@ public class SqliteUserService extends StoredUserService {
     }
 
     @Override
+    protected Boolean findDeactivated(final String userId) {
+        return database.read(connection -> Sql.first(connection, "SELECT deactivated FROM users WHERE id = ?",
+                row -> row.bool("deactivated"), userId));
+    }
+
+    @Override
     protected boolean enrollMfa(final UserEntity user) {
         return update(user, Field.MFA, " AND mfa_enabled = 0") == 1;
     }

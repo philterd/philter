@@ -129,10 +129,16 @@ public abstract class StoredUserService implements UserService {
     protected abstract boolean writePassword(final String userId, final String expectedHash, final String newHash,
             final boolean changeRequired);
 
+    /**
+     * Whether the user is deactivated, or null when there is no such user. Reads only that, decrypting nothing: it
+     * runs on every request made with an API key.
+     */
+    protected abstract Boolean findDeactivated(final String userId);
+
     @Override
     public boolean isDeactivated(final String userId) {
-        final UserEntity user = findOneById(userId);
-        return user == null || user.isDeactivated();
+        final Boolean deactivated = findDeactivated(userId);
+        return deactivated == null || deactivated;
     }
 
     @Override

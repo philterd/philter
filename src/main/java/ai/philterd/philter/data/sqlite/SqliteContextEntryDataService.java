@@ -115,10 +115,10 @@ public class SqliteContextEntryDataService extends StoredContextEntryDataService
     }
 
     @Override
-    protected ContextEntryEntity findLeastRead(final String userId, final String contextName) {
+    protected ContextEntryEntity findLeastRead(final String userId, final String contextName, final String keepId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM context_entries WHERE user_id = ? AND "
-                + "context_name = ? ORDER BY reads ASC, timestamp ASC, seq ASC LIMIT 1", SqliteContextEntryDataService::read,
-                userId, contextName));
+                + "context_name = ? AND id IS NOT ? ORDER BY reads ASC, timestamp ASC, seq ASC LIMIT 1",
+                SqliteContextEntryDataService::read, userId, contextName, keepId));
     }
 
     @Override

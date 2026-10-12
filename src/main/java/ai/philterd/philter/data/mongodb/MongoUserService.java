@@ -25,6 +25,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
 import org.bson.Document;
@@ -108,6 +109,12 @@ public class MongoUserService extends StoredUserService {
             }
             return write(user, field) ? AdministratorChange.WRITTEN : AdministratorChange.UNCHANGED;
         });
+    }
+
+    @Override
+    protected Boolean findDeactivated(final String userId) {
+        final Document document = collection.find(byId(userId)).projection(Projections.include("deactivated")).first();
+        return document == null ? null : document.getBoolean("deactivated", false);
     }
 
     @Override

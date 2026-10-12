@@ -40,6 +40,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Change a user's email:** `PUT /api/users/{username}/email` lets an administrator set, change, or
   remove a user's email address. Email addresses are now checked for a basic format, including when a
   user is created.
+- **Storage selection:** `STORAGE_TYPE` selects where Philter stores its data. `mongodb`, the default,
+  is the only storage today. Philter now reaches its data only through storage interfaces, so other
+  storage can be added later.
 - **Policy diffs show both sides:** each `replace` and `remove` from `GET /api/policies/{name}/diff`
   carries `oldValue`, the value before the change.
 - **Asynchronous PDF redaction** with signed webhooks.

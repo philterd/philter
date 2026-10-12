@@ -15,6 +15,7 @@ Philter requires a MongoDB database to store policies and other data. See [Datab
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
+| `STORAGE_TYPE` | Where Philter stores its data. `mongodb` is the only storage Philter has today. Philter does not start with any other value. | `mongodb` |
 | `MONGODB_CONNECTION_STRING` | The MongoDB connection string. | `mongodb://localhost:27017` |
 
 ## Encryption

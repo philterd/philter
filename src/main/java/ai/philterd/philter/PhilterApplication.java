@@ -15,77 +15,53 @@
  */
 package ai.philterd.philter;
 
-import ai.philterd.philter.data.mongodb.MongoWebhookDeliveryDataService;
-import ai.philterd.philter.data.mongodb.MongoUserService;
-import ai.philterd.philter.data.mongodb.MongoSigningKeyDataService;
-import ai.philterd.philter.data.mongodb.MongoSignInChallengeDataService;
-import ai.philterd.philter.data.mongodb.MongoRedactListsDataService;
-import ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService;
-import ai.philterd.philter.data.mongodb.MongoPolicyDataService;
-import ai.philterd.philter.data.mongodb.MongoPendingDocumentDataService;
-import ai.philterd.philter.data.mongodb.MongoLegalHoldDataService;
-import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
-import ai.philterd.philter.data.mongodb.MongoCustomListDataService;
-import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
-import ai.philterd.philter.data.mongodb.MongoContextDataService;
-import ai.philterd.philter.data.mongodb.MongoApiKeyDataService;
-import ai.philterd.philter.data.mongodb.MongoAdminSettingsDataService;
 import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
-import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.mongodb.MongoDBAuditEventPublisher;
-import ai.philterd.philter.services.vectors.VectorServices;
-import ai.philterd.philter.services.context.ContextServices;
-import ai.philterd.philter.data.mongodb.MongoVectorServices;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
-import ai.philterd.philter.data.mongodb.MongoAuditLogService;
-import ai.philterd.philter.data.mongodb.MongoPiiCountAggregatePublisher;
-import ai.philterd.philter.data.mongodb.MongoClientUtil;
-import ai.philterd.philter.data.services.ApiKeyDataService;
-import ai.philterd.philter.audit.AuditLogService;
-import ai.philterd.philter.data.services.ContextDataService;
-import ai.philterd.philter.data.services.ContextEntryDataService;
-import ai.philterd.philter.data.services.CustomListDataService;
-import ai.philterd.philter.data.services.RedactListsDataService;
-import ai.philterd.philter.data.services.LedgerDataService;
-import ai.philterd.philter.data.services.LegalHoldDataService;
-import ai.philterd.philter.data.services.PendingDocumentDataService;
-import ai.philterd.philter.data.services.PolicyDataService;
-import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.config.TlsVerificationConfig;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
+import ai.philterd.philter.data.services.ContextDataService;
+import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PolicyDataService;
+import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
-import ai.philterd.philter.services.signing.SigningService;
-import ai.philterd.philter.data.services.SignInChallengeDataService;
-import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.cache.SignInThrottle;
+import ai.philterd.philter.services.context.ContextServices;
+import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.LocalEncryptionService;
-import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
+import ai.philterd.philter.services.policies.PhiSqlCompileService;
+import ai.philterd.philter.services.signing.SigningService;
+import ai.philterd.philter.services.vectors.VectorServices;
 import ai.philterd.philter.services.webhook.WebhookDestinationPolicy;
 import ai.philterd.philter.services.webhook.WebhookDnsResolver;
 import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.utils.EnvUtils;
-import ai.philterd.philter.services.policies.PhiSqlCompileService;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import com.google.gson.Gson;
-import com.mongodb.client.MongoClient;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -97,6 +73,7 @@ import org.apache.hc.core5.util.Timeout;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springdoc.core.customizers.OperationCustomizer;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -105,13 +82,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import org.springdoc.core.utils.SpringDocUtils;
-
 
 @Configuration
 @SpringBootApplication
@@ -255,11 +225,11 @@ public class PhilterApplication {
     static final int WEBHOOK_POOL_TIMEOUT_SECONDS = EnvUtils.getInt("WEBHOOK_POOL_TIMEOUT_SECONDS", 5);
 
     @Bean
-    public HttpClient httpClient() {
+    public HttpClient httpClient(final AdminSettingsDataService adminSettingsDataService) {
 
         final PoolingHttpClientConnectionManager connectionManager =
                 PoolingHttpClientConnectionManagerBuilder.create()
-                        .setDnsResolver(new WebhookDnsResolver(adminSettingsDataService()))
+                        .setDnsResolver(new WebhookDnsResolver(adminSettingsDataService))
                         .setMaxConnTotal(10)
                         .setMaxConnPerRoute(10)
                         .setValidateAfterInactivity(TimeValue.ofSeconds(5))
@@ -285,8 +255,19 @@ public class PhilterApplication {
     }
 
     @Bean
-    public RedactionService redactionService(final MeterRegistry meterRegistry) {
-        return new RedactionService(contextServices(), vectorServices(), policyDataService(), customListService(), redactListsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher(), piiCountAggregatePublisher(), redactionCache());
+    public RedactionService redactionService(final MeterRegistry meterRegistry,
+            final PiiCountAggregatePublisher piiCountAggregatePublisher,
+            final ContextServices contextServices,
+            final VectorServices vectorServices,
+            final AuditEventPublisher auditEventPublisher,
+            final ContextDataService contextDataService,
+            final LedgerDataService ledgerService,
+            final CustomListDataService customListService,
+            final RedactListsDataService redactListsService,
+            final PolicyDataService policyDataService,
+            final UserService userService,
+            final PhieldPublisher phieldPublisher) {
+        return new RedactionService(contextServices, vectorServices, policyDataService, customListService, redactListsService, contextDataService, auditEventPublisher, ledgerService, userService, meterRegistry, phieldPublisher, piiCountAggregatePublisher, redactionCache());
     }
 
     @Bean
@@ -298,39 +279,8 @@ public class PhilterApplication {
     }
 
     @Bean
-    public PhieldPublisher phieldPublisher() {
-        return new PhieldPublisher(adminSettingsDataService());
-    }
-
-    @Bean
-    public PiiCountAggregatePublisher piiCountAggregatePublisher() {
-        return new MongoPiiCountAggregatePublisher(mongoClient(), adminSettingsDataService());
-    }
-
-    @Bean
-    public ContextServices contextServices() {
-        return new MongoContextServices(mongoClient(), auditEventPublisher());
-    }
-
-    @Bean
-    public VectorServices vectorServices() {
-        return new MongoVectorServices(mongoClient(), auditEventPublisher());
-    }
-
-    @Bean
-    public MongoClient mongoClient() {
-        return MongoClientUtil.getClient();
-    }
-
-
-    @Bean
-    public AuditEventPublisher auditEventPublisher() {
-        return new MongoDBAuditEventPublisher(mongoClient());
-    }
-
-    @Bean
-    public AuditLogService auditLogService() {
-        return new MongoAuditLogService(mongoClient());
+    public PhieldPublisher phieldPublisher(final AdminSettingsDataService adminSettingsDataService) {
+        return new PhieldPublisher(adminSettingsDataService);
     }
 
     @Bean
@@ -351,92 +301,18 @@ public class PhilterApplication {
     }
 
     @Bean
-    public ContextDataService contextDataService() {
-        return new MongoContextDataService(mongoClient(), contextCache(), auditEventPublisher());
-    }
-
-    @Bean
-    public LegalHoldDataService legalHoldDataService() {
-        return new MongoLegalHoldDataService(mongoClient(), auditEventPublisher());
-    }
-
-    @Bean
-    public LedgerDataService ledgerService() {
-        return new MongoLedgerDataService(mongoClient(), encryptionService(), auditEventPublisher(),
-                legalHoldDataService(), signingService());
-    }
-
-    @Bean
-    public ContextEntryDataService contextEntryDataService() {
-        return new MongoContextEntryDataService(mongoClient(), auditEventPublisher(), contextCache());
-    }
-
-    @Bean
-    public CustomListDataService customListService() {
-        return new MongoCustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public RedactListsDataService redactListsService() {
-        return new MongoRedactListsDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public ApiKeyDataService apiKeyDataService() {
-        return new MongoApiKeyDataService(mongoClient(), auditEventPublisher(), apiKeyCache());
-    }
-
-    @Bean
-    public SignInChallengeDataService signInChallengeDataService() {
-        return new MongoSignInChallengeDataService(mongoClient());
-    }
-
-    @Bean
-    public PendingDocumentDataService pendingDocumentDataService() {
-        return new MongoPendingDocumentDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public WebhookDeliveryDataService webhookDeliveryDataService() {
-        return new MongoWebhookDeliveryDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public WebhookService webhookService() {
-        return new WebhookService(httpClient(), () -> {
-            final var settings = adminSettingsDataService().findAdminSettings();
+    public WebhookService webhookService(final AdminSettingsDataService adminSettingsDataService,
+            final HttpClient httpClient) {
+        return new WebhookService(httpClient, () -> {
+            final var settings = adminSettingsDataService.findAdminSettings();
             return new WebhookDestinationPolicy(settings == null ? null : settings.getWebhookAllowlist());
         });
     }
 
     @Bean
-    public PolicyVersionDataService policyVersionDataService() {
-        return new MongoPolicyVersionDataService(mongoClient(), auditEventPublisher());
-    }
-
-    @Bean
-    public PolicyDataService policyDataService() {
-        return new MongoPolicyDataService(mongoClient(), auditEventPublisher(), gson(), policyVersionDataService(), redactionCache());
-    }
-
-    @Bean
-    public AdminSettingsDataService adminSettingsDataService() {
-        return new MongoAdminSettingsDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public SigningKeyDataService signingKeyDataService() {
-        return new MongoSigningKeyDataService(mongoClient(), encryptionService(), auditEventPublisher());
-    }
-
-    @Bean
-    public SigningService signingService() {
-        return new SigningService(signingKeyDataService(), adminSettingsDataService());
-    }
-
-    @Bean
-    public UserService userService() {
-        return new MongoUserService(mongoClient(), encryptionService(), auditEventPublisher());
+    public SigningService signingService(final AdminSettingsDataService adminSettingsDataService,
+            final SigningKeyDataService signingKeyDataService) {
+        return new SigningService(signingKeyDataService, adminSettingsDataService);
     }
 
     @Bean

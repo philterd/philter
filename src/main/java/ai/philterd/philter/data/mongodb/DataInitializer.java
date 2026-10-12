@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.mongodb;
 
+import ai.philterd.philter.config.StorageConfiguration;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -26,6 +27,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Indexes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -34,6 +36,7 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 
 @Component
+@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
 public class DataInitializer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataInitializer.class);

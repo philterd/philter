@@ -82,6 +82,25 @@ public abstract class StoredUserService implements UserService {
      */
     protected abstract boolean write(final UserEntity user, final Field field);
 
+    /** What {@link #writeKeepingAnAdministrator} did. */
+    protected enum AdministratorChange {
+        /** The change was written. */
+        WRITTEN,
+        /** Nothing was written: there is no such user, or the stored value already matched. */
+        UNCHANGED,
+        /** Nothing was written: the user is the only active administrator stored. */
+        LAST_ADMINISTRATOR
+    }
+
+    /**
+     * Writes a change that may take away the user's administrator access (a role change written as
+     * {@link Field#ROLE}, or a deactivation written as {@link Field#DEACTIVATION}), unless the stored user is an
+     * active administrator and no other active administrator is stored. The check and the write are atomic with
+     * respect to every other call, on any instance, so of concurrent changes that would each remove an
+     * administrator, those that would leave none are refused and at least one active administrator always remains.
+     */
+    protected abstract AdministratorChange writeKeepingAnAdministrator(final UserEntity user, final Field field);
+
     /**
      * Writes the user's MFA fields only if MFA is not already enabled, and returns whether it did. Of two
      * concurrent enrollments, one succeeds.
@@ -238,12 +257,14 @@ public abstract class StoredUserService implements UserService {
             return ServiceResponse.failure("User does not exist.");
 
         } else {
-            if (!ROLE_ADMIN.equalsIgnoreCase(newRole) && isLastActiveAdmin(userEntity)) {
+            final String previousRole = userEntity.getRole();
+            userEntity.setRole(newRole);
+            if (ROLE_ADMIN.equalsIgnoreCase(newRole)) {
+                write(userEntity, Field.ROLE);
+            } else if (writeKeepingAnAdministrator(userEntity, Field.ROLE) == AdministratorChange.LAST_ADMINISTRATOR) {
+                userEntity.setRole(previousRole);
                 return new ServiceResponse(LAST_ADMIN_MESSAGE, false, 409, ErrorReasons.LAST_ADMIN);
             }
-
-            userEntity.setRole(newRole);
-            write(userEntity, Field.ROLE);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_ROLE_CHANGED,
                     actingUserId == null ? userEntity.getId() : actingUserId, userEntity.getId(), source, withApiKey("role: " + newRole, actingApiKeyId));
@@ -311,14 +332,17 @@ public abstract class StoredUserService implements UserService {
     @Override
     public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final String actingUserId, final String actingApiKeyId) {
 
-        if (isLastActiveAdmin(userEntity)) {
-            return new ServiceResponse(LAST_ADMIN_MESSAGE, false, 409, ErrorReasons.LAST_ADMIN);
-        }
-
+        final boolean previouslyDeactivated = userEntity.isDeactivated();
+        final Date previousDeactivatedAt = userEntity.getDeactivatedAt();
         userEntity.setDeactivated(true);
         userEntity.setDeactivatedAt(new Date());
-        if (!write(userEntity, Field.DEACTIVATION)) {
-            return ServiceResponse.failure("User is already deactivated.");
+        final AdministratorChange change = writeKeepingAnAdministrator(userEntity, Field.DEACTIVATION);
+        if (change != AdministratorChange.WRITTEN) {
+            userEntity.setDeactivated(previouslyDeactivated);
+            userEntity.setDeactivatedAt(previousDeactivatedAt);
+            return change == AdministratorChange.LAST_ADMINISTRATOR
+                    ? new ServiceResponse(LAST_ADMIN_MESSAGE, false, 409, ErrorReasons.LAST_ADMIN)
+                    : ServiceResponse.failure("User is already deactivated.");
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_DEACTIVATED,

@@ -21,9 +21,11 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,6 +56,39 @@ public interface UserServiceContract extends StorageContract {
         assertTrue(storage().users().deactivateUser("req", jordan, "test").isSuccessful());
         assertFalse(create("jordan", UserService.ROLE_USER).isSuccessful());
         assertEquals(2, storage().users().count(true));
+    }
+
+    @Test
+    default void userConcurrentDemotionsAndDeactivationsLeaveAnActiveAdministrator() throws Exception {
+        for (int round = 0; round < 5; round++) {
+            final List<UserEntity> admins = new ArrayList<>();
+            for (int i = 0; i < 6; i++) {
+                admins.add(createAndFind("admin-" + round + "-" + i, UserService.ROLE_ADMIN));
+            }
+            // Administrators left from the previous round are demoted first, so only this round's can remain.
+            for (final UserEntity user : storage().users().list(null, UserService.ROLE_ADMIN, true,
+                    new Listings.Sort("username", false), 0, 100).items()) {
+                if (admins.stream().noneMatch(admin -> admin.getId().equals(user.getId()))) {
+                    assertTrue(storage().users().setUserRole("req", user, UserService.ROLE_USER, "test").isSuccessful());
+                }
+            }
+            assertEquals(6, storage().users().countActiveAdmins());
+
+            // Every administrator is removed at once, half demoted and half deactivated, through two instances.
+            final AtomicInteger next = new AtomicInteger();
+            final List<ServiceResponse> results = StorageContract.concurrently(6, () -> {
+                final int i = next.getAndIncrement();
+                final UserService users = i % 2 == 0 ? storage().users() : storage().anotherInstance().users();
+                final UserEntity target = users.findOneById(admins.get(i).getId());
+                return i < 3 ? users.setUserRole("req", target, UserService.ROLE_USER, "test")
+                        : users.deactivateUser("req", target, "test");
+            });
+
+            assertEquals(1, storage().users().countActiveAdmins(), "exactly one active administrator remains");
+            assertEquals(5, results.stream().filter(ServiceResponse::isSuccessful).count());
+            final ServiceResponse refused = results.stream().filter(r -> !r.isSuccessful()).findFirst().orElseThrow();
+            assertEquals(409, refused.getStatusCode());
+        }
     }
 
     @Test

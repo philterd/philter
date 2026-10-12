@@ -159,7 +159,8 @@ public interface UserService {
     /**
      * Sets a user's role, recording {@code actingUserId} as the audit principal (the target user when
      * null) and {@code actingApiKeyId}, if any, in the details. Refuses to demote the last active
-     * administrator.
+     * administrator, also when several administrators are demoted or deactivated at once, on any instance: at
+     * least one active administrator always remains.
      */
     ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source, final String actingUserId, final String actingApiKeyId);
 
@@ -194,8 +195,8 @@ public interface UserService {
     long countActiveAdmins();
 
     /**
-     * Whether removing this user's administrator rights would leave no active administrator. The check
-     * and the change that follows are separate operations, so two concurrent removals can still race.
+     * Whether removing this user's administrator rights would leave no active administrator now. It is advice
+     * only: {@link #setUserRole} and {@link #deactivateUser} make the check again atomically with their change.
      */
     boolean isLastActiveAdmin(final UserEntity userEntity);
 
@@ -224,7 +225,8 @@ public interface UserService {
     /**
      * Deactivates a user as above, recording {@code actingUserId} as the audit principal (the target user
      * when null) and {@code actingApiKeyId}, if any, in the details. Refuses to deactivate the last
-     * active administrator.
+     * active administrator, also when several administrators are demoted or deactivated at once, on any instance:
+     * at least one active administrator always remains.
      */
     ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final String actingUserId, final String actingApiKeyId);
 

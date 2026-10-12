@@ -139,7 +139,7 @@ Sets the role to `user` or `admin` and returns the user. Requires `users:write` 
 |--------|---------|
 | 400 | The role is missing or is not `user` or `admin`. |
 | 404 | There is no user with that username. |
-| 409 | The user is the last active administrator. Make another user an administrator first. |
+| 409 | The user is the last active administrator. Make another user an administrator first. This holds when several administrators are demoted or deactivated at once: at least one always remains. |
 
 ## Set a user's email address
 

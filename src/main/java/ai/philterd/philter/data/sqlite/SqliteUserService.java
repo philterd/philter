@@ -144,8 +144,8 @@ public class SqliteUserService extends StoredUserService {
         params.add(user.getId());
         params.addAll(List.of(conditionValues));
         final List<String> assignments = columns.stream().map(column -> column + " = ?").toList();
-        return database.write(connection -> Sql.update(connection, "UPDATE users SET " + String.join(", ", assignments)
-                + " WHERE id = ?" + condition, params.toArray()));
+        final String sql = "UPDATE users SET " + String.join(", ", assignments) + " WHERE id = ?" + condition;
+        return database.write(connection -> Sql.update(connection, sql, params.toArray()));
     }
 
     @Override
@@ -153,6 +153,34 @@ public class SqliteUserService extends StoredUserService {
         return field == Field.DEACTIVATION
                 ? update(user, field, " AND deactivated <> ?", user.isDeactivated()) == 1
                 : update(user, field, "") == 1;
+    }
+
+    private static final String ACTIVE_ADMIN = "lower(role) = 'admin' AND deactivated = 0";
+
+    @Override
+    protected AdministratorChange writeKeepingAnAdministrator(final UserEntity user, final Field field) {
+        final List<String> columns = new ArrayList<>();
+        final List<Object> params = set(user, field, columns);
+        params.add(user.getId());
+        String condition = "";
+        if (field == Field.DEACTIVATION) {
+            condition = " AND deactivated <> ?";
+            params.add(user.isDeactivated());
+        }
+        final String sql = "UPDATE users SET " + String.join(", ", columns.stream().map(column -> column + " = ?").toList())
+                + " WHERE id = ?" + condition;
+        // One transaction, which holds SQLite's write lock from its start, so no other change runs between the
+        // check and the write.
+        return database.write(connection -> {
+            final boolean activeAdmin = Sql.count(connection, "SELECT COUNT(*) AS n FROM users WHERE id = ? AND "
+                    + ACTIVE_ADMIN, user.getId()) == 1;
+            if (activeAdmin && Sql.count(connection, "SELECT COUNT(*) AS n FROM users WHERE id <> ? AND " + ACTIVE_ADMIN,
+                    user.getId()) == 0) {
+                return AdministratorChange.LAST_ADMINISTRATOR;
+            }
+            return Sql.update(connection, sql, params.toArray()) == 1 ? AdministratorChange.WRITTEN
+                    : AdministratorChange.UNCHANGED;
+        });
     }
 
     @Override
@@ -260,7 +288,7 @@ public class SqliteUserService extends StoredUserService {
     @Override
     public long countActiveAdmins() {
         return database.read(connection -> Sql.count(connection,
-                "SELECT COUNT(*) AS n FROM users WHERE lower(role) = 'admin' AND deactivated = 0"));
+                "SELECT COUNT(*) AS n FROM users WHERE " + ACTIVE_ADMIN));
     }
 
 }

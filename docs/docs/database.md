@@ -37,6 +37,7 @@ Philter is developed and tested against **MongoDB 8.2**, which is what the bundl
 | Webhook deliveries | Delivery records for outbound webhook notifications (subject to a TTL). |
 | Schema version | The `schema_version` collection: the version of the data layout, when each [migration](#schema-version-and-migrations) ran, and the lock an instance holds while migrating. |
 | Evidence operation coordination | The evidence_operation_guards collection serializes hold changes and ledger deletions per owner. Guards do not expire; interrupted operations require the recovery procedure in [Legal Holds](redaction/legal_holds.md#concurrent-operations-and-recovery). |
+| Administrator change coordination | The `administrator_change_guard` collection lets one change at a time, across instances, demote or deactivate an administrator, so concurrent changes cannot remove the last active administrator. A guard left by an instance that stopped is free again after 30 seconds. |
 | Active signing key | The signing_key_state collection contains the single active-key pointer. Key history remains in signing_keys so earlier signatures can be verified after rotation. |
 | Ledger chain lifecycle | The `ledger_chains` collection tracks open, writing, failed, completed, and purged chains. Purged markers prevent late appends; they contain owner/document IDs and lifecycle timestamps, not tokens or replacements. |
 | Redaction ledger | The cryptographic ledger of redactions, when enabled for a context. See [Redaction Ledgers](redaction/ledgers.md). |

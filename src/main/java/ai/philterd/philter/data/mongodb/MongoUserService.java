@@ -42,12 +42,14 @@ public class MongoUserService extends StoredUserService {
     private final EncryptionService encryptionService;
     private final MongoRecords<UserEntity> records;
     private final MongoCollection<Document> collection;
+    private final MongoAdministratorGuard administratorGuard;
 
     public MongoUserService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
         super(auditEventPublisher);
         this.encryptionService = encryptionService;
         this.records = new MongoRecords<>(mongoClient, "users", entity -> UserDocuments.toDocument(entity, encryptionService));
         this.collection = records.collection;
+        this.administratorGuard = new MongoAdministratorGuard(mongoClient);
         records.ensureIndex(Indexes.ascending("username"), new IndexOptions().unique(true));
     }
 
@@ -89,6 +91,23 @@ public class MongoUserService extends StoredUserService {
             predicate = Filters.and(predicate, Filters.ne("deactivated", user.isDeactivated()));
         }
         return collection.updateOne(predicate, new Document("$set", selected(user, field))).getMatchedCount() == 1;
+    }
+
+    private static Bson activeAdmin() {
+        return Filters.and(Filters.regex("role", "^" + ROLE_ADMIN + "$", "i"), Filters.ne("deactivated", true));
+    }
+
+    @Override
+    protected AdministratorChange writeKeepingAnAdministrator(final UserEntity user, final Field field) {
+        // Every change that can remove an administrator holds the guard from its count to its write.
+        return administratorGuard.execute(() -> {
+            final boolean activeAdmin = collection.countDocuments(Filters.and(byId(user.getId()), activeAdmin())) == 1;
+            if (activeAdmin && collection.countDocuments(Filters.and(Filters.ne("_id", MongoIds.objectId(user.getId())),
+                    activeAdmin())) == 0) {
+                return AdministratorChange.LAST_ADMINISTRATOR;
+            }
+            return write(user, field) ? AdministratorChange.WRITTEN : AdministratorChange.UNCHANGED;
+        });
     }
 
     @Override
@@ -191,8 +210,7 @@ public class MongoUserService extends StoredUserService {
 
     @Override
     public long countActiveAdmins() {
-        return collection.countDocuments(Filters.and(
-                Filters.regex("role", "^" + ROLE_ADMIN + "$", "i"), Filters.ne("deactivated", true)));
+        return collection.countDocuments(activeAdmin());
     }
 
 }

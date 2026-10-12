@@ -16,7 +16,7 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
@@ -113,7 +113,7 @@ class ReplacementStrategyIT extends AbstractMongoIT {
         properties.put("span.disambiguation.enabled", "false");
         final PhileasConfiguration configuration = new PhileasConfiguration(properties);
 
-        final ContextService contextService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), MongoIds.newId(), "ctx");
+        final ContextService contextService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), MongoIds.newId(), "ctx");
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
                 configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));

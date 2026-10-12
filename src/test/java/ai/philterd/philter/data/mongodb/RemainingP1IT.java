@@ -38,14 +38,14 @@ class RemainingP1IT extends AbstractMongoIT {
         UserEntity user = new UserEntity();
         user.setUsername("operator"); user.setRole("admin");
         user.setFpeKey("0123456789abcdef0123456789abcdef");
-        user.setId(users.save(user));
+        user.setId(users.insert(user));
         return user;
     }
     /** Another administrator, so demoting the account under test is not refused as the last one. */
     private void anotherAdmin(MongoUserService users) {
         UserEntity other = new UserEntity();
         other.setUsername("other-admin"); other.setRole("admin");
-        users.save(other);
+        users.insert(other);
     }
     private PolicyDataService policies(PolicyVersionDataService versions) {
         return new MongoPolicyDataService(mongoClient, audit, new Gson(), versions,

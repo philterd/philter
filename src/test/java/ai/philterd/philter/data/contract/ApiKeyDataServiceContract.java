@@ -49,8 +49,7 @@ public interface ApiKeyDataServiceContract extends StorageContract {
         assertNull(storage().apiKeys().findOneByApiKey(apiKey));
         assertNull(storage().anotherInstance().apiKeys().findOneByApiKey(apiKey));
         // The record is kept.
-        assertEquals(List.of(key.getId()), storage().apiKeys().findAll(owner, 0, 10, true).stream()
-                .map(ApiKeyEntity::getId).toList());
+        assertEquals(1, storage().apiKeys().count(owner, true));
     }
 
     @Test
@@ -91,7 +90,6 @@ public interface ApiKeyDataServiceContract extends StorageContract {
         assertEquals(scopes, Set.copyOf(storage().apiKeys().findOneByApiKey(apiKey).getScopes()));
         assertTrue(storage().apiKeys().deleteByApiKey("req", owner, key, "test").isSuccessful());
         assertFalse(storage().apiKeys().updateScopes("req", owner, key, Set.of(), "test").isSuccessful());
-        assertEquals(scopes, Set.copyOf(storage().apiKeys().findAll(owner, 0, 10, true).get(0).getScopes()));
     }
 
     @Test

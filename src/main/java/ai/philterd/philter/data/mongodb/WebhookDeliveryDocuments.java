@@ -16,7 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
-import ai.philterd.philter.services.encryption.EncryptResult;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 
@@ -34,16 +34,7 @@ public final class WebhookDeliveryDocuments {
         entity.setEventType(document.getString("event_type"));
         entity.setStatus(document.getString("status"));
         entity.setUrl(document.getString("url"));
-        final String storedSecret = document.getString("secret");
-        if (storedSecret != null && !storedSecret.isEmpty()) {
-            final String encryptedKey = document.getString("secret_encrypted_key");
-            if (encryptedKey == null || encryptedKey.isBlank()) {
-                throw new IllegalStateException("Webhook signing secret has not been encrypted.");
-            }
-            entity.setSecret(encryptionService.decrypt(storedSecret, encryptedKey));
-        } else {
-            entity.setSecret(storedSecret);
-        }
+        entity.setSecret(SecretFields.open(encryptionService, document.getString("secret"), document.getString("secret_encrypted_key")));
         entity.setPayload(document.getString("payload"));
         entity.setAttempts(document.getInteger("attempts", 0));
         entity.setClaimToken(document.getString("claim_token"));
@@ -67,14 +58,9 @@ public final class WebhookDeliveryDocuments {
         document.put("event_type", entity.getEventType());
         document.put("status", entity.getStatus());
         document.put("url", entity.getUrl());
-        if (entity.getSecret() != null && !entity.getSecret().isEmpty()) {
-            final EncryptResult encrypted = encryptionService.encrypt(entity.getSecret(), entity.getUserId());
-            document.put("secret", encrypted.getEncryptedText());
-            document.put("secret_encrypted_key", encrypted.getEncryptionKey());
-        } else {
-            document.put("secret", entity.getSecret());
-            document.put("secret_encrypted_key", null);
-        }
+        final SecretFields.Sealed secret = SecretFields.seal(encryptionService, entity.getSecret(), entity.getUserId());
+        document.put("secret", secret == null ? null : secret.ciphertext());
+        document.put("secret_encrypted_key", secret == null ? null : secret.key());
         document.put("payload", entity.getPayload());
         document.put("attempts", entity.getAttempts());
         document.put("claim_token", entity.getClaimToken());

@@ -16,7 +16,7 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.philter.data.mongodb.MongoVectorServices;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -111,7 +111,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
         ledgerDataService = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), legalHoldDataService, signer);
 
-        redactionService = new RedactionService(new MongoContextServices(mongoClient, completionAudit), new MongoVectorServices(mongoClient, completionAudit), policyDataService,
+        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)), new MongoVectorServices(mongoClient), policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,
                 completionAudit, ledgerDataService, userService,
                 new SimpleMeterRegistry(), phield,
@@ -179,8 +179,8 @@ class LedgerFilenameIT extends AbstractMongoIT {
 
         // Search only ever looks at chain heads, so this matched nothing while the head held the
         // placeholder.
-        final List<LedgerEntity> hits = ledgerDataService.searchChainsByUserId(
-                "req-search", userId, "invoice-42", 0, 25, Source.API.getSource());
+        final List<LedgerEntity> hits = ledgerDataService.listChains(
+                "req-search", userId, "invoice-42", new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 25, Source.API.getSource()).items();
 
         assertFalse(hits.isEmpty(), "searching by filename should find the chain");
         assertEquals("invoice-42.txt", hits.getFirst().getFilename());
@@ -197,18 +197,18 @@ class LedgerFilenameIT extends AbstractMongoIT {
         redactionService.filter(POLICY_NAME, userId, CONTEXT, TEXT.getBytes(),
                 MimeType.TEXT_PLAIN, "statement-99.txt");
 
-        assertEquals(4, ledgerDataService.countChainsByUserId(userId), "the user owns four chains");
+        assertEquals(4, ledgerDataService.listChains("req", userId, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total(), "the user owns four chains");
 
         // The count must describe the matches, not the user's whole ledger.
-        assertEquals(3, ledgerDataService.countChainsByUserIdMatching(userId, "invoice"));
+        assertEquals(3, ledgerDataService.listChains("req", userId, "invoice", new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total());
 
         // ...and the page must be drawn from that same set.
-        final List<LedgerEntity> firstPage = ledgerDataService.searchChainsByUserId(
-                "req-page-1", userId, "invoice", 0, 2, Source.API.getSource());
+        final List<LedgerEntity> firstPage = ledgerDataService.listChains(
+                "req-page-1", userId, "invoice", new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 2, Source.API.getSource()).items();
         assertEquals(2, firstPage.size(), "a limit of 2 should return 2 of the 3 matches");
 
-        final List<LedgerEntity> secondPage = ledgerDataService.searchChainsByUserId(
-                "req-page-2", userId, "invoice", 2, 2, Source.API.getSource());
+        final List<LedgerEntity> secondPage = ledgerDataService.listChains(
+                "req-page-2", userId, "invoice", new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 2, 2, Source.API.getSource()).items();
         assertEquals(1, secondPage.size(), "the second page should hold the remaining match");
 
         for (final LedgerEntity e : firstPage) {
@@ -261,8 +261,8 @@ class LedgerFilenameIT extends AbstractMongoIT {
     }
 
     private LedgerEntity chainHead() {
-        final List<LedgerEntity> heads = ledgerDataService.findChainsByUserId(
-                "req-list", userId, 0, 25, Source.API.getSource());
+        final List<LedgerEntity> heads = ledgerDataService.listChains(
+                "req-list", userId, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 25, Source.API.getSource()).items();
         assertEquals(1, heads.size(), "exactly one chain should have been written");
         return heads.getFirst();
     }

@@ -84,10 +84,10 @@ public interface LedgerDataServiceContract extends StorageContract {
         for (int i = 0; i < 5; i++) {
             chain(owner, "doc-" + i, List.of("123-45-6789"));
         }
-        assertEquals(5, storage().ledger().countChainsByUserId(owner));
+        assertEquals(5, storage().ledger().listChains("req", owner, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total());
         final java.util.Set<String> seen = new java.util.HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {
-            storage().ledger().findChainsByUserId("req", owner, offset, 2, "test")
+            storage().ledger().listChains("req", owner, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), offset, 2, "test").items()
                     .forEach(head -> assertTrue(seen.add(head.getDocumentId())));
         }
         assertEquals(5, seen.size());

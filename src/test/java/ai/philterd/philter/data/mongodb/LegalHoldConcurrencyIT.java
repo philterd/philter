@@ -58,7 +58,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
             doReturn(isolated).when(mongoClient).getDatabase("philter");
         }
         owner = MongoIds.newId();
-        holds = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class));
+        holds = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class), new MongoEvidenceGuard(mongoClient));
         ledger = ledger(holds);
         mongoClient.getDatabase("philter").getCollection("ledger").insertOne(
                 new Document("user_id", MongoIds.objectId(owner)).append("document_id", "doc").append("timestamp", new Date(0)));
@@ -80,8 +80,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
     private ServiceResponse delete(final LedgerDataService service, final int path) {
         return switch (path) {
             case 0 -> service.deleteByDocumentId("req", owner, "doc", "test");
-            case 1 -> service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
-            default -> service.deleteAllByUserId("req", owner);
+            default -> service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
         };
     }
 
@@ -96,7 +95,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2})
+    @ValueSource(ints = {0, 1})
     void deletionHoldingGuardCannotBeOvertakenByEitherHoldScope(final int path) throws Exception {
         final var checked = new CountDownLatch(1);
         final var resume = new CountDownLatch(1);
@@ -113,7 +112,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
             final var pending = executor.submit(() -> delete(deleting, path));
             try {
                 assertTrue(checked.await(5, TimeUnit.SECONDS));
-                final var otherInstance = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class));
+                final var otherInstance = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class), new MongoEvidenceGuard(mongoClient));
                 assertEquals(409, create(otherInstance, false).getStatusCode());
                 final var refused = create(otherInstance, true);
                 assertEquals(409, refused.getStatusCode());
@@ -137,12 +136,12 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         final var audit = mock(AuditEventPublisher.class);
         doAnswer(inv -> { inserted.countDown(); assertTrue(resume.await(5, TimeUnit.SECONDS)); return null; })
                 .when(audit).auditEvent(any(), eq(AuditLogEvent.LEGAL_HOLD_SET), any(), any(), any(), any());
-        final var setting = new MongoLegalHoldDataService(mongoClient, audit);
+        final var setting = new MongoLegalHoldDataService(mongoClient, audit, new MongoEvidenceGuard(mongoClient));
         try (var executor = Executors.newSingleThreadExecutor()) {
             final var pending = executor.submit(() -> create(setting, userScope));
             try {
                 assertTrue(inserted.await(5, TimeUnit.SECONDS));
-                for (int path = 0; path < 3; path++) assertEquals(409, delete(ledger, path).getStatusCode());
+                for (int path = 0; path < 2; path++) assertEquals(409, delete(ledger, path).getStatusCode());
                 final var release = holds.release("req", "hold", owner);
                 assertEquals(409, release.getStatusCode());
                 assertEquals(LegalHoldDataService.REASON_OPERATION_IN_PROGRESS, release.getDetails());
@@ -152,7 +151,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
             }
             assertEquals(201, pending.get(5, TimeUnit.SECONDS).getStatusCode());
         }
-        for (int path = 0; path < 3; path++) assertEquals(423, delete(ledger, path).getStatusCode());
+        for (int path = 0; path < 2; path++) assertEquals(423, delete(ledger, path).getStatusCode());
         assertEquals(1, entries());
     }
 
@@ -160,10 +159,10 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
     void uncertainDeletionLeavesGuardHeldAcrossServiceRestart() {
         final var broken = spy(holds);
         doThrow(new IllegalStateException("uncertain operation")).when(broken).hasAnyHold(owner);
-        assertThrows(IllegalStateException.class, () -> ledger(broken).deleteAllByUserId("req", owner));
-        final var restarted = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class));
+        assertThrows(IllegalStateException.class, () -> ledger(broken).deleteChainsByUserIdAndOlderThan("req", owner, 0));
+        final var restarted = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class), new MongoEvidenceGuard(mongoClient));
         assertEquals(409, create(restarted, true).getStatusCode());
-        assertEquals(409, delete(ledger(restarted), 2).getStatusCode());
+        assertEquals(409, delete(ledger(restarted), 1).getStatusCode());
         final var guard = mongoClient.getDatabase("philter").getCollection("evidence_operation_guards")
                 .find(new Document("_id", MongoIds.objectId(owner))).first();
         assertNotNull(guard.getString("token"));
@@ -175,7 +174,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         assertEquals(201, holds.create("req", "unrelated", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN,
                 "other-doc", "", owner, owner).getStatusCode());
         assertTrue(delete(ledger, 0).isSuccessful());
-        final var guard = new EvidenceOperationGuard(mongoClient);
+        final var guard = new MongoEvidenceGuard(mongoClient);
         assertThrows(IllegalStateException.class, () -> guard.execute(owner, "failed",
                 () -> { throw new IllegalStateException("interrupted"); }));
         final var other = MongoIds.newId();
@@ -184,7 +183,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
     }
 
     @Test
-    void releasingOneHoldDoesNotRemoveAnotherAndDirectWritesAreRejected() {
+    void releasingOneHoldDoesNotRemoveAnother() {
         assertEquals(201, create(holds, true).getStatusCode());
         assertEquals(201, holds.create("req", "second", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN,
                 "doc", "", owner, owner).getStatusCode());
@@ -192,7 +191,5 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         assertEquals(423, delete(ledger, 0).getStatusCode());
         assertEquals(200, holds.release("req", "second", owner).getStatusCode());
         assertTrue(delete(ledger, 0).isSuccessful());
-        assertThrows(UnsupportedOperationException.class, () -> holds.save(new LegalHoldEntity()));
-        assertThrows(UnsupportedOperationException.class, () -> holds.update(new LegalHoldEntity()));
     }
 }

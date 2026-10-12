@@ -137,15 +137,10 @@ public interface UserService {
             final ContextDataService contextService, final String source,
             final String actingUserId, final String actingApiKeyId);
 
-    /** Lists a page of all users, including deactivated ones. */
-    List<UserEntity> findAll(final int offset, final int limit);
-
     /**
      * Lists a page of users sorted by email. When {@code includeDeactivated} is false, deactivated
      * users are excluded; when true, every user is returned, deactivated ones included.
      */
-    List<UserEntity> findAll(final int offset, final int limit, final boolean includeDeactivated);
-
     /**
      * A page of users, deactivated ones included, whose usernames contain {@code q}, with the given role
      * and active state when they are given, and their total.
@@ -246,8 +241,6 @@ public interface UserService {
     ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source, final String actingUserId, final String actingApiKeyId);
 
     /** Whole-record saves could overwrite a concurrent change to another field; update fields individually. */
-    void update(final UserEntity user);
-
     /**
      * Validates and saves a user's webhook URL and secret, then audits {@code webhook_configured} with
      * {@code actingUserId} as the principal (the user when null) and {@code actingApiKeyId}, if any, in

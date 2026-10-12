@@ -23,4 +23,7 @@ public interface VectorServices {
     /** The vector service holding {@code userId}'s context-scoped disambiguation vectors. */
     VectorService forUser(String userId);
 
+    /** Deletes every vector the user's context has learned, when the context is emptied or deleted. */
+    void deleteByContext(String userId, String context);
+
 }

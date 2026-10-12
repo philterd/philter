@@ -64,8 +64,6 @@ public interface SigningKeyDataService {
 
     PublicKey getPublicKey();
 
-    PrivateKey getPrivateKey();
-
     /** PEM for any retained key, active or superseded. Returns null when the id is unknown. */
     String getPublicKeyPem(final String keyId);
 
@@ -76,11 +74,5 @@ public interface SigningKeyDataService {
 
     /** All advertised fields come from one key selection even if rotation overlaps this request. */
     PublicKeyInfo getPublicKeyInfo();
-
-    /** Returns the public key as a minimal JWK JSON object (kty=EC, crv=P-256 per RFC 7518). */
-    String getPublicKeyJwk();
-
-    /** Returns the SHA-256 fingerprint of the public key (colon-separated hex bytes). */
-    String getPublicKeyFingerprint();
 
 }

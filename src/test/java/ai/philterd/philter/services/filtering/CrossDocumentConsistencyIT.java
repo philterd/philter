@@ -16,7 +16,6 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.FilterType;
@@ -77,7 +76,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         auditEventPublisher = mock(AuditEventPublisher.class);
-        contextEntryService = new MongoContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
+        contextEntryService = new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false));
     }
 
     @Test
@@ -225,7 +224,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
         properties.put("span.disambiguation.enabled", "false");
         final PhileasConfiguration configuration = new PhileasConfiguration(properties);
 
-        final ContextService contextService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), userId, context);
+        final ContextService contextService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), userId, context);
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
                 configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));

@@ -15,8 +15,7 @@
  */
 package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.data.services.SignInChallengeDataService;
-import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.data.services.StoredSignInChallengeDataService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -26,26 +25,20 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
-/** MongoDB implementation of {@link SignInChallengeDataService}. */
-public class MongoSignInChallengeDataService implements SignInChallengeDataService {
+/** Stores sign-in challenges in MongoDB, which removes them once they expire. */
+public class MongoSignInChallengeDataService extends StoredSignInChallengeDataService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SignInChallengeDataService.class);
-
-    /** How long a challenge can be used. */
-    public static final int LIFETIME_SECONDS = 300;
+    private static final Logger LOGGER = LoggerFactory.getLogger(MongoSignInChallengeDataService.class);
 
     private final MongoCollection<Document> collection;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public MongoSignInChallengeDataService(final MongoClient mongoClient) {
         this.collection = mongoClient.getDatabase("philter").getCollection("sign_in_challenges");
         try {
-            // Removes expired challenges; consume() also refuses them, since removal runs only periodically.
+            // Removes expired challenges; remove() also refuses them, since removal runs only periodically.
             collection.createIndex(Indexes.ascending("expires_at"), new IndexOptions().expireAfter(0L, TimeUnit.SECONDS));
             collection.createIndex(Indexes.ascending("token_hash"), new IndexOptions().unique(true));
         } catch (final Exception ex) {
@@ -54,23 +47,15 @@ public class MongoSignInChallengeDataService implements SignInChallengeDataServi
     }
 
     @Override
-    public Challenge create(final String userId) {
-        final byte[] bytes = new byte[32];
-        secureRandom.nextBytes(bytes);
-        final String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        final Date expiresAt = new Date(System.currentTimeMillis() + LIFETIME_SECONDS * 1000L);
-        collection.insertOne(new Document("token_hash", EncryptionService.hashSha256(token))
+    protected void insert(final String tokenHash, final String userId, final Date expiresAt) {
+        collection.insertOne(new Document("token_hash", tokenHash)
                 .append("user_id", MongoIds.objectId(userId)).append("expires_at", expiresAt));
-        return new Challenge(token, expiresAt);
     }
 
     @Override
-    public String consume(final String token) {
-        if (token == null || token.isBlank()) {
-            return null;
-        }
+    protected String remove(final String tokenHash, final Date now) {
         final Document document = collection.findOneAndDelete(Filters.and(
-                Filters.eq("token_hash", EncryptionService.hashSha256(token)), Filters.gt("expires_at", new Date())));
+                Filters.eq("token_hash", tokenHash), Filters.gt("expires_at", now)));
         return document == null ? null : MongoIds.hex(document.getObjectId("user_id"));
     }
 

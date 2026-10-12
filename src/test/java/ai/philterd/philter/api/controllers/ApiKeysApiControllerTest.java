@@ -408,7 +408,7 @@ class ApiKeysApiControllerTest {
 
         perform(get("/api/users/bob/api-keys")).andExpect(status().isForbidden());
 
-        verify(apiKeyDataService, never()).findAll(any(), anyInt(), anyInt());
+        verify(apiKeyDataService, never()).findAllBySession(any(), anyInt(), anyInt(), any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 
     // ----- changing scopes -----

@@ -16,7 +16,7 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.philter.data.mongodb.MongoVectorServices;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -91,7 +91,7 @@ class RedactionDisambiguationIT extends AbstractMongoIT {
 
         contextService = mock(ContextDataService.class);
 
-        redactionService = new RedactionService(new MongoContextServices(mongoClient, mock(AuditEventPublisher.class)), new MongoVectorServices(mongoClient, mock(AuditEventPublisher.class)), policyDataService,
+        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)), new MongoVectorServices(mongoClient), policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,
                 mock(AuditEventPublisher.class), mock(LedgerDataService.class), userService,
                 new SimpleMeterRegistry(), mock(PhieldPublisher.class),

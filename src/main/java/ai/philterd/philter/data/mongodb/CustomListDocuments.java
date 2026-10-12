@@ -16,13 +16,9 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.CustomListEntity;
-import ai.philterd.philter.services.encryption.EncryptResult;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /** Maps {@link CustomListEntity} to and from the documents MongoDB stores. */
 public final class CustomListDocuments {
@@ -37,18 +33,8 @@ public final class CustomListDocuments {
         customListEntity.setDescription(document.getString("description"));
         customListEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
 
-        final String encryptedItems = document.getString("items");
         final String itemsEncryptedKey = document.getString("items_encrypted_key");
-
-        final List<String> decryptedItems = new ArrayList<>();
-        if (encryptedItems != null && itemsEncryptedKey != null) {
-            final String decryptedItemsStr = encryptionService.decrypt(encryptedItems, itemsEncryptedKey);
-            if (decryptedItemsStr != null && !decryptedItemsStr.isEmpty()) {
-                decryptedItems.addAll(Arrays.asList(decryptedItemsStr.split("\n")));
-            }
-        }
-
-        customListEntity.setItems(decryptedItems);
+        customListEntity.setItems(SecretFields.openLines(encryptionService, document.getString("items"), itemsEncryptedKey));
         customListEntity.setItemsEncryptedKey(itemsEncryptedKey);
 
         return customListEntity;
@@ -63,15 +49,9 @@ public final class CustomListDocuments {
         document.put("description", entity.getDescription());
         document.put("user_id", MongoIds.objectId(entity.getUserId()));
 
-        if (entity.getItems() != null && !entity.getItems().isEmpty()) {
-            final String itemsStr = String.join("\n", entity.getItems());
-            final EncryptResult encryptResult = encryptionService.encrypt(itemsStr, entity.getUserId());
-            document.put("items", encryptResult.getEncryptedText());
-            document.put("items_encrypted_key", encryptResult.getEncryptionKey());
-        } else {
-            document.put("items", "");
-            document.put("items_encrypted_key", "");
-        }
+        final SecretFields.Sealed items = SecretFields.sealLines(encryptionService, entity.getItems(), entity.getUserId());
+        document.put("items", items.ciphertext());
+        document.put("items_encrypted_key", items.key());
 
         return document;
     }

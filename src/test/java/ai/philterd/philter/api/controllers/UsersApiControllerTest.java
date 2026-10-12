@@ -383,7 +383,7 @@ class UsersApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("administrator"), body);
-        verify(userService, never()).findAll(anyInt(), anyInt());
+        verify(userService, never()).list(any(), any(), any(), any(), anyInt(), anyInt());
     }
 
     @Test

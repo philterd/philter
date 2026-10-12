@@ -50,7 +50,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final SigningKeyDataService service = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
 
         assertNotNull(service.getPublicKey());
-        assertNotNull(service.getPrivateKey());
+        assertNotNull(service.currentSigningKey().privateKey());
 
         final long count = mongoClient.getDatabase("philter").getCollection("signing_keys").countDocuments();
         assertEquals(1, count, "exactly one keypair document must be persisted to MongoDB on first start");
@@ -63,11 +63,11 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
 
         final SigningKeyDataService service1 = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
-        final String fingerprint1 = service1.getPublicKeyFingerprint();
+        final String fingerprint1 = service1.getPublicKeyInfo().fingerprint();
 
         // Simulate a restart — new instance, same underlying MongoDB
         final SigningKeyDataService service2 = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
-        final String fingerprint2 = service2.getPublicKeyFingerprint();
+        final String fingerprint2 = service2.getPublicKeyInfo().fingerprint();
 
         assertEquals(fingerprint1, fingerprint2,
                 "second start must load the same keypair, not generate a new one");
@@ -84,12 +84,12 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     void regenerateProducesNewKeypairAndUpdatesMongoDocument() {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final SigningKeyDataService service = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
-        final String fingerprintBefore = service.getPublicKeyFingerprint();
+        final String fingerprintBefore = service.getPublicKeyInfo().fingerprint();
 
         final String actingUser = ai.philterd.philter.testutil.TestAdministrators.create(mongoClient);
         service.regenerate("req", actingUser, null, "source: test");
 
-        final String fingerprintAfter = service.getPublicKeyFingerprint();
+        final String fingerprintAfter = service.getPublicKeyInfo().fingerprint();
         assertNotEquals(fingerprintBefore, fingerprintAfter,
                 "fingerprint must change after regeneration");
 
@@ -109,18 +109,18 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final AuditEventPublisher publisher = mock(AuditEventPublisher.class);
         final SigningKeyDataService service = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         service.regenerate("req", ai.philterd.philter.testutil.TestAdministrators.create(mongoClient), null, "source: test");
-        final String fingerprintAfterRegenerate = service.getPublicKeyFingerprint();
+        final String fingerprintAfterRegenerate = service.getPublicKeyInfo().fingerprint();
 
         // New instance (simulating restart after regeneration) must load the regenerated key
         final SigningKeyDataService service2 = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
-        assertEquals(fingerprintAfterRegenerate, service2.getPublicKeyFingerprint(),
+        assertEquals(fingerprintAfterRegenerate, service2.getPublicKeyInfo().fingerprint(),
                 "new instance started after regeneration must load the regenerated key from MongoDB");
     }
 
     @Test
     void publicKeyJwkContainsRequiredRfc7518Fields() {
         final SigningKeyDataService service = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
-        final String jwk = service.getPublicKeyJwk();
+        final String jwk = service.getPublicKeyInfo().jwk();
 
         assertTrue(jwk.contains("\"kty\":\"EC\""), "JWK must have kty=EC");
         assertTrue(jwk.contains("\"crv\":\"P-256\""), "JWK must have crv=P-256 per RFC 7518");
@@ -140,7 +140,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
     @Test
     void publicKeyFingerprintIsColonSeparatedSha256Hex() {
         final SigningKeyDataService service = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
-        final String fingerprint = service.getPublicKeyFingerprint();
+        final String fingerprint = service.getPublicKeyInfo().fingerprint();
 
         // SHA-256 = 32 bytes = "xx:xx:...:xx" = 32*2 hex chars + 31 colons = 95 characters
         assertEquals(95, fingerprint.length(), "SHA-256 fingerprint must be 95 characters");

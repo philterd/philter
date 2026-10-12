@@ -123,7 +123,7 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
             submit(owner, new byte[]{1});
         }
         submit(RecordIds.newId(), new byte[]{1});
-        assertEquals(5, storage().pendingDocuments().countByUserId(owner));
+        assertEquals(5, storage().pendingDocuments().list(owner, null, new Listings.Sort("submitted_at", false), 0, 1).total());
         final Set<String> seen = new HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {
             storage().pendingDocuments().list(owner, null, new Listings.Sort("submitted_at", false), offset, 2).items()

@@ -13,30 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.data.mongodb;
+package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.services.StoredContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
-import ai.philterd.philter.services.context.ContextServices;
-import ai.philterd.philter.services.context.StoredContextService;
-import com.mongodb.client.MongoClient;
 
-/** Context services backed by MongoDB's context entries. */
-public class MongoContextServices implements ContextServices {
+/** Context services over the stored context entries, the same for every storage implementation. */
+public class StoredContextServices implements ContextServices {
 
-    private final MongoClient mongoClient;
-    private final AuditEventPublisher auditEventPublisher;
+    private final StoredContextEntryDataService contextEntryService;
 
-    public MongoContextServices(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        this.mongoClient = mongoClient;
-        this.auditEventPublisher = auditEventPublisher;
+    public StoredContextServices(final StoredContextEntryDataService contextEntryService) {
+        this.contextEntryService = contextEntryService;
     }
 
     @Override
     public ContextService forContext(final ContextCache contextCache, final String userId, final String contextName) {
-        return new StoredContextService(contextCache,
-                new MongoContextEntryDataService(mongoClient, auditEventPublisher, contextCache), userId, contextName);
+        return new StoredContextService(contextCache, contextEntryService.withCache(contextCache), userId, contextName);
     }
 
 }

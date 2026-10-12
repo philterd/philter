@@ -211,7 +211,7 @@ class ContextsApiControllerTest {
                         .requestAttr("requestId", "req-list-forbidden"))
                 .andExpect(status().isNotFound());
 
-        verify(contextService, never()).findAll(any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        verify(contextService, never()).list(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test

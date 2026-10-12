@@ -15,8 +15,6 @@
  */
 package ai.philterd.philter.services.filtering;
 
-import ai.philterd.philter.data.mongodb.MongoVectorServices;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.phileas.model.filtering.Explanation;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
@@ -67,7 +65,7 @@ class RedactionServiceMetricsTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        redactionService = new RedactionService(new MongoContextServices(mongoClient, auditEventPublisher), new MongoVectorServices(mongoClient, auditEventPublisher), policyDataService, customListService,
+        redactionService = new RedactionService(org.mockito.Mockito.mock(ai.philterd.philter.services.context.ContextServices.class), org.mockito.Mockito.mock(ai.philterd.philter.services.vectors.VectorServices.class), policyDataService, customListService,
                 redactListsService, contextService, auditEventPublisher,
                 ledgerService, userService, meterRegistry, phieldPublisher, piiCountAggregatePublisher,
                 new ai.philterd.philter.services.cache.RedactionCache());

@@ -51,12 +51,12 @@ class Release400AuditTest extends AbstractMongoIT {
         final UserEntity user = new UserEntity();
         user.setUsername("audit-user");
         user.setRole("admin");
-        final String id = service.save(user);
+        final String id = service.insert(user);
         // Another administrator, so demoting and deactivating this one is not refused as the last.
         final UserEntity otherAdmin = new UserEntity();
         otherAdmin.setUsername("audit-other-admin");
         otherAdmin.setRole("admin");
-        service.save(otherAdmin);
+        service.insert(otherAdmin);
         final UserEntity staleForm = service.findOneById(id);
         final UserEntity adminCopy = service.findOneById(id);
         service.setUserRole("audit", adminCopy, "user", "test");
@@ -112,7 +112,7 @@ class Release400AuditTest extends AbstractMongoIT {
     @Test
     void agePurgePreservesWholeChainAcrossCutoff() {
         final LedgerDataService service = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
-                audit, new MongoLegalHoldDataService(mongoClient, audit), mock(ai.philterd.philter.services.signing.SigningService.class));
+                audit, new MongoLegalHoldDataService(mongoClient, audit, new MongoEvidenceGuard(mongoClient)), mock(ai.philterd.philter.services.signing.SigningService.class));
         final String userId = MongoIds.newId();
         final var collection = mongoClient.getDatabase("philter").getCollection("ledger");
         collection.insertOne(new Document("user_id", MongoIds.objectId(userId)).append("document_id", "one-chain")
@@ -148,7 +148,7 @@ class Release400AuditTest extends AbstractMongoIT {
         org.mockito.Mockito.when(signing.signLedgerEntry(org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(new ai.philterd.philter.services.signing.SigningService.LedgerSignature("signature", "key"));
         final LedgerDataService service = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
-                audit, new MongoLegalHoldDataService(mongoClient, audit), signing);
+                audit, new MongoLegalHoldDataService(mongoClient, audit, new MongoEvidenceGuard(mongoClient)), signing);
         final String userId = MongoIds.newId();
         service.initializeLedger(userId, "signed-chain", "input-hash", "file", "policy", 1, "policy-hash");
         final var collection = mongoClient.getDatabase("philter").getCollection("ledger");
@@ -180,7 +180,9 @@ class Release400AuditTest extends AbstractMongoIT {
         final var delivery = new ai.philterd.philter.data.entities.WebhookDeliveryEntity();
         delivery.setUserId(MongoIds.newId());
         delivery.setSecret("audit-only-webhook-secret");
-        final String id = service.save(delivery);
+        final String id = MongoIds.newId();
+        delivery.setId(id);
+        service.enqueueOnce(delivery);
         final Document stored = mongoClient.getDatabase("philter").getCollection("webhook_deliveries")
                 .find(new Document("_id", MongoIds.objectId(id))).first();
         assertNotEquals("audit-only-webhook-secret", stored.getString("secret"));

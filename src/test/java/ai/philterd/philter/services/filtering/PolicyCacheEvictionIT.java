@@ -16,7 +16,7 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.philter.data.mongodb.MongoVectorServices;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService;
 import ai.philterd.philter.data.mongodb.MongoPolicyDataService;
 import ai.philterd.phileas.model.filtering.MimeType;
@@ -88,7 +88,7 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
         final RedactListsDataService redactListsService = mock(RedactListsDataService.class);
         when(redactListsService.find(userId)).thenReturn(null);
 
-        redactionService = new RedactionService(new MongoContextServices(mongoClient, mock(AuditEventPublisher.class)), new MongoVectorServices(mongoClient, mock(AuditEventPublisher.class)), policyDataService,
+        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)), new MongoVectorServices(mongoClient), policyDataService,
                 mock(CustomListDataService.class), redactListsService, mock(ContextDataService.class),
                 mock(AuditEventPublisher.class), mock(LedgerDataService.class), userService,
                 new SimpleMeterRegistry(), mock(PhieldPublisher.class),

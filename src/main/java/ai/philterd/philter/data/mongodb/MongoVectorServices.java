@@ -15,25 +15,69 @@
  */
 package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.phileas.services.disambiguation.vector.VectorService;
-import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.services.vectors.VectorServices;
+import ai.philterd.philter.data.entities.VectorEntity;
+import ai.philterd.philter.services.vectors.StoredVectorServices;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Sorts;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 
-/** Vector services backed by MongoDB. */
-public class MongoVectorServices implements VectorServices {
+import java.util.ArrayList;
+import java.util.List;
 
-    private final MongoClient mongoClient;
-    private final AuditEventPublisher auditEventPublisher;
+/** Stores disambiguation vectors in MongoDB, one document per hash. */
+public class MongoVectorServices extends StoredVectorServices {
 
-    public MongoVectorServices(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        this.mongoClient = mongoClient;
-        this.auditEventPublisher = auditEventPublisher;
+    private final MongoCollection<Document> collection;
+
+    public MongoVectorServices(final MongoClient mongoClient) {
+        final MongoRecords<VectorEntity> records = new MongoRecords<>(mongoClient, "vectors", VectorDocuments::toDocument);
+        this.collection = records.collection;
+        // Vector representation lookups query (user_id, context, filter_type); size/eviction
+        // checks query (user_id, context).
+        records.ensureIndex(Indexes.ascending("user_id", "context", "filter_type"));
+        records.ensureIndex(Indexes.ascending("user_id", "context"));
+    }
+
+    private static Bson inContext(final String userId, final String context) {
+        return Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("context", context));
     }
 
     @Override
-    public VectorService forUser(final String userId) {
-        return new MongoVectorService(mongoClient, userId, auditEventPublisher);
+    protected void insert(final VectorEntity vector) {
+        collection.insertOne(VectorDocuments.toDocument(vector));
+    }
+
+    @Override
+    protected long count(final String userId, final String context) {
+        return collection.countDocuments(inContext(userId, context));
+    }
+
+    @Override
+    protected void deleteOldest(final String userId, final String context) {
+        final Document victim = collection.find(inContext(userId, context)).sort(Sorts.ascending("_id")).first();
+        if (victim != null) {
+            collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
+        }
+    }
+
+    @Override
+    protected List<Double> findHashes(final String userId, final String context, final String filterType) {
+        final List<Double> hashes = new ArrayList<>();
+        for (final Document document : collection.find(Filters.and(inContext(userId, context), Filters.eq("filter_type", filterType)))
+                .projection(Projections.include("hash"))) {
+            hashes.add(document.getDouble("hash"));
+        }
+        return hashes;
+    }
+
+    @Override
+    public void deleteByContext(final String userId, final String context) {
+        collection.deleteMany(inContext(userId, context));
     }
 
 }

@@ -19,7 +19,8 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.services.Listings;
-import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.data.services.DuplicateRecordException;
+import ai.philterd.philter.data.services.StoredPolicyVersionDataService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -28,26 +29,26 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/** MongoDB implementation of {@link PolicyVersionDataService}. */
-public class MongoPolicyVersionDataService extends AbstractService<PolicyVersionEntity> implements PolicyVersionDataService {
+/** Stores policy versions in MongoDB: content by its hash, and a document per revision. */
+public class MongoPolicyVersionDataService extends StoredPolicyVersionDataService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PolicyVersionDataService.class);
+    private final MongoRecords<PolicyVersionEntity> records;
+    private final com.mongodb.client.MongoCollection<Document> collection;
 
-    /** Serializes canonicalized policy JSON compactly for hashing. */
+    /** Policy content, by its hash. */
     private final com.mongodb.client.MongoCollection<Document> contents;
 
     /** When each of a user's policies was last deleted, and by whom, so deleted policies can be listed. */
     private final com.mongodb.client.MongoCollection<Document> deletions;
 
     public MongoPolicyVersionDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "policy_versions", auditEventPublisher);
+        records = new MongoRecords<>(mongoClient, "policy_versions", PolicyVersionDocuments::toDocument);
+        collection = records.collection;
 
         contents = mongoClient.getDatabase("philter").getCollection("policy_contents");
         deletions = mongoClient.getDatabase("philter").getCollection("policy_deletions");
@@ -56,77 +57,29 @@ public class MongoPolicyVersionDataService extends AbstractService<PolicyVersion
         // A snapshot is identified by the revision it was taken at, not by its content: the same
         // content legitimately reappears at a later revision, through a rollback or an edit that
         // restores an earlier policy.
-        ensureIndex(Indexes.ascending("user_id", "name", "revision"), new IndexOptions().unique(true));
+        records.ensureIndex(Indexes.ascending("user_id", "name", "revision"), new IndexOptions().unique(true));
         // Resolving a pinned policy by its fingerprint, which several revisions may share.
-        ensureIndex(Indexes.ascending("content_hash"));
+        records.ensureIndex(Indexes.ascending("content_hash"));
     }
 
     @Override
-    public String snapshot(final PolicyEntity policyEntity) {
-
-        if (policyEntity == null) {
-            return null;
-        }
-
-        final String policyJson = policyEntity.getPolicy();
-        final String hash = PolicyVersionDataService.contentHash(policyJson);
-        if (hash == null) {
-            return null;
-        }
-
-        // Persist the content independently of the revision reference. Only duplicate-key errors
-        // are idempotent; authorization, validation and storage failures must reach the caller.
+    protected void insertContent(final String contentHash, final String policyJson) {
         try {
-            contents.insertOne(new Document("_id", hash).append("policy", policyJson));
+            contents.insertOne(new Document("_id", contentHash).append("policy", policyJson));
         } catch (final com.mongodb.MongoWriteException e) {
-            if (e.getError().getCode() != 11000) throw e;
-            final Document existing = contents.find(Filters.eq("_id", hash)).first();
-            if (existing == null || !hash.equals(PolicyVersionDataService.contentHash(existing.getString("policy")))) throw e;
+            throw MongoRecords.isDuplicate(e) ? new DuplicateRecordException(e) : e;
         }
-        final PolicyVersionEntity existing = findByNameAndRevision(policyEntity.getName(),
-                policyEntity.getUserId(), policyEntity.getRevision());
-        if (existing != null) {
-            if (!hash.equals(existing.getContentHash())) {
-                throw new IllegalStateException("Policy revision already refers to different content.");
-            }
-            return hash;
-        }
-
-        final PolicyVersionEntity version = new PolicyVersionEntity();
-        version.setName(policyEntity.getName());
-        version.setRevision(policyEntity.getRevision());
-        version.setContentHash(hash);
-        version.setPolicy(policyJson);
-        version.setUserId(policyEntity.getUserId());
-        version.setCapturedTimestamp(new Date());
-        version.setAuthorId(policyEntity.getAuthorId());
-
-        try {
-            save(version);
-        } catch (final com.mongodb.MongoWriteException e) {
-            if (e.getError().getCode() != 11000) throw e;
-            final PolicyVersionEntity winner = findByNameAndRevision(policyEntity.getName(),
-                    policyEntity.getUserId(), policyEntity.getRevision());
-            if (winner == null || !hash.equals(winner.getContentHash())) throw e;
-        }
-
-        return hash;
     }
 
     @Override
-    public PolicyVersionEntity findByContentHash(final String contentHash) {
-        if (contentHash == null) {
-            return null;
-        }
+    protected String findContent(final String contentHash) {
         final Document document = contents.find(Filters.eq("_id", contentHash)).first();
-        if (document == null) return null;
-        if (!contentHash.equals(PolicyVersionDataService.contentHash(document.getString("policy")))) {
-            throw new IllegalStateException("Policy content does not match its fingerprint.");
-        }
-        final PolicyVersionEntity result = new PolicyVersionEntity();
-        result.setContentHash(contentHash);
-        result.setPolicy(document.getString("policy"));
-        return result;
+        return document == null ? null : document.getString("policy");
+    }
+
+    @Override
+    protected void insertVersion(final PolicyVersionEntity version) {
+        records.insert(version);
     }
 
     @Override
@@ -163,11 +116,6 @@ public class MongoPolicyVersionDataService extends AbstractService<PolicyVersion
     }
 
     @Override
-    public List<PolicyVersionEntity> findTwoMostRecent(final String name, final String userId) {
-        return findAllByName(name, userId, 0, 2);
-    }
-
-    @Override
     public void recordDeletion(final String userId, final String name, final int revision,
                                final String deletedBy, final Date deletedAt) {
         deletions.updateOne(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name)),
@@ -189,15 +137,6 @@ public class MongoPolicyVersionDataService extends AbstractService<PolicyVersion
                 Filters.eq("name", name))).first();
         return deletion == null ? null
                 : new Deletion(deletion.getDate("deleted_at"), MongoIds.hex(deletion.getObjectId("deleted_by")));
-    }
-
-    @Override
-    public void update(PolicyVersionEntity version) {
-        throw new UnsupportedOperationException("Policy versions are immutable.");
-    }
-    @Override
-    protected Document toDocument(final PolicyVersionEntity entity) {
-        return PolicyVersionDocuments.toDocument(entity);
     }
 
 }

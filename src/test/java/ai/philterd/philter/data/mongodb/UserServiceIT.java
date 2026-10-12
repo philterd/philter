@@ -87,7 +87,7 @@ class UserServiceIT extends AbstractMongoIT {
         final EncryptionService encryptionService = new RealLocalEncryptionService();
 
         service = new MongoUserService(mongoClient, encryptionService, audit);
-        contextDataService = new MongoContextDataService(mongoClient, new ContextCache(null, 0, null, false), audit);
+        contextDataService = new MongoContextDataService(mongoClient, audit, new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false)), new MongoVectorServices(mongoClient));
         policyDataService = new MongoPolicyDataService(mongoClient, audit, new Gson(),
                 new MongoPolicyVersionDataService(mongoClient, audit), new ai.philterd.philter.services.cache.RedactionCache());
         redactListsDataService = new MongoRedactListsDataService(mongoClient, encryptionService, audit);
@@ -273,7 +273,7 @@ class UserServiceIT extends AbstractMongoIT {
     void missingFpeKeyFailsWithoutChangingAccount() {
         final UserEntity user = new UserEntity();
         user.setUsername("missing-key"); user.setRole("user");
-        final String id = service.save(user);
+        final String id = service.insert(user);
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
                 () -> service.ensureFpeKey(service.findOneById(id)));
         assertNull(service.findOneById(id).getFpeKey());
@@ -300,7 +300,7 @@ class UserServiceIT extends AbstractMongoIT {
         final UserEntity user = service.findByUsername("frank@example.com");
         // The new user starts with an auto-created "default" context plus one we add here.
         assertTrue(contextDataService.create("extra", user.getId()).isSuccessful());
-        assertEquals(2, contextDataService.findAll(user.getId()).size());
+        assertEquals(2, contextDataService.count(user.getId()));
 
         service.deactivateUser("req", user, "system");
 
@@ -318,7 +318,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertEquals(0, service.count(false));
 
         // Deactivation retains all of the user's data: contexts are untouched.
-        assertEquals(2, contextDataService.findAll(user.getId()).size());
+        assertEquals(2, contextDataService.count(user.getId()));
         assertNotNull(contextDataService.findOne("default", user.getId()));
         assertNotNull(contextDataService.findOne("extra", user.getId()));
     }
@@ -346,13 +346,13 @@ class UserServiceIT extends AbstractMongoIT {
                 mongoClient, new RealLocalEncryptionService(), mock(AuditEventPublisher.class),
                 noOpHoldService, ledgerSigner);
         ledgerDataService.initializeLedger(userId, "doc-1", "input-hash", "file.txt", "default", 0, "policy-hash");
-        assertEquals(1, ledgerDataService.countChainsByUserId(userId));
+        assertEquals(1, ledgerDataService.listChains("req", userId, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total());
 
         service.deactivateUser("req", user, "system");
 
         // Deactivation must not cascade: the policies and the ledger are retained ...
         assertTrue(policyDataService.count(userId) >= 1, "policies must survive user deactivation");
-        assertEquals(1, ledgerDataService.countChainsByUserId(userId), "the redaction ledger must survive user deactivation");
+        assertEquals(1, ledgerDataService.listChains("req", userId, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total(), "the redaction ledger must survive user deactivation");
 
         // ... and remain resolvable to the retained (deactivated) owning user.
         final UserEntity retained = service.findOneById(userId);
@@ -381,7 +381,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertNull(reactivated.getDeactivatedAt());
 
         // The data was never removed, so it is all still there.
-        assertEquals(2, contextDataService.findAll(user.getId()).size());
+        assertEquals(2, contextDataService.count(user.getId()));
         assertEquals(1, service.count(false));
     }
 
@@ -402,8 +402,8 @@ class UserServiceIT extends AbstractMongoIT {
         // Only one row exists; it is excluded from the active listing but present in the full one.
         assertEquals(1, service.count());
         assertEquals(0, service.count(false));
-        assertEquals(1, service.findAll(0, 100, true).size());
-        assertEquals(0, service.findAll(0, 100, false).size());
+        assertEquals(1, service.count(true));
+        assertEquals(0, service.count(false));
     }
 
     @Test
@@ -457,12 +457,12 @@ class UserServiceIT extends AbstractMongoIT {
         assertEquals(3, service.count());
 
         // Results are sorted ascending by username, so paging is deterministic.
-        final List<UserEntity> firstPage = service.findAll(0, 2);
+        final List<UserEntity> firstPage = service.list(null, null, null, new ai.philterd.philter.data.services.Listings.Sort("username", false), 0, 2).items();
         assertEquals(2, firstPage.size());
         assertEquals("u1@example.com", firstPage.get(0).getUsername());
         assertEquals("u2@example.com", firstPage.get(1).getUsername());
 
-        final List<UserEntity> secondPage = service.findAll(2, 2);
+        final List<UserEntity> secondPage = service.list(null, null, null, new ai.philterd.philter.data.services.Listings.Sort("username", false), 2, 2).items();
         assertEquals(1, secondPage.size());
         assertEquals("u3@example.com", secondPage.get(0).getUsername());
     }

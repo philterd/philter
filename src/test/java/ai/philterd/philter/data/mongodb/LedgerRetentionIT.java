@@ -78,11 +78,11 @@ class LedgerRetentionIT extends AbstractMongoIT {
     @Test
     void purgeDeletesWholeEligibleChainAndPreservesOtherOwner() throws Exception {
         final var head = entry(owner, "shared", LedgerDataService.GENESIS, old);
-        service.save(head);
-        service.save(entry(owner, "shared", head.getHash(), old));
+        service.addTransaction(head);
+        service.addTransaction(entry(owner, "shared", head.getHash(), old));
         sealOld(owner, "shared");
         final var other = MongoIds.newId();
-        service.save(entry(other, "shared", LedgerDataService.GENESIS, old));
+        service.addTransaction(entry(other, "shared", LedgerDataService.GENESIS, old));
         sealOld(other, "shared");
 
         final var result = service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
@@ -96,19 +96,19 @@ class LedgerRetentionIT extends AbstractMongoIT {
     @Test
     void chainSpanningCutoffKeepsItsGenesisAndSuffix() throws Exception {
         final var head = entry(owner, "spanning", LedgerDataService.GENESIS, old);
-        service.save(head);
-        service.save(entry(owner, "spanning", head.getHash(), new Date()));
+        service.addTransaction(head);
+        service.addTransaction(entry(owner, "spanning", head.getHash(), new Date()));
         sealOld(owner, "spanning");
         service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
         assertEquals(2, service.getChain(owner, "spanning").size());
-        assertEquals(1, service.countChainsByUserId(owner));
+        assertEquals(1, service.listChains("req", owner, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total());
     }
 
     @Test
     void recentlyCompletedAndUnfinishedChainsAreRetained() throws Exception {
-        service.save(entry(owner, "recent", LedgerDataService.GENESIS, old));
+        service.addTransaction(entry(owner, "recent", LedgerDataService.GENESIS, old));
         service.completeChain(owner, "recent");
-        service.save(entry(owner, "unfinished", LedgerDataService.GENESIS, old));
+        service.addTransaction(entry(owner, "unfinished", LedgerDataService.GENESIS, old));
         service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
         assertEquals(1, service.getChain(owner, "recent").size());
         assertEquals(1, service.getChain(owner, "unfinished").size());
@@ -117,20 +117,20 @@ class LedgerRetentionIT extends AbstractMongoIT {
     @Test
     void completedAndPurgedChainsRejectAppendsFromAnotherService() throws Exception {
         final var head = entry(owner, "sealed", LedgerDataService.GENESIS, old);
-        service.save(head);
+        service.addTransaction(head);
         sealOld(owner, "sealed");
         final var otherWorker = newService();
         final var next = entry(owner, "sealed", head.getHash(), new Date());
-        assertThrows(IllegalStateException.class, () -> otherWorker.save(next));
+        assertThrows(IllegalStateException.class, () -> otherWorker.addTransaction(next));
         service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
-        assertThrows(IllegalStateException.class, () -> otherWorker.save(next));
+        assertThrows(IllegalStateException.class, () -> otherWorker.addTransaction(next));
         assertTrue(service.getChain(owner, "sealed").isEmpty());
     }
 
     @Test
     void activeWriterPreventsSealingAndAgePurge() throws Exception {
         final var head = entry(owner, "writing", LedgerDataService.GENESIS, old);
-        service.save(head);
+        service.addTransaction(head);
         final var next = entry(owner, "writing", head.getHash(), old);
         final CountDownLatch writing = new CountDownLatch(1);
         final CountDownLatch release = new CountDownLatch(1);
@@ -140,7 +140,7 @@ class LedgerRetentionIT extends AbstractMongoIT {
             return invocation.callRealMethod();
         }).when(encryption).encrypt(anyString(), anyString());
         try (var executor = Executors.newSingleThreadExecutor()) {
-            final var pending = executor.submit(() -> service.save(next));
+            final var pending = executor.submit(() -> service.addTransaction(next));
             try {
                 assertTrue(writing.await(5, TimeUnit.SECONDS));
                 final var purger = newService();
@@ -158,11 +158,11 @@ class LedgerRetentionIT extends AbstractMongoIT {
 
     @Test
     void failedInsertCannotBeSealedOrPurged() throws Exception {
-        service.save(entry(owner, "failed", LedgerDataService.GENESIS, old));
+        service.addTransaction(entry(owner, "failed", LedgerDataService.GENESIS, old));
         doThrow(new IllegalStateException("encryption unavailable"))
                 .when(encryption).encrypt(anyString(), anyString());
         final var next = entry(owner, "failed", "previous", old);
-        assertThrows(IllegalStateException.class, () -> service.save(next));
+        assertThrows(IllegalStateException.class, () -> service.addTransaction(next));
         assertThrows(IllegalStateException.class, () -> service.completeChain(owner, "failed"));
         service.deleteChainsByUserIdAndOlderThan("req", owner, 0);
         assertEquals(1, service.getChain(owner, "failed").size());
@@ -170,7 +170,7 @@ class LedgerRetentionIT extends AbstractMongoIT {
 
     @Test
     void holdBlocksWholeChainPurge() throws Exception {
-        service.save(entry(owner, "held", LedgerDataService.GENESIS, old));
+        service.addTransaction(entry(owner, "held", LedgerDataService.GENESIS, old));
         sealOld(owner, "held");
         when(holds.hasAnyHold(owner)).thenReturn(true);
         assertEquals(423, service.deleteChainsByUserIdAndOlderThan("req", owner, 1).getStatusCode());

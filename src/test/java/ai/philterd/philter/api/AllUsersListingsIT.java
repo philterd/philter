@@ -151,7 +151,7 @@ class AllUsersListingsIT {
 
         final Set<String> policies = allPages("/api/policies", "policies", "name");
         assertTrue(policies.containsAll(Set.of("default|" + alice, "default|" + bob)), policies.toString());
-        assertEquals(policyDataService.countAllAcrossUsers(false), policies.size(),
+        assertEquals(policyDataService.listAcrossUsers(null, new ai.philterd.philter.data.services.Listings.Sort("name", false), 0, 1).total(), policies.size(),
                 "paging through every user's policies returns each exactly once");
 
         final Set<String> contexts = allPages("/api/contexts", "contexts", "name");

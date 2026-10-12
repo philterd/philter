@@ -80,8 +80,6 @@ public interface ApiKeyDataService {
      * Returns the user's active (non-deleted) bootstrap key, or {@code null} if none. Shows
      * whether a key seeded from {@link #BOOTSTRAP_API_KEY_ENV} is still in use.
      */
-    ApiKeyEntity findActiveBootstrapKey(final String userId);
-
     /**
      * Looks up an active key by its id. Used to re-read a key from the database before acting on it, so
      * an authorization check is made against stored state rather than against a caller-supplied object.
@@ -96,9 +94,6 @@ public interface ApiKeyDataService {
     boolean isEndedSessionKey(final String apiKey);
 
     ApiKeyEntity findOneByApiKey(final String apiKey);
-
-    /** Lists a page of a user's active (non-deleted) API keys. */
-    List<ApiKeyEntity> findAll(final String userId, final int offset, final int limit);
 
     /**
      * Lists a page of a user's active API keys: only session keys when {@code session} is true, only
@@ -117,8 +112,6 @@ public interface ApiKeyDataService {
      * Lists a page of a user's API keys sorted by creation time. When {@code includeDeleted} is false,
      * soft-deleted keys are excluded; when true, deleted keys are included, marked as deleted (a deleted key is revoked and can never authenticate again).
      */
-    List<ApiKeyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeDeleted);
-
     /** Counts a user's active (non-deleted) API keys. */
     int count(final String userId);
 
@@ -146,8 +139,6 @@ public interface ApiKeyDataService {
     ServiceResponse deleteByApiKey(final String requestId, final String callerUserId,
             final ApiKeyEntity apiKeyEntity, final String source,
             final String auditDetails);
-
-    long deleteAllByUserId(final String requestId, final String userId, final String source);
 
     /**
      * Issues a session key: an API key for a person who signed in, which expires after
@@ -207,7 +198,5 @@ public interface ApiKeyDataService {
     /** As above, leaving {@code keepKeyId}, when given, alone: signing out every session but the current one. */
     long revokeSessionKeys(final String requestId, final String userId, final String source,
             final String auditDetails, final String keepKeyId);
-
-    void update(final ApiKeyEntity key);
 
 }

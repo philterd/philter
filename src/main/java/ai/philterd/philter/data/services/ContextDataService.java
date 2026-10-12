@@ -58,21 +58,10 @@ public interface ContextDataService {
      * Returns every context for every user. Intended for admin-only views; ordinary access must use the
      * owner-scoped {@link #findAll(String)}.
      */
-    List<ContextEntity> findAllAcrossUsers();
-
     /**
      * Returns one page of contexts across every user, ordered by name. Intended for admin-only views;
      * ordinary access must use the owner-scoped {@link #findAll(String)}.
      */
-    List<ContextEntity> findAllAcrossUsers(final int offset, final int limit);
-
-    /** Returns the total number of contexts across every user (for admin paging). */
-    int countAllAcrossUsers();
-
-    List<ContextEntity> findAll(final String userId);
-
-    ContextEntity findOneByIdAndUserId(final String id, final String userId);
-
     ContextEntity findOneByNameAndUserId(final String contextName, final String userId);
 
     /**
@@ -81,10 +70,6 @@ public interface ContextDataService {
      */
     Listings.Page<ContextEntity> list(final String userId, final String q, final Listings.Sort sort,
             final int offset, final int limit);
-
-    List<ContextEntity> findAll(final String userId, final int offset, final int limit);
-
-    List<ContextEntity> findAll(final String userId, final int offset, final int limit, final String sortField, final String sortDirection);
 
     int count(final String userId);
 

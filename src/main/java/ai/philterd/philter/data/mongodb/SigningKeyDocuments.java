@@ -16,7 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.SigningKeyEntity;
-import ai.philterd.philter.services.encryption.EncryptedBytes;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
@@ -43,7 +43,7 @@ public final class SigningKeyDocuments {
         if (wrappedKey == null || wrappedKey.isBlank()) {
             throw new IllegalStateException("Signing private key is missing its encryption key.");
         }
-        e.setPrivateKeyEncoded(encryptionService.decryptBytes(storedPrivate, wrappedKey));
+        e.setPrivateKeyEncoded(SecretFields.openBytes(encryptionService, storedPrivate, wrappedKey));
         e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
         e.setCreatedAt(doc.getDate("created_at"));
         return e;
@@ -56,9 +56,9 @@ public final class SigningKeyDocuments {
         }
         doc.put("key_id", entity.getKeyId());
 
-        final EncryptedBytes encrypted = encryptionService.encryptBytes(entity.getPrivateKeyEncoded(), SYSTEM_OWNER);
+        final SecretFields.SealedBytes encrypted = SecretFields.sealBytes(encryptionService, entity.getPrivateKeyEncoded(), SYSTEM_OWNER);
         doc.put("private_key", new Binary(encrypted.ciphertext()));
-        doc.put("private_key_encrypted_key", encrypted.encryptionKey());
+        doc.put("private_key_encrypted_key", encrypted.key());
 
         doc.put("public_key", entity.getPublicKeyEncoded());
         doc.put("created_at", entity.getCreatedAt());

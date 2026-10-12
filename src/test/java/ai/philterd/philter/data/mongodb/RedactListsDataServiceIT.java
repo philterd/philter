@@ -116,17 +116,15 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
     }
 
     /**
-     * A user-scoped read must ignore an orphan (owner-less) redact-lists document — for example a
-     * legacy row written before terms were per-user, which has no {@code user_id} field. Such a row
-     * must not bleed into any real user's scoped lookup.
+     * A user-scoped read must ignore an orphan (owner-less) redact-lists document, which has no
+     * {@code user_id} field. Such a row must not bleed into any real user's scoped lookup.
      */
     @Test
     void scopedFindIgnoresOrphanOwnerlessDocument() {
         final MongoCollection<Document> redactLists =
                 mongoClient.getDatabase("philter").getCollection("redact_lists");
-        // Insert a document with no user_id at all (simulates pre-per-user legacy data).
-        redactLists.insertOne(new Document("terms_to_always_redact", List.of("legacy"))
-                .append("terms_to_never_redact", List.of()));
+        // Insert a document with no user_id at all.
+        redactLists.insertOne(new Document("terms_to_always_redact", "").append("terms_to_never_redact", ""));
 
         final String user = MongoIds.newId();
         service.saveOrUpdate("req", user, List.of("mine"), List.of(), "source");
@@ -210,34 +208,6 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
         assertEquals(new ListContents(List.of("b"), 1L), service.findList(user, RedactList.NEVER));
     }
 
-    @Test
-    void listsWrittenBeforeRevisionsAreAtRevisionZero() {
-        final String user = MongoIds.newId();
-        mongoClient.getDatabase("philter").getCollection("redact_lists")
-                .insertOne(new Document("user_id", MongoIds.objectId(user)).append("terms_to_always_redact", List.of("legacy"))
-                        .append("terms_to_never_redact", List.of()));
 
-        assertEquals(new ListContents(List.of("legacy"), 0L), service.findList(user, RedactList.ALWAYS));
-        assertEquals(new ListContents(List.of("new"), 1L),
-                service.replaceList("req", user, RedactList.ALWAYS, List.of("new"), 0L, "source"));
-    }
-
-    @Test
-    void replacesTheNonUniqueIndexEarlierBuildsMade() {
-        final MongoCollection<Document> redactLists = mongoClient.getDatabase("philter").getCollection("redact_lists");
-        for (final Document index : redactLists.listIndexes()) {
-            if (!"_id_".equals(index.getString("name"))) {
-                redactLists.dropIndex(index.getString("name"));
-            }
-        }
-        redactLists.createIndex(new Document("user_id", 1));
-
-        new MongoRedactListsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
-
-        final List<String> names = new java.util.ArrayList<>();
-        redactLists.listIndexes().forEach(index -> names.add(index.getString("name")));
-        assertFalse(names.contains("user_id_1"), names.toString());
-        assertTrue(names.contains("user_id_unique"), names.toString());
-    }
 
 }

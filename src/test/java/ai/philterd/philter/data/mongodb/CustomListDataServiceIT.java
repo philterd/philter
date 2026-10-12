@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.model.ServiceResponse;
@@ -54,6 +55,10 @@ class CustomListDataServiceIT extends AbstractMongoIT {
         service = new MongoCustomListDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
+    private long count(final String user) {
+        return service.list(user, null, new Listings.Sort("name", false), 0, 100).total();
+    }
+
     private ServiceResponse save(final String user, final String name, final List<String> items) {
         return service.saveOrUpdate("req", user, name, "a description", items, true, "test");
     }
@@ -89,7 +94,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
         assertTrue(update.isSuccessful());
         assertEquals(200, update.getStatusCode());
         assertEquals(List.of("Carol"), service.findOneByName("names", user).getItems());
-        assertEquals(1, service.count(user), "an update must not leave a second list behind");
+        assertEquals(1, count(user), "an update must not leave a second list behind");
 
     }
 
@@ -120,37 +125,15 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
         // The name check saw no list, as it would if the other create had not landed yet.
         final CustomListDataService racing = spy(service);
-        doReturn(false).when(racing).existsForUser("names", user);
+        doReturn(null).when(racing).findOneByName("names", user);
 
         final ServiceResponse refused = racing.saveOrUpdate("req", user, "names", "d", List.of("Bob"), false, "test");
         assertEquals(409, refused.getStatusCode());
         assertEquals(CustomListDataService.REASON_LIST_EXISTS, refused.getDetails());
-        assertEquals(1, service.findAll(user).size(), "only one list has the name");
+        assertEquals(1, count(user), "only one list has the name");
 
     }
 
-    @Test
-    @DisplayName("The non-unique index of earlier builds is replaced by the unique one")
-    void theLegacyIndexIsReplaced() {
-
-        final var collection = mongoClient.getDatabase("philter").getCollection("custom_lists");
-        collection.drop();
-        assertEquals("user_id_1_name_1", collection.createIndex(new Document("user_id", 1).append("name", 1)),
-                "the index earlier builds made, under its default name");
-
-        new MongoCustomListDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
-
-        final List<String> names = new ArrayList<>();
-        for (final Document index : collection.listIndexes()) {
-            names.add(index.getString("name"));
-            if ("user_id_name_unique".equals(index.getString("name"))) {
-                assertTrue(index.getBoolean("unique", false), "the name index is unique");
-            }
-        }
-        assertTrue(names.contains("user_id_name_unique"), names.toString());
-        assertFalse(names.contains("user_id_1_name_1"), names.toString());
-
-    }
 
     @Test
     @DisplayName("Replacing a list changes its items, keeps an omitted description, and clears an empty one")
@@ -210,7 +193,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
         assertEquals(400, service.saveOrUpdate("req", user, "n", "d", List.of(), true, "test").getStatusCode());
         assertEquals(400, service.saveOrUpdate("req", user, "n", "d", null, true, "test").getStatusCode());
 
-        assertEquals(0, service.count(user), "nothing refused may be stored");
+        assertEquals(0, count(user), "nothing refused may be stored");
 
     }
 
@@ -282,19 +265,6 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
     // ----- Reading -----
 
-    @Test
-    @DisplayName("A list is found by id only by the user who owns it")
-    void findingByIdIsScopedToTheOwner() {
-
-        final String owner = MongoIds.newId();
-        final String stranger = MongoIds.newId();
-
-        final String id = (String) save(owner, "names", List.of("Alice")).getObjectId();
-
-        assertNotNull(service.findOneById(id, owner));
-        assertNull(service.findOneById(id, stranger), "another user's id must not resolve");
-
-    }
 
     @Test
     @DisplayName("A list is found by name only by the user who owns it")
@@ -305,8 +275,6 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
         assertNotNull(service.findOneByName("names", owner));
         assertNull(service.findOneByName("names", MongoIds.newId()));
-        assertTrue(service.existsForUser("names", owner));
-        assertFalse(service.existsForUser("names", MongoIds.newId()));
 
     }
 
@@ -339,15 +307,16 @@ class CustomListDataServiceIT extends AbstractMongoIT {
             save(user, name, List.of("item"));
         }
 
-        assertEquals(3, service.count(user));
+        assertEquals(3, count(user));
 
-        final List<String> ascending = service.findAll(user, 0, 10, "name", "ASC")
+        final Listings.Sort byName = new Listings.Sort("name", false);
+        final List<String> ascending = service.list(user, null, byName, 0, 10).items()
                 .stream().map(CustomListEntity::getName).toList();
         assertEquals(List.of("alpha", "bravo", "charlie"), ascending);
 
-        final List<String> firstPage = service.findAll(user, 0, 2, "name", "ASC")
+        final List<String> firstPage = service.list(user, null, byName, 0, 2).items()
                 .stream().map(CustomListEntity::getName).toList();
-        final List<String> secondPage = service.findAll(user, 2, 2, "name", "ASC")
+        final List<String> secondPage = service.list(user, null, byName, 2, 2).items()
                 .stream().map(CustomListEntity::getName).toList();
 
         assertEquals(List.of("alpha", "bravo"), firstPage);
@@ -355,22 +324,6 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
     }
 
-    @Test
-    @DisplayName("Searching matches by name and stays within the user")
-    void searchingIsScopedToTheUser() {
-
-        final String owner = MongoIds.newId();
-        save(owner, "patient-names", List.of("Alice"));
-        save(owner, "staff-names", List.of("Bob"));
-        save(owner, "postcodes", List.of("SW1"));
-        save(MongoIds.newId(), "patient-names", List.of("Someone else"));
-
-        final List<String> matches = service.findBySearchTerm(owner, "names", 10)
-                .stream().map(CustomListEntity::getName).sorted().toList();
-
-        assertEquals(List.of("patient-names", "staff-names"), matches);
-
-    }
 
     // ----- Deleting -----
 
@@ -392,23 +345,6 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
     }
 
-    @Test
-    @DisplayName("Deleting everything for a user leaves other users untouched")
-    void deletingAllIsScopedToTheUser() {
-
-        final String owner = MongoIds.newId();
-        final String other = MongoIds.newId();
-
-        save(owner, "first", List.of("a"));
-        save(owner, "second", List.of("b"));
-        save(other, "theirs", List.of("c"));
-
-        assertEquals(2, service.deleteAll(owner));
-
-        assertEquals(0, service.count(owner));
-        assertEquals(1, service.count(other));
-
-    }
 
 
     @Test

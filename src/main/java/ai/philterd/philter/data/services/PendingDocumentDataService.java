@@ -49,8 +49,6 @@ public interface PendingDocumentDataService {
 
     QueueStats queueStats(final String owner);
 
-    void update(final PendingDocumentEntity entity);
-
     PendingDocumentEntity findOneByDocumentIdAndUserId(final String documentId, final String userId);
 
     /**
@@ -59,8 +57,6 @@ public interface PendingDocumentDataService {
      */
     Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
             final int offset, final int limit);
-
-    List<PendingDocumentEntity> findAllByUserId(final String userId, final int offset, final int limit);
 
     PendingDocumentEntity claimNextPending(final String workerId);
 
@@ -91,10 +87,6 @@ public interface PendingDocumentDataService {
     boolean markFailed(final String id, final String claimToken, final String errorMessage);
 
     long deleteByDocumentIdAndUserId(final String documentId, final String userId);
-
-    int countByUserId(final String userId);
-
-    int countPendingByUserId(final String userId);
 
     boolean hasOpenJobsForContext(final String userId, final String contextName);
 

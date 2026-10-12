@@ -23,7 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Each user's custom lists of terms, stored encrypted.
+ * Each user's custom lists of terms, stored encrypted. {@link StoredCustomListDataService} holds the rules every
+ * implementation shares.
  *
  * <p>Guarantees every implementation must provide:
  * <ul>
@@ -49,8 +50,6 @@ public interface CustomListDataService {
 
     ServiceResponse saveOrUpdate(final String requestId, final String userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin);
 
-    CustomListEntity findOneById(final String id, final String userId);
-
     /**
      * Fetches several custom lists for a user in a single query, returning a map of list name to its
      * items. Used to resolve all {@code list:} references in a policy at once rather than issuing one
@@ -60,27 +59,6 @@ public interface CustomListDataService {
 
     CustomListEntity findOneByName(final String name, final String userId);
 
-    boolean existsForUser(final String name, final String userId);
-
-    /**
-     * Returns every custom list for every user. Intended for admin-only views; ordinary access must use
-     * the owner-scoped {@link #findAll(String)}.
-     */
-    List<CustomListEntity> findAllAcrossUsers();
-
-    /**
-     * Returns one page of custom lists across every user, ordered by name. Intended for admin-only
-     * views; ordinary access must use the owner-scoped {@link #findAll(String)}.
-     */
-    List<CustomListEntity> findAllAcrossUsers(final int offset, final int limit);
-
-    /** Returns the total number of custom lists across every user (for admin paging). */
-    int countAllAcrossUsers();
-
-    List<CustomListEntity> findAll(final String userId);
-
-    List<CustomListEntity> findBySearchTerm(final String userId, final String searchTerm, final int limit);
-
     /**
      * A page of the user's custom lists, or every user's when {@code userId} is null, whose names contain
      * {@code q}, and their total.
@@ -88,14 +66,6 @@ public interface CustomListDataService {
     Listings.Page<CustomListEntity> list(final String userId, final String q, final Listings.Sort sort,
             final int offset, final int limit);
 
-    List<CustomListEntity> findAll(final String userId, final int offset, final int limit);
-
-    List<CustomListEntity> findAll(final String userId, final int offset, final int limit, final String sortField, final String sortDirection);
-
-    int count(final String userId);
-
     void deleteByName(final String name, final String userId);
-
-    long deleteAll(final String userId);
 
 }

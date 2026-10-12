@@ -18,9 +18,16 @@ changing the rest of Philter. MongoDB is the only implementation today.
 * `ai.philterd.philter.data.entities` holds the records the interfaces read and write. They know nothing about
   how they are stored. Record ids are 24-character hexadecimal strings in every implementation (see
   `ai.philterd.philter.data.RecordIds`).
-* `ai.philterd.philter.data.mongodb` holds the MongoDB implementation: a `Mongo...` class for each interface,
-  the `...Documents` classes that map each record to and from its stored document, and the MongoDB-specific
-  helpers. Only this package may use the MongoDB driver (`com.mongodb`) or BSON (`org.bson`);
+* Each storage interface has an abstract `Stored...` class beside it (for example `StoredPolicyDataService`)
+  holding the rules every implementation shares: validation, auditing, cache eviction, key and password
+  handling, signing, legal-hold checks, and what a refusal looks like. It declares, as abstract methods, the
+  reads and atomic writes an implementation must provide, each documenting what it must guarantee. Shared
+  helpers for implementations are in the same package: `SecretFields` (how secret fields are encrypted at rest),
+  `DuplicateRecordException` (a uniqueness clash), `EvidenceGuard` (the per-owner lock on evidence deletion and
+  legal holds), and `AdmissionGuard` (the lock on queue admission).
+* `ai.philterd.philter.data.mongodb` holds the MongoDB implementation: a `Mongo...` class extending each
+  `Stored...` class, the `...Documents` classes that map each record to and from its stored document, and the
+  MongoDB-specific helpers. Only this package may use the MongoDB driver (`com.mongodb`) or BSON (`org.bson`);
   `StorageBoundaryTest` fails the build if any other class does.
 * Interfaces for other storage-backed services live with their callers: `AuditLogService` and
   `StoredAuditEventPublisher` in `ai.philterd.philter.audit`, `ContextServices` in
@@ -43,9 +50,11 @@ storage package, and list it in that implementation's migrations (`MongoMigratio
 should be safe to run again, since Philter may stop after its changes but before they are recorded. Migrations
 are never edited or removed once released. Each storage implementation keeps its version in a `SchemaStore`.
 
-To add an implementation, add a package beside `data.mongodb` with a class for each interface and a
-configuration that applies when its `STORAGE_TYPE` is selected, add the value to `StorageConfiguration.TYPES`,
-and document it in `docs/docs/settings.md`. It must provide the guarantees in each interface's Javadoc.
+To add an implementation, add a package beside `data.mongodb` with a class extending each `Stored...` class,
+implementing only its abstract reads and writes, and a configuration that applies when its `STORAGE_TYPE` is
+selected. Add the value to `StorageConfiguration.TYPES`, and document it in `docs/docs/settings.md`. It must
+provide the guarantees in each interface's and abstract method's Javadoc. A rule that does not depend on how
+data is stored belongs in the `Stored...` class, not in an implementation, so every implementation shares it.
 
 ## Contract tests
 

@@ -30,16 +30,19 @@ public final class AdministratorAuthorization {
     private AdministratorAuthorization() {
     }
 
+    public static boolean isActiveAdministrator(final MongoClient client, final String userId) {
+
+        final Document user = userId == null ? null
+                : client.getDatabase("philter").getCollection("users").find(Filters.eq("_id", MongoIds.objectId(userId))).first();
+
+        return user != null && "admin".equalsIgnoreCase(user.getString("role")) && !user.getBoolean("deactivated", false);
+
+    }
+
     public static void requireActiveAdministrator(final MongoClient client, final String actingUserId) {
-
-        final Document user = actingUserId == null ? null
-                : client.getDatabase("philter").getCollection("users").find(Filters.eq("_id", MongoIds.objectId(actingUserId))).first();
-
-        if (user == null || !"admin".equalsIgnoreCase(user.getString("role"))
-                || user.getBoolean("deactivated", false)) {
+        if (!isActiveAdministrator(client, actingUserId)) {
             throw new AccessDeniedException("Current administrator authorization required.");
         }
-
     }
 
 }

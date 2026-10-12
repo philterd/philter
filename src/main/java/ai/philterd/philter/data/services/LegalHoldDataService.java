@@ -22,6 +22,7 @@ import java.util.List;
 
 /**
  * Manages legal holds: named, audited blocks on deletion or purge of governance evidence.
+ * {@link StoredLegalHoldDataService} holds the rules every implementation shares.
  *
  * <p>A hold has a {@code reference} (caller-supplied, unique per owner), a {@code scopeType}
  * ({@code document_chain} or {@code user}), and a {@code scopeValue}. For a {@code document_chain} hold the
@@ -70,11 +71,6 @@ public interface LegalHoldDataService {
     ServiceResponse release(final String requestId, final String reference,
             final String userId);
 
-    /** Hold mutations must participate in owner coordination and auditing. */
-    String save(final LegalHoldEntity entity);
-
-    void update(final LegalHoldEntity entity);
-
     /**
      * Returns the hold with the given reference for the given owner, or {@code null} if none exists.
      */
@@ -86,19 +82,6 @@ public interface LegalHoldDataService {
      */
     Listings.Page<LegalHoldEntity> list(final String userId, final String q, final Listings.Sort sort,
             final int offset, final int limit);
-
-    /**
-     * Returns a page of all holds owned by the given user, most recently set first.
-     */
-    List<LegalHoldEntity> findAllByUserId(final String userId, final int offset, final int limit);
-
-    /**
-     * Returns a page of all holds across all users, most recently set first. Admin use only.
-     */
-    List<LegalHoldEntity> findAll(final int offset, final int limit);
-
-    /** Returns the total number of holds owned by the given user. */
-    int countByUserId(final String userId);
 
     /**
      * Returns {@code true} if any active hold protects ledger entries for the given document.

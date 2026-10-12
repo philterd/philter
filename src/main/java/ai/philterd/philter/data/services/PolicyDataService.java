@@ -140,14 +140,7 @@ public interface PolicyDataService {
     /** As above, returning the policy as created, for its {@link #eTag}. */
     WriteOutcome createPolicy(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final String authorId);
 
-    boolean containsValidChoice(final String value, final List<String> allowedValues);
-
     PolicyValidation validatePolicy(final String policyJson);
-
-    List<PolicyEntity> findManagedPolicies();
-
-    /** Returns one page of managed policies, ordered by name (for paging the Managed Policies grid). */
-    List<PolicyEntity> findManagedPolicies(final int offset, final int limit);
 
     /** A page of the user's own policies whose names contain {@code q} (any, when null), and their total. */
     Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort,
@@ -161,34 +154,19 @@ public interface PolicyDataService {
     Listings.Page<PolicyEntity> listManaged(final String q, final Listings.Sort sort, final int offset,
             final int limit);
 
-    /** Returns the total number of managed policies (for paging). */
-    int countManagedPolicies();
-
-    List<PolicyEntity> find(final String userId, final String searchTerm);
-
     /**
      * Returns every policy for every user. Intended for admin-only views; ordinary access must use the
      * owner-scoped {@link #findAll(String, int, int, boolean)}.
      */
-    List<PolicyEntity> findAllAcrossUsers();
-
     /**
      * Returns one page of policies across every user, ordered by name. Intended for admin-only views;
      * ordinary access must use the owner-scoped {@link #findAll(String, int, int, boolean)}.
      */
-    List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit);
-
     /**
      * Returns one page of every user's policies, ordered by name and then id, so the order is stable
      * across pages even though many users have a policy of the same name. Managed policies are left out
      * unless {@code includeManaged}.
      */
-    List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit, final boolean includeManaged);
-
-    int countAllAcrossUsers();
-
-    int countAllAcrossUsers(final boolean includeManaged);
-
     /**
      * Finds all policies for a user with pagination support.
      * @param offset The offset for pagination.
@@ -196,10 +174,6 @@ public interface PolicyDataService {
      * @param includeManagedPolicies Whether to include managed policies in the result.
      * @return A list of {@link PolicyEntity} objects.
      */
-    List<PolicyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeManagedPolicies);
-
-    List<PolicyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeManagedPolicies, final String sortField, final boolean ascending);
-
     /**
      * Counts the total number of policies for a user (excludes managed policies).
      * @return The count of policies.
@@ -237,8 +211,6 @@ public interface PolicyDataService {
             final String expectedETag);
 
     PolicyEntity findOne(final String name, final String userId);
-
-    ServiceResponse duplicatePolicy(final String requestId, final String userId, final String name, final String newName, String source);
 
     /**
      * Restores a prior revision of a policy as a new revision. History is never rewritten: the target
@@ -294,8 +266,6 @@ public interface PolicyDataService {
     Listings.Page<DeletedPolicy> findDeleted(final String userId, final String q, final boolean descending,
             final int offset, final int limit);
 
-    long deleteAll();
-
     /**
      * Load managed policies from JSON files and save them to the database.
      * This method should be called during application initialization.
@@ -304,7 +274,5 @@ public interface PolicyDataService {
     void loadAndSaveManagedPolicies();
 
     String save(PolicyEntity policy);
-
-    void update(PolicyEntity policy);
 
 }

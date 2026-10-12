@@ -15,8 +15,7 @@
  */
 package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.data.services.LegalHoldDataService;
-import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.data.services.EvidenceGuard;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
@@ -28,42 +27,33 @@ import org.bson.Document;
 
 import java.util.Date;
 import java.util.UUID;
-import java.util.function.Supplier;
 
-/**
- * Serializes evidence deletion and hold changes for one owner across all instances.
- * No lease: MongoDB multi-document deletes cannot be fenced against a reclaimed lease.
- * An uncertain operation leaves its guard held until an operator establishes quiescence.
- */
-final class EvidenceOperationGuard {
+/** The evidence guard in MongoDB: a document per owner holding the token of the operation that holds it. */
+public final class MongoEvidenceGuard implements EvidenceGuard {
+
     private final MongoCollection<Document> guards;
 
-    EvidenceOperationGuard(final MongoClient client) {
+    public MongoEvidenceGuard(final MongoClient client) {
         guards = client.getDatabase("philter").getCollection("evidence_operation_guards")
                 .withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
     }
 
-    ServiceResponse execute(final String owner, final String operation, final Supplier<ServiceResponse> action) {
-        if (owner == null) {
-            return new ServiceResponse("Evidence owner is required.", false, 400);
-        }
+    @Override
+    public String acquire(final String owner, final String operation) {
         guards.updateOne(Filters.eq("_id", MongoIds.objectId(owner)), Updates.setOnInsert("created_at", new Date()),
                 new UpdateOptions().upsert(true));
         final String token = UUID.randomUUID().toString();
-        if (guards.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owner)), Filters.exists("token", false)),
+        final boolean acquired = guards.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owner)), Filters.exists("token", false)),
                 Updates.combine(Updates.set("token", token), Updates.set("operation", operation),
-                        Updates.set("started_at", new Date()))).getModifiedCount() != 1) {
-            return new ServiceResponse("An evidence or legal-hold operation is active or requires recovery for this owner.",
-                    false, 409, LegalHoldDataService.REASON_OPERATION_IN_PROGRESS);
-        }
-        // Deliberately not a finally block: a timeout can leave a server-side mutation running.
-        // Releasing after an uncertain failure would let a hold succeed before that mutation ends.
-        final ServiceResponse result = action.get();
-        if (guards.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owner)), Filters.eq("token", token)),
-                Updates.combine(Updates.unset("token"), Updates.unset("operation"), Updates.unset("started_at")))
-                .getModifiedCount() != 1) {
-            throw new IllegalStateException("Evidence operation guard could not be released.");
-        }
-        return result;
+                        Updates.set("started_at", new Date()))).getModifiedCount() == 1;
+        return acquired ? token : null;
     }
+
+    @Override
+    public boolean release(final String owner, final String token) {
+        return guards.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owner)), Filters.eq("token", token)),
+                Updates.combine(Updates.unset("token"), Updates.unset("operation"), Updates.unset("started_at")))
+                .getModifiedCount() == 1;
+    }
+
 }

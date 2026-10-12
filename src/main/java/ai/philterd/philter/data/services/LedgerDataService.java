@@ -48,15 +48,10 @@ public interface LedgerDataService {
 
     void addTransaction(final LedgerEntity ledgerEntity);
 
-    /** Every insert must be signed, including callers of the inherited persistence API. */
-    String save(final LedgerEntity ledgerEntity);
-
     /** Seals successfully recorded evidence. Further appends to this document ID are rejected. */
     void completeChain(final String userId, final String documentId);
 
     /** Evidence is append-only; an inherited update must not bypass signed insertion. */
-    void update(final LedgerEntity ledgerEntity);
-
     /**
      * The result of checking a chain. {@code error} is set, and the other fields are meaningless, when the
      * check could not be completed, such as an entry that can no longer be read.
@@ -108,11 +103,6 @@ public interface LedgerDataService {
             final String source);
 
     /** Counts the chain heads a search matches. Does not audit; the search it accompanies does. */
-    int countChainsByUserIdMatching(final String userId, final String searchTerm);
-
-    List<LedgerEntity> searchChainsByUserId(final String requestId, final String userId,
-            final String searchTerm, final int offset, final int limit, final String source);
-
     /**
      * Purges complete chains whose completion and newest entry precede the retention cutoff.
      * Open, writing, and failed chains are retained for review; manual deletion also requires a sealed chain.
@@ -130,26 +120,13 @@ public interface LedgerDataService {
             final String userId,
             final int daysToKeep);
 
-    List<LedgerEntity> findChainsByUserId(final String requestId, final String userId, final int offset, final int limit, final String source);
-
-    List<LedgerEntity> findChainsByUserId(final String requestId, final String userId, final int offset, final int limit, final String source, final String sortField, final boolean ascending);
-
     /**
      * Returns one page of chain heads (genesis entries) across every user, most recent first. Intended
      * for admin-only views; ordinary access must use the owner-scoped {@link #findChainsByUserId}.
      */
-    List<LedgerEntity> findAllChainHeadsAcrossUsers(final int offset, final int limit);
-
-    /** Returns the total number of chain heads (one per document) across every user (for admin paging). */
-    int countAllChainHeads();
-
-    int countChainsByUserId(final String userId);
-
     List<LedgerEntity> getChain(final String userId, final String documentId);
 
     LedgerEntity getLatestTransaction(final String userId, final String documentId);
-
-    boolean isDocumentIdUnique(final String userId, final String documentId);
 
     /**
      * Deletes all ledger entries for the given document.
@@ -167,6 +144,4 @@ public interface LedgerDataService {
      * <p><strong>Hold enforcement:</strong> returns 423 if any active hold exists for this user.
      * The blocked attempt is audited as {@code legal_hold_blocked_deletion}.
      */
-    ServiceResponse deleteAllByUserId(final String requestId, final String userId);
-
 }

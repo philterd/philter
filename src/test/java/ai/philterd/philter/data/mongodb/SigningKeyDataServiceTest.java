@@ -104,7 +104,7 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
         assertEquals(MongoSigningKeyDataService.keyIdFor(first.getPublicKey()), info.keyId());
         assertTrue(info.jwk().contains(info.keyId()));
         assertEquals(first.getPublicKeyPem(), info.pem());
-        assertEquals(first.getPublicKeyFingerprint(), info.fingerprint());
+        assertEquals(first.getPublicKeyInfo().fingerprint(), info.fingerprint());
     }
 
     @Test

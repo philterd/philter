@@ -16,7 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.LedgerEntity;
-import ai.philterd.philter.services.encryption.EncryptResult;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -50,11 +50,11 @@ public final class LedgerDocuments {
         ledgerEntity.setSigningKeyId(document.getString("signing_key_id"));
 
         final String tokenEncryptedKey = document.getString("token_encrypted_key");
-        ledgerEntity.setToken(encryptionService.decrypt(document.getString("token"), tokenEncryptedKey));
+        ledgerEntity.setToken(SecretFields.open(encryptionService, document.getString("token"), tokenEncryptedKey));
         ledgerEntity.setTokenEncryptedKey(tokenEncryptedKey);
 
         final String replacementEncryptedKey = document.getString("replacement_encrypted_key");
-        ledgerEntity.setReplacement(encryptionService.decrypt(document.getString("replacement"), replacementEncryptedKey));
+        ledgerEntity.setReplacement(SecretFields.open(encryptionService, document.getString("replacement"), replacementEncryptedKey));
         ledgerEntity.setReplacementEncryptedKey(replacementEncryptedKey);
 
         return ledgerEntity;
@@ -69,13 +69,13 @@ public final class LedgerDocuments {
             document.put("_id", MongoIds.objectId(entity.getId()));
         }
 
-        final EncryptResult tokenEncryptResult = encryptionService.encrypt(entity.getToken(), entity.getUserId());
-        document.put("token", tokenEncryptResult.getEncryptedText());
-        document.put("token_encrypted_key", tokenEncryptResult.getEncryptionKey());
+        final SecretFields.Sealed token = SecretFields.seal(encryptionService, entity.getToken(), entity.getUserId());
+        document.put("token", token.ciphertext());
+        document.put("token_encrypted_key", token.key());
 
-        final EncryptResult replacementEncryptResult = encryptionService.encrypt(entity.getReplacement(), entity.getUserId());
-        document.put("replacement", replacementEncryptResult.getEncryptedText());
-        document.put("replacement_encrypted_key", replacementEncryptResult.getEncryptionKey());
+        final SecretFields.Sealed replacement = SecretFields.seal(encryptionService, entity.getReplacement(), entity.getUserId());
+        document.put("replacement", replacement.ciphertext());
+        document.put("replacement_encrypted_key", replacement.key());
 
         document.put("user_id", MongoIds.objectId(entity.getUserId()));
         document.put("document_id", entity.getDocumentId());

@@ -16,7 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
-import ai.philterd.philter.services.encryption.EncryptedBytes;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
@@ -41,25 +41,18 @@ public final class PendingDocumentDocuments {
         entity.setContextName(document.getString("context_name"));
         entity.setClientIpAddress(document.getString("client_ip_address"));
         entity.setEffectiveHash(document.getString("effective_hash"));
-        if (document.getString("effective_json") != null) {
-            entity.setEffectiveJson(encryptionService.decrypt(document.getString("effective_json"), document.getString("effective_key")));
-        }
+        entity.setEffectiveJson(SecretFields.open(encryptionService, document.getString("effective_json"), document.getString("effective_key")));
         entity.setStatus(document.getString("status"));
         entity.setErrorMessage(document.getString("error_message"));
 
         // The submitted document is the most sensitive thing Philter holds, so it is encrypted at
         // rest like every other sensitive collection. Bytes are encrypted as bytes: routing them
         // through the String path would base64 twice and push a 10 MB PDF past MongoDB's 16 MB limit.
-        final Object inputBinary = document.get("input");
-        if (inputBinary instanceof Binary) {
-            entity.setInput(encryptionService.decryptBytes(((Binary) inputBinary).getData(),
-                    document.getString("input_encrypted_key")));
+        if (document.get("input") instanceof Binary input) {
+            entity.setInput(SecretFields.openBytes(encryptionService, input.getData(), document.getString("input_encrypted_key")));
         }
-
-        final Object outputBinary = document.get("output");
-        if (outputBinary instanceof Binary) {
-            entity.setOutput(encryptionService.decryptBytes(((Binary) outputBinary).getData(),
-                    document.getString("output_encrypted_key")));
+        if (document.get("output") instanceof Binary output) {
+            entity.setOutput(SecretFields.openBytes(encryptionService, output.getData(), document.getString("output_encrypted_key")));
         }
 
         entity.setSubmittedAt(document.getDate("submitted_at"));
@@ -90,22 +83,22 @@ public final class PendingDocumentDocuments {
         document.put("client_ip_address", entity.getClientIpAddress());
         document.put("input_size", entity.getInput() == null ? 0L : (long) entity.getInput().length);
         document.put("effective_hash", entity.getEffectiveHash());
-        if (entity.getEffectiveJson() != null) {
-            final var encrypted = encryptionService.encrypt(entity.getEffectiveJson(), entity.getUserId());
-            document.put("effective_json", encrypted.getEncryptedText());
-            document.put("effective_key", encrypted.getEncryptionKey());
+        final SecretFields.Sealed effective = SecretFields.seal(encryptionService, entity.getEffectiveJson(), entity.getUserId());
+        if (effective != null) {
+            document.put("effective_json", effective.ciphertext());
+            document.put("effective_key", effective.key());
         }
         document.put("status", entity.getStatus());
         document.put("error_message", entity.getErrorMessage());
-        if (entity.getInput() != null) {
-            final EncryptedBytes encrypted = encryptionService.encryptBytes(entity.getInput(), entity.getUserId());
-            document.put("input", new Binary(encrypted.ciphertext()));
-            document.put("input_encrypted_key", encrypted.encryptionKey());
+        final SecretFields.SealedBytes input = SecretFields.sealBytes(encryptionService, entity.getInput(), entity.getUserId());
+        if (input != null) {
+            document.put("input", new Binary(input.ciphertext()));
+            document.put("input_encrypted_key", input.key());
         }
-        if (entity.getOutput() != null) {
-            final EncryptedBytes encrypted = encryptionService.encryptBytes(entity.getOutput(), entity.getUserId());
-            document.put("output", new Binary(encrypted.ciphertext()));
-            document.put("output_encrypted_key", encrypted.encryptionKey());
+        final SecretFields.SealedBytes output = SecretFields.sealBytes(encryptionService, entity.getOutput(), entity.getUserId());
+        if (output != null) {
+            document.put("output", new Binary(output.ciphertext()));
+            document.put("output_encrypted_key", output.key());
         }
         document.put("submitted_at", entity.getSubmittedAt());
         document.put("started_at", entity.getStartedAt());

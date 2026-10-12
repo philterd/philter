@@ -1,65 +1,57 @@
+/*
+ *     Copyright 2026 Philterd, LLC @ https://www.philterd.ai
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.data.services.QueueCapacityException;
+import ai.philterd.philter.data.services.AdmissionGuard;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.*;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import org.bson.Document;
 
 import java.util.Date;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
-/** Serializes admission across instances. Uncertain writes retain the guard for operator recovery. */
-final class QueueAdmission {
-    private static final long ACQUISITION_WAIT_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
+/** The queue admission guard in MongoDB: one document holding the token of the admission that holds it. */
+final class QueueAdmission implements AdmissionGuard {
+
     private final MongoCollection<Document> state;
-    QueueAdmission(MongoClient client) {
+
+    QueueAdmission(final MongoClient client) {
         state = client.getDatabase("philter").getCollection("queue_admission")
                 .withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
     }
-    <T> T execute(Supplier<T> action) {
+
+    @Override
+    public boolean tryAcquire(final String token) {
         try {
             state.updateOne(Filters.eq("_id", "queue"), Updates.setOnInsert("created_at", new Date()), new UpdateOptions().upsert(true));
         } catch (com.mongodb.MongoWriteException race) {
-            if (race.getError().getCode() != 11000) throw race;
+            if (!MongoRecords.isDuplicate(race)) throw race;
         }
-        final String token = UUID.randomUUID().toString();
-        final long deadline = System.nanoTime() + ACQUISITION_WAIT_NANOS;
-        while (state.updateOne(Filters.and(Filters.eq("_id", "queue"), Filters.exists("token", false)),
-                Updates.combine(Updates.set("token", token), Updates.set("started_at", new Date()))).getModifiedCount() != 1) {
-            // Retry only an acknowledged contention result. Database exceptions propagate:
-            // acquisition may have succeeded, so neither clearing nor replaying it is safe.
-            final long remaining = deadline - System.nanoTime();
-            if (remaining <= 0) throw busy();
-            final long delay = Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(
-                    ThreadLocalRandom.current().nextLong(5, 26)));
-            try {
-                TimeUnit.NANOSECONDS.sleep(delay);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                throw busy();
-            }
-            if (deadline - System.nanoTime() <= 0) throw busy();
-        }
-        final T result;
-        try { result = action.get(); }
-        catch (QueueCapacityException rejected) { release(token); throw rejected; }
-        // No finally: an ambiguous server write must not race a subsequent admission.
-        release(token);
-        return result;
+        return state.updateOne(Filters.and(Filters.eq("_id", "queue"), Filters.exists("token", false)),
+                Updates.combine(Updates.set("token", token), Updates.set("started_at", new Date()))).getModifiedCount() == 1;
     }
-    private static QueueCapacityException busy() {
-        return new QueueCapacityException("Queue admission is busy or requires recovery. Retry later.", 503);
+
+    @Override
+    public boolean release(final String token) {
+        return state.updateOne(Filters.and(Filters.eq("_id", "queue"), Filters.eq("token", token)),
+                Updates.combine(Updates.unset("token"), Updates.unset("started_at"))).getModifiedCount() == 1;
     }
-    private void release(String token) {
-        if (state.updateOne(Filters.and(Filters.eq("_id", "queue"), Filters.eq("token", token)),
-                Updates.combine(Updates.unset("token"), Updates.unset("started_at"))).getModifiedCount() != 1) {
-            throw new IllegalStateException("Queue admission guard could not be released.");
-        }
-    }
+
 }

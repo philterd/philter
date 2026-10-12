@@ -16,7 +16,6 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
@@ -61,7 +60,7 @@ class ContextExportImportIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         auditEventPublisher = mock(AuditEventPublisher.class);
-        contextEntryService = new MongoContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
+        contextEntryService = new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false));
     }
 
     @Test
@@ -74,7 +73,7 @@ class ContextExportImportIT extends AbstractMongoIT {
         // --- Source environment: learn a mapping through the real CONTEXT-scope redaction path. ---
         final String sourceUser = MongoIds.newId();
         final String sourceContext = "src";
-        final ContextService sourceService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), sourceUser, sourceContext);
+        final ContextService sourceService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), sourceUser, sourceContext);
 
         final String firstReplacement = sourceService.computeReplacementIfAbsent(token, filterType, () -> learnedReplacement);
         assertEquals(learnedReplacement, firstReplacement);
@@ -102,7 +101,7 @@ class ContextExportImportIT extends AbstractMongoIT {
         // --- Redact in the destination context: the same input token must resolve to the imported
         //     replacement, and the "generate a new replacement" supplier must NOT be invoked. ---
         final AtomicBoolean regenerated = new AtomicBoolean(false);
-        final ContextService destService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), destUser, destContext);
+        final ContextService destService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), destUser, destContext);
 
         final String resolved = destService.computeReplacementIfAbsent(token, filterType, () -> {
             regenerated.set(true);

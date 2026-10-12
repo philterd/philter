@@ -187,34 +187,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertEquals(404, response.getStatusCode());
     }
 
-    @Test
-    void duplicateProducesANewDocument() {
-        final String user = MongoIds.newId();
-        assertTrue(create(user, "original").isSuccessful());
 
-        final ServiceResponse response = service.duplicatePolicy("req", user, "original", "copy", "source");
-        assertTrue(response.isSuccessful());
-
-        // Both the source and the copy exist independently.
-        final PolicyEntity original = service.findOne("original", user);
-        final PolicyEntity copy = service.findOne("copy", user);
-        assertNotNull(original);
-        assertNotNull(copy);
-        assertFalse(original.getId().equals(copy.getId()), "Duplicate must be a new document");
-        assertEquals(original.getPolicy(), copy.getPolicy());
-        assertEquals(2, service.count(user));
-    }
-
-    @Test
-    void duplicateRejectsExistingTargetName() {
-        final String user = MongoIds.newId();
-        assertTrue(create(user, "src").isSuccessful());
-        assertTrue(create(user, "taken").isSuccessful());
-
-        final ServiceResponse response = service.duplicatePolicy("req", user, "src", "taken", "source");
-        assertFalse(response.isSuccessful());
-        assertEquals(409, response.getStatusCode());
-    }
 
     @Test
     void deleteByNameRemovesPolicy() {
@@ -246,18 +219,6 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertEquals(404, response.getStatusCode());
     }
 
-    @Test
-    void deleteAllRemovesUnmanagedPolicies() {
-        final String userA = MongoIds.newId();
-        final String userB = MongoIds.newId();
-        assertTrue(create(userA, "p1").isSuccessful());
-        assertTrue(create(userA, "p2").isSuccessful());
-        assertTrue(create(userB, "p3").isSuccessful());
-
-        assertEquals(3L, service.deleteAll());
-        assertEquals(0, service.count(userA));
-        assertEquals(0, service.count(userB));
-    }
 
     @Test
     void countExcludesOtherUsers() {
@@ -271,63 +232,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertEquals(1, service.count(userB));
     }
 
-    @Test
-    void findAllSupportsPaging() {
-        final String user = MongoIds.newId();
-        for (int i = 0; i < 5; i++) {
-            assertTrue(create(user, "policy-" + i).isSuccessful());
-        }
 
-        assertEquals(2, service.findAll(user, 0, 2, false).size());
-        assertEquals(2, service.findAll(user, 2, 2, false).size());
-        assertEquals(1, service.findAll(user, 4, 2, false).size());
-        assertEquals(5, service.findAll(user, 0, 100, false).size());
 
-        // findAll is scoped: another user sees nothing.
-        assertEquals(0, service.findAll(MongoIds.newId(), 0, 100, false).size());
-    }
-
-    @Test
-    void findAllSupportsSorting() {
-        final String user = MongoIds.newId();
-        assertTrue(create(user, "bbb").isSuccessful());
-        assertTrue(create(user, "aaa").isSuccessful());
-        assertTrue(create(user, "ccc").isSuccessful());
-
-        final List<PolicyEntity> ascending = service.findAll(user, 0, 100, false, "name", true);
-        assertEquals(List.of("aaa", "bbb", "ccc"),
-                ascending.stream().map(PolicyEntity::getName).toList());
-
-        final List<PolicyEntity> descending = service.findAll(user, 0, 100, false, "name", false);
-        assertEquals(List.of("ccc", "bbb", "aaa"),
-                descending.stream().map(PolicyEntity::getName).toList());
-    }
-
-    @Test
-    void findFiltersBySearchTermAcrossNameDescriptionNotes() {
-        final String user = MongoIds.newId();
-        assertTrue(service.create("req", user, validPolicyJson(), "the alpha policy", "notes", "first", "source").isSuccessful());
-        assertTrue(service.create("req", user, validPolicyJson(), "desc", "notes", "second", "source").isSuccessful());
-
-        // Matches the name of the second policy.
-        final List<PolicyEntity> byName = service.find(user, "second");
-        assertEquals(1, byName.size());
-        assertEquals("second", byName.get(0).getName());
-
-        // Matches the description of the first policy (case-insensitive).
-        final List<PolicyEntity> byDescription = service.find(user, "ALPHA");
-        assertEquals(1, byDescription.size());
-        assertEquals("first", byDescription.get(0).getName());
-
-        // Matches notes shared by both policies.
-        assertEquals(2, service.find(user, "notes").size());
-
-        // No match.
-        assertTrue(service.find(user, "zzz").isEmpty());
-
-        // Search is user-scoped.
-        assertTrue(service.find(MongoIds.newId(), "notes").isEmpty());
-    }
 
 
     @Test

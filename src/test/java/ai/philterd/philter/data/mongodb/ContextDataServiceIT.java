@@ -59,8 +59,8 @@ class ContextDataServiceIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
-        service = new MongoContextDataService(mongoClient, new ContextCache(null, 0, null, false), audit);
-        entryService = new MongoContextEntryDataService(mongoClient, audit, new ContextCache(null, 0, null, false));
+        service = new MongoContextDataService(mongoClient, audit, new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false)), new MongoVectorServices(mongoClient));
+        entryService = new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false));
     }
 
     @Test
@@ -263,7 +263,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
             }
             assertEquals(ContextDataService.MAXIMUM_CONTEXTS_PER_USER, created);
         }
-        assertEquals(ContextDataService.MAXIMUM_CONTEXTS_PER_USER, service.findAll(user).size(), "exactly the limit, never more");
+        assertEquals(ContextDataService.MAXIMUM_CONTEXTS_PER_USER, service.count(user), "exactly the limit, never more");
         assertEquals(java.util.Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), slotsOf(user));
     }
 
@@ -279,39 +279,6 @@ class ContextDataServiceIT extends AbstractMongoIT {
         assertEquals(java.util.Set.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), slotsOf(user), "the freed slot is reused");
     }
 
-    @Test
-    void contextsWrittenBeforeSlotsGetThemAtStartup() {
-        final MongoCollection<Document> contexts = mongoClient.getDatabase("philter").getCollection("contexts");
-        // As a database written before slots existed: no slot index and no slots.
-        contexts.dropIndex("user_id_slot_unique");
-        final String few = MongoIds.newId();
-        final String many = MongoIds.newId();
-        final String mixed = MongoIds.newId();
-        for (int i = 0; i < 3; i++) {
-            contexts.insertOne(new Document("context_name", "f" + i).append("user_id", MongoIds.objectId(few)));
-        }
-        for (int i = 0; i < 12; i++) {
-            contexts.insertOne(new Document("context_name", "m" + i).append("user_id", MongoIds.objectId(many)));
-        }
-        contexts.insertOne(new Document("context_name", "held").append("user_id", MongoIds.objectId(mixed)).append("slot", 0));
-        contexts.insertOne(new Document("context_name", "loose").append("user_id", MongoIds.objectId(mixed)));
-        // A slot stored as null counts as missing, or two of them would block the index.
-        final String nulls = MongoIds.newId();
-        contexts.insertOne(new Document("context_name", "n0").append("user_id", MongoIds.objectId(nulls)).append("slot", null));
-        contexts.insertOne(new Document("context_name", "n1").append("user_id", MongoIds.objectId(nulls)).append("slot", null));
-
-        final ContextDataService started = new MongoContextDataService(mongoClient, new ContextCache(null, 0, null, false),
-                mock(AuditEventPublisher.class));
-
-        assertEquals(java.util.Set.of(0, 1, 2), slotsOf(few));
-        assertEquals(12, slotsOf(many).size(), "a user over the limit keeps every context");
-        assertEquals(java.util.Set.of(0, 1), slotsOf(mixed), "a slot already held is kept, and the rest fill around it");
-        assertEquals(java.util.Set.of(0, 1), slotsOf(nulls));
-
-        assertEquals(ContextDataService.REASON_CONTEXT_LIMIT_REACHED, started.create("one-more", many).getDetails());
-        assertTrue(started.create("next", few).isSuccessful());
-        assertEquals(java.util.Set.of(0, 1, 2, 3), slotsOf(few));
-    }
 
     @Test
     void updateSettingsPersistsFlags() {

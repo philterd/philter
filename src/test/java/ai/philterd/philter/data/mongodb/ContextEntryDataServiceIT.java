@@ -48,7 +48,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new MongoContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), new ContextCache(null, 0, null, false));
+        service = new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false));
     }
 
     @Test

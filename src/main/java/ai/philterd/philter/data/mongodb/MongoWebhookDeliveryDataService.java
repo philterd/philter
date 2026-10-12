@@ -17,11 +17,16 @@ package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.services.DuplicateRecordException;
 import ai.philterd.philter.data.services.Listings;
-import ai.philterd.philter.data.services.WebhookDeliveryDataService;
+import ai.philterd.philter.data.services.StoredWebhookDeliveryDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.utils.EnvUtils;
+import com.mongodb.MongoWriteException;
+import com.mongodb.ReadConcern;
+import com.mongodb.ReadPreference;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexOptions;
@@ -38,45 +43,36 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-/** MongoDB implementation of {@link WebhookDeliveryDataService}. */
-public class MongoWebhookDeliveryDataService extends AbstractEncryptedService<WebhookDeliveryEntity> implements WebhookDeliveryDataService {
+/** Stores webhook deliveries in MongoDB, which removes finished ones after their retention period. */
+public class MongoWebhookDeliveryDataService extends StoredWebhookDeliveryDataService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(WebhookDeliveryDataService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MongoWebhookDeliveryDataService.class);
 
-    private final long claimLeaseMillis;
-
-    private static final long DEFAULT_TTL_SECONDS = 30L * 24L * 60L * 60L;
-    private static final long[] BACKOFF_SECONDS = {30, 60, 300, 900, 1800, 3600, 7200};
+    private final EncryptionService encryptionService;
+    private final MongoCollection<Document> collection;
 
     public MongoWebhookDeliveryDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "webhook_deliveries", encryptionService, auditEventPublisher);
+        this.encryptionService = encryptionService;
+        final MongoRecords<WebhookDeliveryEntity> records = new MongoRecords<>(mongoClient, "webhook_deliveries",
+                entity -> WebhookDeliveryDocuments.toDocument(entity, encryptionService));
+        this.collection = records.collection;
 
-        final int leaseSeconds = EnvUtils.getInt("WEBHOOK_CLAIM_LEASE_SECONDS", 300);
-        if (leaseSeconds <= 0) {
-            throw new IllegalArgumentException("WEBHOOK_CLAIM_LEASE_SECONDS must be positive.");
-        }
-        claimLeaseMillis = leaseSeconds * 1000L;
-        ensureIndex(Indexes.ascending("status", "next_attempt_at"));
-        ensureIndex(Indexes.ascending("status", "claim_expires_at"));
+        records.ensureIndex(Indexes.ascending("status", "next_attempt_at"));
+        records.ensureIndex(Indexes.ascending("status", "claim_expires_at"));
         // A user's deliveries are listed newest first.
-        ensureIndex(Indexes.compoundIndex(Indexes.ascending("user_id"), Indexes.descending("created_at")));
+        records.ensureIndex(Indexes.compoundIndex(Indexes.ascending("user_id"), Indexes.descending("created_at")));
 
-        final long ttlSeconds = EnvUtils.getLong("WEBHOOK_DELIVERIES_TTL_SECONDS", DEFAULT_TTL_SECONDS);
-
-        ensureIndex(
-                Indexes.ascending("completed_at"),
-                new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
-
+        final long ttlSeconds = retentionSeconds();
+        records.ensureIndex(Indexes.ascending("completed_at"), new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
         RequiredSchema.rejectUnexpectedExpiry(collection, "completed_at");
 
         LOGGER.info("TTL index on webhook_deliveries.completed_at set to expire after {} seconds.", ttlSeconds);
     }
 
     @Override
-    public WebhookDeliveryEntity claimNextDue(final Date now) {
+    protected WebhookDeliveryEntity claim(final Date now, final String claimToken, final Date claimExpiresAt) {
         final Bson expired = Filters.and(Filters.eq("status", WebhookDeliveryEntity.STATUS_PROCESSING),
                 Filters.lte("claim_expires_at", now));
 
@@ -92,8 +88,8 @@ public class MongoWebhookDeliveryDataService extends AbstractEncryptedService<We
                         Filters.lte("next_attempt_at", now)), expired));
         final Bson update = Updates.combine(
                 Updates.set("status", WebhookDeliveryEntity.STATUS_PROCESSING),
-                Updates.set("claim_token", UUID.randomUUID().toString()),
-                Updates.set("claim_expires_at", new Date(now.getTime() + claimLeaseMillis)),
+                Updates.set("claim_token", claimToken),
+                Updates.set("claim_expires_at", claimExpiresAt),
                 Updates.set("updated_at", now), Updates.inc("attempts", 1));
         final FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
                 .sort(Sorts.ascending("next_attempt_at"))
@@ -102,18 +98,14 @@ public class MongoWebhookDeliveryDataService extends AbstractEncryptedService<We
         return claimed != null ? WebhookDeliveryDocuments.fromDocument(claimed, encryptionService) : null;
     }
 
-    private Bson ownedClaim(final String id, final String claimToken, final Date now) {
-        if (claimToken == null || claimToken.isBlank()) {
-            throw new IllegalArgumentException("A webhook claim token is required.");
-        }
+    private static Bson ownedClaim(final String id, final String claimToken, final Date now) {
         return Filters.and(Filters.eq("_id", MongoIds.objectId(id)),
                 Filters.eq("status", WebhookDeliveryEntity.STATUS_PROCESSING),
                 Filters.eq("claim_token", claimToken), Filters.gt("claim_expires_at", now));
     }
 
     @Override
-    public boolean markDelivered(final String id, final String claimToken) {
-        final Date now = new Date();
+    protected boolean markDelivered(final String id, final String claimToken, final Date now) {
         return collection.updateOne(ownedClaim(id, claimToken, now), Updates.combine(
                 Updates.set("status", WebhookDeliveryEntity.STATUS_DELIVERED),
                 Updates.set("delivered_at", now), Updates.set("completed_at", now), Updates.set("updated_at", now),
@@ -122,26 +114,16 @@ public class MongoWebhookDeliveryDataService extends AbstractEncryptedService<We
     }
 
     @Override
-    public boolean rescheduleOrFail(final String id, final String claimToken,
-                                    final int currentAttempts, final String errorMessage) {
-        if (currentAttempts < 1 || currentAttempts > MAX_ATTEMPTS) {
-            throw new IllegalArgumentException("Invalid webhook attempt count.");
-        }
-        final Date now = new Date();
-        final boolean exhausted = currentAttempts == MAX_ATTEMPTS;
-        final Bson scheduling = exhausted ? Updates.unset("next_attempt_at")
-                : Updates.set("next_attempt_at", new Date(now.getTime() + BACKOFF_SECONDS[currentAttempts - 1] * 1000L));
+    protected boolean endAttempt(final String id, final String claimToken, final int currentAttempts,
+                                 final Date nextAttemptAt, final String errorMessage, final Date now) {
+        final boolean exhausted = nextAttemptAt == null;
         return collection.updateOne(Filters.and(ownedClaim(id, claimToken, now),
                         Filters.eq("attempts", currentAttempts)), Updates.combine(
                 Updates.set("status", exhausted ? WebhookDeliveryEntity.STATUS_FAILED : WebhookDeliveryEntity.STATUS_PENDING),
-                Updates.set("last_error", errorMessage), Updates.set("updated_at", now), scheduling,
+                Updates.set("last_error", errorMessage), Updates.set("updated_at", now),
+                exhausted ? Updates.unset("next_attempt_at") : Updates.set("next_attempt_at", nextAttemptAt),
                 exhausted ? Updates.set("completed_at", now) : Updates.unset("completed_at"),
                 Updates.unset("claim_token"), Updates.unset("claim_expires_at"))).getModifiedCount() == 1;
-    }
-
-    @Override
-    public List<WebhookDeliveryEntity> findByUserId(final String userId, final int offset, final int limit) {
-        return findByUserId(userId, offset, limit, true);
     }
 
     @Override
@@ -163,21 +145,18 @@ public class MongoWebhookDeliveryDataService extends AbstractEncryptedService<We
     }
 
     @Override
-    public void enqueueOnce(final WebhookDeliveryEntity delivery) {
-        if (delivery.getId() == null) throw new IllegalArgumentException("Notification identity is required.");
+    protected void insert(final WebhookDeliveryEntity delivery) {
         try {
-            collection.withWriteConcern(com.mongodb.WriteConcern.MAJORITY)
-                    .insertOne(WebhookDeliveryDocuments.toDocument(delivery, encryptionService));
-        } catch (com.mongodb.MongoWriteException duplicate) {
-            if (duplicate.getError().getCode() != 11000
-                    || collection.withReadPreference(com.mongodb.ReadPreference.primary())
-                    .withReadConcern(com.mongodb.ReadConcern.MAJORITY)
-                    .find(Filters.eq("_id", MongoIds.objectId(delivery.getId()))).first() == null) throw duplicate;
+            collection.withWriteConcern(WriteConcern.MAJORITY).insertOne(WebhookDeliveryDocuments.toDocument(delivery, encryptionService));
+        } catch (final MongoWriteException ex) {
+            throw MongoRecords.isDuplicate(ex) ? new DuplicateRecordException(ex) : ex;
         }
     }
+
     @Override
-    protected Document toDocument(final WebhookDeliveryEntity entity) {
-        return WebhookDeliveryDocuments.toDocument(entity, encryptionService);
+    protected boolean exists(final String id) {
+        return collection.withReadPreference(ReadPreference.primary()).withReadConcern(ReadConcern.MAJORITY)
+                .find(Filters.eq("_id", MongoIds.objectId(id))).first() != null;
     }
 
 }

@@ -72,11 +72,11 @@ class LedgerIndexesIT extends AbstractMongoIT {
         service.initializeLedger(bob, "doc-b", "hash", "b.txt", "default", 0, "policy-hash");
         service.initializeLedger(alice, "doc-c", "hash", "c.txt", "default", 0, "policy-hash");
 
-        assertEquals(3, service.countAllChainHeads());
-        final List<LedgerEntity> heads = service.findAllChainHeadsAcrossUsers(0, 25);
+        assertEquals(3, service.listChains("req", null, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total());
+        final List<LedgerEntity> heads = service.listChains("req", null, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 25, "test").items();
         assertEquals(List.of("doc-c", "doc-b", "doc-a"), heads.stream().map(LedgerEntity::getDocumentId).toList(),
                 "newest first");
-        assertEquals(List.of("doc-b"), service.findAllChainHeadsAcrossUsers(1, 1).stream().map(LedgerEntity::getDocumentId).toList());
+        assertEquals(List.of("doc-b"), service.listChains("req", null, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 1, 1, "test").items().stream().map(LedgerEntity::getDocumentId).toList());
     }
 
 }

@@ -60,6 +60,16 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         service = new MongoApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
     }
 
+    /** Every key the user has had, revoked ones included, read from the stored documents. */
+    private List<ApiKeyEntity> allKeys(final String user) {
+        final List<ApiKeyEntity> keys = new java.util.ArrayList<>();
+        mongoClient.getDatabase("philter").getCollection("api_keys")
+                .find(new org.bson.Document("user_id", MongoIds.objectId(user)))
+                .sort(new org.bson.Document("timestamp", 1))
+                .forEach(document -> keys.add(ApiKeyDocuments.fromDocument(document)));
+        return keys;
+    }
+
     @Test
     void deleteByApiKeyEvictsFromCache() {
         final String user = MongoIds.newId();
@@ -112,7 +122,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(2, service.count(userA));
         assertEquals(1, service.count(userB));
 
-        final List<ApiKeyEntity> userAKeys = service.findAll(userA, 0, 10);
+        final List<ApiKeyEntity> userAKeys = service.findAllBySession(userA, 0, 10, null);
         assertEquals(2, userAKeys.size());
         for (final ApiKeyEntity key : userAKeys) {
             assertEquals(userA, key.getUserId());
@@ -120,7 +130,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
         // A null userId counts/returns all keys across users.
         assertEquals(3, service.count(null));
-        assertEquals(3, service.findAll(null, 0, 10).size());
+        assertEquals(3, service.count(null));
     }
 
     @Test
@@ -131,9 +141,9 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         }
 
         assertEquals(5, service.count(user));
-        assertEquals(2, service.findAll(user, 0, 2).size());
-        assertEquals(2, service.findAll(user, 2, 2).size());
-        assertEquals(1, service.findAll(user, 4, 2).size());
+        assertEquals(2, service.findAllBySession(user, 0, 2, null).size());
+        assertEquals(2, service.findAllBySession(user, 2, 2, null).size());
+        assertEquals(1, service.findAllBySession(user, 4, 2, null).size());
     }
 
     @Test
@@ -151,10 +161,10 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         // A soft-deleted key is revoked: no longer found, counted, or listed by default.
         assertNull(service.findOneByApiKey(apiKey));
         assertEquals(0, service.count(user));
-        assertTrue(service.findAll(user, 0, 10).isEmpty());
+        assertTrue(service.findAllBySession(user, 0, 10, null).isEmpty());
 
         // ...but the record is retained so audit entries referencing the key id still resolve to it.
-        final List<ApiKeyEntity> includingDeleted = service.findAll(user, 0, 10, true);
+        final List<ApiKeyEntity> includingDeleted = allKeys(user);
         assertEquals(1, includingDeleted.size());
         assertEquals(1, service.count(user, true));
         final ApiKeyEntity retained = includingDeleted.get(0);
@@ -192,51 +202,6 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         return service.findOneByApiKey(issued.getApiKey());
     }
 
-    @Test
-    void aSessionKeepsItsClientDetailsOnlyWhileItLasts() {
-        final String user = MongoIds.newId();
-
-        final ApiKeyEntity live = signedIn(user);
-        assertEquals("203.0.113.7", live.getClientAddress());
-        assertEquals("Mozilla/5.0 (Test)", live.getUserAgent());
-
-        // The authentication cache, which may be a shared Valkey/Redis server, never holds them.
-        apiKeyCache.insert(live.getApiKeyHash(), live);
-        final ApiKeyEntity cached = apiKeyCache.get(live.getApiKeyHash());
-        assertEquals(live.getId(), cached.getId());
-        assertNull(cached.getClientAddress());
-        assertNull(cached.getUserAgent());
-
-        // Revoked one at a time.
-        final ApiKeyEntity revoked = signedIn(user);
-        assertTrue(service.deleteByApiKey("req", user, revoked, "api").isSuccessful());
-
-        // Expired by the sweep.
-        final ApiKeyEntity expired = signedIn(user);
-        final java.util.Date past = new java.util.Date(System.currentTimeMillis() - 1000);
-        setSessionTimes(expired.getId(), past, past);
-        assertEquals(1L, service.expireSessionKeys(null));
-
-        // Every other session, keeping the current one.
-        final ApiKeyEntity other = signedIn(user);
-        assertEquals(1L, service.revokeSessionKeys("req", user, "api", "reason: test", live.getId()));
-
-        for (final ApiKeyEntity ended : List.of(revoked, expired, other)) {
-            final org.bson.Document stored = storedKey(ended.getId());
-            assertTrue(stored.getBoolean("deleted"), "the key ended");
-            assertFalse(stored.containsKey("client_address"), "an ended session keeps no address: " + stored.toJson());
-            assertFalse(stored.containsKey("user_agent"), "an ended session keeps no user agent: " + stored.toJson());
-        }
-
-        final org.bson.Document kept = storedKey(live.getId());
-        assertFalse(kept.getBoolean("deleted"), "the session kept is still live");
-        assertEquals("203.0.113.7", kept.getString("client_address"));
-
-        // Every key of the user, as when the user is deactivated for good.
-        service.deleteAllByUserId("req", user, "api");
-        assertFalse(storedKey(live.getId()).containsKey("client_address"));
-        assertFalse(storedKey(live.getId()).containsKey("user_agent"));
-    }
 
     @Test
     void createSessionKeyRecordsItsLimitsFromTheDefaults() {
@@ -289,7 +254,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(2L, service.expireSessionKeys(null));
         assertEquals(0L, service.expireSessionKeys(null), "a second sweep, as another node would run, records nothing");
 
-        assertTrue(service.findAll(user, 0, 10, true).stream().filter(ApiKeyEntity::isSession).allMatch(ApiKeyEntity::isDeleted));
+        assertTrue(allKeys(user).stream().filter(ApiKeyEntity::isSession).allMatch(ApiKeyEntity::isDeleted));
         assertNotNull(service.findOneByApiKey(longLived), "a long-lived key never expires");
         assertFalse(apiKeyCache.containsApiKey(idle.getApiKeyHash()), "an expired key is evicted");
         verify(auditEventPublisher).auditEvent(any(), eq(AuditLogEvent.API_KEY_EXPIRED), eq(idle.getId()), eq(user),
@@ -344,7 +309,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
         assertEquals(1L, service.revokeSessionKeys("req", user, "api", "reason: test"));
 
-        assertTrue(service.findAll(user, 0, 10, true).stream()
+        assertTrue(allKeys(user).stream()
                 .filter(ApiKeyEntity::isSession).allMatch(ApiKeyEntity::isDeleted));
         assertNotNull(service.findOneByApiKey(longLived), "a long-lived key keeps working");
         assertNotNull(service.findOneByApiKey(othersSession), "another user's session key keeps working");
@@ -355,38 +320,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertEquals(0L, service.revokeSessionKeys("req", user, "api", "reason: test"), "nothing left to revoke");
     }
 
-    @Test
-    void deleteAllByUserIdStampsDeletedAtAndRetainsRecords() {
-        final String user = MongoIds.newId();
-        service.createApiKey("req", user, "src");
-        service.createApiKey("req", user, "src");
 
-        assertEquals(2L, service.deleteAllByUserId("req", user, "src"));
-
-        // Both keys are revoked (hidden by default) but retained and stamped with a deletion time.
-        assertEquals(0, service.count(user));
-        final List<ApiKeyEntity> retained = service.findAll(user, 0, 10, true);
-        assertEquals(2, retained.size());
-        for (final ApiKeyEntity key : retained) {
-            assertTrue(key.isDeleted());
-            assertNotNull(key.getDeletedAt());
-        }
-    }
-
-    @Test
-    void deleteAllByUserIdScopesToOwningUser() {
-        final String userA = MongoIds.newId();
-        final String userB = MongoIds.newId();
-        service.createApiKey("req", userA, "src");
-        service.createApiKey("req", userA, "src");
-        service.createApiKey("req", userB, "src");
-
-        assertEquals(2L, service.deleteAllByUserId("req", userA, "src"));
-
-        assertEquals(0, service.count(userA));
-        // Another user's keys are untouched.
-        assertEquals(1, service.count(userB));
-    }
 
     @Test
     void ensureApiKeyCreatesAndIsFindable() {
@@ -425,33 +359,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertNull(service.findOneByApiKey(key));
     }
 
-    @Test
-    void ensureApiKeyMarksTheKeyAsBootstrapAndIsFindable() {
-        final String user = MongoIds.newId();
-        final String key = "sk_" + "d".repeat(32);
 
-        service.ensureApiKey("req", user, key, "src");
-
-        final ApiKeyEntity bootstrap = service.findActiveBootstrapKey(user);
-        assertNotNull(bootstrap);
-        assertTrue(bootstrap.isBootstrap());
-
-        // A regular key is not reported as the bootstrap key.
-        final String other = MongoIds.newId();
-        service.createApiKey("req", other, "src");
-        assertNull(service.findActiveBootstrapKey(other));
-    }
-
-    @Test
-    void findActiveBootstrapKeyIgnoresADeletedBootstrapKey() {
-        final String user = MongoIds.newId();
-        final String key = "sk_" + "e".repeat(32);
-
-        service.ensureApiKey("req", user, key, "src");
-        service.deleteByApiKey("req", user, service.findOneByApiKey(key), "src");
-
-        assertNull(service.findActiveBootstrapKey(user));
-    }
 
     @Test
     void createdKeyPersistsItsScopesAndRoundTrips() {

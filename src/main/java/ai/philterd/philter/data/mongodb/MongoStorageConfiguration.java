@@ -23,6 +23,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.EvidenceGuard;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
@@ -38,6 +39,7 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.context.ContextServices;
+import ai.philterd.philter.services.context.StoredContextServices;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.signing.SigningService;
@@ -76,13 +78,13 @@ public class MongoStorageConfiguration {
     }
 
     @Bean
-    public ContextServices contextServices() {
-        return new MongoContextServices(mongoClient, auditEventPublisher());
+    public ContextServices contextServices(final MongoContextEntryDataService contextEntryDataService) {
+        return new StoredContextServices(contextEntryDataService);
     }
 
     @Bean
     public VectorServices vectorServices() {
-        return new MongoVectorServices(mongoClient, auditEventPublisher());
+        return new MongoVectorServices(mongoClient);
     }
 
     @Bean
@@ -97,24 +99,29 @@ public class MongoStorageConfiguration {
 
     @Bean
     public ContextDataService contextDataService(final ContextCache contextCache) {
-        return new MongoContextDataService(mongoClient, contextCache, auditEventPublisher());
+        return new MongoContextDataService(mongoClient, auditEventPublisher(), contextEntryDataService(contextCache), vectorServices());
+    }
+
+    @Bean
+    public EvidenceGuard evidenceGuard() {
+        return new MongoEvidenceGuard(mongoClient);
     }
 
     @Bean
     public LegalHoldDataService legalHoldDataService() {
-        return new MongoLegalHoldDataService(mongoClient, auditEventPublisher());
+        return new MongoLegalHoldDataService(mongoClient, auditEventPublisher(), evidenceGuard());
     }
 
     @Bean
     public LedgerDataService ledgerService(final SigningService signingService,
             final EncryptionService encryptionService) {
         return new MongoLedgerDataService(mongoClient, encryptionService, auditEventPublisher(),
-                legalHoldDataService(), signingService);
+                legalHoldDataService(), signingService, evidenceGuard());
     }
 
     @Bean
-    public ContextEntryDataService contextEntryDataService(final ContextCache contextCache) {
-        return new MongoContextEntryDataService(mongoClient, auditEventPublisher(), contextCache);
+    public MongoContextEntryDataService contextEntryDataService(final ContextCache contextCache) {
+        return new MongoContextEntryDataService(mongoClient, contextCache);
     }
 
     @Bean

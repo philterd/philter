@@ -67,7 +67,9 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
         entity.setNextAttemptAt(nextAttemptAt);
         entity.setCreatedAt(new Date());
         entity.setUpdatedAt(new Date());
-        return service.save(entity);
+        entity.setId(MongoIds.newId());
+        service.enqueueOnce(entity);
+        return entity.getId();
     }
 
     private WebhookDeliveryEntity reload(final String id) {

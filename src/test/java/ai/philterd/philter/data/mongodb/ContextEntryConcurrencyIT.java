@@ -51,7 +51,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new MongoContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), new ContextCache(null, 0, null, false));
+        service = new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false));
     }
 
     @Test
@@ -272,7 +272,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
         final ContextCache cache = new ContextCache(null, 0, null, false);
         final ContextEntryDataService cached =
-                new MongoContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+                new MongoContextEntryDataService(mongoClient, cache);
 
         final String user = MongoIds.newId();
         cached.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
@@ -297,7 +297,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
         final ContextCache cache = new ContextCache(null, 0, null, false);
         final ContextEntryDataService cached =
-                new MongoContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+                new MongoContextEntryDataService(mongoClient, cache);
 
         final String user = MongoIds.newId();
         final ContextEntryEntity doomed = cached.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
@@ -319,7 +319,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
         final ContextCache cache = new ContextCache(null, 0, null, false);
         final ContextEntryDataService cached =
-                new MongoContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+                new MongoContextEntryDataService(mongoClient, cache);
 
         final String owner = MongoIds.newId();
         final ContextEntryEntity entry = cached.putReplacementIfAbsent(owner, "ctx", "John Smith", "David Jones", "PERSON");
@@ -338,7 +338,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
         final ContextCache cache = new ContextCache(null, 0, null, false);
         final ContextEntryDataService cached =
-                new MongoContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
+                new MongoContextEntryDataService(mongoClient, cache);
 
         final String user = MongoIds.newId();
         for (int i = 0; i < 5; i++) {

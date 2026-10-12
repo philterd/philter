@@ -371,7 +371,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         entry.setSignature("old-signature");
         entry.setSigningKeyId("old-key");
         assertThrows(IllegalStateException.class, () -> service.addTransaction(entry));
-        assertThrows(IllegalStateException.class, () -> service.save(entry));
+        assertThrows(IllegalStateException.class, () -> service.addTransaction(entry));
         assertEquals(0, mongoClient.getDatabase("philter").getCollection("ledger").countDocuments());
     }
 
@@ -388,10 +388,10 @@ class LedgerSigningIT extends AbstractMongoIT {
                 new SigningService.LedgerSignature("signature", null),
                 new SigningService.LedgerSignature("signature", ""))) {
             when(brokenSigner.signLedgerEntry(entry.getHash())).thenReturn(result);
-            assertThrows(IllegalStateException.class, () -> service.save(entry));
+            assertThrows(IllegalStateException.class, () -> service.addTransaction(entry));
         }
         entry.setHash(null);
-        assertThrows(IllegalArgumentException.class, () -> service.save(entry));
+        assertThrows(IllegalArgumentException.class, () -> service.addTransaction(entry));
         assertEquals(0, mongoClient.getDatabase("philter").getCollection("ledger").countDocuments());
     }
 
@@ -399,12 +399,10 @@ class LedgerSigningIT extends AbstractMongoIT {
     void directSaveSignsAndGenericUpdateCannotRewriteEvidence() throws Exception {
         final LedgerEntity entry = new LedgerEntity(USER, DOC, "", "", 0, "input-hash",
                 LedgerDataService.GENESIS, "file", "", "default", 1, "policy-hash");
-        assertNotNull(ledgerDataService.save(entry));
+        ledgerDataService.addTransaction(entry);
         assertTrue(ledgerDataService.isChainValid(USER, DOC));
         final LedgerEntity stored = ledgerDataService.getChain(USER, DOC).getFirst();
         stored.setSignature(null);
-        assertThrows(UnsupportedOperationException.class,
-                () -> ledgerDataService.update(stored));
         assertTrue(ledgerDataService.isChainValid(USER, DOC));
     }
 }

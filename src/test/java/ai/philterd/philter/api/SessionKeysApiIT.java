@@ -50,6 +50,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -166,8 +167,8 @@ class SessionKeysApiIT {
                 ended.body());
         assertEquals(401, send("GET", "/api/users/me", key).statusCode());
         assertTrue(audited("api_key_expired", "reason: idle timeout"), "the expiry is audited");
-        assertTrue(apiKeyDataService.findAll(user, 0, 10, true).stream()
-                .filter(k -> k.getId().equals(issued.getId())).allMatch(ApiKeyEntity::isDeleted));
+        assertNull(apiKeyDataService.findOneById(issued.getId()), "the key ended");
+        assertTrue(apiKeyDataService.isEndedSessionKey(key));
 
     }
 

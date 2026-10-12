@@ -68,7 +68,7 @@ class LegalHoldDataServiceTest {
         when(guards.withWriteConcern(any())).thenReturn(guards);
         lenient().when(guards.updateOne(any(Bson.class), any(Bson.class)))
                 .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(1, 1L, null));
-        service = new MongoLegalHoldDataService(mongoClient, auditEventPublisher);
+        service = new MongoLegalHoldDataService(mongoClient, auditEventPublisher, new MongoEvidenceGuard(mongoClient));
     }
 
     // -------------------------------------------------------------------------
@@ -191,90 +191,21 @@ class LegalHoldDataServiceTest {
     // isProtectedDocument
     // -------------------------------------------------------------------------
 
-    @Test
-    void isProtectedDocumentReturnsFalseWhenNoHoldExists() {
-        final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.first()).thenReturn(null);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        assertFalse(service.isProtectedDocument(userId, "doc123"));
-    }
 
-    @Test
-    void isProtectedDocumentReturnsTrueWhenDocumentChainHoldExists() {
-        final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.first()).thenReturn(holdDoc("REF-1", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN, "doc123"));
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
-
-        assertTrue(service.isProtectedDocument(userId, "doc123"));
-    }
-
-    @Test
-    void isProtectedDocumentReturnsTrueWhenUserScopeHoldExists() {
-        // A user-scope hold protects ALL of the user's documents.
-        final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.first()).thenReturn(holdDoc("REF-2", LegalHoldEntity.SCOPE_USER, userId));
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
-
-        assertTrue(service.isProtectedDocument(userId, "any-document-id"));
-    }
 
     // -------------------------------------------------------------------------
     // hasAnyHold
     // -------------------------------------------------------------------------
 
-    @Test
-    void hasAnyHoldReturnsFalseWhenNoHolds() {
-        final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.first()).thenReturn(null);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        assertFalse(service.hasAnyHold(userId));
-    }
-
-    @Test
-    void hasAnyHoldReturnsTrueWhenAtLeastOneHoldExists() {
-        final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.first()).thenReturn(holdDoc("REF-1", LegalHoldEntity.SCOPE_USER, "val"));
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
-
-        assertTrue(service.hasAnyHold(userId));
-    }
 
     // -------------------------------------------------------------------------
     // findAllByUserId / findAll
     // -------------------------------------------------------------------------
 
-    @Test
-    void findAllByUserIdReturnsEmptyListWhenNoneExist() {
-        final FindIterable<Document> fi = emptyFindIterable();
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        final List<LegalHoldEntity> result = service.findAllByUserId(userId, 0, 25);
-        assertTrue(result.isEmpty());
-    }
 
-    @Test
-    void findAllByUserIdReturnsHolds() {
-        final Document doc = holdDoc("REF-1", LegalHoldEntity.SCOPE_USER, userId);
-        final FindIterable<Document> fi = iterableOf(doc);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
-
-        final List<LegalHoldEntity> result = service.findAllByUserId(userId, 0, 25);
-        assertEquals(1, result.size());
-        assertEquals("REF-1", result.get(0).getReference());
-    }
-
-    @Test
-    void findAllAdminReturnsAllHoldsAcrossUsers() {
-        final Document docA = holdDoc("REF-A", LegalHoldEntity.SCOPE_USER, "u1");
-        final Document docB = holdDoc("REF-B", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN, "doc1");
-        final FindIterable<Document> fi = iterableOf(docA, docB);
-        when(mongoCollection.find()).thenReturn(fi);
-
-        final List<LegalHoldEntity> result = service.findAll(0, 25);
-        assertEquals(2, result.size());
-    }
 
     // -------------------------------------------------------------------------
     // findBlockingHoldsForDocument

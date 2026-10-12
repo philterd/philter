@@ -111,6 +111,4 @@ public interface PolicyVersionDataService {
     /** The user's most recent deletion of a policy with this name, or {@code null} when none was recorded. */
     Deletion findDeletion(final String userId, final String name);
 
-    void update(PolicyVersionEntity version);
-
 }

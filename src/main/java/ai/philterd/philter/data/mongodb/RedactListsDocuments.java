@@ -16,12 +16,10 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.RedactListsEntity;
-import ai.philterd.philter.services.encryption.EncryptResult;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** Maps {@link RedactListsEntity} to and from the documents MongoDB stores. */
@@ -55,28 +53,9 @@ public final class RedactListsDocuments {
         return document;
     }
 
-    /**
-     * Reads a term list, decrypting the encrypted form (a ciphertext string plus its {@code <field>_key}).
-     * Falls back to the legacy plaintext array for documents written before these lists were encrypted;
-     * such documents are re-written encrypted on the next save.
-     */
+    /** Reads a term list stored by {@link #writeTerms}. */
     private static List<String> readTerms(final Document document, final EncryptionService encryptionService, final String field) {
-        final Object raw = document.get(field);
-        final List<String> terms = new ArrayList<>();
-        if (raw instanceof String) {
-            final String encrypted = (String) raw;
-            final String key = document.getString(field + "_key");
-            if (!encrypted.isEmpty() && key != null) {
-                final String decrypted = encryptionService.decrypt(encrypted, key);
-                if (decrypted != null && !decrypted.isEmpty()) {
-                    terms.addAll(Arrays.asList(decrypted.split("\n")));
-                }
-            }
-        } else if (raw instanceof List) {
-            // Legacy plaintext list, written before these lists were encrypted.
-            terms.addAll(document.getList(field, String.class));
-        }
-        return terms;
+        return SecretFields.openLines(encryptionService, document.getString(field), document.getString(field + "_key"));
     }
 
     /** A list's revision, which counts its changes. A document written before revisions existed is at 0. */
@@ -88,15 +67,9 @@ public final class RedactListsDocuments {
     /** Encrypts a term list and stores it as {@code <field>} (ciphertext) plus the key {@code <field>_key}. */
     public static void writeTerms(final Document document, final EncryptionService encryptionService, final String userId,
                                   final String field, final List<String> terms) {
-        final String joined = String.join("\n", terms != null ? terms : new ArrayList<>());
-        if (joined.isEmpty()) {
-            document.put(field, "");
-            document.put(field + "_key", "");
-        } else {
-            final EncryptResult result = encryptionService.encrypt(joined, userId);
-            document.put(field, result.getEncryptedText());
-            document.put(field + "_key", result.getEncryptionKey());
-        }
+        final SecretFields.Sealed sealed = SecretFields.sealLines(encryptionService, terms, userId);
+        document.put(field, sealed.ciphertext());
+        document.put(field + "_key", sealed.key());
     }
 
 }

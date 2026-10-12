@@ -88,8 +88,6 @@ public interface ContextEntryDataService {
 
     ContextEntryEntity findOneEntryByToken(final String userId, final String contextName, final String token);
 
-    String save(final ContextEntryEntity contextEntryEntity);
-
     void putReplacement(final String userId, final String contextName, final String token, final String replacement, final String filterType);
 
     /**

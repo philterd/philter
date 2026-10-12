@@ -47,12 +47,9 @@ public interface WebhookDeliveryDataService {
             final int currentAttempts, final String errorMessage);
 
     /**
-     * A page of the user's deliveries, newest first, without their secrets or payloads, which a listing
-     * has no use for.
+     * A page of the user's deliveries, oldest first unless {@code descending}, without their secrets or
+     * payloads, which a listing has no use for.
      */
-    List<WebhookDeliveryEntity> findByUserId(final String userId, final int offset, final int limit);
-
-    /** As above, oldest first unless {@code descending}. */
     List<WebhookDeliveryEntity> findByUserId(final String userId, final int offset, final int limit,
             final boolean descending);
 

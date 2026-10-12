@@ -37,7 +37,7 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
         try { when(signing.signLedgerEntry(anyString())).thenReturn(new SigningService.LedgerSignature("test-signature", "test-key")); }
         catch (Exception ex) { throw new AssertionError(ex); }
         when(signing.verifyLedgerEntry(anyString(), anyString(), anyString())).thenReturn(true);
-        return new MongoLedgerDataService(client, encryption, audit, new MongoLegalHoldDataService(client, audit), signing);
+        return new MongoLedgerDataService(client, encryption, audit, new MongoLegalHoldDataService(client, audit, new MongoEvidenceGuard(client)), signing);
     }
     private void genesis(LedgerDataService ledger, String doc) throws Exception {
         ledger.initializeLedger(owner, doc, "input-hash", "file.pdf", "policy", 0, "policy-hash");
@@ -47,10 +47,9 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
                 ledger.getLatestTransaction(owner, doc).getHash(), "file.pdf", "ssn", "policy", 0, "policy-hash");
     }
     private ServiceResponse delete(LedgerDataService ledger, int path) {
-        return path == 0 ? ledger.deleteByDocumentId("audit", owner, "doc", "test")
-                : ledger.deleteAllByUserId("audit", owner);
+        return ledger.deleteByDocumentId("audit", owner, "doc", "test");
     }
-    @ParameterizedTest @ValueSource(ints = {0, 1})
+    @ParameterizedTest @ValueSource(ints = {0})
     void openChainCannotBeDeletedBetweenAppends(int path) throws Exception {
         var writer = service(mongoClient); genesis(writer, "doc"); var entry = next(writer, "doc");
         assertEquals(409, delete(service(mongoClient), path).getStatusCode());
@@ -58,7 +57,7 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
         assertTrue(writer.validateChain(owner, "doc").valid());
         assertEquals(2, writer.getChain(owner, "doc").size());
     }
-    @ParameterizedTest @ValueSource(ints = {0, 1})
+    @ParameterizedTest @ValueSource(ints = {0})
     void deletionCannotOvertakeAnInFlightInsert(int path) throws Exception {
         var ledger = service(mongoClient); genesis(ledger, "doc"); var entry = next(ledger, "doc");
         var client = mock(com.mongodb.client.MongoClient.class, org.mockito.AdditionalAnswers.delegatesTo(mongoClient)); var database = spy(mongoClient.getDatabase("philter"));
@@ -79,7 +78,7 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
         }
         writer.completeChain(owner, "doc"); assertTrue(ledger.validateChain(owner, "doc").valid());
     }
-    @ParameterizedTest @ValueSource(ints = {0, 1})
+    @ParameterizedTest @ValueSource(ints = {0})
     void completedDeletionPermanentlyFencesLateAppendsAndNewGenesis(int path) throws Exception {
         var ledger = service(mongoClient); genesis(ledger, "doc"); var late = next(ledger, "doc");
         ledger.completeChain(owner, "doc"); assertTrue(delete(service(mongoClient), path).isSuccessful());
@@ -88,25 +87,5 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
         assertThrows(IllegalStateException.class, () -> ledger.completeChain(owner, "doc"));
         assertTrue(ledger.getChain(owner, "doc").isEmpty());
         assertTrue(delete(service(mongoClient), path).isSuccessful());
-    }
-    @Test void bulkDeletionDoesNotSweepUpANewChain() throws Exception {
-        var ledger = service(mongoClient); genesis(ledger, "doc"); ledger.completeChain(owner, "doc");
-        var client = mock(com.mongodb.client.MongoClient.class, org.mockito.AdditionalAnswers.delegatesTo(mongoClient)); var database = spy(mongoClient.getDatabase("philter"));
-        doReturn(database).when(client).getDatabase("philter");
-        var entries = spy(database.getCollection("ledger")); doReturn(entries).when(database).getCollection("ledger");
-        doReturn(entries).when(entries).withReadPreference(any()); doReturn(entries).when(entries).withWriteConcern(any());
-        var entered = new CountDownLatch(1); var resume = new CountDownLatch(1);
-        doAnswer(inv -> { entered.countDown(); assertTrue(resume.await(10, TimeUnit.SECONDS)); return inv.callRealMethod(); })
-                .when(entries).deleteMany(any(Bson.class));
-        var deleting = service(client);
-        try (var executor = Executors.newSingleThreadExecutor()) {
-            var deletion = executor.submit(() -> delete(deleting, 1));
-            try { assertTrue(entered.await(10, TimeUnit.SECONDS)); genesis(ledger, "new-doc"); }
-            finally { resume.countDown(); }
-            assertTrue(deletion.get(10, TimeUnit.SECONDS).isSuccessful());
-        }
-        ledger.completeChain(owner, "new-doc");
-        assertTrue(ledger.getChain(owner, "doc").isEmpty());
-        assertTrue(ledger.validateChain(owner, "new-doc").valid());
     }
 }

@@ -43,7 +43,7 @@ public interface LegalHoldDataServiceContract extends StorageContract {
         final String owner = RecordIds.newId();
         final List<ServiceResponse> results = StorageContract.concurrently(6, () -> hold(owner, "case-1", "doc"));
         assertEquals(1, results.stream().filter(ServiceResponse::isSuccessful).count());
-        assertEquals(1, storage().legalHolds().countByUserId(owner));
+        assertEquals(1, storage().legalHolds().list(owner, null, new Listings.Sort("reference", false), 0, 10).total());
         assertEquals(201, hold(RecordIds.newId(), "case-1", "doc").getStatusCode());
     }
 

@@ -46,7 +46,7 @@ class RequiredSchemaMongoIT {
         database.getCollection("ledger").createIndex(Indexes.ascending("timestamp"),
                 new IndexOptions().name("unexpected_expiry").expireAfter(1L, TimeUnit.SECONDS));
         assertThrows(IllegalStateException.class, () -> new MongoLedgerDataService(client, new TestEncryptionService(), audit,
-                new MongoLegalHoldDataService(client, audit), mock(SigningService.class)));
+                new MongoLegalHoldDataService(client, audit, new MongoEvidenceGuard(client)), mock(SigningService.class)));
         assertTrue(database.getCollection("ledger").listIndexes().into(new java.util.ArrayList<>()).stream()
                 .anyMatch(i -> "unexpected_expiry".equals(i.getString("name"))));
     }

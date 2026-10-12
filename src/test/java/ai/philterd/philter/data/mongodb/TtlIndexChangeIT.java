@@ -40,26 +40,26 @@ import static org.mockito.Mockito.mock;
  */
 class TtlIndexChangeIT extends AbstractMongoIT {
 
-    /** Only to reach the protected helper the TTL indexes go through. */
-    private static final class ProbeService extends AbstractEncryptedService<AbstractEncryptedEntity> {
+    /** Only to reach the helper the TTL indexes go through. */
+    private static final class ProbeService {
 
-        ProbeService(final MongoClient mongoClient, final EncryptionService encryptionService,
-                     final AuditEventPublisher auditEventPublisher) {
-            super(mongoClient, "ttl_guard_probe", encryptionService, auditEventPublisher);
+        private final MongoRecords<Object> records;
+
+        ProbeService(final MongoClient mongoClient) {
+            records = new MongoRecords<>(mongoClient, "ttl_guard_probe", entity -> new Document());
         }
 
         void createIndexUnguarded(final Bson keys, final IndexOptions options) {
-            collection.createIndex(keys, options);
+            records.collection.createIndex(keys, options);
         }
 
         void createIndexGuarded(final Bson keys, final IndexOptions options) {
-            ensureIndex(keys, options);
+            records.ensureIndex(keys, options);
         }
     }
 
     private ProbeService probeServiceOverDuplicateData() {
-        final ProbeService service =
-                new ProbeService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
+        final ProbeService service = new ProbeService(mongoClient);
         final var collection = mongoClient.getDatabase("philter").getCollection("ttl_guard_probe");
         collection.insertOne(new Document("k", "duplicate"));
         collection.insertOne(new Document("k", "duplicate"));

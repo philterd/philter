@@ -16,7 +16,7 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.data.mongodb.MongoContextServices;
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.mock;
 class ContextConsistencyIT extends AbstractMongoIT {
 
     private ContextService serviceFor(final String userId, final String contextName) {
-        return new MongoContextServices(mongoClient, mock(AuditEventPublisher.class)).forContext(new ContextCache(null, 0, null, false), userId, contextName);
+        return new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), userId, contextName);
     }
 
     @Test

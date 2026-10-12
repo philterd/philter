@@ -17,7 +17,7 @@ package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
-import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,23 +26,24 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
- * Integration tests for {@link MongoVectorService} against a real (in-memory) MongoDB. These exercise
+ * Integration tests for {@link MongoVectorServices} against a real (in-memory) MongoDB. These exercise
  * the actual {@code hashAndInsert} writes, the {@code getVectorRepresentation} hash&rarr;count
  * aggregation read back from storage, per-user scoping, and {@code deleteByContext} — full driver
  * round-trips the mock-based unit tests can only approximate.
  */
-class MongoVectorServiceIT extends AbstractMongoIT {
+class MongoVectorServicesIT extends AbstractMongoIT {
 
     private final String userId = MongoIds.newId();
 
-    private MongoVectorService service;
+    private MongoVectorServices vectors;
+    private VectorService service;
 
     @BeforeEach
     void setUpService() {
-        service = new MongoVectorService(mongoClient, userId, mock(AuditEventPublisher.class));
+        vectors = new MongoVectorServices(mongoClient);
+        service = vectors.forUser(userId);
     }
 
     private static Span personSpan() {
@@ -94,8 +95,7 @@ class MongoVectorServiceIT extends AbstractMongoIT {
         service.hashAndInsert("ctx", new double[]{1.5}, personSpan(), 8);
 
         // A service for a different user must not see the first user's vectors.
-        final MongoVectorService otherUser =
-                new MongoVectorService(mongoClient, MongoIds.newId(), mock(AuditEventPublisher.class));
+        final VectorService otherUser = vectors.forUser(MongoIds.newId());
 
         assertTrue(otherUser.getVectorRepresentation("ctx", FilterType.PERSON).isEmpty());
         // The owning user still sees its vector.
@@ -107,7 +107,7 @@ class MongoVectorServiceIT extends AbstractMongoIT {
         service.hashAndInsert("ctxA", new double[]{1.5, 2.5}, personSpan(), 8);
         service.hashAndInsert("ctxB", new double[]{3.5}, personSpan(), 8);
 
-        service.deleteByContext("ctxA");
+        vectors.deleteByContext(userId, "ctxA");
 
         assertTrue(service.getVectorRepresentation("ctxA", FilterType.PERSON).isEmpty());
         // The other context is untouched.
@@ -119,9 +119,7 @@ class MongoVectorServiceIT extends AbstractMongoIT {
         service.hashAndInsert("ctx", new double[]{1.5}, personSpan(), 8);
 
         // A different user deleting the same context name must not remove this user's vectors.
-        final MongoVectorService otherUser =
-                new MongoVectorService(mongoClient, MongoIds.newId(), mock(AuditEventPublisher.class));
-        otherUser.deleteByContext("ctx");
+        vectors.deleteByContext(MongoIds.newId(), "ctx");
 
         assertEquals(1.0, service.getVectorRepresentation("ctx", FilterType.PERSON).get(1.5), 1e-9);
     }

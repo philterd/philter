@@ -56,7 +56,7 @@ class SigningKeyEncryptionIT extends AbstractMongoIT {
     @Test
     void theStoredPrivateKeyIsNotTheRealPrivateKey() {
         final SigningKeyDataService service = newService();
-        final byte[] actualPrivate = service.getPrivateKey().getEncoded();
+        final byte[] actualPrivate = service.currentSigningKey().privateKey().getEncoded();
 
         final Document stored = rawKey();
         assertNotNull(stored);
@@ -83,13 +83,13 @@ class SigningKeyEncryptionIT extends AbstractMongoIT {
     @Test
     void theKeyRoundTripsAcrossRestarts() {
         final SigningKeyDataService first = newService();
-        final byte[] privateBefore = first.getPrivateKey().getEncoded();
+        final byte[] privateBefore = first.currentSigningKey().privateKey().getEncoded();
         final String keyId = first.getActiveKeyId();
 
         // A second instance reads the same persisted key, decrypting it.
         final SigningKeyDataService second = newService();
 
-        assertArrayEquals(privateBefore, second.getPrivateKey().getEncoded(),
+        assertArrayEquals(privateBefore, second.currentSigningKey().privateKey().getEncoded(),
                 "the same keypair must survive a restart");
         assertEquals(keyId, second.getActiveKeyId());
     }

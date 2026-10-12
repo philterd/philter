@@ -142,7 +142,7 @@ class SettingsApiIT {
 
         final HttpResponse<String> audit = send("GET", "/api/audit?event=settings_updated&limit=100", adminKey, null);
         final String keyId = apiKeyDataService.findOneByApiKey(adminKey).getId();
-        assertTrue(audit.body().contains("settings: phield_enabled, phield_url, phield_api_key, phield_api_key_key, api_key: " + keyId),
+        assertTrue(audit.body().contains("settings: phield_enabled, phield_url, phield_api_key, api_key: " + keyId),
                 audit.body());
         assertFalse(audit.body().contains("phield-secret") || audit.body().contains("phield.example.com"),
                 "the audit records names, not values");

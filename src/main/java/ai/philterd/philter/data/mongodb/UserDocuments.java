@@ -16,7 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.UserEntity;
-import ai.philterd.philter.services.encryption.EncryptResult;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 
@@ -80,21 +80,13 @@ public final class UserDocuments {
         return document;
     }
 
-    /**
-     * Reads a field encrypted by {@link #putEncrypted}. Returns null when absent or empty. A value
-     * present without its {@code _key} is legacy plaintext (written before the field was encrypted) and
-     * is returned as-is; it is re-written encrypted on the next save.
-     */
+    /** Reads a field stored by {@link #putEncrypted}: null when absent or empty. */
     private static String readEncrypted(final Document document, final EncryptionService encryptionService, final String field) {
         final String value = document.getString(field);
         if (value == null || value.isEmpty()) {
             return null;
         }
-        final String key = document.getString(field + "_key");
-        if (key != null && !key.isEmpty()) {
-            return encryptionService.decrypt(value, key);
-        }
-        return value;
+        return SecretFields.open(encryptionService, value, document.getString(field + "_key"));
     }
 
     /**
@@ -103,14 +95,10 @@ public final class UserDocuments {
      */
     private static void putEncrypted(final Document document, final EncryptionService encryptionService, final String id,
                                      final String field, final String value) {
-        if (value == null || value.isEmpty()) {
-            document.put(field, "");
-            document.put(field + "_key", "");
-        } else {
-            final EncryptResult result = encryptionService.encrypt(value, id != null ? id : "");
-            document.put(field, result.getEncryptedText());
-            document.put(field + "_key", result.getEncryptionKey());
-        }
+        final SecretFields.Sealed sealed = value == null || value.isEmpty() ? new SecretFields.Sealed("", "")
+                : SecretFields.seal(encryptionService, value, id != null ? id : "");
+        document.put(field, sealed.ciphertext());
+        document.put(field + "_key", sealed.key());
     }
 
 }

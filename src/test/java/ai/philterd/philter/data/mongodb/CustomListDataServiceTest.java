@@ -87,16 +87,6 @@ class CustomListDataServiceTest {
         assertEquals(name, result.getName());
     }
 
-    @Test
-    void existsForUser() {
-        String userId = MongoIds.newId();
-        String name = "testList";
-        FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(new Document());
-
-        assertTrue(customListDataService.existsForUser(name, userId));
-    }
 
     @Test
     void deleteByName() {
@@ -108,85 +98,8 @@ class CustomListDataServiceTest {
         verify(mongoCollection).deleteOne(any(Bson.class));
     }
 
-    @Test
-    void deleteAll() {
-        String userId = MongoIds.newId();
-        DeleteResult deleteResult = mock(DeleteResult.class);
-        when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
-        when(deleteResult.getDeletedCount()).thenReturn(5L);
 
-        long deleted = customListDataService.deleteAll(userId);
 
-        assertEquals(5L, deleted);
-        verify(mongoCollection).deleteMany(any(Bson.class));
-    }
 
-    @Test
-    void findAll() {
-        String userId = MongoIds.newId();
-        FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
-        when(findIterable.sort(any())).thenReturn(findIterable);
-        when(findIterable.skip(anyInt())).thenReturn(findIterable);
-        when(findIterable.limit(anyInt())).thenReturn(findIterable);
-        MongoCursor<Document> cursor = mock(MongoCursor.class);
-        when(findIterable.iterator()).thenReturn(cursor);
-        when(cursor.hasNext()).thenReturn(false);
 
-        List<CustomListEntity> results = customListDataService.findAll(userId, 0, 10);
-
-        assertNotNull(results);
-        assertTrue(results.isEmpty());
-    }
-
-    @Test
-    void findAllAcrossUsersReturnsEveryListUnscopedByUser() {
-        final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
-        final Document docB = new Document("_id", new ObjectId()).append("name", "beta").append("user_id", new ObjectId());
-
-        final FindIterable<Document> findIterable = mock(FindIterable.class);
-        // findAllAcrossUsers must use the no-arg find() (no owner filter).
-        when(mongoCollection.find()).thenReturn(findIterable);
-        final Iterator<Document> it = List.of(docA, docB).iterator();
-        final MongoCursor<Document> cursor = mock(MongoCursor.class);
-        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
-        when(cursor.next()).thenAnswer(inv -> it.next());
-        when(findIterable.iterator()).thenReturn(cursor);
-
-        final List<CustomListEntity> lists = customListDataService.findAllAcrossUsers();
-
-        assertEquals(2, lists.size());
-        assertEquals("alpha", lists.get(0).getName());
-        assertEquals("beta", lists.get(1).getName());
-        verify(mongoCollection).find();
-    }
-
-    @Test
-    void findAllAcrossUsersPagedAppliesSortSkipAndLimit() {
-        final Document docA = new Document("_id", new ObjectId()).append("name", "alpha").append("user_id", new ObjectId());
-
-        final FindIterable<Document> findIterable = mock(FindIterable.class);
-        when(mongoCollection.find()).thenReturn(findIterable);
-        when(findIterable.sort(any())).thenReturn(findIterable);
-        when(findIterable.skip(anyInt())).thenReturn(findIterable);
-        when(findIterable.limit(anyInt())).thenReturn(findIterable);
-        final Iterator<Document> it = List.of(docA).iterator();
-        final MongoCursor<Document> cursor = mock(MongoCursor.class);
-        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
-        when(cursor.next()).thenAnswer(inv -> it.next());
-        when(findIterable.iterator()).thenReturn(cursor);
-
-        final List<CustomListEntity> page = customListDataService.findAllAcrossUsers(25, 25);
-
-        assertEquals(1, page.size());
-        assertEquals("alpha", page.get(0).getName());
-        verify(findIterable).skip(25);
-        verify(findIterable).limit(25);
-    }
-
-    @Test
-    void countAllAcrossUsersDelegatesToCountDocuments() {
-        when(mongoCollection.countDocuments()).thenReturn(42L);
-        assertEquals(42, customListDataService.countAllAcrossUsers());
-    }
 }

@@ -27,7 +27,9 @@ import java.util.List;
  * <ul>
  *   <li>Ledger entries never expire on their own. They are removed only by an explicit, audited deletion or
  *   purge, and never while a legal hold protects them (see {@link LegalHoldDataService}).</li>
- *   <li>Appends to a chain keep its hash chain intact, and a sealed chain accepts no further entries.</li>
+ *   <li>Appends to a chain keep its hash chain intact, and a sealed chain accepts no further entries. An entry
+ *   is stored only if it follows the chain's latest entry (a genesis entry only in an empty chain), so writers on
+ *   any instance can never fork a chain.</li>
  *   <li>Deletions and hold changes for one owner are serialized across every instance, so a hold set
  *   concurrently with a deletion either blocks it or is set after it.</li>
  *   <li>Token and replacement values are stored encrypted, and what is written is read back unchanged; an
@@ -46,6 +48,13 @@ public interface LedgerDataService {
     void initializeLedger(final String userId, final String documentId, final String inputDocumentHash, final String filename,
             final String policyName, final int policyVersion, final String policyContentHash, final String effectiveHash) throws Exception;
 
+    /**
+     * Signs and appends an entry to its chain.
+     *
+     * @throws StaleLedgerEntryException when the entry does not follow the chain's latest entry, because another
+     *         writer appended first; nothing is written, and the chain stays open.
+     * @throws IllegalStateException when the chain is not open for writing, or the entry could not be signed or saved.
+     */
     void addTransaction(final LedgerEntity ledgerEntity);
 
     /** Seals successfully recorded evidence. Further appends to this document ID are rejected. */

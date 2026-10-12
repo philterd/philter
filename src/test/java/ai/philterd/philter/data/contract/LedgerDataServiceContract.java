@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.Listings;
+import ai.philterd.philter.data.services.StaleLedgerEntryException;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -30,6 +31,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -268,6 +270,55 @@ public interface LedgerDataServiceContract extends StorageContract {
         assertEquals("token-7", chain.get(8).getToken());
         assertEquals("token-7", storage().ledger().getLatestTransaction(owner, "doc").getToken());
         assertTrue(storage().ledger().validateChain(owner, "doc").valid());
+    }
+
+    @Test
+    default void ledgerAnEntryThatDoesNotFollowTheLatestEntryIsRefusedAndTheChainStaysOpen() throws Exception {
+        final String owner = RecordIds.newId();
+        storage().ledger().initializeLedger(owner, "doc", "input-hash", "file.pdf", "policy", 0, "policy-hash");
+        // Two writers read the chain at the same point; the first appends.
+        final LedgerEntity first = entry(owner, "doc", "first");
+        final LedgerEntity stale = entry(owner, "doc", "second");
+        storage().ledger().addTransaction(first);
+
+        assertThrows(StaleLedgerEntryException.class, () -> storage().anotherInstance().ledger().addTransaction(stale));
+        assertThrows(StaleLedgerEntryException.class, () -> storage().ledger().initializeLedger(owner, "doc", "input-hash",
+                "file.pdf", "policy", 0, "policy-hash"), "a genesis entry only starts an empty chain");
+        assertEquals(2, storage().ledger().getChain(owner, "doc").size(), "nothing was written");
+
+        // The chain is still open: the writer reads it again and appends.
+        storage().anotherInstance().ledger().addTransaction(entry(owner, "doc", "second"));
+        storage().ledger().completeChain(owner, "doc");
+        assertEquals(3, storage().ledger().getChain(owner, "doc").size());
+        assertTrue(storage().ledger().validateChain(owner, "doc").valid());
+    }
+
+    @Test
+    default void ledgerConcurrentAppendersThatRetryNeverForkAChain() throws Exception {
+        final String owner = RecordIds.newId();
+        storage().ledger().initializeLedger(owner, "doc", "input-hash", "file.pdf", "policy", 0, "policy-hash");
+        final AtomicInteger next = new AtomicInteger();
+        StorageContract.concurrently(4, () -> {
+            final LedgerDataService ledger = next.getAndIncrement() % 2 == 0 ? storage().ledger()
+                    : storage().anotherInstance().ledger();
+            for (int i = 0; i < 5; i++) {
+                for (int attempt = 0; ; attempt++) {
+                    try {
+                        ledger.addTransaction(entry(owner, "doc", "token"));
+                        break;
+                    } catch (final IllegalStateException busy) {
+                        // A StaleLedgerEntryException (another writer appended first) or a chain another writer
+                        // holds: read the chain again and retry.
+                        assertTrue(attempt < 10_000, "an append keeps being refused: " + busy.getMessage());
+                        Thread.onSpinWait();
+                    }
+                }
+            }
+            return null;
+        });
+        storage().ledger().completeChain(owner, "doc");
+        assertEquals(21, storage().ledger().getChain(owner, "doc").size());
+        assertTrue(storage().ledger().validateChain(owner, "doc").valid(), "one unbroken chain");
     }
 
 }

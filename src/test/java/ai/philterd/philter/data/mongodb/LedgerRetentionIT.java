@@ -96,10 +96,11 @@ class LedgerRetentionIT extends AbstractMongoIT {
 
     @Test
     void failedInsertCannotBeSealedOrPurged() throws Exception {
-        service.addTransaction(entry(owner, "failed", LedgerDataService.GENESIS, old));
+        final var head = entry(owner, "failed", LedgerDataService.GENESIS, old);
+        service.addTransaction(head);
         doThrow(new IllegalStateException("encryption unavailable"))
                 .when(encryption).encrypt(anyString(), anyString());
-        final var next = entry(owner, "failed", "previous", old);
+        final var next = entry(owner, "failed", head.getHash(), old);
         assertThrows(IllegalStateException.class, () -> service.addTransaction(next));
         assertThrows(IllegalStateException.class, () -> service.completeChain(owner, "failed"));
         service.deleteChainsByUserIdAndOlderThan("req", owner, 0);

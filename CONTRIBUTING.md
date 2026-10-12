@@ -46,3 +46,23 @@ are never edited or removed once released. Each storage implementation keeps its
 To add an implementation, add a package beside `data.mongodb` with a class for each interface and a
 configuration that applies when its `STORAGE_TYPE` is selected, add the value to `StorageConfiguration.TYPES`,
 and document it in `docs/docs/settings.md`. It must provide the guarantees in each interface's Javadoc.
+
+## Contract tests
+
+The guarantees in the interfaces' Javadoc are tested by the contract suite in `ai.philterd.philter.data.contract`
+(under `src/test`). Each `...Contract` interface holds the tests for one storage interface, written against the
+interface alone, and `StorageUnderTest` is how a contract reaches an implementation: it supplies each service,
+another instance over the same data for guarantees that must hold across instances, and a few hooks for what the
+interfaces do not expose, such as moving a session key's expiry into the past.
+
+To run the suite against an implementation, write one test class that implements every `...Contract` interface
+and returns a `StorageUnderTest` for that implementation from `storage()`, over storage that is empty when each
+test starts. `MongoStorageContractIT` does this for MongoDB with `MongoStorageUnderTest`, and runs in the normal
+build. Run it alone with:
+
+```
+mvn verify -Dtest=None -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=MongoStorageContractIT
+```
+
+When you add a guarantee to an interface, add a test for it to that interface's contract, so every
+implementation is tested for it.

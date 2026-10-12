@@ -30,6 +30,8 @@ import ai.philterd.philter.services.mfa.TotpService;
 import ai.philterd.philter.services.policies.DefaultPolicy;
 import ai.philterd.philter.services.webhook.WebhookSettings;
 import ai.philterd.philter.utils.PathSafeNames;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -187,7 +189,16 @@ public class MongoUserService extends AbstractEncryptedService<UserEntity> imple
             userEntity.setPassword(passwordEncoder.encode(password));
             userEntity.setPasswordChangeRequired(true);
         }
-        final String userId = save(userEntity);
+        final String userId;
+        try {
+            userId = save(userEntity);
+        } catch (final MongoWriteException ex) {
+            // Another request created the same username since the check above.
+            if (ex.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                return new ServiceResponse("User already exists.", false, 409, ErrorReasons.ALREADY_EXISTS);
+            }
+            throw ex;
+        }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED,
                 actingUserId == null ? userId : actingUserId, userId, source, withApiKey("role: " + role, actingApiKeyId));

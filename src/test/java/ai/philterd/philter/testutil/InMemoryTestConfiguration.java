@@ -45,13 +45,13 @@ import java.net.InetSocketAddress;
 public class InMemoryTestConfiguration {
 
     @Bean(destroyMethod = "shutdown")
-    @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
+    @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB)
     public MongoServer mongoServer() {
         return new MongoServer(new MemoryBackend());
     }
 
     @Bean
-    @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
+    @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB)
     public MongoClient mongoClient(final MongoServer mongoServer) {
         final InetSocketAddress address = mongoServer.bind();
         return MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());

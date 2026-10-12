@@ -51,11 +51,11 @@ import org.springframework.context.annotation.DependsOn;
 
 /**
  * The SQLite storage implementation, for a single Philter instance: every data service, the audit log, and the
- * services a redaction stores through, in one SQLite file. Used when {@code STORAGE_TYPE} is {@code sqlite}. Its
+ * services a redaction stores through, in one SQLite file. Used when {@code STORAGE_TYPE} is {@code sqlite}, the default. Its
  * services are created only once the file is at the expected schema version.
  */
 @Configuration
-@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.SQLITE)
+@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.SQLITE, matchIfMissing = true)
 @DependsOn(SqliteConnectionConfiguration.SCHEMA_VERSION)
 public class SqliteStorageConfiguration {
 

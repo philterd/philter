@@ -1,6 +1,6 @@
 # Auditing
 
-Philter records security-relevant actions to an audit log so you can review who did what, and when. The audit log is written to MongoDB and is intended to support security review, compliance, and incident investigation.
+Philter records security-relevant actions to an audit log so you can review who did what, and when. The audit log is written to Philter's database and is intended to support security review, compliance, and incident investigation.
 
 
 Audit events are either **security** events or **redaction-activity** events. Security events are
@@ -10,7 +10,7 @@ always recorded: there is no setting to disable them or the audit log. The redac
 
 ## Where audit events are stored
 
-Audit events are written to the `audit_events` collection in Philter's MongoDB database (see [Database](database.md)). Each event is a document with the following fields:
+Audit events are written to `audit_events` in Philter's database: a collection with MongoDB storage, a table with SQLite (see [Database](database.md)). Each event has the following fields:
 
 | Field | Description |
 |-------|-------------|
@@ -141,7 +141,7 @@ See [Legal Holds](redaction/legal_holds.md) for full documentation on the hold l
 
 | Event | When it is recorded |
 |-------|---------------------|
-| `signing_key_generated` | A new ES256 keypair was auto-generated on first start (no existing key was found in MongoDB). |
+| `signing_key_generated` | A new ES256 keypair was auto-generated on first start (no existing key was found in the database). |
 | `signing_key_regenerated` | The signing key was regenerated through `POST /api/signing-key/regenerate`. Any consumer that cached the old public key will need to re-fetch the new one from `GET /api/signing-key`. |
 
 See [Output Signing](output_signing.md) for the full documentation on key management and response verification.
@@ -186,7 +186,7 @@ it names a user, including one since deactivated. It is resolved when the log is
 
 ## Reviewing the audit log
 
-The audit log is stored in MongoDB and can be queried with standard MongoDB tooling. For example, to see the most recent events:
+The [Audit Log API](api_and_sdks/api/audit_api.md) reads the audit log with either storage. The database can also be queried directly. With MongoDB, use standard MongoDB tooling; for example, to see the most recent events:
 
 ```
 db.audit_events.find().sort({ timestamp: -1 }).limit(50)
@@ -196,6 +196,12 @@ To find all failed authentication attempts from a given IP address:
 
 ```
 db.audit_events.find({ event: "api_authentication_failed", client_ip_address: "203.0.113.10" })
+```
+
+With SQLite, use the `sqlite3` command line tool, where timestamps are milliseconds since the epoch:
+
+```
+sqlite3 /opt/philter/data/philter.db "SELECT datetime(timestamp / 1000, 'unixepoch'), event, details FROM audit_events ORDER BY timestamp DESC LIMIT 50"
 ```
 
 ## See also

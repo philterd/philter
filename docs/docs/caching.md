@@ -2,7 +2,7 @@
 
 Philter caches several things to avoid repeated database lookups on the hot path:
 
-* **API keys**, so that authenticating a request does not query MongoDB on every call.
+* **API keys**, so that authenticating a request does not query the database on every call.
 * **Context entries** (the token to replacement mappings used for consistent redaction within a context), so that repeated redactions in the same context reuse prior replacements quickly.
 * **Sign-in counters**: failed [sign-ins](api_and_sdks/api/sign_in_api.md) per username, username locks, and sign-in requests per client address, used to [lock and rate-limit](api_and_sdks/api/sign_in_api.md#lockout-and-rate-limiting) password sign-in.
 
@@ -26,9 +26,9 @@ The in-memory backend bounds live and non-expiring entries by entry count and ac
 When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance remains valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`). Sign-in lockout and rate limiting are also counted per instance, so behind a load balancer that spreads requests across instances, an attacker gets each instance's allowance separately and can evade them. Both are security concerns.
 
 Newly created context replacements are **not** in this list, because consistency there is enforced in
-MongoDB by a unique index on the token, an atomic upsert, and concurrent writers being handed the stored
-winner, and because a cache miss reads MongoDB, so instances agree on a replacement whatever their caches
-hold. Separate caches lower the fleet-wide hit rate and add MongoDB traffic rather than changing the answer.
+the database by a unique constraint on the token, an atomic insert, and concurrent writers being handed the stored
+winner, and because a cache miss reads the database, so instances agree on a replacement whatever their caches
+hold. Separate caches lower the fleet-wide hit rate and add database traffic rather than changing the answer.
 
 Invalidation is the part that does need a shared cache. When a mapping is overwritten by an import or
 deleted, Philter forgets it in the cache it can reach, which is every instance's when they share one and

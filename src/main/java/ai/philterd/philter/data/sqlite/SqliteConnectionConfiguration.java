@@ -29,7 +29,7 @@ import java.time.Duration;
  * expects before any service uses it ({@link SqliteStorageConfiguration} depends on {@link #SCHEMA_VERSION}).
  */
 @Configuration
-@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.SQLITE)
+@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.SQLITE, matchIfMissing = true)
 public class SqliteConnectionConfiguration {
 
     /** The name of the bean that migrates the schema, which the storage beans wait for. */

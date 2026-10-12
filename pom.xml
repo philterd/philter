@@ -207,6 +207,9 @@
                          values apply only to the test JVM, never to the packaged application. -->
                     <environmentVariables>
                         <PHILTER_BOOTSTRAP_API_KEY>sk_integrationtestintegrationtest12</PHILTER_BOOTSTRAP_API_KEY>
+                        <!-- MongoDB, against the in-memory server InMemoryTestConfiguration starts; many of these
+                             tests read it directly. The sqlite-integration-tests execution sets sqlite. -->
+                        <STORAGE_TYPE>mongodb</STORAGE_TYPE>
                         <!-- Every test signs in from the same address; SignInThrottleIT tests the limit. -->
                         <SIGN_IN_RATE_LIMIT_PER_MINUTE>1000000</SIGN_IN_RATE_LIMIT_PER_MINUTE>
                         <SSL_ENABLED>false</SSL_ENABLED>

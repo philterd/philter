@@ -266,7 +266,7 @@ The rule is applied when a URL is saved, again before each delivery, and once mo
 
 ## Operational notes
 
-* Any Philter instance can deliver a queued webhook. Workers claim attempts atomically through MongoDB; an active claim excludes other workers. Each attempt has a fresh claim token and a lease controlled by `WEBHOOK_CLAIM_LEASE_SECONDS` (default 300 seconds).
+* Any Philter instance can deliver a queued webhook. Workers claim attempts atomically through the database; an active claim excludes other workers. Each attempt has a fresh claim token and a lease controlled by `WEBHOOK_CLAIM_LEASE_SECONDS` (default 300 seconds).
 * If a worker stops or exceeds its lease, another worker can recover the delivery. Results from an expired or superseded claim cannot overwrite a newer attempt. Abandoned claims count toward the eight-attempt limit; an expired final attempt is marked `FAILED`.
 * Delivery is at least once: a receiver may accept a request just before the worker loses its claim or its connection. Deduplicate using `X-Philter-Delivery-Id`. Set the lease longer than the configured HTTP timeouts plus processing overhead; lease recovery cannot cancel a request already sent to the receiver.
 * The worker poll interval is configurable via `philter.webhook.poll-interval-ms` (default 5,000ms). Each poll delivers everything that is due rather than one delivery, so the interval is how long an idle worker waits, not a rate limit.

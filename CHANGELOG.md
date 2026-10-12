@@ -21,8 +21,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   (`PHILTER_BOOTSTRAP_API_KEY`) for the first administrator.
 - **Sign-in for a separate user interface:** passwords, expiring session keys, TOTP MFA, and lockout,
   off unless `PASSWORD_SIGN_IN_ENABLED=true`. See [Sign-in Security](docs/docs/sign_in_security.md).
-- **SQLite storage** for a single Philter instance: `STORAGE_TYPE=sqlite` keeps all data in one file
-  (`SQLITE_PATH`) with no database server. See [Database](docs/docs/database.md#sqlite) and the
+- **SQLite storage, the default:** a single Philter instance keeps all its data in one file
+  (`SQLITE_PATH`) with no database server. Set `STORAGE_TYPE=mongodb` for MongoDB, which several
+  instances can share. See [Database](docs/docs/database.md#sqlite) and the
   [SQLite quick start](docs/docs/quick_starts/quick_start_sqlite.md).
 - **Limits API:** `GET /api/limits` returns the limits and rules Philter enforces and what the caller
   may do, and `GET /api/sign-in` gives a sign-in page the password rules.

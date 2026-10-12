@@ -25,7 +25,7 @@ Philter uses an ES256 (ECDSA P-256 / SHA-256) keypair. The key belongs to the **
 
 ### Auto-generated key
 
-On first start, if no active signing-key pointer exists in the database and `PHILTER_SIGNING_KEY_PATH` is not set, Philter generates a new ES256 keypair and persists it in the `signing_keys` MongoDB collection. A single document in the signing_key_state collection selects the active key. Each signing operation reads that pointer from the MongoDB primary; decrypted key material is reused only when its ID still matches. Instances therefore observe rotation on their next key selection, without a restart or cache TTL.
+On first start, if no active signing-key pointer exists in the database and `PHILTER_SIGNING_KEY_PATH` is not set, Philter generates a new ES256 keypair and persists it, the private key encrypted, in `signing_keys` in Philter's database. A single record in `signing_key_state` selects the active key. Each signing operation reads that pointer from the database (from the primary, with MongoDB); decrypted key material is reused only when its ID still matches. Instances therefore observe rotation on their next key selection, without a restart or cache TTL.
 
 The **private** key is encrypted at rest under `PHILTER_ENCRYPTION_KEY`, so a database dump on its own does not yield the ability to forge signatures: an attacker would need both the database and the deployment's master key. The **public** key is stored in the clear, because it is not a secret and `GET /api/signing-key` serves it without authentication so signatures can be verified.
 
@@ -39,7 +39,7 @@ Set `PHILTER_SIGNING_KEY_PATH` to the absolute path of a PKCS8 PEM file containi
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out my_signing_key.pem
 ```
 
-When this environment variable is set, the key is loaded from the file on startup and the auto-generated MongoDB key (if any) is ignored. Every node must use the same file contents and key-management mode. The private key is not imported into MongoDB; the public key is retained there by ID for historical verification.
+When this environment variable is set, the key is loaded from the file on startup and the auto-generated key (if any) is ignored. Every node must use the same file contents and key-management mode. The private key is not imported into the database; the public key is retained there by ID for historical verification.
 
 The private signing key never enters the database, so database access alone does not yield it. Restrict who can read the file. Use it where the signature has to withstand compromise of the database itself, for example when the [redaction ledger](redaction/ledgers.md) is relied on as evidence.
 
@@ -250,7 +250,7 @@ See [Auditing](auditing.md) for the full audit log reference.
 
 ## Security Considerations
 
-- The private key is stored in the `signing_keys` MongoDB collection. Restrict database access accordingly.
+- The private key is stored, encrypted, in `signing_keys` in Philter's database. Restrict database access accordingly.
 - Consumers must trust the channel through which they receive the public key. Serve `GET /api/signing-key` over HTTPS.
 - The `fingerprint` returned by `GET /api/signing-key` allows quick confirmation that the public key has not changed unexpectedly.
 - Output signing attests that the response came from a deployment holding the private key and was not modified in transit. It does not prove that the policy correctly classified all PII. That is the role of the [Redaction Ledger](redaction/ledgers.md).

@@ -53,11 +53,11 @@ import org.springframework.context.annotation.DependsOn;
 
 /**
  * The MongoDB storage implementation: every data service, the audit log, and the services a redaction stores
- * through, backed by MongoDB. Used when {@code STORAGE_TYPE} is {@code mongodb}, the default. Its services are
+ * through, backed by MongoDB. Used when {@code STORAGE_TYPE} is {@code mongodb}. Its services are
  * created only once the data is at the expected schema version.
  */
 @Configuration
-@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
+@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB)
 @DependsOn(MongoConnectionConfiguration.SCHEMA_VERSION)
 public class MongoStorageConfiguration {
 

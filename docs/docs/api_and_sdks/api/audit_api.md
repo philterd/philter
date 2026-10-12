@@ -1,6 +1,6 @@
 # Audit Log API
 
-The Audit Log API returns the events Philter records in its [audit log](../../auditing.md) as JSON, so the log can be shipped to a SIEM, pulled for a compliance review, or alerted on without a connection to Philter's MongoDB.
+The Audit Log API returns the events Philter records in its [audit log](../../auditing.md) as JSON, so the log can be shipped to a SIEM, pulled for a compliance review, or alerted on without a connection to Philter's database.
 
 The audit log covers the whole deployment rather than a single account, so reading it requires an **administrator** as well as an API key holding the `audit:read` scope. A key without the scope receives `403 Forbidden` naming the missing scope; a key whose owner is not an administrator receives `403 Forbidden`.
 

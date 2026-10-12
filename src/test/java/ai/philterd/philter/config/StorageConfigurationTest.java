@@ -16,6 +16,7 @@
 package ai.philterd.philter.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,19 +24,41 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StorageConfigurationTest {
 
+    private static StorageConfiguration configured(final String... properties) {
+        final MockEnvironment environment = new MockEnvironment();
+        for (int i = 0; i < properties.length; i += 2) {
+            environment.setProperty(properties[i], properties[i + 1]);
+        }
+        return new StorageConfiguration(environment);
+    }
+
     @Test
-    void mongodbIsAcceptedInAnyCase() {
-        assertDoesNotThrow(() -> new StorageConfiguration("mongodb"));
-        assertDoesNotThrow(() -> new StorageConfiguration(" MongoDB "));
+    void sqliteIsTheDefaultAndEitherStorageIsAcceptedInAnyCase() {
+        assertDoesNotThrow(() -> configured());
+        assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, "mongodb", "STORAGE_TYPE", "mongodb"));
+        assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, " MongoDB ", "STORAGE_TYPE", " MongoDB "));
+        assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, "SQLite", "STORAGE_TYPE", "SQLite"));
     }
 
     @Test
     void anUnknownStorageTypeStopsStartup() {
         final IllegalStateException refused = assertThrows(IllegalStateException.class,
-                () -> new StorageConfiguration("postgres"));
-        assertTrue(refused.getMessage().contains("STORAGE_TYPE must be one of mongodb"), refused.getMessage());
+                () -> configured(StorageConfiguration.PROPERTY, "postgres", "STORAGE_TYPE", "postgres"));
+        assertTrue(refused.getMessage().contains("STORAGE_TYPE must be one of mongodb, sqlite"), refused.getMessage());
         assertThrows(IllegalStateException.class, () -> StorageConfiguration.requireKnown(""));
         assertThrows(IllegalStateException.class, () -> StorageConfiguration.requireKnown(null));
+    }
+
+    @Test
+    void aMongoDbConnectionWithNoStorageChosenStopsStartup() {
+        // As a Philter 3 deployment upgraded without setting STORAGE_TYPE would be.
+        final IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> configured("MONGODB_CONNECTION_STRING", "mongodb://mongodb:27017"));
+        assertTrue(refused.getMessage().contains("set STORAGE_TYPE=mongodb"), refused.getMessage());
+        assertDoesNotThrow(() -> configured("MONGODB_CONNECTION_STRING", "mongodb://mongodb:27017",
+                StorageConfiguration.PROPERTY, "mongodb", "STORAGE_TYPE", "mongodb"));
+        assertDoesNotThrow(() -> configured("MONGODB_CONNECTION_STRING", "mongodb://mongodb:27017",
+                StorageConfiguration.PROPERTY, "sqlite", "STORAGE_TYPE", "sqlite"));
     }
 
 }

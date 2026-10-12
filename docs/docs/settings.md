@@ -11,12 +11,12 @@ Philter reads its settings from environment variables. There is no settings file
 
 ## Database Settings
 
-Philter stores policies and other data in MongoDB, or, for a single Philter instance, in a SQLite file. See [Database](database.md) for what is stored, for connection-string examples (authentication, replica sets, and Atlas), and for [SQLite](database.md#sqlite).
+Philter stores policies and other data in a SQLite file by default, which suits a single Philter instance, or in MongoDB, which several instances can share. See [Database](database.md) for what is stored, for [SQLite](database.md#sqlite), and for MongoDB connection-string examples (authentication, replica sets, and Atlas).
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `STORAGE_TYPE` | Where Philter stores its data: `mongodb`, or `sqlite` for a [single Philter instance](database.md#sqlite) with no database server. Philter does not start with any other value. | `mongodb` |
-| `SQLITE_PATH` | With `STORAGE_TYPE=sqlite`, the SQLite database file. Its directory must exist and be writable. In the Docker image, use a file in a volume mounted at `/opt/philter/data`, such as `/opt/philter/data/philter.db`. | `philter.db` |
+| `STORAGE_TYPE` | Where Philter stores its data: `sqlite`, a file for a [single Philter instance](database.md#sqlite) with no database server, or `mongodb`, which several instances can share. Philter does not start with any other value, or when `MONGODB_CONNECTION_STRING` is set and `STORAGE_TYPE` is not, so a deployment that used MongoDB does not start on a new, empty SQLite database. | `sqlite` |
+| `SQLITE_PATH` | With SQLite storage, the database file. Its directory must exist and be writable. The Docker image sets it to `/opt/philter/data/philter.db`; mount a volume at `/opt/philter/data` to keep the data. | `philter.db` (`/opt/philter/data/philter.db` in the Docker image) |
 | `MONGODB_CONNECTION_STRING` | With `STORAGE_TYPE=mongodb`, the MongoDB connection string. | `mongodb://localhost:27017` |
 | `SCHEMA_MIGRATION_WAIT_SECONDS` | How long an instance waits at startup for another instance that is [migrating the data](database.md#schema-version-and-migrations) before it stops with an error. | `600` |
 
@@ -157,7 +157,7 @@ Ledger collections must have no TTL indexes. Startup rejects incompatible schema
 
 ## Asynchronous Documents and Webhooks
 
-Records for asynchronous (PDF) redactions and outbound webhook deliveries are expired automatically by MongoDB TTL indexes.
+Records for asynchronous (PDF) redactions and outbound webhook deliveries are removed automatically once they are past these retention periods: by TTL indexes with MongoDB, and as new records are written with [SQLite](database.md#sqlite).
 
 Required TTL indexes are verified at startup. Conflicting options or unexpected expiry fields prevent startup. The unreleased 4.0 schema is created directly without migrations. Job retention uses `retention_at` after notification acknowledgement; webhook retention uses `completed_at` for either terminal outcome.
 
@@ -197,7 +197,7 @@ Philter can sign `POST /api/filter` (text) and `POST /api/explain` responses wit
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `PHILTER_SIGNING_KEY_PATH` | Absolute path to a PKCS8 PEM private key file (`BEGIN PRIVATE KEY` format) to use instead of the auto-generated MongoDB key. When set, the file is read on startup; the MongoDB signing key is not used. The file must be accessible on every node. Leave unset to let Philter generate and manage the key automatically. | (none; auto-generate) |
+| `PHILTER_SIGNING_KEY_PATH` | Absolute path to a PKCS8 PEM private key file (`BEGIN PRIVATE KEY` format) to use instead of the auto-generated key stored in the database. When set, the file is read on startup; the stored signing key is not used. The file must be accessible on every node. Leave unset to let Philter generate and manage the key automatically. | (none; auto-generate) |
 
 ## PII Drift Monitoring (Phield)
 
@@ -224,6 +224,6 @@ All limits must be positive and identical across instances. Limits count PENDING
 | `ASYNC_QUEUE_MAX_BYTES` | `2147483648` | Global active input bytes |
 | `ASYNC_QUEUE_MAX_USER_BYTES` | `268435456` | Active input bytes per account |
 
-Owner capacity returns HTTP 429; global capacity and admission contention return HTTP 503. Both include `Retry-After: 5`. Shared MongoDB admission serialization prevents concurrent instances exceeding limits. Claims interleave account scheduling rounds, with submission time breaking ties. Micrometer exposes `philter.async.queue.jobs`, `philter.async.queue.bytes`, and `philter.async.queue.oldest.seconds`. Retained results and execution snapshots are separate from active queue capacity.
+Owner capacity returns HTTP 429; global capacity and admission contention return HTTP 503. Both include `Retry-After: 5`. Admission is serialized through the database, so instances sharing MongoDB cannot together exceed the limits. Claims interleave account scheduling rounds, with submission time breaking ties. Micrometer exposes `philter.async.queue.jobs`, `philter.async.queue.bytes`, and `philter.async.queue.oldest.seconds`. Retained results and execution snapshots are separate from active queue capacity.
 
 An interrupted or ambiguous admission retains its guard and blocks further submissions with 503. It does not expire automatically. For recovery, quiesce **all admission writers and their outstanding database operations**, inspect the job insertion outcome, then conditionally unset `token` and `started_at` in `queue_admission` for `_id: "queue"`, matching the observed token. Never clear a guard while its writer may still insert. Resume writers only after resolving that operation; capacity is recomputed from stored active jobs.

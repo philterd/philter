@@ -1,29 +1,27 @@
 # Quick Start with SQLite
 
-Philter can keep all of its data in a single SQLite file instead of MongoDB, so a single Philter instance runs with no database server. Use it to evaluate Philter, or for a small, single-server, edge, or air-gapped deployment. Several instances behind a load balancer need MongoDB; see [High Availability](../high_availability.md).
+By default Philter keeps all of its data in a single SQLite file, so a single Philter instance runs with no database server. Use it to evaluate Philter, or for a small, single-server, edge, or air-gapped deployment. Several instances behind a load balancer need MongoDB; see [High Availability](../high_availability.md).
 
 ## Run Philter with Docker Compose
 
-From a clone of the [Philter repository](https://github.com/philterd/philter), build Philter and start it with the SQLite compose file:
+From a clone of the [Philter repository](https://github.com/philterd/philter), build Philter and start it:
 
 ```
 mvn clean install
-./compose.sh -f docker-compose.sqlite.yml build
-./compose.sh -f docker-compose.sqlite.yml up
+./compose.sh
+./compose.sh up
 ```
 
 On its first run, `compose.sh` generates `PHILTER_ENCRYPTION_KEY` and `PHILTER_BOOTSTRAP_API_KEY` into `.env` and reuses them afterwards. Back up the encryption key: data encrypted with it cannot be recovered without it. See [Encryption](../settings.md#encryption).
 
-The compose file sets `STORAGE_TYPE=sqlite` and keeps the database at `/opt/philter/data/philter.db` in the `philter-data` volume, so the data survives the container being recreated.
+The bundled `docker-compose.yml` keeps the database at `/opt/philter/data/philter.db` in the `philter-data` volume, so the data survives the container being recreated. To run with MongoDB instead, use `./compose.sh -f docker-compose.mongodb.yml up`.
 
 ## Run Philter with Docker
 
-To run the Philter image without Compose, set the storage, the database file, and the two required values, and mount a volume for the data:
+To run the Philter image without Compose, set the two required values and mount a volume for the data. The image keeps the database at `/opt/philter/data/philter.db`:
 
 ```
 docker run -p 8080:8080 \
-  -e STORAGE_TYPE=sqlite \
-  -e SQLITE_PATH=/opt/philter/data/philter.db \
   -e PHILTER_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   -e PHILTER_BOOTSTRAP_API_KEY="sk_$(openssl rand -hex 16)" \
   -v philter-data:/opt/philter/data \

@@ -1,6 +1,6 @@
 # Filter Policies
 
-The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. Policies are JSON configurations stored in MongoDB. Create or update them through the [Policies API](../api_and_sdks/api/policies_api.md).
+The types of sensitive information identified by Philter and how that information is de-identified are controlled through policies. Policies are JSON configurations stored in Philter's database. Create or update them through the [Policies API](../api_and_sdks/api/policies_api.md).
 
 Each policy has a `name` that is used by Philter to apply the appropriate de-identification methods. The `name` is passed to Philter’s [API](../api_and_sdks/api/filtering_api.md) along with the text to be filtered when submitting text to Philter. This provides flexibility and allows you to de-identify different types of documents in differing manners with a single instance of Philter. For example, you may have a policy for bankruptcy documents and a separate policy for financial documents.
 

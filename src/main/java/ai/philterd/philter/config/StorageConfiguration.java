@@ -15,7 +15,7 @@
  */
 package ai.philterd.philter.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
@@ -32,17 +32,31 @@ public class StorageConfiguration {
     /** The property {@code STORAGE_TYPE} sets. */
     public static final String PROPERTY = "philter.storage";
 
-    /** {@code STORAGE_TYPE} for MongoDB, the default. */
+    /** {@code STORAGE_TYPE} for MongoDB, which several Philter instances can share. */
     public static final String MONGODB = "mongodb";
 
-    /** {@code STORAGE_TYPE} for SQLite, for a single Philter instance. */
+    /** {@code STORAGE_TYPE} for SQLite, for a single Philter instance: the default. */
     public static final String SQLITE = "sqlite";
 
     /** The storage implementations Philter has. */
     public static final List<String> TYPES = List.of(MONGODB, SQLITE);
 
-    public StorageConfiguration(@Value("${" + PROPERTY + ":" + MONGODB + "}") final String type) {
-        requireKnown(type);
+    public StorageConfiguration(final Environment environment) {
+        requireKnown(environment.getProperty(PROPERTY, SQLITE));
+        requireChosen(environment.containsProperty("STORAGE_TYPE"), environment.containsProperty("MONGODB_CONNECTION_STRING"));
+    }
+
+    /**
+     * Refuses to start when a MongoDB connection is configured but no storage is chosen. Such a deployment most
+     * likely means MongoDB, as Philter 3 and earlier always did; starting it on the SQLite default would put it
+     * on a new, empty database.
+     */
+    static void requireChosen(final boolean storageTypeSet, final boolean mongoDbConnectionSet) {
+        if (!storageTypeSet && mongoDbConnectionSet) {
+            throw new IllegalStateException("MONGODB_CONNECTION_STRING is set but STORAGE_TYPE is not. Philter "
+                    + "stores its data in SQLite unless STORAGE_TYPE says otherwise; set STORAGE_TYPE=mongodb to use "
+                    + "MongoDB, or STORAGE_TYPE=sqlite and remove MONGODB_CONNECTION_STRING to use SQLite.");
+        }
     }
 
     /** Refuses a {@code STORAGE_TYPE} Philter has no implementation for. Case does not matter. */

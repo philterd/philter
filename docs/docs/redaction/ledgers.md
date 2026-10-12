@@ -60,9 +60,9 @@ rewritten in the database cannot be re-signed without that key. Signing is alway
 to the [output signing](../output_signing.md) setting.
 
 **How strong that is depends on where the key lives.** By default Philter generates the signing key
-and stores it in MongoDB, encrypted under `PHILTER_ENCRYPTION_KEY`. Database access alone is therefore
+and stores it in Philter's database, encrypted under `PHILTER_ENCRYPTION_KEY`. Database access alone is therefore
 not enough to forge a chain: an attacker would need the database and the deployment's master key,
-which is supplied from the environment rather than stored in MongoDB.
+which is supplied from the environment rather than stored in the database.
 
 For the strongest property, supply the signing key from outside the database entirely with
 `PHILTER_SIGNING_KEY_PATH` (see [Output Signing](../output_signing.md)) and restrict who can read that
@@ -145,10 +145,10 @@ newest entry timestamp must precede the cutoff. A chain spanning the cutoff is r
 Open, interrupted, and failed chains are retained for review or explicit deletion.
 With `older_than_days=0`, completed chains are eligible immediately; unfinished chains remain.
 
-The `ledger_chains` collection keeps lifecycle metadata, including a small marker after purge so
+The `ledger_chains` records keep lifecycle metadata, including a small marker after purge so
 a late writer cannot recreate the chain. Purge deletes entries by owner and document ID. If a
 database deletion fails partway through, the completion marker remains eligible for a retry;
-multi-row deletion is not a MongoDB transaction. An interrupted operation also retains its owner guard; follow the [legal-hold recovery procedure](legal_holds.md#concurrent-operations-and-recovery) before retrying.
+a purge across many chains is not one transaction. An interrupted operation also retains its owner guard; follow the [legal-hold recovery procedure](legal_holds.md#concurrent-operations-and-recovery) before retrying.
 
 ### 2. Deleting a single document's chain
 
@@ -156,7 +156,7 @@ multi-row deletion is not a MongoDB transaction. An interrupted operation also r
 
 ### There is no automatic expiry
 
-Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that had MongoDB expire old entries. It was removed. Because MongoDB performs that deletion itself, it could not check legal holds and left no audit record, which is the opposite of what evidence retention requires. Schedule the purge above instead. Startup rejects any ledger TTL index; it does not drop indexes or migrate data.
+Earlier builds offered a `REDACTION_LEDGER_TTL_DAYS` variable that had MongoDB expire old entries. It was removed. Because the database performed that deletion itself, it could not check legal holds and left no audit record, which is the opposite of what evidence retention requires. Schedule the purge above instead. Startup rejects any ledger TTL index; it does not drop indexes or migrate data.
 
 ### Ledger entries survive user deactivation
 

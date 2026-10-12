@@ -95,7 +95,7 @@ The counts are computed in the database in one query and sum to `size`.
 * `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
 * `disambiguation_scope` (optional, default: `document`) - What [span disambiguation](../../other_features/span_disambiguation.md) learns from, when `entity_type_disambiguation` is enabled. Case does not matter.
     * `document` - Each document is disambiguated on its own, from what Philter learns in that document. Nothing is stored.
-    * `context` - What Philter learns is stored in MongoDB and used for every later document redacted in the context, up to `MAX_VECTORS_PER_CONTEXT` vectors. Stored vectors are kept if the scope or disambiguation changes, and deleted when the context is [emptied](#empty-a-context) or deleted.
+    * `context` - What Philter learns is stored in Philter's database and used for every later document redacted in the context, up to `MAX_VECTORS_PER_CONTEXT` vectors. Stored vectors are kept if the scope or disambiguation changes, and deleted when the context is [emptied](#empty-a-context) or deleted.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
 * `owner` (optional, admin only) - Username of another user whose context to create the context for. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 

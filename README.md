@@ -57,7 +57,9 @@ On its first run the script generates private credentials into `.env` and reuses
   replacement administrator key with every scope and revoke the bootstrap key with that; a key
   cannot revoke itself or a key holding scopes it lacks.
 
-The script stores these in an owner-readable `.env` file. The MongoDB password is written in `docker-compose.yml` rather than generated, so the stack comes up with nothing to set first; change it for a deployment holding real data.
+The script stores these in an owner-readable `.env` file.
+
+The bundled `docker-compose.yml` keeps Philter's data in a SQLite file, the default storage, in the `philter-data` volume. That suits a single Philter instance. To store the data in MongoDB, which several instances can share, run `./compose.sh -f docker-compose.mongodb.yml up` instead. Its MongoDB password is written in `docker-compose.mongodb.yml` rather than generated, so the stack comes up with nothing to set first; change it for a deployment holding real data. See [Database](docs/docs/database.md).
 
 To supply these yourself, put them in `.env` before the first run and the script keeps them.
 
@@ -76,8 +78,6 @@ Philter has no built-in user interface: it is administered through its API. [Phi
 Interactive API documentation (Swagger UI) is available at https://localhost:8080/swagger-ui/index.html.
 
 Philter serves HTTPS using a self-signed certificate that it generates the first time it starts, so `curl` needs `-k`. See [TLS](https://philterd.github.io/philter/settings/#tls) for how to install your own certificate, or how to serve plain HTTP when a load balancer terminates TLS in front of Philter.
-
-Philter stores its data in MongoDB. For a single instance with no database server, it can use a SQLite file instead: run `./compose.sh -f docker-compose.sqlite.yml up`. See [Quick Start with SQLite](docs/docs/quick_starts/quick_start_sqlite.md).
 
 Philter uses a built-in in-memory cache by default and can be configured to use a shared Valkey/Redis cache for distributed deployments. See [Caching](https://philterd.github.io/philter/caching/) in the user documentation.
 

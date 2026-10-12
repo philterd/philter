@@ -6,7 +6,7 @@ When this is enabled, after each redaction Philter records **counts only**, neve
 
 ## What Philter records
 
-Philter writes aggregated, time-bucketed **document-presence** counts to a MongoDB collection named `pii_count_aggregates`. There is one document per `(context, day)`:
+Philter writes aggregated, time-bucketed **document-presence** counts to `pii_count_aggregates` in its database, one record per `(context, day)`. As MongoDB stores it:
 
 ```json
 {
@@ -43,7 +43,7 @@ Recording is best-effort: any failure is ignored so it can never affect redactio
 
 ## Producing a report
 
-Philter Diffuse currently reads the counts from Philter's MongoDB. Point it at the same MongoDB and privatize the recorded counts with its `--aggregates` option, which reads and sums the `pii_count_aggregates` buckets:
+Philter Diffuse currently reads the counts from Philter's MongoDB, so it needs `STORAGE_TYPE=mongodb`; with SQLite storage, read the counts through the [PII Counts API](api_and_sdks/api/pii_counts_api.md). Point Diffuse at the same MongoDB and privatize the recorded counts with its `--aggregates` option, which reads and sums the `pii_count_aggregates` buckets:
 
 ```bash
 python main.py --mongo-uri "mongodb://localhost:27017/philter" --aggregates --output privatized_counts.csv

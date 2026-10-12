@@ -12,7 +12,7 @@ A background worker claims pending documents and redacts them one after another,
 
 ## Claims and recovery
 
-Each attempt receives a unique claim token and a ten-minute lease. A separate heartbeat renews the lease every minute while the worker computes the redaction. Another instance can reclaim an expired computation; the old attempt can no longer publish completed-result evidence, store output, change the job to failed, or enqueue a completion/failure webhook. These guarantees use MongoDB and apply across instances regardless of the cache backend.
+Each attempt receives a unique claim token and a ten-minute lease. A separate heartbeat renews the lease every minute while the worker computes the redaction. Another instance can reclaim an expired computation; the old attempt can no longer publish completed-result evidence, store output, change the job to failed, or enqueue a completion/failure webhook. These guarantees are kept by the database and, with MongoDB storage, apply across instances regardless of the cache backend.
 
 After computation, the worker atomically reserves publication before writing the ledger, completion metrics, or completion audit event. The job remains `PROCESSING`, with `publication_started_at` recorded in `pending_documents`. This reservation does **not** expire: automatic takeover could race evidence writes already issued by the old worker. A successful or failed terminal update must match the attempt token and processing state. An accepted terminal update atomically records `notification_pending=true`. A reconciler retries enqueueing after failures or restarts, including jobs failed by exhausted reclaim. The job ID is the delivery ID, so retrying an interrupted acknowledgement does not create another delivery.
 

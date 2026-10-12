@@ -1,12 +1,29 @@
 # Database
 
-Philter stores everything it persists in a [MongoDB](https://www.mongodb.com/) database, the default, or, for a single Philter instance, in a [SQLite](#sqlite) file. Philter does not start without its storage. This page describes MongoDB first; [SQLite](#sqlite) describes how SQLite storage differs.
+Philter stores everything it persists in a [SQLite](#sqlite) file by default, for a single Philter instance with no database server, or in a [MongoDB](https://www.mongodb.com/) database, which several instances can share. Choose with `STORAGE_TYPE` (`sqlite` or `mongodb`); see [Settings](settings.md#database-settings). Philter does not start without its storage. The same data is stored either way: this page describes it with MongoDB's collection names, which SQLite's tables share, and [SQLite](#sqlite) describes how SQLite storage differs.
 
-## Supported versions
+## Choosing SQLite or MongoDB
 
-Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.yml` pins. That MongoDB requires authentication and holds the ledger, the audit log and the encrypted PII. Its port is published so `mongosh` and [Philter Diffuse](diffuse.md) can reach it from your machine, and its development password is written in `docker-compose.yml`; for real data, use a generated password and do not publish the port.
+Choose the storage with `STORAGE_TYPE` before Philter's first start. Philter does not move data from one to the other.
 
-## What Philter stores in MongoDB
+| | SQLite (`STORAGE_TYPE=sqlite`, the default) | MongoDB (`STORAGE_TYPE=mongodb`) |
+|---|---|---|
+| Philter instances | One. A second Philter on the same file refuses to start. | Any number, sharing one database, for [high availability](high_availability.md). |
+| What to run | Nothing: the database is a file Philter creates, at `SQLITE_PATH`. | A MongoDB server, replica set, or managed service such as Atlas, at `MONGODB_CONNECTION_STRING`. |
+| Suits | Evaluations, small single-server deployments, edge devices, and air-gapped hosts. | Production deployments that need more than one instance, or that already run MongoDB. |
+| Backups | The database file, copied with SQLite's online backup. | MongoDB's own backup tools. |
+| Bundled Compose file | `docker-compose.yml` | `docker-compose.mongodb.yml` |
+| [Philter Diffuse](diffuse.md) | Cannot read the PII counts yet; read them through the [PII Counts API](api_and_sdks/api/pii_counts_api.md). | Reads the PII counts from MongoDB. |
+
+Both keep the same data, encrypt the same fields with `PHILTER_ENCRYPTION_KEY`, record a [schema version](#schema-version-and-migrations), and never expire the redaction ledger, audit log, or legal holds on their own. Settings are in [Database Settings](settings.md#database-settings). The sections below describe MongoDB, then [SQLite](#sqlite) describes how SQLite storage differs.
+
+A deployment that sets `MONGODB_CONNECTION_STRING` must also set `STORAGE_TYPE`. Philter refuses to start otherwise, so a deployment that used MongoDB, as Philter 3 always did, does not start on a new, empty SQLite database.
+
+## Supported MongoDB versions
+
+Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.mongodb.yml` pins (`./compose.sh -f docker-compose.mongodb.yml up`). That MongoDB requires authentication and holds the ledger, the audit log and the encrypted PII. Its port is published so `mongosh` and [Philter Diffuse](diffuse.md) can reach it from your machine, and its development password is written in `docker-compose.mongodb.yml`; for real data, use a generated password and do not publish the port. SQLite storage uses the SQLite library built into Philter; there is nothing to install.
+
+## What Philter stores
 
 | Data | Description |
 |------|-------------|
@@ -68,9 +85,9 @@ exception you control.
 > with a key in it. Note that a version snapshot keeps whatever the policy held at the time, so
 > changing an existing policy to use `env:` does not remove the old key from its history.
 
-## Configuring the connection
+## Configuring the MongoDB connection
 
-Philter connects to MongoDB using a standard [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/), set with the `MONGODB_CONNECTION_STRING` environment variable.
+With `STORAGE_TYPE=mongodb`, Philter connects to MongoDB using a standard [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/), set with the `MONGODB_CONNECTION_STRING` environment variable.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
@@ -104,11 +121,11 @@ MONGODB_CONNECTION_STRING=mongodb://user:pass@host1:27017,host2:27017,host3:2701
 MONGODB_CONNECTION_STRING=mongodb+srv://user:pass@cluster0.example.mongodb.net/philter?retryWrites=true&w=majority
 ```
 
-> When Philter is launched from a cloud marketplace image, a local MongoDB is already installed and configured, and no connection string needs to be set. Set `MONGODB_CONNECTION_STRING` only when you want Philter to use a different (for example, external or managed) database.
+> When Philter is launched from a cloud marketplace image that includes a local MongoDB, set `STORAGE_TYPE=mongodb` if the image does not already; no connection string needs to be set for the local database. Set `MONGODB_CONNECTION_STRING` only when you want Philter to use a different (for example, external or managed) database.
 
-## Indexes
+## MongoDB indexes
 
-Philter creates the indexes it needs automatically at startup. Each data service ensures its own indexes when it initializes, and index creation in MongoDB is idempotent, so this is safe on every restart and adds no manual setup. The indexes cover the access patterns Philter uses, for example:
+With MongoDB, Philter creates the indexes it needs automatically at startup. Each data service ensures its own indexes when it initializes, and index creation in MongoDB is idempotent, so this is safe on every restart and adds no manual setup. The indexes cover the access patterns Philter uses, for example:
 
 * `api_keys` by `api_key_hash` (the authentication lookup) and by user.
 * `policies`, `contexts`, `custom_lists`, and `redact_lists` by user (and name where applicable).
@@ -122,18 +139,18 @@ Required uniqueness and retention indexes must be created and their options veri
 
 ## Schema version and migrations
 
-Philter records the version of its data layout in the `schema_version` collection and checks it each time it starts, before it serves any request:
+Philter records the version of its data layout in `schema_version` in its database, a collection with MongoDB and a table with SQLite, and checks it each time it starts, before it serves any request:
 
 * **A new database** is recorded at the version the running Philter expects.
 * **An older version** is brought up to date: Philter runs each pending migration in order and records each one, with when it ran, as it completes. A database that holds data but no recorded version was written before versions were recorded and is migrated from the first version.
 * **A newer version**, written by a newer Philter, stops Philter from starting with a message naming both versions. Philter does not change the data. Run the newer release, or restore a backup taken before it ran.
 * **A failed migration** stops Philter from starting. The log names the migration and why it failed, and the recorded version stays at the last migration that completed, so a release with a fix continues from there.
 
-When several instances start together, one takes a lock and migrates while the others wait for it, up to `SCHEMA_MIGRATION_WAIT_SECONDS` (see [Settings](settings.md#database-settings)). The lock expires if the instance holding it stops, so another can take over. Each start logs the version it found and each migration it ran.
+When several instances start together, as they can with MongoDB, one takes a lock and migrates while the others wait for it, up to `SCHEMA_MIGRATION_WAIT_SECONDS` (see [Settings](settings.md#database-settings)). The lock expires if the instance holding it stops, so another can take over. Each start logs the version it found and each migration it ran.
 
 Migrations change data in place. Back up the database before upgrading Philter; see [Upgrading](upgrading.md#upgrading-within-4x).
 
-## Operational notes
+## MongoDB operational notes
 
 * **Backups.** MongoDB holds your policies, contexts, ledger, and audit log. Back it up like any other production datastore, and before every upgrade, since an upgrade may [migrate the data](#schema-version-and-migrations).
 * **Network access.** Restrict network access to the database to the Philter instances that need it.
@@ -141,11 +158,11 @@ Migrations change data in place. Back up the database before upgrading Philter; 
 
 ## SQLite
 
-Set `STORAGE_TYPE=sqlite` to keep all of Philter's data in one SQLite file, named by `SQLITE_PATH`, with no database server to run. It suits evaluations, small single-server deployments, edge devices, and air-gapped hosts. Everything above about what is stored and what is encrypted at rest applies to it too: the same data is kept, the same fields are encrypted with the same `PHILTER_ENCRYPTION_KEY`, and the redaction ledger, audit log, and legal holds never expire on their own.
+SQLite storage, the default (`STORAGE_TYPE=sqlite`), keeps all of Philter's data in one SQLite file, named by `SQLITE_PATH`, with no database server to run. It suits evaluations, small single-server deployments, edge devices, and air-gapped hosts. Everything above about what is stored and what is encrypted at rest applies to it too: the same data is kept, the same fields are encrypted with the same `PHILTER_ENCRYPTION_KEY`, and the redaction ledger, audit log, and legal holds never expire on their own.
 
 **One Philter instance only.** SQLite storage supports exactly one Philter process per database file. While it runs, Philter holds an exclusive lock on a file beside the database (`SQLITE_PATH` with `.lock` appended), and a second Philter started against the same database refuses to start. Several instances behind a load balancer, as in [High Availability](high_availability.md), need MongoDB. Do not put the database on a network file system: SQLite's locking is not reliable there.
 
-**The files.** Philter creates the database file at first start, along with SQLite's write-ahead log files beside it (`-wal` and `-shm`). Keep them together, on local disk, in a directory only Philter's user can read. In the Docker image, mount a volume at `/opt/philter/data` and set `SQLITE_PATH=/opt/philter/data/philter.db`, or the data is lost when the container is removed.
+**The files.** Philter creates the database file at first start, along with SQLite's write-ahead log files beside it (`-wal` and `-shm`). Keep them together, on local disk, in a directory only Philter's user can read. The Docker image keeps the database at `/opt/philter/data/philter.db`; mount a volume at `/opt/philter/data`, as the bundled `docker-compose.yml` does, or the data is lost when the container is removed.
 
 **Schema.** At first start Philter creates the tables of the current [schema version](#schema-version-and-migrations), and later releases migrate them at startup as they do for MongoDB.
 
@@ -153,7 +170,7 @@ Set `STORAGE_TYPE=sqlite` to keep all of Philter's data in one SQLite file, name
 
 **Backups.** Back up the database with SQLite's online backup, which is consistent while Philter runs, for example `sqlite3 /opt/philter/data/philter.db ".backup '/backups/philter.db'"`. Copying the file alone while Philter runs can miss writes still in the `-wal` file; stop Philter first if you copy files. Back up `PHILTER_ENCRYPTION_KEY` separately: the encrypted data in a backup cannot be read without it.
 
-**Changing storage.** Philter does not move data between MongoDB and SQLite. Choose the storage before you put data in Philter.
+**Changing storage.** Philter does not move data between MongoDB and SQLite. Choose the storage before you put data in Philter. A deployment that sets `MONGODB_CONNECTION_STRING` must also set `STORAGE_TYPE`; Philter refuses to start otherwise, so a deployment that used MongoDB does not start on a new, empty SQLite database.
 
 ## See also
 

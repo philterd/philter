@@ -16,7 +16,8 @@
 package ai.philterd.philter;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,21 +38,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ShippedComposeDefaultsTest {
 
-    private static final Path COMPOSE = Path.of("docker-compose.yml");
 
     private static final List<String> MUST_NOT_BE_ENABLED = List.of(
             "ADMIN_CROSS_USER_ACCESS_ENABLED",
             "TLS_TRUST_ALL_ENABLED",
             "LEDGER_DELETION_ENABLED");
 
-    @Test
-    @DisplayName("The bundled compose file turns on nothing the application warns about")
-    void theQuickStartShipsWithTheSecureDefaults() throws IOException {
+    @ParameterizedTest
+    @ValueSource(strings = {"docker-compose.yml", "docker-compose.mongodb.yml"})
+    @DisplayName("The bundled compose files turn on nothing the application warns about")
+    void theQuickStartShipsWithTheSecureDefaults(final String file) throws IOException {
+
+        final Path compose = Path.of(file);
 
         final List<String> enabled = new ArrayList<>();
         int checked = 0;
 
-        for (final String line : Files.readAllLines(COMPOSE)) {
+        for (final String line : Files.readAllLines(compose)) {
 
             final String trimmed = line.trim();
             if (trimmed.startsWith("#")) {
@@ -70,10 +73,10 @@ class ShippedComposeDefaultsTest {
         }
 
         assertEquals(List.of(), enabled,
-                "docker-compose.yml enables a setting the application warns about at startup");
+                file + " enables a setting the application warns about at startup");
 
         // The file must still be the one being read, or this passes by looking at nothing.
-        assertTrue(Files.readString(COMPOSE).contains("ADMIN_CROSS_USER_ACCESS_ENABLED"),
+        assertTrue(Files.readString(compose).contains("ADMIN_CROSS_USER_ACCESS_ENABLED"),
                 "the compose file no longer mentions the setting; this check has stopped checking");
         assertEquals(0, checked, "these settings are expected to be commented out, not set to false");
 

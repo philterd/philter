@@ -30,7 +30,7 @@ import java.time.Duration;
  * uses it ({@link MongoStorageConfiguration} depends on {@link #SCHEMA_VERSION}).
  */
 @Configuration
-@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
+@ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB)
 public class MongoConnectionConfiguration {
 
     /** The name of the bean that migrates the schema, which the storage beans wait for. */

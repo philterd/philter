@@ -7,7 +7,7 @@ Please read and understand the [Code of Conduct](https://github.com/philterd/phi
 # Storage
 
 Philter reaches its data only through storage interfaces, so a storage implementation can be added without
-changing the rest of Philter. There are two: MongoDB, the default, and SQLite, for a single Philter instance.
+changing the rest of Philter. There are two: SQLite, the default, for a single Philter instance, and MongoDB, which several instances can share.
 
 ## Where the code lives
 
@@ -41,7 +41,7 @@ changing the rest of Philter. There are two: MongoDB, the default, and SQLite, f
 
 ## How an implementation is selected
 
-The `STORAGE_TYPE` environment variable sets the `philter.storage` property, which defaults to `mongodb`.
+The `STORAGE_TYPE` environment variable sets the `philter.storage` property, which defaults to `sqlite`.
 Each implementation registers its beans in a Spring configuration that applies only when it is selected:
 `MongoStorageConfiguration` for MongoDB and `SqliteStorageConfiguration` for SQLite. `ai.philterd.philter.config.StorageConfiguration` lists the known
 values and stops Philter from starting with any other.

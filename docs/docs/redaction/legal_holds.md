@@ -10,7 +10,7 @@ Redaction ledgers record a tamper-evident history of every redaction performed o
 
 Legal holds block every ledger deletion path through Philter for as long as the hold is active. The hold is named (so it can be referenced in legal correspondence), scoped (so it only protects what it should), audited (so the hold lifecycle is part of the permanent record), and independently releasable (so removing one hold does not unblock evidence still covered by another).
 
-Enforcement is within Philter. Anyone with direct access to the underlying MongoDB can still remove data, so secure and back up the database to the standard your retention obligations require.
+Enforcement is within Philter. Anyone with direct access to the underlying database (the MongoDB database, or the SQLite file) can still remove data, so secure and back up the database to the standard your retention obligations require.
 
 ## Hold Concepts
 
@@ -135,7 +135,7 @@ The legal holds endpoints are documented on the [Legal Holds API](../api_and_sdk
 ## Concurrent operations and recovery
 
 Hold creation, hold release, individual-chain deletion, age purge, and bulk owner-evidence deletion
-share one persistent guard per evidence owner in MongoDB. If deletion acquires it first, a competing
+share one persistent guard per evidence owner in the database. If deletion acquires it first, a competing
 hold request returns HTTP 409 with the reason `operation_in_progress` and has not established a hold. If hold creation acquires it first,
 deletion cannot proceed until the hold is visible; subsequent protected deletion returns HTTP 423.
 Unrelated owners proceed independently. A busy guard also returns HTTP 409 with that reason for release requests.
@@ -147,11 +147,14 @@ this guard. It coordinates hold/deletion ordering; it does not make multi-row de
 
 If an owner's operations keep returning 409 with `operation_in_progress` after an interruption:
 
-1. Inspect that owner's record in the evidence_operation_guards collection. Its _id is the owner's
-   ObjectId; token, operation, and started_at identify the retained operation.
-2. Stop all application instances that could resume the operation. Confirm on MongoDB that the
-   corresponding command is no longer running and that its outcome is known. A process restart or
-   elapsed time alone does not establish this.
+1. Inspect that owner's guard: with MongoDB, the owner's document in the evidence_operation_guards
+   collection, whose _id is the owner's ObjectId; with SQLite, the owner's row in the evidence_guards
+   table, whose owner is the owner's id. Its token, operation, and started_at identify the retained
+   operation.
+2. Stop all application instances that could resume the operation. With MongoDB, confirm that the
+   corresponding command is no longer running and that its outcome is known; a process restart or
+   elapsed time alone does not establish this. With SQLite, stopping Philter ends the operation, since
+   it runs in the one Philter process.
 3. Review the affected holds and ledger evidence, including any partial deletion, and preserve the
    recovery decision in the operator's audit records.
 4. Only after establishing that no previous operation can resume, clear token, operation, and

@@ -1,0 +1,70 @@
+# Philter with MongoDB storage, which several Philter instances can share. Run it with
+#   ./compose.sh -f docker-compose.mongodb.yml up
+# docker-compose.yml runs Philter with SQLite storage, the default, instead.
+services:
+
+  philter:
+    depends_on:
+      ph-eye:
+        condition: service_started
+      mongodb:
+        condition: service_healthy
+    build:
+      context: .
+    environment:
+      # In-memory cache unless these are set. Several instances need a shared one. See README.md.
+      # CACHE_HOSTNAME: valkey
+      # CACHE_PORT: "6379"
+      # CACHE_PASSWORD: ""
+      # CACHE_SSL: "false"
+      STORAGE_TYPE: mongodb
+      MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin
+      # Development key. Real data needs its own (openssl rand -base64 32); changing it later orphans everything encrypted.
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
+      # Lets an administrator act on other users' data through the owner parameter. Off by default.
+      # ADMIN_CROSS_USER_ACCESS_ENABLED: true
+      # Lets ledger entries, which are evidence, be deleted. Off by default. Uncomment to run philter-test against this stack.
+      # LEDGER_DELETION_ENABLED: true
+      # 1 MB rather than the 10 MB default, so philter-test can test the limit without a large request.
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-1048576}
+      # The admin user's first API key, required until the admin has one. Development placeholder: real data needs its own.
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
+      # HTTPS with a self-signed certificate, so curl needs -k. See docs/docs/settings.md to use your own.
+      # SSL_KEYSTORE: /opt/philter/ssl/philter-cert.p12
+      # SSL_KEYSTORE_PASSWORD: ""
+    ports:
+      - "8080:8080"
+    networks:
+      - philter
+
+  ph-eye:
+    image: philterd/ph-eye:1.3.0-pii_en_small
+    ports:
+      - "18080:5000"
+    networks:
+      - philter
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+
+  mongodb:
+    image: mongo:8.2.12
+    # Published so philter-test, mongosh and Philter Diffuse can reach it. Holds the ledger and encrypted PII.
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: philter
+      # Development password, published port. Real data wants a generated one supplied from outside this file.
+      MONGO_INITDB_ROOT_USERNAME: philter
+      MONGO_INITDB_ROOT_PASSWORD: philter
+    networks:
+      - philter
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  philter:

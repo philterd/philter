@@ -28,7 +28,7 @@ Span disambiguation is only invoked for competing spans that cover the identical
 
 #### Where Disambiguation Data Is Stored
 
-When a context has disambiguation enabled at the **context** scope, the information Philter learns is stored in MongoDB, keyed by user and context. It is therefore durable across restarts and is automatically shared across all Philter instances, so no additional configuration is needed in a load-balanced deployment. Disambiguation at the **document** scope instead uses per-request memory that is not retained after the request completes. Each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`), after which the oldest are evicted.
+When a context has disambiguation enabled at the **context** scope, the information Philter learns is stored in Philter's database, keyed by user and context. It is therefore durable across restarts and, with MongoDB storage, shared across all Philter instances, so no additional configuration is needed in a load-balanced deployment. Disambiguation at the **document** scope instead uses per-request memory that is not retained after the request completes. Each `(user, context)` pair stores up to `MAX_VECTORS_PER_CONTEXT` vectors (default `100000`), after which the oldest are evicted.
 
 #### Fine-Tuning the Span Disambiguation
 

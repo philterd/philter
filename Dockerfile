@@ -32,6 +32,8 @@ COPY ./LICENSE.txt /opt/philter/
 # that path (or pointing SSL_KEYSTORE elsewhere) replaces it. Set SSL_ENABLED=false to serve plain
 # HTTP instead, which is what you want when a load balancer or ingress terminates TLS.
 ENV SSL_ENABLED=true
+# SQLite storage, the default, keeps its file here; mount a volume at /opt/philter/data to keep it.
+ENV SQLITE_PATH=/opt/philter/data/philter.db
 
 COPY ./docker-entrypoint.sh /opt/philter/
 RUN chmod +x /opt/philter/docker-entrypoint.sh

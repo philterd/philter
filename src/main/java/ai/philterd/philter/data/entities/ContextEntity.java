@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
-
 import java.util.Date;
 
 public class ContextEntity extends AbstractEntity {
@@ -59,40 +56,6 @@ public class ContextEntity extends AbstractEntity {
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
     private String userId;
-
-    public static ContextEntity fromDocument(final Document document) {
-        final ContextEntity contextEntity = new ContextEntity();
-        contextEntity.id = MongoIds.hex(document.getObjectId("_id"));
-        contextEntity.userId = MongoIds.hex(document.getObjectId("user_id"));
-        contextEntity.contextName = document.getString("context_name");
-        contextEntity.maxSize = document.getInteger("max_size", MAX_CONTEXT_SIZE);
-        contextEntity.disambiguation = document.getBoolean("disambiguation", false);
-        contextEntity.disambiguationScope = document.getString("disambiguation_scope") != null
-                ? document.getString("disambiguation_scope") : DISAMBIGUATION_SCOPE_DOCUMENT;
-        contextEntity.ledger = document.getBoolean("ledger", false);
-        contextEntity.slot = document.getInteger("slot");
-        contextEntity.ttlInHours = document.getInteger("ttl_in_hours", DEFAULT_TTL_IN_HOURS);
-        contextEntity.timestamp = document.getDate("timestamp");
-        return contextEntity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if(id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("context_name", contextName);
-        document.put("max_size", maxSize);
-        document.put("disambiguation", disambiguation);
-        document.put("disambiguation_scope", disambiguationScope);
-        document.put("ledger", ledger);
-        document.put("slot", slot);
-        document.put("ttl_in_hours", ttlInHours);
-        document.put("timestamp", timestamp);
-        return document;
-    }
 
     public Integer getSlot() {
         return slot;

@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
-
 public class AdminSettingsEntity extends AbstractEntity {
 
     private String id;
@@ -33,41 +30,6 @@ public class AdminSettingsEntity extends AbstractEntity {
     private boolean mfaRequired;
     // Hosts and IP/CIDR entries a user's webhook URL may point at. Empty means any public address.
     private String webhookAllowlist = "";
-
-    public static AdminSettingsEntity fromDocument(final Document document) {
-        final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
-        adminSettingsEntity.setId(MongoIds.hex(document.getObjectId("_id")));
-        adminSettingsEntity.setDiffuseCountsEnabled(document.getBoolean("diffuse_counts_enabled", false));
-        adminSettingsEntity.setPhieldEnabled(document.getBoolean("phield_enabled", false));
-        adminSettingsEntity.setPhieldUrl(document.getString("phield_url") != null ? document.getString("phield_url") : "");
-        adminSettingsEntity.setPhieldSourceId(document.getString("phield_source_id") != null ? document.getString("phield_source_id") : "philter");
-        adminSettingsEntity.setPhieldOrganization(document.getString("phield_organization") != null ? document.getString("phield_organization") : "philter");
-        adminSettingsEntity.setSigningEnabled(document.getBoolean("signing_enabled", false));
-        adminSettingsEntity.setMfaAvailable(document.getBoolean("mfa_available", false));
-        adminSettingsEntity.setMfaRequired(document.getBoolean("mfa_required", false));
-        adminSettingsEntity.setWebhookAllowlist(document.getString("webhook_allowlist") == null ? "" : document.getString("webhook_allowlist"));
-        return adminSettingsEntity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("diffuse_counts_enabled", diffuseCountsEnabled);
-        document.put("phield_enabled", phieldEnabled);
-        document.put("phield_url", phieldUrl);
-        document.put("phield_source_id", phieldSourceId);
-        document.put("phield_organization", phieldOrganization);
-        // The Phield API key is deliberately absent: it is encrypted at rest, and AdminSettingsDataService
-        // is the only writer of it. Emitting it here would write the decrypted key back in the clear.
-        document.put("signing_enabled", signingEnabled);
-        document.put("mfa_available", mfaAvailable);
-        document.put("mfa_required", mfaRequired);
-        document.put("webhook_allowlist", webhookAllowlist);
-        return document;
-    }
 
     @Override
     public String getId() {

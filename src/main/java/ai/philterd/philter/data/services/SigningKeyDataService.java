@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
+import ai.philterd.philter.data.mongodb.SigningKeyDocuments;
 import ai.philterd.philter.data.entities.SigningKeyEntity;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
@@ -160,7 +161,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         if (document == null) {
             throw new IllegalStateException("Active signing key is missing: " + keyId);
         }
-        final KeyPair pair = fromEntity(SigningKeyEntity.fromDocument(document, encryptionService));
+        final KeyPair pair = fromEntity(SigningKeyDocuments.fromDocument(document, encryptionService));
         if (!keyId.equals(keyIdFor(pair.getPublic()))) {
             throw new IllegalStateException("Active signing-key ID does not match its public key.");
         }
@@ -211,7 +212,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         }
         try {
             return KeyFactory.getInstance("EC").generatePublic(
-                    new X509EncodedKeySpec(SigningKeyEntity.publicPartFromDocument(doc).getPublicKeyEncoded()));
+                    new X509EncodedKeySpec(SigningKeyDocuments.publicPartFromDocument(doc).getPublicKeyEncoded()));
         } catch (final Exception e) {
             LOGGER.warn("Stored signing key {} could not be read.", keyId, e);
             return null;
@@ -231,7 +232,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
             entity.setCreatedAt(new Date());
 
             // Stored before it is published: a key that signs must be one a verifier can find.
-            keys.insertOne(entity.toDocument(encryptionService));
+            keys.insertOne(SigningKeyDocuments.toDocument(entity, encryptionService));
 
             return new ActiveKey(kp, entity.getKeyId());
         } catch (final Exception e) {
@@ -352,6 +353,11 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
         final byte[] padded = new byte[32];
         System.arraycopy(raw, 0, padded, 32 - raw.length, raw.length);
         return padded;
+    }
+
+    @Override
+    protected Document toDocument(final SigningKeyEntity entity) {
+        return SigningKeyDocuments.toDocument(entity, encryptionService);
     }
 
 }

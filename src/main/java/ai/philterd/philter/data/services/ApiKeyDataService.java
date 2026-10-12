@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.SessionKeyConfig;
+import ai.philterd.philter.data.mongodb.ApiKeyDocuments;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -198,7 +199,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
         final Document document = collection.find(query).first();
 
-        return document != null ? ApiKeyEntity.fromDocument(document) : null;
+        return document != null ? ApiKeyDocuments.fromDocument(document) : null;
 
     }
 
@@ -214,7 +215,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
         final Document document = collection.find(new Document("_id", MongoIds.objectId(id)).append("deleted", false)).first();
 
-        return document == null ? null : ApiKeyEntity.fromDocument(document);
+        return document == null ? null : ApiKeyDocuments.fromDocument(document);
 
     }
 
@@ -236,7 +237,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return ApiKeyEntity.fromDocument(document);
+            return ApiKeyDocuments.fromDocument(document);
         } else {
             return null;
         }
@@ -262,7 +263,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         final List<ApiKeyEntity> keys = new ArrayList<>();
         for (final Document document : collection.find(activeKeys(userId, session))
                 .sort(new Listings.Sort("timestamp", descending).toBson()).skip(offset).limit(limit)) {
-            keys.add(ApiKeyEntity.fromDocument(document));
+            keys.add(ApiKeyDocuments.fromDocument(document));
         }
         return keys;
     }
@@ -300,7 +301,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         final List<ApiKeyEntity> apiKeyEntities = new ArrayList<>();
 
         for(final Document document : documents) {
-            apiKeyEntities.add(ApiKeyEntity.fromDocument(document));
+            apiKeyEntities.add(ApiKeyDocuments.fromDocument(document));
         }
 
         return apiKeyEntities;
@@ -454,7 +455,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // Capture the affected keys for the audit trail before the bulk update.
         final List<ApiKeyEntity> affected = new ArrayList<>();
         for (final Document document : collection.find(query)) {
-            affected.add(ApiKeyEntity.fromDocument(document));
+            affected.add(ApiKeyDocuments.fromDocument(document));
         }
 
         if (affected.isEmpty()) {
@@ -592,7 +593,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         long expired = 0;
         for (final Document document : collection.find(sessionKeyId == null ? due : Filters.and(Filters.eq("_id", MongoIds.objectId(sessionKeyId)), due))) {
 
-            final ApiKeyEntity key = ApiKeyEntity.fromDocument(document);
+            final ApiKeyEntity key = ApiKeyDocuments.fromDocument(document);
             // The claim repeats the expiry condition: a request on another node may have moved the idle
             // window forward since the read, and that key is not expired.
             final boolean claimed = collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(key.getId())), due),
@@ -638,7 +639,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         for (final Document document : collection.find(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("session", true), Filters.eq("deleted", false),
                 keepKeyId == null ? new Document() : Filters.ne("_id", MongoIds.objectId(keepKeyId))))) {
-            affected.add(ApiKeyEntity.fromDocument(document));
+            affected.add(ApiKeyDocuments.fromDocument(document));
         }
 
         if (affected.isEmpty()) {
@@ -666,4 +667,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     public void update(final ApiKeyEntity key) {
         throw new UnsupportedOperationException("Use scope or revocation operations.");
     }
+    @Override
+    protected Document toDocument(final ApiKeyEntity entity) {
+        return ApiKeyDocuments.toDocument(entity);
+    }
+
 }

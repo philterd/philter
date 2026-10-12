@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.PolicyDocuments;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
@@ -483,7 +484,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         for(final Document document : documents) {
 
-            final PolicyEntity policyEntity = PolicyEntity.fromDocument(document);
+            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
             policies.add(policyEntity);
 
         }
@@ -501,7 +502,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         final List<PolicyEntity> policies = new ArrayList<>();
 
         for (final Document document : documents) {
-            policies.add(PolicyEntity.fromDocument(document));
+            policies.add(PolicyDocuments.fromDocument(document));
         }
 
         return policies;
@@ -512,21 +513,21 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort,
                                                final int offset, final int limit) {
         return Listings.page(collection, Listings.all(Filters.or(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("shared", true)),
-                Filters.ne("managed", true), Listings.contains("name", q)), sort, offset, limit, PolicyEntity::fromDocument);
+                Filters.ne("managed", true), Listings.contains("name", q)), sort, offset, limit, PolicyDocuments::fromDocument);
     }
 
     /** A page of every user's policies, managed ones excluded, whose names contain {@code q}, and their total. */
     public Listings.Page<PolicyEntity> listAcrossUsers(final String q, final Listings.Sort sort, final int offset,
                                                        final int limit) {
         return Listings.page(collection, Listings.all(acrossUsers(false), Listings.contains("name", q)), sort, offset,
-                limit, PolicyEntity::fromDocument);
+                limit, PolicyDocuments::fromDocument);
     }
 
     /** A page of the managed policies whose names contain {@code q}, and their total. */
     public Listings.Page<PolicyEntity> listManaged(final String q, final Listings.Sort sort, final int offset,
                                                    final int limit) {
         return Listings.page(collection, Listings.all(Filters.eq("managed", true), Listings.contains("name", q)), sort,
-                offset, limit, PolicyEntity::fromDocument);
+                offset, limit, PolicyDocuments::fromDocument);
     }
 
     /** Returns the total number of managed policies (for paging). */
@@ -554,7 +555,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         for(final Document document : documents) {
 
-            final PolicyEntity policyEntity = PolicyEntity.fromDocument(document);
+            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
             policies.add(policyEntity);
 
         }
@@ -572,7 +573,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
         final List<PolicyEntity> policies = new ArrayList<>();
 
         for (final Document document : collection.find()) {
-            policies.add(PolicyEntity.fromDocument(document));
+            policies.add(PolicyDocuments.fromDocument(document));
         }
 
         return policies;
@@ -598,7 +599,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         for (final Document document : collection.find(acrossUsers(includeManaged))
                 .sort(Sorts.ascending("name", "_id")).skip(offset).limit(limit)) {
-            policies.add(PolicyEntity.fromDocument(document));
+            policies.add(PolicyDocuments.fromDocument(document));
         }
 
         return policies;
@@ -648,7 +649,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         for(final Document document : documents) {
 
-            final PolicyEntity policyEntity = PolicyEntity.fromDocument(document);
+            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
             policies.add(policyEntity);
 
         }
@@ -692,7 +693,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         for(final Document document : documents) {
 
-            final PolicyEntity policyEntity = PolicyEntity.fromDocument(document);
+            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
             policies.add(policyEntity);
 
         }
@@ -752,7 +753,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         if(document != null) {
 
-            return PolicyEntity.fromDocument(document);
+            return PolicyDocuments.fromDocument(document);
 
         } else {
 
@@ -774,7 +775,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     public PolicyEntity findOneOrManaged(final String name, final String userId) {
         if (isManagedName(name)) {
             final Document document = collection.find(Filters.and(Filters.eq("name", name), Filters.eq("managed", true))).first();
-            return document == null ? null : PolicyEntity.fromDocument(document);
+            return document == null ? null : PolicyDocuments.fromDocument(document);
         }
         return findOne(name, userId);
     }
@@ -863,7 +864,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
         if(document != null) {
 
-            return PolicyEntity.fromDocument(document);
+            return PolicyDocuments.fromDocument(document);
 
         } else {
 
@@ -1126,7 +1127,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
             if (existingDocument != null) {
 
                 // Update existing managed policy
-                final PolicyEntity existingPolicy = PolicyEntity.fromDocument(existingDocument);
+                final PolicyEntity existingPolicy = PolicyDocuments.fromDocument(existingDocument);
                 final int expectedRevision = existingPolicy.getRevision();
                 existingPolicy.setPolicy(managedPolicy.getPolicy());
                 existingPolicy.setDescription(managedPolicy.getDescription());
@@ -1186,7 +1187,7 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
     private boolean replaceIfUnchanged(final PolicyEntity policy, final int expectedRevision,
                                        final String expectedDescription, final String expectedNotes) {
         return collection.replaceOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
-                unchanged(expectedRevision, expectedDescription, expectedNotes)), policy.toDocument()).getMatchedCount() == 1;
+                unchanged(expectedRevision, expectedDescription, expectedNotes)), PolicyDocuments.toDocument(policy)).getMatchedCount() == 1;
     }
 
     /** Matches a policy still at this revision with this description and notes; null matches null or absent. */
@@ -1197,11 +1198,16 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
 
     private boolean replaceRevision(PolicyEntity policy, int expectedRevision) {
         return collection.replaceOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
-                Filters.eq("revision", expectedRevision)), policy.toDocument()).getMatchedCount() == 1;
+                Filters.eq("revision", expectedRevision)), PolicyDocuments.toDocument(policy)).getMatchedCount() == 1;
     }
 
     @Override
     public void update(PolicyEntity policy) {
         throw new UnsupportedOperationException("Use a revision-checked policy update.");
     }
+    @Override
+    protected Document toDocument(final PolicyEntity entity) {
+        return PolicyDocuments.toDocument(entity);
+    }
+
 }

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.WebhookDeliveryDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import java.util.Date;
@@ -55,8 +56,8 @@ class WebhookDeliveryEntityTest {
         original.setUpdatedAt(updated);
         original.setDeliveredAt(delivered);
 
-        final Document doc = original.toDocument(encryption);
-        final WebhookDeliveryEntity restored = WebhookDeliveryEntity.fromDocument(doc, encryption);
+        final Document doc = WebhookDeliveryDocuments.toDocument(original, encryption);
+        final WebhookDeliveryEntity restored = WebhookDeliveryDocuments.fromDocument(doc, encryption);
 
         assertEquals(id, restored.getId());
         assertEquals(userId, restored.getUserId());
@@ -81,7 +82,7 @@ class WebhookDeliveryEntityTest {
         final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
         entity.setStatus(WebhookDeliveryEntity.STATUS_PENDING);
 
-        final Document doc = entity.toDocument(encryption);
+        final Document doc = WebhookDeliveryDocuments.toDocument(entity, encryption);
 
         assertNull(doc.get("_id"));
     }
@@ -89,7 +90,7 @@ class WebhookDeliveryEntityTest {
     @Test
     void attemptsDefaultToZero() {
         final Document doc = new Document();
-        final WebhookDeliveryEntity restored = WebhookDeliveryEntity.fromDocument(doc, encryption);
+        final WebhookDeliveryEntity restored = WebhookDeliveryDocuments.fromDocument(doc, encryption);
         assertEquals(0, restored.getAttempts());
     }
 

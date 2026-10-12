@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.LedgerDocuments;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
@@ -300,7 +301,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      * the page, so the other chains on it are still shown.
      */
     private LedgerEntity chainHead(final Document document) {
-        final LedgerEntity head = LedgerEntity.fromDocumentOrUnreadable(document, encryptionService);
+        final LedgerEntity head = LedgerDocuments.fromDocumentOrUnreadable(document, encryptionService);
         if (head.isUnreadable()) {
             LOGGER.warn("The head entry {} of the ledger chain for document {} could not be read.",
                     head.getId(), head.getDocumentId(), head.getUnreadableCause());
@@ -530,7 +531,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
         for(final Document document : documents) {
             try {
-                ledgerEntries.add(LedgerEntity.fromDocument(document, encryptionService));
+                ledgerEntries.add(LedgerDocuments.fromDocument(document, encryptionService));
             } catch (final MongoException e) {
                 throw e;
             } catch (final RuntimeException e) {
@@ -556,7 +557,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         final Document document = collection.find(query).sort(sortCriteria).first();
 
         if(document != null) {
-            return LedgerEntity.fromDocument(document, encryptionService);
+            return LedgerDocuments.fromDocument(document, encryptionService);
         } else {
             return null;
         }
@@ -678,6 +679,11 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                 .getMatchedCount() != 1) {
             throw new IllegalStateException("Ledger chain deletion state could not be established.");
         }
+    }
+
+    @Override
+    protected Document toDocument(final LedgerEntity entity) {
+        return LedgerDocuments.toDocument(entity, encryptionService);
     }
 
 }

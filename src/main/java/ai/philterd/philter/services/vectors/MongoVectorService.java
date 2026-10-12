@@ -19,6 +19,7 @@ import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.VectorDocuments;
 import ai.philterd.philter.data.entities.VectorEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AbstractService;
@@ -88,7 +89,7 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
 
         for (final Document document : collection.find(filter)) {
 
-            final VectorEntity vectorEntity = VectorEntity.fromDocument(document);
+            final VectorEntity vectorEntity = VectorDocuments.fromDocument(document);
 
             vectorRepresentation.putIfAbsent(vectorEntity.getHash(), 0.0);
 
@@ -139,6 +140,11 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
                     MongoIds.hex(victim.getObjectId("_id")), context, MAX_VECTORS_PER_CONTEXT);
         }
 
+    }
+
+    @Override
+    protected Document toDocument(final VectorEntity entity) {
+        return VectorDocuments.toDocument(entity);
     }
 
 }

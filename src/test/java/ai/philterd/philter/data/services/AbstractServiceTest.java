@@ -60,15 +60,19 @@ class AbstractServiceTest {
         @Override
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
-        @Override
-        public Document toDocument() { return new Document("test", "test"); }
+        Document toDocument() { return new Document("test", "test"); }
     }
 
     @BeforeEach
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection(anyString())).thenReturn(mongoCollection);
-        abstractService = new AbstractService<>(mongoClient, "testCollection", auditEventPublisher);
+        abstractService = new AbstractService<>(mongoClient, "testCollection", auditEventPublisher) {
+            @Override
+            protected Document toDocument(final TestEntity entity) {
+                return entity.toDocument();
+            }
+        };
     }
 
     @Test

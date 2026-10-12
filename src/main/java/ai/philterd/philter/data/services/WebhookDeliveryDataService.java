@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.WebhookDeliveryDocuments;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.EnvUtils;
@@ -99,7 +100,7 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
                 .sort(Sorts.ascending("next_attempt_at"))
                 .returnDocument(ReturnDocument.AFTER);
         final Document claimed = collection.findOneAndUpdate(query, update, options);
-        return claimed != null ? WebhookDeliveryEntity.fromDocument(claimed, encryptionService) : null;
+        return claimed != null ? WebhookDeliveryDocuments.fromDocument(claimed, encryptionService) : null;
     }
 
     private Bson ownedClaim(final String id, final String claimToken, final Date now) {
@@ -155,7 +156,7 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
                 .projection(Projections.exclude("secret", "secret_encrypted_key", "payload", "claim_token"))
                 .sort(new Listings.Sort("created_at", descending).toBson())
                 .skip(offset).limit(limit)) {
-            deliveries.add(WebhookDeliveryEntity.fromDocument(document, encryptionService));
+            deliveries.add(WebhookDeliveryDocuments.fromDocument(document, encryptionService));
         }
         return deliveries;
     }
@@ -170,7 +171,7 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
         if (delivery.getId() == null) throw new IllegalArgumentException("Notification identity is required.");
         try {
             collection.withWriteConcern(com.mongodb.WriteConcern.MAJORITY)
-                    .insertOne(delivery.toDocument(encryptionService));
+                    .insertOne(WebhookDeliveryDocuments.toDocument(delivery, encryptionService));
         } catch (com.mongodb.MongoWriteException duplicate) {
             if (duplicate.getError().getCode() != 11000
                     || collection.withReadPreference(com.mongodb.ReadPreference.primary())
@@ -178,4 +179,9 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
                     .find(Filters.eq("_id", MongoIds.objectId(delivery.getId()))).first() == null) throw duplicate;
         }
     }
+    @Override
+    protected Document toDocument(final WebhookDeliveryEntity entity) {
+        return WebhookDeliveryDocuments.toDocument(entity, encryptionService);
+    }
+
 }

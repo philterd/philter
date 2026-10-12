@@ -17,6 +17,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.RedactListsDocuments;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -132,12 +133,12 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
         final StringBuilder details = new StringBuilder();
 
         if (termsToAlwaysRedact != null) {
-            RedactListsEntity.writeTerms(set, encryptionService, userId, RedactList.ALWAYS.termsField, termsToAlwaysRedact);
+            RedactListsDocuments.writeTerms(set, encryptionService, userId, RedactList.ALWAYS.termsField, termsToAlwaysRedact);
             inc.append(RedactList.ALWAYS.revisionField, 1L);
             details.append("alwaysRedact: ").append(termsToAlwaysRedact.size());
         }
         if (termsToNeverRedact != null) {
-            RedactListsEntity.writeTerms(set, encryptionService, userId, RedactList.NEVER.termsField, termsToNeverRedact);
+            RedactListsDocuments.writeTerms(set, encryptionService, userId, RedactList.NEVER.termsField, termsToNeverRedact);
             inc.append(RedactList.NEVER.revisionField, 1L);
             details.append(details.isEmpty() ? "" : ", ").append("neverRedact: ").append(termsToNeverRedact.size());
         }
@@ -162,7 +163,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return RedactListsEntity.fromDocument(document, encryptionService);
+            return RedactListsDocuments.fromDocument(document, encryptionService);
         } else {
             return null;
         }
@@ -194,7 +195,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
                                     final List<String> terms, final Long expectedRevision, final String source) {
 
         final Document set = new Document();
-        RedactListsEntity.writeTerms(set, encryptionService, userId, list.termsField, terms);
+        RedactListsDocuments.writeTerms(set, encryptionService, userId, list.termsField, terms);
         final Document update = new Document("$set", set).append("$inc", new Document(list.revisionField, 1L));
 
         final Bson filter;
@@ -229,7 +230,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
             return null;
         }
 
-        final RedactListsEntity entity = RedactListsEntity.fromDocument(written, encryptionService);
+        final RedactListsEntity entity = RedactListsDocuments.fromDocument(written, encryptionService);
         final ListContents contents = list == RedactList.ALWAYS
                 ? new ListContents(entity.getTermsToAlwaysRedact(), entity.getAlwaysRedactRevision())
                 : new ListContents(entity.getTermsToNeverRedact(), entity.getNeverRedactRevision());
@@ -239,6 +240,11 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
 
         return contents;
 
+    }
+
+    @Override
+    protected Document toDocument(final RedactListsEntity entity) {
+        return RedactListsDocuments.toDocument(entity, encryptionService);
     }
 
 }

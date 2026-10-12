@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.PolicyVersionDocuments;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
@@ -217,7 +218,7 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
                 .limit(limit);
         final List<PolicyVersionEntity> versions = new ArrayList<>();
         for (final Document doc : documents) {
-            versions.add(PolicyVersionEntity.fromDocument(doc));
+            versions.add(PolicyVersionDocuments.fromDocument(doc));
         }
         return versions;
     }
@@ -226,7 +227,7 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     public Listings.Page<PolicyVersionEntity> listByName(final String name, final String userId,
                                                          final boolean descending, final int offset, final int limit) {
         return Listings.page(collection, Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name)),
-                new Listings.Sort("revision", descending), offset, limit, PolicyVersionEntity::fromDocument);
+                new Listings.Sort("revision", descending), offset, limit, PolicyVersionDocuments::fromDocument);
     }
 
     /**
@@ -240,7 +241,7 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
                 Filters.eq("name", name),
                 Filters.eq("revision", revision));
         final Document document = collection.find(query).first();
-        return document != null ? PolicyVersionEntity.fromDocument(document) : null;
+        return document != null ? PolicyVersionDocuments.fromDocument(document) : null;
     }
 
     /**
@@ -280,4 +281,9 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     public void update(PolicyVersionEntity version) {
         throw new UnsupportedOperationException("Policy versions are immutable.");
     }
+    @Override
+    protected Document toDocument(final PolicyVersionEntity entity) {
+        return PolicyVersionDocuments.toDocument(entity);
+    }
+
 }

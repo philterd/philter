@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.CustomListDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -185,7 +186,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final Document document = collection.find(filter1).first();
 
         if(document != null) {
-            return CustomListEntity.fromDocument(document, encryptionService);
+            return CustomListDocuments.fromDocument(document, encryptionService);
         } else {
             return null;
         }
@@ -207,7 +208,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
         final Map<String, List<String>> itemsByName = new HashMap<>();
         for (final Document document : collection.find(filter)) {
-            final CustomListEntity entity = CustomListEntity.fromDocument(document, encryptionService);
+            final CustomListEntity entity = CustomListDocuments.fromDocument(document, encryptionService);
             itemsByName.put(entity.getName(), entity.getItems());
         }
 
@@ -225,7 +226,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final Document document = collection.find(filter1).first();
 
         if(document != null) {
-            return CustomListEntity.fromDocument(document, encryptionService);
+            return CustomListDocuments.fromDocument(document, encryptionService);
         } else {
             return null;
         }
@@ -254,7 +255,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
         for (final Document document : collection.find()) {
-            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
         }
 
         return customListEntities;
@@ -270,7 +271,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
         for (final Document document : collection.find().sort(Sorts.ascending("name", "_id")).skip(offset).limit(limit)) {
-            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
         }
 
         return customListEntities;
@@ -295,7 +296,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
         for(final Document document : documents) {
-            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
         }
 
         return customListEntities;
@@ -329,7 +330,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
         for(final Document document : documents) {
-            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
         }
 
         return customListEntities;
@@ -344,7 +345,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
                                                 final int offset, final int limit) {
         return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
                 Listings.contains("name", q)), sort, offset, limit,
-                document -> CustomListEntity.fromDocument(document, encryptionService));
+                document -> CustomListDocuments.fromDocument(document, encryptionService));
     }
 
     public List<CustomListEntity> findAll(final String userId, final int offset, final int limit) {
@@ -382,7 +383,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final List<CustomListEntity> customListEntities = new ArrayList<>();
 
         for(final Document document : documents) {
-            customListEntities.add(CustomListEntity.fromDocument(document, encryptionService));
+            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
         }
 
         return customListEntities;
@@ -418,6 +419,11 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
         return deleteResult.getDeletedCount();
 
+    }
+
+    @Override
+    protected Document toDocument(final CustomListEntity entity) {
+        return CustomListDocuments.toDocument(entity, encryptionService);
     }
 
 }

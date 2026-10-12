@@ -15,69 +15,16 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptedBytes;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.Document;
-import org.bson.types.Binary;
 
 import java.util.Date;
 
 public class SigningKeyEntity extends AbstractEncryptedEntity {
-
-    /** The signing key belongs to the instance, not a user; the key provider ignores this value. */
-    private static final String SYSTEM_OWNER = "system";
 
     private String id;
     private String keyId;
     private byte[] privateKeyEncoded;
     private byte[] publicKeyEncoded;
     private Date createdAt;
-    /** Reads the record without touching the private key, for callers that only need the public half. */
-    public static SigningKeyEntity publicPartFromDocument(final Document doc) {
-        final SigningKeyEntity e = new SigningKeyEntity();
-        e.setId(MongoIds.hex(doc.getObjectId("_id")));
-        e.setKeyId(doc.getString("key_id"));
-        e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
-        e.setCreatedAt(doc.getDate("created_at"));
-        return e;
-    }
-
-    public static SigningKeyEntity fromDocument(final Document doc, final EncryptionService encryptionService) {
-        final SigningKeyEntity e = new SigningKeyEntity();
-        e.setId(MongoIds.hex(doc.getObjectId("_id")));
-        e.setKeyId(doc.getString("key_id"));
-
-        // The public key stays in the clear: GET /api/signing-key serves it unauthenticated so a
-        // third party can verify signatures, and it is not a secret. Only the private half is
-        // encrypted, so a database dump alone no longer yields the ability to forge signatures.
-        final byte[] storedPrivate = doc.get("private_key", Binary.class).getData();
-        final String wrappedKey = doc.getString("private_key_encrypted_key");
-        if (wrappedKey == null || wrappedKey.isBlank()) {
-            throw new IllegalStateException("Signing private key is missing its encryption key.");
-        }
-        e.setPrivateKeyEncoded(encryptionService.decryptBytes(storedPrivate, wrappedKey));
-        e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
-        e.setCreatedAt(doc.getDate("created_at"));
-        return e;
-    }
-
-    @Override
-    public Document toDocument(final EncryptionService encryptionService) {
-        final Document doc = new Document();
-        if (id != null) {
-            doc.put("_id", MongoIds.objectId(id));
-        }
-        doc.put("key_id", keyId);
-
-        final EncryptedBytes encrypted = encryptionService.encryptBytes(privateKeyEncoded, SYSTEM_OWNER);
-        doc.put("private_key", new Binary(encrypted.ciphertext()));
-        doc.put("private_key_encrypted_key", encrypted.encryptionKey());
-
-        doc.put("public_key", publicKeyEncoded);
-        doc.put("created_at", createdAt);
-        return doc;
-    }
 
     @Override
     public String getId() {

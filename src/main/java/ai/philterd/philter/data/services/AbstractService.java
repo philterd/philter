@@ -70,16 +70,25 @@ public class AbstractService<T extends AbstractEntity> {
     }
 
     public String save(T entity) {
-        return MongoIds.hex(collection.insertOne(entity.toDocument()).getInsertedId().asObjectId().getValue());
+        return MongoIds.hex(collection.insertOne(toDocument(entity)).getInsertedId().asObjectId().getValue());
     }
 
     public void update(final T entity) {
 
         collection.updateOne(
                 Filters.eq("_id", MongoIds.objectId(entity.getId())),
-                new Document("$set", entity.toDocument())
+                new Document("$set", toDocument(entity))
         );
 
+    }
+
+
+    /**
+     * The document an entity is stored as, for {@link #save} and {@link #update}. A service that stores entities
+     * through them overrides it with its entity's mapping.
+     */
+    protected Document toDocument(final T entity) {
+        throw new UnsupportedOperationException(getClass().getSimpleName() + " does not store entities through save or update.");
     }
 
 }

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.ContextEntryDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.ContextTokenHasher;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -98,7 +99,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         final List<ContextEntryEntity> contextEntities = new ArrayList<>();
 
         for(final Document document : documents) {
-            contextEntities.add(ContextEntryEntity.fromDocument(document));
+            contextEntities.add(ContextEntryDocuments.fromDocument(document));
         }
 
         return contextEntities;
@@ -120,7 +121,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
         final List<ContextEntryEntity> entries = new ArrayList<>();
         for (final Document document : collection.find(query).sort(Sorts.descending("timestamp"))) {
-            entries.add(ContextEntryEntity.fromDocument(document));
+            entries.add(ContextEntryDocuments.fromDocument(document));
         }
 
         return entries;
@@ -179,7 +180,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         contextEntryEntity.setFilterType(filterType);
         contextEntryEntity.setReplacementUuid(replacementUuid);
 
-        collection.insertOne(contextEntryEntity.toDocument());
+        collection.insertOne(ContextEntryDocuments.toDocument(contextEntryEntity));
 
         return ImportOutcome.INSERTED;
 
@@ -248,7 +249,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("token_hash", tokenHash);
         final Document document = collection.find(query).first();
 
-        return document != null ? ContextEntryEntity.fromDocument(document) : null;
+        return document != null ? ContextEntryDocuments.fromDocument(document) : null;
 
     }
 
@@ -297,7 +298,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         } catch (final MongoWriteException | MongoCommandException lostTheRace) {
             // The unique index rejected a second insert; the winner's row is what counts.
             final Document winner = collection.find(query).first();
-            return winner != null ? ContextEntryEntity.fromDocument(winner) : null;
+            return winner != null ? ContextEntryDocuments.fromDocument(winner) : null;
         }
 
         if (stored != null && replacement.equals(stored.getString("replacement"))) {
@@ -307,7 +308,7 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
             evictIfFull(userId, contextName);
         }
 
-        return stored != null ? ContextEntryEntity.fromDocument(stored) : null;
+        return stored != null ? ContextEntryDocuments.fromDocument(stored) : null;
 
     }
 
@@ -402,6 +403,11 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
         return filterTypeCounts;
 
+    }
+
+    @Override
+    protected Document toDocument(final ContextEntryEntity entity) {
+        return ContextEntryDocuments.toDocument(entity);
     }
 
 }

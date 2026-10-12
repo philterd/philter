@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.WebhookDeliveryDocuments;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.webhook.WebhookService;
@@ -74,7 +75,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
         final MongoCollection<Document> collection =
                 mongoClient.getDatabase("philter").getCollection("webhook_deliveries");
         final Document document = collection.find(Filters.eq("_id", MongoIds.objectId(id))).first();
-        return document != null ? WebhookDeliveryEntity.fromDocument(document, encryption) : null;
+        return document != null ? WebhookDeliveryDocuments.fromDocument(document, encryption) : null;
     }
 
     @Test
@@ -254,7 +255,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void readerRejectsSecretWithoutEncryptedKey() {
         assertThrows(IllegalStateException.class,
-                () -> WebhookDeliveryEntity.fromDocument(new Document("secret", "unprotected-secret"), encryption));
+                () -> WebhookDeliveryDocuments.fromDocument(new Document("secret", "unprotected-secret"), encryption));
     }
 
     private MongoCollection<Document> collection() {

@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
-
 import java.util.Date;
 
 /**
@@ -49,35 +46,6 @@ public class LegalHoldEntity extends AbstractEntity {
     private String reason;
     private Date setAt;
     private String setByUserId;
-
-    public static LegalHoldEntity fromDocument(final Document document) {
-        final LegalHoldEntity entity = new LegalHoldEntity();
-        entity.setId(MongoIds.hex(document.getObjectId("_id")));
-        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        entity.setReference(document.getString("reference"));
-        entity.setScopeType(document.getString("scope_type"));
-        entity.setScopeValue(document.getString("scope_value"));
-        entity.setReason(document.getString("reason"));
-        entity.setSetAt(document.getDate("set_at"));
-        entity.setSetByUserId(MongoIds.hex(document.getObjectId("set_by_user_id")));
-        return entity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("reference", reference);
-        document.put("scope_type", scopeType);
-        document.put("scope_value", scopeValue);
-        document.put("reason", reason);
-        document.put("set_at", setAt);
-        document.put("set_by_user_id", MongoIds.objectId(setByUserId));
-        return document;
-    }
 
     @Override
     public String getId() { return id; }

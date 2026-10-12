@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.encryption;
 
+import ai.philterd.philter.data.mongodb.WebhookDeliveryDocuments;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import org.junit.jupiter.api.Test;
@@ -28,16 +29,16 @@ class WebhookSecretEncryptionTest {
         final var delivery = new WebhookDeliveryEntity();
         delivery.setUserId(MongoIds.newId());
         delivery.setSecret("webhook-signing-secret");
-        final var stored = delivery.toDocument(encryption);
+        final var stored = WebhookDeliveryDocuments.toDocument(delivery, encryption);
         assertNotEquals(delivery.getSecret(), stored.getString("secret"));
         assertTrue(stored.getString("secret_encrypted_key").startsWith("v2:"));
-        assertEquals(delivery.getSecret(), WebhookDeliveryEntity.fromDocument(stored, encryption).getSecret());
+        assertEquals(delivery.getSecret(), WebhookDeliveryDocuments.fromDocument(stored, encryption).getSecret());
         final byte[] otherKey = new byte[32];
         otherKey[0] = 1;
         final var otherEncryption = new LocalEncryptionService(new LocalKeyProvider(
                 java.util.Base64.getEncoder().encodeToString(otherKey)));
-        assertThrows(RuntimeException.class, () -> WebhookDeliveryEntity.fromDocument(stored, otherEncryption));
+        assertThrows(RuntimeException.class, () -> WebhookDeliveryDocuments.fromDocument(stored, otherEncryption));
         stored.put("secret", "corrupt-ciphertext");
-        assertThrows(RuntimeException.class, () -> WebhookDeliveryEntity.fromDocument(stored, encryption));
+        assertThrows(RuntimeException.class, () -> WebhookDeliveryDocuments.fromDocument(stored, encryption));
     }
 }

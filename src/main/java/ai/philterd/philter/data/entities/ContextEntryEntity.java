@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
-
 import java.util.Date;
 
 public class ContextEntryEntity extends AbstractEntity {
@@ -31,37 +28,6 @@ public class ContextEntryEntity extends AbstractEntity {
     private Date timestamp;
     private String filterType;
     private String userId;
-
-    public static ContextEntryEntity fromDocument(final Document document) {
-        final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
-        contextEntryEntity.id = MongoIds.hex(document.getObjectId("_id"));
-        contextEntryEntity.userId = MongoIds.hex(document.getObjectId("user_id"));
-        contextEntryEntity.contextName = document.getString("context_name");
-        contextEntryEntity.tokenHash = document.getString("token_hash");
-        contextEntryEntity.replacement = document.getString("replacement");
-        contextEntryEntity.replacementUuid = document.getBoolean("replacement_uuid", false);
-        contextEntryEntity.reads = document.getLong("reads");
-        contextEntryEntity.timestamp = document.getDate("timestamp");
-        contextEntryEntity.filterType = document.getString("filter_type");
-        return contextEntryEntity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if(id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("context_name", contextName);
-        document.put("token_hash", tokenHash);
-        document.put("replacement", replacement);
-        document.put("replacement_uuid", replacementUuid);
-        document.put("reads", reads);
-        document.put("timestamp", timestamp);
-        document.put("filter_type", filterType);
-        return document;
-    }
 
     public String getId() {
         return id;

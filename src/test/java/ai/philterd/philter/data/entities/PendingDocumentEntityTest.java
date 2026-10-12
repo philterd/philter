@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.PendingDocumentDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
 import org.bson.types.Binary;
@@ -63,14 +64,14 @@ class PendingDocumentEntityTest {
         original.setClaimedBy("philter-worker-x");
         original.setClaimedAt(claimed);
 
-        final Document doc = original.toDocument(ENCRYPTION);
+        final Document doc = PendingDocumentDocuments.toDocument(original, ENCRYPTION);
 
         assertEquals(MongoIds.objectId(id), doc.get("_id"));
         assertEquals(MongoIds.objectId(userId), doc.get("user_id"));
         assertInstanceOf(Binary.class, doc.get("input"));
         assertInstanceOf(Binary.class, doc.get("output"));
 
-        final PendingDocumentEntity restored = PendingDocumentEntity.fromDocument(doc, ENCRYPTION);
+        final PendingDocumentEntity restored = PendingDocumentDocuments.fromDocument(doc, ENCRYPTION);
 
         assertEquals(id, restored.getId());
         assertEquals(userId, restored.getUserId());
@@ -98,7 +99,7 @@ class PendingDocumentEntityTest {
         entity.setInput(null);
         entity.setOutput(null);
 
-        final Document doc = entity.toDocument(ENCRYPTION);
+        final Document doc = PendingDocumentDocuments.toDocument(entity, ENCRYPTION);
 
         assertNull(doc.get("input"));
         assertNull(doc.get("output"));
@@ -109,7 +110,7 @@ class PendingDocumentEntityTest {
         final PendingDocumentEntity entity = new PendingDocumentEntity();
         entity.setStatus(PendingDocumentEntity.STATUS_PENDING);
 
-        final Document doc = entity.toDocument(ENCRYPTION);
+        final Document doc = PendingDocumentDocuments.toDocument(entity, ENCRYPTION);
 
         assertNull(doc.get("_id"));
     }

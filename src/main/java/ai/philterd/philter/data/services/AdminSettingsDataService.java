@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.api.security.AdministratorAuthorization;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.AdminSettingsDocuments;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -93,7 +94,7 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
         if (document == null) {
             return null;
         }
-        final AdminSettingsEntity adminSettingsEntity = AdminSettingsEntity.fromDocument(document);
+        final AdminSettingsEntity adminSettingsEntity = AdminSettingsDocuments.fromDocument(document);
         adminSettingsEntity.setPhieldApiKey(decryptPhieldApiKey(document));
         return adminSettingsEntity;
     }
@@ -290,6 +291,11 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
 
         return changed;
 
+    }
+
+    @Override
+    protected Document toDocument(final AdminSettingsEntity entity) {
+        return AdminSettingsDocuments.toDocument(entity);
     }
 
 }

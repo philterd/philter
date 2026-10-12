@@ -15,11 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptResult;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.Document;
-
 import java.util.Date;
 
 public class UserEntity extends AbstractEncryptedEntity {
@@ -52,93 +47,6 @@ public class UserEntity extends AbstractEncryptedEntity {
     // still resolve to a name), but a deactivated user's API keys are refused.
     private boolean deactivated;
     private Date deactivatedAt;
-
-    public static UserEntity fromDocument(final Document document, final EncryptionService encryptionService) {
-        final UserEntity userEntity = new UserEntity();
-        userEntity.setId(MongoIds.hex(document.getObjectId("_id")));
-        // The ObjectId carries the creation time; users have no separate created field.
-        userEntity.setCreatedAt(document.getObjectId("_id") == null ? null : document.getObjectId("_id").getDate());
-        // The login identifier is the username. Accounts created before the username field existed
-        // stored the login id under "email", so fall back to that when "username" is absent.
-        userEntity.setUsername(document.getString("username") != null
-                ? document.getString("username") : document.getString("email"));
-        userEntity.setEmail(document.getString("email"));
-        userEntity.setRole(document.getString("role"));
-        userEntity.setFpeKey(readEncrypted(document, encryptionService, "fpe_key"));
-        userEntity.setWebhookUrl(document.getString("webhook_url"));
-        userEntity.setWebhookSecret(readEncrypted(document, encryptionService, "webhook_secret"));
-        userEntity.setPassword(document.getString("password"));
-        userEntity.setPasswordChangeRequired(document.getBoolean("password_change_required", false));
-        userEntity.setMfaEnabled(document.getBoolean("mfa_enabled", false));
-        userEntity.setMfaSecret(readEncrypted(document, encryptionService, "mfa_secret"));
-        userEntity.setMfaPendingSecret(readEncrypted(document, encryptionService, "mfa_pending_secret"));
-        userEntity.setMfaFailedAttempts(document.getInteger("mfa_failed_attempts", 0));
-        userEntity.setMfaLocked(document.getBoolean("mfa_locked", false));
-        final Number lastStep = document.get("mfa_last_used_time_step", Number.class);
-        userEntity.setMfaLastUsedTimeStep(lastStep == null ? 0L : lastStep.longValue());
-        userEntity.setDeactivated(document.getBoolean("deactivated", false));
-        userEntity.setDeactivatedAt(document.getDate("deactivated_at"));
-        return userEntity;
-    }
-
-    /**
-     * Reads a field encrypted by {@link #putEncrypted}. Returns null when absent or empty. A value
-     * present without its {@code _key} is legacy plaintext (written before the field was encrypted) and
-     * is returned as-is; it is re-written encrypted on the next save.
-     */
-    private static String readEncrypted(final Document document, final EncryptionService encryptionService, final String field) {
-        final String value = document.getString(field);
-        if (value == null || value.isEmpty()) {
-            return null;
-        }
-        final String key = document.getString(field + "_key");
-        if (key != null && !key.isEmpty()) {
-            return encryptionService.decrypt(value, key);
-        }
-        return value;
-    }
-
-    @Override
-    public Document toDocument(final EncryptionService encryptionService) {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("username", username);
-        document.put("email", email);
-        document.put("role", role);
-        // Per-user secrets are encrypted at rest (ciphertext plus a <field>_key); the webhook URL is an
-        // endpoint, not a credential, and the password is a bcrypt hash, stored as-is.
-        putEncrypted(document, encryptionService, "fpe_key", fpeKey);
-        document.put("webhook_url", webhookUrl);
-        putEncrypted(document, encryptionService, "webhook_secret", webhookSecret);
-        document.put("password", password);
-        document.put("password_change_required", passwordChangeRequired);
-        document.put("mfa_enabled", mfaEnabled);
-        putEncrypted(document, encryptionService, "mfa_secret", mfaSecret);
-        putEncrypted(document, encryptionService, "mfa_pending_secret", mfaPendingSecret);
-        document.put("mfa_failed_attempts", mfaFailedAttempts);
-        document.put("mfa_locked", mfaLocked);
-        document.put("mfa_last_used_time_step", mfaLastUsedTimeStep);
-        document.put("deactivated", deactivated);
-        document.put("deactivated_at", deactivatedAt);
-        return document;
-    }
-
-    /**
-     * Encrypts a sensitive field at rest, storing the ciphertext under {@code field} and its data key
-     * under {@code field + "_key"}. A null or empty value is stored as empty (and read back as null).
-     */
-    private void putEncrypted(final Document document, final EncryptionService encryptionService, final String field, final String value) {
-        if (value == null || value.isEmpty()) {
-            document.put(field, "");
-            document.put(field + "_key", "");
-        } else {
-            final EncryptResult result = encryptionService.encrypt(value, id != null ? id : "");
-            document.put(field, result.getEncryptedText());
-            document.put(field + "_key", result.getEncryptionKey());
-        }
-    }
 
     @Override
     public String getId() {

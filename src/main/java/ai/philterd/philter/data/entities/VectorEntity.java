@@ -16,8 +16,6 @@
 package ai.philterd.philter.data.entities;
 
 import ai.philterd.phileas.model.filtering.Span;
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
 
 public class VectorEntity extends AbstractEntity {
 
@@ -31,31 +29,6 @@ public class VectorEntity extends AbstractEntity {
 
     public VectorEntity() {
 
-    }
-
-    public static VectorEntity fromDocument(final Document document) {
-        final VectorEntity vectorEntity = new VectorEntity();
-        vectorEntity.setId(MongoIds.hex(document.getObjectId("_id")));
-        vectorEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        vectorEntity.setContext(document.getString("context"));
-        vectorEntity.setHash(document.getDouble("hash"));
-        vectorEntity.setVectorSize(document.getInteger("vector_size"));
-        vectorEntity.setFilterType(document.getString("filter_type"));
-        return vectorEntity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if(id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("context", context);
-        document.put("hash", hash);
-        document.put("vector_size", vectorSize);
-        document.put("filter_type", filterType);
-        return document;
     }
 
     public String getId() {

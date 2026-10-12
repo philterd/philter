@@ -27,6 +27,7 @@ import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.ContextDocuments;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
@@ -302,7 +303,7 @@ public class RedactionService {
 
             // Find the context by its name.
             final ContextEntity contextEntity = effective == null ? contextService.findOneByNameAndUserId(contextName, userEntity.getId())
-                    : effective.contextJson() == null ? null : ContextEntity.fromDocument(org.bson.Document.parse(effective.contextJson()));
+                    : effective.contextJson() == null ? null : ContextDocuments.fromDocument(org.bson.Document.parse(effective.contextJson()));
 
             if(contextEntity == null) {
 
@@ -558,7 +559,7 @@ public class RedactionService {
         }
         final com.google.gson.JsonElement json = gson.toJsonTree(resolved);
         freezeEnvironmentKeys(json);
-        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json), context == null ? null : context.toDocument().toJson()));
+        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json), context == null ? null : ContextDocuments.toDocument(context).toJson()));
         ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(captured);
         return captured;
     }

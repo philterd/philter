@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.ContextDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -220,7 +221,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final List<ContextEntity> contextEntities = new ArrayList<>();
 
         for (final Document document : collection.find()) {
-            contextEntities.add(ContextEntity.fromDocument(document));
+            contextEntities.add(ContextDocuments.fromDocument(document));
         }
 
         return contextEntities;
@@ -236,7 +237,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final List<ContextEntity> contextEntities = new ArrayList<>();
 
         for (final Document document : collection.find().sort(Sorts.ascending("context_name", "_id")).skip(offset).limit(limit)) {
-            contextEntities.add(ContextEntity.fromDocument(document));
+            contextEntities.add(ContextDocuments.fromDocument(document));
         }
 
         return contextEntities;
@@ -262,7 +263,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         for(final Document document : documents) {
 
-            final ContextEntity contextEntity = ContextEntity.fromDocument(document);
+            final ContextEntity contextEntity = ContextDocuments.fromDocument(document);
             contextEntities.add(contextEntity);
 
         }
@@ -278,7 +279,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return ContextEntity.fromDocument(document);
+            return ContextDocuments.fromDocument(document);
         } else {
             return null;
         }
@@ -292,7 +293,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return ContextEntity.fromDocument(document);
+            return ContextDocuments.fromDocument(document);
         } else {
             return null;
         }
@@ -306,7 +307,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
     public Listings.Page<ContextEntity> list(final String userId, final String q, final Listings.Sort sort,
                                              final int offset, final int limit) {
         return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
-                Listings.contains("context_name", q)), sort, offset, limit, ContextEntity::fromDocument);
+                Listings.contains("context_name", q)), sort, offset, limit, ContextDocuments::fromDocument);
     }
 
     public List<ContextEntity> findAll(final String userId, final int offset, final int limit) {
@@ -341,7 +342,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         for(final Document document : documents) {
 
-            final ContextEntity contextEntity = ContextEntity.fromDocument(document);
+            final ContextEntity contextEntity = ContextDocuments.fromDocument(document);
             contextEntities.add(contextEntity);
 
         }
@@ -369,7 +370,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final Document document = collection.find(query).first();
 
         if(document != null) {
-            return ContextEntity.fromDocument(document);
+            return ContextDocuments.fromDocument(document);
         } else {
             return null;
         }
@@ -498,6 +499,11 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
         return new ServiceResponse("Context deleted successfully.", true);
 
+    }
+
+    @Override
+    protected Document toDocument(final ContextEntity entity) {
+        return ContextDocuments.toDocument(entity);
     }
 
 }

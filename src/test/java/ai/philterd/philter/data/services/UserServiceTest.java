@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.UserDocuments;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
@@ -140,7 +141,7 @@ class UserServiceTest {
 
         verify(mongoCollection).insertOne(docCaptor.capture());
         // The FPE key is encrypted at rest, so decrypt it back through the entity to assert its form.
-        final String fpeKey = UserEntity.fromDocument(docCaptor.getValue(), encryptionService).getFpeKey();
+        final String fpeKey = UserDocuments.fromDocument(docCaptor.getValue(), encryptionService).getFpeKey();
         assertNotNull(fpeKey);
         assertTrue(fpeKey.matches("[0-9a-f]{64}"), "a new user must get a 256-bit hex FPE key");
     }

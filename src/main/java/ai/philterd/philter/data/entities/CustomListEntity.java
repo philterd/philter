@@ -15,13 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptResult;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.Document;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class CustomListEntity extends AbstractEncryptedEntity {
@@ -32,53 +25,6 @@ public class CustomListEntity extends AbstractEncryptedEntity {
     private List<String> items;
     private String itemsEncryptedKey;
     private String userId;
-
-    public static CustomListEntity fromDocument(final Document document, final EncryptionService encryptionService) {
-        final CustomListEntity customListEntity = new CustomListEntity();
-        customListEntity.setId(MongoIds.hex(document.getObjectId("_id")));
-        customListEntity.setName(document.getString("name"));
-        customListEntity.setDescription(document.getString("description"));
-        customListEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        
-        final String encryptedItems = document.getString("items");
-        final String itemsEncryptedKey = document.getString("items_encrypted_key");
-        
-        final List<String> decryptedItems = new ArrayList<>();
-        if (encryptedItems != null && itemsEncryptedKey != null) {
-            final String decryptedItemsStr = encryptionService.decrypt(encryptedItems, itemsEncryptedKey);
-            if (decryptedItemsStr != null && !decryptedItemsStr.isEmpty()) {
-                decryptedItems.addAll(Arrays.asList(decryptedItemsStr.split("\n")));
-            }
-        }
-        
-        customListEntity.setItems(decryptedItems);
-        customListEntity.setItemsEncryptedKey(itemsEncryptedKey);
-        
-        return customListEntity;
-    }
-
-    @Override
-    public Document toDocument(final EncryptionService encryptionService) {
-        final Document document = new Document();
-        if(id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("name", name);
-        document.put("description", description);
-        document.put("user_id", MongoIds.objectId(userId));
-        
-        if (items != null && !items.isEmpty()) {
-            final String itemsStr = String.join("\n", items);
-            final EncryptResult encryptResult = encryptionService.encrypt(itemsStr, userId);
-            document.put("items", encryptResult.getEncryptedText());
-            document.put("items_encrypted_key", encryptResult.getEncryptionKey());
-        } else {
-            document.put("items", "");
-            document.put("items_encrypted_key", "");
-        }
-        
-        return document;
-    }
 
     public String getId() {
         return id;

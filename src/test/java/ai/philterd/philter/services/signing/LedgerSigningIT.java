@@ -20,6 +20,7 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
+import ai.philterd.philter.data.mongodb.LedgerDocuments;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
@@ -346,7 +347,7 @@ class LedgerSigningIT extends AbstractMongoIT {
             entry.setSignature(null);
             entry.setSigningKeyId(null);
             mongoClient.getDatabase("philter").getCollection("ledger").replaceOne(
-                    Filters.eq("_id", MongoIds.objectId(entry.getId())), entry.toDocument(new TestEncryptionService()));
+                    Filters.eq("_id", MongoIds.objectId(entry.getId())), LedgerDocuments.toDocument(entry, new TestEncryptionService()));
             previousHash = entry.getHash();
         }
         final var result = ledgerDataService.validateChain(USER, DOC);

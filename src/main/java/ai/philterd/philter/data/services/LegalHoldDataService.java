@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.LegalHoldDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -115,7 +116,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
             hold.setSetAt(new Date());
             hold.setSetByUserId(setByUserId);
 
-            holds.insertOne(hold.toDocument());
+            holds.insertOne(LegalHoldDocuments.toDocument(hold));
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_SET, userId, null,
                     null, "reference: " + reference + ", scopeType: " + scopeType
@@ -168,7 +169,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
         final Document doc = holds.find(Filters.and(
                 Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("reference", reference))).first();
-        return doc != null ? LegalHoldEntity.fromDocument(doc) : null;
+        return doc != null ? LegalHoldDocuments.fromDocument(doc) : null;
     }
 
     /**
@@ -181,7 +182,7 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
     public Listings.Page<LegalHoldEntity> list(final String userId, final String q, final Listings.Sort sort,
                                                final int offset, final int limit) {
         return Listings.page(holds, Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
-                Listings.contains("reference", q)), sort, offset, limit, LegalHoldEntity::fromDocument);
+                Listings.contains("reference", q)), sort, offset, limit, LegalHoldDocuments::fromDocument);
     }
 
     public List<LegalHoldEntity> findAllByUserId(final String userId, final int offset, final int limit) {
@@ -270,8 +271,13 @@ public class LegalHoldDataService extends AbstractService<LegalHoldEntity> {
     private static List<LegalHoldEntity> toList(final Iterable<Document> docs) {
         final List<LegalHoldEntity> result = new ArrayList<>();
         for (final Document doc : docs) {
-            result.add(LegalHoldEntity.fromDocument(doc));
+            result.add(LegalHoldDocuments.fromDocument(doc));
         }
         return result;
     }
+    @Override
+    protected Document toDocument(final LegalHoldEntity entity) {
+        return LegalHoldDocuments.toDocument(entity);
+    }
+
 }

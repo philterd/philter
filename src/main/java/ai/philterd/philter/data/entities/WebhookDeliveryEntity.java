@@ -15,11 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.services.encryption.EncryptResult;
-import org.bson.Document;
-
 import java.util.Date;
 
 public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
@@ -54,69 +49,6 @@ public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
     private Date completedAt;
     public Date getCompletedAt() { return completedAt; }
     public void setCompletedAt(Date value) { completedAt = value; }
-
-    public static WebhookDeliveryEntity fromDocument(final Document document, final EncryptionService encryptionService) {
-        final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
-        entity.setId(MongoIds.hex(document.getObjectId("_id")));
-        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        entity.setDocumentId(document.getString("document_id"));
-        entity.setEventType(document.getString("event_type"));
-        entity.setStatus(document.getString("status"));
-        entity.setUrl(document.getString("url"));
-        final String storedSecret = document.getString("secret");
-        if (storedSecret != null && !storedSecret.isEmpty()) {
-            final String encryptedKey = document.getString("secret_encrypted_key");
-            if (encryptedKey == null || encryptedKey.isBlank()) {
-                throw new IllegalStateException("Webhook signing secret has not been encrypted.");
-            }
-            entity.setSecret(encryptionService.decrypt(storedSecret, encryptedKey));
-        } else {
-            entity.setSecret(storedSecret);
-        }
-        entity.setPayload(document.getString("payload"));
-        entity.setAttempts(document.getInteger("attempts", 0));
-        entity.setClaimToken(document.getString("claim_token"));
-        entity.setClaimExpiresAt(document.getDate("claim_expires_at"));
-        entity.setLastError(document.getString("last_error"));
-        entity.setNextAttemptAt(document.getDate("next_attempt_at"));
-        entity.setCreatedAt(document.getDate("created_at"));
-        entity.setUpdatedAt(document.getDate("updated_at"));
-        entity.setDeliveredAt(document.getDate("delivered_at"));
-        entity.setCompletedAt(document.getDate("completed_at"));
-        return entity;
-    }
-
-    @Override
-    public Document toDocument(final EncryptionService encryptionService) {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("document_id", documentId);
-        document.put("event_type", eventType);
-        document.put("status", status);
-        document.put("url", url);
-        if (secret != null && !secret.isEmpty()) {
-            final EncryptResult encrypted = encryptionService.encrypt(secret, userId);
-            document.put("secret", encrypted.getEncryptedText());
-            document.put("secret_encrypted_key", encrypted.getEncryptionKey());
-        } else {
-            document.put("secret", secret);
-            document.put("secret_encrypted_key", null);
-        }
-        document.put("payload", payload);
-        document.put("attempts", attempts);
-        document.put("claim_token", claimToken);
-        document.put("claim_expires_at", claimExpiresAt);
-        document.put("last_error", lastError);
-        document.put("next_attempt_at", nextAttemptAt);
-        document.put("created_at", createdAt);
-        document.put("updated_at", updatedAt);
-        document.put("delivered_at", deliveredAt);
-        document.put("completed_at", completedAt);
-        return document;
-    }
 
     @Override
     public String getId() {

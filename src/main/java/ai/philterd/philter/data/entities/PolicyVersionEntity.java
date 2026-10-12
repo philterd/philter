@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
-
 import java.util.Date;
 
 /**
@@ -38,37 +35,6 @@ public class PolicyVersionEntity extends AbstractEntity {
     private String userId;
     private Date capturedTimestamp;
     private String authorId;
-
-    public static PolicyVersionEntity fromDocument(final Document document) {
-        final PolicyVersionEntity entity = new PolicyVersionEntity();
-        entity.setId(MongoIds.hex(document.getObjectId("_id")));
-        entity.setName(document.getString("name"));
-        entity.setRevision(document.getInteger("revision", 0));
-        entity.setContentHash(document.getString("content_hash"));
-        entity.setPolicy(document.getString("policy"));
-        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        entity.setCapturedTimestamp(document.getDate("captured_timestamp"));
-        entity.setAuthorId(MongoIds.hex(document.getObjectId("author_id")));
-        return entity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("name", name);
-        document.put("revision", revision);
-        document.put("content_hash", contentHash);
-        document.put("policy", policy);
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("captured_timestamp", capturedTimestamp);
-        if (authorId != null) {
-            document.put("author_id", MongoIds.objectId(authorId));
-        }
-        return document;
-    }
 
     @Override
     public String getId() {

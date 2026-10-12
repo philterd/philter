@@ -63,15 +63,19 @@ class AbstractEncryptedServiceTest {
         @Override
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
-        @Override
-        public Document toDocument(EncryptionService encryptionService) { return new Document("test", "test"); }
+        Document toDocument(EncryptionService encryptionService) { return new Document("test", "test"); }
     }
 
     @BeforeEach
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection(anyString())).thenReturn(mongoCollection);
-        abstractEncryptedService = new AbstractEncryptedService<>(mongoClient, "testCollection", encryptionService, auditEventPublisher);
+        abstractEncryptedService = new AbstractEncryptedService<>(mongoClient, "testCollection", encryptionService, auditEventPublisher) {
+            @Override
+            protected Document toDocument(final TestEncryptedEntity entity) {
+                return entity.toDocument(encryptionService);
+            }
+        };
     }
 
     @Test

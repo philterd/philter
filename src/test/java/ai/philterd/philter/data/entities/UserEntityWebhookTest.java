@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.UserDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -41,19 +42,19 @@ class UserEntityWebhookTest {
 
         final EncryptionService encryptionService = new TestEncryptionService();
 
-        final Document doc = user.toDocument(encryptionService);
+        final Document doc = UserDocuments.toDocument(user, encryptionService);
         assertEquals("https://example.com/hook", doc.getString("webhook_url"));
         // The webhook secret is encrypted at rest, so the stored value is not the plaintext.
         assertNotEquals("the-secret-value", doc.getString("webhook_secret"));
 
-        final UserEntity restored = UserEntity.fromDocument(doc, encryptionService);
+        final UserEntity restored = UserDocuments.fromDocument(doc, encryptionService);
         assertEquals("https://example.com/hook", restored.getWebhookUrl());
         assertEquals("the-secret-value", restored.getWebhookSecret());
     }
 
     @Test
     void webhookFieldsNullByDefault() {
-        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
+        final UserEntity restored = UserDocuments.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
         assertNull(restored.getWebhookUrl());
         assertNull(restored.getWebhookSecret());
     }
@@ -74,13 +75,13 @@ class UserEntityWebhookTest {
         user.setMfaLocked(true);
         user.setMfaLastUsedTimeStep(58_000_000L);
 
-        final Document doc = user.toDocument(encryptionService);
+        final Document doc = UserDocuments.toDocument(user, encryptionService);
         assertEquals("$2a$10$abcdefghijklmnopqrstuv", doc.getString("password"), "a bcrypt hash is stored as-is");
         assertNotEquals("JBSWY3DPEHPK3PXP", doc.getString("mfa_secret"), "the MFA secret is encrypted at rest");
         assertNotEquals("KRSXG5DSNFXGOIDB", doc.getString("mfa_pending_secret"), "and so is a pending one");
         assertFalse(doc.getString("mfa_secret_key").isEmpty());
 
-        final UserEntity restored = UserEntity.fromDocument(doc, encryptionService);
+        final UserEntity restored = UserDocuments.fromDocument(doc, encryptionService);
         assertTrue(restored.isPasswordChangeRequired());
         assertTrue(restored.isMfaEnabled());
         assertEquals("JBSWY3DPEHPK3PXP", restored.getMfaSecret());
@@ -98,18 +99,18 @@ class UserEntityWebhookTest {
         user.setDeactivated(true);
         user.setDeactivatedAt(deactivatedAt);
 
-        final Document doc = user.toDocument(Mockito.mock(EncryptionService.class));
+        final Document doc = UserDocuments.toDocument(user, Mockito.mock(EncryptionService.class));
         assertTrue(doc.getBoolean("deactivated"));
         assertEquals(deactivatedAt, doc.getDate("deactivated_at"));
 
-        final UserEntity restored = UserEntity.fromDocument(doc, Mockito.mock(EncryptionService.class));
+        final UserEntity restored = UserDocuments.fromDocument(doc, Mockito.mock(EncryptionService.class));
         assertTrue(restored.isDeactivated());
         assertEquals(deactivatedAt, restored.getDeactivatedAt());
     }
 
     @Test
     void deactivatedFalseByDefault() {
-        final UserEntity restored = UserEntity.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
+        final UserEntity restored = UserDocuments.fromDocument(new Document("email", "a@b.c"), Mockito.mock(EncryptionService.class));
         assertFalse(restored.isDeactivated());
         assertNull(restored.getDeactivatedAt());
     }

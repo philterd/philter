@@ -15,12 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptResult;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -53,7 +47,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     private int policyVersion;
     private String policyContentHash;
     private String effectiveHash;
-    /** Set only on an entry read with {@link #fromDocumentOrUnreadable}; never stored. */
+    /** Set only on an entry that storage could not fully read; never stored. */
     private boolean unreadable;
     private RuntimeException unreadableCause;
     public String getEffectiveHash() { return effectiveHash; }
@@ -88,115 +82,26 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
     }
 
-    /**
-     * Reads an entry, or, when it cannot be read (its token or replacement no longer decrypts, or a field
-     * has the wrong type), an entry marked unreadable that carries only the fields stored in the clear, so
-     * a listing can still show it. The encrypted token and replacement are left null.
-     */
-    public static LedgerEntity fromDocumentOrUnreadable(final Document document, final EncryptionService encryptionService) {
-        try {
-            return fromDocument(document, encryptionService);
-        } catch (final RuntimeException unreadableEntry) {
-            final LedgerEntity entity = new LedgerEntity();
-            entity.unreadable = true;
-            entity.unreadableCause = unreadableEntry;
-            entity.id = document.get("_id") instanceof ObjectId id ? MongoIds.hex(id) : null;
-            entity.userId = document.get("user_id") instanceof ObjectId user ? MongoIds.hex(user) : null;
-            entity.documentId = text(document, "document_id");
-            entity.filename = text(document, "filename");
-            entity.type = text(document, "type");
-            entity.documentHash = text(document, "document_hash");
-            entity.previousHash = text(document, "previous_hash");
-            entity.hash = text(document, "hash");
-            entity.policyName = text(document, "policy_name");
-            entity.policyContentHash = text(document, "policy_content_hash");
-            entity.effectiveHash = text(document, "effective_hash");
-            entity.signature = text(document, "signature");
-            entity.signingKeyId = text(document, "signing_key_id");
-            entity.timestamp = document.get("timestamp") instanceof Date date ? date : null;
-            entity.startPosition = document.get("start_position") instanceof Number number ? number.longValue() : 0;
-            entity.policyVersion = document.get("policy_version") instanceof Number number ? number.intValue() : 0;
-            return entity;
-        }
-    }
-
-    private static String text(final Document document, final String field) {
-        return document.get(field) instanceof String value ? value : null;
-    }
-
     public boolean isUnreadable() { return unreadable; }
+
+    /** Marks the entry as one that could not be read, keeping why for the log. */
+    public void markUnreadable(final RuntimeException cause) {
+        this.unreadable = true;
+        this.unreadableCause = cause;
+    }
+
+    public String getTokenEncryptedKey() { return tokenEncryptedKey; }
+
+    public void setTokenEncryptedKey(final String tokenEncryptedKey) { this.tokenEncryptedKey = tokenEncryptedKey; }
+
+    public String getReplacementEncryptedKey() { return replacementEncryptedKey; }
+
+    public void setReplacementEncryptedKey(final String replacementEncryptedKey) {
+        this.replacementEncryptedKey = replacementEncryptedKey;
+    }
 
     /** Why the entry could not be read, for the log, or null. Carries no entry value. */
     public RuntimeException getUnreadableCause() { return unreadableCause; }
-
-    public static LedgerEntity fromDocument(final Document document, final EncryptionService encryptionService) {
-
-        final LedgerEntity ledgerEntity = new LedgerEntity();
-        ledgerEntity.id = MongoIds.hex(document.getObjectId("_id"));
-        ledgerEntity.userId = MongoIds.hex(document.getObjectId("user_id"));
-        ledgerEntity.documentId = document.getString("document_id");
-        ledgerEntity.startPosition = document.getLong("start_position");
-        ledgerEntity.documentHash = document.getString("document_hash");
-        ledgerEntity.previousHash = document.getString("previous_hash");
-        ledgerEntity.hash = document.getString("hash");
-        ledgerEntity.timestamp = document.getDate("timestamp");
-        ledgerEntity.filename = document.getString("filename");
-        ledgerEntity.type = document.getString("type");
-        ledgerEntity.policyName = document.getString("policy_name");
-        ledgerEntity.policyVersion = document.getInteger("policy_version", 0);
-        ledgerEntity.policyContentHash = document.getString("policy_content_hash");
-        ledgerEntity.effectiveHash = document.getString("effective_hash");
-        ledgerEntity.signature = document.getString("signature");
-        ledgerEntity.signingKeyId = document.getString("signing_key_id");
-
-        final String tokenEncryptedKey = document.getString("token_encrypted_key");
-        ledgerEntity.token = encryptionService.decrypt(document.getString("token"), tokenEncryptedKey);
-        ledgerEntity.tokenEncryptedKey = tokenEncryptedKey;
-
-        final String replacementEncryptedKey = document.getString("replacement_encrypted_key");
-        ledgerEntity.replacement = encryptionService.decrypt(document.getString("replacement"), replacementEncryptedKey);
-        ledgerEntity.replacementEncryptedKey = replacementEncryptedKey;
-
-        return ledgerEntity;
-
-    }
-
-    @Override
-    public Document toDocument(final EncryptionService encryptionService) {
-
-        final Document document = new Document();
-
-        if(id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-
-        final EncryptResult tokenEncryptResult = encryptionService.encrypt(token, userId);
-        document.put("token", tokenEncryptResult.getEncryptedText());
-        document.put("token_encrypted_key", tokenEncryptResult.getEncryptionKey());
-
-        final EncryptResult replacementEncryptResult = encryptionService.encrypt(replacement, userId);
-        document.put("replacement", replacementEncryptResult.getEncryptedText());
-        document.put("replacement_encrypted_key", replacementEncryptResult.getEncryptionKey());
-
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("document_id", documentId);
-        document.put("start_position", startPosition);
-        document.put("document_hash", documentHash);
-        document.put("previous_hash", previousHash);
-        document.put("hash", hash);
-        document.put("timestamp", timestamp);
-        document.put("filename", filename);
-        document.put("type", type);
-        document.put("policy_name", policyName);
-        document.put("policy_version", policyVersion);
-        document.put("policy_content_hash", policyContentHash);
-        document.put("effective_hash", effectiveHash);
-        document.put("signature", signature);
-        document.put("signing_key_id", signingKeyId);
-
-        return document;
-
-    }
 
     /**
      * ES256 signature over {@link #hash}, and the id of the key that made it. Excluded from

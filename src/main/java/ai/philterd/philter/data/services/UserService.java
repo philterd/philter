@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.UserDocuments;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
@@ -101,7 +102,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final Document document = collection.find(
                 Filters.and(Filters.eq("username", username), Filters.ne("deactivated", true))).first();
         if (document != null) {
-            return UserEntity.fromDocument(document, encryptionService);
+            return UserDocuments.fromDocument(document, encryptionService);
         }
         return null;
     }
@@ -114,7 +115,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public UserEntity findAnyByUsername(final String username) {
         final Document document = collection.find(Filters.eq("username", username)).first();
         if (document != null) {
-            return UserEntity.fromDocument(document, encryptionService);
+            return UserDocuments.fromDocument(document, encryptionService);
         }
         return null;
     }
@@ -143,7 +144,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         if(document != null) {
 
-            return UserEntity.fromDocument(document, encryptionService);
+            return UserDocuments.fromDocument(document, encryptionService);
 
         } else {
 
@@ -166,7 +167,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         final Map<String, String> usernamesById = new HashMap<>();
         for (final Document document : collection.find(Filters.in("_id", MongoIds.objectIds(ids)))) {
-            final UserEntity user = UserEntity.fromDocument(document, encryptionService);
+            final UserEntity user = UserDocuments.fromDocument(document, encryptionService);
             usernamesById.put(user.getId(), user.getUsername());
         }
 
@@ -301,7 +302,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final List<UserEntity> userEntities = new ArrayList<>();
 
         for (final Document document : documents) {
-            userEntities.add(UserEntity.fromDocument(document, encryptionService));
+            userEntities.add(UserDocuments.fromDocument(document, encryptionService));
         }
 
         return userEntities;
@@ -317,7 +318,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return Listings.page(collection, Listings.all(Listings.contains("username", q),
                         role == null ? null : Filters.eq("role", role),
                         active == null ? null : active ? Filters.ne("deactivated", true) : Filters.eq("deactivated", true)),
-                sort, offset, limit, document -> UserEntity.fromDocument(document, encryptionService));
+                sort, offset, limit, document -> UserDocuments.fromDocument(document, encryptionService));
     }
 
     /** Counts all users, including deactivated ones. */
@@ -743,7 +744,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         user.setMfaFailedAttempts(0);
         user.setMfaLocked(false);
         user.setMfaLastUsedTimeStep(step);
-        final Document serialized = user.toDocument(encryptionService);
+        final Document serialized = UserDocuments.toDocument(user, encryptionService);
         final Document selected = new Document();
         for (final String field : List.of("mfa_enabled", "mfa_secret", "mfa_secret_key", "mfa_pending_secret",
                 "mfa_pending_secret_key", "mfa_failed_attempts", "mfa_locked", "mfa_last_used_time_step")) {
@@ -887,7 +888,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     private boolean updateFields(final UserEntity user, final String... fields) {
-        final Document serialized = user.toDocument(encryptionService);
+        final Document serialized = UserDocuments.toDocument(user, encryptionService);
         final Document selected = new Document();
         for (final String field : fields) selected.put(field, serialized.get(field));
         final Document update = new Document("$set", selected);
@@ -898,5 +899,10 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         return collection.updateOne(predicate, update).getMatchedCount() == 1;
     }
 
+
+    @Override
+    protected Document toDocument(final UserEntity entity) {
+        return UserDocuments.toDocument(entity, encryptionService);
+    }
 
 }

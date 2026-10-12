@@ -15,12 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptedBytes;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.Document;
-import org.bson.types.Binary;
-
 import java.util.Date;
 
 public class PendingDocumentEntity extends AbstractEncryptedEntity {
@@ -64,98 +58,6 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     private Date claimExpiresAt;
     /** How many times this job has been reclaimed after a worker failed to finish it. */
     private int reclaimCount;
-
-    public static PendingDocumentEntity fromDocument(final Document document, final EncryptionService encryptionService) {
-        final PendingDocumentEntity entity = new PendingDocumentEntity();
-        entity.setId(MongoIds.hex(document.getObjectId("_id")));
-        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        entity.setDocumentId(document.getString("document_id"));
-        entity.setFileName(document.getString("file_name"));
-        entity.setInputMimeType(document.getString("input_mime_type"));
-        entity.setOutputMimeType(document.getString("output_mime_type"));
-        entity.setPolicyName(document.getString("policy_name"));
-        entity.setPolicyVersion(document.getInteger("policy_version", -1));
-        entity.setPolicyContentHash(document.getString("policy_content_hash"));
-        entity.setContextName(document.getString("context_name"));
-        entity.setClientIpAddress(document.getString("client_ip_address"));
-        entity.effectiveHash = document.getString("effective_hash");
-        if (document.getString("effective_json") != null) {
-            entity.effectiveJson = encryptionService.decrypt(document.getString("effective_json"), document.getString("effective_key"));
-        }
-        entity.setStatus(document.getString("status"));
-        entity.setErrorMessage(document.getString("error_message"));
-
-        // The submitted document is the most sensitive thing Philter holds, so it is encrypted at
-        // rest like every other sensitive collection. Bytes are encrypted as bytes: routing them
-        // through the String path would base64 twice and push a 10 MB PDF past MongoDB's 16 MB limit.
-        final Object inputBinary = document.get("input");
-        if (inputBinary instanceof Binary) {
-            entity.setInput(encryptionService.decryptBytes(((Binary) inputBinary).getData(),
-                    document.getString("input_encrypted_key")));
-        }
-
-        final Object outputBinary = document.get("output");
-        if (outputBinary instanceof Binary) {
-            entity.setOutput(encryptionService.decryptBytes(((Binary) outputBinary).getData(),
-                    document.getString("output_encrypted_key")));
-        }
-
-        entity.setSubmittedAt(document.getDate("submitted_at"));
-        entity.setStartedAt(document.getDate("started_at"));
-        entity.setCompletedAt(document.getDate("completed_at"));
-        entity.setClaimedBy(document.getString("claimed_by"));
-        entity.setClaimedAt(document.getDate("claimed_at"));
-        entity.setClaimToken(document.getString("claim_token"));
-        entity.setClaimExpiresAt(document.getDate("claim_expires_at"));
-        entity.setReclaimCount(document.getInteger("reclaim_count", 0));
-        return entity;
-    }
-
-    @Override
-    public Document toDocument(final EncryptionService encryptionService) {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("document_id", documentId);
-        document.put("file_name", fileName);
-        document.put("input_mime_type", inputMimeType);
-        document.put("output_mime_type", outputMimeType);
-        document.put("policy_name", policyName);
-        document.put("policy_version", policyVersion);
-        document.put("policy_content_hash", policyContentHash);
-        document.put("context_name", contextName);
-        document.put("client_ip_address", clientIpAddress);
-        document.put("input_size", input == null ? 0L : (long) input.length);
-        document.put("effective_hash", effectiveHash);
-        if (effectiveJson != null) {
-            final var encrypted = encryptionService.encrypt(effectiveJson, userId);
-            document.put("effective_json", encrypted.getEncryptedText());
-            document.put("effective_key", encrypted.getEncryptionKey());
-        }
-        document.put("status", status);
-        document.put("error_message", errorMessage);
-        if (input != null) {
-            final EncryptedBytes encrypted = encryptionService.encryptBytes(input, userId);
-            document.put("input", new Binary(encrypted.ciphertext()));
-            document.put("input_encrypted_key", encrypted.encryptionKey());
-        }
-        if (output != null) {
-            final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId);
-            document.put("output", new Binary(encrypted.ciphertext()));
-            document.put("output_encrypted_key", encrypted.encryptionKey());
-        }
-        document.put("submitted_at", submittedAt);
-        document.put("started_at", startedAt);
-        document.put("completed_at", completedAt);
-        document.put("claimed_by", claimedBy);
-        document.put("claimed_at", claimedAt);
-        document.put("claim_token", claimToken);
-        document.put("claim_expires_at", claimExpiresAt);
-        document.put("reclaim_count", reclaimCount);
-        return document;
-    }
 
     @Override
     public String getId() {

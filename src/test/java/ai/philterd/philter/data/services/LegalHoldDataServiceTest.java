@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.LegalHoldDocuments;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -316,7 +317,7 @@ class LegalHoldDataServiceTest {
                 .append("set_at", now)
                 .append("set_by_user_id", MongoIds.objectId(setByUserId));
 
-        final LegalHoldEntity entity = LegalHoldEntity.fromDocument(doc);
+        final LegalHoldEntity entity = LegalHoldDocuments.fromDocument(doc);
         assertEquals(id, entity.getId());
         assertEquals(userId, entity.getUserId());
         assertEquals("REF-X", entity.getReference());

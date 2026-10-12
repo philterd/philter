@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.LedgerDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -203,7 +204,7 @@ class LedgerEntityTest {
         org.mockito.Mockito.when(encryptionService.decrypt(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        final LedgerEntity restored = LedgerEntity.fromDocument(entity.toDocument(encryptionService), encryptionService);
+        final LedgerEntity restored = LedgerDocuments.fromDocument(LedgerDocuments.toDocument(entity, encryptionService), encryptionService);
 
         assertEquals("default", restored.getPolicyName());
         assertEquals(9, restored.getPolicyVersion());

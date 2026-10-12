@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.PendingDocumentDocuments;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptedBytes;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -130,7 +131,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
                 PolicyVersionDataService.contentHash(entity.getEffectiveJson()))) {
             throw new IllegalArgumentException("Effective configuration fingerprint mismatch.");
         }
-        final Document document = entity.toDocument(encryptionService);
+        final Document document = PendingDocumentDocuments.toDocument(entity, encryptionService);
         // Include fields added during admission in the BSON preflight.
         if (!document.containsKey("_id")) document.put("_id", new ObjectId());
         document.put("fairness_round", 0L);
@@ -208,7 +209,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         );
 
         final Document document = jobs.find(query).first();
-        return document != null ? PendingDocumentEntity.fromDocument(document, encryptionService) : null;
+        return document != null ? PendingDocumentDocuments.fromDocument(document, encryptionService) : null;
 
     }
 
@@ -224,7 +225,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
                 .projection(com.mongodb.client.model.Projections.exclude("input", "input_encrypted_key", "output",
                         "output_encrypted_key", "effective_json", "effective_key"))
                 .sort(sort.toBson()).skip(offset).limit(limit)) {
-            items.add(PendingDocumentEntity.fromDocument(document, encryptionService));
+            items.add(PendingDocumentDocuments.fromDocument(document, encryptionService));
         }
         return new Listings.Page<>(items, jobs.countDocuments(filter));
     }
@@ -240,7 +241,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
         final List<PendingDocumentEntity> entities = new ArrayList<>();
         for (final Document document : documents) {
-            entities.add(PendingDocumentEntity.fromDocument(document, encryptionService));
+            entities.add(PendingDocumentDocuments.fromDocument(document, encryptionService));
         }
         return entities;
 
@@ -270,7 +271,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
             scheduling.updateOne(Filters.eq("_id", "global"), Updates.max("round", claimed.getLong("fairness_round")),
                     new com.mongodb.client.model.UpdateOptions().upsert(true));
         }
-        return claimed != null ? PendingDocumentEntity.fromDocument(claimed, encryptionService) : null;
+        return claimed != null ? PendingDocumentDocuments.fromDocument(claimed, encryptionService) : null;
 
     }
 
@@ -439,7 +440,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         for (Document document : jobs.find(Filters.eq("notification_pending", true))
                 .projection(com.mongodb.client.model.Projections.exclude("input", "output"))
                 .sort(Sorts.ascending("notification_attempted_at", "completed_at")).limit(limit)) {
-            result.add(PendingDocumentEntity.fromDocument(document, encryptionService));
+            result.add(PendingDocumentDocuments.fromDocument(document, encryptionService));
         }
         return result;
     }
@@ -454,4 +455,9 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
                 Updates.combine(Updates.set("notification_pending", false),
                         Updates.set("retention_at", new Date(clock.getAsLong()))));
     }
+    @Override
+    protected Document toDocument(final PendingDocumentEntity entity) {
+        return PendingDocumentDocuments.toDocument(entity, encryptionService);
+    }
+
 }

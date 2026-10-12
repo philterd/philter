@@ -15,9 +15,6 @@
  */
 package ai.philterd.philter.data.entities;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
-import org.bson.Document;
-
 import java.util.Date;
 
 public class PolicyEntity extends AbstractEntity {
@@ -39,41 +36,6 @@ public class PolicyEntity extends AbstractEntity {
      * on the policy itself, so it is set for each write and is {@code null} for a policy read back.
      */
     private transient String authorId;
-
-    public static PolicyEntity fromDocument(final Document document) {
-        final PolicyEntity policyEntity = new PolicyEntity();
-        policyEntity.setId(MongoIds.hex(document.getObjectId("_id")));
-        policyEntity.setPolicy(document.getString("policy"));
-        policyEntity.setName(document.getString("name"));
-        policyEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        policyEntity.setCreatedTimestamp(document.getDate("created_timestamp"));
-        policyEntity.setRevision(document.getInteger("revision", 0));
-        policyEntity.setLastUpdatedTimestamp(document.getDate("last_updated_timestamp"));
-        policyEntity.setShared(document.getBoolean("shared", false));
-        policyEntity.setNotes(document.getString("notes"));
-        policyEntity.setDescription(document.getString("description"));
-        policyEntity.setManaged(document.getBoolean("managed", false));
-        return policyEntity;
-    }
-
-    @Override
-    public Document toDocument() {
-        final Document document = new Document();
-        if (id != null) {
-            document.put("_id", MongoIds.objectId(id));
-        }
-        document.put("policy", policy);
-        document.put("name", name);
-        document.put("user_id", MongoIds.objectId(userId));
-        document.put("created_timestamp", createdTimestamp);
-        document.put("revision", revision);
-        document.put("last_updated_timestamp", lastUpdatedTimestamp);
-        document.put("shared", shared);
-        document.put("notes", notes);
-        document.put("description", description);
-        document.put("managed", managed);
-        return document;
-    }
 
     public void incrementRevision() {
         revision++;

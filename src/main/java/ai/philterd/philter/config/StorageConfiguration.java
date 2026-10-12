@@ -59,9 +59,12 @@ public class StorageConfiguration {
         }
     }
 
-    /** Refuses a {@code STORAGE_TYPE} Philter has no implementation for. Case does not matter. */
+    /**
+     * Refuses a {@code STORAGE_TYPE} Philter has no implementation for. Case does not matter, but spaces around the
+     * value do: the storage is selected by the exact value, so a padded one would select none.
+     */
     static void requireKnown(final String type) {
-        if (type == null || !TYPES.contains(type.trim().toLowerCase(Locale.ROOT))) {
+        if (type == null || !TYPES.contains(type.toLowerCase(Locale.ROOT))) {
             throw new IllegalStateException("STORAGE_TYPE must be one of " + String.join(", ", TYPES) + "; it is '"
                     + type + "'.");
         }

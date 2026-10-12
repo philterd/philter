@@ -6046,7 +6046,7 @@
             }
           },
           "400": {
-            "description": "A date is not YYYY-MM-DD, or from is after to.",
+            "description": "A date is not YYYY-MM-DD or is outside the years 1 to 9999, or from is after to.",
             "content": {
               "application/json": {
                 "schema": {

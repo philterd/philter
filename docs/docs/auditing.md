@@ -198,10 +198,10 @@ To find all failed authentication attempts from a given IP address:
 db.audit_events.find({ event: "api_authentication_failed", client_ip_address: "203.0.113.10" })
 ```
 
-With SQLite, use the `sqlite3` command line tool, where timestamps are milliseconds since the epoch:
+With SQLite, use the `sqlite3` command line tool on the host that holds the database, as the user Philter runs as or as root (the Docker image does not include it). Here `/srv/philter/data` is the directory mounted at `/opt/philter/data`, and timestamps are milliseconds since the epoch:
 
 ```
-sqlite3 /opt/philter/data/philter.db "SELECT datetime(timestamp / 1000, 'unixepoch'), event, details FROM audit_events ORDER BY timestamp DESC LIMIT 50"
+sqlite3 /srv/philter/data/philter.db "SELECT datetime(timestamp / 1000, 'unixepoch'), event, details FROM audit_events ORDER BY timestamp DESC LIMIT 50"
 ```
 
 ## See also

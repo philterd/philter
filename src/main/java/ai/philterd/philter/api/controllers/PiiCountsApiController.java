@@ -95,7 +95,7 @@ public class PiiCountsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "200", description = "A page of counts, the total matching the filters, and whether counts are being recorded.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GetPiiCountsResponse.class))),
-            @ApiResponse(responseCode = "400", description = "A date is not YYYY-MM-DD, or from is after to.",
+            @ApiResponse(responseCode = "400", description = "A date is not YYYY-MM-DD or is outside the years 1 to 9999, or from is after to.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
@@ -162,11 +162,18 @@ public class PiiCountsApiController extends AbstractApiController {
             return null;
         }
 
+        final LocalDate day;
         try {
-            return LocalDate.parse(value.trim());
+            day = LocalDate.parse(value.trim());
         } catch (final DateTimeParseException ex) {
             throw new BadRequestException("The " + parameter + " parameter must be a date (YYYY-MM-DD), such as 2026-09-01.");
         }
+        // The parser also takes signed years far outside what storage can hold, such as +999999999-12-31.
+        if (day.getYear() < 1 || day.getYear() > 9999) {
+            throw new BadRequestException("The " + parameter + " parameter must be a date (YYYY-MM-DD) from year 1 "
+                    + "to 9999, such as 2026-09-01.");
+        }
+        return day;
 
     }
 

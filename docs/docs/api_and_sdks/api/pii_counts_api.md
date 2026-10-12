@@ -6,7 +6,7 @@ Philter records counts only while the `diffuseCountsEnabled` [admin setting](set
 
 The counts cover the whole deployment rather than a single account, so reading them requires an **administrator** as well as an API key holding the `pii-counts:read` scope. A key without the scope receives `403 Forbidden` naming the missing scope; a key whose owner is not an administrator receives `403 Forbidden`.
 
-Every call records a `pii_counts_retrieved` event in the [audit log](../../auditing.md), naming the principal that read the counts, the filters applied, and how many entries matched.
+Every successful call records a `pii_counts_retrieved` event in the [audit log](../../auditing.md), naming the principal that read the counts, the filters applied, and how many entries matched.
 
 Authenticate with a Bearer token as with the rest of the API:
 
@@ -28,7 +28,7 @@ Authorization: Bearer <token>
 * `offset` - Optional. Number of entries to skip (default `0`).
 * `limit` - Optional. Maximum entries to return (default `25`, max `100`).
 
-A date that is not `YYYY-MM-DD`, or a `from` after `to`, returns `400 Bad Request`.
+A date that is not `YYYY-MM-DD`, a year outside 1 to 9999, or a `from` after `to`, returns `400 Bad Request`. A refused call returns no counts and records no `pii_counts_retrieved` event.
 
 Returns `200 OK` with `{ "recordingEnabled": <boolean>, "counts": [ ... ], "total": <count> }`. There is one entry per context and day, ordered by day, most recent first, and then by context. `total` is the number of entries matching the filters, so paging with `offset` and `limit` always describes the set the returned entries were drawn from.
 

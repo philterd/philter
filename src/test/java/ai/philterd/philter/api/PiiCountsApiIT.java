@@ -286,6 +286,9 @@ class PiiCountsApiIT {
         assertEquals(400, get("?from=yesterday", adminKey).statusCode());
         assertEquals(400, get("?to=2026-09-01T00:00:00Z", adminKey).statusCode());
         assertEquals(400, get("?from=2026-09-03&to=2026-09-01", adminKey).statusCode());
+        assertEquals(400, get("?to=%2B999999999-12-31", adminKey).statusCode(), "a year storage cannot hold");
+        assertEquals(400, get("?from=-999999999-01-01", adminKey).statusCode());
+        assertEquals(200, get("?from=0001-01-01&to=9999-12-31", adminKey).statusCode(), "the full range of years");
 
     }
 

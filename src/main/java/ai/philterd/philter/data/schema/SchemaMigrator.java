@@ -141,7 +141,13 @@ public final class SchemaMigrator {
             if (migration.version() <= version) {
                 continue;
             }
-            store.acquireLock(owner, LOCK_LEASE);
+            // Renewed before each migration. When the lease ran out and another instance took the lock, it may be
+            // migrating too, so this one stops rather than run a migration twice at once.
+            if (!store.acquireLock(owner, LOCK_LEASE)) {
+                throw new IllegalStateException("This Philter lost the database schema lock to another instance before "
+                        + "migration " + migration.version() + "; the schema stays at version " + version + ". Restart "
+                        + "once that instance has started.");
+            }
             LOGGER.info("Running database schema migration {}: {}", migration.version(), migration.description());
             try {
                 migration.apply();

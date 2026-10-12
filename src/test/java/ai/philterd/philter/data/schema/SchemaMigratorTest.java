@@ -271,6 +271,42 @@ class SchemaMigratorTest {
     }
 
     @Test
+    void anInstanceThatLosesTheLockStopsBeforeTheNextMigration() {
+        final MemoryStore store = new MemoryStore();
+        store.version = 1;
+        final List<Integer> runs = new ArrayList<>();
+        final Migration losesTheLock = new Migration() {
+            @Override
+            public int version() {
+                return 2;
+            }
+
+            @Override
+            public String description() {
+                return "slow";
+            }
+
+            @Override
+            public void apply() {
+                runs.add(2);
+                // The lease ran out during this migration and another instance took the lock.
+                synchronized (store) {
+                    store.lockOwner = "another instance";
+                    store.lockExpires = Instant.now().plus(Duration.ofMinutes(10));
+                }
+            }
+        };
+
+        final IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> migrator(store, List.of(losesTheLock, migration(3, runs))).migrate());
+
+        assertTrue(refused.getMessage().contains("lost the database schema lock"), refused.getMessage());
+        assertEquals(List.of(2), runs, "migration 3 does not run without the lock");
+        assertEquals(2, store.version);
+        assertEquals("another instance", store.lockOwner, "the other instance's lock is left alone");
+    }
+
+    @Test
     void migrationsMustBeNumberedFromTwoWithoutGaps() {
         final List<Integer> runs = new ArrayList<>();
         assertThrows(IllegalArgumentException.class, () -> migrator(new MemoryStore(), List.of(migration(3, runs))));

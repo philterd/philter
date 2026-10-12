@@ -36,7 +36,7 @@ class StorageConfigurationTest {
     void sqliteIsTheDefaultAndEitherStorageIsAcceptedInAnyCase() {
         assertDoesNotThrow(() -> configured());
         assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, "mongodb", "STORAGE_TYPE", "mongodb"));
-        assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, " MongoDB ", "STORAGE_TYPE", " MongoDB "));
+        assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, "MongoDB", "STORAGE_TYPE", "MongoDB"));
         assertDoesNotThrow(() -> configured(StorageConfiguration.PROPERTY, "SQLite", "STORAGE_TYPE", "SQLite"));
     }
 
@@ -46,6 +46,8 @@ class StorageConfigurationTest {
                 () -> configured(StorageConfiguration.PROPERTY, "postgres", "STORAGE_TYPE", "postgres"));
         assertTrue(refused.getMessage().contains("STORAGE_TYPE must be one of mongodb, sqlite"), refused.getMessage());
         assertThrows(IllegalStateException.class, () -> StorageConfiguration.requireKnown(""));
+        // A padded value would select no storage at all, so it is refused rather than accepted.
+        assertThrows(IllegalStateException.class, () -> StorageConfiguration.requireKnown(" mongodb "));
         assertThrows(IllegalStateException.class, () -> StorageConfiguration.requireKnown(null));
     }
 

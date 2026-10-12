@@ -39,6 +39,7 @@ import ai.philterd.philter.services.vectors.VectorServices;
 
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.function.LongSupplier;
 
 /**
  * A storage implementation for the contract tests: its services over one empty database, created fresh for each
@@ -62,6 +63,13 @@ public interface StorageUnderTest {
     LegalHoldDataService legalHolds();
 
     PendingDocumentDataService pendingDocuments();
+
+    /**
+     * A new store of pending documents over the same data that reads the time from {@code clock}, so a test can
+     * move past a lease without waiting. It is created when called, so queue limits read from the environment
+     * then apply to it.
+     */
+    PendingDocumentDataService pendingDocumentsAt(LongSupplier clock);
 
     PolicyDataService policies();
 
@@ -119,6 +127,29 @@ public interface StorageUnderTest {
      * and bytes as UTF-8.
      */
     boolean storageContains(String text);
+
+    /**
+     * Whether these bytes appear anywhere in what is stored, in any record and field, read as stored: bytes as they
+     * are and text as UTF-8. For secrets that are not text, such as a private key.
+     */
+    boolean storageContainsBytes(byte[] bytes);
+
+    /** Whether {@code needle} appears in {@code haystack}. */
+    static boolean containsBytes(final byte[] haystack, final byte[] needle) {
+        outer:
+        for (int i = 0; i + needle.length <= haystack.length; i++) {
+            for (int j = 0; j < needle.length; j++) {
+                if (haystack[i + j] != needle[j]) {
+                    continue outer;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /** Moves when a completed ledger chain was completed to {@code completedAt}, as if it had been completed then. */
+    void backdateLedgerChainCompletion(String userId, String documentId, java.util.Date completedAt);
 
     /** Damages the stored encryption key of every entry in a ledger chain, as corruption or a lost key would. */
     void damageLedgerChain(String userId, String documentId);

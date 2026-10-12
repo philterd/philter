@@ -56,10 +56,6 @@ class LedgerRetentionIT extends AbstractMongoIT {
         return new MongoLedgerDataService(mongoClient, encryption, mock(AuditEventPublisher.class), holds, signer);
     }
 
-    private MongoCollection<Document> states() {
-        return mongoClient.getDatabase("philter").getCollection("ledger_chains");
-    }
-
     private LedgerEntity entry(final String user, final String doc, final String previous, final Date date)
             throws Exception {
         final var entry = new LedgerEntity(user, doc, "token", "replacement", 0, "document-hash",
@@ -67,64 +63,6 @@ class LedgerRetentionIT extends AbstractMongoIT {
         entry.setTimestamp(date);
         entry.setHash(entry.calculateHash());
         return entry;
-    }
-
-    private void sealOld(final String user, final String doc) {
-        service.completeChain(user, doc);
-        states().updateOne(new Document("_id", user + ":" + doc),
-                new Document("$set", new Document("completed_at", old)));
-    }
-
-    @Test
-    void purgeDeletesWholeEligibleChainAndPreservesOtherOwner() throws Exception {
-        final var head = entry(owner, "shared", LedgerDataService.GENESIS, old);
-        service.addTransaction(head);
-        service.addTransaction(entry(owner, "shared", head.getHash(), old));
-        sealOld(owner, "shared");
-        final var other = MongoIds.newId();
-        service.addTransaction(entry(other, "shared", LedgerDataService.GENESIS, old));
-        sealOld(other, "shared");
-
-        final var result = service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
-
-        assertTrue(result.isSuccessful());
-        assertTrue(result.getMessage().contains("2 ledger entries in 1 completed chains"));
-        assertTrue(service.getChain(owner, "shared").isEmpty());
-        assertEquals(1, service.getChain(other, "shared").size());
-    }
-
-    @Test
-    void chainSpanningCutoffKeepsItsGenesisAndSuffix() throws Exception {
-        final var head = entry(owner, "spanning", LedgerDataService.GENESIS, old);
-        service.addTransaction(head);
-        service.addTransaction(entry(owner, "spanning", head.getHash(), new Date()));
-        sealOld(owner, "spanning");
-        service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
-        assertEquals(2, service.getChain(owner, "spanning").size());
-        assertEquals(1, service.listChains("req", owner, null, new ai.philterd.philter.data.services.Listings.Sort("timestamp", true), 0, 1, "test").total());
-    }
-
-    @Test
-    void recentlyCompletedAndUnfinishedChainsAreRetained() throws Exception {
-        service.addTransaction(entry(owner, "recent", LedgerDataService.GENESIS, old));
-        service.completeChain(owner, "recent");
-        service.addTransaction(entry(owner, "unfinished", LedgerDataService.GENESIS, old));
-        service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
-        assertEquals(1, service.getChain(owner, "recent").size());
-        assertEquals(1, service.getChain(owner, "unfinished").size());
-    }
-
-    @Test
-    void completedAndPurgedChainsRejectAppendsFromAnotherService() throws Exception {
-        final var head = entry(owner, "sealed", LedgerDataService.GENESIS, old);
-        service.addTransaction(head);
-        sealOld(owner, "sealed");
-        final var otherWorker = newService();
-        final var next = entry(owner, "sealed", head.getHash(), new Date());
-        assertThrows(IllegalStateException.class, () -> otherWorker.addTransaction(next));
-        service.deleteChainsByUserIdAndOlderThan("req", owner, 1);
-        assertThrows(IllegalStateException.class, () -> otherWorker.addTransaction(next));
-        assertTrue(service.getChain(owner, "sealed").isEmpty());
     }
 
     @Test
@@ -168,12 +106,4 @@ class LedgerRetentionIT extends AbstractMongoIT {
         assertEquals(1, service.getChain(owner, "failed").size());
     }
 
-    @Test
-    void holdBlocksWholeChainPurge() throws Exception {
-        service.addTransaction(entry(owner, "held", LedgerDataService.GENESIS, old));
-        sealOld(owner, "held");
-        when(holds.hasAnyHold(owner)).thenReturn(true);
-        assertEquals(423, service.deleteChainsByUserIdAndOlderThan("req", owner, 1).getStatusCode());
-        assertEquals(1, service.getChain(owner, "held").size());
-    }
 }

@@ -56,6 +56,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /** The MongoDB storage, built as {@link MongoStorageConfiguration} builds it for Philter, for the contract tests. */
@@ -133,6 +134,11 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     @Override
     public PendingDocumentDataService pendingDocuments() {
         return once("pendingDocuments", () -> configuration.pendingDocumentDataService(encryption));
+    }
+
+    @Override
+    public PendingDocumentDataService pendingDocumentsAt(final LongSupplier clock) {
+        return new MongoPendingDocumentDataService(mongoClient, encryption, auditEvents(), clock);
     }
 
     @Override
@@ -222,6 +228,42 @@ final class MongoStorageUnderTest implements StorageUnderTest {
             return new String(bytes, java.nio.charset.StandardCharsets.UTF_8).contains(text);
         }
         return value != null && value.toString().contains(text);
+    }
+
+    @Override
+    public boolean storageContainsBytes(final byte[] bytes) {
+        final com.mongodb.client.MongoDatabase philter = mongoClient.getDatabase("philter");
+        for (final String name : philter.listCollectionNames()) {
+            for (final Document document : philter.getCollection(name).find()) {
+                if (containsBytes(document, bytes)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsBytes(final Object value, final byte[] bytes) {
+        if (value instanceof Document document) {
+            return document.values().stream().anyMatch(field -> containsBytes(field, bytes));
+        }
+        if (value instanceof java.util.Collection<?> values) {
+            return values.stream().anyMatch(element -> containsBytes(element, bytes));
+        }
+        if (value instanceof org.bson.types.Binary binary) {
+            return StorageUnderTest.containsBytes(binary.getData(), bytes);
+        }
+        if (value instanceof byte[] raw) {
+            return StorageUnderTest.containsBytes(raw, bytes);
+        }
+        return value != null && StorageUnderTest.containsBytes(
+                value.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8), bytes);
+    }
+
+    @Override
+    public void backdateLedgerChainCompletion(final String userId, final String documentId, final Date completedAt) {
+        mongoClient.getDatabase("philter").getCollection("ledger_chains").updateOne(
+                Filters.eq("_id", userId + ":" + documentId), Updates.set("completed_at", completedAt));
     }
 
     @Override

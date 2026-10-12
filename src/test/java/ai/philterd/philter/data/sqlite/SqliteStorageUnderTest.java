@@ -54,6 +54,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -160,6 +161,11 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
+    public PendingDocumentDataService pendingDocumentsAt(final LongSupplier clock) {
+        return new SqlitePendingDocumentDataService(database, encryption, clock);
+    }
+
+    @Override
     public PolicyDataService policies() {
         return once("policies", () -> new SqlitePolicyDataService(database, auditEvents(), new Gson(), policyVersions(),
                 new RedactionCache()));
@@ -238,9 +244,37 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
+    public boolean storageContainsBytes(final byte[] bytes) {
+        return database.read(connection -> {
+            for (final String table : Sql.query(connection, "SELECT name FROM sqlite_master WHERE type = 'table' "
+                    + "AND name NOT LIKE 'sqlite_%'", row -> row.string("name"))) {
+                try (java.sql.Statement statement = connection.createStatement();
+                     java.sql.ResultSet rows = statement.executeQuery("SELECT * FROM " + table)) {
+                    final int columns = rows.getMetaData().getColumnCount();
+                    while (rows.next()) {
+                        for (int column = 1; column <= columns; column++) {
+                            final byte[] value = rows.getBytes(column);
+                            if (value != null && StorageUnderTest.containsBytes(value, bytes)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        });
+    }
+
+    @Override
     public void damageLedgerChain(final String userId, final String documentId) {
         database.write(connection -> Sql.update(connection, "UPDATE ledger SET replacement_encrypted_key = 'not-a-key' "
                 + "WHERE user_id = ? AND document_id = ?", userId, documentId));
+    }
+
+    @Override
+    public void backdateLedgerChainCompletion(final String userId, final String documentId, final Date completedAt) {
+        database.write(connection -> Sql.update(connection, "UPDATE ledger_chains SET completed_at = ? WHERE user_id = ? "
+                + "AND document_id = ?", completedAt, userId, documentId));
     }
 
     @Override

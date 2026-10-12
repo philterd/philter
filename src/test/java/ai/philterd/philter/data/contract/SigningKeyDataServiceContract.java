@@ -19,10 +19,13 @@ import ai.philterd.philter.data.services.SigningKeyDataService;
 import org.junit.jupiter.api.Test;
 
 import java.security.Signature;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +49,18 @@ public interface SigningKeyDataServiceContract extends StorageContract {
         verifier.initVerify(storage().anotherInstance().signingKeys().findPublicKeyById(key.keyId()));
         verifier.update(new byte[]{1, 2, 3});
         assertTrue(verifier.verify(signature));
+    }
+
+    @Test
+    default void signingKeyThePrivateKeyIsStoredEncryptedAndThePublicKeyInTheClear() {
+        final SigningKeyDataService.SigningKey key = storage().signingKeys().currentSigningKey();
+        final byte[] privateKey = key.privateKey().getEncoded();
+        assertFalse(storage().storageContainsBytes(privateKey), "the private key is not stored as it is");
+        assertFalse(storage().storageContains(Base64.getEncoder().encodeToString(privateKey)));
+        // Verifiers need the public key, so it is not encrypted.
+        assertTrue(storage().storageContainsBytes(storage().signingKeys().findPublicKeyById(key.keyId()).getEncoded()));
+        // The key reads back unchanged in another instance.
+        assertArrayEquals(privateKey, storage().anotherInstance().signingKeys().currentSigningKey().privateKey().getEncoded());
     }
 
 }

@@ -50,14 +50,6 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
         return ledger.deleteByDocumentId("audit", owner, "doc", "test");
     }
     @ParameterizedTest @ValueSource(ints = {0})
-    void openChainCannotBeDeletedBetweenAppends(int path) throws Exception {
-        var writer = service(mongoClient); genesis(writer, "doc"); var entry = next(writer, "doc");
-        assertEquals(409, delete(service(mongoClient), path).getStatusCode());
-        writer.addTransaction(entry); writer.completeChain(owner, "doc");
-        assertTrue(writer.validateChain(owner, "doc").valid());
-        assertEquals(2, writer.getChain(owner, "doc").size());
-    }
-    @ParameterizedTest @ValueSource(ints = {0})
     void deletionCannotOvertakeAnInFlightInsert(int path) throws Exception {
         var ledger = service(mongoClient); genesis(ledger, "doc"); var entry = next(ledger, "doc");
         var client = mock(com.mongodb.client.MongoClient.class, org.mockito.AdditionalAnswers.delegatesTo(mongoClient)); var database = spy(mongoClient.getDatabase("philter"));
@@ -77,15 +69,5 @@ class LedgerManualDeletionIT extends AbstractMongoIT {
             writing.get(10, TimeUnit.SECONDS);
         }
         writer.completeChain(owner, "doc"); assertTrue(ledger.validateChain(owner, "doc").valid());
-    }
-    @ParameterizedTest @ValueSource(ints = {0})
-    void completedDeletionPermanentlyFencesLateAppendsAndNewGenesis(int path) throws Exception {
-        var ledger = service(mongoClient); genesis(ledger, "doc"); var late = next(ledger, "doc");
-        ledger.completeChain(owner, "doc"); assertTrue(delete(service(mongoClient), path).isSuccessful());
-        assertThrows(IllegalStateException.class, () -> ledger.addTransaction(late));
-        assertThrows(IllegalStateException.class, () -> genesis(ledger, "doc"));
-        assertThrows(IllegalStateException.class, () -> ledger.completeChain(owner, "doc"));
-        assertTrue(ledger.getChain(owner, "doc").isEmpty());
-        assertTrue(delete(service(mongoClient), path).isSuccessful());
     }
 }

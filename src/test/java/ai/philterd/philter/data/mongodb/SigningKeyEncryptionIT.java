@@ -49,51 +49,6 @@ class SigningKeyEncryptionIT extends AbstractMongoIT {
         return new MongoSigningKeyDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
-    private Document rawKey() {
-        return mongoClient.getDatabase("philter").getCollection("signing_keys").find().first();
-    }
-
-    @Test
-    void theStoredPrivateKeyIsNotTheRealPrivateKey() {
-        final SigningKeyDataService service = newService();
-        final byte[] actualPrivate = service.currentSigningKey().privateKey().getEncoded();
-
-        final Document stored = rawKey();
-        assertNotNull(stored);
-        final byte[] storedPrivate = ((Binary) stored.get("private_key")).getData();
-
-        assertFalse(Arrays.equals(actualPrivate, storedPrivate),
-                "the private key must not be readable from the database");
-        assertNotNull(stored.getString("private_key_encrypted_key"), "the wrapped data key must be stored");
-    }
-
-    @Test
-    void thePublicKeyStaysReadableWithoutTheMasterKey() {
-        final SigningKeyDataService service = newService();
-        final byte[] actualPublic = service.getPublicKey().getEncoded();
-
-        // GET /api/signing-key serves this unauthenticated so a third party can verify signatures.
-        // It is not a secret and must not be encrypted.
-        final byte[] storedPublic = ((Binary) rawKey().get("public_key")).getData();
-
-        assertArrayEquals(actualPublic, storedPublic, "the public key must remain in the clear");
-        assertNull(rawKey().getString("public_key_encrypted_key"));
-    }
-
-    @Test
-    void theKeyRoundTripsAcrossRestarts() {
-        final SigningKeyDataService first = newService();
-        final byte[] privateBefore = first.currentSigningKey().privateKey().getEncoded();
-        final String keyId = first.getActiveKeyId();
-
-        // A second instance reads the same persisted key, decrypting it.
-        final SigningKeyDataService second = newService();
-
-        assertArrayEquals(privateBefore, second.currentSigningKey().privateKey().getEncoded(),
-                "the same keypair must survive a restart");
-        assertEquals(keyId, second.getActiveKeyId());
-    }
-
     @Test
     void unprotectedPrivateKeyIsRejectedInsteadOfMigrated() {
         final var first = newService();

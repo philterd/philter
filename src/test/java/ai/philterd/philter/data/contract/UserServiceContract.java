@@ -18,7 +18,9 @@ package ai.philterd.philter.data.contract;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.UserService;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.mfa.TotpService;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The guarantees of {@link UserService}. */
@@ -149,6 +152,66 @@ public interface UserServiceContract extends StorageContract {
         final Listings.Page<UserEntity> found = storage().users().list("a.b", null, null, byUsername, 0, 10);
         assertEquals(Set.of("a.b", "A.B-2"), Set.copyOf(found.items().stream().map(UserEntity::getUsername).toList()));
         assertEquals(2, found.total());
+    }
+
+    /** Enrolls the user in MFA through the service, as the API does, and returns the secret. */
+    private String enrollMfa(final UserEntity user) {
+        final String secret = storage().users().startMfaEnrollment(user);
+        assertTrue(storage().users().confirmMfaEnrollment("req", storage().users().findOneById(user.getId()),
+                new TotpService().codeAt(secret, TotpService.currentTimeStep() - 1), "test", null).isSuccessful());
+        return secret;
+    }
+
+    @Test
+    default void userAnMfaCodeIsAcceptedOnceHoweverManyRequestsUseIt() throws Exception {
+        final UserEntity user = createAndFind("jordan", UserService.ROLE_USER);
+        final String code = new TotpService().codeAt(enrollMfa(user), TotpService.currentTimeStep() + 1);
+        final AtomicInteger next = new AtomicInteger();
+        final List<UserService.MfaCheck> results = StorageContract.concurrently(6, () -> {
+            final UserService users = next.getAndIncrement() % 2 == 0 ? storage().users() : storage().anotherInstance().users();
+            return users.checkMfaCode("req", users.findOneById(user.getId()), code, "test");
+        });
+        assertEquals(1, results.stream().filter(result -> result == UserService.MfaCheck.ACCEPTED).count(), results.toString());
+    }
+
+    @Test
+    default void userConcurrentBadMfaCodesAreAllCountedAndLockOnce() throws Exception {
+        final UserEntity user = createAndFind("jordan", UserService.ROLE_USER);
+        enrollMfa(user);
+        final AtomicInteger next = new AtomicInteger();
+        final List<UserService.MfaCheck> results = StorageContract.concurrently(8, () -> {
+            final UserService users = next.getAndIncrement() % 2 == 0 ? storage().users() : storage().anotherInstance().users();
+            return users.checkMfaCode("req", users.findOneById(user.getId()), "000000", "test");
+        });
+        assertTrue(results.stream().noneMatch(result -> result == UserService.MfaCheck.ACCEPTED), results.toString());
+
+        final UserEntity stored = storage().users().findOneById(user.getId());
+        assertTrue(stored.isMfaLocked());
+        assertTrue(stored.getMfaFailedAttempts() >= UserService.MAX_MFA_ATTEMPTS,
+                "no failure was lost: " + stored.getMfaFailedAttempts());
+        assertEquals(1, storage().auditLog().count(user.getId(), AuditLogEvent.USER_MFA_LOCKED.getAuditLogEvent(), null, null),
+                "the lock is recorded once");
+    }
+
+    @Test
+    default void userAnUnconfirmedMfaEnrollmentDoesNotApplyAndRemovalClearsEverything() {
+        final UserEntity user = createAndFind("jordan", UserService.ROLE_USER);
+        final String pending = storage().users().startMfaEnrollment(user);
+        final UserEntity stored = storage().anotherInstance().users().findOneById(user.getId());
+        assertFalse(stored.isMfaEnabled());
+        assertEquals(pending, stored.getMfaPendingSecret(), "the pending secret reads back unchanged");
+        assertEquals(UserService.MfaCheck.REFUSED, storage().users().checkMfaCode("req", stored,
+                new TotpService().codeAt(pending, TotpService.currentTimeStep()), "test"), "not enrolled yet");
+
+        enrollMfa(stored);
+        assertTrue(storage().users().removeMfa("req", storage().users().findOneById(user.getId()), "test", null, null)
+                .isSuccessful());
+        final UserEntity cleared = storage().anotherInstance().users().findOneById(user.getId());
+        assertFalse(cleared.isMfaEnabled());
+        assertNull(cleared.getMfaSecret());
+        assertNull(cleared.getMfaPendingSecret());
+        assertEquals(0, cleared.getMfaFailedAttempts());
+        assertEquals(0L, cleared.getMfaLastUsedTimeStep());
     }
 
 }

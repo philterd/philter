@@ -90,41 +90,6 @@ class RemainingP2IT extends AbstractMongoIT {
         reconciler(jobs, new MongoWebhookDeliveryDataService(mongoClient, new TestEncryptionService(), audit)).reconcileNotifications();
         assertEquals(1, mongoClient.getDatabase("philter").getCollection("webhook_deliveries").countDocuments());
     }
-    @Test void admissionEnforcesJobsAndBytesAndReleasesCapacityOnCompletion() {
-        try (var env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {
-            env.when(() -> EnvUtils.getInt("ASYNC_QUEUE_MAX_USER_JOBS", 32)).thenReturn(2);
-            env.when(() -> EnvUtils.getLong("ASYNC_QUEUE_MAX_USER_BYTES", 256L*1024*1024)).thenReturn(20L);
-            var jobs = jobs(); var owner = MongoIds.newId();
-            jobs.save(job(owner)); jobs.save(job(owner));
-            assertEquals(429, assertThrows(QueueCapacityException.class, () -> jobs.save(job(owner))).getStatus());
-            var other = MongoIds.newId(); jobs.save(job(other));
-            var first = jobs.claimNextPending("worker");
-            assertEquals(owner, first.getUserId());
-            var second = jobs.claimNextPending("worker");
-            assertEquals(other, second.getUserId(), "Other owner must run before the first owner's second queued document");
-            assertTrue(jobs.markFailed(first.getId(), first.getClaimToken(), "test"));
-            jobs.save(job(owner));
-            var oversized = job(MongoIds.newId()); oversized.setInput(new byte[21]);
-            assertEquals(429, assertThrows(QueueCapacityException.class, () -> jobs.save(oversized)).getStatus());
-            assertEquals(3, jobs.queueStats(null).jobs()); assertEquals(30, jobs.queueStats(null).bytes());
-        }
-    }
-    @Test void parallelInstancesCannotOverAdmit() throws Exception {
-        try (var env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {
-            env.when(() -> EnvUtils.getInt("ASYNC_QUEUE_MAX_JOBS", 256)).thenReturn(2);
-            var instances = java.util.stream.IntStream.range(0, 8).mapToObj(i -> jobs()).toList();
-            var start = new CountDownLatch(1);
-            try (var executor = Executors.newFixedThreadPool(8)) {
-                var tasks = instances.stream().map(service -> executor.submit(() -> {
-                    start.await();
-                    try { service.save(job(MongoIds.newId())); } catch (QueueCapacityException full) { assertEquals(503, full.getStatus()); }
-                    return null;
-                })).toList();
-                start.countDown(); for (var task : tasks) task.get(10, TimeUnit.SECONDS);
-            }
-            assertTrue(instances.getFirst().queueStats(null).jobs() <= 2);
-        }
-    }
     @Test void uncertainAdmissionRetainsGuardUntilOperatorRecovery() {
         assertThrows(IllegalStateException.class, () -> new QueueAdmission(mongoClient).execute(() -> { throw new IllegalStateException("uncertain insert"); }));
         assertEquals(503, assertThrows(QueueCapacityException.class, () -> jobs().save(job(MongoIds.newId()))).getStatus());
@@ -141,25 +106,6 @@ class RemainingP2IT extends AbstractMongoIT {
         assertFalse(snapshot.toJson().contains("sensitive-configuration"));
         assertEquals(pending.getEffectiveJson(), new TestEncryptionService().decrypt(snapshot.getString("effective_json"), snapshot.getString("effective_key")));
     }
-    @Test void saturatedOwnerDoesNotPreventAnotherOwnerFromBeingAdmitted() throws Exception {
-        try (var env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {
-            env.when(() -> EnvUtils.getInt("ASYNC_QUEUE_MAX_USER_JOBS", 32)).thenReturn(1);
-            var fullOwner = MongoIds.newId(); var otherOwner = MongoIds.newId();
-            var first = jobs(); var second = jobs(); first.save(job(fullOwner));
-            var start = new CountDownLatch(1);
-            try (var executor = Executors.newFixedThreadPool(2)) {
-                var full = executor.submit(() -> { start.await();
-                    return assertThrows(QueueCapacityException.class, () -> first.save(job(fullOwner))).getStatus(); });
-                var accepted = executor.submit(() -> { start.await(); return second.save(job(otherOwner)); });
-                start.countDown();
-                assertEquals(429, full.get(5, TimeUnit.SECONDS));
-                assertNotNull(accepted.get(5, TimeUnit.SECONDS));
-            }
-            assertEquals(1, first.queueStats(fullOwner).jobs());
-            assertEquals(1, first.queueStats(otherOwner).jobs());
-        }
-    }
-
     @Test void anotherInstanceWaitsForAnActiveAdmissionToFinish() throws Exception {
         var guard = new QueueAdmission(mongoClient); var contender = jobs();
         var entered = new CountDownLatch(1); var release = new CountDownLatch(1);

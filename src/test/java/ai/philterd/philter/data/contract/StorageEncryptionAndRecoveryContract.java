@@ -36,6 +36,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -167,6 +168,21 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         assertTrue(storage().evidenceGuard().release(owner, token));
         assertEquals(201, storage().legalHolds().create("req", "case-1", LegalHoldEntity.SCOPE_USER, "jordan",
                 "litigation", owner, owner).getStatusCode());
+    }
+
+    @Test
+    default void anEvidenceOperationThatFailsPartWayLeavesItsGuardHeld() {
+        final String owner = RecordIds.newId();
+        assertThrows(IllegalStateException.class, () -> storage().evidenceGuard().execute(owner, "uncertain", () -> {
+            throw new IllegalStateException("the storage may still be deleting");
+        }));
+        // A restarted or other instance still sees it held, so no hold or deletion can race the failed operation.
+        final ServiceResponse hold = storage().anotherInstance().legalHolds().create("req", "case-1",
+                LegalHoldEntity.SCOPE_USER, owner, "litigation", owner, owner);
+        assertEquals(409, hold.getStatusCode());
+        assertEquals(LegalHoldDataService.REASON_OPERATION_IN_PROGRESS, hold.getDetails());
+        assertEquals(409, storage().anotherInstance().ledger().deleteChainsByUserIdAndOlderThan("req", owner, 0)
+                .getStatusCode());
     }
 
 }

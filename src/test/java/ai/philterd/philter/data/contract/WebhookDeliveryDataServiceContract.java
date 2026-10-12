@@ -26,8 +26,10 @@ import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The guarantees of {@link WebhookDeliveryDataService}. */
@@ -69,16 +71,146 @@ public interface WebhookDeliveryDataServiceContract extends StorageContract {
         assertEquals("a secret, \"quoted\", Ünïcödé", won.get(0).getSecret());
     }
 
+    /** The owner's one delivery, as stored. */
+    private WebhookDeliveryEntity stored(final String owner) {
+        final List<WebhookDeliveryEntity> deliveries = storage().anotherInstance().webhookDeliveries()
+                .findByUserId(owner, 0, 10, false);
+        assertEquals(1, deliveries.size());
+        return deliveries.get(0);
+    }
+
     @Test
-    default void webhookDeliveryAStaleClaimCannotFinishTheDelivery() {
+    default void webhookDeliveryOnlyDueDeliveriesAreClaimedOldestFirst() {
+        final String owner = RecordIds.newId();
+        final Date now = new Date();
+        assertNull(storage().webhookDeliveries().claimNextDue(now));
+        final WebhookDeliveryEntity future = delivery(owner, "future", new Date(now.getTime() + 60_000));
+        storage().webhookDeliveries().enqueueOnce(future);
+        assertNull(storage().webhookDeliveries().claimNextDue(now), "a delivery not yet due is not claimed");
+        final WebhookDeliveryEntity later = delivery(owner, "later", new Date(now.getTime() - 1000));
+        final WebhookDeliveryEntity earlier = delivery(owner, "earlier", new Date(now.getTime() - 5000));
+        storage().webhookDeliveries().enqueueOnce(later);
+        storage().webhookDeliveries().enqueueOnce(earlier);
+
+        final WebhookDeliveryEntity first = storage().webhookDeliveries().claimNextDue(now);
+        final WebhookDeliveryEntity second = storage().webhookDeliveries().claimNextDue(now);
+        assertEquals(earlier.getId(), first.getId());
+        assertEquals(later.getId(), second.getId(), "a live claim does not hold up other due deliveries");
+        assertEquals(WebhookDeliveryEntity.STATUS_PROCESSING, first.getStatus());
+        assertTrue(first.getClaimExpiresAt().after(now));
+        assertNull(storage().webhookDeliveries().claimNextDue(now));
+    }
+
+    @Test
+    default void webhookDeliveryAStaleClaimCannotFinishTheDeliveryOnceAnotherWorkerHasIt() {
+        final String owner = RecordIds.newId();
+        final Date now = new Date();
+        storage().webhookDeliveries().enqueueOnce(delivery(owner, "doc", now));
+        final WebhookDeliveryEntity old = storage().webhookDeliveries().claimNextDue(now);
+        assertNull(storage().webhookDeliveries().claimNextDue(now), "a live claim is not claimed again");
+
+        // The first worker's lease runs out and another worker claims the delivery.
+        final WebhookDeliveryEntity current = storage().anotherInstance().webhookDeliveries()
+                .claimNextDue(old.getClaimExpiresAt());
+        assertEquals(old.getId(), current.getId());
+        assertEquals(2, current.getAttempts());
+        assertNotEquals(old.getClaimToken(), current.getClaimToken());
+
+        assertFalse(storage().webhookDeliveries().markDelivered(old.getId(), old.getClaimToken()));
+        assertFalse(storage().webhookDeliveries().rescheduleOrFail(old.getId(), old.getClaimToken(), old.getAttempts(), "old"));
+        assertTrue(storage().webhookDeliveries().markDelivered(current.getId(), current.getClaimToken()));
+        assertFalse(storage().webhookDeliveries().markDelivered(current.getId(), current.getClaimToken()), "delivered once");
+        assertFalse(storage().webhookDeliveries().rescheduleOrFail(old.getId(), old.getClaimToken(), old.getAttempts(), "late"));
+        assertFalse(storage().webhookDeliveries().rescheduleOrFail(current.getId(), current.getClaimToken(),
+                current.getAttempts(), "duplicate"));
+        final WebhookDeliveryEntity delivered = stored(owner);
+        assertEquals(WebhookDeliveryEntity.STATUS_DELIVERED, delivered.getStatus());
+        assertNull(delivered.getClaimToken());
+        assertNotNull(delivered.getDeliveredAt());
+        assertNull(storage().webhookDeliveries().claimNextDue(new Date(System.currentTimeMillis() + 86_400_000L)));
+    }
+
+    @Test
+    default void webhookDeliveryAWorkerWhoseLeaseRanOutCannotFinishEvenBeforeAnotherClaims() {
+        final String owner = RecordIds.newId();
+        final Date longAgo = new Date(System.currentTimeMillis() - 86_400_000L);
+        storage().webhookDeliveries().enqueueOnce(delivery(owner, "doc", longAgo));
+        // Claimed as of a day ago, so its lease is already over now.
+        final WebhookDeliveryEntity claim = storage().webhookDeliveries().claimNextDue(longAgo);
+        assertFalse(storage().webhookDeliveries().markDelivered(claim.getId(), claim.getClaimToken()));
+        assertFalse(storage().webhookDeliveries().rescheduleOrFail(claim.getId(), claim.getClaimToken(), 1, "late"));
+        assertEquals(WebhookDeliveryEntity.STATUS_PROCESSING, stored(owner).getStatus());
+    }
+
+    @Test
+    default void webhookDeliveryAFailedAttemptIsRetriedLaterUnderANewClaim() {
+        final String owner = RecordIds.newId();
+        final Date now = new Date();
+        storage().webhookDeliveries().enqueueOnce(delivery(owner, "doc", now));
+        final WebhookDeliveryEntity first = storage().webhookDeliveries().claimNextDue(now);
+        assertFalse(storage().webhookDeliveries().rescheduleOrFail(first.getId(), first.getClaimToken(), 2, "wrong attempt"));
+        final long before = System.currentTimeMillis();
+        assertTrue(storage().webhookDeliveries().rescheduleOrFail(first.getId(), first.getClaimToken(), 1, "transient"));
+
+        final WebhookDeliveryEntity pending = stored(owner);
+        assertEquals(WebhookDeliveryEntity.STATUS_PENDING, pending.getStatus());
+        assertEquals("transient", pending.getLastError());
+        assertNull(pending.getClaimToken());
+        assertTrue(pending.getNextAttemptAt().getTime() >= before + 30_000, "retried after a backoff");
+        assertNull(storage().webhookDeliveries().claimNextDue(now));
+
+        final WebhookDeliveryEntity retry = storage().anotherInstance().webhookDeliveries().claimNextDue(pending.getNextAttemptAt());
+        assertEquals(2, retry.getAttempts());
+        assertNotEquals(first.getClaimToken(), retry.getClaimToken());
+        assertEquals("a secret, \"quoted\", Ünïcödé", retry.getSecret(), "a retry signs with the original secret");
+        assertFalse(storage().webhookDeliveries().markDelivered(first.getId(), first.getClaimToken()));
+    }
+
+    @Test
+    default void webhookDeliveryTheFinalFailedAttemptIsTerminal() {
+        final String owner = RecordIds.newId();
+        final Date now = new Date();
+        final WebhookDeliveryEntity almostSpent = delivery(owner, "doc", now);
+        almostSpent.setAttempts(WebhookDeliveryDataService.MAX_ATTEMPTS - 1);
+        storage().webhookDeliveries().enqueueOnce(almostSpent);
+        final WebhookDeliveryEntity last = storage().webhookDeliveries().claimNextDue(now);
+        assertEquals(WebhookDeliveryDataService.MAX_ATTEMPTS, last.getAttempts());
+        assertTrue(storage().webhookDeliveries().rescheduleOrFail(last.getId(), last.getClaimToken(), last.getAttempts(), "exhausted"));
+        assertFalse(storage().webhookDeliveries().markDelivered(last.getId(), last.getClaimToken()));
+
+        final WebhookDeliveryEntity failed = stored(owner);
+        assertEquals(WebhookDeliveryEntity.STATUS_FAILED, failed.getStatus());
+        assertNull(failed.getClaimToken());
+        assertNull(failed.getNextAttemptAt());
+        assertNull(storage().webhookDeliveries().claimNextDue(new Date(System.currentTimeMillis() + 86_400_000L)));
+    }
+
+    @Test
+    default void webhookDeliveryRepeatedlyAbandonedClaimsStopAtTheAttemptLimit() {
+        final String owner = RecordIds.newId();
+        Date now = new Date();
+        storage().webhookDeliveries().enqueueOnce(delivery(owner, "doc", now));
+        for (int attempt = 1; attempt <= WebhookDeliveryDataService.MAX_ATTEMPTS; attempt++) {
+            final WebhookDeliveryEntity claim = storage().webhookDeliveries().claimNextDue(now);
+            assertNotNull(claim);
+            assertEquals(attempt, claim.getAttempts());
+            now = claim.getClaimExpiresAt();
+        }
+        assertNull(storage().webhookDeliveries().claimNextDue(now));
+        final WebhookDeliveryEntity failed = stored(owner);
+        assertEquals(WebhookDeliveryEntity.STATUS_FAILED, failed.getStatus());
+        assertEquals(WebhookDeliveryDataService.MAX_ATTEMPTS, failed.getAttempts());
+        assertNull(failed.getClaimToken());
+    }
+
+    @Test
+    default void webhookDeliveryAMissingClaimTokenChangesNothing() {
         final String owner = RecordIds.newId();
         storage().webhookDeliveries().enqueueOnce(delivery(owner, "doc", new Date()));
-        final WebhookDeliveryEntity claim = storage().webhookDeliveries().claimNextDue(new Date());
-        assertNotNull(claim);
-        assertFalse(storage().webhookDeliveries().markDelivered(claim.getId(), "another-token"));
-        assertTrue(storage().webhookDeliveries().markDelivered(claim.getId(), claim.getClaimToken()));
-        assertFalse(storage().webhookDeliveries().markDelivered(claim.getId(), claim.getClaimToken()));
-        assertNull(storage().webhookDeliveries().claimNextDue(new Date(System.currentTimeMillis() + 86_400_000L)));
+        final String id = stored(owner).getId();
+        assertThrows(IllegalArgumentException.class, () -> storage().webhookDeliveries().markDelivered(id, null));
+        assertThrows(IllegalArgumentException.class, () -> storage().webhookDeliveries().rescheduleOrFail(id, "", 1, "failure"));
+        assertEquals(WebhookDeliveryEntity.STATUS_PENDING, stored(owner).getStatus());
     }
 
     @Test

@@ -43,6 +43,12 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
         this(database, encryptionService, System::currentTimeMillis, claimLeaseSeconds());
     }
 
+    /** Reading the time from {@code clock}, for tests. */
+    SqlitePendingDocumentDataService(final SqliteDatabase database, final EncryptionService encryptionService,
+                                     final LongSupplier clock) {
+        this(database, encryptionService, clock, claimLeaseSeconds());
+    }
+
     SqlitePendingDocumentDataService(final SqliteDatabase database, final EncryptionService encryptionService,
                                      final LongSupplier clock, final int claimLeaseSeconds) {
         super(encryptionService, clock, claimLeaseSeconds, new SqliteAdmissionGuard(database));

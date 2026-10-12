@@ -25,8 +25,11 @@ import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.Listings;
+import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.data.services.UnreadableLedgerEntryException;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.mfa.TotpService;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -52,9 +55,14 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
     }
 
     private void completeChain(final String owner, final String documentId, final String token) throws Exception {
+        completeChain(owner, documentId, token, "{{{REDACTED-ssn}}}");
+    }
+
+    private void completeChain(final String owner, final String documentId, final String token, final String replacement)
+            throws Exception {
         final LedgerDataService ledger = storage().ledger();
         ledger.initializeLedger(owner, documentId, "input-hash", "file.pdf", "policy", 0, "policy-hash");
-        ledger.addTransaction(new LedgerEntity(owner, documentId, token, "{{{REDACTED-ssn}}}", 0, "input-hash",
+        ledger.addTransaction(new LedgerEntity(owner, documentId, token, replacement, 0, "input-hash",
                 ledger.getLatestTransaction(owner, documentId).getHash(), "file.pdf", "ssn", "policy", 0, "policy-hash"));
         ledger.completeChain(owner, documentId);
     }
@@ -69,6 +77,10 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         // Each secret is distinctive, so finding it anywhere in storage means it was written in the clear.
         final String fpeKey = storage().users().ensureFpeKey(user);
         final String mfaSecret = storage().users().startMfaEnrollment(user);
+        final UserEntity enrolled = user("riley", UserService.ROLE_USER);
+        final String confirmedMfaSecret = storage().users().startMfaEnrollment(enrolled);
+        assertTrue(storage().users().confirmMfaEnrollment("req", storage().users().findOneById(enrolled.getId()),
+                new TotpService().codeAt(confirmedMfaSecret, TotpService.currentTimeStep()), "test", null).isSuccessful());
         final String webhookSecret = "webhook-secret-" + RecordIds.newId();
         assertTrue(storage().users().setWebhook("req", user, "https://93.184.215.14/hook", webhookSecret, null, "test",
                 null, null).isSuccessful());
@@ -81,7 +93,8 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         final String redactTerm = "redact-term-" + RecordIds.newId();
         storage().redactLists().saveOrUpdate("req", owner, List.of(redactTerm), List.of(), "test");
         final String ledgerToken = "ledger-token-" + RecordIds.newId();
-        completeChain(owner, "doc", ledgerToken);
+        final String ledgerReplacement = "ledger-replacement-" + RecordIds.newId();
+        completeChain(owner, "doc", ledgerToken, ledgerReplacement);
         final String documentText = "document-text-" + RecordIds.newId();
         final PendingDocumentEntity job = new PendingDocumentEntity();
         job.setUserId(owner);
@@ -89,6 +102,10 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         job.setStatus(PendingDocumentEntity.STATUS_PENDING);
         job.setSubmittedAt(new Date());
         job.setInput(documentText.getBytes(StandardCharsets.UTF_8));
+        // The resolved configuration is kept with the job and, separately, as an execution snapshot.
+        final String configuration = "configuration-" + RecordIds.newId();
+        job.setEffectiveJson("{\"key\":\"" + configuration + "\"}");
+        job.setEffectiveHash(PolicyVersionDataService.contentHash(job.getEffectiveJson()));
         storage().pendingDocuments().save(job);
         final String deliverySecret = "delivery-secret-" + RecordIds.newId();
         final WebhookDeliveryEntity delivery = new WebhookDeliveryEntity();
@@ -105,8 +122,8 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         delivery.setUpdatedAt(new Date());
         storage().webhookDeliveries().enqueueOnce(delivery);
 
-        for (final String secret : List.of(fpeKey, mfaSecret, webhookSecret, phieldKey, listItem, redactTerm, ledgerToken,
-                documentText, deliverySecret)) {
+        for (final String secret : List.of(fpeKey, mfaSecret, confirmedMfaSecret, webhookSecret, phieldKey, listItem,
+                redactTerm, ledgerToken, ledgerReplacement, documentText, configuration, deliverySecret)) {
             assertFalse(storage().storageContains(secret), "stored in the clear: " + secret);
         }
 
@@ -118,8 +135,18 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         assertEquals(fpeKey, stored.getFpeKey());
         assertEquals(mfaSecret, stored.getMfaPendingSecret());
         assertEquals(webhookSecret, stored.getWebhookSecret());
+        assertEquals(confirmedMfaSecret, storage().anotherInstance().users().findOneById(enrolled.getId()).getMfaSecret());
         assertEquals(phieldKey, storage().anotherInstance().adminSettings().findAdminSettings().getPhieldApiKey());
-        assertEquals(ledgerToken, storage().ledger().getChain(owner, "doc").get(1).getToken());
+        assertEquals(List.of(listItem), storage().anotherInstance().customLists().findOneByName("names", owner).getItems());
+        assertEquals(List.of(redactTerm), storage().anotherInstance().redactLists().find(owner).getTermsToAlwaysRedact());
+        final LedgerEntity entry = storage().anotherInstance().ledger().getChain(owner, "doc").get(1);
+        assertEquals(ledgerToken, entry.getToken());
+        assertEquals(ledgerReplacement, entry.getReplacement());
+        final PendingDocumentEntity storedJob = storage().anotherInstance().pendingDocuments()
+                .findOneByDocumentIdAndUserId(job.getDocumentId(), owner);
+        assertEquals(documentText, new String(storedJob.getInput(), StandardCharsets.UTF_8));
+        assertEquals(job.getEffectiveJson(), storedJob.getEffectiveJson());
+        assertEquals(deliverySecret, storage().anotherInstance().webhookDeliveries().claimNextDue(new Date()).getSecret());
     }
 
     @Test
@@ -141,6 +168,18 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         assertFalse(damaged.valid());
         assertEquals(LedgerDataService.CHAIN_UNVERIFIABLE, damaged.error());
         assertTrue(storage().ledger().validateChain(owner, "intact").hashChainValid());
+    }
+
+    @Test
+    default void aLedgerEntryWhoseTokenCannotBeReadMakesItsChainUnverifiable() throws Exception {
+        final String owner = RecordIds.newId();
+        completeChain(owner, "doc", "123-45-6789");
+        storage().damageLedgerTokens(owner, "doc");
+
+        final LedgerDataService.ChainValidation validation = storage().anotherInstance().ledger().validateChain(owner, "doc");
+        assertFalse(validation.valid());
+        assertEquals(LedgerDataService.CHAIN_UNVERIFIABLE, validation.error());
+        assertThrows(UnreadableLedgerEntryException.class, () -> storage().ledger().getChain(owner, "doc"));
     }
 
     @Test

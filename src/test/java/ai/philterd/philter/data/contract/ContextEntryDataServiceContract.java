@@ -64,11 +64,19 @@ public interface ContextEntryDataServiceContract extends StorageContract {
             storage().contextEntries().putReplacementIfAbsent(owner, "default", "token-" + i, "replacement-" + i, "PERSON");
         }
         storage().contextEntries().putReplacementIfAbsent(owner, "other", "token", "replacement", "PERSON");
+        // Another owner's context of the same name is never listed or counted.
+        final String other = RecordIds.newId();
+        for (int i = 0; i < 3; i++) {
+            storage().contextEntries().putReplacementIfAbsent(other, "default", "token-" + i, "theirs-" + i, "PERSON");
+        }
         assertEquals(5, storage().contextEntries().countByUserIdAndContext(owner, "default"));
         final Set<String> seen = new HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {
             storage().contextEntries().findAllByUserIdAndContext(owner, "default", offset, 2)
-                    .forEach(entry -> assertTrue(seen.add(entry.getId())));
+                    .forEach(entry -> {
+                        assertTrue(seen.add(entry.getId()));
+                        assertEquals(owner, entry.getUserId());
+                    });
         }
         assertEquals(5, seen.size());
     }

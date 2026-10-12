@@ -129,13 +129,23 @@ class SqliteSchemaStoreTest {
     }
 
     @Test
-    void theMigrationLockIsHeldByOneOwnerUntilItExpires() {
+    void theMigrationLockIsHeldByOneOwnerUntilReleased() {
         final SqliteSchemaStore store = new SqliteSchemaStore(database, List.of());
         assertTrue(store.acquireLock("first", Duration.ofMinutes(1)));
         assertFalse(store.acquireLock("second", Duration.ofMinutes(1)));
         assertTrue(store.acquireLock("first", Duration.ofMinutes(1)), "the owner extends it");
         store.releaseLock("first");
         assertTrue(store.acquireLock("second", Duration.ofMillis(1)));
+    }
+
+    @Test
+    void anExpiredMigrationLockCanBeTakenWithoutBeingReleased() throws Exception {
+        final SqliteSchemaStore store = new SqliteSchemaStore(database, List.of());
+        assertTrue(store.acquireLock("stopped", Duration.ofMillis(1)));
+        Thread.sleep(20);
+        // The instance that held it stopped without releasing it; its lease has run out.
+        assertTrue(store.acquireLock("next", Duration.ofMinutes(1)));
+        assertFalse(store.acquireLock("stopped", Duration.ofMinutes(1)), "the old holder no longer has it");
     }
 
 }

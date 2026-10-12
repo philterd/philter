@@ -35,7 +35,8 @@ import java.util.List;
  * <p>Guarantees every implementation must provide:
  * <ul>
  *   <li>A snapshot is immutable: a revision is unique per user and policy name, and writing different
- *   content for an existing revision is refused.</li>
+ *   content for an existing revision is refused with an {@link IllegalStateException}, also when two
+ *   snapshots of the revision are written at once.</li>
  *   <li>Snapshots never expire on their own.</li>
  *   <li>The content hash is computed with {@link #contentHash}, the same in every implementation, since ledger
  *   entries carry it.</li>

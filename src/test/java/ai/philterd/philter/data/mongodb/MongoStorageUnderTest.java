@@ -270,7 +270,15 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     public void damageLedgerChain(final String userId, final String documentId) {
         mongoClient.getDatabase("philter").getCollection("ledger").updateMany(
                 Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("document_id", documentId)),
-                Updates.set("replacement_encrypted_key", "not-a-key"));
+                Updates.combine(Updates.set("replacement_encrypted_key", "not-a-key"),
+                        Updates.set("token_encrypted_key", "not-a-key")));
+    }
+
+    @Override
+    public void damageLedgerTokens(final String userId, final String documentId) {
+        mongoClient.getDatabase("philter").getCollection("ledger").updateMany(
+                Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("document_id", documentId)),
+                Updates.set("token_encrypted_key", "not-a-key"));
     }
 
     @Override
@@ -283,6 +291,18 @@ final class MongoStorageUnderTest implements StorageUnderTest {
         final Date past = Date.from(Instant.now().minus(1, ChronoUnit.MINUTES));
         mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(Filters.eq("_id", MongoIds.objectId(keyId)),
                 Updates.combine(Updates.set("expires_at", past), Updates.set("idle_expires_at", past)));
+    }
+
+    @Override
+    public void expireSessionIdleWindow(final String keyId) {
+        mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(Filters.eq("_id", MongoIds.objectId(keyId)),
+                Updates.set("idle_expires_at", Date.from(Instant.now().minus(1, ChronoUnit.MINUTES))));
+    }
+
+    @Override
+    public void expireSessionLifetime(final String keyId) {
+        mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(Filters.eq("_id", MongoIds.objectId(keyId)),
+                Updates.set("expires_at", Date.from(Instant.now().minus(1, ChronoUnit.MINUTES))));
     }
 
     @Override

@@ -68,6 +68,11 @@ public interface LegalHoldDataServiceContract extends StorageContract {
         for (final String reference : List.of("a.b", "axb", "A.B-2", "other", "more")) {
             assertTrue(hold(owner, reference, "doc").isSuccessful());
         }
+        // Another owner's holds, some with the same references, are never listed or counted.
+        final String other = RecordIds.newId();
+        for (final String reference : List.of("a.b", "zzz")) {
+            assertTrue(hold(other, reference, "doc").isSuccessful());
+        }
         final Listings.Sort byReference = new Listings.Sort("reference", false);
         final Set<String> seen = new HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {

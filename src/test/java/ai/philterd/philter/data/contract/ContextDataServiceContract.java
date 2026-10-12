@@ -77,6 +77,11 @@ public interface ContextDataServiceContract extends StorageContract {
         for (final String name : List.of("alpha", "Beta", "gamma", "delta", "epsilon")) {
             assertTrue(storage().contexts().create(name, owner).isSuccessful());
         }
+        // Another owner's contexts, some with the same names, are never listed or counted.
+        final String other = RecordIds.newId();
+        for (final String name : List.of("alpha", "zeta")) {
+            assertTrue(storage().contexts().create(name, other).isSuccessful());
+        }
         final Listings.Sort byName = new Listings.Sort("context_name", false);
         final Set<String> seen = new HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {

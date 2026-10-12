@@ -28,6 +28,8 @@ import java.util.List;
  */
 public abstract class StoredPolicyVersionDataService implements PolicyVersionDataService {
 
+    private static final String DIFFERENT_CONTENT = "Policy revision already refers to different content.";
+
     /**
      * Stores policy content under its hash.
      *
@@ -69,7 +71,7 @@ public abstract class StoredPolicyVersionDataService implements PolicyVersionDat
                 policyEntity.getUserId(), policyEntity.getRevision());
         if (existing != null) {
             if (!hash.equals(existing.getContentHash())) {
-                throw new IllegalStateException("Policy revision already refers to different content.");
+                throw new IllegalStateException(DIFFERENT_CONTENT);
             }
             return hash;
         }
@@ -88,7 +90,9 @@ public abstract class StoredPolicyVersionDataService implements PolicyVersionDat
         } catch (final DuplicateRecordException e) {
             final PolicyVersionEntity winner = findByNameAndRevision(policyEntity.getName(),
                     policyEntity.getUserId(), policyEntity.getRevision());
-            if (winner == null || !hash.equals(winner.getContentHash())) throw e;
+            if (winner == null) throw e;
+            // Lost a race to a snapshot of the same revision: refused the same way as above when it differs.
+            if (!hash.equals(winner.getContentHash())) throw new IllegalStateException(DIFFERENT_CONTENT, e);
         }
 
         return hash;

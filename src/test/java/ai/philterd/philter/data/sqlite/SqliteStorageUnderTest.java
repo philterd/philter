@@ -267,7 +267,13 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
 
     @Override
     public void damageLedgerChain(final String userId, final String documentId) {
-        database.write(connection -> Sql.update(connection, "UPDATE ledger SET replacement_encrypted_key = 'not-a-key' "
+        database.write(connection -> Sql.update(connection, "UPDATE ledger SET replacement_encrypted_key = 'not-a-key', "
+                + "token_encrypted_key = 'not-a-key' WHERE user_id = ? AND document_id = ?", userId, documentId));
+    }
+
+    @Override
+    public void damageLedgerTokens(final String userId, final String documentId) {
+        database.write(connection -> Sql.update(connection, "UPDATE ledger SET token_encrypted_key = 'not-a-key' "
                 + "WHERE user_id = ? AND document_id = ?", userId, documentId));
     }
 
@@ -287,6 +293,18 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
         final Date past = new Date(System.currentTimeMillis() - 60_000);
         database.write(connection -> Sql.update(connection, "UPDATE api_keys SET expires_at = ?, idle_expires_at = ? WHERE id = ?",
                 past, past, keyId));
+    }
+
+    @Override
+    public void expireSessionIdleWindow(final String keyId) {
+        database.write(connection -> Sql.update(connection, "UPDATE api_keys SET idle_expires_at = ? WHERE id = ?",
+                new Date(System.currentTimeMillis() - 60_000), keyId));
+    }
+
+    @Override
+    public void expireSessionLifetime(final String keyId) {
+        database.write(connection -> Sql.update(connection, "UPDATE api_keys SET expires_at = ? WHERE id = ?",
+                new Date(System.currentTimeMillis() - 60_000), keyId));
     }
 
     @Override

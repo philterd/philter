@@ -63,6 +63,11 @@ public interface CustomListDataServiceContract extends StorageContract {
         for (final String name : List.of("a.b", "axb", "A.B-2", "other", "more")) {
             createList(owner, name, List.of("x"));
         }
+        // Another owner's lists, some with the same names, are never listed or counted.
+        final String other = RecordIds.newId();
+        for (final String name : List.of("a.b", "zzz")) {
+            createList(other, name, List.of("y"));
+        }
         final Listings.Sort byName = new Listings.Sort("name", false);
         final Set<String> seen = new HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {

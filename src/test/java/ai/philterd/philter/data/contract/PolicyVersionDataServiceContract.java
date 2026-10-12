@@ -46,9 +46,27 @@ public interface PolicyVersionDataServiceContract extends StorageContract {
         storage().policyVersions().snapshot(policy(owner, "claims", 1, "{\"identifiers\":{}}"));
         // The same content again is accepted; different content for the revision is refused.
         storage().policyVersions().snapshot(policy(owner, "claims", 1, "{\"identifiers\":{}}"));
-        assertThrows(RuntimeException.class,
+        assertThrows(IllegalStateException.class,
                 () -> storage().policyVersions().snapshot(policy(owner, "claims", 1, "{\"identifiers\":{\"x\":{}}}")));
         assertEquals("{\"identifiers\":{}}", storage().policyVersions().findByNameAndRevision("claims", owner, 1).getPolicy());
+    }
+
+    @Test
+    default void policyVersionsOfOneRevisionWrittenAtOnceKeepOneContent() throws Exception {
+        final String owner = RecordIds.newId();
+        final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.List<String> outcomes = StorageContract.concurrently(4, () -> {
+            final String content = "{\"identifiers\":{\"n" + next.getAndIncrement() + "\":{}}}";
+            try {
+                storage().anotherInstance().policyVersions().snapshot(policy(owner, "claims", 1, content));
+                return content;
+            } catch (final IllegalStateException refused) {
+                return "refused";
+            }
+        });
+        assertEquals(3, outcomes.stream().filter("refused"::equals).count(), outcomes.toString());
+        final String kept = outcomes.stream().filter(outcome -> !"refused".equals(outcome)).findFirst().orElseThrow();
+        assertEquals(kept, storage().policyVersions().findByNameAndRevision("claims", owner, 1).getPolicy());
     }
 
     @Test

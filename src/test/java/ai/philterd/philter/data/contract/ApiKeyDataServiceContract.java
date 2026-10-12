@@ -54,6 +54,26 @@ public interface ApiKeyDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void apiKeyASessionKeyEndsWhenEitherItsIdleWindowOrItsLifetimeRunsOut() {
+        final ApiKeyEntity idle = sessionKey(RecordIds.newId());
+        final ApiKeyEntity old = sessionKey(RecordIds.newId());
+        final ApiKeyEntity live = sessionKey(RecordIds.newId());
+        storage().expireSessionIdleWindow(idle.getId());
+        storage().expireSessionLifetime(old.getId());
+
+        for (final ApiKeyEntity ended : java.util.List.of(idle, old)) {
+            final ApiKeyEntity found = storage().anotherInstance().apiKeys().findOneByApiKey(ended.getApiKey());
+            assertTrue(found == null || !storage().anotherInstance().apiKeys().touchSessionKey(found),
+                    "a request does not extend it");
+            assertEquals(1, storage().apiKeys().expireSessionKeys(ended.getId()));
+            assertTrue(storage().apiKeys().isEndedSessionKey(ended.getApiKey()));
+        }
+        // A request keeps a key alive only within its lifetime: touching the old key did not revive it.
+        assertTrue(storage().apiKeys().touchSessionKey(storage().apiKeys().findOneByApiKey(live.getApiKey())));
+        assertEquals(0, storage().apiKeys().expireSessionKeys(live.getId()));
+    }
+
+    @Test
     default void apiKeyAnExpiredSessionKeyNeverAuthenticates() {
         final ApiKeyEntity key = sessionKey(RecordIds.newId());
         assertTrue(storage().apiKeys().touchSessionKey(storage().apiKeys().findOneByApiKey(key.getApiKey())));

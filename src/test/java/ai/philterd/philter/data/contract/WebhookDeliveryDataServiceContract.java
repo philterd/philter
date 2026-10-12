@@ -231,6 +231,11 @@ public interface WebhookDeliveryDataServiceContract extends StorageContract {
         for (final int i : List.of(2, 0, 4, 1, 3)) {
             storage().webhookDeliveries().enqueueOnce(delivery(owner, "doc-" + i, new Date(start + i * 1000L)));
         }
+        // Another owner's deliveries are never listed or counted.
+        final String other = RecordIds.newId();
+        for (final int i : List.of(5, 6)) {
+            storage().webhookDeliveries().enqueueOnce(delivery(other, "doc-" + i, new Date(start + i * 1000L)));
+        }
         assertEquals(5, storage().webhookDeliveries().countByUserId(owner));
         final List<String> ascending = new java.util.ArrayList<>();
         for (int offset = 0; offset < 5; offset += 2) {

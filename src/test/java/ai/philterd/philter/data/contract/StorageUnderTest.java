@@ -116,6 +116,12 @@ public interface StorageUnderTest {
     /** Moves a session key's idle window and lifetime into the past, as if its time had run out. */
     void expireSessionKey(String keyId);
 
+    /** Moves only a session key's idle window into the past, as if it had gone unused; its lifetime is unchanged. */
+    void expireSessionIdleWindow(String keyId);
+
+    /** Moves only a session key's lifetime into the past, as if it were old; its idle window is unchanged. */
+    void expireSessionLifetime(String keyId);
+
     /** Moves a sign-in challenge's expiry into the past, as if its time had run out. */
     void expireSignInChallenge(String token);
 
@@ -151,7 +157,13 @@ public interface StorageUnderTest {
     /** Moves when a completed ledger chain was completed to {@code completedAt}, as if it had been completed then. */
     void backdateLedgerChainCompletion(String userId, String documentId, java.util.Date completedAt);
 
-    /** Damages the stored encryption key of every entry in a ledger chain, as corruption or a lost key would. */
+    /**
+     * Damages the stored encryption keys of every entry in a ledger chain (the token's and the replacement's), as
+     * corruption or a lost key would.
+     */
     void damageLedgerChain(String userId, String documentId);
+
+    /** Damages only the stored encryption key of each entry's token in a ledger chain. */
+    void damageLedgerTokens(String userId, String documentId);
 
 }

@@ -40,9 +40,21 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
     );
 
     private final ContextCache contextCache;
+    private final int capacity;
 
     protected StoredContextEntryDataService(final ContextCache contextCache) {
+        this(contextCache, MAX_CONTEXT_SIZE);
+    }
+
+    /** With contexts that hold at most {@code capacity} entries instead of {@link #MAX_CONTEXT_SIZE}, for tests. */
+    protected StoredContextEntryDataService(final ContextCache contextCache, final int capacity) {
         this.contextCache = contextCache;
+        this.capacity = capacity;
+    }
+
+    /** The most entries a context holds. */
+    protected final int capacity() {
+        return capacity;
     }
 
     /**
@@ -213,7 +225,7 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
 
     private void evictIfFull(final String userId, final String contextName) {
 
-        if (countByUserIdAndContext(userId, contextName) < MAX_CONTEXT_SIZE) {
+        if (countByUserIdAndContext(userId, contextName) < capacity) {
             return;
         }
 
@@ -222,7 +234,7 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
         if (victim != null && deleteById(victim.getId(), userId, contextName) != null) {
             evict(userId, contextName, victim.getTokenHash());
             LOGGER.info("Evicted context entry {} from context {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
-                    victim.getId(), contextName, victim.getReads(), MAX_CONTEXT_SIZE);
+                    victim.getId(), contextName, victim.getReads(), capacity);
         }
 
     }

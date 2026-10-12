@@ -210,6 +210,9 @@
                         <!-- MongoDB, against the in-memory server InMemoryTestConfiguration starts; many of these
                              tests read it directly. The sqlite-integration-tests execution sets sqlite. -->
                         <STORAGE_TYPE>mongodb</STORAGE_TYPE>
+                        <!-- The storage StorageFlowsApiIT checks each run really used, so a run meant for SQLite
+                             cannot pass on MongoDB unnoticed. -->
+                        <EXPECTED_STORAGE_TYPE>mongodb</EXPECTED_STORAGE_TYPE>
                         <!-- Every test signs in from the same address; SignInThrottleIT tests the limit. -->
                         <SIGN_IN_RATE_LIMIT_PER_MINUTE>1000000</SIGN_IN_RATE_LIMIT_PER_MINUTE>
                         <SSL_ENABLED>false</SSL_ENABLED>
@@ -243,6 +246,7 @@
                             <test>${sqlite.it.test}</test>
                             <environmentVariables>
                                 <STORAGE_TYPE>sqlite</STORAGE_TYPE>
+                                <EXPECTED_STORAGE_TYPE>sqlite</EXPECTED_STORAGE_TYPE>
                                 <SQLITE_PATH>${project.build.directory}/sqlite-it-${random.uuid}.db</SQLITE_PATH>
                             </environmentVariables>
                             <reportsDirectory>${project.build.directory}/failsafe-reports-sqlite</reportsDirectory>

@@ -37,9 +37,15 @@ public class SqliteContextEntryDataService extends StoredContextEntryDataService
         this.database = database;
     }
 
+    /** With contexts that hold at most {@code capacity} entries, for tests. */
+    SqliteContextEntryDataService(final SqliteDatabase database, final ContextCache contextCache, final int capacity) {
+        super(contextCache, capacity);
+        this.database = database;
+    }
+
     @Override
     public SqliteContextEntryDataService withCache(final ContextCache contextCache) {
-        return new SqliteContextEntryDataService(database, contextCache);
+        return new SqliteContextEntryDataService(database, contextCache, capacity());
     }
 
     private static ContextEntryEntity read(final Sql.Row row) throws SQLException {

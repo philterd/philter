@@ -33,6 +33,7 @@ COPY ./LICENSE.txt /opt/philter/
 # HTTP instead, which is what you want when a load balancer or ingress terminates TLS.
 ENV SSL_ENABLED=true
 # SQLite storage, the default, keeps its file here; mount a volume at /opt/philter/data to keep it.
+# Only the philter user can read the directory, since the database holds password hashes and the audit log.
 ENV SQLITE_PATH=/opt/philter/data/philter.db
 
 COPY ./docker-entrypoint.sh /opt/philter/
@@ -48,7 +49,8 @@ COPY --from=docs /site/ /opt/philter/public/docs/
 RUN groupadd --system --gid 10001 philter \
     && useradd --system --uid 10001 --gid philter --home-dir /opt/philter \
         --shell /usr/sbin/nologin philter \
-    && chown -R philter:philter /opt/philter
+    && chown -R philter:philter /opt/philter \
+    && chmod 700 /opt/philter/data
 
 USER philter
 

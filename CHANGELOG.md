@@ -48,9 +48,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   migrates the data at startup when a release needs it, one instance at a time; it refuses to start on
   data written by a newer release. Back up the database before upgrading. See
   [Upgrading](docs/docs/upgrading.md#upgrading-within-4x).
-- **Storage selection:** `STORAGE_TYPE` selects where Philter stores its data. `mongodb`, the default,
-  is the only storage today. Philter now reaches its data only through storage interfaces, so other
-  storage can be added later.
+- **Storage selection:** `STORAGE_TYPE` selects where Philter stores its data: `sqlite`, the default,
+  or `mongodb`. Philter reaches its data only through storage interfaces, so other storage can be
+  added later. Philter refuses to start when `MONGODB_CONNECTION_STRING` is set without
+  `STORAGE_TYPE`, rather than guess which storage you meant.
 - **Policy diffs show both sides:** each `replace` and `remove` from `GET /api/policies/{name}/diff`
   carries `oldValue`, the value before the change.
 - **Asynchronous PDF redaction** with signed webhooks.

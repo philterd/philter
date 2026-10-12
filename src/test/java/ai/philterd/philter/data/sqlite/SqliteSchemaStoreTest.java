@@ -84,6 +84,31 @@ class SqliteSchemaStoreTest {
     }
 
     @Test
+    void aCreationThatStopsPartWayResumesOnTheNextStart() {
+        final Migration failing = new Migration() {
+            public int version() { return 2; }
+            public String description() { return "add a column"; }
+            public void apply() {
+                throw new IllegalStateException("stopped");
+            }
+        };
+        final SqliteSchemaStore store = new SqliteSchemaStore(database, List.of(failing));
+        assertThrows(IllegalStateException.class, () -> new SchemaMigrator(store, List.of(failing), Duration.ofSeconds(5)).migrate());
+        assertEquals(SchemaMigrator.BASELINE_VERSION, store.currentVersion(), "the tables were created with their version");
+
+        final Migration addColumn = new Migration() {
+            public int version() { return 2; }
+            public String description() { return "add a column"; }
+            public void apply() {
+                database.write(connection -> Sql.update(connection, "ALTER TABLE users ADD COLUMN nickname TEXT"));
+            }
+        };
+        assertEquals(2, new SchemaMigrator(new SqliteSchemaStore(database, List.of(addColumn)), List.of(addColumn),
+                Duration.ofSeconds(5)).migrate());
+        assertEquals(2, store.currentVersion());
+    }
+
+    @Test
     void anExistingDatabaseIsMigratedAndNewerOnesAreRefused() {
         final SqliteSchemaStore store = new SqliteSchemaStore(database, List.of());
         new SchemaMigrator(store, List.of(), Duration.ofSeconds(5)).migrate();

@@ -17,10 +17,15 @@ package ai.philterd.philter.data.sqlite;
 
 import ai.philterd.philter.data.services.StoredSignInChallengeDataService;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Date;
 
-/** Stores sign-in challenges in SQLite, removing expired ones as challenges are made. */
-public class SqliteSignInChallengeDataService extends StoredSignInChallengeDataService {
+/**
+ * Stores sign-in challenges in SQLite, removing expired ones as challenges are made and on {@link SqliteRetention}'s
+ * schedule.
+ */
+public class SqliteSignInChallengeDataService extends StoredSignInChallengeDataService implements SqliteRetention.Expiring {
 
     private final SqliteDatabase database;
 
@@ -29,9 +34,18 @@ public class SqliteSignInChallengeDataService extends StoredSignInChallengeDataS
     }
 
     @Override
+    public void removeExpired() {
+        database.write(SqliteSignInChallengeDataService::prune);
+    }
+
+    private static int prune(final Connection connection) throws SQLException {
+        return Sql.update(connection, "DELETE FROM sign_in_challenges WHERE expires_at <= ?", new Date());
+    }
+
+    @Override
     protected void insert(final String tokenHash, final String userId, final Date expiresAt) {
         database.write(connection -> {
-            Sql.update(connection, "DELETE FROM sign_in_challenges WHERE expires_at <= ?", new Date());
+            prune(connection);
             return Sql.update(connection, "INSERT INTO sign_in_challenges (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
                     tokenHash, userId, expiresAt);
         });

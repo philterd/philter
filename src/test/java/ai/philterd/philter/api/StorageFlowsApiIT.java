@@ -202,16 +202,21 @@ class StorageFlowsApiIT {
     private org.springframework.context.ApplicationContext context;
 
     @Test
-    @DisplayName("Only the selected storage is set up: SQLite storage makes no MongoDB connection")
+    @DisplayName("Only the selected storage is set up, and it is the storage this run is for")
     void onlyTheSelectedStorageIsSetUp() {
-        final String storage = environment.getProperty(ai.philterd.philter.config.StorageConfiguration.PROPERTY, "mongodb");
         final int mongoClients = context.getBeanNamesForType(com.mongodb.client.MongoClient.class).length;
         final int sqliteDatabases = context.getBeanNamesForType(ai.philterd.philter.data.sqlite.SqliteDatabase.class).length;
-        if ("sqlite".equals(storage)) {
+        final String used = sqliteDatabases > 0 ? "sqlite" : "mongodb";
+        // The build sets the storage each run is for, so a run meant for SQLite cannot quietly use MongoDB.
+        final String expected = System.getenv("EXPECTED_STORAGE_TYPE");
+        if (expected != null) {
+            assertEquals(expected, used, "the storage this run is for");
+        }
+        if ("sqlite".equals(used)) {
             assertEquals(0, mongoClients, "no MongoDB client is created with SQLite storage");
             assertEquals(1, sqliteDatabases);
         } else {
-            assertEquals(0, sqliteDatabases, "no SQLite database is opened with MongoDB storage");
+            assertTrue(mongoClients > 0, "MongoDB storage has a client");
         }
     }
 

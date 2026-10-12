@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -108,6 +109,38 @@ public interface ApiKeyDataServiceContract extends StorageContract {
         }
         assertEquals(5, new HashSet<>(paged).size());
         assertEquals(created, paged);
+    }
+
+    @Test
+    default void apiKeyAnEndedSessionKeepsNoClientAddressOrUserAgent() {
+        final String owner = RecordIds.newId();
+        final ApiKeyDataService keys = storage().apiKeys();
+        final String agent = "Contract-Agent-" + UUID.randomUUID() + "-";
+        final ApiKeyEntity live = keys.createSessionKey("req", owner, Set.of("redact"), false, false, "test", null,
+                "203.0.113.71", agent + "live");
+        final ApiKeyEntity revoked = keys.createSessionKey("req", owner, Set.of("redact"), false, false, "test", null,
+                "203.0.113.72", agent + "revoked");
+        final ApiKeyEntity expired = keys.createSessionKey("req", owner, Set.of("redact"), false, false, "test", null,
+                "203.0.113.73", agent + "expired");
+        final ApiKeyEntity signedOut = keys.createSessionKey("req", owner, Set.of("redact"), false, false, "test", null,
+                "203.0.113.74", agent + "signed-out");
+
+        assertEquals("203.0.113.71", keys.findOneByApiKey(live.getApiKey()).getClientAddress());
+        assertEquals(agent + "live", keys.findOneByApiKey(live.getApiKey()).getUserAgent());
+
+        assertTrue(keys.deleteByApiKey("req", owner, keys.findOneByApiKey(revoked.getApiKey()), "test").isSuccessful());
+        storage().expireSessionKey(expired.getId());
+        assertEquals(1, keys.expireSessionKeys(expired.getId()));
+        assertEquals(1, keys.revokeSessionKeys("req", owner, "test", "reason: test", live.getId()));
+
+        for (final String ended : List.of("revoked", "expired", "signed-out")) {
+            assertFalse(storage().storageContains(agent + ended), "an ended session keeps no user agent: " + ended);
+        }
+        for (final String address : List.of("203.0.113.72", "203.0.113.73", "203.0.113.74")) {
+            assertFalse(storage().storageContains(address), "an ended session keeps no address: " + address);
+        }
+        assertTrue(storage().storageContains(agent + "live"), "the session still live keeps its details");
+        assertTrue(storage().storageContains("203.0.113.71"));
     }
 
 }

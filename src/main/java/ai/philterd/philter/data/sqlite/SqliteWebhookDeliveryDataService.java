@@ -20,12 +20,16 @@ import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredWebhookDeliveryDataService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 
-/** Stores webhook deliveries in SQLite, removing finished ones after their retention period. */
-public class SqliteWebhookDeliveryDataService extends StoredWebhookDeliveryDataService {
+/**
+ * Stores webhook deliveries in SQLite, removing finished ones after their retention period, both as deliveries are
+ * claimed and on {@link SqliteRetention}'s schedule.
+ */
+public class SqliteWebhookDeliveryDataService extends StoredWebhookDeliveryDataService implements SqliteRetention.Expiring {
 
     private static final String LIVE_CLAIM = "id = ? AND status = '" + WebhookDeliveryEntity.STATUS_PROCESSING
             + "' AND claim_token = ? AND claim_expires_at > ?";
@@ -63,10 +67,19 @@ public class SqliteWebhookDeliveryDataService extends StoredWebhookDeliveryDataS
     }
 
     @Override
+    public void removeExpired() {
+        database.write(connection -> prune(connection, new Date()));
+    }
+
+    private static int prune(final Connection connection, final Date now) throws SQLException {
+        return Sql.update(connection, "DELETE FROM webhook_deliveries WHERE completed_at <= ?",
+                new Date(now.getTime() - retentionSeconds() * 1000L));
+    }
+
+    @Override
     protected WebhookDeliveryEntity claim(final Date now, final String claimToken, final Date claimExpiresAt) {
         return database.write(connection -> {
-            Sql.update(connection, "DELETE FROM webhook_deliveries WHERE completed_at <= ?",
-                    new Date(now.getTime() - retentionSeconds() * 1000L));
+            prune(connection, now);
             // A worker that repeatedly dies must not leave a delivery in an endless reclaim loop.
             Sql.update(connection, "UPDATE webhook_deliveries SET status = ?, last_error = ?, updated_at = ?, completed_at = ?, "
                     + "next_attempt_at = NULL, claim_token = NULL, claim_expires_at = NULL "

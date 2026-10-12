@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.sqlite;
 
 import ai.philterd.philter.data.RecordIds;
+import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
 import ai.philterd.philter.data.schema.SchemaMigrator;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -31,7 +32,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Records past their retention are removed as Philter writes; evidence is never removed this way. */
+/**
+ * Records past their retention are removed as Philter writes and on a schedule, so they do not outlive it while
+ * nothing is written; evidence is never removed this way.
+ */
 class SqliteRetentionTest {
 
     @TempDir
@@ -73,6 +77,31 @@ class SqliteRetentionTest {
                 + "VALUES ('old', ?, ?)", RecordIds.newId(), new Date(System.currentTimeMillis() - 1000)));
         new SqliteSignInChallengeDataService(database).create(RecordIds.newId());
         assertEquals(1, count("sign_in_challenges"), "only the new challenge is kept");
+    }
+
+    @Test
+    void theScheduleRemovesExpiredRecordsWhileNothingIsWritten() {
+        final long longAgo = System.currentTimeMillis() - 365L * 24 * 60 * 60 * 1000;
+        database.write(connection -> {
+            Sql.update(connection, "INSERT INTO pending_documents (id, user_id, status, retention_at) VALUES (?, ?, ?, ?)",
+                    RecordIds.newId(), RecordIds.newId(), PendingDocumentEntity.STATUS_COMPLETE, new Date(longAgo));
+            Sql.update(connection, "INSERT INTO pending_documents (id, user_id, status, retention_at) VALUES (?, ?, ?, ?)",
+                    RecordIds.newId(), RecordIds.newId(), PendingDocumentEntity.STATUS_COMPLETE, new Date());
+            Sql.update(connection, "INSERT INTO pending_documents (id, user_id, status) VALUES (?, ?, ?)",
+                    RecordIds.newId(), RecordIds.newId(), PendingDocumentEntity.STATUS_PENDING);
+            Sql.update(connection, "INSERT INTO webhook_deliveries (id, user_id, status, completed_at) VALUES (?, ?, ?, ?)",
+                    RecordIds.newId(), RecordIds.newId(), WebhookDeliveryEntity.STATUS_DELIVERED, new Date(longAgo));
+            return Sql.update(connection, "INSERT INTO sign_in_challenges (token_hash, user_id, expires_at) "
+                    + "VALUES ('old', ?, ?)", RecordIds.newId(), new Date(System.currentTimeMillis() - 1000));
+        });
+
+        new SqliteRetention(new SqlitePendingDocumentDataService(database, new TestEncryptionService()),
+                new SqliteWebhookDeliveryDataService(database, new TestEncryptionService()),
+                new SqliteSignInChallengeDataService(database), "not a store").removeExpired();
+
+        assertEquals(2, count("pending_documents"), "the open document and the one still within its retention are kept");
+        assertEquals(0, count("webhook_deliveries"));
+        assertEquals(0, count("sign_in_challenges"));
     }
 
 }

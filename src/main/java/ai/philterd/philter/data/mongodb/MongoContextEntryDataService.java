@@ -70,14 +70,20 @@ public class MongoContextEntryDataService extends StoredContextEntryDataService 
         }
     }
 
-    private MongoContextEntryDataService(final MongoCollection<Document> collection, final ContextCache contextCache) {
-        super(contextCache);
+    private MongoContextEntryDataService(final MongoCollection<Document> collection, final ContextCache contextCache,
+                                         final int capacity) {
+        super(contextCache, capacity);
         this.collection = collection;
+    }
+
+    /** The same stored entries, with contexts that hold at most {@code capacity} entries, for tests. */
+    MongoContextEntryDataService withCapacity(final ContextCache contextCache, final int capacity) {
+        return new MongoContextEntryDataService(collection, contextCache, capacity);
     }
 
     @Override
     public MongoContextEntryDataService withCache(final ContextCache contextCache) {
-        return new MongoContextEntryDataService(collection, contextCache);
+        return new MongoContextEntryDataService(collection, contextCache, capacity());
     }
 
     private static Bson inContext(final String userId, final String contextName) {

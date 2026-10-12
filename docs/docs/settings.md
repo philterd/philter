@@ -157,7 +157,7 @@ Ledger collections must have no TTL indexes. Startup rejects incompatible schema
 
 ## Asynchronous Documents and Webhooks
 
-Records for asynchronous (PDF) redactions and outbound webhook deliveries are removed automatically once they are past these retention periods: by TTL indexes with MongoDB, and as new records are written with [SQLite](database.md#sqlite).
+Records for asynchronous (PDF) redactions and outbound webhook deliveries are removed automatically once they are past these retention periods: by TTL indexes with MongoDB, and by a check that runs every minute with [SQLite](database.md#sqlite).
 
 Required TTL indexes are verified at startup. Conflicting options or unexpected expiry fields prevent startup. The unreleased 4.0 schema is created directly without migrations. Job retention uses `retention_at` after notification acknowledgement; webhook retention uses `completed_at` for either terminal outcome.
 

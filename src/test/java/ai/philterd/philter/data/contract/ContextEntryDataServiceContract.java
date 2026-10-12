@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The guarantees of {@link ContextEntryDataService}. */
@@ -70,6 +71,38 @@ public interface ContextEntryDataServiceContract extends StorageContract {
                     .forEach(entry -> assertTrue(seen.add(entry.getId())));
         }
         assertEquals(5, seen.size());
+    }
+
+    @Test
+    default void contextEntryAFullContextEvictsItsLeastReadEntry() {
+        final String owner = RecordIds.newId();
+        final ContextEntryDataService entries = storage().contextEntriesHolding(3);
+        final ContextEntryEntity first = entries.putReplacementIfAbsent(owner, "default", "first", "replacement-1", "PERSON");
+        entries.putReplacementIfAbsent(owner, "default", "second", "replacement-2", "PERSON");
+        entries.incrementReads(first.getId());
+
+        // A put that stores nothing new evicts nothing.
+        entries.putReplacementIfAbsent(owner, "default", "first", "other", "PERSON");
+        assertEquals(2, entries.countByUserIdAndContext(owner, "default"));
+
+        final ContextEntryEntity third = entries.putReplacementIfAbsent(owner, "default", "third", "replacement-3", "PERSON");
+        entries.incrementReads(third.getId());
+        assertNull(entries.getReplacement(owner, "default", "second"), "the entry never read is evicted");
+        assertEquals("replacement-1", entries.getReplacement(owner, "default", "first"));
+        assertEquals("replacement-3", entries.getReplacement(owner, "default", "third"));
+
+        for (int i = 0; i < 5; i++) {
+            entries.putReplacementIfAbsent(owner, "default", "more-" + i, "replacement", "PERSON");
+            assertTrue(entries.countByUserIdAndContext(owner, "default") <= 3, "the context never exceeds its capacity");
+        }
+        assertEquals("replacement-1", entries.getReplacement(owner, "default", "first"), "an entry read is kept");
+        assertEquals("replacement-3", entries.getReplacement(owner, "default", "third"));
+
+        // Another owner's context is not counted or evicted from.
+        final String other = RecordIds.newId();
+        entries.putReplacementIfAbsent(other, "default", "first", "replacement", "PERSON");
+        assertEquals("replacement-1", entries.getReplacement(owner, "default", "first"));
+        assertEquals("replacement", entries.getReplacement(other, "default", "first"));
     }
 
 }

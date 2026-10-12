@@ -15,13 +15,18 @@
  */
 package ai.philterd.philter.data.contract;
 
+import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.Listings;
+import ai.philterd.philter.model.AuditLogEvent;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -91,6 +96,44 @@ public interface LedgerDataServiceContract extends StorageContract {
                     .forEach(head -> assertTrue(seen.add(head.getDocumentId())));
         }
         assertEquals(5, seen.size());
+    }
+
+    private List<AuditLogService.AuditEvent> audited(final String owner, final AuditLogEvent event) {
+        return storage().auditLog().find(owner, event.getAuditLogEvent(), null, null, 0, 100);
+    }
+
+    @Test
+    default void ledgerSearchesAreAuditedWithAHashOfTheTermNeverTheTerm() throws Exception {
+        final String owner = RecordIds.newId();
+        chain(owner, "doc", List.of("123-45-6789"));
+        final String term = "search-" + UUID.randomUUID();
+
+        storage().ledger().listChains("req", owner, term, new Listings.Sort("timestamp", true), 0, 10, "test");
+
+        final List<AuditLogService.AuditEvent> queries = audited(owner, AuditLogEvent.REDACTION_LEDGER_QUERY);
+        assertEquals(1, queries.size());
+        assertEquals("searchTermHash: " + DigestUtils.sha256Hex(term), queries.get(0).details());
+        assertFalse(storage().storageContains(term), "the search term is stored nowhere");
+    }
+
+    @Test
+    default void ledgerDeletionsAndRefusedDeletionsAreAudited() throws Exception {
+        final String owner = RecordIds.newId();
+        chain(owner, "doc", List.of("123-45-6789"));
+        assertEquals(201, storage().legalHolds().create("req", "case-1", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN, "doc",
+                "litigation", owner, owner).getStatusCode());
+
+        assertFalse(storage().ledger().deleteByDocumentId("req", owner, "doc", "test").isSuccessful());
+        final List<AuditLogService.AuditEvent> blocked = audited(owner, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION);
+        assertEquals(1, blocked.size());
+        assertTrue(blocked.get(0).details().contains("case-1"), blocked.get(0).details());
+        assertTrue(audited(owner, AuditLogEvent.REDACTION_LEDGER_DELETED).isEmpty());
+
+        assertTrue(storage().legalHolds().release("req", "case-1", owner).isSuccessful());
+        assertTrue(storage().ledger().deleteByDocumentId("req", owner, "doc", "test").isSuccessful());
+        final List<AuditLogService.AuditEvent> deleted = audited(owner, AuditLogEvent.REDACTION_LEDGER_DELETED);
+        assertEquals(1, deleted.size());
+        assertEquals("documentId: doc", deleted.get(0).details());
     }
 
 }

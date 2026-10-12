@@ -152,6 +152,14 @@ public class SqliteStorageConfiguration {
         return new SqliteWebhookDeliveryDataService(database, encryptionService);
     }
 
+    /** Removes records past their retention on a schedule, since SQLite has no TTL indexes. */
+    @Bean
+    public SqliteRetention sqliteRetention(final PendingDocumentDataService pendingDocumentDataService,
+                                           final WebhookDeliveryDataService webhookDeliveryDataService,
+                                           final SignInChallengeDataService signInChallengeDataService) {
+        return new SqliteRetention(pendingDocumentDataService, webhookDeliveryDataService, signInChallengeDataService);
+    }
+
     @Bean
     public PolicyVersionDataService policyVersionDataService() {
         return new SqlitePolicyVersionDataService(database);

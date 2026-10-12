@@ -41,6 +41,7 @@ import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.signing.SigningService;
+import ai.philterd.philter.services.vectors.VectorServices;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
@@ -101,6 +102,16 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     @Override
     public ContextEntryDataService contextEntries() {
         return once("contextEntries", () -> configuration.contextEntryDataService(contextCache));
+    }
+
+    @Override
+    public VectorServices vectors() {
+        return once("vectors", configuration::vectorServices);
+    }
+
+    @Override
+    public ContextEntryDataService contextEntriesHolding(final int capacity) {
+        return ((MongoContextEntryDataService) contextEntries()).withCapacity(contextCache, capacity);
     }
 
     @Override

@@ -133,7 +133,8 @@ public class SigningService {
 
     /**
      * Verifies a ledger entry signature against the key that made it, which may have since been
-     * superseded. Returns false when the key is unknown or the signature does not match.
+     * superseded. Returns false when the key is unknown or the signature does not match. A storage failure while
+     * finding the key is thrown, since it says nothing about the signature.
      */
     public boolean verifyLedgerEntry(final String entryHash, final String signature, final String keyId) {
         if (entryHash == null || signature == null) {

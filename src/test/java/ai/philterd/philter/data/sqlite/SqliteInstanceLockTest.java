@@ -56,7 +56,12 @@ class SqliteInstanceLockTest {
                 SqliteLockHolder.class.getName(), path).redirectErrorStream(true).start();
         try {
             final BufferedReader output = new BufferedReader(new InputStreamReader(holder.getInputStream(), StandardCharsets.UTF_8));
-            assertEquals("locked", output.readLine(), "the other process holds the lock");
+            // Logging may write first; the holder prints "locked" once it holds the lock.
+            String line;
+            do {
+                line = output.readLine();
+            } while (line != null && !line.equals("locked"));
+            assertEquals("locked", line, "the other process holds the lock");
 
             final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> SqliteInstanceLock.acquire(path));
             assertTrue(refused.getMessage().contains("Another Philter is using the SQLite database"), refused.getMessage());

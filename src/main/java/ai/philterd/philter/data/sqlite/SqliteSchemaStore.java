@@ -16,8 +16,11 @@
 package ai.philterd.philter.data.sqlite;
 
 import ai.philterd.philter.data.schema.Migration;
+import ai.philterd.philter.data.schema.SchemaMigrator;
 import ai.philterd.philter.data.schema.SchemaStore;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
@@ -65,13 +68,16 @@ public class SqliteSchemaStore implements SchemaStore {
 
     @Override
     public void initialize(final int version, final Instant at) {
+        // The version 1 tables and their version are created in one transaction, so a database is never left with
+        // tables but no version, which would stop every later start. Each migration's version is recorded once it
+        // has run, so a start that stops part way resumes from there.
         database.write(connection -> {
             try (Statement statement = connection.createStatement()) {
                 for (final String ddl : SqliteSchema.BASELINE) {
                     statement.execute(ddl);
                 }
             }
-            return null;
+            return writeVersion(connection, SchemaMigrator.BASELINE_VERSION, at);
         });
         for (final Migration migration : migrations) {
             if (migration.version() <= version) {
@@ -81,12 +87,15 @@ public class SqliteSchemaStore implements SchemaStore {
                     throw new IllegalStateException("Creating the database failed at migration " + migration.version()
                             + ": " + ex.getMessage(), ex);
                 }
+                database.write(connection -> writeVersion(connection, migration.version(), at));
             }
         }
-        database.write(connection -> Sql.update(connection,
-                "INSERT INTO schema_version (id, version, initialized_at, updated_at) VALUES (1, ?, ?, ?) "
-                        + "ON CONFLICT (id) DO UPDATE SET version = excluded.version, updated_at = excluded.updated_at",
-                version, at.toEpochMilli(), at.toEpochMilli()));
+    }
+
+    private static int writeVersion(final Connection connection, final int version, final Instant at) throws SQLException {
+        return Sql.update(connection, "INSERT INTO schema_version (id, version, initialized_at, updated_at) VALUES (1, ?, ?, ?) "
+                + "ON CONFLICT (id) DO UPDATE SET version = excluded.version, updated_at = excluded.updated_at",
+                version, at.toEpochMilli(), at.toEpochMilli());
     }
 
     @Override
@@ -95,8 +104,7 @@ public class SqliteSchemaStore implements SchemaStore {
         database.write(connection -> {
             Sql.update(connection, "INSERT INTO schema_history (version, description, ran_at) VALUES (?, ?, ?)",
                     version, description, ranAt.toEpochMilli());
-            return Sql.update(connection, "UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1",
-                    version, ranAt.toEpochMilli());
+            return writeVersion(connection, version, ranAt);
         });
     }
 

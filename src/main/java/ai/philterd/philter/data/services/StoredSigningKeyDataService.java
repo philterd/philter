@@ -201,13 +201,9 @@ public abstract class StoredSigningKeyDataService implements SigningKeyDataServi
         if (snapshot != null && keyId.equals(snapshot.keyId())) {
             return snapshot.keyPair().getPublic();
         }
-        final byte[] encoded;
-        try {
-            encoded = findPublicKey(keyId);
-        } catch (final RuntimeException e) {
-            LOGGER.warn("Stored signing key {} could not be read.", keyId, e);
-            return null;
-        }
+        // A storage failure is thrown, not reported as a missing key: that would make every signature it made
+        // look forged.
+        final byte[] encoded = findPublicKey(keyId);
         if (encoded == null) {
             return null;
         }

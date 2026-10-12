@@ -58,7 +58,8 @@ public interface SigningKeyDataService {
 
     /**
      * Returns the public key with the given id, active or superseded, so a historical signature can
-     * still be verified. Returns null when no key matches.
+     * still be verified. Returns null when no key matches or the stored key cannot be parsed. A storage failure
+     * is thrown rather than reported as a missing key.
      */
     PublicKey findPublicKeyById(final String keyId);
 

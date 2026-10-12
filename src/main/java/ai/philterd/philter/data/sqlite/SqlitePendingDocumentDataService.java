@@ -28,8 +28,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.function.LongSupplier;
 
-/** Stores the asynchronous queue in SQLite, removing finished documents after their retention period. */
-public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataService {
+/**
+ * Stores the asynchronous queue in SQLite, removing finished documents after their retention period, both as documents
+ * are submitted and on {@link SqliteRetention}'s schedule.
+ */
+public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataService implements SqliteRetention.Expiring {
 
     private static final String OPEN = "status IN ('" + PendingDocumentEntity.STATUS_PENDING + "', '"
             + PendingDocumentEntity.STATUS_PROCESSING + "')";
@@ -77,6 +80,14 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
         entity.setClaimExpiresAt(row.date("claim_expires_at"));
         entity.setReclaimCount(row.intValue("reclaim_count"));
         return entity;
+    }
+
+    @Override
+    public void removeExpired() {
+        database.write(connection -> {
+            prune(connection);
+            return null;
+        });
     }
 
     private void prune(final Connection connection) throws SQLException {

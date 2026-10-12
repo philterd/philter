@@ -64,7 +64,7 @@ import static org.mockito.Mockito.mock;
  * external model/service dependency, keeping the tests deterministic and CI-friendly.
  *
  * <p>Capacity-triggered eviction <em>selection</em> (which entry is removed when a context is full) is
- * covered by {@code ContextEntryDataServiceTest.putReplacementEvictsLeastReadWhenAtCapacity}; here
+ * covered, for every storage, by {@code ContextEntryDataServiceContract.contextEntryAFullContextEvictsItsLeastReadEntry}; here
  * {@link #evictedTokenIsTreatedAsNewAndReanonymized} covers the documented end-to-end behavior that a
  * token receives a fresh surrogate once its mapping has been evicted from the context.
  */
@@ -182,9 +182,9 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
 
         // Eviction acts on the persisted mapping table, so this asserts the documented behavior at that
         // exact layer (the one evictIfFull operates on), free of the in-process replacement cache that
-        // sits above it in a live request. Capacity-triggered eviction *selection* — which entry is
-        // dropped when a context is full — is covered by
-        // ContextEntryDataServiceTest.putReplacementEvictsLeastReadWhenAtCapacity.
+        // sits above it in a live request. Capacity-triggered eviction *selection* (which entry is
+        // dropped when a context is full) is covered by
+        // ContextEntryDataServiceContract.contextEntryAFullContextEvictsItsLeastReadEntry.
         final String userId = MongoIds.newId();
         final String context = "eviction";
         final String token = "123-45-6789";

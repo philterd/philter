@@ -42,6 +42,7 @@ import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.signing.SigningService;
+import ai.philterd.philter.services.vectors.VectorServices;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.google.gson.Gson;
 
@@ -119,8 +120,17 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
 
     @Override
     public ContextDataService contexts() {
-        return once("contexts", () -> new SqliteContextDataService(database, auditEvents(), contextEntries(),
-                new SqliteVectorServices(database)));
+        return once("contexts", () -> new SqliteContextDataService(database, auditEvents(), contextEntries(), vectors()));
+    }
+
+    @Override
+    public VectorServices vectors() {
+        return once("vectors", () -> new SqliteVectorServices(database));
+    }
+
+    @Override
+    public ContextEntryDataService contextEntriesHolding(final int capacity) {
+        return new SqliteContextEntryDataService(database, contextCache, capacity);
     }
 
     @Override

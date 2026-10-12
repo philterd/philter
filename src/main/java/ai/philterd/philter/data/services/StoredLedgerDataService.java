@@ -25,6 +25,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -177,15 +178,18 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
             LOGGER.warn("The ledger chain for document {} could not be validated.", documentId, e);
             return ChainValidation.unverifiable();
         }
+        // Only the checks themselves are caught. A storage failure while finding a signing key is thrown, since it
+        // says nothing about the chain.
         try {
             return checkChain(chain, documentId);
-        } catch (final Exception e) {
+        } catch (final NoSuchAlgorithmException e) {
             LOGGER.warn("The ledger chain for document {} could not be validated.", documentId, e);
             return ChainValidation.unverifiable();
         }
     }
 
-    private ChainValidation checkChain(final List<LedgerEntity> chain, final String documentId) throws Exception {
+    private ChainValidation checkChain(final List<LedgerEntity> chain, final String documentId)
+            throws NoSuchAlgorithmException {
 
         if (chain.isEmpty()) {
             return new ChainValidation(false, false, 0, 0);

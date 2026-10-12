@@ -35,6 +35,7 @@ import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
+import ai.philterd.philter.services.vectors.VectorServices;
 
 import java.time.LocalDate;
 import java.util.Map;
@@ -83,6 +84,15 @@ public interface StorageUnderTest {
     PiiCountAggregatePublisher piiCounts();
 
     PiiCountDataService piiCountData();
+
+    /** The disambiguation vectors that contexts learn, which deleting or emptying a context removes. */
+    VectorServices vectors();
+
+    /**
+     * Context entry storage over the same data whose contexts hold at most {@code capacity} entries, so a test can
+     * fill a context without storing {@link ContextEntryDataService#MAX_CONTEXT_SIZE} entries.
+     */
+    ContextEntryDataService contextEntriesHolding(int capacity);
 
     /** The per-owner guard on evidence deletion and legal hold changes that the ledger and legal holds share. */
     EvidenceGuard evidenceGuard();

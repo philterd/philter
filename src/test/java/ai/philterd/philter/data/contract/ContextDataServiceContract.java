@@ -20,6 +20,9 @@ import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.phileas.model.filtering.FilterType;
+import ai.philterd.phileas.model.filtering.Span;
+import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -85,6 +88,33 @@ public interface ContextDataServiceContract extends StorageContract {
                 .items().stream().map(ContextEntity::getContextName).toList());
         assertEquals(List.of("Beta"), storage().contexts().list(owner, "bET", byName, 0, 10)
                 .items().stream().map(ContextEntity::getContextName).toList());
+    }
+
+    private static Span personSpan() {
+        final Span span = new Span();
+        span.setFilterType(FilterType.PERSON);
+        return span;
+    }
+
+    @Test
+    default void contextEmptyingOrDeletingAContextRemovesItsVectors() {
+        final String owner = RecordIds.newId();
+        assertTrue(storage().contexts().create("claims", owner).isSuccessful());
+        assertTrue(storage().contexts().create("other", owner).isSuccessful());
+        final VectorService vectors = storage().vectors().forUser(owner);
+        vectors.hashAndInsert("claims", new double[]{1.5, 2.5}, personSpan(), 2);
+        vectors.hashAndInsert("other", new double[]{1.5}, personSpan(), 1);
+        storage().vectors().forUser(RecordIds.newId()).hashAndInsert("claims", new double[]{1.5}, personSpan(), 1);
+        assertEquals(2, vectors.getVectorRepresentation("claims", FilterType.PERSON).size());
+
+        assertTrue(storage().contexts().emptyByName("claims", owner).isSuccessful());
+        assertTrue(vectors.getVectorRepresentation("claims", FilterType.PERSON).isEmpty(), "emptying removes its vectors");
+        assertEquals(1, vectors.getVectorRepresentation("other", FilterType.PERSON).size(), "only that context's");
+
+        vectors.hashAndInsert("claims", new double[]{1.5}, personSpan(), 1);
+        assertTrue(storage().contexts().deleteByName("claims", owner).isSuccessful());
+        assertTrue(vectors.getVectorRepresentation("claims", FilterType.PERSON).isEmpty(), "deleting removes its vectors");
+        assertEquals(1, vectors.getVectorRepresentation("other", FilterType.PERSON).size());
     }
 
 }

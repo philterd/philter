@@ -21,6 +21,7 @@ import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Set;
 
 /**
  * Keeps a second Philter from using the same SQLite database. SQLite storage is for one instance: the guarantees
@@ -46,7 +47,9 @@ public final class SqliteInstanceLock implements AutoCloseable {
     public static SqliteInstanceLock acquire(final String databasePath) {
         final Path lockFile = Path.of(databasePath + ".lock");
         try {
-            final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            final FileChannel channel = FileChannel.open(lockFile, Set.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE),
+                    OwnerOnlyFiles.attributes());
+            OwnerOnlyFiles.restrict(lockFile);
             final FileLock lock;
             try {
                 lock = channel.tryLock();

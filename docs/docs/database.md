@@ -18,6 +18,7 @@ Philter is developed and tested against **MongoDB 8.2**, which is what the bundl
 | Always/never redact lists | Per-account always-redact / never-redact term lists. |
 | Pending documents | Records for asynchronous PDF redactions, including encrypted input/output, attempt tokens, renewable computation leases, and publication reservations. Finished records have a TTL; interrupted publication requires [operator recovery](api_and_sdks/api/documents_api.md#claims-and-recovery). |
 | Webhook deliveries | Delivery records for outbound webhook notifications (subject to a TTL). |
+| Schema version | The `schema_version` collection: the version of the data layout, when each [migration](#schema-version-and-migrations) ran, and the lock an instance holds while migrating. |
 | Evidence operation coordination | The evidence_operation_guards collection serializes hold changes and ledger deletions per owner. Guards do not expire; interrupted operations require the recovery procedure in [Legal Holds](redaction/legal_holds.md#concurrent-operations-and-recovery). |
 | Active signing key | The signing_key_state collection contains the single active-key pointer. Key history remains in signing_keys so earlier signatures can be verified after rotation. |
 | Ledger chain lifecycle | The `ledger_chains` collection tracks open, writing, failed, completed, and purged chains. Purged markers prevent late appends; they contain owner/document IDs and lifecycle timestamps, not tokens or replacements. |
@@ -117,11 +118,24 @@ Philter creates the indexes it needs automatically at startup. Each data service
 * `webhook_deliveries` by delivery status, with a TTL index (`WEBHOOK_DELIVERIES_TTL_SECONDS`, default 30 days).
 * `users` by `username`, and `audit_events` by `timestamp`, by `timestamp` and `_id` (for paging the CSV export), and by `event`.
 
-Required uniqueness and retention indexes must be created and their options verified; a failure prevents startup. Incompatible TTL settings also fail startup. Only optional performance-index failures are logged and tolerated. Ledger collections must have no automatic TTL index, regardless of its name. Philter rejects incompatible schemas without dropping indexes or migrating data. Provision the required schema and privileges before starting the application.
+Required uniqueness and retention indexes must be created and their options verified; a failure prevents startup. Incompatible TTL settings also fail startup. Only optional performance-index failures are logged and tolerated. Ledger collections must have no automatic TTL index, regardless of its name. Philter rejects incompatible indexes without dropping them. Provision the required schema and privileges before starting the application.
+
+## Schema version and migrations
+
+Philter records the version of its data layout in the `schema_version` collection and checks it each time it starts, before it serves any request:
+
+* **A new database** is recorded at the version the running Philter expects.
+* **An older version** is brought up to date: Philter runs each pending migration in order and records each one, with when it ran, as it completes. A database that holds data but no recorded version was written before versions were recorded and is migrated from the first version.
+* **A newer version**, written by a newer Philter, stops Philter from starting with a message naming both versions. Philter does not change the data. Run the newer release, or restore a backup taken before it ran.
+* **A failed migration** stops Philter from starting. The log names the migration and why it failed, and the recorded version stays at the last migration that completed, so a release with a fix continues from there.
+
+When several instances start together, one takes a lock and migrates while the others wait for it, up to `SCHEMA_MIGRATION_WAIT_SECONDS` (see [Settings](settings.md#database-settings)). The lock expires if the instance holding it stops, so another can take over. Each start logs the version it found and each migration it ran.
+
+Migrations change data in place. Back up the database before upgrading Philter; see [Upgrading](upgrading.md#upgrading-within-4x).
 
 ## Operational notes
 
-* **Backups.** MongoDB holds your policies, contexts, ledger, and audit log. Back it up like any other production datastore.
+* **Backups.** MongoDB holds your policies, contexts, ledger, and audit log. Back it up like any other production datastore, and before every upgrade, since an upgrade may [migrate the data](#schema-version-and-migrations).
 * **Network access.** Restrict network access to the database to the Philter instances that need it.
 * **Multiple Philter instances.** When running more than one Philter instance, point them all at the same MongoDB so they share state. They should also share a cache; see [Caching](caching.md).
 

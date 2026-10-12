@@ -46,120 +46,124 @@ import com.mongodb.client.MongoClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 
 /**
  * The MongoDB storage implementation: every data service, the audit log, and the services a redaction stores
- * through, backed by MongoDB. Used when {@code STORAGE_TYPE} is {@code mongodb}, the default.
+ * through, backed by MongoDB. Used when {@code STORAGE_TYPE} is {@code mongodb}, the default. Its services are
+ * created only once the data is at the expected schema version.
  */
 @Configuration
 @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
+@DependsOn(MongoConnectionConfiguration.SCHEMA_VERSION)
 public class MongoStorageConfiguration {
+
+    private final MongoClient mongoClient;
+
+    public MongoStorageConfiguration(final MongoClient mongoClient) {
+        this.mongoClient = mongoClient;
+    }
 
     @Bean
     public PiiCountAggregatePublisher piiCountAggregatePublisher(final AdminSettingsDataService adminSettingsDataService) {
-        return new MongoPiiCountAggregatePublisher(mongoClient(), adminSettingsDataService);
+        return new MongoPiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
     }
 
     @Bean
     public ContextServices contextServices() {
-        return new MongoContextServices(mongoClient(), auditEventPublisher());
+        return new MongoContextServices(mongoClient, auditEventPublisher());
     }
 
     @Bean
     public VectorServices vectorServices() {
-        return new MongoVectorServices(mongoClient(), auditEventPublisher());
-    }
-
-    @Bean
-    public MongoClient mongoClient() {
-        return MongoClientUtil.getClient();
+        return new MongoVectorServices(mongoClient, auditEventPublisher());
     }
 
     @Bean
     public AuditEventPublisher auditEventPublisher() {
-        return new MongoDBAuditEventPublisher(mongoClient());
+        return new MongoDBAuditEventPublisher(mongoClient);
     }
 
     @Bean
     public AuditLogService auditLogService() {
-        return new MongoAuditLogService(mongoClient());
+        return new MongoAuditLogService(mongoClient);
     }
 
     @Bean
     public ContextDataService contextDataService(final ContextCache contextCache) {
-        return new MongoContextDataService(mongoClient(), contextCache, auditEventPublisher());
+        return new MongoContextDataService(mongoClient, contextCache, auditEventPublisher());
     }
 
     @Bean
     public LegalHoldDataService legalHoldDataService() {
-        return new MongoLegalHoldDataService(mongoClient(), auditEventPublisher());
+        return new MongoLegalHoldDataService(mongoClient, auditEventPublisher());
     }
 
     @Bean
     public LedgerDataService ledgerService(final SigningService signingService,
             final EncryptionService encryptionService) {
-        return new MongoLedgerDataService(mongoClient(), encryptionService, auditEventPublisher(),
+        return new MongoLedgerDataService(mongoClient, encryptionService, auditEventPublisher(),
                 legalHoldDataService(), signingService);
     }
 
     @Bean
     public ContextEntryDataService contextEntryDataService(final ContextCache contextCache) {
-        return new MongoContextEntryDataService(mongoClient(), auditEventPublisher(), contextCache);
+        return new MongoContextEntryDataService(mongoClient, auditEventPublisher(), contextCache);
     }
 
     @Bean
     public CustomListDataService customListService(final EncryptionService encryptionService) {
-        return new MongoCustomListDataService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoCustomListDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
     public RedactListsDataService redactListsService(final EncryptionService encryptionService) {
-        return new MongoRedactListsDataService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoRedactListsDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
     public ApiKeyDataService apiKeyDataService(final ApiKeyCache apiKeyCache) {
-        return new MongoApiKeyDataService(mongoClient(), auditEventPublisher(), apiKeyCache);
+        return new MongoApiKeyDataService(mongoClient, auditEventPublisher(), apiKeyCache);
     }
 
     @Bean
     public SignInChallengeDataService signInChallengeDataService() {
-        return new MongoSignInChallengeDataService(mongoClient());
+        return new MongoSignInChallengeDataService(mongoClient);
     }
 
     @Bean
     public PendingDocumentDataService pendingDocumentDataService(final EncryptionService encryptionService) {
-        return new MongoPendingDocumentDataService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoPendingDocumentDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
     public WebhookDeliveryDataService webhookDeliveryDataService(final EncryptionService encryptionService) {
-        return new MongoWebhookDeliveryDataService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoWebhookDeliveryDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
     public PolicyVersionDataService policyVersionDataService() {
-        return new MongoPolicyVersionDataService(mongoClient(), auditEventPublisher());
+        return new MongoPolicyVersionDataService(mongoClient, auditEventPublisher());
     }
 
     @Bean
     public PolicyDataService policyDataService(final Gson gson, final RedactionCache redactionCache) {
-        return new MongoPolicyDataService(mongoClient(), auditEventPublisher(), gson, policyVersionDataService(), redactionCache);
+        return new MongoPolicyDataService(mongoClient, auditEventPublisher(), gson, policyVersionDataService(), redactionCache);
     }
 
     @Bean
     public AdminSettingsDataService adminSettingsDataService(final EncryptionService encryptionService) {
-        return new MongoAdminSettingsDataService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoAdminSettingsDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
     public SigningKeyDataService signingKeyDataService(final EncryptionService encryptionService) {
-        return new MongoSigningKeyDataService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoSigningKeyDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
     public UserService userService(final EncryptionService encryptionService) {
-        return new MongoUserService(mongoClient(), encryptionService, auditEventPublisher());
+        return new MongoUserService(mongoClient, encryptionService, auditEventPublisher());
     }
 
 }

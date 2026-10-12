@@ -17,6 +17,7 @@ Philter requires a MongoDB database to store policies and other data. See [Datab
 |----------------------|-------------|---------------|
 | `STORAGE_TYPE` | Where Philter stores its data. `mongodb` is the only storage Philter has today. Philter does not start with any other value. | `mongodb` |
 | `MONGODB_CONNECTION_STRING` | The MongoDB connection string. | `mongodb://localhost:27017` |
+| `SCHEMA_MIGRATION_WAIT_SECONDS` | How long an instance waits at startup for another instance that is [migrating the data](database.md#schema-version-and-migrations) before it stops with an error. | `600` |
 
 ## Encryption
 

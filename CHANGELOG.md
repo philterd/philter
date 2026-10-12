@@ -40,6 +40,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Change a user's email:** `PUT /api/users/{username}/email` lets an administrator set, change, or
   remove a user's email address. Email addresses are now checked for a basic format, including when a
   user is created.
+- **Schema versions and automatic migrations:** Philter records the version of its data layout and
+  migrates the data at startup when a release needs it, one instance at a time; it refuses to start on
+  data written by a newer release. Back up the database before upgrading. See
+  [Upgrading](docs/docs/upgrading.md#upgrading-within-4x).
 - **Storage selection:** `STORAGE_TYPE` selects where Philter stores its data. `mongodb`, the default,
   is the only storage today. Philter now reaches its data only through storage interfaces, so other
   storage can be added later.

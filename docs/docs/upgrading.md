@@ -2,6 +2,16 @@
 
 We recommend reviewing the [Philter Release Notes](https://www.philterd.ai/philter-release-notes/) prior to upgrading.
 
+## Upgrading within 4.x
+
+From 4.0 on, Philter records the version of its data layout and migrates the data itself when a new release needs it. There is nothing to run by hand.
+
+1. **Back up the database** before upgrading. Migrations change data in place, and a database that a newer release has migrated cannot be used by an older one.
+2. **Stop the instances running the old release**, then start the new one. Instances running the old release keep running against the migrated data, so replace them together rather than one at a time when the new release migrates.
+3. **Check the log** of the first instance to start. It records the schema version it found and each migration it ran. Other instances starting at the same time wait for it.
+
+If a migration fails, Philter does not start, and the log says which migration failed and why. The data stays at the last migration that completed; fix the cause, or run a release with a fix, and start again. A database written by a newer release stops an older release from starting, naming both versions, so roll back by restoring the backup rather than by starting the older release. See [Schema version and migrations](database.md#schema-version-and-migrations).
+
 ## Upgrading to 4.x
 
 Philter 4.x includes several breaking changes. Review the following before upgrading from 3.x.

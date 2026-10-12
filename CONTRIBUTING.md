@@ -34,6 +34,15 @@ Each implementation registers its beans in a Spring configuration that applies o
 `MongoStorageConfiguration` for MongoDB. `ai.philterd.philter.config.StorageConfiguration` lists the known
 values and stops Philter from starting with any other.
 
+## Changing how data is stored
+
+Philter records the version of its data layout and migrates the data at startup (see
+`ai.philterd.philter.data.schema.SchemaMigrator`). When a change needs existing data rewritten, such as a
+renamed field or a restructured document, add a `Migration` numbered one more than the last, as a class in the
+storage package, and list it in that implementation's migrations (`MongoMigrations` for MongoDB). A migration
+should be safe to run again, since Philter may stop after its changes but before they are recorded. Migrations
+are never edited or removed once released. Each storage implementation keeps its version in a `SchemaStore`.
+
 To add an implementation, add a package beside `data.mongodb` with a class for each interface and a
 configuration that applies when its `STORAGE_TYPE` is selected, add the value to `StorageConfiguration.TYPES`,
 and document it in `docs/docs/settings.md`. It must provide the guarantees in each interface's Javadoc.

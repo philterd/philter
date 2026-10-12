@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.audit;
+package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.mongodb.client.MongoCollection;

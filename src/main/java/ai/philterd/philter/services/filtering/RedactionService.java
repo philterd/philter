@@ -27,7 +27,6 @@ import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.mongodb.ContextDocuments;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
@@ -44,14 +43,14 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.cache.RedactionCache;
-import ai.philterd.philter.services.context.MongoContextService;
+import ai.philterd.philter.services.context.ContextServices;
 import ai.philterd.philter.services.context.NoOpContextService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
-import ai.philterd.philter.services.vectors.MongoVectorService;
+import ai.philterd.philter.services.vectors.VectorServices;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.utils.EnvUtils;
 import ai.philterd.philter.utils.FilterTypeCounter;
@@ -59,7 +58,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import ai.philterd.philter.utils.HttpUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mongodb.client.MongoClient;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -89,7 +87,8 @@ public class RedactionService {
     private static final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv("CACHE_SSL"));
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-    private final MongoClient mongoClient;
+    private final ContextServices contextServices;
+    private final VectorServices vectorServices;
     private final PolicyDataService policyDataService;
     private final CustomListDataService customListService;
     private final RedactListsDataService redactListsService;
@@ -143,7 +142,8 @@ public class RedactionService {
                     .disableAutomaticRetries() // optional; consider enabling if idempotent
                     .build();
 
-    public RedactionService(final MongoClient mongoClient,
+    public RedactionService(final ContextServices contextServices,
+                            final VectorServices vectorServices,
                             final PolicyDataService policyDataService,
                             final CustomListDataService customListService,
                             final RedactListsDataService redactListsService,
@@ -156,7 +156,8 @@ public class RedactionService {
                             final PiiCountAggregatePublisher piiCountAggregatePublisher,
                             final RedactionCache redactionCache) {
 
-        this.mongoClient = mongoClient;
+        this.contextServices = contextServices;
+        this.vectorServices = vectorServices;
         this.policyDataService = policyDataService;
         this.customListService = customListService;
         this.redactListsService = redactListsService;
@@ -276,7 +277,7 @@ public class RedactionService {
         // documents/requests, and any entity-type disambiguation is limited to the current document.
         final boolean useContext = contextName != null && !contextName.isBlank();
 
-        // The context service either uses Mongo or is a NoOp (when no context is used).
+        // The context service either uses the stored context or is a NoOp (when no context is used).
         final ai.philterd.phileas.services.context.ContextService phileasContextService;
 
         // The vector service for entity type disambiguation.
@@ -303,7 +304,7 @@ public class RedactionService {
 
             // Find the context by its name.
             final ContextEntity contextEntity = effective == null ? contextService.findOneByNameAndUserId(contextName, userEntity.getId())
-                    : effective.contextJson() == null ? null : ContextDocuments.fromDocument(org.bson.Document.parse(effective.contextJson()));
+                    : effective.contextJson() == null ? null : ContextSnapshots.fromJson(effective.contextJson());
 
             if(contextEntity == null) {
 
@@ -314,9 +315,8 @@ public class RedactionService {
 
             }
 
-            // Create the MongoDB context service.
-            LOGGER.info("Using MongoDB context service...");
-            phileasContextService = new MongoContextService(mongoClient, contextCache, userEntity.getId(), contextEntity.getContextName(), auditEventPublisher);
+            LOGGER.info("Using the stored context service...");
+            phileasContextService = contextServices.forContext(contextCache, userEntity.getId(), contextEntity.getContextName());
 
             disambiguationEnabled = contextEntity.isDisambiguation();
             ledgerEnabled = contextEntity.isLedger();
@@ -328,7 +328,7 @@ public class RedactionService {
                 if (contextEntity.getDisambiguationScope().equalsIgnoreCase("Document")) {
                     vectorService = new InMemoryVectorService();
                 } else if (contextEntity.getDisambiguationScope().equalsIgnoreCase("Context")) {
-                    vectorService = new MongoVectorService(mongoClient, userEntity.getId(), auditEventPublisher);
+                    vectorService = vectorServices.forUser(userEntity.getId());
                 } else {
                     LOGGER.info("Invalid disambiguation scope: {}", contextEntity.getDisambiguationScope());
                     vectorService = new InMemoryVectorService();
@@ -559,7 +559,7 @@ public class RedactionService {
         }
         final com.google.gson.JsonElement json = gson.toJsonTree(resolved);
         freezeEnvironmentKeys(json);
-        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json), context == null ? null : ContextDocuments.toDocument(context).toJson()));
+        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json), context == null ? null : ContextSnapshots.toJson(context)));
         ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(captured);
         return captured;
     }

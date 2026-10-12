@@ -1,4 +1,4 @@
-package ai.philterd.philter.data;
+package ai.philterd.philter.data.mongodb;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

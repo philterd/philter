@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.services.diffuse;
+package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.data.mongodb.MongoAdminSettingsDataService;
+import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -50,7 +49,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         adminSettingsDataService = new MongoAdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
-        aggregates = mongoClient.getDatabase("philter").getCollection(PiiCountAggregatePublisher.COLLECTION);
+        aggregates = mongoClient.getDatabase("philter").getCollection(MongoPiiCountAggregatePublisher.COLLECTION);
         // Changing a setting rechecks that the acting user is an active administrator.
         mongoClient.getDatabase("philter").getCollection("users")
                 .insertOne(new org.bson.Document("_id", MongoIds.objectId(ACTING_ADMIN)).append("role", "admin"));
@@ -58,7 +57,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
 
     private PiiCountAggregatePublisher enabledPublisher() {
         adminSettingsDataService.update(new AdminSettingsDataService.Update(true, null, null, null, null, null, null, null, null, null), ACTING_ADMIN, null);
-        return new PiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
+        return new MongoPiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
     }
 
     @Test
@@ -114,7 +113,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     void recordIsNoOpWhenDisabled() {
         // diffuse_counts_enabled defaults to off; do not enable it.
         final PiiCountAggregatePublisher publisher =
-                new PiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
+                new MongoPiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
 
         publisher.record("ctx", Set.of("PERSON"));
 

@@ -1,5 +1,7 @@
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoVectorServices;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.data.entities.*;
 import ai.philterd.philter.data.mongodb.MongoIds;
@@ -19,7 +21,7 @@ class EffectiveConfigurationTest {
     @Test void snapshotFreezesCustomListsFpeGlobalListsAndContextFlags() throws Exception {
         var users = mock(UserService.class); var lists = mock(CustomListDataService.class);
         var contexts = mock(ContextDataService.class); var globalLists = mock(RedactListsDataService.class);
-        var service = new RedactionService(mock(MongoClient.class, RETURNS_DEEP_STUBS), mock(PolicyDataService.class), lists, globalLists,
+        var service = new RedactionService(new MongoContextServices(mock(MongoClient.class, RETURNS_DEEP_STUBS), mock(AuditEventPublisher.class)), new MongoVectorServices(mock(MongoClient.class, RETURNS_DEEP_STUBS), mock(AuditEventPublisher.class)), mock(PolicyDataService.class), lists, globalLists,
                 contexts, mock(AuditEventPublisher.class), mock(LedgerDataService.class), users,
                 new SimpleMeterRegistry(), mock(PhieldPublisher.class), mock(PiiCountAggregatePublisher.class), new RedactionCache());
         var user = new UserEntity(); user.setId(MongoIds.newId());

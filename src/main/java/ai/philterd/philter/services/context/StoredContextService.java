@@ -15,34 +15,31 @@
  */
 package ai.philterd.philter.services.context;
 
-import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.services.context.ContextService;
-import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
-import com.mongodb.client.MongoClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.function.Supplier;
 
-public class MongoContextService implements ContextService {
+/**
+ * The context service a redaction uses for one user's context: token replacements from the context's stored
+ * entries, read through the request's cache.
+ */
+public class StoredContextService implements ContextService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MongoContextService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StoredContextService.class);
 
     private final ContextCache contextCache;
     private final ContextEntryDataService contextEntryService;
     private final String userId;
     private final String contextName;
 
-    public MongoContextService(final MongoClient mongoClient, final ContextCache contextCache, final String userId, final String contextName, final AuditEventPublisher auditEventPublisher) {
-        this(contextCache, new MongoContextEntryDataService(mongoClient, auditEventPublisher, contextCache), userId, contextName);
-    }
+    public StoredContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final String userId, final String contextName) {
 
-    MongoContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final String userId, final String contextName) {
-
-        LOGGER.info("Instantiating MongoContextService for user {} and context {}", userId, contextName);
+        LOGGER.info("Instantiating StoredContextService for user {} and context {}", userId, contextName);
 
         this.contextCache = contextCache;
         this.contextEntryService = contextEntryService;

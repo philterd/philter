@@ -29,7 +29,7 @@ import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
-import ai.philterd.philter.data.mongodb.MongoIds;
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -253,7 +253,7 @@ public class WebhookApiController extends AbstractApiController {
                     ErrorReasons.WEBHOOK_NOT_SET));
         }
 
-        final String deliveryId = MongoIds.newId();
+        final String deliveryId = RecordIds.newId();
         final Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("event", WebhookDeliveryEntity.EVENT_WEBHOOK_TEST);
         payload.put("test", true);

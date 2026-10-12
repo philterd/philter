@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.filters.auth;
 
+import ai.philterd.philter.data.mongodb.MongoApiKeyDataService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -95,7 +96,7 @@ class ApiAuthenticationFilterMetricsTest {
         // falls through to the mocked database.
         final ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache =
                 new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false);
-        filter = new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, new Gson(), apiKeyCache, userService);
+        filter = new ApiAuthenticationFilter(new MongoApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache), auditEventPublisher, meterRegistry, new Gson(), apiKeyCache, userService);
     }
 
     @Test

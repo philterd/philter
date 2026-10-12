@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.AuditLogService;
@@ -28,8 +29,6 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
-import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -126,14 +125,9 @@ class AuditApiControllerTest {
         when(userService.findAnyByUsername(email)).thenReturn(owner);
     }
 
-    private static Document auditEvent(final String event) {
-        return new Document("timestamp", new Date())
-                .append("event", event)
-                .append("request_id", "req-1")
-                .append("api_key_id", new ObjectId())
-                .append("associated_object", new ObjectId())
-                .append("client_ip_address", "203.0.113.7")
-                .append("details", "policy: p");
+    private static AuditLogService.AuditEvent auditEvent(final String event) {
+        return new AuditLogService.AuditEvent(new Date(), event, "req-1", RecordIds.newId(), RecordIds.newId(),
+                "203.0.113.7", null, "policy: p");
     }
 
     private org.springframework.test.web.servlet.ResultActions perform(final String url) throws Exception {

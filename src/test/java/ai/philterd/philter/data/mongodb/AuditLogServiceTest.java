@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.audit;
+package ai.philterd.philter.data.mongodb;
 
+import ai.philterd.philter.audit.AuditLogService;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -65,7 +66,7 @@ class AuditLogServiceTest {
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("audit_events")).thenReturn(collection);
-        auditLogService = new AuditLogService(mongoClient);
+        auditLogService = new MongoAuditLogService(mongoClient);
     }
 
     /** Stubs the find().sort().skip().limit() chain to iterate the given documents; returns the iterable mock. */

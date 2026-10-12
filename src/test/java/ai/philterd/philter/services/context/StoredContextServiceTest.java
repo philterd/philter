@@ -32,7 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class MongoContextServiceTest {
+class StoredContextServiceTest {
 
     @Mock
     private ContextCache contextCache;
@@ -43,11 +43,11 @@ class MongoContextServiceTest {
     private final String userId = MongoIds.newId();
     private final String contextName = "test-context";
 
-    private MongoContextService service;
+    private StoredContextService service;
 
     @BeforeEach
     void setUp() {
-        service = new MongoContextService(contextCache, contextEntryService, userId, contextName);
+        service = new StoredContextService(contextCache, contextEntryService, userId, contextName);
     }
 
     @Test

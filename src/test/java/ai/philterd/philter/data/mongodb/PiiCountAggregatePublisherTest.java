@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.services.diffuse;
+package ai.philterd.philter.data.mongodb;
 
+import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import com.mongodb.client.MongoClient;
@@ -51,11 +52,11 @@ class PiiCountAggregatePublisherTest {
     @BeforeEach
     void setUp() {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
-        when(mongoDatabase.getCollection(PiiCountAggregatePublisher.COLLECTION)).thenReturn(collection);
+        when(mongoDatabase.getCollection(MongoPiiCountAggregatePublisher.COLLECTION)).thenReturn(collection);
     }
 
     private PiiCountAggregatePublisher publisher() {
-        return new PiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
+        return new MongoPiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
     }
 
     @Test

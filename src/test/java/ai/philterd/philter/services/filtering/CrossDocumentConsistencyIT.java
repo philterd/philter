@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.FilterType;
@@ -29,7 +31,6 @@ import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
-import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
@@ -51,12 +52,12 @@ import static org.mockito.Mockito.mock;
 /**
  * End-to-end tests for cross-document replacement consistency under the {@code CONTEXT} replacement
  * scope (issue #208). Where {@link ai.philterd.philter.services.context.ContextExportImportIT}
- * exercises {@link MongoContextService#computeReplacementIfAbsent} directly, these tests drive the
+ * exercises {@link ContextService#computeReplacementIfAbsent} directly, these tests drive the
  * <em>real Phileas filter engine</em> ({@link PlainTextFilterService}) against a real (in-memory)
  * MongoDB, using native Phileas policies.
  *
  * <p>Each "redaction request" is issued through {@link #redact}, which builds a <em>fresh</em>
- * {@link MongoContextService} and {@link PlainTextFilterService} every call. This mirrors production,
+ * {@link ContextService} and {@link PlainTextFilterService} every call. This mirrors production,
  * where every request constructs a new context service, so the only thing that can carry a surrogate
  * from one request to the next is the persisted mapping table in MongoDB — not any in-process state.
  *
@@ -212,7 +213,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     // ---- helpers ---------------------------------------------------------------------------------
 
     /**
-     * Issues a single redaction "request": builds a fresh {@link MongoContextService} and Phileas
+     * Issues a single redaction "request": builds a fresh {@link ContextService} and Phileas
      * {@link PlainTextFilterService} (as production does per request) and filters the text. Because the
      * context service is recreated each call, any cross-request consistency must come from MongoDB.
      */
@@ -224,8 +225,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
         properties.put("span.disambiguation.enabled", "false");
         final PhileasConfiguration configuration = new PhileasConfiguration(properties);
 
-        final MongoContextService contextService = new MongoContextService(
-                mongoClient, new ContextCache(null, 0, null, false), userId, context, auditEventPublisher);
+        final ContextService contextService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), userId, context);
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
                 configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.audit;
+package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.data.mongodb.MongoIds;
+import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +58,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
         event("last", "2026-10-02T03:59:59Z");
         event("after", "2026-10-02T04:00:00Z");
 
-        final AuditLogService.CsvExport export = new AuditLogService(mongoClient)
+        final AuditLogService.CsvExport export = new MongoAuditLogService(mongoClient)
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("America/New_York"));
 
         final String[] lines = lines(export);
@@ -78,7 +78,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
         event("middle", "2026-10-01T02:00:00Z");
         event("newest", "2026-10-01T03:00:00Z");
 
-        final AuditLogService.CsvExport capped = new AuditLogService(mongoClient)
+        final AuditLogService.CsvExport capped = new MongoAuditLogService(mongoClient)
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC"), 0, 2);
 
         assertEquals(2, capped.rows());
@@ -87,7 +87,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
         assertTrue(csv.contains("newest") && csv.contains("middle") && !csv.contains("oldest"), csv);
 
         // Exactly at the limit is complete, not truncated.
-        final AuditLogService.CsvExport exact = new AuditLogService(mongoClient)
+        final AuditLogService.CsvExport exact = new MongoAuditLogService(mongoClient)
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC"), 0, 3);
         assertEquals(3, exact.rows());
         assertFalse(exact.truncated());
@@ -96,7 +96,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
     @Test
     @DisplayName("Without a zone the server's is used")
     void defaultsToTheServerZone() {
-        final AuditLogService.CsvExport export = new AuditLogService(mongoClient)
+        final AuditLogService.CsvExport export = new MongoAuditLogService(mongoClient)
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), null);
 
         assertEquals(ZoneId.systemDefault(), export.zone());
@@ -116,7 +116,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
                 .append("timestamp", Date.from(Instant.parse("2026-10-01T12:00:00Z"))));
         event("ordinary", "2026-10-01T11:00:00Z");
 
-        final String[] lines = lines(new AuditLogService(mongoClient)
+        final String[] lines = lines(new MongoAuditLogService(mongoClient)
                 .export(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"), ZoneId.of("UTC")));
 
         assertEquals("2026-10-01T12:00:00Z,api_authentication_failed,'-1+1,,'\tcmd,"
@@ -139,10 +139,10 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
 
         final LocalDate day = LocalDate.parse("2026-10-01");
         final ZoneId utc = ZoneId.of("UTC");
-        final List<String> whole = eventNames(new AuditLogService(mongoClient).export(day, day, utc));
+        final List<String> whole = eventNames(new MongoAuditLogService(mongoClient).export(day, day, utc));
         assertEquals(8, whole.size());
 
-        final AuditLogService service = new AuditLogService(mongoClient);
+        final AuditLogService service = new MongoAuditLogService(mongoClient);
         final List<String> paged = new ArrayList<>();
         int offset = 0;
         int pages = 0;
@@ -178,16 +178,16 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
         event("only", "2026-10-01T10:00:00Z");
         final LocalDate day = LocalDate.parse("2026-10-01");
 
-        final AuditLogService.CsvExport past = new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 5);
+        final AuditLogService.CsvExport past = new MongoAuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 5);
         assertEquals(0, past.rows());
         assertFalse(past.truncated());
 
         assertThrows(IllegalArgumentException.class,
-                () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), -1));
+                () -> new MongoAuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), -1));
         assertThrows(IllegalArgumentException.class,
-                () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, 0));
+                () -> new MongoAuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, 0));
         assertThrows(IllegalArgumentException.class,
-                () -> new AuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, AuditLogService.MAX_EXPORT_ROWS + 1));
+                () -> new MongoAuditLogService(mongoClient).export(day, day, ZoneId.of("UTC"), 0, AuditLogService.MAX_EXPORT_ROWS + 1));
     }
 
     @Test
@@ -200,7 +200,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
 
         final LocalDate day = LocalDate.parse("2026-10-01");
         final ZoneId utc = ZoneId.of("UTC");
-        final AuditLogService service = new AuditLogService(mongoClient);
+        final AuditLogService service = new MongoAuditLogService(mongoClient);
         final List<String> before = eventNames(service.export(day, day, utc));
         assertEquals(10, before.size());
 

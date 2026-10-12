@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.context;
 
+import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
@@ -42,7 +44,7 @@ import static org.mockito.Mockito.mock;
  *
  * <ol>
  *   <li>A mapping is learned in a source context via the real {@code CONTEXT}-scope redaction path
- *       ({@link MongoContextService#computeReplacementIfAbsent}).</li>
+ *       ({@link ContextService#computeReplacementIfAbsent}).</li>
  *   <li>The mapping is exported the way the export endpoint builds its payload, then serialized to
  *       JSON and parsed back (simulating transport to another environment).</li>
  *   <li>The mapping is imported into a <em>different</em> user and context via the same service call
@@ -72,8 +74,7 @@ class ContextExportImportIT extends AbstractMongoIT {
         // --- Source environment: learn a mapping through the real CONTEXT-scope redaction path. ---
         final String sourceUser = MongoIds.newId();
         final String sourceContext = "src";
-        final MongoContextService sourceService = new MongoContextService(
-                mongoClient, new ContextCache(null, 0, null, false), sourceUser, sourceContext, auditEventPublisher);
+        final ContextService sourceService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), sourceUser, sourceContext);
 
         final String firstReplacement = sourceService.computeReplacementIfAbsent(token, filterType, () -> learnedReplacement);
         assertEquals(learnedReplacement, firstReplacement);
@@ -101,8 +102,7 @@ class ContextExportImportIT extends AbstractMongoIT {
         // --- Redact in the destination context: the same input token must resolve to the imported
         //     replacement, and the "generate a new replacement" supplier must NOT be invoked. ---
         final AtomicBoolean regenerated = new AtomicBoolean(false);
-        final MongoContextService destService = new MongoContextService(
-                mongoClient, new ContextCache(null, 0, null, false), destUser, destContext, auditEventPublisher);
+        final ContextService destService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), destUser, destContext);
 
         final String resolved = destService.computeReplacementIfAbsent(token, filterType, () -> {
             regenerated.set(true);

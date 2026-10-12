@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.context;
 
+import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -39,9 +41,8 @@ import static org.mockito.Mockito.mock;
  */
 class ContextConsistencyIT extends AbstractMongoIT {
 
-    private MongoContextService serviceFor(final String userId, final String contextName) {
-        return new MongoContextService(mongoClient, new ContextCache(null, 0, null, false),
-                userId, contextName, mock(AuditEventPublisher.class));
+    private ContextService serviceFor(final String userId, final String contextName) {
+        return new MongoContextServices(mongoClient, mock(AuditEventPublisher.class)).forContext(new ContextCache(null, 0, null, false), userId, contextName);
     }
 
     @Test
@@ -57,8 +58,8 @@ class ContextConsistencyIT extends AbstractMongoIT {
 
             // Two requests, each with its own service instance and its own cache, as two concurrent
             // API calls have.
-            final MongoContextService one = serviceFor(user, context);
-            final MongoContextService two = serviceFor(user, context);
+            final ContextService one = serviceFor(user, context);
+            final ContextService two = serviceFor(user, context);
 
             final CountDownLatch go = new CountDownLatch(1);
             final List<String> pseudonyms = Collections.synchronizedList(new ArrayList<>());
@@ -88,20 +89,20 @@ class ContextConsistencyIT extends AbstractMongoIT {
     void alaterDocumentReusesTheStoredPseudonym() {
 
         final String user = MongoIds.newId();
-        final MongoContextService first = serviceFor(user, "case");
+        final ContextService first = serviceFor(user, "case");
 
         final String established = first.computeReplacementIfAbsent("John Smith", "PERSON", () -> "David Jones");
         assertEquals("David Jones", established);
 
         // A fresh instance, so nothing is answered from an in-process cache.
-        final MongoContextService later = serviceFor(user, "case");
+        final ContextService later = serviceFor(user, "case");
         assertEquals("David Jones", later.computeReplacementIfAbsent("John Smith", "PERSON", () -> "Someone Else"));
         assertEquals("David Jones", later.getReplacement("John Smith"));
 
     }
 
     private static Thread redactor(final CountDownLatch go, final List<String> pseudonyms,
-                                   final MongoContextService service, final String token, final String proposal) {
+                                   final ContextService service, final String token, final String proposal) {
         return new Thread(() -> {
             try {
                 go.await(10, TimeUnit.SECONDS);

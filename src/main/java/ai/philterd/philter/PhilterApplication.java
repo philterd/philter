@@ -35,8 +35,14 @@ import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.audit.MongoDBAuditEventPublisher;
-import ai.philterd.philter.data.MongoClientUtil;
+import ai.philterd.philter.data.mongodb.MongoDBAuditEventPublisher;
+import ai.philterd.philter.services.vectors.VectorServices;
+import ai.philterd.philter.services.context.ContextServices;
+import ai.philterd.philter.data.mongodb.MongoVectorServices;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
+import ai.philterd.philter.data.mongodb.MongoAuditLogService;
+import ai.philterd.philter.data.mongodb.MongoPiiCountAggregatePublisher;
+import ai.philterd.philter.data.mongodb.MongoClientUtil;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -280,7 +286,7 @@ public class PhilterApplication {
 
     @Bean
     public RedactionService redactionService(final MeterRegistry meterRegistry) {
-        return new RedactionService(mongoClient(), policyDataService(), customListService(), redactListsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher(), piiCountAggregatePublisher(), redactionCache());
+        return new RedactionService(contextServices(), vectorServices(), policyDataService(), customListService(), redactListsService(), contextDataService(), auditEventPublisher(), ledgerService(), userService(), meterRegistry, phieldPublisher(), piiCountAggregatePublisher(), redactionCache());
     }
 
     @Bean
@@ -298,7 +304,17 @@ public class PhilterApplication {
 
     @Bean
     public PiiCountAggregatePublisher piiCountAggregatePublisher() {
-        return new PiiCountAggregatePublisher(mongoClient(), adminSettingsDataService());
+        return new MongoPiiCountAggregatePublisher(mongoClient(), adminSettingsDataService());
+    }
+
+    @Bean
+    public ContextServices contextServices() {
+        return new MongoContextServices(mongoClient(), auditEventPublisher());
+    }
+
+    @Bean
+    public VectorServices vectorServices() {
+        return new MongoVectorServices(mongoClient(), auditEventPublisher());
     }
 
     @Bean
@@ -314,7 +330,7 @@ public class PhilterApplication {
 
     @Bean
     public AuditLogService auditLogService() {
-        return new AuditLogService(mongoClient());
+        return new MongoAuditLogService(mongoClient());
     }
 
     @Bean

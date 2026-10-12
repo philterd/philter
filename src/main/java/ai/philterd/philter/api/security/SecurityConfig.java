@@ -25,7 +25,6 @@ import ai.philterd.philter.api.filters.content.ContentTypeVerifyingFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import com.google.gson.Gson;
-import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -43,11 +42,9 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final MongoClient mongoClient;
     private final Gson gson;
 
-    public SecurityConfig(final MongoClient mongoClient, final Gson gson) {
-        this.mongoClient = mongoClient;
+    public SecurityConfig(final Gson gson) {
         this.gson = gson;
     }
 
@@ -102,7 +99,8 @@ public class SecurityConfig {
                                               final MeterRegistry meterRegistry,
                                               final SizeLimitingFilter sizeLimitingFilter,
                                               final ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache,
-                                              final ai.philterd.philter.data.services.UserService userService) throws Exception {
+                                              final ai.philterd.philter.data.services.UserService userService,
+                                              final ai.philterd.philter.data.services.ApiKeyDataService apiKeyDataService) throws Exception {
 
         http
                 .securityMatcher("/api/**")
@@ -110,7 +108,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new ApiAuthenticationFilter(mongoClient, auditEventPublisher, meterRegistry, gson, apiKeyCache, userService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new ApiAuthenticationFilter(apiKeyDataService, auditEventPublisher, meterRegistry, gson, apiKeyCache, userService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
 

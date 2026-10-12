@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoVectorServices;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
@@ -46,7 +48,7 @@ class RedactionPolicyResolutionTest {
         final var redactLists = mock(RedactListsDataService.class);
         final var phield = mock(PhieldPublisher.class);
         final var counts = mock(PiiCountAggregatePublisher.class);
-        final var service = new RedactionService(mock(MongoClient.class), policies, lists, redactLists,
+        final var service = new RedactionService(new MongoContextServices(mock(MongoClient.class), mock(AuditEventPublisher.class)), new MongoVectorServices(mock(MongoClient.class), mock(AuditEventPublisher.class)), policies, lists, redactLists,
                 contexts, mock(AuditEventPublisher.class), ledger, users, new SimpleMeterRegistry(),
                 phield, counts, new RedactionCache());
         final var user = new UserEntity();

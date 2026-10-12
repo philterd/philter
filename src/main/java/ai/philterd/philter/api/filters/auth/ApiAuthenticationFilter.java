@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.api.filters.auth;
 
-import ai.philterd.philter.data.mongodb.MongoApiKeyDataService;
 import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.api.exceptions.ApiErrors;
 import ai.philterd.philter.model.ErrorReasons;
@@ -29,7 +28,6 @@ import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
-import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -63,8 +61,8 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     private final MeterRegistry meterRegistry;
     private final Gson gson;
 
-    public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache, final UserService userService) {
-        this.apiKeyService = new MongoApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
+    public ApiAuthenticationFilter(final ApiKeyDataService apiKeyService, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache, final UserService userService) {
+        this.apiKeyService = apiKeyService;
         this.apiKeyCache = apiKeyCache;
         this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;
@@ -74,7 +72,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
 
     /**
      * Resolves an API key to its entity, preferring the cache so the common (authenticated) path does
-     * not hit MongoDB on every request. On a cache miss the key is looked up in the database and, if
+     * not hit the database on every request. On a cache miss the key is looked up in the database and, if
      * found, cached. A deleted or rotated key is therefore honored until its cache entry expires (see
      * the API key cache TTL), which bounds the revocation latency.
      */

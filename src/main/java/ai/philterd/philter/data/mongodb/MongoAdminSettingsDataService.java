@@ -15,7 +15,6 @@
  */
 package ai.philterd.philter.data.mongodb;
 
-import ai.philterd.philter.api.security.AdministratorAuthorization;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;

@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
@@ -24,7 +26,6 @@ import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.cache.ContextCache;
-import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.services.vectors.NoOpVectorService;
@@ -118,8 +119,7 @@ class FpeRedactionIT extends AbstractMongoIT {
         properties.put("span.disambiguation.enabled", "false");
         final PhileasConfiguration configuration = new PhileasConfiguration(properties);
 
-        final MongoContextService contextService = new MongoContextService(
-                mongoClient, new ContextCache(null, 0, null, false), MongoIds.newId(), "ctx", auditEventPublisher);
+        final ContextService contextService = new MongoContextServices(mongoClient, auditEventPublisher).forContext(new ContextCache(null, 0, null, false), MongoIds.newId(), "ctx");
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
                 configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));

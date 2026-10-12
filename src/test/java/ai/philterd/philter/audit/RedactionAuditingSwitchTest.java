@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.mongodb.MongoDBAuditEventPublisher;
 import ai.philterd.philter.config.AuditConfig;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;

@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoVectorServices;
+import ai.philterd.philter.data.mongodb.MongoContextServices;
 import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -109,7 +111,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
         ledgerDataService = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), legalHoldDataService, signer);
 
-        redactionService = new RedactionService(mongoClient, policyDataService,
+        redactionService = new RedactionService(new MongoContextServices(mongoClient, completionAudit), new MongoVectorServices(mongoClient, completionAudit), policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,
                 completionAudit, ledgerDataService, userService,
                 new SimpleMeterRegistry(), phield,

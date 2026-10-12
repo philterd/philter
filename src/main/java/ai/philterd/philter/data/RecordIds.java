@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.data;
 
+import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.regex.Pattern;
 
 /** The form of a record id: 24 hexadecimal characters, the same for every storage implementation. */
@@ -22,7 +24,24 @@ public final class RecordIds {
 
     private static final Pattern ID = Pattern.compile("[0-9a-fA-F]{24}");
 
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private RecordIds() {
+    }
+
+    /**
+     * A new id of the record id form, for an id that is not a stored record's: the current time in seconds
+     * followed by random bytes, so ids made later sort later, as stored record ids do.
+     */
+    public static String newId() {
+        final byte[] bytes = new byte[12];
+        RANDOM.nextBytes(bytes);
+        final int seconds = (int) (System.currentTimeMillis() / 1000);
+        bytes[0] = (byte) (seconds >>> 24);
+        bytes[1] = (byte) (seconds >>> 16);
+        bytes[2] = (byte) (seconds >>> 8);
+        bytes[3] = (byte) seconds;
+        return HexFormat.of().formatHex(bytes);
     }
 
     /** Whether the value has the form of a record id. It says nothing about whether the record exists. */

@@ -23,7 +23,6 @@ import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
-import ai.philterd.philter.services.vectors.MongoVectorService;
 import ai.philterd.philter.utils.PathSafeNames;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteConcernException;
@@ -496,5 +495,7 @@ public class MongoContextDataService extends AbstractService<ContextEntity> impl
     protected Document toDocument(final ContextEntity entity) {
         return ContextDocuments.toDocument(entity);
     }
+
+
 
 }

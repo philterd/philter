@@ -25,8 +25,8 @@ import ai.philterd.philter.api.responses.GetAuditResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.AuditLogService;
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
-import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -38,8 +38,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -145,22 +143,22 @@ public class AuditApiController extends AbstractApiController {
         final int pageOffset = normalizeOffset(offset);
         final int pageLimit = normalizeLimit(limit);
 
-        final List<Document> documents =
+        final List<AuditLogService.AuditEvent> stored =
                 auditLogService.find(principalId, eventFilter, fromInclusive, toExclusive, pageOffset, pageLimit,
                         listingSort(null, order, EVENT_SORT, "timestamp", true).descending());
 
         // The actor is stored by id; name the users among them in one query for the page.
         final List<String> actorIds = new ArrayList<>();
-        for (final Document document : documents) {
-            if (document.get("api_key_id") instanceof final ObjectId actorId && !actorIds.contains(MongoIds.hex(actorId))) {
-                actorIds.add(MongoIds.hex(actorId));
+        for (final AuditLogService.AuditEvent storedEvent : stored) {
+            if (RecordIds.isValid(storedEvent.apiKeyId()) && !actorIds.contains(storedEvent.apiKeyId())) {
+                actorIds.add(storedEvent.apiKeyId());
             }
         }
         final Map<String, String> usernames = userService.findUsernamesByIds(actorIds);
 
-        final List<AuditEventView> events = new ArrayList<>(documents.size());
-        for (final Document document : documents) {
-            events.add(toView(document, usernames));
+        final List<AuditEventView> events = new ArrayList<>(stored.size());
+        for (final AuditLogService.AuditEvent storedEvent : stored) {
+            events.add(toView(storedEvent, usernames));
         }
 
         final long total = auditLogService.count(principalId, eventFilter, fromInclusive, toExclusive);
@@ -211,22 +209,17 @@ public class AuditApiController extends AbstractApiController {
 
     }
 
-    private static AuditEventView toView(final Document document, final Map<String, String> usernames) {
-        final Object actor = document.get("api_key_id");
+    private static AuditEventView toView(final AuditLogService.AuditEvent event, final Map<String, String> usernames) {
         return new AuditEventView(
-                document.getDate("timestamp"),
-                document.getString("event"),
-                document.getString("request_id"),
-                asString(actor),
-                actor instanceof final ObjectId actorId ? usernames.get(MongoIds.hex(actorId)) : null,
-                asString(document.get("associated_object")),
-                document.getString("client_ip_address"),
-                document.getString("source"),
-                document.getString("details"));
-    }
-
-    private static String asString(final Object value) {
-        return value == null ? null : value.toString();
+                event.timestamp(),
+                event.event(),
+                event.requestId(),
+                event.apiKeyId(),
+                RecordIds.isValid(event.apiKeyId()) ? usernames.get(event.apiKeyId()) : null,
+                event.associatedObject(),
+                event.clientIpAddress(),
+                event.source(),
+                event.details());
     }
 
     /** Response header saying how many events the export holds. */

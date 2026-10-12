@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.philter.services.vectors;
+package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.mongodb.VectorDocuments;
 import ai.philterd.philter.data.entities.VectorEntity;
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.data.mongodb.AbstractService;
 import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;

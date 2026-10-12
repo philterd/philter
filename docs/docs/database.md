@@ -167,6 +167,8 @@ SQLite storage, the default (`STORAGE_TYPE=sqlite`), keeps all of Philter's data
 
 **Schema.** At first start Philter creates the tables of the current [schema version](#schema-version-and-migrations), and later releases migrate them at startup as they do for MongoDB.
 
+**Locks left by a stop.** If Philter stops part way through an asynchronous submission or a legal-hold or ledger-deletion operation, the lock that operation held stays held. With SQLite, Philter clears such locks when it next starts, since no other Philter can be using the database, and records each one in the audit log as `storage_guard_recovered`. See [Legal Holds](redaction/legal_holds.md#concurrent-operations-and-recovery).
+
 **Expiry.** Instead of TTL indexes, finished asynchronous documents, finished webhook deliveries, and sign-in challenges are deleted once they are past their retention, by a check that runs every minute and as Philter writes new ones. An expired sign-in challenge or session key is refused whether or not it has been deleted yet.
 
 **Backups.** SQLite's online backup is consistent while Philter runs. Run it with the `sqlite3` command line tool on the host that holds the database, as the user Philter runs as or as root, for example `sqlite3 /srv/philter/data/philter.db ".backup '/backups/philter.db'"` where `/srv/philter/data` is the directory mounted at `/opt/philter/data`. The Docker image does not include `sqlite3`. Otherwise, stop Philter and copy the database file together with its `-wal` and `-shm` files; copying the database file alone while Philter runs can miss writes still in the `-wal` file. Back up `PHILTER_ENCRYPTION_KEY` separately: the encrypted data in a backup cannot be read without it.

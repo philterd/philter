@@ -23,7 +23,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   off unless `PASSWORD_SIGN_IN_ENABLED=true`. See [Sign-in Security](docs/docs/sign_in_security.md).
 - **SQLite storage, the default:** a single Philter instance keeps all its data in one file
   (`SQLITE_PATH`) with no database server. Set `STORAGE_TYPE=mongodb` for MongoDB, which several
-  instances can share. See [Database](docs/docs/database.md#sqlite) and the
+  instances can share. With SQLite, a lock left held by a Philter that stopped part way through an
+  operation is cleared at the next start and recorded as `storage_guard_recovered`. See
+  [Database](docs/docs/database.md#sqlite) and the
   [SQLite quick start](docs/docs/quick_starts/quick_start_sqlite.md).
 - **Limits API:** `GET /api/limits` returns the limits and rules Philter enforces and what the caller
   may do, and `GET /api/sign-in` gives a sign-in page the password rules.

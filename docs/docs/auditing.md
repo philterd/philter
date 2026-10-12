@@ -157,6 +157,12 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 | `webhook_removed` | The webhook was removed. Removed through the [API](api_and_sdks/api/webhooks.md#remove-the-webhook), the subject is the calling user and the detail names the calling API key. |
 | `settings_updated` | An administrator changed the deployment settings. The `details` field names which settings changed (the webhook allowlist, output signing, or the Phield and Diffuse publishing settings) and never their values. Changed through the [Settings API](api_and_sdks/api/settings_api.md), the detail also names the calling API key. |
 
+### Storage recovery
+
+| Event | When it is recorded |
+|-------|---------------------|
+| `storage_guard_recovered` | With SQLite storage, Philter cleared a lock at startup that a Philter which stopped had left held: the queue admission lock, or an owner's evidence lock for legal-hold and ledger-deletion operations. The `details` field names the lock, the owner and operation for an evidence lock, and when it was taken. Review the operation it guarded, which may have been partly applied. |
+
 ### Audit log access
 
 | Event | When it is recorded |

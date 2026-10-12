@@ -118,6 +118,9 @@ public enum AuditLogEvent {
     // Reading the recorded PII counts, which cover the whole deployment.
     PII_COUNTS_RETRIEVED("pii_counts_retrieved"),
 
+    // A storage lock left held by a Philter that stopped was cleared when SQLite storage started.
+    STORAGE_GUARD_RECOVERED("storage_guard_recovered"),
+
     // Settings
     SETTINGS_UPDATED("settings_updated"),
 

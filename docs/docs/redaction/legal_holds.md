@@ -145,23 +145,28 @@ continue after a new hold has been acknowledged. Successful operations release i
 process crash, or uncertain database result leaves it held. Normal redaction and reads do not acquire
 this guard. It coordinates hold/deletion ordering; it does not make multi-row deletion transactional.
 
-If an owner's operations keep returning 409 with `operation_in_progress` after an interruption:
+**With SQLite storage**, Philter clears a guard left held when it next starts. SQLite storage runs as
+one Philter process, and Philter holds an exclusive lock on the database while it runs, so a guard still
+held at startup can only belong to a Philter that has stopped, and that operation cannot resume. Each
+guard cleared is logged as a warning and recorded in the audit log as `storage_guard_recovered`, naming
+the owner and the operation. Review that owner's holds and ledger evidence, since the interrupted
+operation may have been partly applied.
 
-1. Inspect that owner's guard: with MongoDB, the owner's document in the evidence_operation_guards
-   collection, whose _id is the owner's ObjectId; with SQLite, the owner's row in the evidence_guards
-   table, whose owner is the owner's id. Its token, operation, and started_at identify the retained
-   operation.
-2. Stop all application instances that could resume the operation. With MongoDB, confirm that the
-   corresponding command is no longer running and that its outcome is known; a process restart or
-   elapsed time alone does not establish this. With SQLite, stopping Philter ends the operation, since
-   it runs in the one Philter process.
+**With MongoDB**, a guard may belong to another instance that is still running, so Philter never clears
+it. If an owner's operations keep returning 409 with `operation_in_progress` after an interruption:
+
+1. Inspect the owner's document in the evidence_operation_guards collection, whose _id is the owner's
+   ObjectId. Its token, operation, and started_at identify the retained operation.
+2. Stop all application instances that could resume the operation, and confirm that the corresponding
+   command is no longer running and that its outcome is known; a process restart or elapsed time alone
+   does not establish this.
 3. Review the affected holds and ledger evidence, including any partial deletion, and preserve the
    recovery decision in the operator's audit records.
 4. Only after establishing that no previous operation can resume, clear token, operation, and
    started_at from that owner's guard with a conditional update matching its observed token.
    Restart the instances and retry the intended operation.
 
-Do not add a TTL index to this collection or clear guards automatically. Such a takeover would
+Do not add a TTL index to this collection or clear its guards automatically. Such a takeover would
 invalidate the hold/deletion ordering guarantee.
 
 ## Evidence Types and Retention

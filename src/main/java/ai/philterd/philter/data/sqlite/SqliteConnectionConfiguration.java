@@ -58,10 +58,16 @@ public class SqliteConnectionConfiguration {
         return new SqliteDatabase(path);
     }
 
+    /**
+     * Brings the database to the expected schema version, then clears any guard a Philter that stopped left held.
+     * Every storage bean waits for this one, so no service can take a guard before the recovery.
+     */
     @Bean(name = SCHEMA_VERSION)
     public SchemaVersion schemaVersion(final SqliteDatabase sqliteDatabase) {
-        return new SchemaVersion(new SchemaMigrator(new SqliteSchemaStore(sqliteDatabase, SqliteMigrations.all(sqliteDatabase)),
-                SqliteMigrations.all(sqliteDatabase), Duration.ofSeconds(60)).migrate());
+        final SchemaVersion version = new SchemaVersion(new SchemaMigrator(new SqliteSchemaStore(sqliteDatabase,
+                SqliteMigrations.all(sqliteDatabase)), SqliteMigrations.all(sqliteDatabase), Duration.ofSeconds(60)).migrate());
+        SqliteGuardRecovery.recover(sqliteDatabase, new SqliteAuditEventPublisher(sqliteDatabase));
+        return version;
     }
 
 }

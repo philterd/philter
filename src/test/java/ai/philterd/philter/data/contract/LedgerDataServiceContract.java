@@ -244,4 +244,30 @@ public interface LedgerDataServiceContract extends StorageContract {
         assertTrue(storage().ledger().getChain(owner, "purged").isEmpty());
     }
 
+    @Test
+    default void ledgerChainsReadBackInWriteOrderWhateverTheEntriesIdsAndTimestamps() throws Exception {
+        final String owner = RecordIds.newId();
+        storage().ledger().initializeLedger(owner, "doc", "input-hash", "file.pdf", "policy", 0, "policy-hash");
+        final Date sameMillisecond = new Date();
+        for (int i = 0; i < 8; i++) {
+            final LedgerEntity entry = entry(owner, "doc", "token-" + i);
+            // Ids that sort in the reverse of write order, as ids made in one second on different instances, or
+            // copied from another storage, may; and one shared timestamp.
+            entry.setId(String.format("%024x", 1000 - i));
+            entry.setTimestamp(sameMillisecond);
+            entry.setHash(entry.calculateHash());
+            (i % 2 == 0 ? storage().ledger() : storage().anotherInstance().ledger()).addTransaction(entry);
+        }
+        storage().ledger().completeChain(owner, "doc");
+
+        final List<LedgerEntity> chain = storage().anotherInstance().ledger().getChain(owner, "doc");
+        assertEquals(9, chain.size());
+        for (int position = 0; position < chain.size(); position++) {
+            assertEquals(position, chain.get(position).getChainPosition());
+        }
+        assertEquals("token-7", chain.get(8).getToken());
+        assertEquals("token-7", storage().ledger().getLatestTransaction(owner, "doc").getToken());
+        assertTrue(storage().ledger().validateChain(owner, "doc").valid());
+    }
+
 }

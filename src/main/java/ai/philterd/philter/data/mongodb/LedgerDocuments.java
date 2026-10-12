@@ -36,6 +36,7 @@ public final class LedgerDocuments {
         ledgerEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         ledgerEntity.setDocumentId(document.getString("document_id"));
         ledgerEntity.setStartPosition(document.getLong("start_position"));
+        ledgerEntity.setChainPosition(document.getLong("chain_position"));
         ledgerEntity.setDocumentHash(document.getString("document_hash"));
         ledgerEntity.setPreviousHash(document.getString("previous_hash"));
         ledgerEntity.setHash(document.getString("hash"));
@@ -80,6 +81,7 @@ public final class LedgerDocuments {
         document.put("user_id", MongoIds.objectId(entity.getUserId()));
         document.put("document_id", entity.getDocumentId());
         document.put("start_position", entity.getStartPosition());
+        document.put("chain_position", entity.getChainPosition());
         document.put("document_hash", entity.getDocumentHash());
         document.put("previous_hash", entity.getPreviousHash());
         document.put("hash", entity.getHash());

@@ -121,11 +121,13 @@ public interface LedgerDataService {
             final int daysToKeep);
 
     /**
-     * Returns one page of chain heads (genesis entries) across every user, most recent first. Intended
-     * for admin-only views; ordinary access must use the owner-scoped {@link #findChainsByUserId}.
+     * The owner's entries for the document in chain order: by {@link LedgerEntity#getChainPosition() position},
+     * the genesis entry first. The order never depends on ids or timestamps, which entries written close together
+     * can share or can have out of order.
      */
     List<LedgerEntity> getChain(final String userId, final String documentId);
 
+    /** The owner's last entry for the document, by position, or null when there is none. */
     LedgerEntity getLatestTransaction(final String userId, final String documentId);
 
     /**

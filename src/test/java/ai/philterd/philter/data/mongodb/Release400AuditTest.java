@@ -116,9 +116,9 @@ class Release400AuditTest extends AbstractMongoIT {
         final String userId = MongoIds.newId();
         final var collection = mongoClient.getDatabase("philter").getCollection("ledger");
         collection.insertOne(new Document("user_id", MongoIds.objectId(userId)).append("document_id", "one-chain")
-                .append("previous_hash", LedgerDataService.GENESIS).append("timestamp", new Date(0)));
+                .append("previous_hash", LedgerDataService.GENESIS).append("timestamp", new Date(0)).append("chain_position", 0L));
         collection.insertOne(new Document("user_id", MongoIds.objectId(userId)).append("document_id", "one-chain")
-                .append("previous_hash", "genesis-hash").append("timestamp", new Date()));
+                .append("previous_hash", "genesis-hash").append("timestamp", new Date()).append("chain_position", 1L));
         mongoClient.getDatabase("philter").getCollection("ledger_chains").insertOne(
                 new Document("_id", userId + ":one-chain").append("user_id", MongoIds.objectId(userId))
                         .append("document_id", "one-chain").append("state", "complete")

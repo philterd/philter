@@ -247,8 +247,9 @@ final class SqliteSchema {
                 policy_content_hash TEXT,
                 effective_hash TEXT,
                 signature TEXT,
-                signing_key_id TEXT)""",
-            "CREATE INDEX ledger_chain ON ledger (user_id, document_id)",
+                signing_key_id TEXT,
+                chain_position INTEGER NOT NULL)""",
+            "CREATE UNIQUE INDEX ledger_chain ON ledger (user_id, document_id, chain_position)",
             "CREATE INDEX ledger_heads ON ledger (previous_hash, timestamp)",
             """
             CREATE TABLE ledger_chains (

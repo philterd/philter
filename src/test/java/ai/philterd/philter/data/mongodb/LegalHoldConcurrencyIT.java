@@ -61,7 +61,8 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         holds = new MongoLegalHoldDataService(mongoClient, mock(AuditEventPublisher.class), new MongoEvidenceGuard(mongoClient));
         ledger = ledger(holds);
         mongoClient.getDatabase("philter").getCollection("ledger").insertOne(
-                new Document("user_id", MongoIds.objectId(owner)).append("document_id", "doc").append("timestamp", new Date(0)));
+                new Document("user_id", MongoIds.objectId(owner)).append("document_id", "doc").append("timestamp", new Date(0))
+                        .append("chain_position", 0L));
         mongoClient.getDatabase("philter").getCollection("ledger_chains").insertOne(
                 new Document("_id", owner + ":doc").append("user_id", MongoIds.objectId(owner)).append("document_id", "doc")
                         .append("state", "complete").append("completed_at", new Date(0)).append("latest_entry_at", new Date(0)));

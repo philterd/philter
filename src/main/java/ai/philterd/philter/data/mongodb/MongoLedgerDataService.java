@@ -31,6 +31,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
@@ -78,11 +79,26 @@ public class MongoLedgerDataService extends StoredLedgerDataService {
         // chain retrieval and deletion query (user_id, document_id).
         records.ensureIndex(Indexes.ascending("user_id", "previous_hash", "timestamp"));
         records.ensureIndex(Indexes.ascending("user_id", "document_id", "timestamp"));
+        // Chain order, and the guarantee that a chain has one entry per position.
+        ensureUniqueChainPositions(collection);
         // Chain heads across users (previous_hash) newest first, with _id as the paging tie-breaker. The
         // indexes above begin with user_id, so a query across users cannot use them.
         records.ensureIndex(Indexes.compoundIndex(Indexes.ascending("previous_hash"), Indexes.descending("timestamp", "_id")));
 
         RequiredSchema.rejectAutomaticExpiry(collection);
+    }
+
+    /**
+     * A chain has one entry per position, so two writers can never both append at one place. A failure to create the
+     * index stops Philter: running without it looks the same and would let a chain fork.
+     */
+    private static void ensureUniqueChainPositions(final MongoCollection<Document> collection) {
+        try {
+            collection.createIndex(Indexes.ascending("user_id", "document_id", "chain_position"),
+                    new IndexOptions().unique(true));
+        } catch (final Exception ex) {
+            throw new IllegalStateException("Unable to create the unique chain position index on 'ledger'.", ex);
+        }
     }
 
     private static String chainId(final String userId, final String documentId) {
@@ -180,12 +196,11 @@ public class MongoLedgerDataService extends StoredLedgerDataService {
     @Override
     public List<LedgerEntity> getChain(final String userId, final String documentId) {
 
-        // Order by insertion order (_id is monotonic per Mongo instance), not timestamp: redaction
-        // entries are written in a tight loop and can share a millisecond, so timestamp ordering is not
-        // deterministic and would break the hash-chain links during validation.
+        // In chain order. Neither timestamps nor ids give it: entries written in a tight loop share a
+        // millisecond, and ObjectIds made in one second on different instances do not sort in write order.
         final List<LedgerEntity> ledgerEntries = new ArrayList<>();
 
-        for (final Document document : collection.find(chain(userId, documentId)).sort(Sorts.ascending("_id"))) {
+        for (final Document document : collection.find(chain(userId, documentId)).sort(Sorts.ascending("chain_position"))) {
             try {
                 ledgerEntries.add(LedgerDocuments.fromDocument(document, encryptionService));
             } catch (final MongoException e) {
@@ -201,9 +216,8 @@ public class MongoLedgerDataService extends StoredLedgerDataService {
 
     @Override
     public LedgerEntity getLatestTransaction(final String userId, final String documentId) {
-        // The latest entry is the most recently inserted (highest _id), matching getChain's ordering so
-        // the previous-hash links are deterministic even when entries share a timestamp.
-        final Document document = collection.find(chain(userId, documentId)).sort(Sorts.descending("_id")).first();
+        // The latest entry is the one at the highest position, matching getChain's order.
+        final Document document = collection.find(chain(userId, documentId)).sort(Sorts.descending("chain_position")).first();
         return document == null ? null : LedgerDocuments.fromDocument(document, encryptionService);
     }
 

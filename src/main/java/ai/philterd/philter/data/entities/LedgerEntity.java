@@ -33,6 +33,9 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     private String replacement;
     private String replacementEncryptedKey;
     private long startPosition;
+    // The entry's place in its chain: 0 for the genesis entry, then one more for each entry after it. Chains are
+    // read in this order. It is not part of the hash, which links each entry to the previous one instead.
+    private long chainPosition;
     private String documentHash;
     private Date timestamp;
     private String previousHash;
@@ -213,6 +216,14 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
     public long getStartPosition() {
         return startPosition;
+    }
+
+    public long getChainPosition() {
+        return chainPosition;
+    }
+
+    public void setChainPosition(final long chainPosition) {
+        this.chainPosition = chainPosition;
     }
 
     public void setStartPosition(long startPosition) {

@@ -56,6 +56,7 @@ public class SqliteLedgerDataService extends StoredLedgerDataService {
         entry.setUserId(row.string("user_id"));
         entry.setDocumentId(row.string("document_id"));
         entry.setStartPosition(row.longValue("start_position"));
+        entry.setChainPosition(row.longValue("chain_position"));
         entry.setDocumentHash(row.string("document_hash"));
         entry.setPreviousHash(row.string("previous_hash"));
         entry.setHash(row.string("hash"));
@@ -125,12 +126,12 @@ public class SqliteLedgerDataService extends StoredLedgerDataService {
         database.write(connection -> Sql.update(connection, "INSERT INTO ledger (id, user_id, document_id, token, "
                 + "token_encrypted_key, replacement, replacement_encrypted_key, start_position, document_hash, previous_hash, "
                 + "hash, timestamp, filename, type, policy_name, policy_version, policy_content_hash, effective_hash, signature, "
-                + "signing_key_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                + "signing_key_id, chain_position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 RecordIds.newId(), entry.getUserId(), entry.getDocumentId(), token.ciphertext(), token.key(),
                 replacement.ciphertext(), replacement.key(), entry.getStartPosition(), entry.getDocumentHash(),
                 entry.getPreviousHash(), entry.getHash(), entry.getTimestamp(), entry.getFilename(), entry.getType(),
                 entry.getPolicyName(), entry.getPolicyVersion(), entry.getPolicyContentHash(), entry.getEffectiveHash(),
-                entry.getSignature(), entry.getSigningKeyId()));
+                entry.getSignature(), entry.getSigningKeyId(), entry.getChainPosition()));
     }
 
     @Override
@@ -197,9 +198,9 @@ public class SqliteLedgerDataService extends StoredLedgerDataService {
 
     @Override
     public List<LedgerEntity> getChain(final String userId, final String documentId) {
-        // In insertion order, which the hash links follow; entries written in one millisecond share a timestamp.
+        // In chain order, which the hash links follow; entries written in one millisecond share a timestamp.
         return Collections.unmodifiableList(database.read(connection -> Sql.query(connection,
-                "SELECT * FROM ledger WHERE user_id = ? AND document_id = ? ORDER BY seq ASC", row -> {
+                "SELECT * FROM ledger WHERE user_id = ? AND document_id = ? ORDER BY chain_position ASC", row -> {
                     try {
                         return read(row);
                     } catch (final RuntimeException ex) {
@@ -211,7 +212,7 @@ public class SqliteLedgerDataService extends StoredLedgerDataService {
     @Override
     public LedgerEntity getLatestTransaction(final String userId, final String documentId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM ledger WHERE user_id = ? AND document_id = ? "
-                + "ORDER BY seq DESC LIMIT 1", this::read, userId, documentId));
+                + "ORDER BY chain_position DESC LIMIT 1", this::read, userId, documentId));
     }
 
 }

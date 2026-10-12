@@ -75,7 +75,10 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
     /** Moves a chain whose write failed or may have failed to failed, so it can never be completed or purged. */
     protected abstract void markWriteFailed(final String userId, final String documentId);
 
-    /** Stores a signed entry, its token and replacement encrypted. */
+    /**
+     * Stores a signed entry, its token and replacement encrypted, at its {@link LedgerEntity#getChainPosition()
+     * position}. A second entry at a position the chain already has is refused.
+     */
     protected abstract void insertEntry(final LedgerEntity entry);
 
     /** Moves an open chain to complete at {@code now}, and returns whether it did. */
@@ -141,6 +144,11 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
             throw new IllegalStateException("Ledger chain is not open for writing.");
         }
         try {
+            // Numbered while the chain is held for writing, so no other writer can take the same place. Chains are
+            // read in this order, not by id or timestamp: entries written in one millisecond, or by different
+            // instances in one second, would otherwise read back out of order and break the hash links.
+            final LedgerEntity latest = getLatestTransaction(ledgerEntity.getUserId(), ledgerEntity.getDocumentId());
+            ledgerEntity.setChainPosition(latest == null ? 0 : latest.getChainPosition() + 1);
             insertEntry(ledgerEntity);
             endWriting(ledgerEntity.getUserId(), ledgerEntity.getDocumentId(), ledgerEntity.getTimestamp());
         } catch (RuntimeException ex) {

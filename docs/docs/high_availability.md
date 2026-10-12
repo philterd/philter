@@ -30,6 +30,8 @@ flowchart TB
 
 A load balancer distributes API requests across two or more identical, stateless Philter nodes. Every node reads and writes the same shared Valkey/Redis cache and the same MongoDB, so API requests can be served by any node. Consistent context replacements depend on retained MongoDB mappings and cache invalidation, as described below. Philter has no built-in UI, so there is no session-based component to pin to one node.
 
+High availability needs MongoDB storage. [SQLite storage](database.md#sqlite) keeps everything in one file used by one Philter instance, and refuses a second instance on the same file.
+
 ## What is stateless and what is shared
 
 - **Philter API nodes are stateless.** Each API request (`/api/**`) is authenticated from its own API key and depends on no server-side session, so any node can serve any request. Add or remove nodes freely.

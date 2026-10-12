@@ -77,6 +77,8 @@ Interactive API documentation (Swagger UI) is available at https://localhost:808
 
 Philter serves HTTPS using a self-signed certificate that it generates the first time it starts, so `curl` needs `-k`. See [TLS](https://philterd.github.io/philter/settings/#tls) for how to install your own certificate, or how to serve plain HTTP when a load balancer terminates TLS in front of Philter.
 
+Philter stores its data in MongoDB. For a single instance with no database server, it can use a SQLite file instead: run `./compose.sh -f docker-compose.sqlite.yml up`. See [Quick Start with SQLite](docs/docs/quick_starts/quick_start_sqlite.md).
+
 Philter uses a built-in in-memory cache by default and can be configured to use a shared Valkey/Redis cache for distributed deployments. See [Caching](https://philterd.github.io/philter/caching/) in the user documentation.
 
 ### Docker Images

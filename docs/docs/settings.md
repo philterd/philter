@@ -11,12 +11,13 @@ Philter reads its settings from environment variables. There is no settings file
 
 ## Database Settings
 
-Philter requires a MongoDB database to store policies and other data. See [Database](database.md) for what is stored and for connection-string examples (authentication, replica sets, and Atlas).
+Philter stores policies and other data in MongoDB, or, for a single Philter instance, in a SQLite file. See [Database](database.md) for what is stored, for connection-string examples (authentication, replica sets, and Atlas), and for [SQLite](database.md#sqlite).
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `STORAGE_TYPE` | Where Philter stores its data. `mongodb` is the only storage Philter has today. Philter does not start with any other value. | `mongodb` |
-| `MONGODB_CONNECTION_STRING` | The MongoDB connection string. | `mongodb://localhost:27017` |
+| `STORAGE_TYPE` | Where Philter stores its data: `mongodb`, or `sqlite` for a [single Philter instance](database.md#sqlite) with no database server. Philter does not start with any other value. | `mongodb` |
+| `SQLITE_PATH` | With `STORAGE_TYPE=sqlite`, the SQLite database file. Its directory must exist and be writable. In the Docker image, use a file in a volume mounted at `/opt/philter/data`, such as `/opt/philter/data/philter.db`. | `philter.db` |
+| `MONGODB_CONNECTION_STRING` | With `STORAGE_TYPE=mongodb`, the MongoDB connection string. | `mongodb://localhost:27017` |
 | `SCHEMA_MIGRATION_WAIT_SECONDS` | How long an instance waits at startup for another instance that is [migrating the data](database.md#schema-version-and-migrations) before it stops with an error. | `600` |
 
 ## Encryption

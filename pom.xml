@@ -98,6 +98,10 @@
         <jedis-mock.version>1.1.11</jedis-mock.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <mongodb.version>5.9.1</mongodb.version>
+        <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
+        <skipSqliteITs>false</skipSqliteITs>
+        <!-- The integration tests run with SQLite storage: those that reach storage only through Philter's API. -->
+        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT</sqlite.it.test>
         <phileas.version>4.5.0-SNAPSHOT</phileas.version>
         <springdoc.version>3.1.0</springdoc.version>
         <!-- Build plugin versions -->
@@ -220,6 +224,27 @@
                             <!-- 'verify' checks the integration-test results and fails the build on failures. -->
                             <goal>verify</goal>
                         </goals>
+                    </execution>
+                    <!-- The integration tests that use Philter only through its API, run again with SQLite storage.
+                         Each application context gets its own database file, since SQLite storage refuses a
+                         second instance on one file. Skip them with -DskipSqliteITs=true. -->
+                    <execution>
+                        <id>sqlite-integration-tests</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipSqliteITs}</skip>
+                            <test>${sqlite.it.test}</test>
+                            <environmentVariables>
+                                <STORAGE_TYPE>sqlite</STORAGE_TYPE>
+                                <SQLITE_PATH>${project.build.directory}/sqlite-it-${random.uuid}.db</SQLITE_PATH>
+                            </environmentVariables>
+                            <reportsDirectory>${project.build.directory}/failsafe-reports-sqlite</reportsDirectory>
+                            <summaryFile>${project.build.directory}/failsafe-reports-sqlite/failsafe-summary.xml</summaryFile>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -500,6 +525,11 @@
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
             <version>${mongodb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>${sqlite-jdbc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

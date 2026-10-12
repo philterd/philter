@@ -72,6 +72,7 @@ nav:
       - 'Quick Start on AWS': 'quick_starts/quick_start_aws.md'
       - 'Quick Start on Microsoft Azure': 'quick_starts/quick_start_azure.md'
       - 'Quick Start on Google Cloud': 'quick_starts/quick_start_gcp.md'
+      - 'Quick Start with SQLite': 'quick_starts/quick_start_sqlite.md'
       - 'System Requirements': 'system_requirements.md'
       - 'Upgrading': 'upgrading.md'
   - 'Using Philter':

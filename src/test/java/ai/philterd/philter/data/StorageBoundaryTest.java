@@ -34,22 +34,36 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class StorageBoundaryTest {
 
     private static final Path SOURCES = Path.of("src/main/java/ai/philterd/philter");
-    private static final Path STORAGE = SOURCES.resolve("data/mongodb");
-    private static final Pattern STORAGE_IMPORT =
+    private static final Path MONGODB = SOURCES.resolve("data/mongodb");
+    private static final Pattern MONGODB_IMPORT =
             Pattern.compile("^import (static )?(com\\.mongodb|org\\.bson|ai\\.philterd\\.philter\\.data\\.mongodb)\\.", Pattern.MULTILINE);
+    private static final Path SQLITE = SOURCES.resolve("data/sqlite");
+    private static final Pattern SQLITE_IMPORT =
+            Pattern.compile("^import (static )?(org\\.sqlite|java\\.sql|ai\\.philterd\\.philter\\.data\\.sqlite)\\.", Pattern.MULTILINE);
 
-    @Test
-    void noClassOutsideTheStorageImplementationUsesMongoDb() throws IOException {
+    /** The classes outside {@code storage} that import what {@code imports} matches. */
+    private static List<String> importersOutside(final Path storage, final Pattern imports) throws IOException {
         final List<String> offenders = new ArrayList<>();
         try (Stream<Path> files = Files.walk(SOURCES)) {
             for (final Path file : files.filter(f -> f.toString().endsWith(".java")).toList()) {
-                if (!file.startsWith(STORAGE) && STORAGE_IMPORT.matcher(Files.readString(file)).find()) {
+                if (!file.startsWith(storage) && imports.matcher(Files.readString(file)).find()) {
                     offenders.add(SOURCES.relativize(file).toString());
                 }
             }
         }
-        assertEquals(List.of(), offenders, "these classes use MongoDB or the MongoDB storage directly; reach storage "
-                + "through the interfaces in data.services instead");
+        return offenders;
+    }
+
+    @Test
+    void noClassOutsideTheStorageImplementationUsesMongoDb() throws IOException {
+        assertEquals(List.of(), importersOutside(MONGODB, MONGODB_IMPORT), "these classes use MongoDB or the MongoDB "
+                + "storage directly; reach storage through the interfaces in data.services instead");
+    }
+
+    @Test
+    void noClassOutsideTheStorageImplementationUsesSqlite() throws IOException {
+        assertEquals(List.of(), importersOutside(SQLITE, SQLITE_IMPORT), "these classes use SQLite, JDBC, or the SQLite "
+                + "storage directly; reach storage through the interfaces in data.services instead");
     }
 
 }

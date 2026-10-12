@@ -7,7 +7,7 @@ Please read and understand the [Code of Conduct](https://github.com/philterd/phi
 # Storage
 
 Philter reaches its data only through storage interfaces, so a storage implementation can be added without
-changing the rest of Philter. MongoDB is the only implementation today.
+changing the rest of Philter. There are two: MongoDB, the default, and SQLite, for a single Philter instance.
 
 ## Where the code lives
 
@@ -27,7 +27,12 @@ changing the rest of Philter. MongoDB is the only implementation today.
   legal holds), and `AdmissionGuard` (the lock on queue admission).
 * `ai.philterd.philter.data.mongodb` holds the MongoDB implementation: a `Mongo...` class extending each
   `Stored...` class, the `...Documents` classes that map each record to and from its stored document, and the
-  MongoDB-specific helpers. Only this package may use the MongoDB driver (`com.mongodb`) or BSON (`org.bson`);
+  MongoDB-specific helpers.
+* `ai.philterd.philter.data.sqlite` holds the SQLite implementation: a `Sqlite...` class extending each
+  `Stored...` class, over plain JDBC. `SqliteDatabase` runs every write in a transaction that takes SQLite's write
+  lock as it begins, so a read and the write that depends on it are atomic. The version 1 tables are in
+  `SqliteSchema`; later changes are migrations in `SqliteMigrations`. Only this package may use the SQLite
+  driver or JDBC (`org.sqlite`, `java.sql`). Only this package may use the MongoDB driver (`com.mongodb`) or BSON (`org.bson`);
   `StorageBoundaryTest` fails the build if any other class does.
 * Interfaces for other storage-backed services live with their callers: `AuditLogService` and
   `StoredAuditEventPublisher` in `ai.philterd.philter.audit`, `ContextServices` in
@@ -38,7 +43,7 @@ changing the rest of Philter. MongoDB is the only implementation today.
 
 The `STORAGE_TYPE` environment variable sets the `philter.storage` property, which defaults to `mongodb`.
 Each implementation registers its beans in a Spring configuration that applies only when it is selected:
-`MongoStorageConfiguration` for MongoDB. `ai.philterd.philter.config.StorageConfiguration` lists the known
+`MongoStorageConfiguration` for MongoDB and `SqliteStorageConfiguration` for SQLite. `ai.philterd.philter.config.StorageConfiguration` lists the known
 values and stops Philter from starting with any other.
 
 ## Changing how data is stored
@@ -66,12 +71,19 @@ interfaces do not expose, such as moving a session key's expiry into the past.
 
 To run the suite against an implementation, write one test class that implements every `...Contract` interface
 and returns a `StorageUnderTest` for that implementation from `storage()`, over storage that is empty when each
-test starts. `MongoStorageContractIT` does this for MongoDB with `MongoStorageUnderTest`, and runs in the normal
-build. Run it alone with:
+test starts. `MongoStorageContractIT` does this for MongoDB with `MongoStorageUnderTest`, and
+`SqliteStorageContractIT` for SQLite with `SqliteStorageUnderTest`; both run in the normal build. Run them alone
+with:
 
 ```
-mvn verify -Dtest=None -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=MongoStorageContractIT
+mvn verify -Dtest=None -Dsurefire.failIfNoSpecifiedTests=false -DskipSqliteITs=true \
+    -Dit.test=MongoStorageContractIT,SqliteStorageContractIT
 ```
+
+The integration tests that reach storage only through Philter's API also run a second time with
+`STORAGE_TYPE=sqlite`, in the `sqlite-integration-tests` execution of the failsafe plugin; `sqlite.it.test` in
+`pom.xml` lists them. Add a new API test there when it does not read or write the database directly. Skip that
+second run with `-DskipSqliteITs=true`.
 
 When you add a guarantee to an interface, add a test for it to that interface's contract, so every
 implementation is tested for it.

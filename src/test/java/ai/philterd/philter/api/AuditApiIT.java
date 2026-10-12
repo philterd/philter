@@ -16,7 +16,7 @@
 package ai.philterd.philter.api;
 
 import ai.philterd.philter.config.AdminAccessConfig;
-import ai.philterd.philter.data.mongodb.MongoIds;
+import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -26,8 +26,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.mongodb.client.MongoClient;
-import org.bson.Document;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +77,7 @@ class AuditApiIT {
     private ContextDataService contextDataService;
 
     @Autowired
-    private MongoClient mongoClient;
+    private AuditLogService auditLogService;
 
     private final Gson gson = new Gson();
 
@@ -171,11 +169,11 @@ class AuditApiIT {
         assertTrue(body.get("total").getAsLong() > 0, "total must count the matching events");
 
         // Keyed to this test's reader: the tests share a database, so other reads are recorded too.
-        final Document recorded = mongoClient.getDatabase("philter").getCollection("audit_events")
-                .find(new Document("event", "audit_log_retrieved").append("api_key_id", MongoIds.objectId(adminUserId))).first();
+        final java.util.List<AuditLogService.AuditEvent> recorded =
+                auditLogService.find(adminUserId, "audit_log_retrieved", null, null, 0, 1);
 
-        assertNotNull(recorded, "reading the audit log must itself be audited, naming the reader");
-        assertNotNull(recorded.getString("client_ip_address"));
+        assertFalse(recorded.isEmpty(), "reading the audit log must itself be audited, naming the reader");
+        assertNotNull(recorded.get(0).clientIpAddress());
 
     }
 

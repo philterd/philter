@@ -1,0 +1,35 @@
+# Philter with SQLite storage: one Philter instance and no database server. Run it with
+#   ./compose.sh -f docker-compose.sqlite.yml up
+# The data is in the philter-data volume. See docs/docs/database.md#sqlite.
+services:
+
+  philter:
+    depends_on:
+      ph-eye:
+        condition: service_started
+    build:
+      context: .
+    environment:
+      STORAGE_TYPE: sqlite
+      SQLITE_PATH: /opt/philter/data/philter.db
+      # Development key. Real data needs its own (openssl rand -base64 32); changing it later orphans everything encrypted.
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
+      # The admin user's first API key, required until the admin has one. Development placeholder: real data needs its own.
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
+    volumes:
+      - philter-data:/opt/philter/data
+    ports:
+      - "8080:8080"
+    networks:
+      - philter
+
+  ph-eye:
+    image: philterd/ph-eye:1.3.0-pii_en_small
+    networks:
+      - philter
+
+volumes:
+  philter-data:
+
+networks:
+  philter:

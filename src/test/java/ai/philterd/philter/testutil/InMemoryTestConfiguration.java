@@ -20,6 +20,8 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import de.bwaldvogel.mongo.MongoServer;
 import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
+import ai.philterd.philter.config.StorageConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
@@ -28,8 +30,8 @@ import java.net.InetSocketAddress;
 /**
  * Lets a {@code @SpringBootTest} boot the whole application with no external dependencies.
  *
- * <p>Replaces the {@code mongoClient} bean with one backed by an in-process, in-memory
- * mongo-java-server, and the encryption service with a test implementation so
+ * <p>With MongoDB storage, replaces the {@code mongoClient} bean with one backed by an in-process, in-memory
+ * mongo-java-server; and the encryption service with a test implementation so
  * {@code PHILTER_ENCRYPTION_KEY} is not required. The application is otherwise the real one.
  *
  * <p>Import it and allow bean definition overriding:
@@ -43,11 +45,13 @@ import java.net.InetSocketAddress;
 public class InMemoryTestConfiguration {
 
     @Bean(destroyMethod = "shutdown")
+    @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
     public MongoServer mongoServer() {
         return new MongoServer(new MemoryBackend());
     }
 
     @Bean
+    @ConditionalOnProperty(name = StorageConfiguration.PROPERTY, havingValue = StorageConfiguration.MONGODB, matchIfMissing = true)
     public MongoClient mongoClient(final MongoServer mongoServer) {
         final InetSocketAddress address = mongoServer.bind();
         return MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());

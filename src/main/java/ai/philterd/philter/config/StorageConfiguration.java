@@ -35,8 +35,11 @@ public class StorageConfiguration {
     /** {@code STORAGE_TYPE} for MongoDB, the default. */
     public static final String MONGODB = "mongodb";
 
+    /** {@code STORAGE_TYPE} for SQLite, for a single Philter instance. */
+    public static final String SQLITE = "sqlite";
+
     /** The storage implementations Philter has. */
-    public static final List<String> TYPES = List.of(MONGODB);
+    public static final List<String> TYPES = List.of(MONGODB, SQLITE);
 
     public StorageConfiguration(@Value("${" + PROPERTY + ":" + MONGODB + "}") final String type) {
         requireKnown(type);

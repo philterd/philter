@@ -102,7 +102,8 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
         return (T) service;
     }
 
-    private EvidenceGuard evidenceGuard() {
+    @Override
+    public EvidenceGuard evidenceGuard() {
         return once("evidenceGuard", () -> new SqliteEvidenceGuard(database));
     }
 
@@ -202,6 +203,34 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
     @Override
     public PiiCountDataService piiCountData() {
         return once("piiCountData", () -> new SqlitePiiCountDataService(database));
+    }
+
+    @Override
+    public boolean storageContains(final String text) {
+        return database.read(connection -> {
+            for (final String table : Sql.query(connection, "SELECT name FROM sqlite_master WHERE type = 'table' "
+                    + "AND name NOT LIKE 'sqlite_%'", row -> row.string("name"))) {
+                try (java.sql.Statement statement = connection.createStatement();
+                     java.sql.ResultSet rows = statement.executeQuery("SELECT * FROM " + table)) {
+                    final int columns = rows.getMetaData().getColumnCount();
+                    while (rows.next()) {
+                        for (int column = 1; column <= columns; column++) {
+                            final byte[] value = rows.getBytes(column);
+                            if (value != null && new String(value, java.nio.charset.StandardCharsets.UTF_8).contains(text)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        });
+    }
+
+    @Override
+    public void damageLedgerChain(final String userId, final String documentId) {
+        database.write(connection -> Sql.update(connection, "UPDATE ledger SET replacement_encrypted_key = 'not-a-key' "
+                + "WHERE user_id = ? AND document_id = ?", userId, documentId));
     }
 
     @Override

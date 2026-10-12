@@ -22,6 +22,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.EvidenceGuard;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
@@ -83,6 +84,9 @@ public interface StorageUnderTest {
 
     PiiCountDataService piiCountData();
 
+    /** The per-owner guard on evidence deletion and legal hold changes that the ledger and legal holds share. */
+    EvidenceGuard evidenceGuard();
+
     /**
      * New services over the same database, as another Philter instance would have, for guarantees that must hold
      * across instances.
@@ -99,5 +103,14 @@ public interface StorageUnderTest {
 
     /** Stores the PII counts for a context and UTC day, as if they had been recorded that day. */
     void storePiiCounts(String context, LocalDate day, Map<String, Long> counts, long totalDocuments);
+
+    /**
+     * Whether the text appears anywhere in what is stored, in any record and field, read as stored: text as it is
+     * and bytes as UTF-8.
+     */
+    boolean storageContains(String text);
+
+    /** Damages the stored encryption key of every entry in a ledger chain, as corruption or a lost key would. */
+    void damageLedgerChain(String userId, String documentId);
 
 }

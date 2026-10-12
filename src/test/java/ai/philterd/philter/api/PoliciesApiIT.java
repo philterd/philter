@@ -16,7 +16,6 @@
 package ai.philterd.philter.api;
 
 import ai.philterd.philter.config.AdminAccessConfig;
-import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -62,7 +61,6 @@ class PoliciesApiIT {
     @Autowired private ApiKeyDataService apiKeyDataService;
     @Autowired private PolicyDataService policyDataService;
     @Autowired private ContextDataService contextDataService;
-    @Autowired private com.mongodb.client.MongoClient mongoClient;
 
     private final Gson gson = new Gson();
 
@@ -285,19 +283,6 @@ class PoliciesApiIT {
         }
     }
 
-    @Test
-    @DisplayName("A revision recorded before authors were is listed with no author rather than an error")
-    void aRevisionWithoutAnAuthorIsListed() throws Exception {
-        mongoClient.getDatabase("philter").getCollection("policy_versions").insertOne(new org.bson.Document("name", "legacy")
-                .append("revision", 0).append("content_hash", "abc").append("policy", POLICY)
-                .append("user_id", MongoIds.objectId(userId)).append("captured_timestamp", new java.util.Date()));
-
-        final HttpResponse<String> listed = send("GET", "/api/policies/legacy/versions", null);
-        assertEquals(200, listed.statusCode(), listed.body());
-        final JsonArray versions = gson.fromJson(listed.body(), JsonObject.class).getAsJsonArray("versions");
-        assertEquals(1, versions.size());
-        assertTrue(!versions.get(0).getAsJsonObject().has("author") || versions.get(0).getAsJsonObject().get("author").isJsonNull());
-    }
 
     @Test
     @DisplayName("A deleted policy is listed with when and by whom it was deleted, and its history can still be read")

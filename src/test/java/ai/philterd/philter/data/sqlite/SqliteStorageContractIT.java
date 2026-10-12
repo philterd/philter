@@ -33,6 +33,7 @@ import ai.philterd.philter.data.contract.SignInChallengeDataServiceContract;
 import ai.philterd.philter.data.contract.SigningKeyDataServiceContract;
 import ai.philterd.philter.data.contract.UserServiceContract;
 import ai.philterd.philter.data.contract.WebhookDeliveryDataServiceContract;
+import ai.philterd.philter.data.contract.StorageEncryptionAndRecoveryContract;
 import ai.philterd.philter.data.contract.StorageUnderTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +59,7 @@ class SqliteStorageContractIT implements
         RedactListsDataServiceContract,
         SignInChallengeDataServiceContract,
         SigningKeyDataServiceContract,
+        StorageEncryptionAndRecoveryContract,
         UserServiceContract,
         WebhookDeliveryDataServiceContract {
 

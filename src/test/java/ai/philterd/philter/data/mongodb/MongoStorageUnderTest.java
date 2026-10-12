@@ -23,6 +23,7 @@ import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
+import ai.philterd.philter.data.services.EvidenceGuard;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
@@ -176,6 +177,47 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     @Override
     public PiiCountDataService piiCountData() {
         return once("piiCountData", configuration::piiCountDataService);
+    }
+
+    @Override
+    public EvidenceGuard evidenceGuard() {
+        return once("evidenceGuard", configuration::evidenceGuard);
+    }
+
+    @Override
+    public boolean storageContains(final String text) {
+        final com.mongodb.client.MongoDatabase philter = mongoClient.getDatabase("philter");
+        for (final String name : philter.listCollectionNames()) {
+            for (final Document document : philter.getCollection(name).find()) {
+                if (contains(document, text)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean contains(final Object value, final String text) {
+        if (value instanceof Document document) {
+            return document.values().stream().anyMatch(field -> contains(field, text));
+        }
+        if (value instanceof java.util.Collection<?> values) {
+            return values.stream().anyMatch(element -> contains(element, text));
+        }
+        if (value instanceof org.bson.types.Binary binary) {
+            return new String(binary.getData(), java.nio.charset.StandardCharsets.UTF_8).contains(text);
+        }
+        if (value instanceof byte[] bytes) {
+            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8).contains(text);
+        }
+        return value != null && value.toString().contains(text);
+    }
+
+    @Override
+    public void damageLedgerChain(final String userId, final String documentId) {
+        mongoClient.getDatabase("philter").getCollection("ledger").updateMany(
+                Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("document_id", documentId)),
+                Updates.set("replacement_encrypted_key", "not-a-key"));
     }
 
     @Override

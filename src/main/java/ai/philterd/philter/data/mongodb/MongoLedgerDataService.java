@@ -216,8 +216,9 @@ public class MongoLedgerDataService extends StoredLedgerDataService {
 
     @Override
     public LedgerEntity getLatestTransaction(final String userId, final String documentId) {
-        // The latest entry is the one at the highest position, matching getChain's order.
-        final Document document = collection.find(chain(userId, documentId)).sort(Sorts.descending("chain_position")).first();
+        // The latest entry is the one at the highest position, matching getChain's order. Read from the primary:
+        // an append checks it to decide the next position and refuse a stale entry, so it must not lag.
+        final Document document = evidence.find(chain(userId, documentId)).sort(Sorts.descending("chain_position")).first();
         return document == null ? null : LedgerDocuments.fromDocument(document, encryptionService);
     }
 

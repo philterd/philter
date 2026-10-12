@@ -108,9 +108,13 @@ public class SqliteLedgerDataService extends StoredLedgerDataService {
 
     @Override
     protected void endWriting(final String userId, final String documentId, final Date entryTimestamp) {
-        database.write(connection -> Sql.update(connection, "UPDATE ledger_chains SET state = ?, "
-                + "latest_entry_at = max(ifnull(latest_entry_at, 0), ?) WHERE user_id = ? AND document_id = ?",
-                stored(ChainState.OPEN), entryTimestamp == null ? 0L : entryTimestamp.getTime(), userId, documentId));
+        // Without a timestamp the latest entry time is left as it is, as MongoDB's $max leaves it.
+        database.write(connection -> entryTimestamp == null
+                ? Sql.update(connection, "UPDATE ledger_chains SET state = ? WHERE user_id = ? AND document_id = ?",
+                        stored(ChainState.OPEN), userId, documentId)
+                : Sql.update(connection, "UPDATE ledger_chains SET state = ?, "
+                        + "latest_entry_at = max(ifnull(latest_entry_at, 0), ?) WHERE user_id = ? AND document_id = ?",
+                        stored(ChainState.OPEN), entryTimestamp.getTime(), userId, documentId));
     }
 
     @Override

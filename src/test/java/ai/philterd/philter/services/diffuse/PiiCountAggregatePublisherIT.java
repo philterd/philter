@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.diffuse;
 
+import ai.philterd.philter.data.mongodb.MongoAdminSettingsDataService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
@@ -48,7 +49,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpServices() {
-        adminSettingsDataService = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
+        adminSettingsDataService = new MongoAdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
         aggregates = mongoClient.getDatabase("philter").getCollection(PiiCountAggregatePublisher.COLLECTION);
         // Changing a setting rechecks that the acting user is an active administrator.
         mongoClient.getDatabase("philter").getCollection("users")

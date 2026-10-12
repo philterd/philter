@@ -22,7 +22,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.mongodb.VectorDocuments;
 import ai.philterd.philter.data.entities.VectorEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.data.services.AbstractService;
+import ai.philterd.philter.data.mongodb.AbstractService;
 import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;

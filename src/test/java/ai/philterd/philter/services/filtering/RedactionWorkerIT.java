@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoPendingDocumentDataService;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -61,7 +62,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUp() {
-        pendingDocumentDataService = new PendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
+        pendingDocumentDataService = new MongoPendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         redactionService = mock(RedactionService.class);
         userService = mock(UserService.class); // returns null user -> no webhook enqueued
         webhookDeliveryDataService = mock(WebhookDeliveryDataService.class);
@@ -292,7 +293,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
                             return new RedactionOutcome("race-doc", binaryResultReturning(new byte[]{9}),
                                     new AppliedPolicy("default", 0, "hash"));
                         });
-                final var newService = new PendingDocumentDataService(mongoClient,
+                final var newService = new MongoPendingDocumentDataService(mongoClient,
                         new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
                 new RedactionWorker(newService, newPipeline, userService, webhookDeliveryDataService,
                         mock(PolicyVersionDataService.class), new Gson()).poll();

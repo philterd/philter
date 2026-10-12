@@ -15,265 +15,54 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.mongodb.PendingDocumentDocuments;
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.services.encryption.EncryptedBytes;
-import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
-import ai.philterd.philter.utils.EnvUtils;
-import com.mongodb.ReadPreference;
-import com.mongodb.WriteConcern;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.IndexOptions;
-import com.mongodb.client.model.Indexes;
-import com.mongodb.client.model.ReturnDocument;
-import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.result.DeleteResult;
-import org.bson.Document;
-import org.bson.conversions.Bson;
-import org.bson.types.Binary;
-import org.bson.types.ObjectId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
-import java.util.function.LongSupplier;
-import java.util.concurrent.TimeUnit;
 
-public class PendingDocumentDataService extends AbstractEncryptedService<PendingDocumentEntity> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(PendingDocumentDataService.class);
-
-    private static final long DEFAULT_TTL_SECONDS = 7L * 24L * 60L * 60L;
-
-    /** Preserves the ten minute lease deployments had before it became configurable. */
-    private static final int DEFAULT_CLAIM_LEASE_SECONDS = 600;
-
-    private final long claimLeaseMillis;
-    private final MongoCollection<Document> jobs;
-    private final LongSupplier clock;
-    private final QueueAdmission admission;
-    private final MongoCollection<Document> snapshots;
-    private final MongoCollection<Document> scheduling;
-    private final int maxJobs = EnvUtils.getInt("ASYNC_QUEUE_MAX_JOBS", 256);
-    private final int maxUserJobs = EnvUtils.getInt("ASYNC_QUEUE_MAX_USER_JOBS", 32);
-    private final long maxBytes = EnvUtils.getLong("ASYNC_QUEUE_MAX_BYTES", 2L * 1024 * 1024 * 1024);
-    private final long maxUserBytes = EnvUtils.getLong("ASYNC_QUEUE_MAX_USER_BYTES", 256L * 1024 * 1024);
-
-
-    public PendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
-                                      final AuditEventPublisher auditEventPublisher) {
-        this(mongoClient, encryptionService, auditEventPublisher, System::currentTimeMillis);
-    }
-
-    PendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
-                               final AuditEventPublisher auditEventPublisher, final LongSupplier clock) {
-        this(mongoClient, encryptionService, auditEventPublisher, clock,
-                EnvUtils.getInt("DOCUMENT_CLAIM_LEASE_SECONDS", DEFAULT_CLAIM_LEASE_SECONDS));
-    }
-
-    /**
-     * The lease is a parameter so a test can use a few seconds and watch a real takeover, which the
-     * environment variable exists to make possible for a deployment too.
-     */
-    PendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
-                               final AuditEventPublisher auditEventPublisher, final LongSupplier clock,
-                               final int claimLeaseSeconds) {
-        super(mongoClient, "pending_documents", encryptionService, auditEventPublisher);
-        this.clock = clock;
-        if (claimLeaseSeconds <= 0) {
-            throw new IllegalArgumentException("DOCUMENT_CLAIM_LEASE_SECONDS must be positive.");
-        }
-        this.claimLeaseMillis = claimLeaseSeconds * 1000L;
-        if (maxJobs <= 0 || maxUserJobs <= 0 || maxBytes <= 0 || maxUserBytes <= 0) {
-            throw new IllegalArgumentException("Async queue limits must be positive.");
-        }
-        admission = new QueueAdmission(mongoClient);
-        snapshots = mongoClient.getDatabase("philter").getCollection("execution_snapshots");
-        scheduling = mongoClient.getDatabase("philter").getCollection("queue_scheduling");
-        jobs = collection.withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
-
-        final long ttlSeconds = EnvUtils.getLong("PENDING_DOCUMENTS_TTL_SECONDS", DEFAULT_TTL_SECONDS);
-
-        ensureIndex(
-                Indexes.ascending("retention_at"),
-                new IndexOptions().expireAfter(ttlSeconds, TimeUnit.SECONDS));
-
-        RequiredSchema.rejectUnexpectedExpiry(collection, "retention_at");
-
-        LOGGER.info("TTL index on pending_documents.retention_at set to expire after {} seconds.", ttlSeconds);
-
-        // Per-document lookup/delete, the worker's claim scan, and per-user/context counts.
-        ensureIndex(Indexes.ascending("user_id", "document_id"));
-        ensureIndex(Indexes.ascending("status", "submitted_at"));
-        ensureIndex(Indexes.ascending("status", "claim_expires_at"));
-        ensureIndex(Indexes.ascending("user_id", "context_name", "status"));
-    }
+/**
+ * The queue of documents submitted for asynchronous redaction, and their results.
+ *
+ * <p>Guarantees every implementation must provide:
+ * <ul>
+ *   <li>{@link #claimNextPending} gives each pending document to at most one worker at a time: concurrent
+ *   workers never claim the same document. A claim holds a lease; a document whose lease expires can be
+ *   claimed again, and a completed or failed document is never claimed.</li>
+ *   <li>A worker's writes to a document take effect only while it still holds the claim, so a worker whose
+ *   lease was taken over cannot overwrite the new claimant's work.</li>
+ *   <li>The queue's per-user and global limits hold even when documents are submitted concurrently.</li>
+ *   <li>Finished documents are removed after their retention period; nothing else expires on its own.</li>
+ *   <li>Inputs and outputs are stored encrypted, and what is written is read back unchanged.</li>
+ *   <li>Listings return their total, page by offset without repeating or skipping documents, and sort by the
+ *   fields the API offers (see {@link Listings}).</li>
+ * </ul>
+ */
+public interface PendingDocumentDataService {
 
     /** How long a worker owns a claim, in milliseconds. */
-    public long getClaimLeaseMillis() {
-        return claimLeaseMillis;
-    }
+    long getClaimLeaseMillis();
 
-    @Override
-    public String save(final PendingDocumentEntity entity) {
-        ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(entity.getEffectiveJson());
-        if (entity.getEffectiveJson() != null && !java.util.Objects.equals(entity.getEffectiveHash(),
-                PolicyVersionDataService.contentHash(entity.getEffectiveJson()))) {
-            throw new IllegalArgumentException("Effective configuration fingerprint mismatch.");
-        }
-        final Document document = PendingDocumentDocuments.toDocument(entity, encryptionService);
-        // Include fields added during admission in the BSON preflight.
-        if (!document.containsKey("_id")) document.put("_id", new ObjectId());
-        document.put("fairness_round", 0L);
-        requireStorable(document);
-        // Immutable snapshots are safe to retain before admission, even if admission later fails.
-        // A snapshot failure must never strand the global queue guard.
-        if (entity.getEffectiveJson() != null) {
-            final Document retained = new Document("_id", entity.getUserId() + ":" + entity.getEffectiveHash())
-                    .append("user_id", MongoIds.objectId(entity.getUserId())).append("effective_hash", entity.getEffectiveHash())
-                    .append("effective_json", document.getString("effective_json"))
-                    .append("effective_key", document.getString("effective_key"));
-            requireStorable(retained);
-            snapshots.withWriteConcern(WriteConcern.MAJORITY).updateOne(Filters.eq("_id", retained.getString("_id")),
-                    new Document("$setOnInsert", retained), new com.mongodb.client.model.UpdateOptions().upsert(true));
-        }
-        return admission.execute(() -> {
-            final QueueStats global = queueStats(null);
-            final QueueStats owner = queueStats(entity.getUserId());
-            final long size = entity.getInput() == null ? 0 : entity.getInput().length;
-            if (owner.jobs() >= maxUserJobs || size > maxUserBytes - owner.bytes()) {
-                throw new QueueCapacityException("Account async queue limit reached.", 429);
-            }
-            if (global.jobs() >= maxJobs || size > maxBytes - global.bytes()) {
-                throw new QueueCapacityException("Global async queue limit reached.", 503);
-            }
-            final Document globalRound = scheduling.find(Filters.eq("_id", "global")).first();
-            final Document ownerRound = scheduling.find(Filters.eq("_id", MongoIds.objectId(entity.getUserId()))).first();
-            final long round = Math.max(globalRound == null ? 0 : globalRound.getLong("round"),
-                    ownerRound == null ? 0 : ownerRound.getLong("round")) + 1;
-            scheduling.updateOne(Filters.eq("_id", MongoIds.objectId(entity.getUserId())), Updates.set("round", round),
-                    new com.mongodb.client.model.UpdateOptions().upsert(true));
-            document.put("fairness_round", round);
-            return MongoIds.hex(jobs.insertOne(document).getInsertedId().asObjectId().getValue());
-        });
-    }
+    String save(final PendingDocumentEntity entity);
 
-    /** Leave space below MongoDB's 16 MiB document limit for claim/publication metadata. */
-    static final int MAX_ADMISSION_BSON_BYTES = 16 * 1024 * 1024 - 16 * 1024;
+    /** How many jobs are queued or running, their size in bytes, and the oldest one's age in seconds. */
+    record QueueStats(long jobs, long bytes, long oldestAgeSeconds) { }
 
-    static void requireStorable(final Document document) {
-        try (var buffer = new org.bson.io.BasicOutputBuffer();
-             var writer = new org.bson.BsonBinaryWriter(buffer)) {
-            new org.bson.codecs.DocumentCodec().encode(writer, document,
-                    org.bson.codecs.EncoderContext.builder().build());
-            if (buffer.getSize() > MAX_ADMISSION_BSON_BYTES) {
-                throw new ai.philterd.philter.api.exceptions.PayloadTooLargeException(
-                        "Encrypted async job or configuration exceeds the storage size limit.");
-            }
-        }
-    }
+    QueueStats queueStats(final String owner);
 
-    public record QueueStats(long jobs, long bytes, long oldestAgeSeconds) { }
-    public QueueStats queueStats(final String owner) {
-        Bson query = Filters.in("status", PendingDocumentEntity.STATUS_PENDING, PendingDocumentEntity.STATUS_PROCESSING);
-        if (owner != null) query = Filters.and(query, Filters.eq("user_id", MongoIds.objectId(owner)));
-        long count = 0, bytes = 0, oldest = clock.getAsLong();
-        for (Document job : jobs.find(query).projection(com.mongodb.client.model.Projections.include("input_size", "submitted_at"))) {
-            count++;
-            bytes += ((Number) job.getOrDefault("input_size", 0L)).longValue();
-            if (job.getDate("submitted_at") != null) oldest = Math.min(oldest, job.getDate("submitted_at").getTime());
-        }
-        return new QueueStats(count, bytes, Math.max(0, (clock.getAsLong() - oldest) / 1000));
-    }
+    void update(final PendingDocumentEntity entity);
 
-    @Override
-    public void update(final PendingDocumentEntity entity) {
-        throw new UnsupportedOperationException("Use fenced job transitions instead of replacing job state.");
-    }
-
-    public PendingDocumentEntity findOneByDocumentIdAndUserId(final String documentId, final String userId) {
-
-        final Bson query = Filters.and(
-                Filters.eq("document_id", documentId),
-                Filters.eq("user_id", MongoIds.objectId(userId))
-        );
-
-        final Document document = jobs.find(query).first();
-        return document != null ? PendingDocumentDocuments.fromDocument(document, encryptionService) : null;
-
-    }
+    PendingDocumentEntity findOneByDocumentIdAndUserId(final String documentId, final String userId);
 
     /**
      * A page of the user's queued documents, with the given status when one is given, and their total.
      * The documents themselves are left out: a listing has no use for them, and they are large.
      */
-    public Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
-                                                     final int offset, final int limit) {
-        final Bson filter = Listings.all(Filters.eq("user_id", MongoIds.objectId(userId)), status == null ? null : Filters.eq("status", status));
-        final List<PendingDocumentEntity> items = new ArrayList<>();
-        for (final Document document : jobs.find(filter)
-                .projection(com.mongodb.client.model.Projections.exclude("input", "input_encrypted_key", "output",
-                        "output_encrypted_key", "effective_json", "effective_key"))
-                .sort(sort.toBson()).skip(offset).limit(limit)) {
-            items.add(PendingDocumentDocuments.fromDocument(document, encryptionService));
-        }
-        return new Listings.Page<>(items, jobs.countDocuments(filter));
-    }
+    Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
+            final int offset, final int limit);
 
-    public List<PendingDocumentEntity> findAllByUserId(final String userId, final int offset, final int limit) {
+    List<PendingDocumentEntity> findAllByUserId(final String userId, final int offset, final int limit);
 
-        final Bson query = Filters.eq("user_id", MongoIds.objectId(userId));
-
-        final FindIterable<Document> documents = jobs.find(query)
-                .sort(Sorts.descending("submitted_at"))
-                .skip(offset)
-                .limit(limit);
-
-        final List<PendingDocumentEntity> entities = new ArrayList<>();
-        for (final Document document : documents) {
-            entities.add(PendingDocumentDocuments.fromDocument(document, encryptionService));
-        }
-        return entities;
-
-    }
-
-    public PendingDocumentEntity claimNextPending(final String workerId) {
-
-        final Bson query = Filters.eq("status", PendingDocumentEntity.STATUS_PENDING);
-
-        final Date now = new Date(clock.getAsLong());
-        final Bson update = Updates.combine(
-                Updates.set("status", PendingDocumentEntity.STATUS_PROCESSING),
-                Updates.set("claimed_by", workerId),
-                Updates.set("claimed_at", now),
-                Updates.set("claim_token", UUID.randomUUID().toString()),
-                Updates.set("claim_expires_at", new Date(now.getTime() + claimLeaseMillis)),
-                Updates.unset("publication_started_at"),
-                Updates.set("started_at", now)
-        );
-
-        final FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
-                .sort(Sorts.ascending("fairness_round", "submitted_at"))
-                .returnDocument(ReturnDocument.AFTER);
-
-        final Document claimed = jobs.findOneAndUpdate(query, update, options);
-        if (claimed != null && claimed.getLong("fairness_round") != null) {
-            scheduling.updateOne(Filters.eq("_id", "global"), Updates.max("round", claimed.getLong("fairness_round")),
-                    new com.mongodb.client.model.UpdateOptions().upsert(true));
-        }
-        return claimed != null ? PendingDocumentDocuments.fromDocument(claimed, encryptionService) : null;
-
-    }
+    PendingDocumentEntity claimNextPending(final String workerId);
 
     /**
      * Returns expired computation claims to the queue, up to {@code maxReclaims} times.
@@ -282,182 +71,37 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
      * <p>Bounded on purpose. A document that reliably kills the worker (an out-of-memory on a large
      * PDF, a malformed file that crashes the parser) would otherwise cycle pending, processing,
      * reclaimed forever, never reaching a terminal state. Its {@code completed_at} would never be
-     * set, so the TTL would never fire and the submitted document would be retained indefinitely.
+     * set, so its retention period would never start and the submitted document would be kept indefinitely.
      *
      * @return the number of jobs returned to the queue
      */
-    public long reclaimStuckJobs(final Date now, final int maxReclaims) {
+    long reclaimStuckJobs(final Date now, final int maxReclaims);
 
-        final Bson stuck = Filters.and(
-                Filters.eq("status", PendingDocumentEntity.STATUS_PROCESSING),
-                Filters.lte("claim_expires_at", now),
-                Filters.exists("publication_started_at", false)
-        );
-
-        // Past the cap the job is failed with durable notification intent. Acknowledgement starts retention.
-        final Bson exhausted = Filters.and(stuck, Filters.gte("reclaim_count", maxReclaims));
-        final long failed = jobs.updateMany(exhausted, Updates.combine(
-                Updates.set("status", PendingDocumentEntity.STATUS_FAILED),
-                Updates.set("error_message", "Abandoned after " + maxReclaims
-                        + " attempts; the worker did not complete this document."),
-                Updates.set("completed_at", new Date()),
-                Updates.set("notification_pending", true),
-                Updates.unset("input"),
-                Updates.unset("input_encrypted_key"),
-                Updates.unset("claimed_by"),
-                Updates.unset("claimed_at"),
-                Updates.unset("claim_token"),
-                Updates.unset("claim_expires_at")
-        )).getModifiedCount();
-
-        if (failed > 0) {
-            LOGGER.warn("Failed {} job(s) that could not be completed after {} attempts.", failed, maxReclaims);
-        }
-
-        final Bson retryable = Filters.and(stuck, Filters.lt("reclaim_count", maxReclaims));
-        return jobs.updateMany(retryable, Updates.combine(
-                Updates.set("status", PendingDocumentEntity.STATUS_PENDING),
-                Updates.inc("reclaim_count", 1),
-                Updates.unset("claimed_by"),
-                Updates.unset("claimed_at"),
-                Updates.unset("claim_token"),
-                Updates.unset("claim_expires_at"),
-                Updates.unset("started_at")
-        )).getModifiedCount();
-
-    }
-
-    private Bson ownedClaim(final String id, final String claimToken) {
-        if (claimToken == null || claimToken.isBlank()) {
-            throw new IllegalArgumentException("A job claim token is required.");
-        }
-        return Filters.and(Filters.eq("_id", MongoIds.objectId(id)),
-                Filters.eq("status", PendingDocumentEntity.STATUS_PROCESSING),
-                Filters.eq("claim_token", claimToken));
-    }
-
-    private Bson liveComputation(final String id, final String claimToken) {
-        return Filters.and(ownedClaim(id, claimToken),
-                Filters.gt("claim_expires_at", new Date(clock.getAsLong())),
-                Filters.exists("publication_started_at", false));
-    }
-
-    public boolean renewClaim(final String id, final String claimToken) {
-        return jobs.updateOne(liveComputation(id, claimToken),
-                Updates.set("claim_expires_at", new Date(clock.getAsLong() + claimLeaseMillis)))
-                .getMatchedCount() == 1;
-    }
+    boolean renewClaim(final String id, final String claimToken);
 
     /**
      * Fences publication before evidence, metrics, or completion audit events are written.
      * This phase never expires: reclaiming it could race an already-issued external write.
      * An interrupted publisher requires operator recovery after the old worker is stopped.
      */
-    public boolean beginPublication(final String id, final String claimToken) {
-        return jobs.updateOne(liveComputation(id, claimToken),
-                Updates.set("publication_started_at", new Date(clock.getAsLong())))
-                .getModifiedCount() == 1;
-    }
+    boolean beginPublication(final String id, final String claimToken);
 
-    public boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output) {
+    boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output);
 
-        // Encrypted here as well as in the entity: this is a partial update, so it never passes
-        // through toDocument and would otherwise write the redacted document in the clear.
-        final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId);
+    boolean markFailed(final String id, final String claimToken, final String errorMessage);
 
-        final Bson query = Filters.and(ownedClaim(id, claimToken), Filters.eq("user_id", MongoIds.objectId(userId)),
-                Filters.exists("publication_started_at", true));
-        final Bson update = Updates.combine(
-                Updates.set("status", PendingDocumentEntity.STATUS_COMPLETE),
-                Updates.set("output", new Binary(encrypted.ciphertext())),
-                Updates.set("output_encrypted_key", encrypted.encryptionKey()),
-                Updates.set("completed_at", new Date()),
-                Updates.set("notification_pending", true),
-                Updates.unset("input"),
-                Updates.unset("input_encrypted_key")
-        );
+    long deleteByDocumentIdAndUserId(final String documentId, final String userId);
 
-        return jobs.updateOne(query, update).getModifiedCount() == 1;
+    int countByUserId(final String userId);
 
-    }
+    int countPendingByUserId(final String userId);
 
-    public boolean markFailed(final String id, final String claimToken, final String errorMessage) {
+    boolean hasOpenJobsForContext(final String userId, final String contextName);
 
-        final Bson query = Filters.and(ownedClaim(id, claimToken), Filters.or(
-                Filters.exists("publication_started_at", true),
-                Filters.gt("claim_expires_at", new Date(clock.getAsLong()))));
-        final Bson update = Updates.combine(
-                Updates.set("status", PendingDocumentEntity.STATUS_FAILED),
-                Updates.set("error_message", errorMessage),
-                Updates.set("completed_at", new Date()),
-                Updates.set("notification_pending", true),
-                Updates.unset("input"),
-                Updates.unset("input_encrypted_key")
-        );
+    List<PendingDocumentEntity> pendingNotifications(final int limit);
 
-        return jobs.updateOne(query, update).getModifiedCount() == 1;
+    void recordNotificationAttempt(final String jobId);
 
-    }
-
-    public long deleteByDocumentIdAndUserId(final String documentId, final String userId) {
-
-        final Bson query = Filters.and(
-                Filters.eq("document_id", documentId),
-                Filters.eq("user_id", MongoIds.objectId(userId)),
-                Filters.ne("notification_pending", true)
-        );
-
-        final DeleteResult result = jobs.deleteMany(query);
-        if (result.getDeletedCount() == 0 && jobs.countDocuments(Filters.and(Filters.eq("document_id", documentId),
-                Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("notification_pending", true))) > 0) {
-            throw new QueueCapacityException("Notification dispatch is pending. Retry deletion later.", 409);
-        }
-        return result.getDeletedCount();
-
-    }
-
-    public int countByUserId(final String userId) {
-        return (int) jobs.countDocuments(Filters.eq("user_id", MongoIds.objectId(userId)));
-    }
-
-    public int countPendingByUserId(final String userId) {
-        return (int) jobs.countDocuments(Filters.and(
-                Filters.eq("user_id", MongoIds.objectId(userId)),
-                Filters.in("status", PendingDocumentEntity.STATUS_PENDING, PendingDocumentEntity.STATUS_PROCESSING)
-        ));
-    }
-
-    public boolean hasOpenJobsForContext(final String userId, final String contextName) {
-        return jobs.countDocuments(Filters.and(
-                Filters.eq("user_id", MongoIds.objectId(userId)),
-                Filters.eq("context_name", contextName),
-                Filters.in("status", PendingDocumentEntity.STATUS_PENDING, PendingDocumentEntity.STATUS_PROCESSING)
-        )) > 0;
-    }
-
-    public List<PendingDocumentEntity> pendingNotifications(final int limit) {
-        final List<PendingDocumentEntity> result = new ArrayList<>();
-        for (Document document : jobs.find(Filters.eq("notification_pending", true))
-                .projection(com.mongodb.client.model.Projections.exclude("input", "output"))
-                .sort(Sorts.ascending("notification_attempted_at", "completed_at")).limit(limit)) {
-            result.add(PendingDocumentDocuments.fromDocument(document, encryptionService));
-        }
-        return result;
-    }
-
-    public void recordNotificationAttempt(final String jobId) {
-        jobs.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(jobId)), Filters.eq("notification_pending", true)),
-                Updates.set("notification_attempted_at", new Date(clock.getAsLong())));
-    }
-
-    public void acknowledgeNotification(final String jobId) {
-        jobs.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(jobId)), Filters.eq("notification_pending", true)),
-                Updates.combine(Updates.set("notification_pending", false),
-                        Updates.set("retention_at", new Date(clock.getAsLong()))));
-    }
-    @Override
-    protected Document toDocument(final PendingDocumentEntity entity) {
-        return PendingDocumentDocuments.toDocument(entity, encryptionService);
-    }
+    void acknowledgeNotification(final String jobId);
 
 }

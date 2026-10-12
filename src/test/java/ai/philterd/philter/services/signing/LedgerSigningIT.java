@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.signing;
 
+import ai.philterd.philter.data.mongodb.MongoSigningKeyDataService;
+import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -69,7 +71,7 @@ class LedgerSigningIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUp() {
-        signingKeyDataService = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
+        signingKeyDataService = new MongoSigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
 
         final AdminSettingsEntity settings = new AdminSettingsEntity();
         settings.setSigningEnabled(false);
@@ -77,7 +79,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         when(adminSettings.findAdminSettings()).thenReturn(settings);
 
         signingService = new SigningService(signingKeyDataService, adminSettings);
-        ledgerDataService = new LedgerDataService(mongoClient, new TestEncryptionService(),
+        ledgerDataService = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), mock(LegalHoldDataService.class), signingService);
     }
 
@@ -205,10 +207,10 @@ class LedgerSigningIT extends AbstractMongoIT {
     @Test
     void ledgerSignaturesStillVerifyAfterReloadingEncryptedKey() throws Exception {
         writeChain();
-        final SigningKeyDataService reloaded = new SigningKeyDataService(mongoClient,
+        final SigningKeyDataService reloaded = new MongoSigningKeyDataService(mongoClient,
                 new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
         final SigningService reloadedSigning = new SigningService(reloaded, adminSettings);
-        final LedgerDataService reloadedLedger = new LedgerDataService(mongoClient,
+        final LedgerDataService reloadedLedger = new MongoLedgerDataService(mongoClient,
                 new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class),
                 mock(LegalHoldDataService.class), reloadedSigning);
         assertTrue(reloadedLedger.isChainValid(USER, DOC));
@@ -361,7 +363,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         final SigningService brokenSigner = mock(SigningService.class);
         when(brokenSigner.signLedgerEntry(anyString()))
                 .thenThrow(new IllegalStateException("signer unavailable"));
-        final var service = new LedgerDataService(mongoClient, new TestEncryptionService(),
+        final var service = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), mock(LegalHoldDataService.class), brokenSigner);
         final LedgerEntity entry = new LedgerEntity(USER, DOC, "", "", 0, "input-hash",
                 LedgerDataService.GENESIS, "file", "", "default", 1, "policy-hash");
@@ -376,7 +378,7 @@ class LedgerSigningIT extends AbstractMongoIT {
     @Test
     void incompleteSigningResultAndMissingHashCannotBeSaved() throws Exception {
         final SigningService brokenSigner = mock(SigningService.class);
-        final var service = new LedgerDataService(mongoClient, new TestEncryptionService(),
+        final var service = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), mock(LegalHoldDataService.class), brokenSigner);
         final LedgerEntity entry = new LedgerEntity(USER, DOC, "", "", 0, "input-hash",
                 LedgerDataService.GENESIS, "file", "", "default", 1, "policy-hash");

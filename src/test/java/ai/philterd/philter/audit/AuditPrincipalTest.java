@@ -59,7 +59,7 @@ class AuditPrincipalTest {
             "SignInApiController.SIGN_IN_FAILED",
             "SignInApiController.SIGN_IN_LOCKED",
             "SignInApiController.SIGN_IN_RATE_LIMITED",
-            "SigningKeyDataService.SIGNING_KEY_GENERATED");
+            "MongoSigningKeyDataService.SIGNING_KEY_GENERATED");
 
     @Test
     @DisplayName("No audit event is written with a hard-coded null principal")

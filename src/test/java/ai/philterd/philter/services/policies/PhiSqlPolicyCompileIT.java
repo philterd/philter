@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.policies;
 
+import ai.philterd.philter.data.mongodb.MongoPolicyDataService;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -44,8 +45,8 @@ class PhiSqlPolicyCompileIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        policyDataService = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson,
-                new ai.philterd.philter.data.services.PolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), new ai.philterd.philter.services.cache.RedactionCache());
+        policyDataService = new MongoPolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson,
+                new ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     @Test

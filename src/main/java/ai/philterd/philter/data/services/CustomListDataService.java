@@ -15,415 +15,87 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.philter.data.mongodb.CustomListDocuments;
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.utils.PathSafeNames;
-import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
-import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.encryption.EncryptionService;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.IndexOptions;
-import com.mongodb.client.model.Indexes;
-import com.mongodb.client.result.DeleteResult;
-import org.bson.Document;
-import org.bson.conversions.Bson;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
-public class CustomListDataService extends AbstractEncryptedService<CustomListEntity> {
+/**
+ * Each user's custom lists of terms, stored encrypted.
+ *
+ * <p>Guarantees every implementation must provide:
+ * <ul>
+ *   <li>A list name is unique per user: creating a second list with the same name is refused and writes
+ *   nothing.</li>
+ *   <li>Items are stored encrypted, and what is written is read back unchanged.</li>
+ *   <li>Listings return their total, page by offset without repeating or skipping lists, sort by name, and
+ *   search names as case-insensitive plain text (see {@link Listings}).</li>
+ * </ul>
+ */
+public interface CustomListDataService {
 
-    public static final int MAXIMUM_NUMBER_OF_ITEMS = 100;
-    public static final int MAXIMUM_ITEM_LENGTH = 50;
-    public static final int MAX_LIMIT = 100;
+    int MAXIMUM_NUMBER_OF_ITEMS = 100;
+
+    int MAXIMUM_ITEM_LENGTH = 50;
 
     /** Why a create is refused with 409, carried in the response's details. */
-    public static final String REASON_LIST_EXISTS = "list_exists";
-
-    private static final String NAME_INDEX = "user_id_name_unique";
-
-    /** The non-unique index earlier builds made on the same keys, which would block the unique one. */
-    private static final String LEGACY_NAME_INDEX = "user_id_1_name_1";
-
-    public CustomListDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
-        super(mongoClient, "custom_lists", encryptionService, auditEventPublisher);
-
-        // Custom lists are listed by user and looked up by (user_id, name), which is unique, so two
-        // concurrent creates cannot both succeed. Existing duplicate names fail startup.
-        for (final Document index : collection.listIndexes()) {
-            if (LEGACY_NAME_INDEX.equals(index.getString("name")) && !index.getBoolean("unique", false)) {
-                try {
-                    collection.dropIndex(LEGACY_NAME_INDEX);
-                } catch (final com.mongodb.MongoCommandException alreadyDropped) {
-                    // Another instance starting at the same time dropped it first.
-                    if (alreadyDropped.getErrorCode() != 27) throw alreadyDropped;
-                }
-            }
-        }
-        ensureIndex(Indexes.ascending("user_id", "name"), new IndexOptions().unique(true).name(NAME_INDEX));
-    }
+    String REASON_LIST_EXISTS = "list_exists";
 
     /** Replaces an existing list's items, and its description when one is given; 404 if there is no such list. */
-    public ServiceResponse replace(final String requestId, final String userId, final String listName,
-                                   final String description, final List<String> listItems, final String origin) {
-        return write(requestId, userId, listName, description, listItems, true, false, origin);
-    }
+    ServiceResponse replace(final String requestId, final String userId, final String listName,
+            final String description, final List<String> listItems, final String origin);
 
-    public ServiceResponse saveOrUpdate(final String requestId, final String userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {
-        return write(requestId, userId, listName, description, listItems, allowUpdate, true, origin);
-    }
+    ServiceResponse saveOrUpdate(final String requestId, final String userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin);
 
-    private ServiceResponse write(final String requestId, final String userId, final String listName,
-                                  final String description, final List<String> listItems, final boolean allowUpdate,
-                                  final boolean allowCreate, final String origin) {
-
-        if(listItems == null) {
-            return new ServiceResponse("List items cannot be empty.", false, 400);
-        }
-
-        if (listName == null || listName.isEmpty()) {
-            return new ServiceResponse("List name cannot be empty.", false, 400);
-        }
-
-        if (!PathSafeNames.isPathSafe(listName)) {
-            return new ServiceResponse("The list name " + PathSafeNames.RULE + ".", false, 400);
-        }
-
-        if (listItems.size() > CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS) {
-            return new ServiceResponse("List contains too many items. Maximum is " + CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS + ".", false, 400);
-        }
-        
-        // Filtered into a new list rather than removed from the caller's: removeIf mutates the
-        // argument, and throws outright on the immutable list any modern caller would pass.
-        final List<String> trimmedListItems = listItems.stream()
-                .filter(item -> item != null && !item.isEmpty())
-                .map(String::trim)
-                .toList();
-
-        if(trimmedListItems.isEmpty()) {
-            return new ServiceResponse("List items cannot be empty.", false, 400);
-        }
-
-        // Check if any item exceeds the maximum length
-        for (final String item : trimmedListItems) {
-            if (item.length() > MAXIMUM_ITEM_LENGTH) {
-                return new ServiceResponse("A list item is too long. List items cannot be longer than " + MAXIMUM_ITEM_LENGTH + " characters.", false, 400);
-            }
-        }
-
-        if(existsForUser(listName, userId)) {
-
-            if(allowUpdate) {
-
-                // Is updating the existing list ok?
-
-                final CustomListEntity customListEntity = findOneByName(listName, userId);
-
-                // If it does already exist, we are just going to update it's content.
-                customListEntity.setItems(trimmedListItems);
-                // Left out, the description stays as it is; an empty one clears it.
-                if (description != null) {
-                    customListEntity.setDescription(description);
-                }
-                update(customListEntity);
-
-                auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_UPDATED, customListEntity.getId(), origin);
-
-                return new ServiceResponse("List was updated", true, 200);
-
-            } else {
-
-                // Not allowed to update the existing list.
-                return new ServiceResponse("A list with this name already exists.", false, 409, REASON_LIST_EXISTS);
-
-            }
-
-        } else if (!allowCreate) {
-
-            return new ServiceResponse("List does not exist.", false, 404);
-
-        } else {
-
-            final CustomListEntity customListEntity = new CustomListEntity();
-            customListEntity.setUserId(userId);
-            customListEntity.setName(listName);
-            customListEntity.setDescription(description == null ? "" : description);
-            customListEntity.setItems(trimmedListItems);
-            final String objectId;
-            try {
-                objectId = save(customListEntity);
-            } catch (final com.mongodb.MongoWriteException race) {
-                // A concurrent create took the name after the check above; the unique index refused this one.
-                if (race.getError().getCode() != 11000) throw race;
-                return new ServiceResponse("A list with this name already exists.", false, 409, REASON_LIST_EXISTS);
-            }
-
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_CREATED, objectId, origin);
-
-            return new ServiceResponse("List created", true, objectId, 201);
-
-        }
-
-    }
-
-    public CustomListEntity findOneById(final String id, final String userId) {
-
-        final Bson filter1 = Filters.and(
-                Filters.eq("_id", MongoIds.objectId(id)),
-                Filters.eq("user_id", MongoIds.objectId(userId))
-        );
-
-        final Document document = collection.find(filter1).first();
-
-        if(document != null) {
-            return CustomListDocuments.fromDocument(document, encryptionService);
-        } else {
-            return null;
-        }
-
-    }
+    CustomListEntity findOneById(final String id, final String userId);
 
     /**
      * Fetches several custom lists for a user in a single query, returning a map of list name to its
      * items. Used to resolve all {@code list:} references in a policy at once rather than issuing one
      * query per reference. Names with no matching list are simply absent from the returned map.
      */
-    public Map<String, List<String>> findItemsByNames(final String userId, final Collection<String> names) {
+    Map<String, List<String>> findItemsByNames(final String userId, final Collection<String> names);
 
-        if (userId == null || names == null || names.isEmpty()) {
-            return Collections.emptyMap();
-        }
+    CustomListEntity findOneByName(final String name, final String userId);
 
-        final Bson filter = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.in("name", names));
-
-        final Map<String, List<String>> itemsByName = new HashMap<>();
-        for (final Document document : collection.find(filter)) {
-            final CustomListEntity entity = CustomListDocuments.fromDocument(document, encryptionService);
-            itemsByName.put(entity.getName(), entity.getItems());
-        }
-
-        return itemsByName;
-
-    }
-
-    public CustomListEntity findOneByName(final String name, final String userId) {
-
-        final Bson filter1 = Filters.and(
-                Filters.eq("name", name),
-                Filters.eq("user_id", MongoIds.objectId(userId))
-        );
-
-        final Document document = collection.find(filter1).first();
-
-        if(document != null) {
-            return CustomListDocuments.fromDocument(document, encryptionService);
-        } else {
-            return null;
-        }
-
-    }
-
-    public boolean existsForUser(final String name, final String userId) {
-
-        final Bson filter1 = Filters.and(
-                Filters.eq("name", name),
-                Filters.eq("user_id", MongoIds.objectId(userId))
-        );
-
-        final Document document = collection.find(filter1).first();
-
-        return document != null;
-
-    }
+    boolean existsForUser(final String name, final String userId);
 
     /**
      * Returns every custom list for every user. Intended for admin-only views; ordinary access must use
      * the owner-scoped {@link #findAll(String)}.
      */
-    public List<CustomListEntity> findAllAcrossUsers() {
-
-        final List<CustomListEntity> customListEntities = new ArrayList<>();
-
-        for (final Document document : collection.find()) {
-            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
-        }
-
-        return customListEntities;
-
-    }
+    List<CustomListEntity> findAllAcrossUsers();
 
     /**
      * Returns one page of custom lists across every user, ordered by name. Intended for admin-only
      * views; ordinary access must use the owner-scoped {@link #findAll(String)}.
      */
-    public List<CustomListEntity> findAllAcrossUsers(final int offset, final int limit) {
-
-        final List<CustomListEntity> customListEntities = new ArrayList<>();
-
-        for (final Document document : collection.find().sort(Sorts.ascending("name", "_id")).skip(offset).limit(limit)) {
-            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
-        }
-
-        return customListEntities;
-
-    }
+    List<CustomListEntity> findAllAcrossUsers(final int offset, final int limit);
 
     /** Returns the total number of custom lists across every user (for admin paging). */
-    public int countAllAcrossUsers() {
-        return (int) collection.countDocuments();
-    }
+    int countAllAcrossUsers();
 
-    public List<CustomListEntity> findAll(final String userId) {
+    List<CustomListEntity> findAll(final String userId);
 
-        final Document query = new Document();
-
-        if (userId != null) {
-            query.append("user_id", MongoIds.objectId(userId));
-        }
-
-        final FindIterable<Document> documents = collection.find(query);
-
-        final List<CustomListEntity> customListEntities = new ArrayList<>();
-
-        for(final Document document : documents) {
-            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
-        }
-
-        return customListEntities;
-
-    }
-
-    public List<CustomListEntity> findBySearchTerm(final String userId, final String searchTerm, final int limit) {
-
-        final int effectiveLimit = Math.min(limit, MAX_LIMIT);
-        final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
-
-        final Bson query;
-
-        if (userId != null) {
-            query = Filters.and(
-                    Filters.eq("user_id", MongoIds.objectId(userId)),
-                    Filters.or(
-                            Filters.regex("name", pattern),
-                            Filters.regex("description", pattern)
-                    )
-            );
-        } else {
-            query = Filters.or(
-                    Filters.regex("name", pattern),
-                    Filters.regex("description", pattern)
-            );
-        }
-
-        final FindIterable<Document> documents = collection.find(query).limit(effectiveLimit);
-
-        final List<CustomListEntity> customListEntities = new ArrayList<>();
-
-        for(final Document document : documents) {
-            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
-        }
-
-        return customListEntities;
-
-    }
+    List<CustomListEntity> findBySearchTerm(final String userId, final String searchTerm, final int limit);
 
     /**
      * A page of the user's custom lists, or every user's when {@code userId} is null, whose names contain
      * {@code q}, and their total.
      */
-    public Listings.Page<CustomListEntity> list(final String userId, final String q, final Listings.Sort sort,
-                                                final int offset, final int limit) {
-        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
-                Listings.contains("name", q)), sort, offset, limit,
-                document -> CustomListDocuments.fromDocument(document, encryptionService));
-    }
+    Listings.Page<CustomListEntity> list(final String userId, final String q, final Listings.Sort sort,
+            final int offset, final int limit);
 
-    public List<CustomListEntity> findAll(final String userId, final int offset, final int limit) {
-        return findAll(userId, offset, limit, null, null);
-    }
+    List<CustomListEntity> findAll(final String userId, final int offset, final int limit);
 
-    public List<CustomListEntity> findAll(final String userId, final int offset, final int limit, final String sortField, final String sortDirection) {
+    List<CustomListEntity> findAll(final String userId, final int offset, final int limit, final String sortField, final String sortDirection);
 
-        // Apply sorting if specified
-        final Document sortDocument = new Document();
-        if (sortField != null && !sortField.isBlank()) {
-            // Validate sortField against a whitelist to prevent NoSQL injection
-            final String validatedSortField = switch (sortField) {
-                case "name", "description" -> sortField;
-                default -> "name"; // Fallback to default if invalid field is provided
-            };
-            final int direction = "DESC".equalsIgnoreCase(sortDirection) ? -1 : 1;
-            sortDocument.append(validatedSortField, direction);
-        } else {
-            // Default sort by name ascending
-            sortDocument.append("name", 1);
-        }
+    int count(final String userId);
 
-        final Document query = new Document();
+    void deleteByName(final String name, final String userId);
 
-        if (userId != null) {
-            query.append("user_id", MongoIds.objectId(userId));
-        }
-
-        final FindIterable<Document> documents = collection.find(query)
-                .sort(sortDocument)
-                .skip(offset)
-                .limit(limit);
-
-        final List<CustomListEntity> customListEntities = new ArrayList<>();
-
-        for(final Document document : documents) {
-            customListEntities.add(CustomListDocuments.fromDocument(document, encryptionService));
-        }
-
-        return customListEntities;
-
-    }
-
-    public int count(final String userId) {
-
-        final Document query = new Document();
-
-        if (userId != null) {
-            query.append("user_id", MongoIds.objectId(userId));
-        }
-
-        final long count = collection.countDocuments(query);
-
-        return (int) count;
-
-    }
-
-    public void deleteByName(final String name, final String userId) {
-
-        final Document filter = new Document("name", name).append("user_id", MongoIds.objectId(userId));
-        collection.deleteOne(filter);
-
-    }
-
-    public long deleteAll(final String userId) {
-
-        final Document query = new Document("user_id", MongoIds.objectId(userId));
-
-        final DeleteResult deleteResult = collection.deleteMany(query);
-
-        return deleteResult.getDeletedCount();
-
-    }
-
-    @Override
-    protected Document toDocument(final CustomListEntity entity) {
-        return CustomListDocuments.toDocument(entity, encryptionService);
-    }
+    long deleteAll(final String userId);
 
 }

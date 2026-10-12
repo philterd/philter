@@ -15,6 +15,21 @@
  */
 package ai.philterd.philter;
 
+import ai.philterd.philter.data.mongodb.MongoWebhookDeliveryDataService;
+import ai.philterd.philter.data.mongodb.MongoUserService;
+import ai.philterd.philter.data.mongodb.MongoSigningKeyDataService;
+import ai.philterd.philter.data.mongodb.MongoSignInChallengeDataService;
+import ai.philterd.philter.data.mongodb.MongoRedactListsDataService;
+import ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService;
+import ai.philterd.philter.data.mongodb.MongoPolicyDataService;
+import ai.philterd.philter.data.mongodb.MongoPendingDocumentDataService;
+import ai.philterd.philter.data.mongodb.MongoLegalHoldDataService;
+import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
+import ai.philterd.philter.data.mongodb.MongoCustomListDataService;
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
+import ai.philterd.philter.data.mongodb.MongoContextDataService;
+import ai.philterd.philter.data.mongodb.MongoApiKeyDataService;
+import ai.philterd.philter.data.mongodb.MongoAdminSettingsDataService;
 import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.phileas.services.context.DefaultContextService;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
@@ -321,53 +336,53 @@ public class PhilterApplication {
 
     @Bean
     public ContextDataService contextDataService() {
-        return new ContextDataService(mongoClient(), contextCache(), auditEventPublisher());
+        return new MongoContextDataService(mongoClient(), contextCache(), auditEventPublisher());
     }
 
     @Bean
     public LegalHoldDataService legalHoldDataService() {
-        return new LegalHoldDataService(mongoClient(), auditEventPublisher());
+        return new MongoLegalHoldDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean
     public LedgerDataService ledgerService() {
-        return new LedgerDataService(mongoClient(), encryptionService(), auditEventPublisher(),
+        return new MongoLedgerDataService(mongoClient(), encryptionService(), auditEventPublisher(),
                 legalHoldDataService(), signingService());
     }
 
     @Bean
     public ContextEntryDataService contextEntryDataService() {
-        return new ContextEntryDataService(mongoClient(), auditEventPublisher(), contextCache());
+        return new MongoContextEntryDataService(mongoClient(), auditEventPublisher(), contextCache());
     }
 
     @Bean
     public CustomListDataService customListService() {
-        return new CustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoCustomListDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
     public RedactListsDataService redactListsService() {
-        return new RedactListsDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoRedactListsDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
     public ApiKeyDataService apiKeyDataService() {
-        return new ApiKeyDataService(mongoClient(), auditEventPublisher(), apiKeyCache());
+        return new MongoApiKeyDataService(mongoClient(), auditEventPublisher(), apiKeyCache());
     }
 
     @Bean
     public SignInChallengeDataService signInChallengeDataService() {
-        return new SignInChallengeDataService(mongoClient());
+        return new MongoSignInChallengeDataService(mongoClient());
     }
 
     @Bean
     public PendingDocumentDataService pendingDocumentDataService() {
-        return new PendingDocumentDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoPendingDocumentDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
     public WebhookDeliveryDataService webhookDeliveryDataService() {
-        return new WebhookDeliveryDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoWebhookDeliveryDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
@@ -380,22 +395,22 @@ public class PhilterApplication {
 
     @Bean
     public PolicyVersionDataService policyVersionDataService() {
-        return new PolicyVersionDataService(mongoClient(), auditEventPublisher());
+        return new MongoPolicyVersionDataService(mongoClient(), auditEventPublisher());
     }
 
     @Bean
     public PolicyDataService policyDataService() {
-        return new PolicyDataService(mongoClient(), auditEventPublisher(), gson(), policyVersionDataService(), redactionCache());
+        return new MongoPolicyDataService(mongoClient(), auditEventPublisher(), gson(), policyVersionDataService(), redactionCache());
     }
 
     @Bean
     public AdminSettingsDataService adminSettingsDataService() {
-        return new AdminSettingsDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoAdminSettingsDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
     public SigningKeyDataService signingKeyDataService() {
-        return new SigningKeyDataService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoSigningKeyDataService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean
@@ -405,7 +420,7 @@ public class PhilterApplication {
 
     @Bean
     public UserService userService() {
-        return new UserService(mongoClient(), encryptionService(), auditEventPublisher());
+        return new MongoUserService(mongoClient(), encryptionService(), auditEventPublisher());
     }
 
     @Bean

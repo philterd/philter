@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
+import ai.philterd.philter.data.services.AdminSettingsDataService;
 import org.bson.Document;
 
 /** Maps {@link AdminSettingsEntity} to and from the documents MongoDB stores. */

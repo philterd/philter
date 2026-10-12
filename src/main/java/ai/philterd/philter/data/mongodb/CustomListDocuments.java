@@ -36,10 +36,10 @@ public final class CustomListDocuments {
         customListEntity.setName(document.getString("name"));
         customListEntity.setDescription(document.getString("description"));
         customListEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
-        
+
         final String encryptedItems = document.getString("items");
         final String itemsEncryptedKey = document.getString("items_encrypted_key");
-        
+
         final List<String> decryptedItems = new ArrayList<>();
         if (encryptedItems != null && itemsEncryptedKey != null) {
             final String decryptedItemsStr = encryptionService.decrypt(encryptedItems, itemsEncryptedKey);
@@ -47,10 +47,10 @@ public final class CustomListDocuments {
                 decryptedItems.addAll(Arrays.asList(decryptedItemsStr.split("\n")));
             }
         }
-        
+
         customListEntity.setItems(decryptedItems);
         customListEntity.setItemsEncryptedKey(itemsEncryptedKey);
-        
+
         return customListEntity;
     }
 
@@ -62,7 +62,7 @@ public final class CustomListDocuments {
         document.put("name", entity.getName());
         document.put("description", entity.getDescription());
         document.put("user_id", MongoIds.objectId(entity.getUserId()));
-        
+
         if (entity.getItems() != null && !entity.getItems().isEmpty()) {
             final String itemsStr = String.join("\n", entity.getItems());
             final EncryptResult encryptResult = encryptionService.encrypt(itemsStr, entity.getUserId());
@@ -72,7 +72,7 @@ public final class CustomListDocuments {
             document.put("items", "");
             document.put("items_encrypted_key", "");
         }
-        
+
         return document;
     }
 

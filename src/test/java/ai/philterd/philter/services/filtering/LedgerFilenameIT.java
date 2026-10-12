@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -105,7 +106,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
                 .thenReturn(new SigningService.LedgerSignature("signature", "key"));
         when(signer.verifyLedgerEntry(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
-        ledgerDataService = new LedgerDataService(mongoClient, new TestEncryptionService(),
+        ledgerDataService = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), legalHoldDataService, signer);
 
         redactionService = new RedactionService(mongoClient, policyDataService,

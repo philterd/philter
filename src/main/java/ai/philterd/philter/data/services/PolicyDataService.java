@@ -15,90 +15,66 @@
  */
 package ai.philterd.philter.data.services;
 
-import ai.philterd.phileas.policy.Policy;
-import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.mongodb.PolicyDocuments;
 import ai.philterd.philter.data.entities.PolicyEntity;
-import ai.philterd.philter.data.entities.PolicyVersionEntity;
-import ai.philterd.philter.data.mongodb.MongoIds;
-import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
-import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.model.Source;
-import ai.philterd.philter.services.policies.ManagedPolicyLoader;
-import ai.philterd.philter.services.policies.PolicyValidation;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import com.google.gson.Gson;
+import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Indexes;
-import com.mongodb.client.model.Sorts;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.result.DeleteResult;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bson.Document;
-import org.bson.conversions.Bson;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
-public class PolicyDataService extends AbstractService<PolicyEntity> {
+/**
+ * Each user's redaction policies, and the managed policies every user can use.
+ *
+ * <p>Guarantees every implementation must provide:
+ * <ul>
+ *   <li>A policy name is unique per user: creating a second policy with the same name is refused and writes
+ *   nothing.</li>
+ *   <li>Conditional writes: given an expected entity tag ({@link #eTag}), {@link #replace} and the other
+ *   conditional writes change the policy only if its content, description, and notes are still as they were
+ *   when the tag was read. Otherwise nothing is written and the refusal's reason is
+ *   {@link #REASON_POLICY_CHANGED}. Of two writes racing with the same tag, exactly one succeeds.</li>
+ *   <li>Revision numbers only increase and are never reused for a policy, even after it is deleted and
+ *   created again.</li>
+ *   <li>Each content change is snapshotted with {@link PolicyVersionDataService} before the policy changes, so the
+ *   revision a ledger entry names can always be resolved to its content.</li>
+ *   <li>Listings return their total, page by offset without repeating or skipping policies, sort by the
+ *   fields the API offers, and search names as case-insensitive plain text (see {@link Listings}).</li>
+ * </ul>
+ */
+public interface PolicyDataService {
 
-    private static final Logger LOGGER = LogManager.getLogger(PolicyDataService.class);
+    String POLICY_NAME_REGEX = "^[a-zA-Z0-9_-]+$";
 
-    public static final String POLICY_NAME_REGEX = "^[a-zA-Z0-9_-]+$";
-    public static final int POLICY_NAME_MAX_LENGTH = 50;
-    public static final int POLICY_NOTES_MAX_LENGTH = 1000;
-    public static final int POLICY_DESCRIPTION_MAX_LENGTH = 200;
-    public static final String INVALID_POLICY_NAME_MESSAGE = "The policy name must only contain letters, numbers, dashes, and underscores.";
-    public static final int MAX_LIMIT = 100;
+    int POLICY_NAME_MAX_LENGTH = 50;
+
+    int POLICY_NOTES_MAX_LENGTH = 1000;
+
+    int POLICY_DESCRIPTION_MAX_LENGTH = 200;
 
     /** The prefix of every managed policy's name, which a user's policy cannot start with. */
-    public static final String MANAGED_NAME_PREFIX = "managed_";
+    String MANAGED_NAME_PREFIX = "managed_";
 
     /** The policy every user is given, which cannot be deleted. */
-    public static final String DEFAULT_POLICY_NAME = "default";
+    String DEFAULT_POLICY_NAME = "default";
 
     /**
      * Names a policy cannot have, because a request path with them means something else:
      * {@code /api/policies/templates/...} is where policy templates are read.
      */
-    public static final List<String> RESERVED_POLICY_NAMES = List.of("templates");
+    List<String> RESERVED_POLICY_NAMES = List.of("templates");
 
     /** Reasons a policy change is refused with 409, carried in the response's details. */
-    public static final String REASON_POLICY_MANAGED = "policy_managed";
-    public static final String REASON_POLICY_CHANGED = "policy_changed";
-    public static final String REASON_POLICY_EXISTS = "policy_exists";
-    public static final String REASON_POLICY_DEFAULT = "policy_default";
+    String REASON_POLICY_MANAGED = "policy_managed";
 
-    private final Gson gson;
-    private final PolicyVersionDataService policyVersionDataService;
+    String REASON_POLICY_CHANGED = "policy_changed";
 
-    // Evicted on every write, so an edit governs the next redaction.
-    private final RedactionCache redactionCache;
+    String REASON_POLICY_EXISTS = "policy_exists";
 
-    public PolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {
-        super(mongoClient, "policies", auditEventPublisher);
-        revisionCounters = mongoClient.getDatabase("philter").getCollection("policy_revision_counters");
-        this.gson = gson;
-        this.policyVersionDataService = policyVersionDataService;
-        this.redactionCache = redactionCache;
-
-        // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
-        ensureIndex(Indexes.ascending("user_id", "name"), new com.mongodb.client.model.IndexOptions().unique(true));
-        ensureIndex(Indexes.ascending("managed", "name"));
-        // Listing a user's policies also matches shared policies via an OR branch on shared=true, so
-        // index shared so that branch uses an index instead of scanning the collection.
-        ensureIndex(Indexes.ascending("shared", "name"));
-    }
+    String REASON_POLICY_DEFAULT = "policy_default";
 
     /**
      * Updates an existing policy.
@@ -109,19 +85,13 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @param source The source of the change
      * @return A {@link ServiceResponse} indicating the result of the operation.
      */
-    public ServiceResponse update(final String requestId, final String userId, final String policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source) {
-        return update(requestId, userId, policyId, policyJson, policyDescription, policyNotes, source, null);
-    }
+    ServiceResponse update(final String requestId, final String userId, final String policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source);
 
     /**
      * As above, recording {@code authorId} as the author of the new revision. It is the caller, not
      * necessarily {@code userId}: an admin may change another user's policy.
      */
-    public ServiceResponse update(final String requestId, final String userId, final String policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source, final String authorId) {
-        // Here a blank description or notes keeps the current one, and a long one is cut to the limit.
-        return replace(requestId, userId, policyId, policyJson, keptIfBlank(policyDescription, POLICY_DESCRIPTION_MAX_LENGTH),
-                keptIfBlank(policyNotes, POLICY_NOTES_MAX_LENGTH), source, authorId, null).response();
-    }
+    ServiceResponse update(final String requestId, final String userId, final String policyId, final String policyJson, final String policyDescription, final String policyNotes, final String source, final String authorId);
 
     /**
      * Replaces a policy's content as a new revision, and its description and notes in the same write. A null
@@ -132,491 +102,92 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      *                     policy's current one, nothing is written and the refusal's reason is
      *                     {@link #REASON_POLICY_CHANGED}.
      */
-    public WriteOutcome replace(final String requestId, final String userId, final String policyId, final String policyJson,
-                                final String description, final String notes, final String source, final String authorId,
-                                final String expectedETag) {
-
-        final ServiceResponse tooLong = detailLengthProblem(description, notes);
-        if (tooLong != null) {
-            return WriteOutcome.refused(tooLong);
-        }
-
-        final PolicyEntity policyEntity = findOneById(policyId, userId);
-
-        // Make sure the policy exists.
-        if(policyEntity == null) {
-            return WriteOutcome.refused(new ServiceResponse("Policy does not exist.", false, 404));
-        }
-
-        // Make sure the policy is not managed.
-        if(policyEntity.isManaged()) {
-            return WriteOutcome.refused(new ServiceResponse("You cannot update a managed policy.", false, 409, REASON_POLICY_MANAGED));
-        }
-
-        final ServiceResponse stale = staleRefusal(policyEntity, expectedETag);
-        if (stale != null) {
-            return WriteOutcome.refused(stale);
-        }
-
-        // The policy must be validated to ensure it is syntactically correct and does not contain any invalid values.
-        final PolicyValidation validation = validatePolicy(policyJson);
-        if (!validation.isValid()) {
-            return WriteOutcome.refused(new ServiceResponse(validation.getMessage(), false, 400));
-        }
-
-        // The write below only lands if none of these changed since the policy was read.
-        final int expectedRevision = policyEntity.getRevision();
-        final String expectedDescription = policyEntity.getDescription();
-        final String expectedNotes = policyEntity.getNotes();
-
-        // Metadata-only saves retain the current content revision.
-        final boolean contentChanged = !Objects.equals(
-                PolicyVersionDataService.contentHash(policyEntity.getPolicy()),
-                PolicyVersionDataService.contentHash(policyJson));
-
-        if (contentChanged) {
-            policyEntity.setRevision(reserveRevision(policyEntity, expectedRevision + 1));
-        }
-
-        policyEntity.setPolicy(policyJson);
-        policyEntity.setLastUpdatedTimestamp(new Date());
-
-        final List<String> detailsChanged = new ArrayList<>();
-        if (description != null) {
-            policyEntity.setDescription(description);
-            detailsChanged.add("description");
-        }
-        if (notes != null) {
-            policyEntity.setNotes(notes);
-            detailsChanged.add("notes");
-        }
-
-        warnAboutLiteralKeys(policyEntity.getName(), policyJson);
-
-        policyEntity.setAuthorId(authorId);
-        policyVersionDataService.snapshot(policyEntity);
-        if (!replaceIfUnchanged(policyEntity, expectedRevision, expectedDescription, expectedNotes)) {
-            return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
-        }
-
-        redactionCache.evictPolicy(userId, policyEntity.getName());
-
-        if (detailsChanged.isEmpty()) {
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), source);
-        } else {
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), null, source,
-                    "details: " + String.join(", ", detailsChanged));
-        }
-
-        return new WriteOutcome(new ServiceResponse("The policy was updated.", true, 200), policyEntity);
-
-    }
-
-    /** What {@link #update} sets for a description or notes: null (keep the current one) when blank, else cut to {@code max}. */
-    private static String keptIfBlank(final String value, final int max) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.length() > max ? value.substring(0, max) : value;
-    }
-
-    /** A 400 for a description or notes over its limit, or null when both fit. */
-    private static ServiceResponse detailLengthProblem(final String description, final String notes) {
-        if (description != null && description.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
-            return new ServiceResponse("The description cannot be longer than " + POLICY_DESCRIPTION_MAX_LENGTH + " characters.", false, 400);
-        }
-        if (notes != null && notes.length() > POLICY_NOTES_MAX_LENGTH) {
-            return new ServiceResponse("The notes cannot be longer than " + POLICY_NOTES_MAX_LENGTH + " characters.", false, 400);
-        }
-        return null;
-    }
+    WriteOutcome replace(final String requestId, final String userId, final String policyId, final String policyJson,
+            final String description, final String notes, final String source, final String authorId,
+            final String expectedETag);
 
     /**
      * The outcome of a policy write and, when it succeeded, the policy as this write left it, so a caller can
      * report the {@link #eTag} its own write produced rather than one a later write produced.
      */
-    public record WriteOutcome(ServiceResponse response, PolicyEntity policy) {
+    record WriteOutcome(ServiceResponse response, PolicyEntity policy) {
 
-        static WriteOutcome refused(final ServiceResponse response) {
+        public static WriteOutcome refused(final ServiceResponse response) {
             return new WriteOutcome(response, null);
         }
 
     }
 
     /** The shape of an {@link #eTag}: the revision, a dash, and 16 hex digits. */
-    public static final Pattern ETAG_PATTERN = Pattern.compile("[0-9]+-[0-9a-f]{16}");
+    Pattern ETAG_PATTERN = Pattern.compile("[0-9]+-[0-9a-f]{16}");
 
     /**
      * The policy's entity tag: its revision and a hash of its description and notes, so it changes whenever
      * the policy or its details change. The revision alone does not: editing only the details keeps it.
      */
-    public static String eTag(final PolicyEntity policy) {
+    static String eTag(final PolicyEntity policy) {
         final JsonArray details = new JsonArray();
         details.add(policy.getDescription());
         details.add(policy.getNotes());
         return policy.getRevision() + "-" + EncryptionService.hashSha256(details.toString()).substring(0, 16);
     }
 
-    /** A 409 when {@code expectedETag} is given and is not the policy's current one, otherwise null. */
-    private static ServiceResponse staleRefusal(final PolicyEntity current, final String expectedETag) {
-        if (expectedETag == null || expectedETag.equals(eTag(current))) {
-            return null;
-        }
-        return new ServiceResponse("The policy changed since it was read. Read it again and retry.", false, 409,
-                REASON_POLICY_CHANGED);
-    }
-
-    public ServiceResponse create(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source) {
-        return create(requestId, userId, policyJson, policyDescription, policyNotes, policyName, source, null);
-    }
+    ServiceResponse create(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source);
 
     /** As above, recording {@code authorId}, the caller, as the author of the policy's first revision. */
-    public ServiceResponse create(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final String authorId) {
-        return createPolicy(requestId, userId, policyJson, policyDescription, policyNotes, policyName, source, authorId).response();
-    }
+    ServiceResponse create(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final String authorId);
 
     /** As above, returning the policy as created, for its {@link #eTag}. */
-    public WriteOutcome createPolicy(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final String authorId) {
+    WriteOutcome createPolicy(final String requestId, final String userId, final String policyJson, final String policyDescription, final String policyNotes, final String policyName, final String source, final String authorId);
 
-        // Make sure the policy name is not empty.
-        if (policyName == null || policyName.isEmpty()) {
-            return WriteOutcome.refused(new ServiceResponse("Policy name cannot be empty.", false, 400));
-        }
+    boolean containsValidChoice(final String value, final List<String> allowedValues);
 
-        // Make sure the policy name does not start with `managed_`
-        if (policyName.startsWith(MANAGED_NAME_PREFIX)) {
-            return WriteOutcome.refused(new ServiceResponse("The policy name cannot start with managed_", false, 400));
-        }
+    PolicyValidation validatePolicy(final String policyJson);
 
-        // Make sure the policy name is less than 50 characters long.
-        if (policyName.length() > POLICY_NAME_MAX_LENGTH) {
-            return WriteOutcome.refused(new ServiceResponse("The policy name cannot be longer than " + POLICY_NAME_MAX_LENGTH + " characters.", false, 400));
-        }
-
-        // Make sure the policy name matches the regular expression.
-        if (!policyName.matches(POLICY_NAME_REGEX)) {
-            return WriteOutcome.refused(new ServiceResponse(INVALID_POLICY_NAME_MESSAGE, false, 400));
-        }
-
-        // Make sure the policy name is not one the API's paths use for something else.
-        if (RESERVED_POLICY_NAMES.contains(policyName)) {
-            return WriteOutcome.refused(new ServiceResponse("The policy name " + policyName + " is reserved.", false, 400));
-        }
-
-        // Make sure the policy name is unique.
-        if (!isPolicyNameUnique(policyName, userId)) {
-            return WriteOutcome.refused(new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS));
-        }
-
-        // The policy must be validated to ensure it is syntactically correct and does not contain any invalid values.
-        // Once validation is successful, it can be saved.
-        final PolicyValidation validation = validatePolicy(policyJson);
-
-        if(!validation.isValid()) {
-
-            return WriteOutcome.refused(new ServiceResponse(validation.getMessage(), false, 400));
-
-        } else {
-
-            warnAboutLiteralKeys(policyName, policyJson);
-
-            final PolicyEntity policyEntity = new PolicyEntity();
-            policyEntity.setUserId(userId);
-            policyEntity.setAuthorId(authorId);
-            policyEntity.setPolicy(policyJson);
-            policyEntity.setName(policyName);
-            policyEntity.setCreatedTimestamp(new Date());
-            policyEntity.setLastUpdatedTimestamp(new Date());
-
-            // Truncate the policy notes.
-            if (policyNotes != null && !policyNotes.isEmpty()) {
-
-                if (policyNotes.length() > POLICY_NOTES_MAX_LENGTH) {
-                    final String truncatedNotes = policyNotes.substring(0, 1000);
-                    policyEntity.setNotes(truncatedNotes);
-                } else {
-                    policyEntity.setNotes(policyNotes);
-                }
-
-            }
-
-            if (policyDescription != null && !policyDescription.isEmpty()) {
-
-                if (policyDescription.length() > POLICY_DESCRIPTION_MAX_LENGTH) {
-                    final String truncatedDescription = policyDescription.substring(0, POLICY_DESCRIPTION_MAX_LENGTH);
-                    policyEntity.setDescription(truncatedDescription);
-                } else {
-                    policyEntity.setDescription(policyDescription);
-                }
-
-            }
-
-            final String policyId;
-            try {
-                policyId = save(policyEntity);
-            } catch (final com.mongodb.MongoWriteException race) {
-                // A concurrent create took the name after the check above; the unique index refused this one.
-                if (race.getError().getCode() != 11000) throw race;
-                return WriteOutcome.refused(new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS));
-            }
-
-            policyEntity.setId(policyId);
-
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, policyId, source);
-
-            return new WriteOutcome(new ServiceResponse("The policy was created.", true, policyId, 200), policyEntity);
-
-        }
-
-    }
-
-    public boolean containsValidChoice(final String value, final List<String> allowedValues) {
-
-        if(value == null) {
-            return false;
-        }
-
-        return allowedValues.contains(value.toLowerCase());
-
-    }
-
-    /** The policy fields that may hold a key, each optional and each able to name an environment variable. */
-    private static final List<String> KEY_BEARING_SECTIONS = List.of("crypto", "fpe");
-
-    /**
-     * Warns when a policy is saved with an encryption key written into it. Policies and their version
-     * snapshots are not encrypted at rest, so a literal key is stored beside the values it encrypted
-     * and database access alone undoes the redaction. Prefixing the value with {@code env:} reads it
-     * from the environment instead and stores only the variable's name.
-     */
-    static void warnAboutLiteralKeys(final String policyName, final String policyJson) {
-
-        for (final String section : keySectionsHoldingALiteralKey(policyJson)) {
-            LOGGER.warn("Policy '{}' stores its {} key in the policy itself. Policies are not encrypted "
-                            + "at rest, so that key is readable by anyone who can read the database, and "
-                            + "the values it encrypted are stored there too. Use \"env:VARIABLE_NAME\" to "
-                            + "read it from the environment instead.",
-                    policyName, section);
-        }
-
-    }
-
-    /** The key-bearing sections of this policy whose key is a literal rather than an {@code env:} reference. */
-    static List<String> keySectionsHoldingALiteralKey(final String policyJson) {
-
-        final List<String> found = new ArrayList<>();
-
-        try {
-
-            final JsonObject policyObject = new Gson().fromJson(policyJson, JsonObject.class);
-            if (policyObject == null) {
-                return found;
-            }
-
-            for (final String section : KEY_BEARING_SECTIONS) {
-                if (!policyObject.has(section) || !policyObject.get(section).isJsonObject()) {
-                    continue;
-                }
-                final JsonObject values = policyObject.getAsJsonObject(section);
-                for (final String field : List.of("key", "tweak")) {
-                    if (values.has(field) && values.get(field).isJsonPrimitive()) {
-                        final String value = values.get(field).getAsString();
-                        if (value != null && !value.isBlank() && !value.startsWith("env:")) {
-                            found.add(section);
-                            break;
-                        }
-                    }
-                }
-            }
-
-        } catch (final RuntimeException notReadable) {
-            // Validation reports malformed policies; this check simply has nothing to say about them.
-            return found;
-        }
-
-        return found;
-
-    }
-
-    public PolicyValidation validatePolicy(final String policyJson) {
-
-        LOGGER.debug("Validating the received policy.");
-
-        try {
-
-            // Policies are authored and stored in the native Phileas policy format. Parse to a JSON
-            // object first (this also rejects malformed JSON), then confirm the policy actually enables
-            // at least one type of sensitive information to detect.
-            final JsonObject policyObject = gson.fromJson(policyJson, JsonObject.class);
-
-            if(policyObject == null) {
-                LOGGER.warn("Policy validation failed: empty policy.");
-                return PolicyValidation.invalid("The policy is empty.");
-            }
-
-            final JsonElement identifiers = policyObject.get("identifiers");
-            if(identifiers == null || !identifiers.isJsonObject() || identifiers.getAsJsonObject().isEmpty()) {
-                LOGGER.warn("Policy validation failed: no identifiers.");
-                return PolicyValidation.invalid("The policy must contain an 'identifiers' object describing the information to redact.");
-            }
-
-            // Confirm the policy is structurally compatible with the native Phileas policy model.
-            gson.fromJson(policyJson, Policy.class);
-
-            LOGGER.info("Policy validation successful.");
-            return PolicyValidation.valid("Policy is valid");
-
-        } catch (final Exception ex) {
-
-            // The policy json is not valid and could not be deserialized.
-            LOGGER.warn("Policy validation failed: Policy contains syntax errors.");
-            return PolicyValidation.invalid("Policy contains syntax errors.");
-
-        }
-
-    }
-
-    public List<PolicyEntity> findManagedPolicies() {
-
-        final FindIterable<Document> documents = collection.find(Filters.eq("managed", true)).sort(Sorts.ascending("name"));
-
-        final List<PolicyEntity> policies = new ArrayList<>();
-
-        for(final Document document : documents) {
-
-            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
-            policies.add(policyEntity);
-
-        }
-
-        return policies;
-
-    }
+    List<PolicyEntity> findManagedPolicies();
 
     /** Returns one page of managed policies, ordered by name (for paging the Managed Policies grid). */
-    public List<PolicyEntity> findManagedPolicies(final int offset, final int limit) {
-
-        final FindIterable<Document> documents = collection.find(Filters.eq("managed", true))
-                .sort(Sorts.ascending("name")).skip(offset).limit(limit);
-
-        final List<PolicyEntity> policies = new ArrayList<>();
-
-        for (final Document document : documents) {
-            policies.add(PolicyDocuments.fromDocument(document));
-        }
-
-        return policies;
-
-    }
+    List<PolicyEntity> findManagedPolicies(final int offset, final int limit);
 
     /** A page of the user's own policies whose names contain {@code q} (any, when null), and their total. */
-    public Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort,
-                                               final int offset, final int limit) {
-        return Listings.page(collection, Listings.all(Filters.or(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("shared", true)),
-                Filters.ne("managed", true), Listings.contains("name", q)), sort, offset, limit, PolicyDocuments::fromDocument);
-    }
+    Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort,
+            final int offset, final int limit);
 
     /** A page of every user's policies, managed ones excluded, whose names contain {@code q}, and their total. */
-    public Listings.Page<PolicyEntity> listAcrossUsers(final String q, final Listings.Sort sort, final int offset,
-                                                       final int limit) {
-        return Listings.page(collection, Listings.all(acrossUsers(false), Listings.contains("name", q)), sort, offset,
-                limit, PolicyDocuments::fromDocument);
-    }
+    Listings.Page<PolicyEntity> listAcrossUsers(final String q, final Listings.Sort sort, final int offset,
+            final int limit);
 
     /** A page of the managed policies whose names contain {@code q}, and their total. */
-    public Listings.Page<PolicyEntity> listManaged(final String q, final Listings.Sort sort, final int offset,
-                                                   final int limit) {
-        return Listings.page(collection, Listings.all(Filters.eq("managed", true), Listings.contains("name", q)), sort,
-                offset, limit, PolicyDocuments::fromDocument);
-    }
+    Listings.Page<PolicyEntity> listManaged(final String q, final Listings.Sort sort, final int offset,
+            final int limit);
 
     /** Returns the total number of managed policies (for paging). */
-    public int countManagedPolicies() {
-        return (int) collection.countDocuments(Filters.eq("managed", true));
-    }
+    int countManagedPolicies();
 
-    public List<PolicyEntity> find(final String userId, final String searchTerm) {
-
-        final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
-
-        final Bson query = Filters.and(
-                Filters.eq("user_id", MongoIds.objectId(userId)),
-                Filters.eq("managed", false),
-                Filters.or(
-                        Filters.regex("name", pattern),
-                        Filters.regex("description", pattern),
-                        Filters.regex("notes", pattern)
-                )
-        );
-
-        final FindIterable<Document> documents = collection.find(query).sort(Sorts.ascending("name"));
-
-        final List<PolicyEntity> policies = new ArrayList<>();
-
-        for(final Document document : documents) {
-
-            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
-            policies.add(policyEntity);
-
-        }
-
-        return policies;
-
-    }
+    List<PolicyEntity> find(final String userId, final String searchTerm);
 
     /**
      * Returns every policy for every user. Intended for admin-only views; ordinary access must use the
      * owner-scoped {@link #findAll(String, int, int, boolean)}.
      */
-    public List<PolicyEntity> findAllAcrossUsers() {
-
-        final List<PolicyEntity> policies = new ArrayList<>();
-
-        for (final Document document : collection.find()) {
-            policies.add(PolicyDocuments.fromDocument(document));
-        }
-
-        return policies;
-
-    }
+    List<PolicyEntity> findAllAcrossUsers();
 
     /**
      * Returns one page of policies across every user, ordered by name. Intended for admin-only views;
      * ordinary access must use the owner-scoped {@link #findAll(String, int, int, boolean)}.
      */
-    public List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit) {
-        return findAllAcrossUsers(offset, limit, true);
-    }
+    List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit);
 
     /**
      * Returns one page of every user's policies, ordered by name and then id, so the order is stable
      * across pages even though many users have a policy of the same name. Managed policies are left out
      * unless {@code includeManaged}.
      */
-    public List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit, final boolean includeManaged) {
+    List<PolicyEntity> findAllAcrossUsers(final int offset, final int limit, final boolean includeManaged);
 
-        final List<PolicyEntity> policies = new ArrayList<>();
+    int countAllAcrossUsers();
 
-        for (final Document document : collection.find(acrossUsers(includeManaged))
-                .sort(Sorts.ascending("name", "_id")).skip(offset).limit(limit)) {
-            policies.add(PolicyDocuments.fromDocument(document));
-        }
-
-        return policies;
-
-    }
-
-    public int countAllAcrossUsers() {
-        return countAllAcrossUsers(true);
-    }
-
-    public int countAllAcrossUsers(final boolean includeManaged) {
-        return (int) collection.countDocuments(acrossUsers(includeManaged));
-    }
-
-    private static Bson acrossUsers(final boolean includeManaged) {
-        return includeManaged ? new Document() : Filters.ne("managed", true);
-    }
+    int countAllAcrossUsers(final boolean includeManaged);
 
     /**
      * Finds all policies for a user with pagination support.
@@ -625,146 +196,22 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @param includeManagedPolicies Whether to include managed policies in the result.
      * @return A list of {@link PolicyEntity} objects.
      */
-    public List<PolicyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeManagedPolicies) {
+    List<PolicyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeManagedPolicies);
 
-        final int effectiveLimit = Math.min(limit, MAX_LIMIT);
-
-        final Bson query;
-
-        if (userId != null) {
-            query = Filters.or(
-                    Filters.eq("user_id", MongoIds.objectId(userId)),
-                    Filters.eq("shared", true)
-            );
-        } else {
-            query = new Document();
-        }
-
-        final FindIterable<Document> documents = collection.find(query)
-                .sort(Sorts.ascending("name"))
-                .skip(offset)
-                .limit(effectiveLimit);
-
-        final List<PolicyEntity> policies = new ArrayList<>();
-
-        for(final Document document : documents) {
-
-            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
-            policies.add(policyEntity);
-
-        }
-
-        // Optionally include the managed policies.
-        if(includeManagedPolicies) {
-
-            // Now add the managed policies.
-            policies.addAll(findManagedPolicies());
-
-        }
-
-        return policies;
-
-    }
-
-    public List<PolicyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeManagedPolicies, final String sortField, final boolean ascending) {
-
-        final int effectiveLimit = Math.min(limit, MAX_LIMIT);
-
-        // Build the sort criteria
-        final Bson sortCriteria = ascending ? Sorts.ascending(sortField) : Sorts.descending(sortField);
-
-        final Bson query;
-
-        if (userId != null) {
-            query = Filters.or(
-                    Filters.eq("user_id", MongoIds.objectId(userId)),
-                    Filters.eq("shared", true)
-            );
-        } else {
-            query = new Document();
-        }
-
-        final FindIterable<Document> documents = collection.find(query)
-                .sort(sortCriteria)
-                .skip(offset)
-                .limit(effectiveLimit);
-
-        final List<PolicyEntity> policies = new ArrayList<>();
-
-        for(final Document document : documents) {
-
-            final PolicyEntity policyEntity = PolicyDocuments.fromDocument(document);
-            policies.add(policyEntity);
-
-        }
-
-        // Optionally include the managed policies.
-        if(includeManagedPolicies) {
-
-            // Now add the managed policies.
-            policies.addAll(findManagedPolicies());
-
-        }
-
-        return policies;
-
-    }
+    List<PolicyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeManagedPolicies, final String sortField, final boolean ascending);
 
     /**
      * Counts the total number of policies for a user (excludes managed policies).
      * @return The count of policies.
      */
-    public int count(final String userId) {
+    int count(final String userId);
 
-        final Bson query;
+    boolean isPolicyNameUnique(final String name, final String userId);
 
-        if (userId != null) {
-            query = Filters.and(
-                    Filters.eq("managed", false),
-                    Filters.eq("user_id", MongoIds.objectId(userId))
-            );
-        } else {
-            query = Filters.eq("managed", false);
-        }
-
-        final long count = collection.countDocuments(query);
-
-        return (int) count;
-
-    }
-
-    public boolean isPolicyNameUnique(final String name, final String userId) {
-
-        return findOne(name, userId) == null;
-
-    }
-
-    public PolicyEntity findOneById(final String id, final String userId) {
-
-        final Bson query = Filters.and(
-                Filters.eq("_id", MongoIds.objectId(id)),
-                Filters.or(
-                        Filters.eq("user_id", MongoIds.objectId(userId)),
-                        Filters.eq("shared", true)
-                )
-        );
-
-        final Document document = collection.find(query).first();
-
-        if(document != null) {
-
-            return PolicyDocuments.fromDocument(document);
-
-        } else {
-
-            return null;
-
-        }
-
-    }
+    PolicyEntity findOneById(final String id, final String userId);
 
     /** Whether a name belongs to a managed policy; user policies cannot start with this prefix. */
-    public static boolean isManagedName(final String name) {
+    static boolean isManagedName(final String name) {
         return name != null && name.startsWith(MANAGED_NAME_PREFIX);
     }
 
@@ -772,162 +219,26 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * The user's policy with this name or, for a {@code managed_} name, the managed policy. Managed
      * names cannot be taken by a user's policy, so the two never collide.
      */
-    public PolicyEntity findOneOrManaged(final String name, final String userId) {
-        if (isManagedName(name)) {
-            final Document document = collection.find(Filters.and(Filters.eq("name", name), Filters.eq("managed", true))).first();
-            return document == null ? null : PolicyDocuments.fromDocument(document);
-        }
-        return findOne(name, userId);
-    }
+    PolicyEntity findOneOrManaged(final String name, final String userId);
 
     /**
      * Sets a policy's description and notes, which are not part of the policy or its versions. A null
      * value is left as it is and an empty one clears it. Values over the length limits are refused.
      */
-    public ServiceResponse updateDetails(final String requestId, final String userId, final String name,
-                                         final String description, final String notes, final String source) {
-        return updateDetails(requestId, userId, name, description, notes, source, null).response();
-    }
+    ServiceResponse updateDetails(final String requestId, final String userId, final String name,
+            final String description, final String notes, final String source);
 
     /**
      * As above, refused with {@link #REASON_POLICY_CHANGED} when {@code expectedETag} is given and is not the
      * policy's current {@link #eTag}. Returns the policy as this write left it.
      */
-    public WriteOutcome updateDetails(final String requestId, final String userId, final String name,
-                                      final String description, final String notes, final String source,
-                                      final String expectedETag) {
+    WriteOutcome updateDetails(final String requestId, final String userId, final String name,
+            final String description, final String notes, final String source,
+            final String expectedETag);
 
-        final ServiceResponse tooLong = detailLengthProblem(description, notes);
-        if (tooLong != null) {
-            return WriteOutcome.refused(tooLong);
-        }
+    PolicyEntity findOne(final String name, final String userId);
 
-        final PolicyEntity policyEntity = findOne(name, userId);
-        if (policyEntity == null) {
-            return WriteOutcome.refused(new ServiceResponse("Policy does not exist.", false, 404));
-        }
-
-        final ServiceResponse stale = staleRefusal(policyEntity, expectedETag);
-        if (stale != null) {
-            return WriteOutcome.refused(stale);
-        }
-
-        final List<Bson> updates = new ArrayList<>();
-        final List<String> changed = new ArrayList<>();
-        if (description != null) {
-            updates.add(Updates.set("description", description));
-            changed.add("description");
-        }
-        if (notes != null) {
-            updates.add(Updates.set("notes", notes));
-            changed.add("notes");
-        }
-        if (updates.isEmpty()) {
-            return new WriteOutcome(ServiceResponse.success(), policyEntity);
-        }
-        final Date now = new Date();
-        updates.add(Updates.set("last_updated_timestamp", now));
-
-        // Lands only if the policy and its details are as they were read, so a write between the read and
-        // this one is not overwritten.
-        final boolean written = collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policyEntity.getId())),
-                        Filters.eq("user_id", MongoIds.objectId(userId)), unchanged(policyEntity.getRevision(), policyEntity.getDescription(),
-                                policyEntity.getNotes())),
-                Updates.combine(updates)).getMatchedCount() == 1;
-        if (!written) {
-            return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409,
-                    REASON_POLICY_CHANGED));
-        }
-
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_UPDATED, policyEntity.getId(), null, source,
-                "details: " + String.join(", ", changed));
-
-        if (description != null) {
-            policyEntity.setDescription(description);
-        }
-        if (notes != null) {
-            policyEntity.setNotes(notes);
-        }
-        policyEntity.setLastUpdatedTimestamp(now);
-        return new WriteOutcome(ServiceResponse.success(), policyEntity);
-
-    }
-
-    public PolicyEntity findOne(final String name, final String userId) {
-
-        final Bson query = Filters.and(
-                Filters.eq("name", name),
-                Filters.eq("user_id", MongoIds.objectId(userId))
-        );
-
-        final Document document = collection.find(query).first();
-
-        if(document != null) {
-
-            return PolicyDocuments.fromDocument(document);
-
-        } else {
-
-            return null;
-
-        }
-
-    }
-
-    public ServiceResponse duplicatePolicy(final String requestId, final String userId, final String name, final String newName, String source) {
-
-        // Make sure the policy name is not empty.
-        if (newName == null || newName.isEmpty()) {
-            return new ServiceResponse("Policy name cannot be empty.", false, 400);
-        }
-
-        // Make sure the policy name does not start with `managed_`
-        if (newName.startsWith(MANAGED_NAME_PREFIX)) {
-            return new ServiceResponse("The policy name cannot start with managed_", false, 400);
-        }
-
-        // Make sure the policy name is less than 50 characters long.
-        if (newName.length() > POLICY_NAME_MAX_LENGTH) {
-            return new ServiceResponse("The policy name cannot be longer than 50 characters.", false, 400);
-        }
-
-        // Make sure the policy name matches the regular expression.
-        if (!newName.matches(POLICY_NAME_REGEX)) {
-            return new ServiceResponse("The policy name must only contain letters, numbers, dashes, and underscores.", false, 400);
-        }
-
-        // Make sure the policy name is not one the API's paths use for something else.
-        if (RESERVED_POLICY_NAMES.contains(newName)) {
-            return new ServiceResponse("The policy name " + newName + " is reserved.", false, 400);
-        }
-
-        // Make sure the new name is unique.
-        if(!isPolicyNameUnique(newName, userId)) {
-            return new ServiceResponse("A policy with this name already exists.", false, 409, REASON_POLICY_EXISTS);
-        }
-
-        final PolicyEntity policyEntity = findOne(name, userId);
-
-        // The source policy must exist.
-        if (policyEntity == null) {
-            return new ServiceResponse("Policy does not exist.", false, 404);
-        }
-
-        policyEntity.setName(newName);
-        policyEntity.setId(null);
-        policyEntity.setUserId(userId);
-
-        final String objectId = save(policyEntity);
-
-        policyEntity.setId(objectId);
-
-        redactionCache.evictPolicy(userId, newName);
-
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_CREATED, objectId, source);
-
-        return new ServiceResponse("The policy was duplicated.", true, objectId, 200);
-
-    }
+    ServiceResponse duplicatePolicy(final String requestId, final String userId, final String name, final String newName, String source);
 
     /**
      * Restores a prior revision of a policy as a new revision. History is never rewritten: the target
@@ -943,64 +254,18 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @return A {@link ServiceResponse} whose {@code object} field carries the new revision number on
      *         success (HTTP 200), or an error code on failure.
      */
-    public ServiceResponse rollback(final String requestId, final String policyName,
-                                    final String userId, final int targetRevision,
-                                    final String principalId, final String clientIpAddress) {
-        return rollback(requestId, policyName, userId, targetRevision, principalId, clientIpAddress, null).response();
-    }
+    ServiceResponse rollback(final String requestId, final String policyName,
+            final String userId, final int targetRevision,
+            final String principalId, final String clientIpAddress);
 
     /**
      * As above, refused with {@link #REASON_POLICY_CHANGED} when {@code expectedETag} is given and is not the
      * policy's current {@link #eTag}. Returns the policy as this rollback left it.
      */
-    public WriteOutcome rollback(final String requestId, final String policyName,
-                                 final String userId, final int targetRevision,
-                                 final String principalId, final String clientIpAddress,
-                                 final String expectedETag) {
-
-        // Checked by name, before the lookup: managed policies have no owner, so the per-user lookup below
-        // never finds one, and checking the record instead would answer 404.
-        if (isManagedName(policyName)) {
-            return WriteOutcome.refused(new ServiceResponse("Managed policies cannot be rolled back.", false, 409, REASON_POLICY_MANAGED));
-        }
-
-        final PolicyEntity live = findOne(policyName, userId);
-        if (live == null) {
-            return WriteOutcome.refused(new ServiceResponse("Policy does not exist.", false, 404));
-        }
-
-        final PolicyVersionEntity targetVersion =
-                policyVersionDataService.findByNameAndRevision(policyName, userId, targetRevision);
-        if (targetVersion == null) {
-            return WriteOutcome.refused(new ServiceResponse("Revision " + targetRevision + " does not exist.", false, 404));
-        }
-
-        final ServiceResponse stale = staleRefusal(live, expectedETag);
-        if (stale != null) {
-            return WriteOutcome.refused(stale);
-        }
-
-        final int expectedRevision = live.getRevision();
-        live.setPolicy(targetVersion.getPolicy());
-        live.setRevision(reserveRevision(live, expectedRevision + 1));
-        live.setLastUpdatedTimestamp(new Date());
-
-        final int newRevision = live.getRevision();
-        live.setAuthorId(principalId);
-        policyVersionDataService.snapshot(live);
-        if (!replaceIfUnchanged(live, expectedRevision, live.getDescription(), live.getNotes())) {
-            return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
-        }
-
-        redactionCache.evictPolicy(userId, policyName);
-
-        auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ROLLED_BACK, principalId, live.getId(),
-                clientIpAddress, "policy: " + policyName + ", rolled back to revision: " + targetRevision
-                        + ", new revision: " + newRevision);
-
-        return new WriteOutcome(new ServiceResponse("Policy rolled back to revision " + targetRevision
-                + ". New revision: " + newRevision, true, 200), live);
-    }
+    WriteOutcome rollback(final String requestId, final String policyName,
+            final String userId, final int targetRevision,
+            final String principalId, final String clientIpAddress,
+            final String expectedETag);
 
     /**
      * Deletes a policy by name.
@@ -1014,48 +279,11 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * @param clientIpAddress The client IP address, or null when unavailable.
      * @return A {@link ServiceResponse} indicating the result of the operation.
      */
-    public ServiceResponse deleteByName(final String requestId, final String policyName, final String userId,
-                                        final Source source, final String principalId, final String clientIpAddress) {
-
-        // By name, before the lookup, as in rollback: a managed policy has no owner to find it under.
-        if (isManagedName(policyName)) {
-            return new ServiceResponse("Managed policies cannot be deleted.", false, 409, REASON_POLICY_MANAGED);
-        }
-
-        final PolicyEntity policyEntity = findOne(policyName, userId);
-
-        if(policyEntity == null) {
-            return new ServiceResponse("Policy does not exist.", false, 404);
-        }
-
-        if(DEFAULT_POLICY_NAME.equalsIgnoreCase(policyName)) {
-            return new ServiceResponse("Cannot delete the default policy.", false, 409, REASON_POLICY_DEFAULT);
-        }
-
-        // There should never be a policy that is "managed=true" and has a user_id != null but this is just a safeguard.
-        final Document query = new Document("name", policyName).append("managed", false).append("user_id", MongoIds.objectId(userId));
-        final DeleteResult deleteResult = collection.deleteOne(query);
-
-        if(deleteResult.getDeletedCount() == 1) {
-
-            redactionCache.evictPolicy(userId, policyName);
-            policyVersionDataService.recordDeletion(userId, policyName, policyEntity.getRevision(), principalId, new Date());
-
-            auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, principalId, policyEntity.getId(),
-                    clientIpAddress, "policy: " + policyName + ", source: " + source.getSource());
-
-            return new ServiceResponse("Policy deleted.", true, 200);
-
-        } else {
-
-            return new ServiceResponse("Policy does not exist.", false, 404);
-
-        }
-
-    }
+    ServiceResponse deleteByName(final String requestId, final String policyName, final String userId,
+            final Source source, final String principalId, final String clientIpAddress);
 
     /** A policy that was deleted but whose version history is kept. */
-    public record DeletedPolicy(String name, int latestRevision, Date deletedAt, String deletedBy) {
+    record DeletedPolicy(String name, int latestRevision, Date deletedAt, String deletedBy) {
     }
 
     /**
@@ -1063,151 +291,20 @@ public class PolicyDataService extends AbstractService<PolicyEntity> {
      * deleted when it has retained versions and no live policy has its name. When and by whom it was
      * deleted are {@code null} for a deletion made before deletions were recorded.
      */
-    public Listings.Page<DeletedPolicy> findDeleted(final String userId, final String q, final boolean descending,
-                                                    final int offset, final int limit) {
+    Listings.Page<DeletedPolicy> findDeleted(final String userId, final String q, final boolean descending,
+            final int offset, final int limit);
 
-        final java.util.Set<String> live = new java.util.HashSet<>();
-        collection.distinct("name", Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.ne("managed", true)), String.class)
-                .into(live);
-
-        final String search = q == null || q.isBlank() ? null : q.trim().toLowerCase(java.util.Locale.ROOT);
-        final java.util.Comparator<String> byName = descending ? java.util.Comparator.reverseOrder() : java.util.Comparator.naturalOrder();
-        final List<String> matching = policyVersionDataService.findNames(userId).stream()
-                .filter(name -> !live.contains(name))
-                .filter(name -> search == null || name.toLowerCase(java.util.Locale.ROOT).contains(search))
-                .sorted(byName)
-                .toList();
-
-        final List<DeletedPolicy> deleted = new ArrayList<>();
-        for (final String name : matching.stream().skip(offset).limit(limit).toList()) {
-            final List<PolicyVersionEntity> latest = policyVersionDataService.findAllByName(name, userId, 0, 1);
-            final int latestRevision = latest.isEmpty() ? 0 : latest.get(0).getRevision();
-            final Document deletion = policyVersionDataService.findDeletion(userId, name);
-            deleted.add(new DeletedPolicy(name, latestRevision,
-                    deletion == null ? null : deletion.getDate("deleted_at"),
-                    deletion == null ? null : MongoIds.hex(deletion.getObjectId("deleted_by"))));
-        }
-        return new Listings.Page<>(deleted, matching.size());
-
-    }
-
-    public long deleteAll() {
-
-        // There should never be a policy that is "managed=true" and has a user_id != null, but this is just a safeguard.
-        final Document query = new Document("managed", false);
-
-        final DeleteResult deleteResult = collection.deleteMany(query);
-
-        return deleteResult.getDeletedCount();
-
-    }
+    long deleteAll();
 
     /**
      * Load managed policies from JSON files and save them to the database.
      * This method should be called during application initialization.
      * Existing managed policies with the same name will be updated.
      */
-    public void loadAndSaveManagedPolicies() {
+    void loadAndSaveManagedPolicies();
 
-        LOGGER.info("Loading managed policies from resource files...");
+    String save(PolicyEntity policy);
 
-        final ManagedPolicyLoader loader = new ManagedPolicyLoader(gson);
-        final List<PolicyEntity> managedPolicies = loader.loadManagedPolicies();
-
-        for (final PolicyEntity managedPolicy : managedPolicies) {
-
-            // Check if a managed policy with this name already exists
-            final Bson query = Filters.and(
-                    Filters.eq("name", managedPolicy.getName()),
-                    Filters.eq("managed", true)
-            );
-
-            final Document existingDocument = collection.find(query).first();
-
-            if (existingDocument != null) {
-
-                // Update existing managed policy
-                final PolicyEntity existingPolicy = PolicyDocuments.fromDocument(existingDocument);
-                final int expectedRevision = existingPolicy.getRevision();
-                existingPolicy.setPolicy(managedPolicy.getPolicy());
-                existingPolicy.setDescription(managedPolicy.getDescription());
-                existingPolicy.setLastUpdatedTimestamp(new Date());
-                existingPolicy.setRevision(reserveRevision(existingPolicy, expectedRevision + 1));
-
-                policyVersionDataService.snapshot(existingPolicy);
-                if (!replaceRevision(existingPolicy, expectedRevision)) {
-                    throw new IllegalStateException("Managed policy changed concurrently; restart initialization.");
-                }
-                LOGGER.info("Updated managed policy: {}", managedPolicy.getName());
-
-            } else {
-
-                // Insert new managed policy
-                final String managedId = save(managedPolicy);
-                managedPolicy.setId(managedId);
-                LOGGER.info("Inserted managed policy: {}", managedPolicy.getName());
-
-            }
-
-        }
-
-        LOGGER.info("Managed policies loaded successfully.");
-
-    }
-
-    private final com.mongodb.client.MongoCollection<Document> revisionCounters;
-
-    /** Sequence survives deletion/name reuse. Gaps are expected for failed/conflicting attempts. */
-    private int reserveRevision(PolicyEntity policy, int minimum) {
-        final Document identity = new Document("user_id", MongoIds.objectId(policy.getUserId())).append("name", policy.getName());
-        // Reserve above the observed head, even when a competing candidate consumed a revision.
-        try {
-            revisionCounters.updateOne(Filters.eq("_id", identity),
-                    new Document("$max", new Document("next", minimum)),
-                    new com.mongodb.client.model.UpdateOptions().upsert(true));
-        } catch (com.mongodb.MongoWriteException race) {
-            if (race.getError().getCode() != 11000) throw race;
-            revisionCounters.updateOne(Filters.eq("_id", identity), new Document("$max", new Document("next", minimum)));
-        }
-        final Document result = revisionCounters.findOneAndUpdate(Filters.eq("_id", identity),
-                new Document("$inc", new Document("next", 1)),
-                new com.mongodb.client.model.FindOneAndUpdateOptions().upsert(true)
-                        .returnDocument(com.mongodb.client.model.ReturnDocument.AFTER));
-        return result.getInteger("next") - 1;
-    }
-
-    @Override
-    public String save(PolicyEntity policy) {
-        policy.setRevision(reserveRevision(policy, 0));
-        policyVersionDataService.snapshot(policy);
-        return super.save(policy);
-    }
-
-    /** Replaces the policy only if its revision, description, and notes are still the ones given. */
-    private boolean replaceIfUnchanged(final PolicyEntity policy, final int expectedRevision,
-                                       final String expectedDescription, final String expectedNotes) {
-        return collection.replaceOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
-                unchanged(expectedRevision, expectedDescription, expectedNotes)), PolicyDocuments.toDocument(policy)).getMatchedCount() == 1;
-    }
-
-    /** Matches a policy still at this revision with this description and notes; null matches null or absent. */
-    private static Bson unchanged(final int revision, final String description, final String notes) {
-        return Filters.and(Filters.eq("revision", revision), Filters.eq("description", description),
-                Filters.eq("notes", notes));
-    }
-
-    private boolean replaceRevision(PolicyEntity policy, int expectedRevision) {
-        return collection.replaceOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
-                Filters.eq("revision", expectedRevision)), PolicyDocuments.toDocument(policy)).getMatchedCount() == 1;
-    }
-
-    @Override
-    public void update(PolicyEntity policy) {
-        throw new UnsupportedOperationException("Use a revision-checked policy update.");
-    }
-    @Override
-    protected Document toDocument(final PolicyEntity entity) {
-        return PolicyDocuments.toDocument(entity);
-    }
+    void update(PolicyEntity policy);
 
 }

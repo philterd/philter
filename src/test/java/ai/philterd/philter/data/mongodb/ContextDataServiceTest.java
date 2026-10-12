@@ -1,0 +1,399 @@
+/*
+ *     Copyright 2026 Philterd, LLC @ https://www.philterd.ai
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package ai.philterd.philter.data.mongodb;
+
+import ai.philterd.philter.data.services.ContextDataService;
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.services.cache.ContextCache;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.InsertOneResult;
+import org.bson.BsonObjectId;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.mongodb.client.MongoCursor;
+
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class ContextDataServiceTest {
+
+    @Mock
+    private MongoClient mongoClient;
+
+    @Mock
+    private MongoDatabase mongoDatabase;
+
+    @Mock
+    private MongoCollection<Document> mongoCollection;
+
+    @Mock
+    private ContextCache contextCache;
+
+    @Mock
+    private AuditEventPublisher auditEventPublisher;
+
+    private ContextDataService contextDataService;
+
+    @BeforeEach
+    void setUp() {
+        ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
+        when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
+        when(mongoDatabase.getCollection(anyString())).thenReturn(mongoCollection);
+        contextDataService = new MongoContextDataService(mongoClient, contextCache, auditEventPublisher);
+    }
+
+    @Test
+    void create() {
+        String userId = MongoIds.newId();
+        String contextName = "testContext";
+        
+        // Mock findAll(userId).size() check and findOne
+        FindIterable<Document> findAllIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findAllIterable);
+        when(findAllIterable.projection(any())).thenReturn(findAllIterable);
+        when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
+        when(findAllIterable.first()).thenReturn(null);
+
+        InsertOneResult insertOneResult = mock(InsertOneResult.class);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
+
+        ServiceResponse response = contextDataService.create(contextName, userId, false, false);
+
+        assertTrue(response.isSuccessful());
+        final ArgumentCaptor<Document> inserted = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).insertOne(inserted.capture());
+        assertEquals(0, inserted.getValue().getInteger("slot"), "a user with no contexts gets the first slot");
+    }
+
+    @Test
+    void createRejectsDuplicateNameForSameUser() {
+        final String userId = MongoIds.newId();
+
+        final FindIterable<Document> iterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(iterable);
+        // The caller already owns a context with this name. That is checked before the limit, so a
+        // duplicate is reported as one whatever the caller's count.
+        when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", MongoIds.objectId(userId)));
+
+        final ServiceResponse response = contextDataService.create("dup", userId, false, false);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(409, response.getStatusCode());
+        assertEquals(ContextDataService.REASON_CONTEXT_EXISTS, response.getDetails());
+        verify(mongoCollection, never()).insertOne(any(Document.class));
+    }
+
+    @Test
+    void createPersistsLedgerFlag() {
+        final String userId = MongoIds.newId();
+        final String contextName = "testContext";
+
+        final FindIterable<Document> findAllIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findAllIterable);
+        when(findAllIterable.projection(any())).thenReturn(findAllIterable);
+        when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
+        when(findAllIterable.first()).thenReturn(null);
+
+        final InsertOneResult insertOneResult = mock(InsertOneResult.class);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
+
+        contextDataService.create(contextName, userId, false, true);
+
+        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).insertOne(docCaptor.capture());
+        assertEquals(Boolean.TRUE, docCaptor.getValue().getBoolean("ledger"),
+                "the per-context ledger flag must be persisted on the stored context");
+    }
+
+    @Test
+    void createDefaultsLedgerFlagOff() {
+        final String userId = MongoIds.newId();
+        final String contextName = "testContext";
+
+        final FindIterable<Document> findAllIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Bson.class))).thenReturn(findAllIterable);
+        when(findAllIterable.projection(any())).thenReturn(findAllIterable);
+        when(findAllIterable.iterator()).thenReturn(mock(MongoCursor.class));
+        when(findAllIterable.first()).thenReturn(null);
+
+        final InsertOneResult insertOneResult = mock(InsertOneResult.class);
+        when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
+
+        // The name-and-user create overload must leave the ledger off by default.
+        contextDataService.create(contextName, userId);
+
+        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).insertOne(docCaptor.capture());
+        assertEquals(Boolean.FALSE, docCaptor.getValue().getBoolean("ledger"),
+                "a context created without specifying the ledger flag must default to off");
+    }
+
+    @Test
+    void findAll() {
+        String userId = MongoIds.newId();
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.iterator()).thenReturn(mock(MongoCursor.class));
+
+        List<ContextEntity> contexts = contextDataService.findAll(userId);
+
+        assertNotNull(contexts);
+        verify(mongoCollection).find(any(Document.class));
+    }
+
+    @Test
+    void findOne() {
+        String userId = MongoIds.newId();
+        String contextName = "testContext";
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        ContextEntity context = contextDataService.findOne(contextName, userId);
+
+        assertNotNull(context);
+        assertEquals(contextName, context.getContextName());
+    }
+
+    @Test
+    void deleteByName() {
+        String userId = MongoIds.newId();
+        String contextName = "testContext";
+        
+        // Mock findOne to return the context
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        DeleteResult deleteResult = mock(DeleteResult.class);
+        when(mongoCollection.deleteOne(any(Document.class))).thenReturn(deleteResult);
+        
+        // Mocking the extra deletions in deleteByName (context entries via a Document filter and
+        // disambiguation vectors via a Bson filter), so match on Bson to cover both.
+        MongoCollection<Document> mockCollection = mock(MongoCollection.class);
+        lenient().when(mongoDatabase.getCollection(anyString())).thenReturn(mockCollection);
+        lenient().when(mockCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        ServiceResponse response = contextDataService.deleteByName(contextName, userId);
+
+        assertTrue(response.isSuccessful());
+        verify(mongoCollection).deleteOne(any(Document.class));
+        verify(contextCache).deleteContext(eq(userId), eq(contextName));
+    }
+
+    @Test
+    void deleteByNameDeletesDisambiguationVectorsForTheContext() {
+        final String userId = MongoIds.newId();
+        final String contextName = "testContext";
+
+        // findOne returns the context so deletion proceeds.
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final DeleteResult deleteResult = mock(DeleteResult.class);
+        when(mongoCollection.deleteOne(any(Document.class))).thenReturn(deleteResult);
+        when(mongoCollection.deleteMany(any(Document.class))).thenReturn(deleteResult);
+
+        // Route the vectors collection to a dedicated mock so the vector cleanup is observable
+        // independently of the context and context-entry deletions.
+        final MongoCollection<Document> vectorsCollection = mock(MongoCollection.class);
+        when(mongoDatabase.getCollection("vectors")).thenReturn(vectorsCollection);
+        when(vectorsCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        final ServiceResponse response = contextDataService.deleteByName(contextName, userId);
+
+        assertTrue(response.isSuccessful());
+        // The span-disambiguation vectors for the deleted context must also be cleared.
+        verify(vectorsCollection).deleteMany(any(Bson.class));
+    }
+
+    @Test
+    void deleteByNameDeniesNonCreatorWhoIsNotAdmin() {
+        final String requester = MongoIds.newId();
+        final String owner = MongoIds.newId();
+        final String contextName = "shared";
+
+        // The context is owned by a different user than the requester.
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(owner));
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final ServiceResponse response = contextDataService.deleteByName(contextName, requester, false);
+
+        assertFalse(response.isSuccessful());
+        assertEquals(403, response.getStatusCode(), "a non-creator non-admin must be forbidden");
+        // Nothing must be deleted.
+        verify(mongoCollection, never()).deleteOne(any(Document.class));
+    }
+
+    @Test
+    void deleteByNameAllowsAdminAndScopesDeletionToOwner() {
+        final String requester = MongoIds.newId(); // an admin, not the owner
+        final String owner = MongoIds.newId();
+        final String contextName = "shared";
+
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(owner));
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final DeleteResult deleteResult = mock(DeleteResult.class);
+        when(mongoCollection.deleteOne(any(Document.class))).thenReturn(deleteResult);
+        lenient().when(mongoCollection.deleteMany(any(Document.class))).thenReturn(deleteResult);
+        final MongoCollection<Document> vectorsCollection = mock(MongoCollection.class);
+        when(mongoDatabase.getCollection("vectors")).thenReturn(vectorsCollection);
+        when(vectorsCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        final ServiceResponse response = contextDataService.deleteByName(contextName, requester, true);
+
+        assertTrue(response.isSuccessful());
+        // The context is deleted scoped to its owner, not the admin requester.
+        final ArgumentCaptor<Document> filterCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).deleteOne(filterCaptor.capture());
+        assertEquals(MongoIds.objectId(owner), filterCaptor.getValue().get("user_id"),
+                "deletion must be scoped to the context owner");
+    }
+
+    @Test
+    void emptyByNameDeletesDisambiguationVectorsForTheContext() {
+        final String userId = MongoIds.newId();
+        final String contextName = "testContext";
+
+        // findOne returns the context so emptying proceeds.
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final DeleteResult deleteResult = mock(DeleteResult.class);
+        lenient().when(mongoCollection.deleteMany(any(Document.class))).thenReturn(deleteResult);
+
+        // Route the vectors collection to a dedicated mock so the vector cleanup is observable.
+        final MongoCollection<Document> vectorsCollection = mock(MongoCollection.class);
+        when(mongoDatabase.getCollection("vectors")).thenReturn(vectorsCollection);
+        when(vectorsCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
+
+        final ServiceResponse response = contextDataService.emptyByName(contextName, userId);
+
+        assertTrue(response.isSuccessful());
+        // Emptying a context must also clear its span-disambiguation vectors.
+        verify(vectorsCollection).deleteMany(any(Bson.class));
+    }
+
+    @Test
+    void findOneByNameAndUserIdQueriesContextNameField() {
+        String userId = MongoIds.newId();
+        String contextName = "my-context";
+
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
+        FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
+        when(findIterable.first()).thenReturn(doc);
+
+        final ContextEntity context = contextDataService.findOneByNameAndUserId(contextName, userId);
+
+        assertNotNull(context);
+
+        // The query must use the persisted field name `context_name`, not `name`.
+        final ArgumentCaptor<Document> queryCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(mongoCollection).find(queryCaptor.capture());
+        final Document query = queryCaptor.getValue();
+        assertEquals(contextName, query.getString("context_name"));
+        assertFalse(query.containsKey("name"));
+    }
+
+    @Test
+    void findAllAcrossUsersReturnsEveryContextUnscopedByUser() {
+        // Two contexts owned by two different users.
+        final Document docA = new Document("_id", new ObjectId()).append("context_name", "alpha").append("user_id", new ObjectId());
+        final Document docB = new Document("_id", new ObjectId()).append("context_name", "beta").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        // findAllAcrossUsers must query with no filter (the no-arg find()), not an owner-scoped query.
+        when(mongoCollection.find()).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA, docB).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<ContextEntity> contexts = contextDataService.findAllAcrossUsers();
+
+        assertEquals(2, contexts.size());
+        assertEquals("alpha", contexts.get(0).getContextName());
+        assertEquals("beta", contexts.get(1).getContextName());
+        // Verify the unfiltered query was used.
+        verify(mongoCollection).find();
+    }
+
+    @Test
+    void findAllAcrossUsersPagedAppliesSortSkipAndLimit() {
+        final Document docA = new Document("_id", new ObjectId()).append("context_name", "alpha").append("user_id", new ObjectId());
+
+        final FindIterable<Document> findIterable = mock(FindIterable.class);
+        when(mongoCollection.find()).thenReturn(findIterable);
+        when(findIterable.sort(any())).thenReturn(findIterable);
+        when(findIterable.skip(anyInt())).thenReturn(findIterable);
+        when(findIterable.limit(anyInt())).thenReturn(findIterable);
+        final Iterator<Document> it = List.of(docA).iterator();
+        final MongoCursor<Document> cursor = mock(MongoCursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(findIterable.iterator()).thenReturn(cursor);
+
+        final List<ContextEntity> page = contextDataService.findAllAcrossUsers(25, 25);
+
+        assertEquals(1, page.size());
+        assertEquals("alpha", page.get(0).getContextName());
+        verify(findIterable).skip(25);
+        verify(findIterable).limit(25);
+    }
+
+    @Test
+    void countAllAcrossUsersDelegatesToCountDocuments() {
+        when(mongoCollection.countDocuments()).thenReturn(42L);
+        assertEquals(42, contextDataService.countAllAcrossUsers());
+    }
+}

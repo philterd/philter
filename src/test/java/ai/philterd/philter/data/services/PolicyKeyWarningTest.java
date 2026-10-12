@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PolicyKeyWarningTest {
 
     private static List<String> sections(final String policyJson) {
-        return PolicyDataService.keySectionsHoldingALiteralKey(policyJson);
+        return PolicyKeyWarnings.keySectionsHoldingALiteralKey(policyJson);
     }
 
     @Test
@@ -104,7 +104,7 @@ class PolicyKeyWarningTest {
         logger.addAppender(appender);
 
         try {
-            PolicyDataService.warnAboutLiteralKeys("my-policy", "{\"crypto\":{\"key\":\"AABB\"}}");
+            PolicyKeyWarnings.warnAboutLiteralKeys("my-policy", "{\"crypto\":{\"key\":\"AABB\"}}");
         } finally {
             logger.removeAppender(appender);
             appender.stop();

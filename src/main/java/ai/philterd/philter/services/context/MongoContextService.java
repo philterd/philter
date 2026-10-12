@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.context;
 
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.services.context.ContextService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
@@ -36,7 +37,7 @@ public class MongoContextService implements ContextService {
     private final String contextName;
 
     public MongoContextService(final MongoClient mongoClient, final ContextCache contextCache, final String userId, final String contextName, final AuditEventPublisher auditEventPublisher) {
-        this(contextCache, new ContextEntryDataService(mongoClient, auditEventPublisher, contextCache), userId, contextName);
+        this(contextCache, new MongoContextEntryDataService(mongoClient, auditEventPublisher, contextCache), userId, contextName);
     }
 
     MongoContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final String userId, final String contextName) {

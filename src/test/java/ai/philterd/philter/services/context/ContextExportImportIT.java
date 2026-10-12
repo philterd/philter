@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.context;
 
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -58,7 +59,7 @@ class ContextExportImportIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         auditEventPublisher = mock(AuditEventPublisher.class);
-        contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
+        contextEntryService = new MongoContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
     }
 
     @Test

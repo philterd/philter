@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoContextEntryDataService;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
@@ -75,7 +76,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() {
         auditEventPublisher = mock(AuditEventPublisher.class);
-        contextEntryService = new ContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
+        contextEntryService = new MongoContextEntryDataService(mongoClient, auditEventPublisher, new ContextCache(null, 0, null, false));
     }
 
     @Test

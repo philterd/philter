@@ -1,0 +1,396 @@
+/*
+ *     Copyright 2026 Philterd, LLC @ https://www.philterd.ai
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package ai.philterd.philter.data.mongodb;
+
+import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.services.ContextEntryDataService;
+import ai.philterd.philter.data.services.Listings;
+import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.services.encryption.ContextTokenHasher;
+import com.mongodb.MongoCommandException;
+import com.mongodb.MongoWriteException;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Updates;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+/** MongoDB implementation of {@link ContextEntryDataService}. */
+public class MongoContextEntryDataService extends AbstractService<ContextEntryEntity> implements ContextEntryDataService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ContextEntryDataService.class);
+
+    private static final Pattern UUID_REGEX_PATTERN = Pattern.compile(
+            "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+    );
+
+    private final ContextCache contextCache;
+
+    public MongoContextEntryDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher,
+                                   final ContextCache contextCache) {
+        super(mongoClient, "context_entries", auditEventPublisher);
+        this.contextCache = contextCache;
+
+        // Token lookups during redaction hit (user_id, context_name, token_hash); listing/eviction
+        // scans (user_id, context_name) ordered by timestamp/reads.
+        ensureUniqueTokenIndex();
+        ensureIndex(Indexes.ascending("user_id", "context_name", "timestamp"));
+    }
+
+    @Override
+    public void incrementReads(final String id) {
+        collection.updateOne(Filters.eq("_id", MongoIds.objectId(id)), Updates.inc("reads", 1L));
+    }
+
+    @Override
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, int limit) {
+        return findAllByUserIdAndContext(userId, contextName, 0, limit);
+    }
+
+    @Override
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, int offset, int limit) {
+        return findAllByUserIdAndContext(userId, contextName, offset, limit, new Listings.Sort("timestamp", true));
+    }
+
+    @Override
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, int offset, int limit,
+                                                              final Listings.Sort sort) {
+
+        final int effectiveLimit = Math.min(limit, MAX_LIMIT);
+
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName);
+
+        final Iterable<Document> documents = collection.find(query)
+                .sort(MongoListings.sort(sort))
+                .skip(Math.max(0, offset))
+                .limit(effectiveLimit);
+
+        final List<ContextEntryEntity> contextEntities = new ArrayList<>();
+
+        for(final Document document : documents) {
+            contextEntities.add(ContextEntryDocuments.fromDocument(document));
+        }
+
+        return contextEntities;
+
+    }
+
+    @Override
+    public int countByUserIdAndContext(final String userId, final String contextName) {
+        return (int) collection.countDocuments(new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName));
+    }
+
+    @Override
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName) {
+
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName);
+
+        final List<ContextEntryEntity> entries = new ArrayList<>();
+        for (final Document document : collection.find(query).sort(Sorts.descending("timestamp"))) {
+            entries.add(ContextEntryDocuments.fromDocument(document));
+        }
+
+        return entries;
+
+    }
+
+    @Override
+    public ImportOutcome importEntryByHash(final String userId, final String contextName, final String tokenHash,
+                                           final String replacement, final String filterType, final boolean replacementUuid,
+                                           final boolean overwrite) {
+
+        final Bson query = Filters.and(
+                Filters.eq("user_id", MongoIds.objectId(userId)),
+                Filters.eq("context_name", contextName),
+                Filters.eq("token_hash", tokenHash));
+
+        final Document existing = collection.find(query).first();
+
+        if (existing != null) {
+
+            if (!overwrite) {
+                return ImportOutcome.SKIPPED;
+            }
+
+            collection.updateOne(query, Updates.combine(
+                    Updates.set("replacement", replacement),
+                    Updates.set("filter_type", filterType),
+                    Updates.set("replacement_uuid", replacementUuid)));
+
+            // The stored replacement changed, so anything holding the old one has to forget it.
+            evict(userId, contextName, tokenHash);
+
+            return ImportOutcome.OVERWRITTEN;
+
+        }
+
+        evictIfFull(userId, contextName);
+
+        final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
+        contextEntryEntity.setUserId(userId);
+        contextEntryEntity.setContextName(contextName);
+        contextEntryEntity.setTokenHash(tokenHash);
+        contextEntryEntity.setReplacement(replacement);
+        contextEntryEntity.setReads(0L);
+        contextEntryEntity.setTimestamp(new Date());
+        contextEntryEntity.setFilterType(filterType);
+        contextEntryEntity.setReplacementUuid(replacementUuid);
+
+        collection.insertOne(ContextEntryDocuments.toDocument(contextEntryEntity));
+
+        return ImportOutcome.INSERTED;
+
+    }
+
+    @Override
+    public long deleteByIdAndUserId(final String id, final String userId) {
+
+        return deleteMatching(userId, Filters.and(Filters.eq("_id", MongoIds.objectId(id)), Filters.eq("user_id", MongoIds.objectId(userId))));
+    }
+
+    @Override
+    public long deleteByIdAndUserIdAndContext(final String id, final String userId, final String contextName) {
+        return deleteMatching(userId, Filters.and(Filters.eq("_id", MongoIds.objectId(id)), Filters.eq("user_id", MongoIds.objectId(userId)),
+                Filters.eq("context_name", contextName)));
+    }
+
+    private long deleteMatching(final String userId, final Bson predicate) {
+        // findOneAndDelete rather than deleteOne: the removed document carries the context and token
+        // hash the cache is keyed by, and reading them first would race the delete.
+        final Document deleted = collection.findOneAndDelete(predicate);
+
+        if (deleted == null) {
+            return 0;
+        }
+
+        evict(userId, deleted.getString("context_name"), deleted.getString("token_hash"));
+
+        return 1;
+
+    }
+
+    @Override
+    public boolean containsToken(final String userId, final String contextName, final String token) {
+
+        // The token must be hashed.
+        final String tokenHash = ContextTokenHasher.hash(token);
+
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("token_hash", tokenHash);
+        final Document document = collection.find(query).first();
+        return document != null;
+
+    }
+
+    @Override
+    public boolean containsReplacement(final String userId, final String contextName, final String replacement) {
+
+        // Replacement is not encrypted because it is not PII/PHI.
+
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("replacement", replacement);
+        final Document document = collection.find(query).first();
+        return document != null;
+
+    }
+
+    @Override
+    public String getReplacement(final String userId, final String contextName, final String token) {
+        final ContextEntryEntity entry = findOneEntryByToken(userId, contextName, token);
+        if (entry == null) {
+            return null;
+        }
+        incrementReads(entry.getId());
+        return entry.getReplacement();
+    }
+
+    @Override
+    public ContextEntryEntity findOneEntryByToken(final String userId, final String contextName, final String token) {
+
+        // The token must be hashed.
+        final String tokenHash = ContextTokenHasher.hash(token);
+
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("token_hash", tokenHash);
+        final Document document = collection.find(query).first();
+
+        return document != null ? ContextEntryDocuments.fromDocument(document) : null;
+
+    }
+
+    @Override
+    public String save(final ContextEntryEntity contextEntryEntity) {
+        throw new UnsupportedOperationException("Use putReplacement() instead.");
+    }
+
+    @Override
+    public void putReplacement(final String userId, final String contextName, final String token, final String replacement, final String filterType) {
+        putReplacementIfAbsent(userId, contextName, token, replacement, filterType);
+    }
+
+    @Override
+    public ContextEntryEntity putReplacementIfAbsent(final String userId, final String contextName,
+                                                     final String token, final String replacement,
+                                                     final String filterType) {
+
+        final String tokenHash = ContextTokenHasher.hash(token);
+        final Bson query = Filters.and(
+                Filters.eq("user_id", MongoIds.objectId(userId)),
+                Filters.eq("context_name", contextName),
+                Filters.eq("token_hash", tokenHash));
+
+        final Bson insert = Updates.combine(
+                Updates.setOnInsert("user_id", MongoIds.objectId(userId)),
+                Updates.setOnInsert("context_name", contextName),
+                Updates.setOnInsert("token_hash", tokenHash),
+                Updates.setOnInsert("replacement", replacement),
+                Updates.setOnInsert("reads", 0L),
+                Updates.setOnInsert("timestamp", new Date()),
+                Updates.setOnInsert("filter_type", filterType),
+                Updates.setOnInsert("replacement_uuid", UUID_REGEX_PATTERN.matcher(replacement).matches()));
+
+        final FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
+                .upsert(true)
+                .returnDocument(ReturnDocument.AFTER);
+
+        final Document stored;
+        try {
+            stored = collection.findOneAndUpdate(query, insert, options);
+        } catch (final MongoWriteException | MongoCommandException lostTheRace) {
+            // The unique index rejected a second insert; the winner's row is what counts.
+            final Document winner = collection.find(query).first();
+            return winner != null ? ContextEntryDocuments.fromDocument(winner) : null;
+        }
+
+        if (stored != null && replacement.equals(stored.getString("replacement"))) {
+            // This call is the one that created the entry, so it is the one that may have filled the
+            // context. Trimmed afterwards rather than before: an upsert that changes nothing must not
+            // evict anything.
+            evictIfFull(userId, contextName);
+        }
+
+        return stored != null ? ContextEntryDocuments.fromDocument(stored) : null;
+
+    }
+
+    /**
+     * The token index is unique, so a second concurrent insert is refused rather than stored. Unlike
+     * the other indexes this one carries a guarantee the code relies on, so a failure to create it is
+     * fatal instead of a warning: running without it looks identical and silently allows duplicates.
+     */
+    private void ensureUniqueTokenIndex() {
+        try {
+            collection.createIndex(Indexes.ascending("user_id", "context_name", "token_hash"),
+                    new IndexOptions().unique(true));
+        } catch (final Exception ex) {
+            throw new IllegalStateException("Unable to create the unique token index on 'context_entries'. "
+                    + "Duplicate entries for one token may already exist; remove them and restart.", ex);
+        }
+    }
+
+    /** Forgets a mapping the store no longer has, or no longer has under that value. */
+    private void evict(final String userId, final String contextName, final String tokenHash) {
+        if (contextCache != null && contextName != null && tokenHash != null) {
+            contextCache.evictTokenHash(userId, contextName, tokenHash);
+        }
+    }
+
+    private void evictIfFull(final String userId, final String contextName) {
+
+        final Bson contextFilter = Filters.and(
+                Filters.eq("user_id", MongoIds.objectId(userId)),
+                Filters.eq("context_name", contextName)
+        );
+
+        final long currentSize = collection.countDocuments(contextFilter);
+        if (currentSize < MAX_CONTEXT_SIZE) {
+            return;
+        }
+
+        final Document victim = collection.find(contextFilter)
+                .sort(Sorts.orderBy(Sorts.ascending("reads"), Sorts.ascending("timestamp")))
+                .first();
+
+        if (victim != null) {
+            collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
+            evict(userId, contextName, victim.getString("token_hash"));
+            LOGGER.info("Evicted context entry {} from context {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
+                    MongoIds.hex(victim.getObjectId("_id")), contextName, victim.getLong("reads"), MAX_CONTEXT_SIZE);
+        }
+
+    }
+
+    @Override
+    public void deleteByContextName(final String contextName, final String userId) {
+
+        final Document filter = new Document("context_name", contextName).append("user_id", MongoIds.objectId(userId));
+        collection.deleteMany(filter);
+
+        // Here rather than only in the caller, so nothing between the delete and the caller's own
+        // eviction can leave the entries gone and the cache still answering.
+        if (contextCache != null) {
+            contextCache.deleteContext(userId, contextName);
+        }
+
+    }
+
+    @Override
+    public Map<String, Long> getFilterTypeCounts(final String contextName, final String userId) {
+
+        final Document matchStage = new Document("$match",
+                new Document("context_name", contextName)
+                        .append("user_id", MongoIds.objectId(userId)));
+
+        final Document groupStage = new Document("$group",
+                new Document("_id", "$filter_type")
+                        .append("count", new Document("$sum", 1)));
+
+        final List<Document> pipeline = new ArrayList<>();
+        pipeline.add(matchStage);
+        pipeline.add(groupStage);
+
+        final Map<String, Long> filterTypeCounts = new HashMap<>();
+
+        for (final Document document : collection.aggregate(pipeline)) {
+            // $sum yields an int or, past its range, a long.
+            final Object count = document.get("count");
+            if (count instanceof Number number) {
+                filterTypeCounts.merge(document.getString("_id"), number.longValue(), Long::sum);
+            }
+        }
+
+        return filterTypeCounts;
+
+    }
+
+    @Override
+    protected Document toDocument(final ContextEntryEntity entity) {
+        return ContextEntryDocuments.toDocument(entity);
+    }
+
+}

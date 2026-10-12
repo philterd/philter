@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService;
+import ai.philterd.philter.data.mongodb.MongoPolicyDataService;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -78,8 +80,8 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
         // One instance shared by writer and reader, as in the application.
         final RedactionCache redactionCache = new RedactionCache();
 
-        policyDataService = new PolicyDataService(mongoClient, mock(AuditEventPublisher.class), new Gson(),
-                new PolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), redactionCache);
+        policyDataService = new MongoPolicyDataService(mongoClient, mock(AuditEventPublisher.class), new Gson(),
+                new MongoPolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), redactionCache);
 
         final RedactListsDataService redactListsService = mock(RedactListsDataService.class);
         when(redactListsService.find(userId)).thenReturn(null);

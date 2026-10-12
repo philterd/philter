@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.services.signing;
 
+import ai.philterd.philter.data.mongodb.MongoSigningKeyDataService;
+import ai.philterd.philter.data.mongodb.MongoLedgerDataService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
@@ -66,10 +68,10 @@ class LedgerChainValidationIT extends AbstractMongoIT {
         when(adminSettings.findAdminSettings()).thenReturn(settings);
 
         final SigningService signingService = new SigningService(
-                new SigningKeyDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class)),
+                new MongoSigningKeyDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class)),
                 adminSettings);
 
-        ledgerDataService = new LedgerDataService(mongoClient, new TestEncryptionService(),
+        ledgerDataService = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), mock(LegalHoldDataService.class), signingService);
     }
 

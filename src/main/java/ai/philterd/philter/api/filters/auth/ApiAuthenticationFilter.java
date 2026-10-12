@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.filters.auth;
 
+import ai.philterd.philter.data.mongodb.MongoApiKeyDataService;
 import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.api.exceptions.ApiErrors;
 import ai.philterd.philter.model.ErrorReasons;
@@ -63,7 +64,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     private final Gson gson;
 
     public ApiAuthenticationFilter(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final MeterRegistry meterRegistry, final Gson gson, final ApiKeyCache apiKeyCache, final UserService userService) {
-        this.apiKeyService = new ApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
+        this.apiKeyService = new MongoApiKeyDataService(mongoClient, auditEventPublisher, apiKeyCache);
         this.apiKeyCache = apiKeyCache;
         this.userService = userService;
         this.auditEventPublisher = auditEventPublisher;

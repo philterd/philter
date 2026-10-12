@@ -24,6 +24,17 @@ This "document-presence" counting is deliberate: it ensures each redaction contr
 
 Because the counts are bucketed per `(context, day)`, the collection stays small regardless of redaction volume, so no retention TTL is required.
 
+## Reading the counts through the API
+
+The [PII Counts API](api_and_sdks/api/pii_counts_api.md) (`GET /api/pii-counts`) returns the same counts with an API key, so a reader needs no access to Philter's database and does not depend on how Philter stores them. Each entry gives a context, a UTC day, the count for each PII type, and `totalDocuments`. Narrow it by day range and context, and page through it with `offset` and `limit`. It requires an administrator and the `pii-counts:read` scope, and each read is recorded in the audit log.
+
+```bash
+curl -k -H "Authorization: Bearer <token>" \
+  "https://localhost:8080/api/pii-counts?from=2026-09-01&to=2026-09-30"
+```
+
+The response's `recordingEnabled` field says whether Philter is recording counts now, so an empty result can be told apart from recording being off.
+
 ## Enabling it
 
 Recording is controlled by a single global admin setting and is **off by default** (data minimization: statistics are not collected unless you opt in). An administrator enables it with the [Settings API](api_and_sdks/api/settings_api.md) (`{"diffuseCountsEnabled": true}`).
@@ -32,10 +43,10 @@ Recording is best-effort: any failure is ignored so it can never affect redactio
 
 ## Producing a report
 
-Point Philter Diffuse at the same MongoDB and privatize the recorded counts with its `--aggregates` option, which reads and sums the `pii_count_aggregates` buckets:
+Philter Diffuse currently reads the counts from Philter's MongoDB. Point it at the same MongoDB and privatize the recorded counts with its `--aggregates` option, which reads and sums the `pii_count_aggregates` buckets:
 
 ```bash
 python main.py --mongo-uri "mongodb://localhost:27017/philter" --aggregates --output privatized_counts.csv
 ```
 
-Add `--context <name>` to restrict the report to a single context. Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.
+Add `--context <name>` to restrict the report to a single context. Reading the counts through the PII Counts API instead, so that Diffuse needs only a Philter API key, is planned for Philter Diffuse. Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.

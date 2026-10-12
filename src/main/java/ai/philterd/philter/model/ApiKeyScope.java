@@ -79,6 +79,9 @@ public enum ApiKeyScope {
     SETTINGS_READ("settings:read", "Read the deployment's admin settings. Also requires an administrator."),
     SETTINGS_WRITE("settings:write", "Change the deployment's admin settings. Also requires an administrator."),
 
+    PII_COUNTS_READ("pii-counts:read", "Read the deployment's recorded PII type counts, for Philter Diffuse. Also "
+            + "requires an administrator."),
+
     WEBHOOKS_READ("webhooks:read", "Read a user's webhook URL and whether a secret is set."),
     WEBHOOKS_WRITE("webhooks:write", "Set and remove a user's webhook URL and secret."),
 

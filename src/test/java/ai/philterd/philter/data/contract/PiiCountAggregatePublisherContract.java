@@ -16,10 +16,15 @@
 package ai.philterd.philter.data.contract;
 
 import ai.philterd.philter.data.services.AdminSettingsDataService;
+import ai.philterd.philter.data.services.PiiCountDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,6 +42,20 @@ public interface PiiCountAggregatePublisherContract extends StorageContract {
                 null, null, null), storage().users().findByUsername("admin").getId(), null);
     }
 
+    /** The counts recorded for a context today, by type, with {@code total_documents} for the redactions. */
+    private Map<String, Long> today(final String context) {
+        final LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        final List<PiiCountDataService.Aggregate> aggregates =
+                storage().piiCountData().list(today, today, context, 0, 10).items();
+        final Map<String, Long> counts = new HashMap<>();
+        if (!aggregates.isEmpty()) {
+            assertEquals(1, aggregates.size());
+            counts.putAll(aggregates.get(0).counts());
+            counts.put("total_documents", aggregates.get(0).totalDocuments());
+        }
+        return counts;
+    }
+
     @Test
     default void piiCountConcurrentRedactionsAreAllCounted() throws Exception {
         enable(true);
@@ -45,18 +64,18 @@ public interface PiiCountAggregatePublisherContract extends StorageContract {
             return null;
         });
         storage().piiCounts().record("claims", Set.of("PERSON"));
-        final Map<String, Long> counts = storage().piiCountsToday("claims");
+        final Map<String, Long> counts = today("claims");
         assertEquals(11L, counts.get("total_documents"));
         assertEquals(11L, counts.get("PERSON"));
         assertEquals(10L, counts.get("SSN"));
-        assertTrue(storage().piiCountsToday("another-context").isEmpty());
+        assertTrue(today("another-context").isEmpty());
     }
 
     @Test
     default void piiCountRecordingIsANoOpWhenDisabledAndNeverThrows() {
         enable(false);
         storage().piiCounts().record("claims", Set.of("PERSON"));
-        assertTrue(storage().piiCountsToday("claims").isEmpty());
+        assertTrue(today("claims").isEmpty());
         assertDoesNotThrow(() -> storage().piiCounts().record(null, null));
         assertDoesNotThrow(() -> storage().piiCounts().record("claims", Set.of()));
     }

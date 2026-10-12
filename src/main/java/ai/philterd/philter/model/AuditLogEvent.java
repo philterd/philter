@@ -115,6 +115,9 @@ public enum AuditLogEvent {
     AUDIT_LOG_RETRIEVED("audit_log_retrieved"),
     AUDIT_LOG_EXPORTED("audit_log_exported"),
 
+    // Reading the recorded PII counts, which cover the whole deployment.
+    PII_COUNTS_RETRIEVED("pii_counts_retrieved"),
+
     // Settings
     SETTINGS_UPDATED("settings_updated"),
 

@@ -5972,6 +5972,165 @@
         }
       }
     },
+    "/api/pii-counts": {
+      "get": {
+        "tags": [
+          "PII Counts"
+        ],
+        "summary": "List the recorded PII counts.",
+        "description": "Returns the PII type counts Philter records when the diffuseCountsEnabled setting is on, for Philter Diffuse to privatize: one entry per context and UTC day, giving for each PII type how many redactions found at least one of it, and how many found any PII. Only counts, never any PII. Most recent day first, then by context, paginated. Narrow by day with from and to (YYYY-MM-DD, UTC, both inclusive) and by context with context. recordingEnabled says whether counts are being recorded now, so an empty listing can be told apart from recording being off; counts recorded before it was turned off are still returned. Each read is audited. The counts cover the whole deployment, so this requires an administrator as well as the pii-counts:read scope. Requires the `pii-counts:read` scope.",
+        "operationId": "getPiiCounts",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "context",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of counts, the total matching the filters, and whether counts are being recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPiiCountsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A date is not YYYY-MM-DD, or from is after to.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key does not hold pii-counts:read, or the caller is not an administrator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/policies": {
       "get": {
         "tags": [
@@ -13362,6 +13521,27 @@
           }
         }
       },
+      "GetPiiCountsResponse": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "description": "The page of counts, one per context and day, most recent day first, then by context.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PiiCountView"
+            }
+          },
+          "recordingEnabled": {
+            "description": "Whether Philter is recording PII counts now (the diffuseCountsEnabled setting). When it is false, no new counts are being recorded, so an empty listing does not mean no PII was found.",
+            "type": "boolean"
+          },
+          "total": {
+            "description": "How many context and day aggregates match the filters.",
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "GetPoliciesResponse": {
         "type": "object",
         "properties": {
@@ -13872,6 +14052,42 @@
             "type": "string"
           },
           "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PiiCountView": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "description": "The context the redactions ran in.",
+            "type": "string"
+          },
+          "counts": {
+            "description": "For each PII type, how many redactions that day found at least one of it.",
+            "example": {
+              "EMAIL_ADDRESS": 8900,
+              "SSN": 1240
+            },
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "day": {
+            "description": "The UTC day the redactions ran on, as YYYY-MM-DD.",
+            "example": "2026-10-01",
+            "type": "string"
+          },
+          "totalDocuments": {
+            "description": "How many redactions that day found any PII.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedAt": {
+            "description": "When a redaction was last counted.",
             "type": "string",
             "format": "date-time"
           }
@@ -14708,6 +14924,10 @@
     {
       "description": "Read-only access to the audit log.",
       "name": "Audit Log"
+    },
+    {
+      "description": "Read the PII type counts Philter records for Philter Diffuse. Requires an administrator.",
+      "name": "PII Counts"
     },
     {
       "description": "Redact text and return a detailed explanation of what was redacted and why.",

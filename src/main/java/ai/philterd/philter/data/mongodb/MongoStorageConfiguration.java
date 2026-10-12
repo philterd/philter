@@ -26,6 +26,7 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PiiCountDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
@@ -67,6 +68,11 @@ public class MongoStorageConfiguration {
     @Bean
     public PiiCountAggregatePublisher piiCountAggregatePublisher(final AdminSettingsDataService adminSettingsDataService) {
         return new MongoPiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
+    }
+
+    @Bean
+    public PiiCountDataService piiCountDataService() {
+        return new MongoPiiCountDataService(mongoClient);
     }
 
     @Bean

@@ -26,6 +26,7 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PiiCountDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
@@ -47,6 +48,8 @@ import com.mongodb.client.model.Updates;
 import org.bson.Document;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
@@ -171,6 +174,11 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
+    public PiiCountDataService piiCountData() {
+        return once("piiCountData", configuration::piiCountDataService);
+    }
+
+    @Override
     public StorageUnderTest anotherInstance() {
         return new MongoStorageUnderTest(mongoClient);
     }
@@ -190,20 +198,13 @@ final class MongoStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
-    public Map<String, Long> piiCountsToday(final String context) {
-        final Document aggregate = mongoClient.getDatabase("philter").getCollection(MongoPiiCountAggregatePublisher.COLLECTION)
-                .find(Filters.and(Filters.eq("context", context),
-                        Filters.eq("bucket_start", Date.from(Instant.now().truncatedTo(ChronoUnit.DAYS))))).first();
-        final Map<String, Long> counts = new HashMap<>();
-        if (aggregate == null) {
-            return counts;
-        }
-        final Document byType = aggregate.get("counts", Document.class);
-        if (byType != null) {
-            byType.forEach((type, count) -> counts.put(type, ((Number) count).longValue()));
-        }
-        counts.put("total_documents", ((Number) aggregate.get("total_documents")).longValue());
-        return counts;
+    public void storePiiCounts(final String context, final LocalDate day, final Map<String, Long> counts,
+                               final long totalDocuments) {
+        final Date bucketStart = Date.from(day.atStartOfDay(ZoneOffset.UTC).toInstant());
+        mongoClient.getDatabase("philter").getCollection(MongoPiiCountAggregatePublisher.COLLECTION).insertOne(
+                new Document("context", context).append("bucket_start", bucketStart)
+                        .append("counts", new Document(new HashMap<>(counts))).append("total_documents", totalDocuments)
+                        .append("updated_at", bucketStart));
     }
 
 }

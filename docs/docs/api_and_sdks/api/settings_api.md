@@ -23,7 +23,7 @@ These endpoints read and change the deployment's admin settings: differential-pr
 }
 ```
 
-* `diffuseCountsEnabled` - Record PII counts for [differential-privacy reporting](../../diffuse.md).
+* `diffuseCountsEnabled` - Record PII counts for [differential-privacy reporting](../../diffuse.md). Read them with the [PII Counts API](pii_counts_api.md).
 * `signingEnabled` - Sign every text filter and explain response. See [Output Signing](../../output_signing.md).
 * `webhookAllowlist` - Where a user's [webhook](webhooks.md#where-a-webhook-may-point) may point: comma-separated hostnames, IP addresses, and CIDR ranges. Empty allows any public address.
 * `phieldEnabled`, `phieldUrl`, `phieldSourceId`, `phieldOrganization` - [Phield](../../phield.md) publishing.

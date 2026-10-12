@@ -25,6 +25,7 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
+import ai.philterd.philter.data.services.PiiCountDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
@@ -34,6 +35,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -79,6 +81,8 @@ public interface StorageUnderTest {
 
     PiiCountAggregatePublisher piiCounts();
 
+    PiiCountDataService piiCountData();
+
     /**
      * New services over the same database, as another Philter instance would have, for guarantees that must hold
      * across instances.
@@ -93,7 +97,7 @@ public interface StorageUnderTest {
     /** Moves a sign-in challenge's expiry into the past, as if its time had run out. */
     void expireSignInChallenge(String token);
 
-    /** The PII counts recorded for a context today, by type, with {@code total_documents} for the redactions. */
-    Map<String, Long> piiCountsToday(String context);
+    /** Stores the PII counts for a context and UTC day, as if they had been recorded that day. */
+    void storePiiCounts(String context, LocalDate day, Map<String, Long> counts, long totalDocuments);
 
 }

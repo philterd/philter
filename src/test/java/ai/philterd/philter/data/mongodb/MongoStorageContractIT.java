@@ -25,6 +25,7 @@ import ai.philterd.philter.data.contract.LedgerDataServiceContract;
 import ai.philterd.philter.data.contract.LegalHoldDataServiceContract;
 import ai.philterd.philter.data.contract.PendingDocumentDataServiceContract;
 import ai.philterd.philter.data.contract.PiiCountAggregatePublisherContract;
+import ai.philterd.philter.data.contract.PiiCountDataServiceContract;
 import ai.philterd.philter.data.contract.PolicyDataServiceContract;
 import ai.philterd.philter.data.contract.PolicyVersionDataServiceContract;
 import ai.philterd.philter.data.contract.RedactListsDataServiceContract;
@@ -48,6 +49,7 @@ class MongoStorageContractIT extends AbstractMongoIT implements
         LegalHoldDataServiceContract,
         PendingDocumentDataServiceContract,
         PiiCountAggregatePublisherContract,
+        PiiCountDataServiceContract,
         PolicyDataServiceContract,
         PolicyVersionDataServiceContract,
         RedactListsDataServiceContract,

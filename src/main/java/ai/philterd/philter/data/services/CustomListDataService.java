@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
@@ -30,7 +31,6 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -73,16 +73,16 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
     }
 
     /** Replaces an existing list's items, and its description when one is given; 404 if there is no such list. */
-    public ServiceResponse replace(final String requestId, final ObjectId userId, final String listName,
+    public ServiceResponse replace(final String requestId, final String userId, final String listName,
                                    final String description, final List<String> listItems, final String origin) {
         return write(requestId, userId, listName, description, listItems, true, false, origin);
     }
 
-    public ServiceResponse saveOrUpdate(final String requestId, final ObjectId userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {
+    public ServiceResponse saveOrUpdate(final String requestId, final String userId, final String listName, final String description, final List<String> listItems, final boolean allowUpdate, final String origin) {
         return write(requestId, userId, listName, description, listItems, allowUpdate, true, origin);
     }
 
-    private ServiceResponse write(final String requestId, final ObjectId userId, final String listName,
+    private ServiceResponse write(final String requestId, final String userId, final String listName,
                                   final String description, final List<String> listItems, final boolean allowUpdate,
                                   final boolean allowCreate, final String origin) {
 
@@ -158,7 +158,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
             customListEntity.setName(listName);
             customListEntity.setDescription(description == null ? "" : description);
             customListEntity.setItems(trimmedListItems);
-            final ObjectId objectId;
+            final String objectId;
             try {
                 objectId = save(customListEntity);
             } catch (final com.mongodb.MongoWriteException race) {
@@ -175,11 +175,11 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public CustomListEntity findOneById(final ObjectId id, final ObjectId userId) {
+    public CustomListEntity findOneById(final String id, final String userId) {
 
         final Bson filter1 = Filters.and(
-                Filters.eq("_id", id),
-                Filters.eq("user_id", userId)
+                Filters.eq("_id", MongoIds.objectId(id)),
+                Filters.eq("user_id", MongoIds.objectId(userId))
         );
 
         final Document document = collection.find(filter1).first();
@@ -197,13 +197,13 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
      * items. Used to resolve all {@code list:} references in a policy at once rather than issuing one
      * query per reference. Names with no matching list are simply absent from the returned map.
      */
-    public Map<String, List<String>> findItemsByNames(final ObjectId userId, final Collection<String> names) {
+    public Map<String, List<String>> findItemsByNames(final String userId, final Collection<String> names) {
 
         if (userId == null || names == null || names.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        final Bson filter = Filters.and(Filters.eq("user_id", userId), Filters.in("name", names));
+        final Bson filter = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.in("name", names));
 
         final Map<String, List<String>> itemsByName = new HashMap<>();
         for (final Document document : collection.find(filter)) {
@@ -215,11 +215,11 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public CustomListEntity findOneByName(final String name, final ObjectId userId) {
+    public CustomListEntity findOneByName(final String name, final String userId) {
 
         final Bson filter1 = Filters.and(
                 Filters.eq("name", name),
-                Filters.eq("user_id", userId)
+                Filters.eq("user_id", MongoIds.objectId(userId))
         );
 
         final Document document = collection.find(filter1).first();
@@ -232,11 +232,11 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public boolean existsForUser(final String name, final ObjectId userId) {
+    public boolean existsForUser(final String name, final String userId) {
 
         final Bson filter1 = Filters.and(
                 Filters.eq("name", name),
-                Filters.eq("user_id", userId)
+                Filters.eq("user_id", MongoIds.objectId(userId))
         );
 
         final Document document = collection.find(filter1).first();
@@ -247,7 +247,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     /**
      * Returns every custom list for every user. Intended for admin-only views; ordinary access must use
-     * the owner-scoped {@link #findAll(ObjectId)}.
+     * the owner-scoped {@link #findAll(String)}.
      */
     public List<CustomListEntity> findAllAcrossUsers() {
 
@@ -263,7 +263,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     /**
      * Returns one page of custom lists across every user, ordered by name. Intended for admin-only
-     * views; ordinary access must use the owner-scoped {@link #findAll(ObjectId)}.
+     * views; ordinary access must use the owner-scoped {@link #findAll(String)}.
      */
     public List<CustomListEntity> findAllAcrossUsers(final int offset, final int limit) {
 
@@ -282,12 +282,12 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         return (int) collection.countDocuments();
     }
 
-    public List<CustomListEntity> findAll(final ObjectId userId) {
+    public List<CustomListEntity> findAll(final String userId) {
 
         final Document query = new Document();
 
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         final FindIterable<Document> documents = collection.find(query);
@@ -302,7 +302,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public List<CustomListEntity> findBySearchTerm(final ObjectId userId, final String searchTerm, final int limit) {
+    public List<CustomListEntity> findBySearchTerm(final String userId, final String searchTerm, final int limit) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
         final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
@@ -311,7 +311,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
         if (userId != null) {
             query = Filters.and(
-                    Filters.eq("user_id", userId),
+                    Filters.eq("user_id", MongoIds.objectId(userId)),
                     Filters.or(
                             Filters.regex("name", pattern),
                             Filters.regex("description", pattern)
@@ -340,18 +340,18 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
      * A page of the user's custom lists, or every user's when {@code userId} is null, whose names contain
      * {@code q}, and their total.
      */
-    public Listings.Page<CustomListEntity> list(final ObjectId userId, final String q, final Listings.Sort sort,
+    public Listings.Page<CustomListEntity> list(final String userId, final String q, final Listings.Sort sort,
                                                 final int offset, final int limit) {
-        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
                 Listings.contains("name", q)), sort, offset, limit,
                 document -> CustomListEntity.fromDocument(document, encryptionService));
     }
 
-    public List<CustomListEntity> findAll(final ObjectId userId, final int offset, final int limit) {
+    public List<CustomListEntity> findAll(final String userId, final int offset, final int limit) {
         return findAll(userId, offset, limit, null, null);
     }
 
-    public List<CustomListEntity> findAll(final ObjectId userId, final int offset, final int limit, final String sortField, final String sortDirection) {
+    public List<CustomListEntity> findAll(final String userId, final int offset, final int limit, final String sortField, final String sortDirection) {
 
         // Apply sorting if specified
         final Document sortDocument = new Document();
@@ -371,7 +371,7 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
         final Document query = new Document();
 
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         final FindIterable<Document> documents = collection.find(query)
@@ -389,12 +389,12 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public int count(final ObjectId userId) {
+    public int count(final String userId) {
 
         final Document query = new Document();
 
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         final long count = collection.countDocuments(query);
@@ -403,16 +403,16 @@ public class CustomListDataService extends AbstractEncryptedService<CustomListEn
 
     }
 
-    public void deleteByName(final String name, final ObjectId userId) {
+    public void deleteByName(final String name, final String userId) {
 
-        final Document filter = new Document("name", name).append("user_id", userId);
+        final Document filter = new Document("name", name).append("user_id", MongoIds.objectId(userId));
         collection.deleteOne(filter);
 
     }
 
-    public long deleteAll(final ObjectId userId) {
+    public long deleteAll(final String userId) {
 
-        final Document query = new Document("user_id", userId);
+        final Document query = new Document("user_id", MongoIds.objectId(userId));
 
         final DeleteResult deleteResult = collection.deleteMany(query);
 

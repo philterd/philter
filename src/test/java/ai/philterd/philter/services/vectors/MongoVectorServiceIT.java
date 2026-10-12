@@ -18,8 +18,8 @@ package ai.philterd.philter.services.vectors;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.mock;
  */
 class MongoVectorServiceIT extends AbstractMongoIT {
 
-    private final ObjectId userId = new ObjectId();
+    private final String userId = MongoIds.newId();
 
     private MongoVectorService service;
 
@@ -96,7 +96,7 @@ class MongoVectorServiceIT extends AbstractMongoIT {
 
         // A service for a different user must not see the first user's vectors.
         final MongoVectorService otherUser =
-                new MongoVectorService(mongoClient, new ObjectId(), mock(AuditEventPublisher.class));
+                new MongoVectorService(mongoClient, MongoIds.newId(), mock(AuditEventPublisher.class));
 
         assertTrue(otherUser.getVectorRepresentation("ctx", FilterType.PERSON).isEmpty());
         // The owning user still sees its vector.
@@ -121,7 +121,7 @@ class MongoVectorServiceIT extends AbstractMongoIT {
 
         // A different user deleting the same context name must not remove this user's vectors.
         final MongoVectorService otherUser =
-                new MongoVectorService(mongoClient, new ObjectId(), mock(AuditEventPublisher.class));
+                new MongoVectorService(mongoClient, MongoIds.newId(), mock(AuditEventPublisher.class));
         otherUser.deleteByContext("ctx");
 
         assertEquals(1.0, service.getVectorRepresentation("ctx", FilterType.PERSON).get(1.5), 1e-9);

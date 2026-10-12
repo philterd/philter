@@ -18,11 +18,11 @@ package ai.philterd.philter.services.policies;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +50,7 @@ class PhiSqlPolicyCompileIT extends AbstractMongoIT {
 
     @Test
     void compiledPhiSqlPolicyIsAcceptedAndStoredByThePolicyApi() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         // Compile a PhiSQL policy to native Phileas JSON.
         final PhiSqlCompileService.Result result = compiler.compile("POLICY ssn_only;\nREDACT SSN WITH MASK;");

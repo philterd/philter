@@ -19,6 +19,7 @@ import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.api.security.ApiKeyScopeInterceptor;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -27,7 +28,6 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -85,16 +85,16 @@ class UsersApiControllerTest {
     @Mock private ContextDataService contextDataService;
     @Mock private ai.philterd.philter.data.services.AdminSettingsDataService adminSettingsDataService;
 
-    private ObjectId callerUserId;
-    private ObjectId callerApiKeyId;
+    private String callerUserId;
+    private String callerApiKeyId;
     private ApiKeyEntity callerKey;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
 
-        callerUserId = new ObjectId();
-        callerApiKeyId = new ObjectId();
+        callerUserId = MongoIds.newId();
+        callerApiKeyId = MongoIds.newId();
         callerKey = keyHolding(ApiKeyScope.all());
 
         lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
@@ -143,7 +143,7 @@ class UsersApiControllerTest {
 
     private UserEntity targetUser(final String username) {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         user.setUsername(username);
         return user;
     }

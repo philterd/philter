@@ -48,7 +48,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -132,7 +131,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -149,7 +148,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
         final List<PolicyVersionEntity> versions = page.items();
 
         // Authors are stored by id and named here, in one query for the page.
-        final java.util.Map<ObjectId, String> authors = userService.findUsernamesByIds(versions.stream()
+        final java.util.Map<String, String> authors = userService.findUsernamesByIds(versions.stream()
                 .map(PolicyVersionEntity::getAuthorId).filter(java.util.Objects::nonNull).distinct().toList());
 
         final List<PolicyVersionSummary> summaries = versions.stream()
@@ -196,7 +195,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -249,7 +248,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -342,7 +341,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
 
         final String expectedETag = PoliciesApiController.ifMatchETag(ifMatch);
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }

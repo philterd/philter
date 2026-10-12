@@ -15,12 +15,12 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,8 +67,8 @@ class MongoDBAuditEventPublisherTest {
 
     @Test
     void auditEventInsertsDocumentWithAllFields() {
-        final ObjectId apiKeyId = new ObjectId();
-        final ObjectId associatedObject = new ObjectId();
+        final String apiKeyId = MongoIds.newId();
+        final String associatedObject = MongoIds.newId();
 
         publisher.auditEvent("req-1", AuditLogEvent.POLICY_CREATED, apiKeyId, associatedObject, "10.0.0.1", "details here");
 
@@ -78,8 +78,8 @@ class MongoDBAuditEventPublisherTest {
         final Document document = captor.getValue();
         assertEquals("req-1", document.getString("request_id"));
         assertEquals("policy_created", document.getString("event"));
-        assertEquals(apiKeyId, document.getObjectId("api_key_id"));
-        assertEquals(associatedObject, document.getObjectId("associated_object"));
+        assertEquals(apiKeyId, MongoIds.hex(document.getObjectId("api_key_id")));
+        assertEquals(associatedObject, MongoIds.hex(document.getObjectId("associated_object")));
         assertEquals("10.0.0.1", document.getString("client_ip_address"));
         assertEquals("details here", document.getString("details"));
         assertNotNull(document.getDate("timestamp"));
@@ -87,7 +87,7 @@ class MongoDBAuditEventPublisherTest {
 
     @Test
     void shortOverloadsLeaveOptionalFieldsNull() {
-        publisher.auditEvent("req-2", AuditLogEvent.API_KEY_CREATED, new ObjectId());
+        publisher.auditEvent("req-2", AuditLogEvent.API_KEY_CREATED, MongoIds.newId());
 
         final ArgumentCaptor<Document> captor = ArgumentCaptor.forClass(Document.class);
         verify(mongoCollection).insertOne(captor.capture());
@@ -117,7 +117,7 @@ class MongoDBAuditEventPublisherTest {
         doThrow(new RuntimeException("mongo down")).when(mongoCollection).insertOne(any(Document.class));
 
         // Must not propagate: auditing cannot break the audited operation.
-        publisher.auditEvent("req-3", AuditLogEvent.REDACTION_LEDGER_DELETED, new ObjectId());
+        publisher.auditEvent("req-3", AuditLogEvent.REDACTION_LEDGER_DELETED, MongoIds.newId());
 
         verify(mongoCollection).insertOne(any(Document.class));
     }
@@ -142,7 +142,7 @@ class MongoDBAuditEventPublisherTest {
 
     @Test
     void aSourceWithoutARequestIsRecordedAsTheSourceAndNoAddress() {
-        publisher.auditEvent("req-3", AuditLogEvent.USER_CREATED, new ObjectId(), new ObjectId(), "system", null);
+        publisher.auditEvent("req-3", AuditLogEvent.USER_CREATED, MongoIds.newId(), MongoIds.newId(), "system", null);
 
         final Document document = recorded();
         assertNull(document.get("client_ip_address"));
@@ -171,11 +171,11 @@ class MongoDBAuditEventPublisherTest {
     void theRequestsAddressIsRecordedWhateverTheCallerPasses() {
         serving("198.51.100.20");
 
-        publisher.auditEvent("req-5", AuditLogEvent.POLICY_CREATED, new ObjectId(), null, "api", null);
-        publisher.auditEvent("req-6", AuditLogEvent.SETTINGS_UPDATED, new ObjectId(), null, null, null);
+        publisher.auditEvent("req-5", AuditLogEvent.POLICY_CREATED, MongoIds.newId(), null, "api", null);
+        publisher.auditEvent("req-6", AuditLogEvent.SETTINGS_UPDATED, MongoIds.newId(), null, null, null);
         publisher.auditEvent("req-7", AuditLogEvent.SIGN_IN_FAILED, null, null, "203.0.113.9", null);
         // A session key a request presents expires as the request is handled: the request caused it.
-        publisher.auditEvent("req-8", AuditLogEvent.API_KEY_EXPIRED, new ObjectId(), null, "system", null);
+        publisher.auditEvent("req-8", AuditLogEvent.API_KEY_EXPIRED, MongoIds.newId(), null, "system", null);
 
         final ArgumentCaptor<Document> captor = ArgumentCaptor.forClass(Document.class);
         verify(mongoCollection, times(4)).insertOne(captor.capture());
@@ -189,7 +189,7 @@ class MongoDBAuditEventPublisherTest {
     void workARequestSubmittedRecordsThatRequestsAddress() {
         ClientAddress.setSubmittedBy("198.51.100.30");
 
-        publisher.auditEvent("doc-1", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, new ObjectId(), null, null, "redactions: 1");
+        publisher.auditEvent("doc-1", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, MongoIds.newId(), null, null, "redactions: 1");
 
         final Document document = recorded();
         assertEquals("198.51.100.30", document.getString("client_ip_address"));
@@ -200,7 +200,7 @@ class MongoDBAuditEventPublisherTest {
     void aSubmitterValueThatIsNotAnAddressIsIgnored() {
         ClientAddress.setSubmittedBy("api");
 
-        publisher.auditEvent("doc-2", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, new ObjectId(), null, null, null);
+        publisher.auditEvent("doc-2", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, MongoIds.newId(), null, null, null);
 
         final Document document = recorded();
         assertNull(document.get("client_ip_address"));

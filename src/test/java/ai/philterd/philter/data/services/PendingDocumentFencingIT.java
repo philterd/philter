@@ -17,9 +17,9 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.Date;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.mock;
 
 class PendingDocumentFencingIT extends AbstractMongoIT {
     private final AtomicLong time = new AtomicLong(System.currentTimeMillis());
-    private final ObjectId user = new ObjectId();
+    private final String user = MongoIds.newId();
     private PendingDocumentDataService first;
     private PendingDocumentDataService second;
 
@@ -48,7 +48,7 @@ class PendingDocumentFencingIT extends AbstractMongoIT {
     private PendingDocumentEntity claim() {
         final var job = new PendingDocumentEntity();
         job.setUserId(user);
-        job.setDocumentId(new ObjectId().toHexString());
+        job.setDocumentId(MongoIds.newId());
         job.setStatus(PendingDocumentEntity.STATUS_PENDING);
         job.setSubmittedAt(new Date(time.get()));
         job.setInput(new byte[]{1});

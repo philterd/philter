@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AbstractEncryptedEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -25,7 +26,6 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,14 +74,14 @@ public class AbstractEncryptedService<T extends AbstractEncryptedEntity> {
         RequiredSchema.ensureIndex(collection, keys, options);
     }
 
-    public ObjectId save(T entity) {
-        return collection.insertOne(entity.toDocument(encryptionService)).getInsertedId().asObjectId().getValue();
+    public String save(T entity) {
+        return MongoIds.hex(collection.insertOne(entity.toDocument(encryptionService)).getInsertedId().asObjectId().getValue());
     }
 
     public void update(final T entity) {
 
         collection.updateOne(
-                Filters.eq("_id", entity.getId()),
+                Filters.eq("_id", MongoIds.objectId(entity.getId())),
                 new Document("$set", entity.toDocument(encryptionService))
         );
 

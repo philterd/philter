@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.EnvUtils;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
@@ -30,7 +31,6 @@ import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,17 +102,17 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
         return claimed != null ? WebhookDeliveryEntity.fromDocument(claimed, encryptionService) : null;
     }
 
-    private Bson ownedClaim(final ObjectId id, final String claimToken, final Date now) {
+    private Bson ownedClaim(final String id, final String claimToken, final Date now) {
         if (claimToken == null || claimToken.isBlank()) {
             throw new IllegalArgumentException("A webhook claim token is required.");
         }
-        return Filters.and(Filters.eq("_id", id),
+        return Filters.and(Filters.eq("_id", MongoIds.objectId(id)),
                 Filters.eq("status", WebhookDeliveryEntity.STATUS_PROCESSING),
                 Filters.eq("claim_token", claimToken), Filters.gt("claim_expires_at", now));
     }
 
     /** Returns false when this attempt no longer owns a live claim. */
-    public boolean markDelivered(final ObjectId id, final String claimToken) {
+    public boolean markDelivered(final String id, final String claimToken) {
         final Date now = new Date();
         return collection.updateOne(ownedClaim(id, claimToken, now), Updates.combine(
                 Updates.set("status", WebhookDeliveryEntity.STATUS_DELIVERED),
@@ -122,7 +122,7 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
     }
 
     /** Returns false for stale outcomes, which must not change another attempt's state. */
-    public boolean rescheduleOrFail(final ObjectId id, final String claimToken,
+    public boolean rescheduleOrFail(final String id, final String claimToken,
                                     final int currentAttempts, final String errorMessage) {
         if (currentAttempts < 1 || currentAttempts > MAX_ATTEMPTS) {
             throw new IllegalArgumentException("Invalid webhook attempt count.");
@@ -143,15 +143,15 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
      * A page of the user's deliveries, newest first, without their secrets or payloads, which a listing
      * has no use for.
      */
-    public List<WebhookDeliveryEntity> findByUserId(final ObjectId userId, final int offset, final int limit) {
+    public List<WebhookDeliveryEntity> findByUserId(final String userId, final int offset, final int limit) {
         return findByUserId(userId, offset, limit, true);
     }
 
     /** As above, oldest first unless {@code descending}. */
-    public List<WebhookDeliveryEntity> findByUserId(final ObjectId userId, final int offset, final int limit,
+    public List<WebhookDeliveryEntity> findByUserId(final String userId, final int offset, final int limit,
                                                     final boolean descending) {
         final List<WebhookDeliveryEntity> deliveries = new ArrayList<>();
-        for (final Document document : collection.find(Filters.eq("user_id", userId))
+        for (final Document document : collection.find(Filters.eq("user_id", MongoIds.objectId(userId)))
                 .projection(Projections.exclude("secret", "secret_encrypted_key", "payload", "claim_token"))
                 .sort(new Listings.Sort("created_at", descending).toBson())
                 .skip(offset).limit(limit)) {
@@ -161,8 +161,8 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
     }
 
     /** How many deliveries the user has, for paging {@link #findByUserId}. */
-    public long countByUserId(final ObjectId userId) {
-        return collection.countDocuments(Filters.eq("user_id", userId));
+    public long countByUserId(final String userId) {
+        return collection.countDocuments(Filters.eq("user_id", MongoIds.objectId(userId)));
     }
 
     /** A terminal job has one stable event ID. Reconciliation may safely retry after uncertainty. */
@@ -175,7 +175,7 @@ public class WebhookDeliveryDataService extends AbstractEncryptedService<Webhook
             if (duplicate.getError().getCode() != 11000
                     || collection.withReadPreference(com.mongodb.ReadPreference.primary())
                     .withReadConcern(com.mongodb.ReadConcern.MAJORITY)
-                    .find(Filters.eq("_id", delivery.getId())).first() == null) throw duplicate;
+                    .find(Filters.eq("_id", MongoIds.objectId(delivery.getId()))).first() == null) throw duplicate;
         }
     }
 }

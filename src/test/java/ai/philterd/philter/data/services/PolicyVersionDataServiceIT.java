@@ -18,10 +18,10 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +46,7 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
         versionService = new PolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class));
     }
 
-    private static PolicyEntity policy(final String name, final int revision, final String json, final ObjectId userId) {
+    private static PolicyEntity policy(final String name, final int revision, final String json, final String userId) {
         final PolicyEntity entity = new PolicyEntity();
         entity.setName(name);
         entity.setRevision(revision);
@@ -57,7 +57,7 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
 
     @Test
     void snapshotIsContentAddressedIdempotentAndResolvableByHash() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String json = "{\"identifiers\":{\"person\":{}}}";
 
         final String hash = versionService.snapshot(policy("p", 1, json, user));
@@ -77,7 +77,7 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
 
     @Test
     void differentContentYieldsDifferentSnapshots() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String hashA = versionService.snapshot(policy("p", 1, "{\"identifiers\":{\"a\":{}}}", user));
         final String hashB = versionService.snapshot(policy("p", 2, "{\"identifiers\":{\"b\":{}}}", user));
 
@@ -88,13 +88,13 @@ class PolicyVersionDataServiceIT extends AbstractMongoIT {
 
     @Test
     void snapshotOfBlankPolicyIsSkipped() {
-        assertEquals(null, versionService.snapshot(policy("p", 1, null, new ObjectId())));
-        assertEquals(null, versionService.snapshot(policy("p", 1, "  ", new ObjectId())));
+        assertEquals(null, versionService.snapshot(policy("p", 1, null, MongoIds.newId())));
+        assertEquals(null, versionService.snapshot(policy("p", 1, "  ", MongoIds.newId())));
     }
 
     @Test
     void retainedVersionsSurviveLivePolicyDeletion() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String json = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
         // A real PolicyDataService writes a snapshot on create and must not remove it on delete.

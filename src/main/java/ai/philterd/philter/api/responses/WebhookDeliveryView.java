@@ -36,7 +36,7 @@ public class WebhookDeliveryView {
     private final Date deliveredAt;
 
     public WebhookDeliveryView(final WebhookDeliveryEntity delivery) {
-        this.id = delivery.getId() == null ? null : delivery.getId().toHexString();
+        this.id = delivery.getId();
         this.documentId = delivery.getDocumentId();
         this.event = delivery.getEventType();
         this.url = delivery.getUrl();

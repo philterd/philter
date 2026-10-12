@@ -23,7 +23,6 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,13 +78,13 @@ class ErrorsIT {
         httpClient.close();
     }
 
-    private ObjectId seed(final String role) {
+    private String seed(final String role) {
         final String username = "errors-" + UUID.randomUUID();
         assertTrue(userService.createUser("req", username, role, policyDataService, contextDataService, "test").isSuccessful());
         return userService.findByUsername(username).getId();
     }
 
-    private String keyFor(final ObjectId userId, final Set<String> scopes) {
+    private String keyFor(final String userId, final Set<String> scopes) {
         return apiKeyDataService.createApiKey("req", userId, "test", scopes).getMessage();
     }
 
@@ -118,17 +117,17 @@ class ErrorsIT {
         assertRefused(send("GET", "/api/policies", "sk_" + "a".repeat(32)), 401, "invalid_credentials");
 
         // An ended session is told to sign in again; a revoked long-lived key reads as unknown.
-        final ObjectId owner = seed("user");
+        final String owner = seed("user");
         final String session = apiKeyDataService.createSessionKey("req", owner, ApiKeyScope.all(), "test", null).getApiKey();
         assertEquals(204, send("DELETE", "/api/api-keys/current", session).statusCode());
         assertRefused(send("GET", "/api/policies", session), 401, "session_expired");
         final String longLived = keyFor(owner, ApiKeyScope.all());
         final String other = keyFor(owner, ApiKeyScope.all());
-        final String longLivedId = apiKeyDataService.findOneByApiKey(longLived).getId().toHexString();
+        final String longLivedId = apiKeyDataService.findOneByApiKey(longLived).getId();
         assertEquals(204, send("DELETE", "/api/api-keys/" + longLivedId, other).statusCode());
         assertRefused(send("GET", "/api/policies", longLived), 401, "invalid_credentials");
 
-        final ObjectId gone = seed("user");
+        final String gone = seed("user");
         final String key = keyFor(gone, ApiKeyScope.all());
         assertTrue(userService.deactivateUser("req", userService.findOneById(gone), "test").isSuccessful());
         assertRefused(send("GET", "/api/policies", key), 401, "user_deactivated");
@@ -148,7 +147,7 @@ class ErrorsIT {
     @Test
     @DisplayName("Not found, invalid requests, and conflicts carry their reasons, and a field when one is invalid")
     void handlerRefusals() throws Exception {
-        final ObjectId userId = seed("user");
+        final String userId = seed("user");
         final String key = keyFor(userId, ApiKeyScope.all());
 
         assertRefused(send("GET", "/api/policies/missing", key), 404, "not_found");
@@ -158,7 +157,7 @@ class ErrorsIT {
         final JsonObject invalid = assertRefused(send("GET", "/api/policies?sort=size", key), 400, "invalid_request");
         assertEquals("sort", invalid.get("field").getAsString());
 
-        final String keyId = apiKeyDataService.findOneByApiKey(key).getId().toHexString();
+        final String keyId = apiKeyDataService.findOneByApiKey(key).getId();
         assertRefused(send("DELETE", "/api/api-keys/" + keyId, key), 409, "self_action_refused");
         assertRefused(send("POST", "/api/webhook/test", key), 409, "webhook_not_set");
     }

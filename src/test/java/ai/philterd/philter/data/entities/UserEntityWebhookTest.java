@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -63,7 +63,7 @@ class UserEntityWebhookTest {
         final EncryptionService encryptionService = new TestEncryptionService();
 
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         user.setUsername("jordan");
         user.setPassword("$2a$10$abcdefghijklmnopqrstuv");
         user.setPasswordChangeRequired(true);

@@ -17,6 +17,7 @@ package ai.philterd.philter.api;
 
 import ai.philterd.philter.config.SignInConfig;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -29,7 +30,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mongodb.client.MongoClient;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -90,7 +90,7 @@ class MfaApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId adminUserId;
+    private String adminUserId;
     private String adminKey;
 
     @BeforeEach
@@ -116,7 +116,7 @@ class MfaApiIT {
         assertEquals(200, response.statusCode(), response.body());
     }
 
-    private ObjectId seedUser(final String role) {
+    private String seedUser(final String role) {
         final String username = "mfa-" + UUID.randomUUID();
         assertTrue(userService.createUser("req", username, role, policyDataService, contextDataService, "test").isSuccessful());
         final UserEntity user = userService.findByUsername(username);
@@ -124,11 +124,11 @@ class MfaApiIT {
         return user.getId();
     }
 
-    private String username(final ObjectId userId) {
+    private String username(final String userId) {
         return userService.findOneById(userId).getUsername();
     }
 
-    private String longLivedKey(final ObjectId userId) {
+    private String longLivedKey(final String userId) {
         return apiKeyDataService.createApiKey("req", userId, "test", ApiKeyScope.all()).getMessage();
     }
 
@@ -143,7 +143,7 @@ class MfaApiIT {
         return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
-    private JsonObject signIn(final ObjectId userId) throws Exception {
+    private JsonObject signIn(final String userId) throws Exception {
         final HttpResponse<String> response = send("POST", "/api/sign-in", null,
                 "{\"username\":\"" + username(userId) + "\",\"password\":\"" + PASSWORD + "\"}");
         assertEquals(200, response.statusCode(), response.body());
@@ -173,12 +173,12 @@ class MfaApiIT {
         return totp.codeAt(secret, TotpService.currentTimeStep() + 1);
     }
 
-    private int audited(final String event, final ObjectId userId) throws Exception {
+    private int audited(final String event, final String userId) throws Exception {
         final HttpResponse<String> audit = send("GET", "/api/audit?limit=500&event=" + event, adminKey, null);
         int count = 0;
         for (final JsonElement element : gson.fromJson(audit.body(), JsonObject.class).getAsJsonArray("events")) {
             final JsonObject e = element.getAsJsonObject();
-            if (e.has("associatedObject") && userId.toHexString().equals(e.get("associatedObject").getAsString())) {
+            if (e.has("associatedObject") && userId.equals(e.get("associatedObject").getAsString())) {
                 count++;
             }
         }
@@ -189,7 +189,7 @@ class MfaApiIT {
     @DisplayName("Enrollment applies only once confirmed, and the secret is encrypted and never shown again")
     void enrollsOnlyOnConfirmation() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = longLivedKey(user);
 
         final HttpResponse<String> started = send("POST", "/api/users/me/mfa", key, null);
@@ -210,7 +210,7 @@ class MfaApiIT {
         assertTrue(gson.fromJson(read.body(), JsonObject.class).get("mfaEnabled").getAsBoolean());
         assertFalse(read.body().contains(secret), "the secret is never returned again");
 
-        final Document stored = mongoClient.getDatabase("philter").getCollection("users").find(new Document("_id", user)).first();
+        final Document stored = mongoClient.getDatabase("philter").getCollection("users").find(new Document("_id", MongoIds.objectId(user))).first();
         assertNotEquals(secret, stored.getString("mfa_secret"), "encrypted at rest");
         assertFalse(stored.toJson().contains(secret));
         assertFalse(stored.getString("mfa_secret_key").isEmpty(), "with its data key");
@@ -222,7 +222,7 @@ class MfaApiIT {
     @DisplayName("An enrolled user gets a single-use challenge, never a key on the password alone, and each code works once")
     void signsInWithAChallengeAndACode() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String secret = enroll(longLivedKey(user));
 
         final JsonObject first = signIn(user);
@@ -235,7 +235,7 @@ class MfaApiIT {
         assertEquals(200, completed.statusCode(), completed.body());
         final String sessionKey = gson.fromJson(completed.body(), JsonObject.class).get("apiKey").getAsString();
         assertEquals(200, send("GET", "/api/users/me", sessionKey, null).statusCode());
-        assertEquals(apiKeyDataService.findOneByApiKey(sessionKey).getId().toHexString(),
+        assertEquals(apiKeyDataService.findOneByApiKey(sessionKey).getId(),
                 gson.fromJson(completed.body(), JsonObject.class).get("id").getAsString(),
                 "completing sign-in with a code returns the session key's id too");
 
@@ -255,7 +255,7 @@ class MfaApiIT {
     @DisplayName("Five bad codes lock the user until an administrator unlocks them")
     void locksAfterFiveBadCodes() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String secret = enroll(longLivedKey(user));
 
         for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
@@ -281,7 +281,7 @@ class MfaApiIT {
     @Test
     @DisplayName("A good code resets the count, so only consecutive bad codes lock")
     void onlyConsecutiveBadCodesLock() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String secret = enroll(longLivedKey(user));
         for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS - 1; i++) {
             completeSignIn(signIn(user).get("challenge").getAsString(), "000000");
@@ -295,7 +295,7 @@ class MfaApiIT {
     @DisplayName("A user removes their own MFA with a code; an administrator removes another's, clearing a lock")
     void removesEnrollment() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = longLivedKey(user);
         final String secret = enroll(key);
 
@@ -305,7 +305,7 @@ class MfaApiIT {
         assertTrue(signIn(user).has("apiKey"), "sign-in no longer asks for a code");
         assertEquals(1, audited("user_mfa_removed", user));
 
-        final ObjectId other = seedUser("user");
+        final String other = seedUser("user");
         enroll(longLivedKey(other));
         for (int i = 0; i < UserService.MAX_MFA_ATTEMPTS; i++) {
             completeSignIn(signIn(other).get("challenge").getAsString(), "000000");
@@ -337,7 +337,7 @@ class MfaApiIT {
     void requiredMfaForcesEnrollment() throws Exception {
 
         settings(true, true);
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
 
         final JsonObject first = signIn(user);
         assertTrue(first.get("mfaEnrollmentRequired").getAsBoolean());
@@ -360,7 +360,7 @@ class MfaApiIT {
     @Test
     @DisplayName("An enrolled user is still challenged after MFA is made unavailable")
     void turningMfaOffDoesNotSkipTheCode() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         enroll(longLivedKey(user));
         settings(false, false);
         assertFalse(signIn(user).has("apiKey"));

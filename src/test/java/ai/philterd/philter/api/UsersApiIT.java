@@ -25,7 +25,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -86,7 +85,7 @@ class UsersApiIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String adminKey;
-    private ObjectId adminUserId;
+    private String adminUserId;
 
     @BeforeEach
     void setUp() {
@@ -105,7 +104,7 @@ class UsersApiIT {
     }
 
     /** Seeds a user directly, standing in for the account a deployment starts with. */
-    private ObjectId seedUser(final String prefix, final String role) {
+    private String seedUser(final String prefix, final String role) {
         final String username = prefix + UUID.randomUUID();
         final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
@@ -113,7 +112,7 @@ class UsersApiIT {
         return userService.findByUsername(username).getId();
     }
 
-    private String seedKey(final ObjectId userId, final Set<String> scopes) {
+    private String seedKey(final String userId, final Set<String> scopes) {
         final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", scopes);
         assertTrue(response.isSuccessful(), "the API key must be created");
         return response.getMessage();
@@ -187,7 +186,7 @@ class UsersApiIT {
         assertEquals(201, post("/api/users/" + username + "/api-keys", adminKey,
                 "{\"scopes\":[\"redact\"]}").statusCode());
 
-        final ObjectId provisionedUserId = userService.findByUsername(username).getId();
+        final String provisionedUserId = userService.findByUsername(username).getId();
 
         final HttpResponse<String> audit = get("/api/audit?limit=100", adminKey);
         assertEquals(200, audit.statusCode(), audit.body());
@@ -198,16 +197,16 @@ class UsersApiIT {
             final JsonObject event = element.getAsJsonObject();
             final String name = event.get("event").getAsString();
             final String object = event.has("associatedObject") ? event.get("associatedObject").getAsString() : "";
-            if ("user_created".equals(name) && provisionedUserId.toHexString().equals(object)) {
+            if ("user_created".equals(name) && provisionedUserId.equals(object)) {
                 userCreated = event;
             }
-            if ("api_key_created".equals(name) && provisionedUserId.toHexString().equals(object)) {
+            if ("api_key_created".equals(name) && provisionedUserId.equals(object)) {
                 keyCreated = event;
             }
         }
 
         assertNotNull(userCreated, "the user creation must be readable through GET /api/audit");
-        assertEquals(adminUserId.toHexString(), userCreated.get("apiKeyId").getAsString(),
+        assertEquals(adminUserId, userCreated.get("apiKeyId").getAsString(),
                 "the acting administrator is the principal, not the user that was created");
 
         assertNotNull(keyCreated, "the key creation must be readable through GET /api/audit");
@@ -278,13 +277,13 @@ class UsersApiIT {
         assertEquals(200, post("/api/users/" + username + "/reactivate", adminKey, "").statusCode());
         assertEquals(200, get("/api/policies", userKey).statusCode(), "reactivation restores the key");
 
-        final String adminKeyId = apiKeyDataService.findOneByApiKey(adminKey).getId().toHexString();
+        final String adminKeyId = apiKeyDataService.findOneByApiKey(adminKey).getId();
         final HttpResponse<String> audit = get("/api/audit?limit=100", adminKey);
         final Set<String> recorded = new HashSet<>();
         for (final var element : gson.fromJson(audit.body(), JsonObject.class).getAsJsonArray("events")) {
             final JsonObject event = element.getAsJsonObject();
-            if (event.has("associatedObject") && created.getId().toHexString().equals(event.get("associatedObject").getAsString())
-                    && adminUserId.toHexString().equals(event.get("apiKeyId").getAsString())
+            if (event.has("associatedObject") && created.getId().equals(event.get("associatedObject").getAsString())
+                    && adminUserId.equals(event.get("apiKeyId").getAsString())
                     && event.has("details") && event.get("details").getAsString().contains("api_key: " + adminKeyId)) {
                 recorded.add(event.get("event").getAsString());
             }
@@ -368,14 +367,14 @@ class UsersApiIT {
         final HttpResponse<String> created = post("/api/users", adminKey,
                 "{\"username\":\"" + username + "\",\"role\":\"user\"}");
         assertEquals(201, created.statusCode(), created.body());
-        final String id = userService.findByUsername(username).getId().toHexString();
+        final String id = userService.findByUsername(username).getId();
         assertEquals(id, gson.fromJson(created.body(), JsonObject.class).get("id").getAsString());
 
         assertEquals(id, gson.fromJson(get("/api/users/" + username, adminKey).body(), JsonObject.class)
                 .get("id").getAsString());
 
         final JsonObject me = gson.fromJson(get("/api/users/me", adminKey).body(), JsonObject.class);
-        assertEquals(adminUserId.toHexString(), me.get("id").getAsString());
+        assertEquals(adminUserId, me.get("id").getAsString());
 
         final JsonObject page = gson.fromJson(get("/api/users?limit=100", adminKey).body(), JsonObject.class);
         assertTrue(page.getAsJsonArray("users").size() > 0);
@@ -415,7 +414,7 @@ class UsersApiIT {
     @DisplayName("Only an administrator may set a user's email, and creating a user with a bad email is refused")
     void emailRefusals() throws Exception {
 
-        final ObjectId userId = seedUser("email-user-", "user");
+        final String userId = seedUser("email-user-", "user");
         final String userKey = seedKey(userId, ApiKeyScope.all());
         final String username = userService.findOneById(userId).getUsername();
         assertEquals(403, put("/api/users/" + username + "/email", userKey, "{\"email\":\"x@example.com\"}").statusCode());

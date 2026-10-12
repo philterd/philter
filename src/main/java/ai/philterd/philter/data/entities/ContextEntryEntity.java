@@ -15,14 +15,14 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
 public class ContextEntryEntity extends AbstractEntity {
 
-    private ObjectId id;
+    private String id;
     private String contextName;
     private String tokenHash;
     private String replacement;
@@ -30,12 +30,12 @@ public class ContextEntryEntity extends AbstractEntity {
     private long reads;
     private Date timestamp;
     private String filterType;
-    private ObjectId userId;
+    private String userId;
 
     public static ContextEntryEntity fromDocument(final Document document) {
         final ContextEntryEntity contextEntryEntity = new ContextEntryEntity();
-        contextEntryEntity.id = document.getObjectId("_id");
-        contextEntryEntity.userId = document.getObjectId("user_id");
+        contextEntryEntity.id = MongoIds.hex(document.getObjectId("_id"));
+        contextEntryEntity.userId = MongoIds.hex(document.getObjectId("user_id"));
         contextEntryEntity.contextName = document.getString("context_name");
         contextEntryEntity.tokenHash = document.getString("token_hash");
         contextEntryEntity.replacement = document.getString("replacement");
@@ -50,9 +50,9 @@ public class ContextEntryEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("context_name", contextName);
         document.put("token_hash", tokenHash);
         document.put("replacement", replacement);
@@ -63,11 +63,11 @@ public class ContextEntryEntity extends AbstractEntity {
         return document;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -127,11 +127,11 @@ public class ContextEntryEntity extends AbstractEntity {
         this.replacementUuid = replacementUuid;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

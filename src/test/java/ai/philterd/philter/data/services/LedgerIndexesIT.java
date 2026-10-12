@@ -17,11 +17,11 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -65,8 +65,8 @@ class LedgerIndexesIT extends AbstractMongoIT {
 
     @Test
     void listsAndCountsChainHeadsAcrossUsersAsBefore() throws Exception {
-        final ObjectId alice = new ObjectId();
-        final ObjectId bob = new ObjectId();
+        final String alice = MongoIds.newId();
+        final String bob = MongoIds.newId();
         service.initializeLedger(alice, "doc-a", "hash", "a.txt", "default", 0, "policy-hash");
         service.initializeLedger(bob, "doc-b", "hash", "b.txt", "default", 0, "policy-hash");
         service.initializeLedger(alice, "doc-c", "hash", "c.txt", "default", 0, "policy-hash");

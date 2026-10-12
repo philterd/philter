@@ -64,7 +64,6 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.TimeValue;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,11 +185,11 @@ public class RedactionService {
                 flag -> new PdfFilterService(phileasConfigurationCache.get(flag), httpClient));
     }
 
-    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
         return filter(policyName, userId, contextName, body, mimeType, null, null, null);
     }
 
-    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final String filename) throws Exception {
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType, final String filename) throws Exception {
         return filter(policyName, userId, contextName, body, mimeType, null, filename, null);
     }
 
@@ -203,12 +202,12 @@ public class RedactionService {
      * <p>{@code requestedDocumentId} records the redaction under an id the caller already published;
      * null generates one. Either way it comes back on the {@link RedactionOutcome}.
      */
-    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
         return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {});
     }
 
     /** The async publication fence runs after computation and before any completed-result publication. */
-    public RedactionOutcome filter(final String policyName, final ObjectId userId, final String contextName,
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName,
                                    final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
                                    final String filename, final String requestedDocumentId,
                                    final Runnable beforePublication) throws Exception {

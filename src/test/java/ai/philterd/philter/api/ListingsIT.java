@@ -24,7 +24,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,12 +87,12 @@ class ListingsIT {
         httpClient.close();
     }
 
-    private ObjectId seed(final String username, final String role) {
+    private String seed(final String username, final String role) {
         assertTrue(userService.createUser("req", username, role, policyDataService, contextDataService, "test").isSuccessful());
         return userService.findByUsername(username).getId();
     }
 
-    private String keyFor(final ObjectId userId) {
+    private String keyFor(final String userId) {
         return apiKeyDataService.createApiKey("req", userId, "test", ApiKeyScope.all()).getMessage();
     }
 
@@ -177,15 +176,15 @@ class ListingsIT {
     void usersFilters() throws Exception {
         final String marker = "find-me-" + UUID.randomUUID();
         seed(marker + "-a", "admin");
-        final ObjectId plain = seed(marker + "-b", "user");
-        final ObjectId gone = seed(marker + "-c", "user");
+        final String plain = seed(marker + "-b", "user");
+        final String gone = seed(marker + "-c", "user");
         assertTrue(userService.deactivateUser("req", userService.findOneById(gone), "test").isSuccessful());
 
         assertEquals(3, list(adminKey, "/api/users?q=" + marker).get("total").getAsInt());
         assertEquals(1, list(adminKey, "/api/users?q=" + marker + "&role=admin").get("total").getAsInt());
         final JsonObject activeUsers = list(adminKey, "/api/users?q=" + marker + "&role=user&active=true");
         assertEquals(1, activeUsers.get("total").getAsInt());
-        assertEquals(plain.toHexString(), activeUsers.getAsJsonArray("users").get(0).getAsJsonObject().get("id").getAsString());
+        assertEquals(plain, activeUsers.getAsJsonArray("users").get(0).getAsJsonObject().get("id").getAsString());
         assertEquals(1, list(adminKey, "/api/users?q=" + marker + "&active=false").get("total").getAsInt());
     }
 

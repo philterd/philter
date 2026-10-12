@@ -17,11 +17,11 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,7 +54,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
         service = new CustomListDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
-    private ServiceResponse save(final ObjectId user, final String name, final List<String> items) {
+    private ServiceResponse save(final String user, final String name, final List<String> items) {
         return service.saveOrUpdate("req", user, name, "a description", items, true, "test");
     }
 
@@ -64,7 +64,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("A list is created, then read back with its items and description")
     void aListRoundTrips() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse response = save(user, "names", List.of("Alice", "Bob"));
 
         assertTrue(response.isSuccessful());
@@ -81,7 +81,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Saving the same name again replaces its items when updating is allowed")
     void anUpdateReplacesTheItems() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         save(user, "names", List.of("Alice", "Bob"));
 
         final ServiceResponse update = save(user, "names", List.of("Carol"));
@@ -97,7 +97,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Saving the same name is refused when updating is not allowed")
     void aDuplicateNameIsRefusedWhenUpdatingIsNotAllowed() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         save(user, "names", List.of("Alice"));
 
         final ServiceResponse second =
@@ -115,7 +115,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("A create that loses a race for the name is refused by the unique index")
     void aRacingCreateIsRefused() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         save(user, "names", List.of("Alice"));
 
         // The name check saw no list, as it would if the other create had not landed yet.
@@ -156,7 +156,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Replacing a list changes its items, keeps an omitted description, and clears an empty one")
     void replaceChangesAnExistingList() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         save(user, "names", List.of("Alice"));
 
         final ServiceResponse replaced = service.replace("req", user, "names", null, List.of("Bob", "Carol"), "test");
@@ -173,7 +173,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Replacing a list that does not exist is refused and creates nothing")
     void replaceRefusesAMissingList() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse refused = service.replace("req", user, "missing", "d", List.of("Bob"), "test");
 
         assertFalse(refused.isSuccessful());
@@ -186,8 +186,8 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Two users may each have a list of the same name")
     void theSameNameBelongsToEachUserSeparately() {
 
-        final ObjectId one = new ObjectId();
-        final ObjectId two = new ObjectId();
+        final String one = MongoIds.newId();
+        final String two = MongoIds.newId();
 
         assertEquals(201, save(one, "names", List.of("Alice")).getStatusCode());
         assertEquals(201, save(two, "names", List.of("Bob")).getStatusCode());
@@ -203,7 +203,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("An empty name, empty items, or a list of blanks is refused")
     void emptyInputIsRefused() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         assertEquals(400, service.saveOrUpdate("req", user, "", "d", List.of("a"), true, "test").getStatusCode());
         assertEquals(400, service.saveOrUpdate("req", user, null, "d", List.of("a"), true, "test").getStatusCode());
@@ -218,7 +218,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("A list at the maximum is accepted and one item beyond it is not")
     void theItemCountLimitIsEnforcedAtTheBoundary() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final List<String> atLimit = new ArrayList<>();
         for (int i = 0; i < CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS; i++) {
@@ -244,7 +244,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("An item at the maximum length is accepted and one character beyond it is not")
     void theItemLengthLimitIsEnforcedAtTheBoundary() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final String atLimit = "x".repeat(CustomListDataService.MAXIMUM_ITEM_LENGTH);
         assertTrue(save(user, "at-limit", List.of(atLimit)).isSuccessful());
@@ -267,11 +267,11 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("List items are encrypted at rest")
     void itemsAreNotStoredInTheClear() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         save(user, "names", List.of("Alice Anderson", "Bob Brown"));
 
         final Document raw = mongoClient.getDatabase("philter").getCollection("custom_lists")
-                .find(new Document("user_id", user)).first();
+                .find(new Document("user_id", MongoIds.objectId(user))).first();
 
         assertNotNull(raw);
         assertFalse(raw.toJson().contains("Alice Anderson"),
@@ -286,10 +286,10 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("A list is found by id only by the user who owns it")
     void findingByIdIsScopedToTheOwner() {
 
-        final ObjectId owner = new ObjectId();
-        final ObjectId stranger = new ObjectId();
+        final String owner = MongoIds.newId();
+        final String stranger = MongoIds.newId();
 
-        final ObjectId id = (ObjectId) save(owner, "names", List.of("Alice")).getObjectId();
+        final String id = (String) save(owner, "names", List.of("Alice")).getObjectId();
 
         assertNotNull(service.findOneById(id, owner));
         assertNull(service.findOneById(id, stranger), "another user's id must not resolve");
@@ -300,13 +300,13 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("A list is found by name only by the user who owns it")
     void findingByNameIsScopedToTheOwner() {
 
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         save(owner, "names", List.of("Alice"));
 
         assertNotNull(service.findOneByName("names", owner));
-        assertNull(service.findOneByName("names", new ObjectId()));
+        assertNull(service.findOneByName("names", MongoIds.newId()));
         assertTrue(service.existsForUser("names", owner));
-        assertFalse(service.existsForUser("names", new ObjectId()));
+        assertFalse(service.existsForUser("names", MongoIds.newId()));
 
     }
 
@@ -314,8 +314,8 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Items are fetched by name for one user, and unknown names are simply absent")
     void itemsAreFetchedByNameForOneUser() {
 
-        final ObjectId owner = new ObjectId();
-        final ObjectId stranger = new ObjectId();
+        final String owner = MongoIds.newId();
+        final String stranger = MongoIds.newId();
 
         save(owner, "first", List.of("Alice"));
         save(owner, "second", List.of("Bob"));
@@ -334,7 +334,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Paging and sorting return each list once, in order")
     void listsArePagedAndSorted() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         for (final String name : List.of("charlie", "alpha", "bravo")) {
             save(user, name, List.of("item"));
         }
@@ -359,11 +359,11 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Searching matches by name and stays within the user")
     void searchingIsScopedToTheUser() {
 
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         save(owner, "patient-names", List.of("Alice"));
         save(owner, "staff-names", List.of("Bob"));
         save(owner, "postcodes", List.of("SW1"));
-        save(new ObjectId(), "patient-names", List.of("Someone else"));
+        save(MongoIds.newId(), "patient-names", List.of("Someone else"));
 
         final List<String> matches = service.findBySearchTerm(owner, "names", 10)
                 .stream().map(CustomListEntity::getName).sorted().toList();
@@ -378,8 +378,8 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Deleting by name removes one list, and only for its owner")
     void deletingByNameIsScopedToTheOwner() {
 
-        final ObjectId owner = new ObjectId();
-        final ObjectId stranger = new ObjectId();
+        final String owner = MongoIds.newId();
+        final String stranger = MongoIds.newId();
 
         save(owner, "names", List.of("Alice"));
         save(stranger, "names", List.of("Bob"));
@@ -396,8 +396,8 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Deleting everything for a user leaves other users untouched")
     void deletingAllIsScopedToTheUser() {
 
-        final ObjectId owner = new ObjectId();
-        final ObjectId other = new ObjectId();
+        final String owner = MongoIds.newId();
+        final String other = MongoIds.newId();
 
         save(owner, "first", List.of("a"));
         save(owner, "second", List.of("b"));
@@ -415,7 +415,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("The caller's list is not modified, and an immutable one is accepted")
     void savingDoesNotMutateTheCallersList() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         // An immutable list threw UnsupportedOperationException outright.
         assertTrue(save(user, "immutable", List.of("Alice", "Bob")).isSuccessful());
@@ -434,7 +434,7 @@ class CustomListDataServiceIT extends AbstractMongoIT {
     @DisplayName("Items are trimmed, and an item of only spaces is kept as empty")
     void itemsAreTrimmed() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         save(user, "spaced", new ArrayList<>(List.of("  Alice  ", "Bob")));
 
         assertEquals(List.of("Alice", "Bob"), service.findOneByName("spaced", user).getItems());
@@ -443,8 +443,8 @@ class CustomListDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deletingRequiredListPreventsPolicyResolutionEvenWhenAnotherUserHasThatName() {
-        final ObjectId owner = new ObjectId();
-        final ObjectId other = new ObjectId();
+        final String owner = MongoIds.newId();
+        final String other = MongoIds.newId();
         assertTrue(save(owner, "names", List.of("Alice")).isSuccessful());
         assertTrue(save(other, "names", List.of("Bob")).isSuccessful());
         final var resolver = new ai.philterd.philter.services.policies.PolicyResolver(new com.google.gson.Gson(), service);

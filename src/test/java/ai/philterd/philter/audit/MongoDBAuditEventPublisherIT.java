@@ -15,11 +15,11 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -50,8 +50,8 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
 
     @Test
     void fullAuditEventWritesAllFields() {
-        final ObjectId apiKeyId = new ObjectId();
-        final ObjectId associatedObject = new ObjectId();
+        final String apiKeyId = MongoIds.newId();
+        final String associatedObject = MongoIds.newId();
 
         publisher.auditEvent("req-1", AuditLogEvent.USER_CREATED, apiKeyId, associatedObject, "1.2.3.4", "role: admin");
 
@@ -59,8 +59,8 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
         assertNotNull(stored);
         assertEquals("req-1", stored.getString("request_id"));
         assertEquals(AuditLogEvent.USER_CREATED.getAuditLogEvent(), stored.getString("event"));
-        assertEquals(apiKeyId, stored.getObjectId("api_key_id"));
-        assertEquals(associatedObject, stored.getObjectId("associated_object"));
+        assertEquals(apiKeyId, MongoIds.hex(stored.getObjectId("api_key_id")));
+        assertEquals(associatedObject, MongoIds.hex(stored.getObjectId("associated_object")));
         assertEquals("1.2.3.4", stored.getString("client_ip_address"));
         assertEquals("role: admin", stored.getString("details"));
         assertNotNull(stored.getDate("timestamp"));
@@ -68,7 +68,7 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
 
     @Test
     void apiKeyOnlyOverloadLeavesOptionalFieldsNull() {
-        final ObjectId apiKeyId = new ObjectId();
+        final String apiKeyId = MongoIds.newId();
 
         publisher.auditEvent("req-2", AuditLogEvent.API_KEY_CREATED, apiKeyId);
 
@@ -76,7 +76,7 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
         assertNotNull(stored);
         assertEquals("req-2", stored.getString("request_id"));
         assertEquals(AuditLogEvent.API_KEY_CREATED.getAuditLogEvent(), stored.getString("event"));
-        assertEquals(apiKeyId, stored.getObjectId("api_key_id"));
+        assertEquals(apiKeyId, MongoIds.hex(stored.getObjectId("api_key_id")));
         assertNull(stored.get("associated_object"));
         assertNull(stored.get("client_ip_address"));
         assertNull(stored.get("details"));
@@ -85,14 +85,14 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
 
     @Test
     void clientIpOverloadStoresIpAddress() {
-        final ObjectId apiKeyId = new ObjectId();
+        final String apiKeyId = MongoIds.newId();
 
         publisher.auditEvent("req-3", AuditLogEvent.API_AUTHENTICATION_FAILED, apiKeyId, "10.0.0.9");
 
         final Document stored = auditEvents.find().first();
         assertNotNull(stored);
         assertEquals(AuditLogEvent.API_AUTHENTICATION_FAILED.getAuditLogEvent(), stored.getString("event"));
-        assertEquals(apiKeyId, stored.getObjectId("api_key_id"));
+        assertEquals(apiKeyId, MongoIds.hex(stored.getObjectId("api_key_id")));
         assertEquals("10.0.0.9", stored.getString("client_ip_address"));
         assertNull(stored.get("associated_object"));
         assertNull(stored.get("details"));
@@ -100,32 +100,32 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
 
     @Test
     void associatedObjectOverloadStoresAssociatedObject() {
-        final ObjectId apiKeyId = new ObjectId();
-        final ObjectId associatedObject = new ObjectId();
+        final String apiKeyId = MongoIds.newId();
+        final String associatedObject = MongoIds.newId();
 
-        publisher.auditEvent("req-4", AuditLogEvent.POLICY_DELETED, apiKeyId, associatedObject);
+        publisher.auditEvent("req-4", AuditLogEvent.POLICY_DELETED, apiKeyId, associatedObject, null);
 
         final Document stored = auditEvents.find().first();
         assertNotNull(stored);
         assertEquals(AuditLogEvent.POLICY_DELETED.getAuditLogEvent(), stored.getString("event"));
-        assertEquals(apiKeyId, stored.getObjectId("api_key_id"));
-        assertEquals(associatedObject, stored.getObjectId("associated_object"));
+        assertEquals(apiKeyId, MongoIds.hex(stored.getObjectId("api_key_id")));
+        assertEquals(associatedObject, MongoIds.hex(stored.getObjectId("associated_object")));
         assertNull(stored.get("client_ip_address"));
         assertNull(stored.get("details"));
     }
 
     @Test
     void associatedObjectAndClientIpOverloadStoresBoth() {
-        final ObjectId apiKeyId = new ObjectId();
-        final ObjectId associatedObject = new ObjectId();
+        final String apiKeyId = MongoIds.newId();
+        final String associatedObject = MongoIds.newId();
 
         publisher.auditEvent("req-5", AuditLogEvent.REDACTION_LEDGER_DELETED, apiKeyId, associatedObject, "192.168.1.1");
 
         final Document stored = auditEvents.find().first();
         assertNotNull(stored);
         assertEquals(AuditLogEvent.REDACTION_LEDGER_DELETED.getAuditLogEvent(), stored.getString("event"));
-        assertEquals(apiKeyId, stored.getObjectId("api_key_id"));
-        assertEquals(associatedObject, stored.getObjectId("associated_object"));
+        assertEquals(apiKeyId, MongoIds.hex(stored.getObjectId("api_key_id")));
+        assertEquals(associatedObject, MongoIds.hex(stored.getObjectId("associated_object")));
         assertEquals("192.168.1.1", stored.getString("client_ip_address"));
         assertNull(stored.get("details"));
     }
@@ -164,8 +164,8 @@ class MongoDBAuditEventPublisherIT extends AbstractMongoIT {
 
     @Test
     void eachAuditEventInsertsADistinctDocument() {
-        publisher.auditEvent("req-a", AuditLogEvent.USER_CREATED, new ObjectId());
-        publisher.auditEvent("req-b", AuditLogEvent.USER_DEACTIVATED, new ObjectId());
+        publisher.auditEvent("req-a", AuditLogEvent.USER_CREATED, MongoIds.newId());
+        publisher.auditEvent("req-b", AuditLogEvent.USER_DEACTIVATED, MongoIds.newId());
 
         assertEquals(2, auditEvents.countDocuments());
     }

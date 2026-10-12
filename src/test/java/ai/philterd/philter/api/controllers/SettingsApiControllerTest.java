@@ -20,13 +20,13 @@ import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -72,9 +72,9 @@ class SettingsApiControllerTest {
 
     /** A MockMvc for the controller, with the API key authenticating as an administrator. */
     private MockMvc asAdministrator() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(new ObjectId());
+        key.setId(MongoIds.newId());
         key.setUserId(userId);
         lenient().when(apiKeyCache.containsApiKey(EncryptionService.hashSha256(API_KEY))).thenReturn(true);
         lenient().when(apiKeyCache.get(EncryptionService.hashSha256(API_KEY))).thenReturn(key);
@@ -123,9 +123,9 @@ class SettingsApiControllerTest {
 
     @Test
     void anAdministratorDemotedMidRequestGetsA403() throws Exception {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(new ObjectId());
+        key.setId(MongoIds.newId());
         key.setUserId(userId);
         lenient().when(apiKeyCache.containsApiKey(EncryptionService.hashSha256(API_KEY))).thenReturn(true);
         lenient().when(apiKeyCache.get(EncryptionService.hashSha256(API_KEY))).thenReturn(key);

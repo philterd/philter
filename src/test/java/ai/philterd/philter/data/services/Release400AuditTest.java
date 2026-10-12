@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
@@ -44,7 +45,7 @@ class Release400AuditTest extends AbstractMongoIT {
         final UserEntity user = new UserEntity();
         user.setUsername("audit-user");
         user.setRole("admin");
-        final ObjectId id = service.save(user);
+        final String id = service.save(user);
         // Another administrator, so demoting and deactivating this one is not refused as the last.
         final UserEntity otherAdmin = new UserEntity();
         otherAdmin.setUsername("audit-other-admin");
@@ -64,9 +65,9 @@ class Release400AuditTest extends AbstractMongoIT {
     @Test
     void webhookCannotBeClaimedAgainBeforeFirstDeliveryFinishes() {
         final WebhookDeliveryDataService service = new WebhookDeliveryDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit);
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         mongoClient.getDatabase("philter").getCollection("webhook_deliveries").insertOne(
-                new Document("_id", id).append("user_id", new ObjectId())
+                new Document("_id", MongoIds.objectId(id)).append("user_id", new ObjectId())
                         .append("status", "PENDING").append("attempts", 0)
                         .append("next_attempt_at", new Date(0)));
         final var first = service.claimNextDue(new Date());
@@ -80,19 +81,19 @@ class Release400AuditTest extends AbstractMongoIT {
     void oldWorkerCannotOverwriteCompletedJobWithFailure() {
         final PendingDocumentDataService service = new PendingDocumentDataService(
                 mongoClient, new TestEncryptionService(), audit);
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         final var collection = mongoClient.getDatabase("philter").getCollection("pending_documents");
-        collection.insertOne(new Document("_id", id).append("user_id", new ObjectId())
+        collection.insertOne(new Document("_id", MongoIds.objectId(id)).append("user_id", new ObjectId())
                 .append("status", "COMPLETE").append("claimed_by", "new-worker"));
         assertFalse(service.markFailed(id, "attempt", "late failure from old worker"));
-        assertEquals("COMPLETE", collection.find(new Document("_id", id)).first().getString("status"));
+        assertEquals("COMPLETE", collection.find(new Document("_id", MongoIds.objectId(id))).first().getString("status"));
     }
 
     @Test
     void conflictingPolicyRevisionIsRejectedAndOriginalRemainsResolvable() {
         final PolicyVersionDataService service = new PolicyVersionDataService(mongoClient, audit);
         final PolicyEntity policy = new PolicyEntity();
-        policy.setUserId(new ObjectId());
+        policy.setUserId(MongoIds.newId());
         policy.setName("audit-policy");
         policy.setRevision(1);
         policy.setPolicy("{\"name\":\"original\"}");
@@ -106,14 +107,14 @@ class Release400AuditTest extends AbstractMongoIT {
     void agePurgePreservesWholeChainAcrossCutoff() {
         final LedgerDataService service = new LedgerDataService(mongoClient, new TestEncryptionService(),
                 audit, new LegalHoldDataService(mongoClient, audit), mock(ai.philterd.philter.services.signing.SigningService.class));
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final var collection = mongoClient.getDatabase("philter").getCollection("ledger");
-        collection.insertOne(new Document("user_id", userId).append("document_id", "one-chain")
+        collection.insertOne(new Document("user_id", MongoIds.objectId(userId)).append("document_id", "one-chain")
                 .append("previous_hash", LedgerDataService.GENESIS).append("timestamp", new Date(0)));
-        collection.insertOne(new Document("user_id", userId).append("document_id", "one-chain")
+        collection.insertOne(new Document("user_id", MongoIds.objectId(userId)).append("document_id", "one-chain")
                 .append("previous_hash", "genesis-hash").append("timestamp", new Date()));
         mongoClient.getDatabase("philter").getCollection("ledger_chains").insertOne(
-                new Document("_id", userId + ":one-chain").append("user_id", userId)
+                new Document("_id", userId + ":one-chain").append("user_id", MongoIds.objectId(userId))
                         .append("document_id", "one-chain").append("state", "complete")
                         .append("completed_at", new Date(0)).append("latest_entry_at", new Date()));
         assertTrue(service.deleteChainsByUserIdAndOlderThan("audit", userId, 1).isSuccessful());
@@ -124,13 +125,13 @@ class Release400AuditTest extends AbstractMongoIT {
     @Test
     void failedWebhookReceivesTerminalRetentionTimestamp() {
         final WebhookDeliveryDataService service = new WebhookDeliveryDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit);
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         final var collection = mongoClient.getDatabase("philter").getCollection("webhook_deliveries");
-        collection.insertOne(new Document("_id", id).append("status", "PROCESSING")
+        collection.insertOne(new Document("_id", MongoIds.objectId(id)).append("status", "PROCESSING")
                 .append("claim_token", "claim").append("claim_expires_at", new Date(System.currentTimeMillis() + 60_000))
                 .append("attempts", WebhookDeliveryDataService.MAX_ATTEMPTS));
         service.rescheduleOrFail(id, "claim", WebhookDeliveryDataService.MAX_ATTEMPTS, "unreachable");
-        final Document failed = collection.find(new Document("_id", id)).first();
+        final Document failed = collection.find(new Document("_id", MongoIds.objectId(id))).first();
         assertEquals("FAILED", failed.getString("status"));
         assertNotNull(failed.get("completed_at"), "Failed deliveries must qualify for retention");
     }
@@ -142,7 +143,7 @@ class Release400AuditTest extends AbstractMongoIT {
                 .thenReturn(new ai.philterd.philter.services.signing.SigningService.LedgerSignature("signature", "key"));
         final LedgerDataService service = new LedgerDataService(mongoClient, new TestEncryptionService(),
                 audit, new LegalHoldDataService(mongoClient, audit), signing);
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         service.initializeLedger(userId, "signed-chain", "input-hash", "file", "policy", 1, "policy-hash");
         final var collection = mongoClient.getDatabase("philter").getCollection("ledger");
         collection.updateMany(new Document(), new Document("$unset", new Document("signature", "")));
@@ -160,8 +161,8 @@ class Release400AuditTest extends AbstractMongoIT {
         final var first = new SigningKeyDataService(mongoClient, encryption, audit);
         final var second = new SigningKeyDataService(mongoClient, encryption, audit);
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId());
-        final ObjectId admin = new ObjectId();
-        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", admin).append("role", "admin"));
+        final String admin = MongoIds.newId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", MongoIds.objectId(admin)).append("role", "admin"));
         first.regenerate("req", admin, null, "source: test");
         assertEquals(first.getActiveKeyId(), second.getActiveKeyId(),
                 "The second instance must select the newly published key");
@@ -171,11 +172,11 @@ class Release400AuditTest extends AbstractMongoIT {
     void queuedWebhookEncryptsSigningSecret() {
         final var service = new WebhookDeliveryDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit);
         final var delivery = new ai.philterd.philter.data.entities.WebhookDeliveryEntity();
-        delivery.setUserId(new ObjectId());
+        delivery.setUserId(MongoIds.newId());
         delivery.setSecret("audit-only-webhook-secret");
-        final ObjectId id = service.save(delivery);
+        final String id = service.save(delivery);
         final Document stored = mongoClient.getDatabase("philter").getCollection("webhook_deliveries")
-                .find(new Document("_id", id)).first();
+                .find(new Document("_id", MongoIds.objectId(id))).first();
         assertNotEquals("audit-only-webhook-secret", stored.getString("secret"));
         assertNotNull(stored.getString("secret_encrypted_key"));
     }
@@ -189,7 +190,7 @@ class Release400AuditTest extends AbstractMongoIT {
         final String encrypted = ai.philterd.phileas.utils.Encryption.formatPreservingEncrypt(fpe, plaintext);
         final var users = mock(UserService.class);
         final var policies = mock(PolicyDataService.class);
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         org.mockito.Mockito.when(users.findOneById(userId)).thenReturn(new UserEntity());
         final var policy = new PolicyEntity();
         policy.setPolicy(new com.google.gson.Gson().toJson(java.util.Map.of("fpe", fpe)));
@@ -200,7 +201,7 @@ class Release400AuditTest extends AbstractMongoIT {
         final var request = new ai.philterd.philter.api.requests.ReidentifyRequest();
         request.setPolicyName("policy");
         request.setValues(java.util.List.of(encrypted));
-        final var method = controller.getClass().getDeclaredMethod("reidentifyFpe", request.getClass(), ObjectId.class);
+        final var method = controller.getClass().getDeclaredMethod("reidentifyFpe", request.getClass(), String.class);
         method.setAccessible(true);
         final var results = (java.util.List<ai.philterd.philter.api.responses.ReidentifyResponse.ReidentifyResult>)
                 method.invoke(controller, request, userId);
@@ -211,7 +212,7 @@ class Release400AuditTest extends AbstractMongoIT {
     @Test
     void expiredInMemoryCacheEntriesAreReclaimedWithoutAnotherRead() throws Exception {
         final var backend = ai.philterd.philter.services.cache.InMemoryCacheBackend.INSTANCE;
-        final String key = "audit-expiry-" + new ObjectId();
+        final String key = "audit-expiry-" + MongoIds.newId();
         backend.setex(key, 1, "1");
         final var field = backend.getClass().getDeclaredField("strings");
         field.setAccessible(true);

@@ -16,6 +16,7 @@
 package ai.philterd.philter.audit;
 
 import ai.philterd.philter.config.AuditConfig;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.Source;
 import com.mongodb.client.MongoClient;
@@ -25,7 +26,6 @@ import com.mongodb.client.model.Indexes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 import java.util.Map;
@@ -76,27 +76,22 @@ public class MongoDBAuditEventPublisher implements AuditEventPublisher {
     }
 
     @Override
-    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final ObjectId apiKeyId) {
+    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final String apiKeyId) {
         auditEvent(requestId, auditLogEvent, apiKeyId, null, null, null);
     }
 
     @Override
-    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final ObjectId apiKeyId, final String clientIpAddress) {
+    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final String apiKeyId, final String clientIpAddress) {
         auditEvent(requestId, auditLogEvent, apiKeyId, null, clientIpAddress, null);
     }
 
     @Override
-    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final ObjectId apiKeyId, final ObjectId associatedObject) {
-        auditEvent(requestId, auditLogEvent, apiKeyId, associatedObject, null, null);
-    }
-
-    @Override
-    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final ObjectId apiKeyId, final ObjectId associatedObject, final String clientIpAddress) {
+    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final String apiKeyId, final String associatedObject, final String clientIpAddress) {
         auditEvent(requestId, auditLogEvent, apiKeyId, associatedObject, clientIpAddress, null);
     }
 
     @Override
-    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final ObjectId apiKeyId, final ObjectId associatedObject, final String clientIpAddress, final String details) {
+    public void auditEvent(final String requestId, final AuditLogEvent auditLogEvent, final String apiKeyId, final String associatedObject, final String clientIpAddress, final String details) {
 
         // Enforced here, at the single write path, so no caller can bypass it and no future caller
         // has to remember the rule. Security events are never suppressed.
@@ -118,8 +113,8 @@ public class MongoDBAuditEventPublisher implements AuditEventPublisher {
         final Document document = new Document()
                 .append("request_id", requestId)
                 .append("event", auditLogEvent == null ? null : auditLogEvent.getAuditLogEvent())
-                .append("api_key_id", apiKeyId)
-                .append("associated_object", associatedObject)
+                .append("api_key_id", MongoIds.objectId(apiKeyId))
+                .append("associated_object", MongoIds.objectId(associatedObject))
                 .append("client_ip_address", address)
                 .append("source", source)
                 .append("details", details)

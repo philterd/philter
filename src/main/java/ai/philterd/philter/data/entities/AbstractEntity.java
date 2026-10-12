@@ -20,11 +20,10 @@ import com.google.gson.GsonBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 public abstract class AbstractEntity {
 
-    public abstract ObjectId getId();
+    public abstract String getId();
     public abstract Document toDocument();
 
     @Override

@@ -19,11 +19,11 @@ import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -69,7 +69,7 @@ class ContextExportImportIT extends AbstractMongoIT {
         final String learnedReplacement = "David Jones";
 
         // --- Source environment: learn a mapping through the real CONTEXT-scope redaction path. ---
-        final ObjectId sourceUser = new ObjectId();
+        final String sourceUser = MongoIds.newId();
         final String sourceContext = "src";
         final MongoContextService sourceService = new MongoContextService(
                 mongoClient, new ContextCache(null, 0, null, false), sourceUser, sourceContext, auditEventPublisher);
@@ -90,7 +90,7 @@ class ContextExportImportIT extends AbstractMongoIT {
         final ContextEntriesExport reloaded = new Gson().fromJson(json, ContextEntriesExport.class);
 
         // --- Import into a DIFFERENT user and context (a separate "environment"). ---
-        final ObjectId destUser = new ObjectId();
+        final String destUser = MongoIds.newId();
         final String destContext = "dst";
         for (final ContextEntryExport entry : reloaded.getEntries()) {
             contextEntryService.importEntryByHash(destUser, destContext, entry.getTokenHash(),

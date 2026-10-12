@@ -21,6 +21,7 @@ import ai.philterd.phileas.utils.Encryption;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.api.requests.ReidentifyRequest;
 import ai.philterd.philter.api.responses.ReidentifyResponse;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
@@ -34,7 +35,6 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,17 +79,17 @@ class ReidentifyApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
 
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -584,7 +584,7 @@ class ReidentifyApiControllerTest {
 
     @Test
     void adminCanReidentifyAnotherUsersValues() throws Exception {
-        final ObjectId otherUserId = new ObjectId();
+        final String otherUserId = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUserId);
 
@@ -614,7 +614,7 @@ class ReidentifyApiControllerTest {
 
     @Test
     void nonAdminNamingAnotherOwnerGets404() throws Exception {
-        final ObjectId otherUserId = new ObjectId();
+        final String otherUserId = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUserId);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
@@ -653,7 +653,7 @@ class ReidentifyApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(admin);
     }
 
-    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+    private void makeOwnerLookup(final String email, final String ownerId) {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);

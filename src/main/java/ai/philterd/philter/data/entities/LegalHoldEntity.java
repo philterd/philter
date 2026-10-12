@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
@@ -41,25 +41,25 @@ public class LegalHoldEntity extends AbstractEntity {
     /** Scope type value for a hold that protects all evidence owned by the user. */
     public static final String SCOPE_USER = "user";
 
-    private ObjectId id;
-    private ObjectId userId;
+    private String id;
+    private String userId;
     private String reference;
     private String scopeType;
     private String scopeValue;
     private String reason;
     private Date setAt;
-    private ObjectId setByUserId;
+    private String setByUserId;
 
     public static LegalHoldEntity fromDocument(final Document document) {
         final LegalHoldEntity entity = new LegalHoldEntity();
-        entity.setId(document.getObjectId("_id"));
-        entity.setUserId(document.getObjectId("user_id"));
+        entity.setId(MongoIds.hex(document.getObjectId("_id")));
+        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         entity.setReference(document.getString("reference"));
         entity.setScopeType(document.getString("scope_type"));
         entity.setScopeValue(document.getString("scope_value"));
         entity.setReason(document.getString("reason"));
         entity.setSetAt(document.getDate("set_at"));
-        entity.setSetByUserId(document.getObjectId("set_by_user_id"));
+        entity.setSetByUserId(MongoIds.hex(document.getObjectId("set_by_user_id")));
         return entity;
     }
 
@@ -67,24 +67,24 @@ public class LegalHoldEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("reference", reference);
         document.put("scope_type", scopeType);
         document.put("scope_value", scopeValue);
         document.put("reason", reason);
         document.put("set_at", setAt);
-        document.put("set_by_user_id", setByUserId);
+        document.put("set_by_user_id", MongoIds.objectId(setByUserId));
         return document;
     }
 
     @Override
-    public ObjectId getId() { return id; }
-    public void setId(final ObjectId id) { this.id = id; }
+    public String getId() { return id; }
+    public void setId(final String id) { this.id = id; }
 
-    public ObjectId getUserId() { return userId; }
-    public void setUserId(final ObjectId userId) { this.userId = userId; }
+    public String getUserId() { return userId; }
+    public void setUserId(final String userId) { this.userId = userId; }
 
     public String getReference() { return reference; }
     public void setReference(final String reference) { this.reference = reference; }
@@ -101,6 +101,6 @@ public class LegalHoldEntity extends AbstractEntity {
     public Date getSetAt() { return setAt; }
     public void setSetAt(final Date setAt) { this.setAt = setAt; }
 
-    public ObjectId getSetByUserId() { return setByUserId; }
-    public void setSetByUserId(final ObjectId setByUserId) { this.setByUserId = setByUserId; }
+    public String getSetByUserId() { return setByUserId; }
+    public void setSetByUserId(final String setByUserId) { this.setByUserId = setByUserId; }
 }

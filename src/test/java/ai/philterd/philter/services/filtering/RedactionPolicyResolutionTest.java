@@ -19,6 +19,7 @@ import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.*;
 import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
@@ -26,7 +27,6 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.policies.PolicyResolutionException;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -50,7 +50,7 @@ class RedactionPolicyResolutionTest {
                 contexts, mock(AuditEventPublisher.class), ledger, users, new SimpleMeterRegistry(),
                 phield, counts, new RedactionCache());
         final var user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         when(users.findOneById(user.getId())).thenReturn(user);
         when(users.ensureFpeKey(user)).thenReturn("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100");
         final String json = "{\"identifiers\":{\"dictionaries\":[{\"terms\":[\"list:missing\"]}]}}";

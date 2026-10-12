@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.ErrorCategory;
@@ -33,7 +34,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 
 import java.util.List;
 import java.util.Locale;
@@ -125,7 +125,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
      * {@code null} list is left as it is. Each list written moves to its next revision, whether or not
      * its terms changed, so a client holding an earlier revision learns that it was written.
      */
-    public void saveOrUpdate(final String requestId, final ObjectId userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact, final String source) {
+    public void saveOrUpdate(final String requestId, final String userId, final List<String> termsToAlwaysRedact, final List<String> termsToNeverRedact, final String source) {
 
         final Document set = new Document();
         final Document inc = new Document();
@@ -146,7 +146,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
             return;
         }
 
-        collection.updateOne(Filters.eq("user_id", userId), new Document("$set", set).append("$inc", inc),
+        collection.updateOne(Filters.eq("user_id", MongoIds.objectId(userId)), new Document("$set", set).append("$inc", inc),
                 new UpdateOptions().upsert(true));
 
         // The always-redact / never-redact lists are security-relevant: they force or suppress
@@ -156,9 +156,9 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
 
     }
 
-    public RedactListsEntity find(final ObjectId userId) {
+    public RedactListsEntity find(final String userId) {
 
-        final Document query = new Document("user_id", userId);
+        final Document query = new Document("user_id", MongoIds.objectId(userId));
         final Document document = collection.find(query).first();
 
         if(document != null) {
@@ -170,7 +170,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
     }
 
     /** One of the user's lists and its revision. A user with no saved lists has an empty list at revision 0. */
-    public ListContents findList(final ObjectId userId, final RedactList list) {
+    public ListContents findList(final String userId, final RedactList list) {
 
         final RedactListsEntity entity = find(userId);
         if (entity == null) {
@@ -190,7 +190,7 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
      * @param expectedRevision The revision the client read, or {@code null} to write unconditionally.
      * @return The list as written, or {@code null} when the list is no longer at the expected revision.
      */
-    public ListContents replaceList(final String requestId, final ObjectId userId, final RedactList list,
+    public ListContents replaceList(final String requestId, final String userId, final RedactList list,
                                     final List<String> terms, final Long expectedRevision, final String source) {
 
         final Document set = new Document();
@@ -200,15 +200,15 @@ public class RedactListsDataService extends AbstractEncryptedService<RedactLists
         final Bson filter;
         final boolean upsert;
         if (expectedRevision == null) {
-            filter = Filters.eq("user_id", userId);
+            filter = Filters.eq("user_id", MongoIds.objectId(userId));
             upsert = true;
         } else if (expectedRevision == 0L) {
             // A list never written is at revision 0, whether or not the user's document exists yet.
-            filter = Filters.and(Filters.eq("user_id", userId),
+            filter = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)),
                     Filters.or(Filters.exists(list.revisionField, false), Filters.eq(list.revisionField, 0L)));
             upsert = true;
         } else {
-            filter = Filters.and(Filters.eq("user_id", userId), Filters.eq(list.revisionField, expectedRevision));
+            filter = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq(list.revisionField, expectedRevision));
             upsert = false;
         }
 

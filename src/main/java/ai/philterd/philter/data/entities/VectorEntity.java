@@ -16,18 +16,18 @@
 package ai.philterd.philter.data.entities;
 
 import ai.philterd.phileas.model.filtering.Span;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 public class VectorEntity extends AbstractEntity {
 
-    private ObjectId id;
+    private String id;
     private String context;
     private double hash;
     private Span span;
     private int vectorSize;
     private String filterType;
-    private ObjectId userId;
+    private String userId;
 
     public VectorEntity() {
 
@@ -35,8 +35,8 @@ public class VectorEntity extends AbstractEntity {
 
     public static VectorEntity fromDocument(final Document document) {
         final VectorEntity vectorEntity = new VectorEntity();
-        vectorEntity.setId(document.getObjectId("_id"));
-        vectorEntity.setUserId(document.getObjectId("user_id"));
+        vectorEntity.setId(MongoIds.hex(document.getObjectId("_id")));
+        vectorEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         vectorEntity.setContext(document.getString("context"));
         vectorEntity.setHash(document.getDouble("hash"));
         vectorEntity.setVectorSize(document.getInteger("vector_size"));
@@ -48,9 +48,9 @@ public class VectorEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("context", context);
         document.put("hash", hash);
         document.put("vector_size", vectorSize);
@@ -58,11 +58,11 @@ public class VectorEntity extends AbstractEntity {
         return document;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -106,11 +106,11 @@ public class VectorEntity extends AbstractEntity {
         this.hash = hash;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

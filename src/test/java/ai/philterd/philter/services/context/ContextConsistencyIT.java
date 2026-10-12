@@ -16,9 +16,9 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.testutil.AbstractMongoIT;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.mock;
  */
 class ContextConsistencyIT extends AbstractMongoIT {
 
-    private MongoContextService serviceFor(final ObjectId userId, final String contextName) {
+    private MongoContextService serviceFor(final String userId, final String contextName) {
         return new MongoContextService(mongoClient, new ContextCache(null, 0, null, false),
                 userId, contextName, mock(AuditEventPublisher.class));
     }
@@ -52,7 +52,7 @@ class ContextConsistencyIT extends AbstractMongoIT {
 
         for (int round = 0; round < 30; round++) {
 
-            final ObjectId user = new ObjectId();
+            final String user = MongoIds.newId();
             final String context = "case-" + round;
 
             // Two requests, each with its own service instance and its own cache, as two concurrent
@@ -87,7 +87,7 @@ class ContextConsistencyIT extends AbstractMongoIT {
     @DisplayName("A later document reuses the pseudonym the first one established")
     void alaterDocumentReusesTheStoredPseudonym() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final MongoContextService first = serviceFor(user, "case");
 
         final String established = first.computeReplacementIfAbsent("John Smith", "PERSON", () -> "David Jones");

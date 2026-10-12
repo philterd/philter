@@ -31,7 +31,6 @@ import com.google.gson.JsonObject;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +78,7 @@ class UnreadableLedgerEntriesApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId userId;
+    private String userId;
     private String username;
     private String key;
     private String adminKey;

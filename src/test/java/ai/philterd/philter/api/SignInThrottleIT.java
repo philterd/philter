@@ -27,7 +27,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,7 +131,7 @@ class SignInThrottleIT {
     }
 
     private int audited(final String event, final String detail) throws Exception {
-        final ObjectId admin = userService.findByUsername("admin").getId();
+        final String admin = userService.findByUsername("admin").getId();
         final String key = apiKeyDataService.createApiKey("req", admin, "test", ApiKeyScope.all()).getMessage();
         final HttpResponse<String> audit = httpClient.send(HttpRequest.newBuilder(
                         URI.create(baseUrl + "/api/audit?limit=500&event=" + event))

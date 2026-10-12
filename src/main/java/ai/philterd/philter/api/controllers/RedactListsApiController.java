@@ -44,7 +44,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -123,7 +122,7 @@ public class RedactListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -174,7 +173,7 @@ public class RedactListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -247,7 +246,7 @@ public class RedactListsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -335,7 +334,7 @@ public class RedactListsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse(UNKNOWN_LIST), HttpStatus.NOT_FOUND);
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -393,7 +392,7 @@ public class RedactListsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse(UNKNOWN_LIST), HttpStatus.NOT_FOUND);
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }

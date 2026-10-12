@@ -16,8 +16,8 @@
 package ai.philterd.philter.services.webhook;
 
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,7 +47,7 @@ class WebhookDeliveryWorkerTest {
 
     private WebhookDeliveryEntity delivery(final String url) {
         final WebhookDeliveryEntity delivery = new WebhookDeliveryEntity();
-        delivery.setId(new ObjectId());
+        delivery.setId(MongoIds.newId());
         delivery.setUrl(url);
         delivery.setAttempts(1);
         delivery.setClaimToken("claim-" + delivery.getId());

@@ -36,7 +36,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.RequestAttributes;
@@ -147,7 +146,7 @@ public abstract class AbstractApiController {
     }
 
     /** Whether the given user is an admin. Admins may act on any user's resources. */
-    protected boolean isAdmin(final UserService userService, final ObjectId userId) {
+    protected boolean isAdmin(final UserService userService, final String userId) {
         final UserEntity user = userService.findOneById(userId);
         return user != null && "admin".equalsIgnoreCase(user.getRole());
     }
@@ -163,7 +162,7 @@ public abstract class AbstractApiController {
      * @param callerUserId  The id of the authenticated caller.
      * @param ownerUsername The username of the owner to target, or null/blank for the caller's own resources.
      */
-    protected ObjectId resolveTargetUserId(final UserService userService, final ObjectId callerUserId, final String ownerUsername) {
+    protected String resolveTargetUserId(final UserService userService, final String callerUserId, final String ownerUsername) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             return callerUserId;
         }
@@ -189,7 +188,7 @@ public abstract class AbstractApiController {
      *
      * @throws BadRequestException if the request also names an {@code owner}.
      */
-    protected boolean mayListAllUsers(final UserService userService, final ObjectId callerUserId, final String owner) {
+    protected boolean mayListAllUsers(final UserService userService, final String callerUserId, final String owner) {
         if (owner != null && !owner.isBlank()) {
             throw new BadRequestException("Pass owner or all_users, not both.");
         }
@@ -197,9 +196,9 @@ public abstract class AbstractApiController {
     }
 
     /** The usernames of the given items' owners, looked up in one query. */
-    protected <T> Map<ObjectId, String> ownerNames(final UserService userService, final List<T> items,
-                                                   final Function<T, ObjectId> owner) {
-        final Set<ObjectId> ids = new HashSet<>();
+    protected <T> Map<String, String> ownerNames(final UserService userService, final List<T> items,
+                                                   final Function<T, String> owner) {
+        final Set<String> ids = new HashSet<>();
         for (final T item : items) {
             ids.add(owner.apply(item));
         }
@@ -208,8 +207,8 @@ public abstract class AbstractApiController {
 
     /** Each item's name and its owner's username, in the order given. */
     protected <T> List<OwnedNameResponse> ownedNames(final UserService userService, final List<T> items,
-                                                     final Function<T, String> name, final Function<T, ObjectId> owner) {
-        final Map<ObjectId, String> usernames = ownerNames(userService, items, owner);
+                                                     final Function<T, String> name, final Function<T, String> owner) {
+        final Map<String, String> usernames = ownerNames(userService, items, owner);
         final List<OwnedNameResponse> owned = new ArrayList<>(items.size());
         for (final T item : items) {
             owned.add(new OwnedNameResponse(name.apply(item), usernames.get(owner.apply(item))));
@@ -219,7 +218,7 @@ public abstract class AbstractApiController {
 
     /** Records an administrator listing a resource across every user. */
     protected void auditAllUsersListing(final AuditEventPublisher auditEventPublisher, final String requestId,
-                                        final ObjectId callerUserId, final String action) {
+                                        final String callerUserId, final String action) {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.ADMIN_CROSS_USER_ACCESS, callerUserId, null,
                 null, "action: " + action + " across all users");
     }
@@ -320,7 +319,7 @@ public abstract class AbstractApiController {
 
     /** Authorizes an admin-only operation that has no kill switch of its own. */
     protected ResponseEntity<GenericResponse> authorizeAdminOnly(final UserService userService,
-                                                                 final ObjectId callerUserId,
+                                                                 final String callerUserId,
                                                                  final String operation) {
         return authorizeAdminOnly(userService, callerUserId, true, operation, null);
     }
@@ -333,7 +332,7 @@ public abstract class AbstractApiController {
      * deployment's configuration from the error message.
      */
     protected ResponseEntity<GenericResponse> authorizeAdminOnly(final UserService userService,
-                                                                 final ObjectId callerUserId,
+                                                                 final String callerUserId,
                                                                  final boolean featureEnabled,
                                                                  final String operation,
                                                                  final String disabledMessage) {
@@ -356,7 +355,7 @@ public abstract class AbstractApiController {
      * @param action A short description of the operation, e.g. {@code "delete policy 'x'"}.
      */
     protected void auditAdminCrossUserAccess(final AuditEventPublisher auditEventPublisher, final String requestId,
-                                             final ObjectId callerUserId, final ObjectId targetUserId, final String action) {
+                                             final String callerUserId, final String targetUserId, final String action) {
         if (targetUserId != null && !targetUserId.equals(callerUserId)) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.ADMIN_CROSS_USER_ACCESS, callerUserId, targetUserId,
                     null, "action: " + action);

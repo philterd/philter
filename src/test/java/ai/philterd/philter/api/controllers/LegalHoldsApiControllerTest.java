@@ -21,13 +21,13 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,15 +67,15 @@ class LegalHoldsApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -291,7 +291,7 @@ class LegalHoldsApiControllerTest {
         caller.setId(userId);
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
-        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", MongoIds.newId()));
 
         mockMvc.perform(get("/api/holds").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -300,11 +300,11 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void listHoldsAdminCanListAnotherUsersHolds() throws Exception {
-        final ObjectId otherUserId = new ObjectId();
+        final String otherUserId = MongoIds.newId();
         makeCallerAdmin();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
         when(legalHoldDataService.list(eq(otherUserId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
-                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(holdEntity("LIT-ADM", "user", otherUserId.toHexString())), 1));
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(holdEntity("LIT-ADM", "user", otherUserId)), 1));
 
         final String body = mockMvc.perform(get("/api/holds").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -352,7 +352,7 @@ class LegalHoldsApiControllerTest {
         caller.setId(userId);
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
-        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", MongoIds.newId()));
 
         mockMvc.perform(get("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -361,11 +361,11 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void getHoldAdminCanRetrieveAnotherUsersHold() throws Exception {
-        final ObjectId otherUserId = new ObjectId();
+        final String otherUserId = MongoIds.newId();
         makeCallerAdmin();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
         when(legalHoldDataService.findByReference("LIT-001", otherUserId))
-                .thenReturn(holdEntity("LIT-001", "user", otherUserId.toHexString()));
+                .thenReturn(holdEntity("LIT-001", "user", otherUserId));
 
         mockMvc.perform(get("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -419,7 +419,7 @@ class LegalHoldsApiControllerTest {
         caller.setId(userId);
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
-        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", new ObjectId()));
+        when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", MongoIds.newId()));
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
@@ -428,7 +428,7 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void releaseHoldAdminCanReleaseAnotherUsersHold() throws Exception {
-        final ObjectId otherUserId = new ObjectId();
+        final String otherUserId = MongoIds.newId();
         makeCallerAdmin();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
         when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(otherUserId)))
@@ -448,7 +448,7 @@ class LegalHoldsApiControllerTest {
     private LegalHoldEntity holdEntity(final String reference, final String scopeType,
                                         final String scopeValue) {
         final LegalHoldEntity e = new LegalHoldEntity();
-        e.setId(new ObjectId());
+        e.setId(MongoIds.newId());
         e.setUserId(userId);
         e.setReference(reference);
         e.setScopeType(scopeType);
@@ -466,7 +466,7 @@ class LegalHoldsApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(admin);
     }
 
-    private UserEntity userWithId(final String email, final ObjectId id) {
+    private UserEntity userWithId(final String email, final String id) {
         final UserEntity u = new UserEntity();
         u.setId(id);
         u.setEmail(email);

@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,19 +26,19 @@ import java.util.List;
 
 public class CustomListEntity extends AbstractEncryptedEntity {
 
-    private ObjectId id;
+    private String id;
     private String name;
     private String description;
     private List<String> items;
     private String itemsEncryptedKey;
-    private ObjectId userId;
+    private String userId;
 
     public static CustomListEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final CustomListEntity customListEntity = new CustomListEntity();
-        customListEntity.setId(document.getObjectId("_id"));
+        customListEntity.setId(MongoIds.hex(document.getObjectId("_id")));
         customListEntity.setName(document.getString("name"));
         customListEntity.setDescription(document.getString("description"));
-        customListEntity.setUserId(document.getObjectId("user_id"));
+        customListEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         
         final String encryptedItems = document.getString("items");
         final String itemsEncryptedKey = document.getString("items_encrypted_key");
@@ -61,15 +61,15 @@ public class CustomListEntity extends AbstractEncryptedEntity {
     public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
         document.put("name", name);
         document.put("description", description);
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         
         if (items != null && !items.isEmpty()) {
             final String itemsStr = String.join("\n", items);
-            final EncryptResult encryptResult = encryptionService.encrypt(itemsStr, userId.toHexString());
+            final EncryptResult encryptResult = encryptionService.encrypt(itemsStr, userId);
             document.put("items", encryptResult.getEncryptedText());
             document.put("items_encrypted_key", encryptResult.getEncryptionKey());
         } else {
@@ -80,11 +80,11 @@ public class CustomListEntity extends AbstractEncryptedEntity {
         return document;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -120,11 +120,11 @@ public class CustomListEntity extends AbstractEncryptedEntity {
         this.description = description;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

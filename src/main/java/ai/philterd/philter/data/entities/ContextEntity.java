@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
@@ -47,7 +47,7 @@ public class ContextEntity extends AbstractEntity {
         return null;
     }
 
-    private ObjectId id;
+    private String id;
     private String contextName;
     private int maxSize;
     private boolean disambiguation;
@@ -58,12 +58,12 @@ public class ContextEntity extends AbstractEntity {
     private Integer slot;
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
-    private ObjectId userId;
+    private String userId;
 
     public static ContextEntity fromDocument(final Document document) {
         final ContextEntity contextEntity = new ContextEntity();
-        contextEntity.id = document.getObjectId("_id");
-        contextEntity.userId = document.getObjectId("user_id");
+        contextEntity.id = MongoIds.hex(document.getObjectId("_id"));
+        contextEntity.userId = MongoIds.hex(document.getObjectId("user_id"));
         contextEntity.contextName = document.getString("context_name");
         contextEntity.maxSize = document.getInteger("max_size", MAX_CONTEXT_SIZE);
         contextEntity.disambiguation = document.getBoolean("disambiguation", false);
@@ -80,9 +80,9 @@ public class ContextEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("context_name", contextName);
         document.put("max_size", maxSize);
         document.put("disambiguation", disambiguation);
@@ -102,11 +102,11 @@ public class ContextEntity extends AbstractEntity {
         this.slot = slot;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -166,11 +166,11 @@ public class ContextEntity extends AbstractEntity {
         this.timestamp = timestamp;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

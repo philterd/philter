@@ -18,7 +18,6 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.testutil.AbstractMongoIT;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,7 +85,7 @@ class SigningKeyDataServiceIT extends AbstractMongoIT {
         final SigningKeyDataService service = new SigningKeyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), publisher);
         final String fingerprintBefore = service.getPublicKeyFingerprint();
 
-        final ObjectId actingUser = ai.philterd.philter.testutil.TestAdministrators.create(mongoClient);
+        final String actingUser = ai.philterd.philter.testutil.TestAdministrators.create(mongoClient);
         service.regenerate("req", actingUser, null, "source: test");
 
         final String fingerprintAfter = service.getPublicKeyFingerprint();

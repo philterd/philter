@@ -16,6 +16,7 @@
 package ai.philterd.philter.api;
 
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -26,7 +27,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +68,7 @@ class PoliciesApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId userId;
+    private String userId;
     private String key;
 
     @BeforeEach
@@ -290,7 +290,7 @@ class PoliciesApiIT {
     void aRevisionWithoutAnAuthorIsListed() throws Exception {
         mongoClient.getDatabase("philter").getCollection("policy_versions").insertOne(new org.bson.Document("name", "legacy")
                 .append("revision", 0).append("content_hash", "abc").append("policy", POLICY)
-                .append("user_id", userId).append("captured_timestamp", new java.util.Date()));
+                .append("user_id", MongoIds.objectId(userId)).append("captured_timestamp", new java.util.Date()));
 
         final HttpResponse<String> listed = send("GET", "/api/policies/legacy/versions", null);
         assertEquals(200, listed.statusCode(), listed.body());

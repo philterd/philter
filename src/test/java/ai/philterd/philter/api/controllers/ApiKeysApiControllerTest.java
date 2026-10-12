@@ -19,13 +19,13 @@ import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.api.security.ApiKeyScopeInterceptor;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -84,16 +84,16 @@ class ApiKeysApiControllerTest {
     @Mock private ApiKeyCache apiKeyCache;
     @Mock private UserService userService;
 
-    private ObjectId callerUserId;
-    private ObjectId callerApiKeyId;
+    private String callerUserId;
+    private String callerApiKeyId;
     private ApiKeyEntity callerKey;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
 
-        callerUserId = new ObjectId();
-        callerApiKeyId = new ObjectId();
+        callerUserId = MongoIds.newId();
+        callerApiKeyId = MongoIds.newId();
         callerKey = keyHolding(ApiKeyScope.all());
 
         lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
@@ -144,14 +144,14 @@ class ApiKeysApiControllerTest {
 
     private UserEntity targetUser(final String username) {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         user.setUsername(username);
         return user;
     }
 
     /** Stubs a successful mint and the lookup that returns the new key's ID. */
-    private ObjectId mintSucceeds() {
-        final ObjectId mintedId = new ObjectId();
+    private String mintSucceeds() {
+        final String mintedId = MongoIds.newId();
         when(apiKeyDataService.createApiKey(anyString(), any(), anyString(), any(), anyString()))
                 .thenReturn(new ServiceResponse(MINTED, true, 200));
         final ApiKeyEntity minted = new ApiKeyEntity();
@@ -161,9 +161,9 @@ class ApiKeysApiControllerTest {
     }
 
     /** A stored key belonging to {@code owner}, holding {@code scopes}, returned when looked up by ID. */
-    private ApiKeyEntity storedKey(final ObjectId owner, final Set<String> scopes) {
+    private ApiKeyEntity storedKey(final String owner, final Set<String> scopes) {
         final ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(new ObjectId());
+        key.setId(MongoIds.newId());
         key.setUserId(owner);
         key.setApiKeyPrefix("sk_abcdefghi...");
         key.setScopes(new LinkedHashSet<>(scopes));
@@ -173,7 +173,7 @@ class ApiKeysApiControllerTest {
     }
 
     private ResultActions setScopes(final ApiKeyEntity key, final String body) throws Exception {
-        return perform(put("/api/api-keys/" + key.getId().toHexString() + "/scopes")
+        return perform(put("/api/api-keys/" + key.getId() + "/scopes")
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
@@ -185,7 +185,7 @@ class ApiKeysApiControllerTest {
         callerIsAdministrator(true);
         final UserEntity target = targetUser("ci");
         when(userService.findByUsername("ci")).thenReturn(target);
-        final ObjectId mintedId = mintSucceeds();
+        final String mintedId = mintSucceeds();
 
         final String body = createApiKey("ci", "{\"scopes\":[\"redact\",\"policies:read\"]}")
                 .andExpect(status().isCreated())
@@ -196,7 +196,7 @@ class ApiKeysApiControllerTest {
         assertTrue(body.contains("\"username\":\"ci\""), "the response must name the owner: " + body);
         assertTrue(body.contains("redact") && body.contains("policies:read"),
                 "the response must state what the key can do: " + body);
-        assertTrue(body.contains("\"id\":\"" + mintedId.toHexString() + "\""),
+        assertTrue(body.contains("\"id\":\"" + mintedId + "\""),
                 "the response must carry the ID used to re-scope or revoke the key: " + body);
     }
 
@@ -354,7 +354,7 @@ class ApiKeysApiControllerTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertTrue(body.contains("\"id\":\"" + key.getId().toHexString() + "\""), body);
+        assertTrue(body.contains("\"id\":\"" + key.getId() + "\""), body);
         assertTrue(body.contains("\"prefix\":\"sk_abcdefghi...\"") && body.contains("\"bootstrap\":true")
                 && body.contains("\"created\"") && body.contains("\"total\":1"), body);
         assertFalse(body.contains("hash") || body.contains("\"apiKey\""), "no secret or hash may be listed: " + body);
@@ -471,10 +471,10 @@ class ApiKeysApiControllerTest {
     @DisplayName("A non-administrator gets a 404 for another user's key, as if it did not exist")
     void anotherUsersKeyIsNotFoundForANonAdministrator() throws Exception {
         callerIsAdministrator(false);
-        final ApiKeyEntity theirs = storedKey(new ObjectId(), Set.of("redact"));
+        final ApiKeyEntity theirs = storedKey(MongoIds.newId(), Set.of("redact"));
 
         setScopes(theirs, "{\"scopes\":[\"redact\"]}").andExpect(status().isNotFound());
-        perform(delete("/api/api-keys/" + theirs.getId().toHexString())).andExpect(status().isNotFound());
+        perform(delete("/api/api-keys/" + theirs.getId())).andExpect(status().isNotFound());
 
         verify(apiKeyDataService, never()).updateScopes(anyString(), any(), any(), any(), anyString(), any());
         verify(apiKeyDataService, never()).deleteByApiKey(anyString(), any(), any(), anyString(), any());
@@ -484,7 +484,7 @@ class ApiKeysApiControllerTest {
     @DisplayName("An administrator changes another user's key, as that key's owner in the service")
     void anAdministratorChangesAnotherUsersKey() throws Exception {
         callerIsAdministrator(true);
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         final ApiKeyEntity theirs = storedKey(owner, Set.of("redact", "policies:read"));
         when(apiKeyDataService.updateScopes(anyString(), eq(owner), eq(theirs), anySet(), anyString(), anyString()))
                 .thenReturn(ServiceResponse.success());
@@ -496,7 +496,7 @@ class ApiKeysApiControllerTest {
     @DisplayName("A malformed or unknown key ID is a 404")
     void anUnknownKeyIsNotFound() throws Exception {
         perform(delete("/api/api-keys/not-an-id")).andExpect(status().isNotFound());
-        perform(delete("/api/api-keys/" + new ObjectId().toHexString())).andExpect(status().isNotFound());
+        perform(delete("/api/api-keys/" + MongoIds.newId())).andExpect(status().isNotFound());
     }
 
     // ----- revoking -----
@@ -508,7 +508,7 @@ class ApiKeysApiControllerTest {
         when(apiKeyDataService.deleteByApiKey(eq("req-keys"), eq(callerUserId), eq(key), eq("api"),
                 contains("api_key: " + callerApiKeyId))).thenReturn(ServiceResponse.success());
 
-        perform(delete("/api/api-keys/" + key.getId().toHexString())).andExpect(status().isNoContent());
+        perform(delete("/api/api-keys/" + key.getId())).andExpect(status().isNoContent());
     }
 
     @Test
@@ -516,7 +516,7 @@ class ApiKeysApiControllerTest {
     void aKeyCannotRevokeItself() throws Exception {
         when(apiKeyDataService.findOneById(callerApiKeyId)).thenReturn(callerKey);
 
-        final String body = perform(delete("/api/api-keys/" + callerApiKeyId.toHexString()))
+        final String body = perform(delete("/api/api-keys/" + callerApiKeyId))
                 .andExpect(status().isConflict())
                 .andReturn().getResponse().getContentAsString();
 
@@ -530,7 +530,7 @@ class ApiKeysApiControllerTest {
         callerKey = keyHolding(Set.of(ApiKeyScope.API_KEYS_WRITE.getScope()));
         final ApiKeyEntity wider = storedKey(callerUserId, Set.of("redact"));
 
-        perform(delete("/api/api-keys/" + wider.getId().toHexString())).andExpect(status().isForbidden());
+        perform(delete("/api/api-keys/" + wider.getId())).andExpect(status().isForbidden());
 
         verify(apiKeyDataService, never()).deleteByApiKey(anyString(), any(), any(), anyString(), any());
     }

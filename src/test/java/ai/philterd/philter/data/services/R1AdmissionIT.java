@@ -3,6 +3,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.api.exceptions.PayloadTooLargeException;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.policies.EffectiveConfigurationLimits;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -12,7 +13,6 @@ import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.Binary;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import java.util.Date;
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,7 +24,7 @@ class R1AdmissionIT extends AbstractMongoIT {
         String uri = System.getProperty("philter.test.mongoUri");
         if (uri != null) {
             mongoClient.close(); mongoClient = spy(com.mongodb.client.MongoClients.create(uri));
-            isolated = mongoClient.getDatabase("philter_r1_" + new ObjectId());
+            isolated = mongoClient.getDatabase("philter_r1_" + MongoIds.newId());
             doReturn(isolated).when(mongoClient).getDatabase("philter");
         }
     }
@@ -37,7 +37,7 @@ class R1AdmissionIT extends AbstractMongoIT {
     }
     private PendingDocumentEntity job() {
         var job = new PendingDocumentEntity();
-        job.setUserId(new ObjectId()); job.setDocumentId(new ObjectId().toHexString());
+        job.setUserId(MongoIds.newId()); job.setDocumentId(MongoIds.newId());
         job.setStatus("PENDING"); job.setInput(new byte[10]); job.setSubmittedAt(new Date());
         return job;
     }

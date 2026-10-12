@@ -18,6 +18,7 @@ package ai.philterd.philter.services.signing;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
@@ -32,7 +33,6 @@ import org.apache.logging.log4j.core.config.Property;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
 /** The genesis entry is the only record of which document was redacted, under which policy. */
 class LedgerChainValidationIT extends AbstractMongoIT {
 
-    private static final ObjectId USER = new ObjectId();
+    private static final String USER = MongoIds.newId();
     private static final String DOC = "doc-genesis";
 
     private LedgerDataService ledgerDataService;
@@ -208,7 +208,7 @@ class LedgerChainValidationIT extends AbstractMongoIT {
                 () -> assertFalse(logged.isEmpty(), "the failure must be logged at all"),
                 () -> assertFalse(logged.contains(pii),
                         "the redacted value must never reach the log: " + logged),
-                () -> assertTrue(logged.contains(target.getId().toHexString()),
+                () -> assertTrue(logged.contains(target.getId()),
                         "the log must identify the offending entry: " + logged));
     }
 

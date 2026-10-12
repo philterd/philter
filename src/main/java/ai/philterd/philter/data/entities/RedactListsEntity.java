@@ -15,11 +15,11 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.SeparatedTermLists;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,18 +27,18 @@ import java.util.List;
 
 public class RedactListsEntity extends AbstractEncryptedEntity {
 
-    private ObjectId id;
+    private String id;
     private List<String> termsToAlwaysRedact;
     private List<String> termsToNeverRedact;
-    private ObjectId userId;
+    private String userId;
     private long alwaysRedactRevision;
     private long neverRedactRevision;
 
     public static RedactListsEntity fromDocument(final Document document, final EncryptionService encryptionService) {
 
         final RedactListsEntity redactListsEntity = new RedactListsEntity();
-        redactListsEntity.setId(document.getObjectId("_id"));
-        redactListsEntity.setUserId(document.getObjectId("user_id"));
+        redactListsEntity.setId(MongoIds.hex(document.getObjectId("_id")));
+        redactListsEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
 
         redactListsEntity.setTermsToAlwaysRedact(readTerms(document, encryptionService, "terms_to_always_redact"));
         redactListsEntity.setTermsToNeverRedact(readTerms(document, encryptionService, "terms_to_never_redact"));
@@ -101,33 +101,33 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
     public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         writeTerms(document, encryptionService, userId, "terms_to_always_redact", termsToAlwaysRedact);
         writeTerms(document, encryptionService, userId, "terms_to_never_redact", termsToNeverRedact);
         return document;
     }
 
     /** Encrypts a term list and stores it as {@code <field>} (ciphertext) plus the key {@code <field>_key}. */
-    public static void writeTerms(final Document document, final EncryptionService encryptionService, final ObjectId userId,
+    public static void writeTerms(final Document document, final EncryptionService encryptionService, final String userId,
                                   final String field, final List<String> terms) {
         final String joined = String.join("\n", terms != null ? terms : new ArrayList<>());
         if (joined.isEmpty()) {
             document.put(field, "");
             document.put(field + "_key", "");
         } else {
-            final EncryptResult result = encryptionService.encrypt(joined, userId.toHexString());
+            final EncryptResult result = encryptionService.encrypt(joined, userId);
             document.put(field, result.getEncryptedText());
             document.put(field + "_key", result.getEncryptionKey());
         }
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -147,11 +147,11 @@ public class RedactListsEntity extends AbstractEncryptedEntity {
         return termsToNeverRedact;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

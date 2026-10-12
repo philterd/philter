@@ -21,7 +21,6 @@ import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,7 +100,7 @@ class ApplicationSmokeIT {
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
 
-        final ObjectId userId = userService.findByUsername(username).getId();
+        final String userId = userService.findByUsername(username).getId();
         apiKey = apiKeyDataService.createApiKey("req", userId, "test").getMessage();
 
     }

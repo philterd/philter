@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.api.security;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
@@ -31,10 +31,10 @@ public final class AdministratorAuthorization {
     private AdministratorAuthorization() {
     }
 
-    public static void requireActiveAdministrator(final MongoClient client, final ObjectId actingUserId) {
+    public static void requireActiveAdministrator(final MongoClient client, final String actingUserId) {
 
         final Document user = actingUserId == null ? null
-                : client.getDatabase("philter").getCollection("users").find(Filters.eq("_id", actingUserId)).first();
+                : client.getDatabase("philter").getCollection("users").find(Filters.eq("_id", MongoIds.objectId(actingUserId))).first();
 
         if (user == null || !"admin".equalsIgnoreCase(user.getString("role"))
                 || user.getBoolean("deactivated", false)) {

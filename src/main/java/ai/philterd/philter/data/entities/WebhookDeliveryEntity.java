@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
@@ -35,8 +35,8 @@ public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
     /** A test event sent on request to check a webhook, never queued or retried. */
     public static final String EVENT_WEBHOOK_TEST = "WEBHOOK_TEST";
 
-    private ObjectId id;
-    private ObjectId userId;
+    private String id;
+    private String userId;
     private String documentId;
     private String eventType;
     private String status;
@@ -57,8 +57,8 @@ public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
 
     public static WebhookDeliveryEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
-        entity.setId(document.getObjectId("_id"));
-        entity.setUserId(document.getObjectId("user_id"));
+        entity.setId(MongoIds.hex(document.getObjectId("_id")));
+        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         entity.setDocumentId(document.getString("document_id"));
         entity.setEventType(document.getString("event_type"));
         entity.setStatus(document.getString("status"));
@@ -90,15 +90,15 @@ public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
     public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("document_id", documentId);
         document.put("event_type", eventType);
         document.put("status", status);
         document.put("url", url);
         if (secret != null && !secret.isEmpty()) {
-            final EncryptResult encrypted = encryptionService.encrypt(secret, userId.toHexString());
+            final EncryptResult encrypted = encryptionService.encrypt(secret, userId);
             document.put("secret", encrypted.getEncryptedText());
             document.put("secret_encrypted_key", encrypted.getEncryptionKey());
         } else {
@@ -119,19 +119,19 @@ public class WebhookDeliveryEntity extends AbstractEncryptedEntity {
     }
 
     @Override
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(final ObjectId id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public void setUserId(final ObjectId userId) {
+    public void setUserId(final String userId) {
         this.userId = userId;
     }
 

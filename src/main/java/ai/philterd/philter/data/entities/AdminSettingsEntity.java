@@ -15,12 +15,12 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 public class AdminSettingsEntity extends AbstractEntity {
 
-    private ObjectId id;
+    private String id;
     private boolean diffuseCountsEnabled;
     private boolean phieldEnabled;
     private String phieldUrl = "";
@@ -36,7 +36,7 @@ public class AdminSettingsEntity extends AbstractEntity {
 
     public static AdminSettingsEntity fromDocument(final Document document) {
         final AdminSettingsEntity adminSettingsEntity = new AdminSettingsEntity();
-        adminSettingsEntity.setId(document.getObjectId("_id"));
+        adminSettingsEntity.setId(MongoIds.hex(document.getObjectId("_id")));
         adminSettingsEntity.setDiffuseCountsEnabled(document.getBoolean("diffuse_counts_enabled", false));
         adminSettingsEntity.setPhieldEnabled(document.getBoolean("phield_enabled", false));
         adminSettingsEntity.setPhieldUrl(document.getString("phield_url") != null ? document.getString("phield_url") : "");
@@ -53,7 +53,7 @@ public class AdminSettingsEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
         document.put("diffuse_counts_enabled", diffuseCountsEnabled);
         document.put("phield_enabled", phieldEnabled);
@@ -70,11 +70,11 @@ public class AdminSettingsEntity extends AbstractEntity {
     }
 
     @Override
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 

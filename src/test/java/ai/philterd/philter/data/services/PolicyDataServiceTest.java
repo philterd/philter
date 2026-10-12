@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
@@ -81,11 +82,11 @@ class PolicyDataServiceTest {
 
     @Test
     void findOneByName() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String name = "testPolicy";
         Document doc = new Document("_id", new ObjectId())
                 .append("name", name)
-                .append("user_id", userId);
+                .append("user_id", MongoIds.objectId(userId));
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -98,7 +99,7 @@ class PolicyDataServiceTest {
 
     @Test
     void create() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String policyJson = validPolicyJson();
         String policyName = "newPolicy";
 
@@ -109,7 +110,7 @@ class PolicyDataServiceTest {
 
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
 
         ServiceResponse response = policyDataService.create("req", userId, policyJson, "desc", "notes", policyName, "source");
 
@@ -119,14 +120,14 @@ class PolicyDataServiceTest {
 
     @Test
     void deleteByName() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String policyName = "testPolicy";
 
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         Document doc = new Document("_id", new ObjectId())
                 .append("name", policyName)
-                .append("user_id", userId);
+                .append("user_id", MongoIds.objectId(userId));
         when(findIterable.first()).thenReturn(doc);
 
         DeleteResult deleteResult = mock(DeleteResult.class);
@@ -141,13 +142,13 @@ class PolicyDataServiceTest {
         // Who deleted it, which policy, and from where.
         verify(auditEventPublisher).auditEvent(
                 eq("req"), eq(AuditLogEvent.POLICY_DELETED),
-                eq(userId), eq(doc.getObjectId("_id")), eq("10.0.0.1"),
+                eq(userId), eq(MongoIds.hex(doc.getObjectId("_id"))), eq("10.0.0.1"),
                 contains("policy: " + policyName));
     }
 
     @Test
     void findAll() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
@@ -165,7 +166,7 @@ class PolicyDataServiceTest {
 
     @Test
     void isPolicyNameUnique() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String name = "testPolicy";
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -178,10 +179,10 @@ class PolicyDataServiceTest {
         return "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
     }
 
-    private Document existingPolicyDocument(final ObjectId policyId, final ObjectId userId) {
-        return new Document("_id", policyId)
+    private Document existingPolicyDocument(final String policyId, final String userId) {
+        return new Document("_id", MongoIds.objectId(policyId))
                 .append("name", "existing-policy")
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("notes", "existing notes")
                 .append("description", "existing description")
                 .append("managed", false);
@@ -195,8 +196,8 @@ class PolicyDataServiceTest {
 
     @Test
     void updatePreservesNotesAndDescriptionWhenBlankOrNull() {
-        final ObjectId userId = new ObjectId();
-        final ObjectId policyId = new ObjectId();
+        final String userId = MongoIds.newId();
+        final String policyId = MongoIds.newId();
 
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -215,8 +216,8 @@ class PolicyDataServiceTest {
 
     @Test
     void updateReplacesNotesAndDescriptionWhenProvided() {
-        final ObjectId userId = new ObjectId();
-        final ObjectId policyId = new ObjectId();
+        final String userId = MongoIds.newId();
+        final String policyId = MongoIds.newId();
 
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -355,7 +356,7 @@ class PolicyDataServiceTest {
         when(fi.first()).thenReturn(null);
 
         final ServiceResponse response =
-                policyDataService.rollback("req", "missing-policy", new ObjectId(), 1, new ObjectId(), "10.0.0.1");
+                policyDataService.rollback("req", "missing-policy", MongoIds.newId(), 1, MongoIds.newId(), "10.0.0.1");
 
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
@@ -364,7 +365,7 @@ class PolicyDataServiceTest {
     @Test
     void rollbackReturns409WhenPolicyIsManaged() {
         // A managed policy has no owner, so it is refused by name before any per-user lookup.
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final ServiceResponse response =
                 policyDataService.rollback("req", "managed_common_pii", userId, 1, userId, "10.0.0.1");
@@ -378,7 +379,7 @@ class PolicyDataServiceTest {
 
     @Test
     void deleteByNameReturns409WhenPolicyIsManaged() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final ServiceResponse response =
                 policyDataService.deleteByName("req", "managed_common_pii", userId, Source.API, userId, "10.0.0.1");
@@ -390,7 +391,7 @@ class PolicyDataServiceTest {
 
     @Test
     void rollbackReturns404WhenTargetRevisionDoesNotExist() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Document policyDoc = livePolicyDocument(userId, "my-policy", 3);
 
         final FindIterable<Document> fi = mock(FindIterable.class);
@@ -409,7 +410,7 @@ class PolicyDataServiceTest {
 
     @Test
     void rollbackSuccessUpdatesContentIncrementsRevisionAndAudits() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Document policyDoc = livePolicyDocument(userId, "my-policy", 3);
 
         final FindIterable<Document> fi = mock(FindIterable.class);
@@ -434,7 +435,7 @@ class PolicyDataServiceTest {
         // A new snapshot of the rolled-back content was taken.
         verify(policyVersionDataService).snapshot(any(PolicyEntity.class));
         // Audited against the principal, the policy, and the client IP.
-        final ObjectId policyId = policyDoc.getObjectId("_id");
+        final String policyId = MongoIds.hex(policyDoc.getObjectId("_id"));
         verify(auditEventPublisher).auditEvent(
                 eq("req"), eq(AuditLogEvent.POLICY_ROLLED_BACK),
                 eq(userId), eq(policyId), eq("10.0.0.1"),
@@ -443,7 +444,7 @@ class PolicyDataServiceTest {
 
     @Test
     void rollbackResponseMessageContainsTargetAndNewRevision() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Document policyDoc = livePolicyDocument(userId, "my-policy", 5);
 
         final FindIterable<Document> fi = mock(FindIterable.class);
@@ -466,10 +467,10 @@ class PolicyDataServiceTest {
         assertTrue(response.getMessage().contains("6"),  "message should reference new revision 6");
     }
 
-    private Document livePolicyDocument(final ObjectId userId, final String name, final int revision) {
+    private Document livePolicyDocument(final String userId, final String name, final int revision) {
         return new Document("_id", new ObjectId())
                 .append("name", name)
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("managed", false)
                 .append("revision", revision)
                 .append("policy", validPolicyJson());

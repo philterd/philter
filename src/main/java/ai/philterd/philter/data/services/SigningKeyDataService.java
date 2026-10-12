@@ -31,7 +31,6 @@ import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -128,7 +127,7 @@ public class SigningKeyDataService extends AbstractEncryptedService<SigningKeyEn
      *                        was used.
      * @return The id of the key that is now active.
      */
-    public String regenerate(final String requestId, final ObjectId actingUserId,
+    public String regenerate(final String requestId, final String actingUserId,
                              final String clientIpAddress, final String details) {
         ai.philterd.philter.api.security.AdministratorAuthorization.requireActiveAdministrator(mongoClient, actingUserId);
         if (externallyManaged) {

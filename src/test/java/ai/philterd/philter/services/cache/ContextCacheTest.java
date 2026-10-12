@@ -15,7 +15,7 @@
  */
 package ai.philterd.philter.services.cache;
 
-import org.bson.types.ObjectId;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -56,7 +56,7 @@ class ContextCacheTest {
     @Test
     void setTokenReplacementRejectsNullUserId() {
         assertThrows(IllegalArgumentException.class,
-                () -> cache.setTokenReplacement(null, "default", "token", new ObjectId(), "replacement"));
+                () -> cache.setTokenReplacement(null, "default", "token", MongoIds.newId(), "replacement"));
     }
 
     @Test
@@ -68,16 +68,16 @@ class ContextCacheTest {
     @Test
     void aRealUserIdIsAccepted() {
         // A genuine user id namespaces the key and must not throw.
-        assertDoesNotThrow(() -> cache.containsToken(new ObjectId(), "default", "token"));
+        assertDoesNotThrow(() -> cache.containsToken(MongoIds.newId(), "default", "token"));
     }
     @Test
     void unrelatedWritesCannotExtendAnOldMappingsAge() {
         final var now = new java.util.concurrent.atomic.AtomicLong(1000);
         final var cache = new ContextCache("", 0, "", false, now::get);
-        final var owner = new ObjectId();
-        cache.setTokenReplacement(owner, "context", "old", new ObjectId(), "old-value");
+        final var owner = MongoIds.newId();
+        cache.setTokenReplacement(owner, "context", "old", MongoIds.newId(), "old-value");
         now.set(3_600_000);
-        cache.setTokenReplacement(owner, "context", "new", new ObjectId(), "new-value");
+        cache.setTokenReplacement(owner, "context", "new", MongoIds.newId(), "new-value");
         now.set(3_601_000);
         org.junit.jupiter.api.Assertions.assertNull(cache.getReplacement(owner, "context", "old"));
         org.junit.jupiter.api.Assertions.assertFalse(cache.containsToken(owner, "context", "old"));
@@ -89,12 +89,12 @@ class ContextCacheTest {
     void aFillThatLosesToMutationCannotRenewItsObservationTime() {
         final var now = new java.util.concurrent.atomic.AtomicLong(1000);
         final var cache = new ContextCache("", 0, "", false, now::get);
-        final var owner = new ObjectId();
+        final var owner = MongoIds.newId();
         final long readStarted = now.get();
         now.set(3_601_000);
         cache.deleteContext(owner, "context");
         // The old database read resumes after mutation and cache invalidation.
-        cache.setTokenReplacement(owner, "context", "token", new ObjectId(), "stale", readStarted);
+        cache.setTokenReplacement(owner, "context", "token", MongoIds.newId(), "stale", readStarted);
         org.junit.jupiter.api.Assertions.assertNull(cache.getReplacement(owner, "context", "token"));
         cache.deleteContext(owner, "context");
     }

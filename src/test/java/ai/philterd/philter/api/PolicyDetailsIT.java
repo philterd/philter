@@ -24,7 +24,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -80,7 +79,7 @@ class PolicyDetailsIT {
         baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
         final String username = "policy-details-" + UUID.randomUUID();
         assertTrue(userService.createUser("req", username, null, "user", policyDataService, contextDataService, "test").isSuccessful());
-        final ObjectId userId = userService.findByUsername(username).getId();
+        final String userId = userService.findByUsername(username).getId();
         key = apiKeyDataService.createApiKey("req", userId, "test", ApiKeyScope.all()).getMessage();
     }
 

@@ -26,7 +26,6 @@ import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +67,7 @@ class SettingsApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId adminId;
+    private String adminId;
     private String adminKey;
 
     @BeforeEach
@@ -91,7 +90,7 @@ class SettingsApiIT {
         httpClient.close();
     }
 
-    private ObjectId seedUser(final String role) {
+    private String seedUser(final String role) {
         final String username = "settings-" + role + "-" + UUID.randomUUID();
         assertTrue(userService.createUser("req", username, null, role, policyDataService, contextDataService, "test").isSuccessful());
         return userService.findByUsername(username).getId();
@@ -142,7 +141,7 @@ class SettingsApiIT {
         assertFalse(read.body().contains("phield-secret"), "the key is never returned");
 
         final HttpResponse<String> audit = send("GET", "/api/audit?event=settings_updated&limit=100", adminKey, null);
-        final String keyId = apiKeyDataService.findOneByApiKey(adminKey).getId().toHexString();
+        final String keyId = apiKeyDataService.findOneByApiKey(adminKey).getId();
         assertTrue(audit.body().contains("settings: phield_enabled, phield_url, phield_api_key, phield_api_key_key, api_key: " + keyId),
                 audit.body());
         assertFalse(audit.body().contains("phield-secret") || audit.body().contains("phield.example.com"),

@@ -21,6 +21,7 @@ import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
@@ -36,7 +37,6 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import ai.philterd.philter.services.signing.SigningService;
 import org.junit.jupiter.api.Test;
@@ -64,7 +64,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
     private static final String TEXT = "Patient SSN 123-45-6789 was filed Monday.";
     private static final String CONTEXT = "ctx-ledger";
 
-    private ObjectId userId;
+    private String userId;
     private LedgerDataService ledgerDataService;
     private RedactionService redactionService;
     private final PhieldPublisher phield = mock(PhieldPublisher.class);
@@ -74,7 +74,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
     @BeforeEach
     void setUpServices() throws Exception {
 
-        userId = new ObjectId();
+        userId = MongoIds.newId();
 
         final UserEntity userEntity = mock(UserEntity.class);
         when(userEntity.getId()).thenReturn(userId);
@@ -124,7 +124,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
 
         assertEquals("invoice-42.txt", chainHead().getFilename());
         final var state = mongoClient.getDatabase("philter").getCollection("ledger_chains")
-                .find(new org.bson.Document("user_id", userId)
+                .find(new org.bson.Document("user_id", MongoIds.objectId(userId))
                         .append("document_id", chainHead().getDocumentId())).first();
         assertNotNull(state);
         assertEquals("complete", state.getString("state"));

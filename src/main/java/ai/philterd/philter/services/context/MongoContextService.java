@@ -21,7 +21,6 @@ import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import com.mongodb.client.MongoClient;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,14 +32,14 @@ public class MongoContextService implements ContextService {
 
     private final ContextCache contextCache;
     private final ContextEntryDataService contextEntryService;
-    private final ObjectId userId;
+    private final String userId;
     private final String contextName;
 
-    public MongoContextService(final MongoClient mongoClient, final ContextCache contextCache, final ObjectId userId, final String contextName, final AuditEventPublisher auditEventPublisher) {
+    public MongoContextService(final MongoClient mongoClient, final ContextCache contextCache, final String userId, final String contextName, final AuditEventPublisher auditEventPublisher) {
         this(contextCache, new ContextEntryDataService(mongoClient, auditEventPublisher, contextCache), userId, contextName);
     }
 
-    MongoContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final ObjectId userId, final String contextName) {
+    MongoContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final String userId, final String contextName) {
 
         LOGGER.info("Instantiating MongoContextService for user {} and context {}", userId, contextName);
 

@@ -26,7 +26,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -91,7 +90,7 @@ class SignOnRequestIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String apiKey;
-    private ObjectId userId;
+    private String userId;
 
     @BeforeEach
     void setUp() {

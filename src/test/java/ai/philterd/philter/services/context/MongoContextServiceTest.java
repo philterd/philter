@@ -16,9 +16,9 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,7 +40,7 @@ class MongoContextServiceTest {
     @Mock
     private ContextEntryDataService contextEntryService;
 
-    private final ObjectId userId = new ObjectId();
+    private final String userId = MongoIds.newId();
     private final String contextName = "test-context";
 
     private MongoContextService service;
@@ -52,7 +52,7 @@ class MongoContextServiceTest {
 
     @Test
     void cacheHitReturnsCachedReplacementAndIncrementsReads() {
-        final ObjectId entryId = new ObjectId();
+        final String entryId = MongoIds.newId();
         final ContextCache.CachedReplacement cached = new ContextCache.CachedReplacement(entryId, "REDACTED");
 
         when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(cached);
@@ -67,7 +67,7 @@ class MongoContextServiceTest {
 
     @Test
     void cacheMissFetchesFromDbAndPopulatesCache() {
-        final ObjectId entryId = new ObjectId();
+        final String entryId = MongoIds.newId();
         final ContextEntryEntity entry = new ContextEntryEntity();
         entry.setId(entryId);
         entry.setReplacement("FROM-DB");
@@ -98,7 +98,7 @@ class MongoContextServiceTest {
 
     @Test
     void putReplacementWritesThroughToDbAndCache() {
-        final ObjectId entryId = new ObjectId();
+        final String entryId = MongoIds.newId();
         final ContextEntryEntity entry = new ContextEntryEntity();
         entry.setId(entryId);
         entry.setReplacement("R");

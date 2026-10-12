@@ -17,8 +17,8 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,11 +62,11 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         service = new PendingDocumentDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
     }
 
-    private PendingDocumentEntity newPending(final ObjectId userId, final String documentId) {
+    private PendingDocumentEntity newPending(final String userId, final String documentId) {
         return newPending(userId, documentId, "default", new Date());
     }
 
-    private PendingDocumentEntity newPending(final ObjectId userId, final String documentId,
+    private PendingDocumentEntity newPending(final String userId, final String documentId,
                                              final String contextName, final Date submittedAt) {
         final PendingDocumentEntity entity = new PendingDocumentEntity();
         entity.setUserId(userId);
@@ -83,8 +83,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findOneByDocumentIdAndUserIdScopesToOwner() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         service.save(newPending(userA, "doc-1"));
 
         final PendingDocumentEntity found = service.findOneByDocumentIdAndUserId("doc-1", userA);
@@ -99,8 +99,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findAllByUserIdPagesNewestFirstAndScopesByUser() {
-        final ObjectId user = new ObjectId();
-        final ObjectId other = new ObjectId();
+        final String user = MongoIds.newId();
+        final String other = MongoIds.newId();
         final long base = System.currentTimeMillis();
         // Insert out of submitted_at order to prove the descending sort.
         service.save(newPending(user, "old", "default", new Date(base)));
@@ -120,7 +120,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void claimNextPendingMarksJobSoSecondClaimDoesNotReturnIt() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final long base = System.currentTimeMillis();
         service.save(newPending(user, "first", "default", new Date(base)));
         service.save(newPending(user, "second", "default", new Date(base + 1000)));
@@ -148,8 +148,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
     void concurrentClaimsNeverHandTheSameJobToTwoWorkers() throws Exception {
         // The multi-instance coordination guarantee: many workers polling at once must never both claim
         // the same job. This exercises the atomic findOneAndUpdate under real parallelism.
-        final ObjectId user = new ObjectId();
-        final ObjectId secondUser = new ObjectId();
+        final String user = MongoIds.newId();
+        final String secondUser = MongoIds.newId();
         final int jobCount = 60;
         final long base = System.currentTimeMillis();
         for (int i = 0; i < jobCount; i++) {
@@ -159,7 +159,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         final int workers = 8;
         final ExecutorService pool = Executors.newFixedThreadPool(workers);
         final CountDownLatch start = new CountDownLatch(1);
-        final Queue<ObjectId> claimed = new ConcurrentLinkedQueue<>();
+        final Queue<String> claimed = new ConcurrentLinkedQueue<>();
         final List<Future<Integer>> futures = new ArrayList<>();
 
         for (int w = 0; w < workers; w++) {
@@ -184,7 +184,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         pool.shutdownNow();
 
         // Every job was claimed exactly once: no job handed to two workers, and none missed.
-        final Set<ObjectId> unique = new HashSet<>(claimed);
+        final Set<String> unique = new HashSet<>(claimed);
         assertEquals(jobCount, claimed.size(), "no job may be claimed more than once (no double-processing)");
         assertEquals(jobCount, unique.size(), "claimed job ids must all be distinct");
 
@@ -194,7 +194,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void reclaimStuckJobsResetsOnlyJobsClaimedBeforeTheCutoff() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.save(newPending(user, "stuck"));
         service.save(newPending(user, "fresh"));
 
@@ -226,7 +226,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void markCompleteSetsOutputCompletedAtAndClearsInput() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.save(newPending(user, "doc-1"));
         final PendingDocumentEntity claimed = service.claimNextPending("w");
         assertNotNull(claimed.getInput());
@@ -244,7 +244,7 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void markFailedSetsErrorCompletedAtAndClearsInput() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.save(newPending(user, "doc-1"));
         final PendingDocumentEntity claimed = service.claimNextPending("w");
 
@@ -259,8 +259,8 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByDocumentIdAndUserIdScopesToOwner() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         service.save(newPending(userA, "doc-1"));
 
         // A different user cannot delete the document.
@@ -274,20 +274,20 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void countByUserIdCountsAllStatusesScopedToUser() {
-        final ObjectId user = new ObjectId();
-        final ObjectId other = new ObjectId();
+        final String user = MongoIds.newId();
+        final String other = MongoIds.newId();
         service.save(newPending(user, "a"));
         service.save(newPending(user, "b"));
         service.save(newPending(other, "c"));
 
         assertEquals(2, service.countByUserId(user));
         assertEquals(1, service.countByUserId(other));
-        assertEquals(0, service.countByUserId(new ObjectId()));
+        assertEquals(0, service.countByUserId(MongoIds.newId()));
     }
 
     @Test
     void countPendingByUserIdCountsOnlyPendingAndProcessing() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.save(newPending(user, "pending"));
         service.save(newPending(user, "processing"));
         service.save(newPending(user, "complete"));
@@ -305,14 +305,14 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
 
     @Test
     void hasOpenJobsForContextReflectsPendingProcessingAndTerminalStates() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.save(newPending(user, "doc-1", "ctx", new Date()));
 
         // A PENDING job in the context counts as open.
         assertTrue(service.hasOpenJobsForContext(user, "ctx"));
         // A different context, and a different user, see no open jobs.
         assertFalse(service.hasOpenJobsForContext(user, "other"));
-        assertFalse(service.hasOpenJobsForContext(new ObjectId(), "ctx"));
+        assertFalse(service.hasOpenJobsForContext(MongoIds.newId(), "ctx"));
 
         // PROCESSING still counts as open.
         final PendingDocumentEntity claimed = service.claimNextPending("w");

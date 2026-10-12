@@ -31,7 +31,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -78,7 +77,7 @@ class AllUsersListingsIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String adminKey;
-    private ObjectId adminId;
+    private String adminId;
     private String alice;
     private String bob;
 
@@ -96,7 +95,7 @@ class AllUsersListingsIT {
         alice = seedUser("user");
         bob = seedUser("user");
         for (final String username : List.of(alice, bob)) {
-            final ObjectId id = userService.findByUsername(username).getId();
+            final String id = userService.findByUsername(username).getId();
             assertTrue(customListDataService.saveOrUpdate("req", id, "names-" + username, "d", List.of("x"), true, "test").isSuccessful());
             ledgerDataService.initializeLedger(id, "doc-" + username, "hash", username + ".txt", "default", 0, "policy-hash");
             assertTrue(legalHoldDataService.create("req", "hold-" + username, "document_chain", "doc-" + username,
@@ -118,7 +117,7 @@ class AllUsersListingsIT {
         return username;
     }
 
-    private String seedKey(final ObjectId userId) {
+    private String seedKey(final String userId) {
         return apiKeyDataService.createApiKey("req", userId, "test", ApiKeyScope.all()).getMessage();
     }
 

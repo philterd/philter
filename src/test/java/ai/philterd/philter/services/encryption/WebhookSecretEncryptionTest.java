@@ -16,7 +16,7 @@
 package ai.philterd.philter.services.encryption;
 
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
-import org.bson.types.ObjectId;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,7 +26,7 @@ class WebhookSecretEncryptionTest {
         final var encryption = new LocalEncryptionService(new LocalKeyProvider(
                 java.util.Base64.getEncoder().encodeToString(new byte[32])));
         final var delivery = new WebhookDeliveryEntity();
-        delivery.setUserId(new ObjectId());
+        delivery.setUserId(MongoIds.newId());
         delivery.setSecret("webhook-signing-secret");
         final var stored = delivery.toDocument(encryption);
         assertNotEquals(delivery.getSecret(), stored.getString("secret"));

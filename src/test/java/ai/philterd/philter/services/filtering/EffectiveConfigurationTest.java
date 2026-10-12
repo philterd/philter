@@ -2,6 +2,7 @@ package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.data.entities.*;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.*;
 import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -10,7 +11,6 @@ import ai.philterd.philter.services.diffuse.PiiCountAggregatePublisher;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -22,7 +22,7 @@ class EffectiveConfigurationTest {
         var service = new RedactionService(mock(MongoClient.class, RETURNS_DEEP_STUBS), mock(PolicyDataService.class), lists, globalLists,
                 contexts, mock(AuditEventPublisher.class), mock(LedgerDataService.class), users,
                 new SimpleMeterRegistry(), mock(PhieldPublisher.class), mock(PiiCountAggregatePublisher.class), new RedactionCache());
-        var user = new UserEntity(); user.setId(new ObjectId());
+        var user = new UserEntity(); user.setId(MongoIds.newId());
         when(users.findOneById(user.getId())).thenReturn(user);
         when(users.ensureFpeKey(user)).thenReturn("0123456789abcdef0123456789abcdef");
         when(lists.findItemsByNames(eq(user.getId()), any())).thenReturn(java.util.Map.of("names", java.util.List.of("captured-name")));

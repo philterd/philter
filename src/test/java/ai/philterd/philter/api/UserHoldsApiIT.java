@@ -27,7 +27,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +67,7 @@ class UserHoldsApiIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String username;
-    private ObjectId userId;
+    private String userId;
     private String userKey;
     private String adminKey;
 
@@ -161,7 +160,7 @@ class UserHoldsApiIT {
     @Test
     @DisplayName("A scopeValue that is not the owner's username is refused, and a document hold still needs one")
     void refusals() throws Exception {
-        for (final String value : new String[]{"all", userId.toHexString(), "someone-else"}) {
+        for (final String value : new String[]{"all", userId, "someone-else"}) {
             final HttpResponse<String> refused = send(userKey, "POST", "/api/holds",
                     "{\"reference\":\"r-" + UUID.randomUUID() + "\",\"scopeType\":\"user\",\"scopeValue\":\"" + value + "\"}");
             assertEquals(400, refused.statusCode(), value + ": " + refused.body());

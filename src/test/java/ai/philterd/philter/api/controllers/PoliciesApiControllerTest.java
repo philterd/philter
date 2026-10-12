@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -26,7 +27,6 @@ import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,15 +81,15 @@ class PoliciesApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -177,7 +177,7 @@ class PoliciesApiControllerTest {
 
     @Test
     void getReturns404WhenANonAdminNamesAnotherOwner() throws Exception {
-        makeOwnerLookup("other@example.com", new ObjectId());
+        makeOwnerLookup("other@example.com", MongoIds.newId());
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
         caller.setRole("user");
@@ -299,7 +299,7 @@ class PoliciesApiControllerTest {
     @Test
     void replaceReturns409WithAReasonWhenThePolicyChangedConcurrently() throws Exception {
         final PolicyEntity existing = new PolicyEntity();
-        existing.setId(new ObjectId());
+        existing.setId(MongoIds.newId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
         when(policyDataService.replace(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
@@ -319,7 +319,7 @@ class PoliciesApiControllerTest {
     @Test
     void replaceReturnsTheServiceMessageWhenThePolicyWasDeletedMeanwhile() throws Exception {
         final PolicyEntity existing = new PolicyEntity();
-        existing.setId(new ObjectId());
+        existing.setId(MongoIds.newId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
         when(policyDataService.replace(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
@@ -423,7 +423,7 @@ class PoliciesApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(admin);
     }
 
-    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+    private void makeOwnerLookup(final String email, final String ownerId) {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
@@ -432,7 +432,7 @@ class PoliciesApiControllerTest {
 
     @Test
     void adminCanListAnotherUsersPoliciesViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         when(policyDataService.listOwn(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
@@ -447,7 +447,7 @@ class PoliciesApiControllerTest {
 
     @Test
     void nonAdminNamingAnotherOwnerGets404() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUser);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
@@ -482,7 +482,7 @@ class PoliciesApiControllerTest {
     @Test
     void replaceUpdatesTheExistingPolicyAndRecordsItsActivation() throws Exception {
         final PolicyEntity existing = new PolicyEntity();
-        existing.setId(new ObjectId());
+        existing.setId(MongoIds.newId());
         when(policyDataService.findOne("my-policy", userId)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
         when(policyDataService.replace(anyString(), eq(userId), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
@@ -527,11 +527,11 @@ class PoliciesApiControllerTest {
 
     @Test
     void adminCanReplaceAnotherUsersPolicyViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         final PolicyEntity existing = new PolicyEntity();
-        existing.setId(new ObjectId());
+        existing.setId(MongoIds.newId());
         when(policyDataService.findOne("their-policy", otherUser)).thenReturn(existing);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));
         when(policyDataService.replace(anyString(), eq(otherUser), eq(existing.getId()), anyString(), isNull(), isNull(), anyString(), any(), isNull()))
@@ -548,7 +548,7 @@ class PoliciesApiControllerTest {
 
     @Test
     void adminCanCreateAPolicyForAnotherUserViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         when(policyDataService.validatePolicy(anyString())).thenReturn(PolicyValidation.valid("ok"));

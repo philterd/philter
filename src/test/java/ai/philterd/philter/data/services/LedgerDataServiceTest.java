@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -87,7 +88,7 @@ class LedgerDataServiceTest {
 
     @Test
     void isDocumentIdUnique() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String documentId = "doc123";
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -99,11 +100,11 @@ class LedgerDataServiceTest {
 
     @Test
     void getLatestTransaction() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String documentId = "doc123";
         Document doc = new Document("_id", new ObjectId())
                 .append("document_id", documentId)
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("start_position", 0L);
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -118,7 +119,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteAllByUserIdSucceedsWhenNoHoldsActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(10L);
@@ -140,7 +141,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteAllByUserIdReturns423WhenHoldIsActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LegalHoldEntity hold = holdEntityUser("REF-1", userId);
         when(legalHoldDataService.hasAnyHold(userId)).thenReturn(true);
         when(legalHoldDataService.findAllHoldsForUser(userId)).thenReturn(List.of(hold));
@@ -158,7 +159,7 @@ class LedgerDataServiceTest {
 
     @Test
     void countChainsByUserId() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(5L);
 
         int count = ledgerDataService.countChainsByUserId(userId);
@@ -168,7 +169,7 @@ class LedgerDataServiceTest {
 
     @Test
     void findChainsByUserId() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
@@ -214,7 +215,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteChainsByUserIdAndOlderThanSucceedsWhenNoHoldsActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> eligible = mock(FindIterable.class);
         final com.mongodb.client.MongoCursor<Document> cursor = mock(com.mongodb.client.MongoCursor.class);
         when(chainStates.find(any(Bson.class))).thenReturn(eligible);
@@ -236,7 +237,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteChainsByUserIdAndOlderThanReturns423WhenUserScopeHoldActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LegalHoldEntity hold = holdEntityUser("LIT-001", userId);
         when(legalHoldDataService.hasAnyHold(userId)).thenReturn(true);
         when(legalHoldDataService.findAllHoldsForUser(userId)).thenReturn(List.of(hold));
@@ -254,7 +255,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteChainsByUserIdAndOlderThanReturns423WhenDocumentChainHoldActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LegalHoldEntity hold = holdEntityDocChain("DOC-HOLD", userId, "doc123");
         when(legalHoldDataService.hasAnyHold(userId)).thenReturn(true);
         when(legalHoldDataService.findAllHoldsForUser(userId)).thenReturn(List.of(hold));
@@ -268,7 +269,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteByDocumentIdSucceedsWhenNoHoldsActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
 
@@ -287,7 +288,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteByDocumentIdReturns423WhenDocumentChainHoldActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LegalHoldEntity hold = holdEntityDocChain("LIT-DOC", userId, "doc123");
         when(legalHoldDataService.isProtectedDocument(userId, "doc123")).thenReturn(true);
         when(legalHoldDataService.findBlockingHoldsForDocument(userId, "doc123"))
@@ -306,7 +307,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteByDocumentIdReturns423WhenUserScopeHoldActive() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LegalHoldEntity hold = holdEntityUser("USER-HOLD", userId);
         when(legalHoldDataService.isProtectedDocument(userId, "doc999")).thenReturn(true);
         when(legalHoldDataService.findBlockingHoldsForDocument(userId, "doc999"))
@@ -322,7 +323,7 @@ class LedgerDataServiceTest {
 
     @Test
     void deleteByDocumentIdCanBeBlockedByMultipleHolds() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LegalHoldEntity h1 = holdEntityDocChain("LIT-A", userId, "docX");
         final LegalHoldEntity h2 = holdEntityUser("LIT-B", userId);
         when(legalHoldDataService.isProtectedDocument(userId, "docX")).thenReturn(true);
@@ -338,7 +339,7 @@ class LedgerDataServiceTest {
 
     @Test
     void searchChainsByUserIdAuditsHashNotSearchTerm() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String searchTerm = "sensitive-patient-name";
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -362,20 +363,20 @@ class LedgerDataServiceTest {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private LegalHoldEntity holdEntityUser(final String reference, final ObjectId userId) {
+    private LegalHoldEntity holdEntityUser(final String reference, final String userId) {
         final LegalHoldEntity e = new LegalHoldEntity();
-        e.setId(new ObjectId());
+        e.setId(MongoIds.newId());
         e.setUserId(userId);
         e.setReference(reference);
         e.setScopeType(LegalHoldEntity.SCOPE_USER);
-        e.setScopeValue(userId.toHexString());
+        e.setScopeValue(userId);
         return e;
     }
 
-    private LegalHoldEntity holdEntityDocChain(final String reference, final ObjectId userId,
+    private LegalHoldEntity holdEntityDocChain(final String reference, final String userId,
                                                 final String documentId) {
         final LegalHoldEntity e = new LegalHoldEntity();
-        e.setId(new ObjectId());
+        e.setId(MongoIds.newId());
         e.setUserId(userId);
         e.setReference(reference);
         e.setScopeType(LegalHoldEntity.SCOPE_DOCUMENT_CHAIN);
@@ -389,7 +390,7 @@ class LedgerDataServiceTest {
         when(mongoCollection.find(any(Bson.class))).thenThrow(new com.mongodb.MongoTimeoutException("no server"));
 
         org.junit.jupiter.api.Assertions.assertThrows(com.mongodb.MongoException.class,
-                () -> ledgerDataService.validateChain(new ObjectId(), "doc-1"));
+                () -> ledgerDataService.validateChain(MongoIds.newId(), "doc-1"));
     }
 
 }

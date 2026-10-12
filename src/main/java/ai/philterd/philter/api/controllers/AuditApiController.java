@@ -26,6 +26,7 @@ import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -125,7 +126,7 @@ public class AuditApiController extends AbstractApiController {
         }
 
         // Resolved by the usual rules, so an unreachable owner is a 404, not an empty page.
-        ObjectId principalId = null;
+        String principalId = null;
         if (owner != null && !owner.isBlank()) {
             principalId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
             if (principalId == null) {
@@ -149,13 +150,13 @@ public class AuditApiController extends AbstractApiController {
                         listingSort(null, order, EVENT_SORT, "timestamp", true).descending());
 
         // The actor is stored by id; name the users among them in one query for the page.
-        final List<ObjectId> actorIds = new ArrayList<>();
+        final List<String> actorIds = new ArrayList<>();
         for (final Document document : documents) {
-            if (document.get("api_key_id") instanceof final ObjectId actorId && !actorIds.contains(actorId)) {
-                actorIds.add(actorId);
+            if (document.get("api_key_id") instanceof final ObjectId actorId && !actorIds.contains(MongoIds.hex(actorId))) {
+                actorIds.add(MongoIds.hex(actorId));
             }
         }
-        final Map<ObjectId, String> usernames = userService.findUsernamesByIds(actorIds);
+        final Map<String, String> usernames = userService.findUsernamesByIds(actorIds);
 
         final List<AuditEventView> events = new ArrayList<>(documents.size());
         for (final Document document : documents) {
@@ -210,14 +211,14 @@ public class AuditApiController extends AbstractApiController {
 
     }
 
-    private static AuditEventView toView(final Document document, final Map<ObjectId, String> usernames) {
+    private static AuditEventView toView(final Document document, final Map<String, String> usernames) {
         final Object actor = document.get("api_key_id");
         return new AuditEventView(
                 document.getDate("timestamp"),
                 document.getString("event"),
                 document.getString("request_id"),
                 asString(actor),
-                actor instanceof final ObjectId actorId ? usernames.get(actorId) : null,
+                actor instanceof final ObjectId actorId ? usernames.get(MongoIds.hex(actorId)) : null,
                 asString(document.get("associated_object")),
                 document.getString("client_ip_address"),
                 document.getString("source"),

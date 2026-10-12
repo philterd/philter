@@ -15,9 +15,9 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
 import org.bson.types.Binary;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
@@ -35,8 +35,8 @@ class PendingDocumentEntityTest {
 
     @Test
     void roundTripPreservesAllFields() {
-        final ObjectId id = new ObjectId();
-        final ObjectId userId = new ObjectId();
+        final String id = MongoIds.newId();
+        final String userId = MongoIds.newId();
         final Date submitted = new Date(1_700_000_000_000L);
         final Date started = new Date(1_700_000_001_000L);
         final Date completed = new Date(1_700_000_002_000L);
@@ -65,8 +65,8 @@ class PendingDocumentEntityTest {
 
         final Document doc = original.toDocument(ENCRYPTION);
 
-        assertEquals(id, doc.get("_id"));
-        assertEquals(userId, doc.get("user_id"));
+        assertEquals(MongoIds.objectId(id), doc.get("_id"));
+        assertEquals(MongoIds.objectId(userId), doc.get("user_id"));
         assertInstanceOf(Binary.class, doc.get("input"));
         assertInstanceOf(Binary.class, doc.get("output"));
 

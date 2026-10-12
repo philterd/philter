@@ -15,11 +15,11 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptedBytes;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
@@ -30,8 +30,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     public static final String STATUS_COMPLETE = "COMPLETE";
     public static final String STATUS_FAILED = "FAILED";
 
-    private ObjectId id;
-    private ObjectId userId;
+    private String id;
+    private String userId;
     private String documentId;
     private String fileName;
     private String inputMimeType;
@@ -67,8 +67,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
 
     public static PendingDocumentEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final PendingDocumentEntity entity = new PendingDocumentEntity();
-        entity.setId(document.getObjectId("_id"));
-        entity.setUserId(document.getObjectId("user_id"));
+        entity.setId(MongoIds.hex(document.getObjectId("_id")));
+        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         entity.setDocumentId(document.getString("document_id"));
         entity.setFileName(document.getString("file_name"));
         entity.setInputMimeType(document.getString("input_mime_type"));
@@ -115,9 +115,9 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("document_id", documentId);
         document.put("file_name", fileName);
         document.put("input_mime_type", inputMimeType);
@@ -130,19 +130,19 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
         document.put("input_size", input == null ? 0L : (long) input.length);
         document.put("effective_hash", effectiveHash);
         if (effectiveJson != null) {
-            final var encrypted = encryptionService.encrypt(effectiveJson, userId.toHexString());
+            final var encrypted = encryptionService.encrypt(effectiveJson, userId);
             document.put("effective_json", encrypted.getEncryptedText());
             document.put("effective_key", encrypted.getEncryptionKey());
         }
         document.put("status", status);
         document.put("error_message", errorMessage);
         if (input != null) {
-            final EncryptedBytes encrypted = encryptionService.encryptBytes(input, userId.toHexString());
+            final EncryptedBytes encrypted = encryptionService.encryptBytes(input, userId);
             document.put("input", new Binary(encrypted.ciphertext()));
             document.put("input_encrypted_key", encrypted.encryptionKey());
         }
         if (output != null) {
-            final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId.toHexString());
+            final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId);
             document.put("output", new Binary(encrypted.ciphertext()));
             document.put("output_encrypted_key", encrypted.encryptionKey());
         }
@@ -158,19 +158,19 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     }
 
     @Override
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(final ObjectId id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public void setUserId(final ObjectId userId) {
+    public void setUserId(final String userId) {
         this.userId = userId;
     }
 

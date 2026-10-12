@@ -21,6 +21,7 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
@@ -31,7 +32,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,15 +83,15 @@ class PolicyVersionsApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -134,7 +134,7 @@ class PolicyVersionsApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(admin);
     }
 
-    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+    private void makeOwnerLookup(final String email, final String ownerId) {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
@@ -242,7 +242,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void listVersionsReturns404ForNonAdminOwnerParam() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUser);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
@@ -257,7 +257,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void adminCanListAnotherUsersVersionsViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         when(policyVersionDataService.listByName(eq(POLICY_NAME), eq(otherUser), org.mockito.ArgumentMatchers.anyBoolean(), anyInt(), anyInt()))
@@ -306,7 +306,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void getVersionReturns404ForNonAdminOwnerParam() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUser);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
@@ -622,7 +622,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void rollbackReturns404ForNonAdminOwnerParam() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUser);
         final UserEntity caller = new UserEntity();
         caller.setId(userId);
@@ -641,7 +641,7 @@ class PolicyVersionsApiControllerTest {
 
     @Test
     void adminCanRollBackAnotherUsersPolicy() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
 

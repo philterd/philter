@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
@@ -235,7 +236,7 @@ class AuditLogServiceExportIT extends AbstractMongoIT {
     @DisplayName("A cursor survives its encoding, and a string that is not one is refused")
     void cursorEncoding() {
         final AuditLogService.ExportCursor cursor =
-                new AuditLogService.ExportCursor(Date.from(Instant.parse("2026-10-01T10:00:00.123Z")), new org.bson.types.ObjectId());
+                new AuditLogService.ExportCursor(Date.from(Instant.parse("2026-10-01T10:00:00.123Z")), MongoIds.newId());
         assertEquals(cursor, AuditLogService.ExportCursor.parse(cursor.encode()));
 
         for (final String bad : List.of("", "not-a-cursor", "MTIz", java.util.Base64.getUrlEncoder().encodeToString("x:y".getBytes(StandardCharsets.US_ASCII)))) {

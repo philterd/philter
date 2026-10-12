@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import com.mongodb.client.FindIterable;
@@ -52,8 +53,8 @@ class LegalHoldDataServiceTest {
 
     private LegalHoldDataService service;
 
-    private final ObjectId userId = new ObjectId();
-    private final ObjectId setByUserId = new ObjectId();
+    private final String userId = MongoIds.newId();
+    private final String setByUserId = MongoIds.newId();
 
     @BeforeEach
     void setUp() {
@@ -102,7 +103,7 @@ class LegalHoldDataServiceTest {
         when(fi.first()).thenReturn(holdDoc("REF-1", LegalHoldEntity.SCOPE_USER, "val"));
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        final ServiceResponse r = service.create("req", "REF-1", LegalHoldEntity.SCOPE_USER, userId.toHexString(), null, userId, setByUserId);
+        final ServiceResponse r = service.create("req", "REF-1", LegalHoldEntity.SCOPE_USER, userId, null, userId, setByUserId);
         assertFalse(r.isSuccessful());
         assertEquals(409, r.getStatusCode());
         assertEquals(LegalHoldDataService.REASON_HOLD_EXISTS, r.getDetails());
@@ -149,7 +150,7 @@ class LegalHoldDataServiceTest {
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertResult);
 
         final ServiceResponse r = service.create("req", "REF-3", LegalHoldEntity.SCOPE_USER,
-                userId.toHexString(), null, userId, setByUserId);
+                userId, null, userId, setByUserId);
         assertTrue(r.isSuccessful());
     }
 
@@ -212,7 +213,7 @@ class LegalHoldDataServiceTest {
     void isProtectedDocumentReturnsTrueWhenUserScopeHoldExists() {
         // A user-scope hold protects ALL of the user's documents.
         final FindIterable<Document> fi = mock(FindIterable.class);
-        when(fi.first()).thenReturn(holdDoc("REF-2", LegalHoldEntity.SCOPE_USER, userId.toHexString()));
+        when(fi.first()).thenReturn(holdDoc("REF-2", LegalHoldEntity.SCOPE_USER, userId));
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
         assertTrue(service.isProtectedDocument(userId, "any-document-id"));
@@ -255,7 +256,7 @@ class LegalHoldDataServiceTest {
 
     @Test
     void findAllByUserIdReturnsHolds() {
-        final Document doc = holdDoc("REF-1", LegalHoldEntity.SCOPE_USER, userId.toHexString());
+        final Document doc = holdDoc("REF-1", LegalHoldEntity.SCOPE_USER, userId);
         final FindIterable<Document> fi = iterableOf(doc);
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
@@ -304,16 +305,16 @@ class LegalHoldDataServiceTest {
 
     @Test
     void fromDocumentMapsAllFields() {
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         final Date now = new Date();
-        final Document doc = new Document("_id", id)
-                .append("user_id", userId)
+        final Document doc = new Document("_id", MongoIds.objectId(id))
+                .append("user_id", MongoIds.objectId(userId))
                 .append("reference", "REF-X")
                 .append("scope_type", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN)
                 .append("scope_value", "doc-abc")
                 .append("reason", "Litigation")
                 .append("set_at", now)
-                .append("set_by_user_id", setByUserId);
+                .append("set_by_user_id", MongoIds.objectId(setByUserId));
 
         final LegalHoldEntity entity = LegalHoldEntity.fromDocument(doc);
         assertEquals(id, entity.getId());
@@ -332,13 +333,13 @@ class LegalHoldDataServiceTest {
 
     private Document holdDoc(final String reference, final String scopeType, final String scopeValue) {
         return new Document("_id", new ObjectId())
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("reference", reference)
                 .append("scope_type", scopeType)
                 .append("scope_value", scopeValue)
                 .append("reason", null)
                 .append("set_at", new Date())
-                .append("set_by_user_id", setByUserId);
+                .append("set_by_user_id", MongoIds.objectId(setByUserId));
     }
 
     @SafeVarargs

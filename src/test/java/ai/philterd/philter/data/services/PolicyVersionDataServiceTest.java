@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -73,7 +74,7 @@ class PolicyVersionDataServiceTest {
         final FindIterable<Document> fi = emptyFindIterable();
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        final List<PolicyVersionEntity> result = service.findAllByName("my-policy", new ObjectId(), 0, 25);
+        final List<PolicyVersionEntity> result = service.findAllByName("my-policy", MongoIds.newId(), 0, 25);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
@@ -81,7 +82,7 @@ class PolicyVersionDataServiceTest {
 
     @Test
     void findAllByNameReturnsVersionsOrderedByRevisionDescending() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Document v3 = versionDoc("my-policy", userId, 3, "hash3");
         final Document v2 = versionDoc("my-policy", userId, 2, "hash2");
         final Document v1 = versionDoc("my-policy", userId, 1, "hash1");
@@ -104,7 +105,7 @@ class PolicyVersionDataServiceTest {
         final FindIterable<Document> fi = emptyFindIterable();
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        service.findAllByName("my-policy", new ObjectId(), 10, 5);
+        service.findAllByName("my-policy", MongoIds.newId(), 10, 5);
 
         verify(fi).skip(10);
         verify(fi).limit(5);
@@ -112,11 +113,11 @@ class PolicyVersionDataServiceTest {
 
     @Test
     void findAllByNamePopulatesEntityFieldsFromDocument() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Date now = new Date();
         final Document doc = new Document("_id", new ObjectId())
                 .append("name", "my-policy")
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("revision", 7)
                 .append("content_hash", "abc123")
                 .append("policy", "{\"identifiers\":{}}")
@@ -148,14 +149,14 @@ class PolicyVersionDataServiceTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
         final PolicyVersionEntity result =
-                service.findByNameAndRevision("my-policy", new ObjectId(), 99);
+                service.findByNameAndRevision("my-policy", MongoIds.newId(), 99);
 
         assertNull(result);
     }
 
     @Test
     void findByNameAndRevisionReturnsEntityWhenFound() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Document doc = versionDoc("my-policy", userId, 5, "hash5");
 
         final FindIterable<Document> fi = mock(FindIterable.class);
@@ -178,7 +179,7 @@ class PolicyVersionDataServiceTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
         final PolicyVersionEntity result =
-                service.findByNameAndRevision("my-policy", new ObjectId(), 3);
+                service.findByNameAndRevision("my-policy", MongoIds.newId(), 3);
 
         assertNull(result);
     }
@@ -193,14 +194,14 @@ class PolicyVersionDataServiceTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
         final List<PolicyVersionEntity> result =
-                service.findTwoMostRecent("my-policy", new ObjectId());
+                service.findTwoMostRecent("my-policy", MongoIds.newId());
 
         assertTrue(result.isEmpty());
     }
 
     @Test
     void findTwoMostRecentReturnsAtMostTwoVersions() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Document v5 = versionDoc("my-policy", userId, 5, "h5");
         final Document v4 = versionDoc("my-policy", userId, 4, "h4");
 
@@ -219,7 +220,7 @@ class PolicyVersionDataServiceTest {
 
     @Test
     void findTwoMostRecentReturnsSingleElementWhenOnlyOneVersionExists() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> fi = iterableOf(versionDoc("my-policy", userId, 1, "h1"));
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
@@ -233,11 +234,11 @@ class PolicyVersionDataServiceTest {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private Document versionDoc(final String name, final ObjectId userId, final int revision,
+    private Document versionDoc(final String name, final String userId, final int revision,
                                  final String hash) {
         return new Document("_id", new ObjectId())
                 .append("name", name)
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("revision", revision)
                 .append("content_hash", hash)
                 .append("policy", "{\"identifiers\":{}}")

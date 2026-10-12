@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
@@ -33,7 +34,6 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -94,7 +94,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * Looks up an <strong>active</strong> (not deactivated) user by username, for actions that grant a user
      * access: signing in and creating an API key. Use {@link #findAnyByUsername(String)} to resolve a user
      * whose data is being reached, such as the cross-user {@code owner} parameter, or to detect a username
-     * that is already taken (including by a deactivated account), and {@link #findOneById(ObjectId)} or
+     * that is already taken (including by a deactivated account), and {@link #findOneById(String)} or
      * {@link #findUsernamesByIds(Collection)} to resolve a deactivated user for audit and ledger display.
      */
     public UserEntity findByUsername(final String username) {
@@ -125,8 +125,8 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * so deactivation and reactivation take effect immediately without touching the user's API keys.
      * A missing user is treated as deactivated (no active access).
      */
-    public boolean isDeactivated(final ObjectId userId) {
-        final Document document = collection.find(Filters.eq("_id", userId))
+    public boolean isDeactivated(final String userId) {
+        final Document document = collection.find(Filters.eq("_id", MongoIds.objectId(userId)))
                 .projection(Projections.include("deactivated")).first();
         return document == null || document.getBoolean("deactivated", false);
     }
@@ -135,9 +135,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * Looks up a user by id, including deactivated users, so that audit and ledger entries that
      * reference a deactivated user still resolve to the retained record.
      */
-    public UserEntity findOneById(final ObjectId id) {
+    public UserEntity findOneById(final String id) {
 
-        final Document query = new Document("_id", id);
+        final Document query = new Document("_id", MongoIds.objectId(id));
 
         final Document document = collection.find(query).first();
 
@@ -158,14 +158,14 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * username. Used by the admin "All ..." views to label each row with its owner without issuing one
      * lookup per row. Ids with no matching user are simply absent from the returned map.
      */
-    public Map<ObjectId, String> findUsernamesByIds(final Collection<ObjectId> ids) {
+    public Map<String, String> findUsernamesByIds(final Collection<String> ids) {
 
         if (ids == null || ids.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        final Map<ObjectId, String> usernamesById = new HashMap<>();
-        for (final Document document : collection.find(Filters.in("_id", ids))) {
+        final Map<String, String> usernamesById = new HashMap<>();
+        for (final Document document : collection.find(Filters.in("_id", MongoIds.objectIds(ids)))) {
             final UserEntity user = UserEntity.fromDocument(document, encryptionService);
             usernamesById.put(user.getId(), user.getUsername());
         }
@@ -193,7 +193,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      */
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
                                       final PolicyDataService policyService, final ContextDataService contextService,
-                                      final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                      final String source, final String actingUserId, final String actingApiKeyId) {
         return createUser(requestId, username, email, role, null, policyService, contextService, source,
                 actingUserId, actingApiKeyId);
     }
@@ -208,7 +208,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     public ServiceResponse createUser(final String requestId, final String username, final String email, final String role,
                                       final String password, final PolicyDataService policyService,
                                       final ContextDataService contextService, final String source,
-                                      final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                      final String actingUserId, final String actingApiKeyId) {
 
         if (password != null && passwordProblem(password) != null) {
             throw new IllegalArgumentException(passwordProblem(password));
@@ -241,7 +241,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             userEntity.setPassword(passwordEncoder.encode(password));
             userEntity.setPasswordChangeRequired(true);
         }
-        final ObjectId userId = save(userEntity);
+        final String userId = save(userEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_CREATED,
                 actingUserId == null ? userId : actingUserId, userId, source, withApiKey("role: " + role, actingApiKeyId));
@@ -342,7 +342,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * null) and {@code actingApiKeyId}, if any, in the details. Refuses to demote the last active
      * administrator.
      */
-    public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+    public ServiceResponse setUserRole(final String requestId, final UserEntity userEntity, final String newRole, final String source, final String actingUserId, final String actingApiKeyId) {
 
         if (userEntity == null) {
             return ServiceResponse.failure("User does not exist.");
@@ -393,7 +393,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * recorded in the audit log.
      */
     public ServiceResponse setEmail(final String requestId, final UserEntity userEntity, final String email,
-                                    final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                    final String source, final String actingUserId, final String actingApiKeyId) {
 
         final String problem = emailProblem(email);
         if (problem != null) {
@@ -416,7 +416,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     }
 
     /** Appends the acting API key to audit details, so an API change names the credential that made it. */
-    private static String withApiKey(final String details, final ObjectId actingApiKeyId) {
+    private static String withApiKey(final String details, final String actingApiKeyId) {
         if (actingApiKeyId == null) {
             return details;
         }
@@ -457,7 +457,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      *
      * <p>A deactivated user holds no active access: it is excluded from {@link #findByUsername(String)},
      * which sign-in consults, and
-     * the API authentication filter rejects its API keys by checking {@link #isDeactivated(ObjectId)}
+     * the API authentication filter rejects its API keys by checking {@link #isDeactivated(String)}
      * live. The keys themselves are left untouched so reactivation restores access immediately without
      * resurrecting keys the user had separately deleted.
      *
@@ -474,7 +474,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * when null) and {@code actingApiKeyId}, if any, in the details. Refuses to deactivate the last
      * active administrator.
      */
-    public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+    public ServiceResponse deactivateUser(final String requestId, final UserEntity userEntity, final String source, final String actingUserId, final String actingApiKeyId) {
 
         if (isLastActiveAdmin(userEntity)) {
             return new ServiceResponse(LAST_ADMIN_MESSAGE, false, 409, ErrorReasons.LAST_ADMIN);
@@ -506,7 +506,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * Reactivates a user as above, recording {@code actingUserId} as the audit principal (the target user
      * when null) and {@code actingApiKeyId}, if any, in the details.
      */
-    public ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+    public ServiceResponse reactivateUser(final String requestId, final UserEntity userEntity, final String source, final String actingUserId, final String actingApiKeyId) {
 
         userEntity.setDeactivated(false);
         userEntity.setDeactivatedAt(null);
@@ -542,7 +542,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      */
     public ServiceResponse setWebhook(final String requestId, final UserEntity user, final String url,
                                       final String secret, final String allowlist, final String source,
-                                      final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                      final String actingUserId, final String actingApiKeyId) {
 
         // Without a new secret the one already set is kept, so the URL can change without rotating it.
         final boolean keepsSecret = (secret == null || secret.isEmpty())
@@ -567,7 +567,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
     /** Removes a user's webhook and audits {@code webhook_removed}, recording the acting principal as above. */
     public ServiceResponse removeWebhook(final String requestId, final UserEntity user, final String source,
-                                         final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                         final String actingUserId, final String actingApiKeyId) {
 
         user.setWebhookUrl(null);
         user.setWebhookSecret(null);
@@ -634,7 +634,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * password is wrong), or 409 (the user has no password, or it changed concurrently).
      */
     public ServiceResponse changeOwnPassword(final String requestId, final UserEntity user, final String currentPassword,
-                                             final String newPassword, final String source, final ObjectId actingApiKeyId) {
+                                             final String newPassword, final String source, final String actingApiKeyId) {
 
         if (user.getPassword() == null) {
             return new ServiceResponse("The user has no password. An administrator sets the first one.", false, 409);
@@ -672,7 +672,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      */
     public ServiceResponse setPassword(final String requestId, final UserEntity user, final String newPassword,
                                        final boolean changeRequired, final String source,
-                                       final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                       final String actingUserId, final String actingApiKeyId) {
 
         final String problem = passwordProblem(newPassword);
         if (problem != null) {
@@ -724,7 +724,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * enrollment was started).
      */
     public ServiceResponse confirmMfaEnrollment(final String requestId, final UserEntity user, final String code,
-                                                final String source, final ObjectId actingApiKeyId) {
+                                                final String source, final String actingApiKeyId) {
 
         if (user.isMfaEnabled()) {
             return new ServiceResponse("MFA is already enrolled.", false, 409, ErrorReasons.MFA_ALREADY_ENROLLED);
@@ -750,7 +750,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
             selected.put(field, serialized.get(field));
         }
         // Only one of two concurrent confirmations enrolls.
-        if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.ne("mfa_enabled", true)),
+        if (collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(user.getId())), Filters.ne("mfa_enabled", true)),
                 new Document("$set", selected)).getMatchedCount() != 1) {
             return new ServiceResponse("MFA is already enrolled.", false, 409, ErrorReasons.MFA_ALREADY_ENROLLED);
         }
@@ -779,7 +779,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
 
         final long step = totpService.matchingTimeStep(user.getMfaSecret(), code);
         if (step != TotpService.NO_MATCH) {
-            final boolean accepted = collection.updateOne(Filters.and(Filters.eq("_id", user.getId()),
+            final boolean accepted = collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(user.getId())),
                             Filters.eq("mfa_enabled", true), Filters.ne("mfa_locked", true),
                             Filters.or(Filters.lt("mfa_last_used_time_step", step),
                                     Filters.exists("mfa_last_used_time_step", false))),
@@ -800,14 +800,14 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
     private boolean recordBadMfaCode(final String requestId, final UserEntity user, final String source) {
 
         final Document after = collection.findOneAndUpdate(
-                Filters.and(Filters.eq("_id", user.getId()), Filters.eq("mfa_enabled", true)),
+                Filters.and(Filters.eq("_id", MongoIds.objectId(user.getId())), Filters.eq("mfa_enabled", true)),
                 new Document("$inc", new Document("mfa_failed_attempts", 1)),
                 new com.mongodb.client.model.FindOneAndUpdateOptions().returnDocument(com.mongodb.client.model.ReturnDocument.AFTER));
         if (after == null || after.getInteger("mfa_failed_attempts", 0) < MAX_MFA_ATTEMPTS) {
             return false;
         }
 
-        if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.ne("mfa_locked", true)),
+        if (collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(user.getId())), Filters.ne("mfa_locked", true)),
                 new Document("$set", new Document("mfa_locked", true))).getMatchedCount() == 1) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.USER_MFA_LOCKED, user.getId(), user.getId(), source,
                     "after " + MAX_MFA_ATTEMPTS + " consecutive bad codes");
@@ -824,7 +824,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * @return a failure with status 409 if the user is not enrolled.
      */
     public ServiceResponse removeMfa(final String requestId, final UserEntity user, final String source,
-                                     final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                     final String actingUserId, final String actingApiKeyId) {
 
         if (!user.isMfaEnabled() && user.getMfaPendingSecret() == null) {
             return new ServiceResponse("MFA is not enrolled.", false, 409, ErrorReasons.MFA_NOT_ENROLLED);
@@ -853,9 +853,9 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      * @return a failure with status 409 if the user is not locked.
      */
     public ServiceResponse unlockMfa(final String requestId, final UserEntity user, final String source,
-                                     final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+                                     final String actingUserId, final String actingApiKeyId) {
 
-        if (collection.updateOne(Filters.and(Filters.eq("_id", user.getId()), Filters.eq("mfa_locked", true)),
+        if (collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(user.getId())), Filters.eq("mfa_locked", true)),
                 new Document("$set", new Document("mfa_locked", false).append("mfa_failed_attempts", 0)))
                 .getMatchedCount() != 1) {
             return new ServiceResponse("The user is not locked.", false, 409);
@@ -876,7 +876,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
      */
     private boolean writePassword(final UserEntity user, final String newHash, final boolean changeRequired) {
         final boolean written = collection.updateOne(
-                Filters.and(Filters.eq("_id", user.getId()), Filters.eq("password", user.getPassword())),
+                Filters.and(Filters.eq("_id", MongoIds.objectId(user.getId())), Filters.eq("password", user.getPassword())),
                 new Document("$set", new Document("password", newHash).append("password_change_required", changeRequired)))
                 .getMatchedCount() == 1;
         if (written) {
@@ -891,7 +891,7 @@ public class UserService extends AbstractEncryptedService<UserEntity> {
         final Document selected = new Document();
         for (final String field : fields) selected.put(field, serialized.get(field));
         final Document update = new Document("$set", selected);
-        org.bson.conversions.Bson predicate = Filters.eq("_id", user.getId());
+        org.bson.conversions.Bson predicate = Filters.eq("_id", MongoIds.objectId(user.getId()));
         if (selected.containsKey("deactivated")) {
             predicate = Filters.and(predicate, Filters.ne("deactivated", user.isDeactivated()));
         }

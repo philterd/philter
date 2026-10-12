@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -29,7 +30,6 @@ import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.junit.jupiter.api.AfterEach;
@@ -86,15 +86,15 @@ class ContextsApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -183,7 +183,7 @@ class ContextsApiControllerTest {
 
     @Test
     void listAllowedForAdminOnAnotherUserViaOwnerParam() throws Exception {
-        final ObjectId otherOwner = new ObjectId();
+        final String otherOwner = MongoIds.newId();
         makeUserAdmin();
         makeOwnerLookup("other@example.com", otherOwner);
         when(contextService.list(eq(otherOwner), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
@@ -202,7 +202,7 @@ class ContextsApiControllerTest {
 
     @Test
     void listForbiddenForNonAdminNamingAnotherOwner() throws Exception {
-        final ObjectId otherOwner = new ObjectId();
+        final String otherOwner = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherOwner);
         when(userService.findOneById(userId)).thenReturn(null); // caller is not an admin
 
@@ -288,10 +288,10 @@ class ContextsApiControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Context does not exist."));
 
-        verify(auditEventPublisher, never()).auditEvent(anyString(), eq(AuditLogEvent.CONTEXT_DELETED), any(ObjectId.class), anyString());
+        verify(auditEventPublisher, never()).auditEvent(anyString(), eq(AuditLogEvent.CONTEXT_DELETED), any(String.class), anyString());
     }
 
-    private static ContextEntity contextOwnedBy(final ObjectId owner) {
+    private static ContextEntity contextOwnedBy(final String owner) {
         final ContextEntity context = new ContextEntity();
         context.setUserId(owner);
         return context;
@@ -305,7 +305,7 @@ class ContextsApiControllerTest {
     }
 
     /** Stubs userService.findByUsername so the given email resolves to a user with the given id. */
-    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+    private void makeOwnerLookup(final String email, final String ownerId) {
         final ai.philterd.philter.data.entities.UserEntity owner = new ai.philterd.philter.data.entities.UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
@@ -360,7 +360,7 @@ class ContextsApiControllerTest {
 
     @Test
     void exportAllowedForAdminOnAnotherUsersContextViaOwnerParam() throws Exception {
-        final ObjectId otherOwner = new ObjectId();
+        final String otherOwner = MongoIds.newId();
         // The caller does not own the context, but is an admin and names the owner via the owner param.
         makeUserAdmin();
         makeOwnerLookup("other@example.com", otherOwner);
@@ -381,7 +381,7 @@ class ContextsApiControllerTest {
     void exportForbiddenForNonAdminNamingAnotherOwner() throws Exception {
         // A non-admin caller naming another user as owner must be denied (404), never reaching that
         // user's context.
-        final ObjectId otherOwner = new ObjectId();
+        final String otherOwner = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherOwner);
         when(userService.findOneById(userId)).thenReturn(null); // caller is not an admin
 
@@ -525,7 +525,7 @@ class ContextsApiControllerTest {
 
     @Test
     void importAllowedForAdminOnAnotherUsersContextViaOwnerParam() throws Exception {
-        final ObjectId otherOwner = new ObjectId();
+        final String otherOwner = MongoIds.newId();
         // The caller does not own the context, but is an admin and names the owner via the owner param.
         makeUserAdmin();
         makeOwnerLookup("other@example.com", otherOwner);
@@ -548,7 +548,7 @@ class ContextsApiControllerTest {
     @Test
     void importForbiddenForNonAdminNamingAnotherOwner() throws Exception {
         // A non-admin caller naming another user as owner must be denied (404) before any write.
-        final ObjectId otherOwner = new ObjectId();
+        final String otherOwner = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherOwner);
         when(userService.findOneById(userId)).thenReturn(null); // caller is not an admin
 
@@ -905,10 +905,10 @@ class ContextsApiControllerTest {
 
     @Test
     void deleteEntryRemovesTheEntryScopedToTheOwningUser() throws Exception {
-        final ObjectId entryId = new ObjectId();
+        final String entryId = MongoIds.newId();
         when(contextEntryService.deleteByIdAndUserIdAndContext(eq(entryId), eq(userId), eq("my-context"))).thenReturn(1L);
 
-        mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId.toHexString())
+        mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId)
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-del-entry"))
                 .andExpect(status().isOk());
@@ -916,15 +916,15 @@ class ContextsApiControllerTest {
         // Scoped by user id, so one user cannot delete another user's entry by guessing its id.
         verify(contextEntryService).deleteByIdAndUserIdAndContext(entryId, userId, "my-context");
         verify(auditEventPublisher).auditEvent(eq("req-del-entry"), eq(AuditLogEvent.CONTEXT_ENTRY_DELETED),
-                eq(userId), isNull(), any(), contains(entryId.toHexString()));
+                eq(userId), isNull(), any(), contains(entryId));
     }
 
     @Test
     void deleteEntryReturns404WhenNothingWasDeleted() throws Exception {
-        final ObjectId entryId = new ObjectId();
+        final String entryId = MongoIds.newId();
         when(contextEntryService.deleteByIdAndUserIdAndContext(eq(entryId), eq(userId), eq("my-context"))).thenReturn(0L);
 
-        mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId.toHexString())
+        mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId)
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-del-missing"))
                 .andExpect(status().isNotFound());
@@ -946,12 +946,12 @@ class ContextsApiControllerTest {
     // ----- Admin cross-user access via the owner parameter on the context-scoped endpoints -----
 
     /** Makes the caller an admin and registers another user that owner= can resolve to. */
-    private ObjectId makeAdminWithOtherUser(final String email) {
+    private String makeAdminWithOtherUser(final String email) {
         final UserEntity admin = new UserEntity();
         admin.setId(userId);
         admin.setRole("admin");
         lenient().when(userService.findOneById(userId)).thenReturn(admin);
-        final ObjectId otherUserId = new ObjectId();
+        final String otherUserId = MongoIds.newId();
         final UserEntity owner = new UserEntity();
         owner.setId(otherUserId);
         owner.setEmail(email);
@@ -966,14 +966,14 @@ class ContextsApiControllerTest {
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
         final UserEntity owner = new UserEntity();
-        owner.setId(new ObjectId());
+        owner.setId(MongoIds.newId());
         owner.setEmail(email);
         when(userService.findAnyByUsername(email)).thenReturn(owner);
     }
 
     @Test
     void adminCanDeleteAnotherUsersContextViaOwner() throws Exception {
-        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final String otherUserId = makeAdminWithOtherUser("other@example.com");
         when(pendingDocumentDataService.hasOpenJobsForContext(eq(otherUserId), eq("ctx"))).thenReturn(false);
         when(contextService.deleteByName(eq("ctx"), eq(otherUserId), eq(true)))
                 .thenReturn(ServiceResponse.success("Context deleted."));
@@ -1004,7 +1004,7 @@ class ContextsApiControllerTest {
 
     @Test
     void adminCanUpdateAnotherUsersContextViaOwner() throws Exception {
-        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final String otherUserId = makeAdminWithOtherUser("other@example.com");
         when(contextService.updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), isNull(), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
@@ -1020,7 +1020,7 @@ class ContextsApiControllerTest {
 
     @Test
     void adminCanEmptyAnotherUsersContextEntriesViaOwner() throws Exception {
-        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final String otherUserId = makeAdminWithOtherUser("other@example.com");
         when(contextService.emptyByName(eq("ctx"), eq(otherUserId)))
                 .thenReturn(ServiceResponse.success("Entries removed."));
 
@@ -1035,11 +1035,11 @@ class ContextsApiControllerTest {
 
     @Test
     void adminCanDeleteAnEntryFromAnotherUsersContextViaOwner() throws Exception {
-        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
-        final ObjectId entryId = new ObjectId();
+        final String otherUserId = makeAdminWithOtherUser("other@example.com");
+        final String entryId = MongoIds.newId();
         when(contextEntryService.deleteByIdAndUserIdAndContext(eq(entryId), eq(otherUserId), eq("ctx"))).thenReturn(1L);
 
-        mockMvc.perform(delete("/api/contexts/ctx/entries/" + entryId.toHexString())
+        mockMvc.perform(delete("/api/contexts/ctx/entries/" + entryId)
                         .header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-x-entry"))
@@ -1051,7 +1051,7 @@ class ContextsApiControllerTest {
 
     @Test
     void adminCanCreateAContextForAnotherUserViaOwner() throws Exception {
-        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final String otherUserId = makeAdminWithOtherUser("other@example.com");
         when(contextService.create(eq("ctx"), eq(otherUserId), anyBoolean(), anyString(), anyBoolean()))
                 .thenReturn(ServiceResponse.success("Context created."));
 
@@ -1066,7 +1066,7 @@ class ContextsApiControllerTest {
 
     @Test
     void adminCanReadAnotherUsersContextAndEntriesViaOwner() throws Exception {
-        final ObjectId otherUserId = makeAdminWithOtherUser("other@example.com");
+        final String otherUserId = makeAdminWithOtherUser("other@example.com");
         final ContextEntity ctx = new ContextEntity();
         ctx.setUserId(otherUserId);
         ctx.setContextName("ctx");

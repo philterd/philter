@@ -15,10 +15,10 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import java.util.Date;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,8 +30,8 @@ class WebhookDeliveryEntityTest {
 
     @Test
     void roundTripPreservesAllFields() {
-        final ObjectId id = new ObjectId();
-        final ObjectId userId = new ObjectId();
+        final String id = MongoIds.newId();
+        final String userId = MongoIds.newId();
         final Date created = new Date(1_700_000_000_000L);
         final Date updated = new Date(1_700_000_001_000L);
         final Date next = new Date(1_700_000_002_000L);

@@ -42,7 +42,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -136,7 +135,7 @@ public class ReidentifyApiController extends AbstractApiController {
             return badRequest("'policyName' is required when strategy is CRYPTO_REPLACE.");
         }
 
-        final ObjectId targetUserId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String targetUserId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (targetUserId == null) {
             throw new NotFoundException();
         }
@@ -177,7 +176,7 @@ public class ReidentifyApiController extends AbstractApiController {
     }
 
     private List<ReidentifyResponse.ReidentifyResult> reidentifyCrypto(
-            final ReidentifyRequest request, final ObjectId userId) {
+            final ReidentifyRequest request, final String userId) {
 
         final PolicyEntity policyEntity = policyDataService.findOne(request.getPolicyName(), userId);
         if (policyEntity == null) {
@@ -207,7 +206,7 @@ public class ReidentifyApiController extends AbstractApiController {
     }
 
     private List<ReidentifyResponse.ReidentifyResult> reidentifyFpe(
-            final ReidentifyRequest request, final ObjectId userId) {
+            final ReidentifyRequest request, final String userId) {
 
         final UserEntity userEntity = userService.findOneById(userId);
         if (userEntity == null) {

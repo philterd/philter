@@ -22,6 +22,7 @@ import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -31,7 +32,6 @@ import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import com.privacylogistics.FF3Cipher;
 import org.apache.hc.client5.http.classic.HttpClient;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -119,7 +119,7 @@ class FpeRedactionIT extends AbstractMongoIT {
         final PhileasConfiguration configuration = new PhileasConfiguration(properties);
 
         final MongoContextService contextService = new MongoContextService(
-                mongoClient, new ContextCache(null, 0, null, false), new ObjectId(), "ctx", auditEventPublisher);
+                mongoClient, new ContextCache(null, 0, null, false), MongoIds.newId(), "ctx", auditEventPublisher);
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
                 configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));

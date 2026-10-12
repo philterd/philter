@@ -58,7 +58,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -146,7 +145,7 @@ public class PoliciesApiController extends AbstractApiController {
                 throw new BadRequestException("deleted cannot be combined with all_users or managed.");
             }
             final boolean descending = listingSort(sort, order, NAME_SORT, "name", false).descending();
-            final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+            final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
             if (userId == null) {
                 throw new NotFoundException();
             }
@@ -154,7 +153,7 @@ public class PoliciesApiController extends AbstractApiController {
                     "list deleted policies");
             final Listings.Page<PolicyDataService.DeletedPolicy> page =
                     policyDataService.findDeleted(userId, q, descending, pageOffset, pageLimit);
-            final java.util.Map<ObjectId, String> deleters = userService.findUsernamesByIds(page.items().stream()
+            final java.util.Map<String, String> deleters = userService.findUsernamesByIds(page.items().stream()
                     .map(PolicyDataService.DeletedPolicy::deletedBy).filter(java.util.Objects::nonNull).distinct().toList());
             return ResponseEntity.ok(new GetPoliciesResponse(page.items().stream()
                     .map(policy -> new DeletedPolicySummary(policy.name(), policy.latestRevision(), policy.deletedAt(),
@@ -184,7 +183,7 @@ public class PoliciesApiController extends AbstractApiController {
                     ownedNames(userService, page.items(), PolicyEntity::getName, PolicyEntity::getUserId), page.total()));
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -232,7 +231,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -377,7 +376,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -466,7 +465,7 @@ public class PoliciesApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -567,7 +566,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -620,7 +619,7 @@ public class PoliciesApiController extends AbstractApiController {
         requireDetailLengths(request.getDescription(), request.getNotes());
         final String expectedETag = ifMatchETag(ifMatch);
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -673,7 +672,7 @@ public class PoliciesApiController extends AbstractApiController {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }

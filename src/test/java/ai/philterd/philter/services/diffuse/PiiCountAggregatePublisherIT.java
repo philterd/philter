@@ -16,6 +16,7 @@
 package ai.philterd.philter.services.diffuse;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -30,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
-import org.bson.types.ObjectId;
 
 /**
  * Integration tests for {@link PiiCountAggregatePublisher} against a real (in-memory) MongoDB. These
@@ -41,7 +41,7 @@ import org.bson.types.ObjectId;
  */
 class PiiCountAggregatePublisherIT extends AbstractMongoIT {
 
-    private static final ObjectId ACTING_ADMIN = new ObjectId();
+    private static final String ACTING_ADMIN = MongoIds.newId();
 
     private AdminSettingsDataService adminSettingsDataService;
     private MongoCollection<Document> aggregates;
@@ -52,7 +52,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
         aggregates = mongoClient.getDatabase("philter").getCollection(PiiCountAggregatePublisher.COLLECTION);
         // Changing a setting rechecks that the acting user is an active administrator.
         mongoClient.getDatabase("philter").getCollection("users")
-                .insertOne(new org.bson.Document("_id", ACTING_ADMIN).append("role", "admin"));
+                .insertOne(new org.bson.Document("_id", MongoIds.objectId(ACTING_ADMIN)).append("role", "admin"));
     }
 
     private PiiCountAggregatePublisher enabledPublisher() {

@@ -22,7 +22,6 @@ import ai.philterd.phileas.policy.Ignored;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CustomDictionary;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +69,7 @@ public class PolicyResolver {
      * @param fpeTweak The tweak derived from the managed FPE key.
      * @return The resolved Phileas {@link Policy}.
      */
-    public Policy resolve(final String policyJson, final ObjectId userId, final String fpeKey, final String fpeTweak) {
+    public Policy resolve(final String policyJson, final String userId, final String fpeKey, final String fpeTweak) {
 
         final Policy policy = gson.fromJson(policyJson, Policy.class);
 

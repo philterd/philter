@@ -2,6 +2,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.*;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.filtering.RedactionWorker;
 import ai.philterd.philter.testutil.AbstractMongoIT;
@@ -10,7 +11,6 @@ import ai.philterd.philter.utils.EnvUtils;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClients;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.*;
 import java.util.Date;
 import java.util.concurrent.*;
@@ -24,18 +24,18 @@ class RemainingP2IT extends AbstractMongoIT {
         String uri = System.getProperty("philter.test.mongoUri");
         if (uri != null) {
             mongoClient.close(); mongoClient = spy(MongoClients.create(uri));
-            isolated = mongoClient.getDatabase("philter_p2_" + new ObjectId());
+            isolated = mongoClient.getDatabase("philter_p2_" + MongoIds.newId());
             doReturn(isolated).when(mongoClient).getDatabase("philter");
         }
     }
     @AfterEach void cleanup() { if (isolated != null) isolated.drop(); }
     private PendingDocumentDataService jobs() { return new PendingDocumentDataService(mongoClient, new TestEncryptionService(), audit); }
-    private PendingDocumentEntity job(ObjectId owner) {
-        var job = new PendingDocumentEntity(); job.setUserId(owner); job.setDocumentId(new ObjectId().toHexString());
+    private PendingDocumentEntity job(String owner) {
+        var job = new PendingDocumentEntity(); job.setUserId(owner); job.setDocumentId(MongoIds.newId());
         job.setStatus("PENDING"); job.setInput(new byte[10]); job.setSubmittedAt(new Date());
         return job;
     }
-    private PendingDocumentEntity complete(PendingDocumentDataService jobs, ObjectId owner) {
+    private PendingDocumentEntity complete(PendingDocumentDataService jobs, String owner) {
         jobs.save(job(owner)); var claim = jobs.claimNextPending("worker");
         assertTrue(jobs.beginPublication(claim.getId(), claim.getClaimToken()));
         assertTrue(jobs.markComplete(claim.getId(), owner, claim.getClaimToken(), new byte[]{1}));
@@ -49,10 +49,10 @@ class RemainingP2IT extends AbstractMongoIT {
                 mock(PolicyVersionDataService.class), new Gson());
     }
     @Test void completionSurvivesRestartAndFailedEnqueueWithoutLosingIntent() {
-        var jobs = jobs(); var owner = new ObjectId(); var terminal = complete(jobs, owner);
+        var jobs = jobs(); var owner = MongoIds.newId(); var terminal = complete(jobs, owner);
         var raw = mongoClient.getDatabase("philter").getCollection("pending_documents");
-        assertTrue(raw.find(new Document("_id", terminal.getId())).first().getBoolean("notification_pending"));
-        assertNull(raw.find(new Document("_id", terminal.getId())).first().get("retention_at"));
+        assertTrue(raw.find(new Document("_id", MongoIds.objectId(terminal.getId()))).first().getBoolean("notification_pending"));
+        assertNull(raw.find(new Document("_id", MongoIds.objectId(terminal.getId()))).first().get("retention_at"));
         assertEquals(409, assertThrows(QueueCapacityException.class,
                 () -> jobs.deleteByDocumentIdAndUserId(terminal.getDocumentId(), owner)).getStatus());
         var deliveries = spy(new WebhookDeliveryDataService(mongoClient, new TestEncryptionService(), audit));
@@ -62,13 +62,13 @@ class RemainingP2IT extends AbstractMongoIT {
         assertEquals(1, jobs.pendingNotifications(10).size());
         restarted.reconcileNotifications();
         assertEquals(0, jobs.pendingNotifications(10).size());
-        assertNotNull(raw.find(new Document("_id", terminal.getId())).first().getDate("retention_at"));
+        assertNotNull(raw.find(new Document("_id", MongoIds.objectId(terminal.getId()))).first().getDate("retention_at"));
         var delivery = mongoClient.getDatabase("philter").getCollection("webhook_deliveries").find().first();
-        assertEquals(terminal.getId(), delivery.getObjectId("_id"));
+        assertEquals(terminal.getId(), MongoIds.hex(delivery.getObjectId("_id")));
         assertFalse(delivery.toJson().contains("private-signing-secret"));
     }
     @Test void enqueueThenInterruptedAcknowledgementIsIdempotent() {
-        var jobs = spy(jobs()); complete(jobs, new ObjectId());
+        var jobs = spy(jobs()); complete(jobs, MongoIds.newId());
         var deliveries = new WebhookDeliveryDataService(mongoClient, new TestEncryptionService(), audit);
         doThrow(new IllegalStateException("interrupted after insert")).doCallRealMethod().when(jobs).acknowledgeNotification(any());
         var worker = reconciler(jobs, deliveries);
@@ -77,9 +77,9 @@ class RemainingP2IT extends AbstractMongoIT {
         assertTrue(jobs.pendingNotifications(10).isEmpty());
     }
     @Test void exhaustedReclaimsAlsoProduceNotifications() {
-        var jobs = jobs(); var pending = job(new ObjectId()); jobs.save(pending);
+        var jobs = jobs(); var pending = job(MongoIds.newId()); jobs.save(pending);
         var claim = jobs.claimNextPending("lost");
-        mongoClient.getDatabase("philter").getCollection("pending_documents").updateOne(new Document("_id", claim.getId()),
+        mongoClient.getDatabase("philter").getCollection("pending_documents").updateOne(new Document("_id", MongoIds.objectId(claim.getId())),
                 new Document("$set", new Document("claim_expires_at", new Date(0)).append("reclaim_count", 3)));
         jobs.reclaimStuckJobs(new Date(), 3);
         assertEquals("FAILED", jobs.pendingNotifications(10).getFirst().getStatus());
@@ -90,17 +90,17 @@ class RemainingP2IT extends AbstractMongoIT {
         try (var env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {
             env.when(() -> EnvUtils.getInt("ASYNC_QUEUE_MAX_USER_JOBS", 32)).thenReturn(2);
             env.when(() -> EnvUtils.getLong("ASYNC_QUEUE_MAX_USER_BYTES", 256L*1024*1024)).thenReturn(20L);
-            var jobs = jobs(); var owner = new ObjectId();
+            var jobs = jobs(); var owner = MongoIds.newId();
             jobs.save(job(owner)); jobs.save(job(owner));
             assertEquals(429, assertThrows(QueueCapacityException.class, () -> jobs.save(job(owner))).getStatus());
-            var other = new ObjectId(); jobs.save(job(other));
+            var other = MongoIds.newId(); jobs.save(job(other));
             var first = jobs.claimNextPending("worker");
             assertEquals(owner, first.getUserId());
             var second = jobs.claimNextPending("worker");
             assertEquals(other, second.getUserId(), "Other owner must run before the first owner's second queued document");
             assertTrue(jobs.markFailed(first.getId(), first.getClaimToken(), "test"));
             jobs.save(job(owner));
-            var oversized = job(new ObjectId()); oversized.setInput(new byte[21]);
+            var oversized = job(MongoIds.newId()); oversized.setInput(new byte[21]);
             assertEquals(429, assertThrows(QueueCapacityException.class, () -> jobs.save(oversized)).getStatus());
             assertEquals(3, jobs.queueStats(null).jobs()); assertEquals(30, jobs.queueStats(null).bytes());
         }
@@ -113,7 +113,7 @@ class RemainingP2IT extends AbstractMongoIT {
             try (var executor = Executors.newFixedThreadPool(8)) {
                 var tasks = instances.stream().map(service -> executor.submit(() -> {
                     start.await();
-                    try { service.save(job(new ObjectId())); } catch (QueueCapacityException full) { assertEquals(503, full.getStatus()); }
+                    try { service.save(job(MongoIds.newId())); } catch (QueueCapacityException full) { assertEquals(503, full.getStatus()); }
                     return null;
                 })).toList();
                 start.countDown(); for (var task : tasks) task.get(10, TimeUnit.SECONDS);
@@ -123,10 +123,10 @@ class RemainingP2IT extends AbstractMongoIT {
     }
     @Test void uncertainAdmissionRetainsGuardUntilOperatorRecovery() {
         assertThrows(IllegalStateException.class, () -> new QueueAdmission(mongoClient).execute(() -> { throw new IllegalStateException("uncertain insert"); }));
-        assertEquals(503, assertThrows(QueueCapacityException.class, () -> jobs().save(job(new ObjectId()))).getStatus());
+        assertEquals(503, assertThrows(QueueCapacityException.class, () -> jobs().save(job(MongoIds.newId()))).getStatus());
     }
     @Test void executionSnapshotIsEncryptedAndRetainedAfterJobDeletion() {
-        var jobs = jobs(); var pending = job(new ObjectId());
+        var jobs = jobs(); var pending = job(MongoIds.newId());
         pending.setEffectiveJson("{\"key\":\"sensitive-configuration\"}");
         pending.setEffectiveHash(PolicyVersionDataService.contentHash(pending.getEffectiveJson()));
         jobs.save(pending);
@@ -140,7 +140,7 @@ class RemainingP2IT extends AbstractMongoIT {
     @Test void saturatedOwnerDoesNotPreventAnotherOwnerFromBeingAdmitted() throws Exception {
         try (var env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {
             env.when(() -> EnvUtils.getInt("ASYNC_QUEUE_MAX_USER_JOBS", 32)).thenReturn(1);
-            var fullOwner = new ObjectId(); var otherOwner = new ObjectId();
+            var fullOwner = MongoIds.newId(); var otherOwner = MongoIds.newId();
             var first = jobs(); var second = jobs(); first.save(job(fullOwner));
             var start = new CountDownLatch(1);
             try (var executor = Executors.newFixedThreadPool(2)) {
@@ -168,7 +168,7 @@ class RemainingP2IT extends AbstractMongoIT {
             }));
             try {
                 assertTrue(entered.await(5, TimeUnit.SECONDS));
-                var waiting = executor.submit(() -> contender.save(job(new ObjectId())));
+                var waiting = executor.submit(() -> contender.save(job(MongoIds.newId())));
                 // Keep the guard occupied long enough for the contender's first acquisition attempt.
                 Thread.sleep(100);
                 release.countDown();

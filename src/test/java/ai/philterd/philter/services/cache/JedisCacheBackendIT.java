@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.services.cache;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.github.fppt.jedismock.RedisServer;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -158,13 +158,13 @@ class JedisCacheBackendIT {
 
         // The server is on an ephemeral port, so a ContextCache ignoring it could not read its
         // own write. RedactionService used to pass a hardcoded 6379 here.
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final ContextCache contextCache = new ContextCache(server.getHost(), server.getBindPort(), "", false);
 
         try {
 
-            contextCache.setTokenReplacement(userId, "ctx", "John Smith", new ObjectId(), "{{{REDACTED-person}}}");
+            contextCache.setTokenReplacement(userId, "ctx", "John Smith", MongoIds.newId(), "{{{REDACTED-person}}}");
 
             assertTrue(contextCache.containsToken(userId, "ctx", "John Smith"));
             assertEquals("{{{REDACTED-person}}}",

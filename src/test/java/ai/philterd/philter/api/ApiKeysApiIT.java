@@ -24,7 +24,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -81,7 +80,7 @@ class ApiKeysApiIT {
         httpClient.close();
     }
 
-    private ObjectId seedUser(final String role) {
+    private String seedUser(final String role) {
         final String username = "keys-" + role + "-" + UUID.randomUUID();
         final ServiceResponse created = userService.createUser("req", username, null, role,
                 policyDataService, contextDataService, "test");
@@ -89,14 +88,14 @@ class ApiKeysApiIT {
         return userService.findByUsername(username).getId();
     }
 
-    private String seedKey(final ObjectId userId, final Set<String> scopes) {
+    private String seedKey(final String userId, final Set<String> scopes) {
         final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", scopes);
         assertTrue(response.isSuccessful(), "the API key must be created");
         return response.getMessage();
     }
 
     private String idOf(final String apiKey) {
-        return apiKeyDataService.findOneByApiKey(apiKey).getId().toHexString();
+        return apiKeyDataService.findOneByApiKey(apiKey).getId();
     }
 
     private HttpResponse<String> send(final String method, final String path, final String apiKey, final String body)
@@ -115,7 +114,7 @@ class ApiKeysApiIT {
     @DisplayName("A user rotates its own key without an administrator, and the old key stops at once")
     void rotatesAKey() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String oldKey = seedKey(user, Set.of("api-keys:read", "api-keys:write", "policies:read"));
 
         // Warm the cache with the old key, so the revocation below must evict it to take effect.
@@ -151,7 +150,7 @@ class ApiKeysApiIT {
     @Test
     @DisplayName("Narrowing a key applies to its next request")
     void narrowingAppliesAtOnce() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String manager = seedKey(user, Set.of("api-keys:write", "policies:read", "ledger:read"));
         final String integration = seedKey(user, Set.of("policies:read", "ledger:read"));
         assertEquals(200, send("GET", "/api/ledger", integration, null).statusCode());
@@ -168,7 +167,7 @@ class ApiKeysApiIT {
     @DisplayName("A user cannot see or touch another user's keys; an administrator can")
     void otherUsersKeys() throws Exception {
         final String mine = seedKey(seedUser("user"), ApiKeyScope.all());
-        final ObjectId otherUser = seedUser("user");
+        final String otherUser = seedUser("user");
         final String theirs = seedKey(otherUser, Set.of("redact"));
         final String otherUsername = userService.findOneById(otherUser).getUsername();
 
@@ -187,7 +186,7 @@ class ApiKeysApiIT {
     @Test
     @DisplayName("Every change is readable through the audit API, naming the calling key")
     void changesAreAudited() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String manager = seedKey(user, Set.of("api-keys:write", "policies:read"));
         final String managerId = idOf(manager);
         final String target = seedKey(user, Set.of("policies:read"));
@@ -241,11 +240,11 @@ class ApiKeysApiIT {
     @Test
     @DisplayName("session filters the listing between session and long-lived keys, and total counts only those listed")
     void filtersBySession() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String longLived = seedKey(user, Set.of("api-keys:read", "api-keys:write"));
         seedKey(user, Set.of("redact"));
         final String sessionId = apiKeyDataService.createSessionKey("req", user, ApiKeyScope.all(), "test", null)
-                .getId().toHexString();
+                .getId();
 
         final JsonObject all = gson.fromJson(send("GET", "/api/api-keys", longLived, null).body(), JsonObject.class);
         assertEquals(3, all.get("total").getAsLong());
@@ -270,7 +269,7 @@ class ApiKeysApiIT {
     @Test
     @DisplayName("A key cannot change its own scopes, whether long-lived or a session key, and keeps them")
     void aKeyCannotChangeItsOwnScopes() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = seedKey(user, Set.of("api-keys:write", "policies:read"));
         final HttpResponse<String> refused = send("PUT", "/api/api-keys/" + idOf(key) + "/scopes", key, "{\"scopes\":[\"api-keys:write\"]}");
         assertEquals(409, refused.statusCode(), refused.body());
@@ -279,7 +278,7 @@ class ApiKeysApiIT {
 
         final ai.philterd.philter.data.entities.ApiKeyEntity session =
                 apiKeyDataService.createSessionKey("req", user, ApiKeyScope.all(), "test", null);
-        assertEquals(409, send("PUT", "/api/api-keys/" + session.getId().toHexString() + "/scopes",
+        assertEquals(409, send("PUT", "/api/api-keys/" + session.getId() + "/scopes",
                 session.getApiKey(), "{\"scopes\":[\"redact\"]}").statusCode());
 
         // Another key may still change it.

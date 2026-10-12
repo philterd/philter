@@ -27,7 +27,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -104,7 +103,7 @@ class SignInApiIT {
     }
 
     /** A user with the password set as the user's own choice (no change required), unless told otherwise. */
-    private ObjectId seedUser(final String role, final String password, final boolean changeRequired) {
+    private String seedUser(final String role, final String password, final boolean changeRequired) {
         final String username = "si-" + UUID.randomUUID();
         final ServiceResponse created = userService.createUser("req", username, role, policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful());
@@ -115,7 +114,7 @@ class SignInApiIT {
         return user.getId();
     }
 
-    private String username(final ObjectId userId) {
+    private String username(final String userId) {
         return userService.findOneById(userId).getUsername();
     }
 
@@ -154,7 +153,7 @@ class SignInApiIT {
     @Test
     @DisplayName("Sign-in is not found unless it is enabled")
     void disabledByDefault() throws Exception {
-        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String user = seedUser("user", PASSWORD, false);
         SignInConfig.setOverrideForTesting(false);
         final HttpResponse<String> response = signIn(username(user), PASSWORD);
         assertEquals(404, response.statusCode());
@@ -189,7 +188,7 @@ class SignInApiIT {
     @DisplayName("A person sees which session is which and the current one, and can sign out every other session")
     void managesOwnSessions() throws Exception {
 
-        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String user = seedUser("user", PASSWORD, false);
         final String laptop = signInFrom(username(user), "Laptop-Browser/1.0");
         final String phone = signInFrom(username(user), "Phone-Browser/2.0");
 
@@ -249,7 +248,7 @@ class SignInApiIT {
                 .GET().build(), HttpResponse.BodyHandlers.ofString());
         assertEquals(401, anonymous.statusCode());
 
-        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String user = seedUser("user", PASSWORD, false);
         final String key = gson.fromJson(signIn(username(user), PASSWORD).body(), JsonObject.class).get("apiKey").getAsString();
         final HttpResponse<String> response = send("GET", "/api/limits", key, null);
         assertEquals(200, response.statusCode(), response.body());
@@ -265,7 +264,7 @@ class SignInApiIT {
     @DisplayName("Valid credentials return a working session key with every scope, and the sign-in is audited")
     void signsIn() throws Exception {
 
-        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String user = seedUser("user", PASSWORD, false);
         final HttpResponse<String> response = signIn(username(user), PASSWORD);
         assertEquals(200, response.statusCode(), response.body());
 
@@ -284,14 +283,14 @@ class SignInApiIT {
 
         // The response names the session key's id, which the key listing uses, so a client can find its own.
         final String id = body.get("id").getAsString();
-        assertEquals(apiKeyDataService.findOneByApiKey(key).getId().toHexString(), id);
+        assertEquals(apiKeyDataService.findOneByApiKey(key).getId(), id);
         final HttpResponse<String> sessions = send("GET", "/api/api-keys?session=true", key, null);
         assertEquals(200, sessions.statusCode(), sessions.body());
         assertTrue(sessions.body().contains("\"id\":\"" + id + "\""), sessions.body());
 
         final List<JsonObject> succeeded = audit("sign_in_succeeded", "username: " + username(user));
         assertEquals(1, succeeded.size());
-        assertEquals(user.toHexString(), succeeded.getFirst().get("apiKeyId").getAsString());
+        assertEquals(user, succeeded.getFirst().get("apiKeyId").getAsString());
         assertTrue(succeeded.getFirst().has("clientIpAddress"), succeeded.getFirst().toString());
         assertFalse(succeeded.getFirst().toString().contains(PASSWORD));
 
@@ -301,9 +300,9 @@ class SignInApiIT {
     @DisplayName("A wrong password, an unknown user, a user without a password, and a deactivated user get the same answer")
     void everyFailureLooksTheSame() throws Exception {
 
-        final ObjectId withPassword = seedUser("user", PASSWORD, false);
-        final ObjectId withoutPassword = seedUser("user", null, false);
-        final ObjectId deactivated = seedUser("user", PASSWORD, false);
+        final String withPassword = seedUser("user", PASSWORD, false);
+        final String withoutPassword = seedUser("user", null, false);
+        final String deactivated = seedUser("user", PASSWORD, false);
         assertTrue(userService.deactivateUser("req", userService.findOneById(deactivated), "test").isSuccessful());
 
         final HttpResponse<String> wrongPassword = signIn(username(withPassword), "not-the-password-0123");
@@ -352,7 +351,7 @@ class SignInApiIT {
     @DisplayName("A user who must change their password gets a key that can only do that and read the limits, then signs in again")
     void forcesAPasswordChange() throws Exception {
 
-        final ObjectId user = seedUser("user", PASSWORD, true);
+        final String user = seedUser("user", PASSWORD, true);
         final HttpResponse<String> response = signIn(username(user), PASSWORD);
         assertEquals(200, response.statusCode(), response.body());
         final JsonObject body = gson.fromJson(response.body(), JsonObject.class);
@@ -380,7 +379,7 @@ class SignInApiIT {
     @Test
     @DisplayName("A password-change-only key can still sign out")
     void aRestrictedKeyCanSignOut() throws Exception {
-        final ObjectId user = seedUser("user", PASSWORD, true);
+        final String user = seedUser("user", PASSWORD, true);
         final String key = gson.fromJson(signIn(username(user), PASSWORD).body(), JsonObject.class).get("apiKey").getAsString();
         assertEquals(204, send("DELETE", "/api/api-keys/current", key, null).statusCode());
         assertEquals(401, send("PUT", "/api/users/me/password", key,
@@ -391,7 +390,7 @@ class SignInApiIT {
     @DisplayName("A session key cannot create API keys, but can still list them")
     void aSessionCannotMintLongLivedKeys() throws Exception {
 
-        final ObjectId admin = seedUser("admin", PASSWORD, false);
+        final String admin = seedUser("admin", PASSWORD, false);
         final String key = gson.fromJson(signIn(username(admin), PASSWORD).body(), JsonObject.class).get("apiKey").getAsString();
         final String other = username(seedUser("user", null, false));
 
@@ -406,11 +405,11 @@ class SignInApiIT {
     @DisplayName("A session key can narrow a key's scopes but not widen them; a long-lived key still can")
     void aSessionCannotWidenAKey() throws Exception {
 
-        final ObjectId user = seedUser("user", PASSWORD, false);
+        final String user = seedUser("user", PASSWORD, false);
         final String narrow = apiKeyDataService.createApiKey("req", user, "test", Set.of("redact")).getMessage();
         final String wide = apiKeyDataService.createApiKey("req", user, "test", Set.of("redact", "policies:read")).getMessage();
-        final String narrowId = apiKeyDataService.findOneByApiKey(narrow).getId().toHexString();
-        final String wideId = apiKeyDataService.findOneByApiKey(wide).getId().toHexString();
+        final String narrowId = apiKeyDataService.findOneByApiKey(narrow).getId();
+        final String wideId = apiKeyDataService.findOneByApiKey(wide).getId();
         final String session = gson.fromJson(signIn(username(user), PASSWORD).body(), JsonObject.class)
                 .get("apiKey").getAsString();
 
@@ -425,7 +424,7 @@ class SignInApiIT {
         assertEquals(Set.of("redact"), apiKeyDataService.findOneByApiKey(wide).getScopes());
 
         // An administrator's session is held to the same rule on another user's key.
-        final ObjectId admin = seedUser("admin", PASSWORD, false);
+        final String admin = seedUser("admin", PASSWORD, false);
         final String adminSession = gson.fromJson(signIn(username(admin), PASSWORD).body(), JsonObject.class)
                 .get("apiKey").getAsString();
         final HttpResponse<String> adminWidened = send("PUT", "/api/api-keys/" + narrowId + "/scopes", adminSession,

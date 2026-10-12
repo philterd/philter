@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -109,9 +110,9 @@ class UserServiceTest {
         when(findIterable.first()).thenReturn(null);
 
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(userId));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(userId)));
 
         ServiceResponse response = userService.createUser("req", email, "role", policyDataService, contextDataService, "source");
 
@@ -131,7 +132,7 @@ class UserServiceTest {
 
         final InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
 
@@ -147,7 +148,7 @@ class UserServiceTest {
     @Test
     void ensureFpeKeyReturnsTheExistingKeyWithoutPersisting() {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         user.setFpeKey("0123456789abcdef0123456789abcdef");
 
         final String key = userService.ensureFpeKey(user);
@@ -159,7 +160,7 @@ class UserServiceTest {
     @Test
     void ensureFpeKeyFailsWhenMissing() {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         assertThrows(IllegalStateException.class, () -> userService.ensureFpeKey(user));
         verify(mongoCollection, never()).updateOne(any(Bson.class), any(Bson.class));
     }
@@ -188,7 +189,7 @@ class UserServiceTest {
     @Test
     void deactivateUser() {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
 
         userService.deactivateUser("req", user, "source");
 
@@ -219,7 +220,7 @@ class UserServiceTest {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
                 .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(0, 0L, null));
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         user.setDeactivated(true);
 
         userService.deactivateUser("req", user, "source");
@@ -233,7 +234,7 @@ class UserServiceTest {
     @Test
     void reactivateUser() {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         user.setDeactivated(true);
         user.setDeactivatedAt(new java.util.Date());
 
@@ -256,7 +257,7 @@ class UserServiceTest {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
                 .thenReturn(com.mongodb.client.result.UpdateResult.acknowledged(0, 0L, null));
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
         // Not deactivated.
 
         userService.reactivateUser("req", user, "source");
@@ -290,7 +291,7 @@ class UserServiceTest {
         when(findIterable.projection(any())).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(new Document("deactivated", true));
 
-        assertTrue(userService.isDeactivated(new ObjectId()));
+        assertTrue(userService.isDeactivated(MongoIds.newId()));
     }
 
     @Test
@@ -300,7 +301,7 @@ class UserServiceTest {
         when(findIterable.projection(any())).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
 
-        assertTrue(userService.isDeactivated(new ObjectId()), "a missing user holds no active access");
+        assertTrue(userService.isDeactivated(MongoIds.newId()), "a missing user holds no active access");
     }
 
     @Test
@@ -344,7 +345,7 @@ class UserServiceTest {
     @Test
     void setUserRoleIsAudited() {
         final UserEntity user = new UserEntity();
-        user.setId(new ObjectId());
+        user.setId(MongoIds.newId());
 
         userService.setUserRole("req", user, "admin", "source");
 

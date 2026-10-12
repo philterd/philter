@@ -16,9 +16,9 @@
 package ai.philterd.philter.services.policies;
 
 import ai.philterd.phileas.policy.Policy;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.CustomListDataService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -45,7 +45,7 @@ class PolicyResolverTest {
         final PolicyResolver resolver = new PolicyResolver(gson, null);
         final Policy policy = resolver.resolve(
                 "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}",
-                new ObjectId(), null, null);
+                MongoIds.newId(), null, null);
 
         assertNotNull(policy.getIdentifiers());
         assertNotNull(policy.getIdentifiers().getSsn());
@@ -56,7 +56,7 @@ class PolicyResolverTest {
         final PolicyResolver resolver = new PolicyResolver(gson, null);
         final Policy policy = resolver.resolve(
                 "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"FPE_ENCRYPT_REPLACE\"}]}}}",
-                new ObjectId(), "0123456789ABCDEF0123456789ABCDEF", "0123456789ABCD");
+                MongoIds.newId(), "0123456789ABCDEF0123456789ABCDEF", "0123456789ABCD");
 
         assertNotNull(policy.getFpe(), "the managed FPE key must be injected as a fallback");
         assertEquals("0123456789ABCDEF0123456789ABCDEF", policy.getFpe().getKey());
@@ -69,7 +69,7 @@ class PolicyResolverTest {
         final Policy policy = resolver.resolve(
                 "{\"fpe\":{\"key\":\"POLICYKEY\",\"tweak\":\"POLICYTWEAK\"},"
                         + "\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"FPE_ENCRYPT_REPLACE\"}]}}}",
-                new ObjectId(), "MANAGEDKEY", "MANAGEDTWEAK");
+                MongoIds.newId(), "MANAGEDKEY", "MANAGEDTWEAK");
 
         // The policy's own key must be kept; the managed key must not override it.
         assertEquals("POLICYKEY", policy.getFpe().getKey());
@@ -78,7 +78,7 @@ class PolicyResolverTest {
 
     @Test
     void expandsCustomListReferencesInIgnoredTerms() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final CustomListDataService customListService = mock(CustomListDataService.class);
         when(customListService.findItemsByNames(eq(userId), any()))
@@ -99,7 +99,7 @@ class PolicyResolverTest {
 
     @Test
     void fetchesAllReferencedCustomListsInASingleQuery() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final CustomListDataService customListService = mock(CustomListDataService.class);
         when(customListService.findItemsByNames(eq(userId), any()))
@@ -121,7 +121,7 @@ class PolicyResolverTest {
     @Test
     void missingDictionaryListsFailEvenWhenSomeReferencesResolve() {
         final var service = mock(CustomListDataService.class);
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         when(service.findItemsByNames(eq(user), any())).thenReturn(Map.of("present", List.of("Alice")));
         final var resolver = new PolicyResolver(gson, service);
         final var exception = assertThrows(PolicyResolutionException.class, () -> resolver.resolve(
@@ -135,7 +135,7 @@ class PolicyResolverTest {
     void missingIgnoredListAlsoFailsRatherThanChangingPolicyBehavior() {
         final var resolver = new PolicyResolver(gson, mock(CustomListDataService.class));
         assertThrows(PolicyResolutionException.class, () -> resolver.resolve(
-                "{\"ignored\":[{\"terms\":[\"list:missing\"]}]}", new ObjectId(), null, null));
+                "{\"ignored\":[{\"terms\":[\"list:missing\"]}]}", MongoIds.newId(), null, null));
     }
 
     @Test
@@ -145,7 +145,7 @@ class PolicyResolverTest {
         final var policy = new PolicyResolver(gson, service).resolve(
                 "{\"ignored\":[{\"terms\":[\"list:empty\",\"literal\"]}],"
                         + "\"identifiers\":{\"dictionaries\":[{\"terms\":[\"list:empty\"]}]}}",
-                new ObjectId(), null, null);
+                MongoIds.newId(), null, null);
         assertEquals(List.of("literal"), policy.getIgnored().getFirst().getTerms());
         assertTrue(policy.getIdentifiers().getCustomDictionaries().getFirst().getTerms().isEmpty());
     }
@@ -154,7 +154,7 @@ class PolicyResolverTest {
     void referencesRequireLookupServiceAndOwner() {
         final String policy = "{\"identifiers\":{\"dictionaries\":[{\"terms\":[\"list:names\"]}]}}";
         assertThrows(PolicyResolutionException.class,
-                () -> new PolicyResolver(gson, null).resolve(policy, new ObjectId(), null, null));
+                () -> new PolicyResolver(gson, null).resolve(policy, MongoIds.newId(), null, null));
         assertThrows(PolicyResolutionException.class,
                 () -> new PolicyResolver(gson, mock(CustomListDataService.class)).resolve(policy, null, null, null));
     }
@@ -163,7 +163,7 @@ class PolicyResolverTest {
     void blankReferenceIsRejected() {
         for (final String term : List.of("list:", "list:   ")) {
             assertThrows(PolicyResolutionException.class, () -> new PolicyResolver(gson, null).resolve(
-                    "{\"ignored\":[{\"terms\":[\"" + term + "\"]}]}", new ObjectId(), null, null));
+                    "{\"ignored\":[{\"terms\":[\"" + term + "\"]}]}", MongoIds.newId(), null, null));
         }
     }
 
@@ -172,13 +172,13 @@ class PolicyResolverTest {
         final var service = mock(CustomListDataService.class);
         when(service.findItemsByNames(any(), any())).thenThrow(new IllegalStateException("storage unavailable"));
         assertThrows(IllegalStateException.class, () -> new PolicyResolver(gson, service).resolve(
-                "{\"ignored\":[{\"terms\":[\"list:names\"]}]}", new ObjectId(), null, null));
+                "{\"ignored\":[{\"terms\":[\"list:names\"]}]}", MongoIds.newId(), null, null));
     }
 
     @Test
     void rejectsAuditListExpansionBeforeMaterializingTheOversizedPolicy() {
         var lists = mock(CustomListDataService.class);
-        var owner = new ObjectId();
+        var owner = MongoIds.newId();
         var items = java.util.stream.IntStream.range(0, 100)
                 .mapToObj(n -> String.format("%03d-", n) + "x".repeat(46)).toList();
         when(lists.findItemsByNames(eq(owner), any())).thenReturn(Map.of("audit-expansion", items));
@@ -194,7 +194,7 @@ class PolicyResolverTest {
     @Test
     void expansionBudgetIsSharedAcrossIgnoredTermsAndDictionaries() {
         var lists = mock(CustomListDataService.class);
-        var owner = new ObjectId();
+        var owner = MongoIds.newId();
         when(lists.findItemsByNames(eq(owner), any())).thenReturn(Map.of(
                 "large", java.util.Collections.nCopies(100, "x".repeat(50))));
         var terms = java.util.Collections.nCopies(110, "list:large");

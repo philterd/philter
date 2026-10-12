@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.signing.SigningService;
@@ -25,7 +26,6 @@ import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LegalHoldConcurrencyIT extends AbstractMongoIT {
-    private ObjectId owner;
+    private String owner;
     private MongoDatabase isolated;
     private LegalHoldDataService holds;
     private LedgerDataService ledger;
@@ -50,16 +50,16 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         if (uri != null) {
             mongoClient.close();
             mongoClient = spy(MongoClients.create(uri));
-            isolated = mongoClient.getDatabase("philter_a13_" + new ObjectId());
+            isolated = mongoClient.getDatabase("philter_a13_" + MongoIds.newId());
             doReturn(isolated).when(mongoClient).getDatabase("philter");
         }
-        owner = new ObjectId();
+        owner = MongoIds.newId();
         holds = new LegalHoldDataService(mongoClient, mock(AuditEventPublisher.class));
         ledger = ledger(holds);
         mongoClient.getDatabase("philter").getCollection("ledger").insertOne(
-                new Document("user_id", owner).append("document_id", "doc").append("timestamp", new Date(0)));
+                new Document("user_id", MongoIds.objectId(owner)).append("document_id", "doc").append("timestamp", new Date(0)));
         mongoClient.getDatabase("philter").getCollection("ledger_chains").insertOne(
-                new Document("_id", owner + ":doc").append("user_id", owner).append("document_id", "doc")
+                new Document("_id", owner + ":doc").append("user_id", MongoIds.objectId(owner)).append("document_id", "doc")
                         .append("state", "complete").append("completed_at", new Date(0)).append("latest_entry_at", new Date(0)));
     }
 
@@ -83,12 +83,12 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
 
     private ServiceResponse create(final LegalHoldDataService service, final boolean userScope) {
         return service.create("req", "hold", userScope ? LegalHoldEntity.SCOPE_USER : LegalHoldEntity.SCOPE_DOCUMENT_CHAIN,
-                userScope ? owner.toHexString() : "doc", "reason", owner, owner);
+                userScope ? owner : "doc", "reason", owner, owner);
     }
 
     private long entries() {
         return mongoClient.getDatabase("philter").getCollection("ledger")
-                .countDocuments(new Document("user_id", owner));
+                .countDocuments(new Document("user_id", MongoIds.objectId(owner)));
     }
 
     @ParameterizedTest
@@ -161,7 +161,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         assertEquals(409, create(restarted, true).getStatusCode());
         assertEquals(409, delete(ledger(restarted), 2).getStatusCode());
         final var guard = mongoClient.getDatabase("philter").getCollection("evidence_operation_guards")
-                .find(new Document("_id", owner)).first();
+                .find(new Document("_id", MongoIds.objectId(owner))).first();
         assertNotNull(guard.getString("token"));
         assertFalse(guard.containsKey("expires_at"));
     }
@@ -174,9 +174,9 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         final var guard = new EvidenceOperationGuard(mongoClient);
         assertThrows(IllegalStateException.class, () -> guard.execute(owner, "failed",
                 () -> { throw new IllegalStateException("interrupted"); }));
-        final var other = new ObjectId();
+        final var other = MongoIds.newId();
         assertEquals(201, holds.create("req", "other", LegalHoldEntity.SCOPE_USER,
-                other.toHexString(), "", other, other).getStatusCode());
+                other, "", other, other).getStatusCode());
     }
 
     @Test

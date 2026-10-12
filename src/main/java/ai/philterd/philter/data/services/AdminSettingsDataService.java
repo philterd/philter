@@ -37,7 +37,6 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.services.webhook.WebhookDestinationPolicy;
 import java.net.URI;
 import java.util.Objects;
-import org.bson.types.ObjectId;
 
 public class AdminSettingsDataService extends AbstractService<AdminSettingsEntity> {
 
@@ -116,13 +115,13 @@ public class AdminSettingsDataService extends AbstractService<AdminSettingsEntit
      * @return warnings about the saved settings, such as a Phield API key that will be sent over http.
      * @throws IllegalArgumentException with the reason, when a value is not valid.
      */
-    public List<String> update(final Update update, final ObjectId actingUserId, final ObjectId actingApiKeyId) {
+    public List<String> update(final Update update, final String actingUserId, final String actingApiKeyId) {
         return update(RequestIdGenerator.generate(), update, actingUserId, actingApiKeyId);
     }
 
     /** As above, recording the change under {@code requestId}, the id of the request that made it. */
-    public List<String> update(final String requestId, final Update update, final ObjectId actingUserId,
-                               final ObjectId actingApiKeyId) {
+    public List<String> update(final String requestId, final Update update, final String actingUserId,
+                               final String actingApiKeyId) {
 
         AdministratorAuthorization.requireActiveAdministrator(mongoClient, actingUserId);
 

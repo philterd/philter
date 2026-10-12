@@ -45,7 +45,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -139,7 +138,7 @@ public class FilterApiController extends AbstractApiController {
 
         rejectSigningRequest(sign);
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final String userId = apiKeyEntity.getUserId();
 
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context, filename);
@@ -187,7 +186,7 @@ public class FilterApiController extends AbstractApiController {
 
         rejectSigningRequest(sign);
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final String userId = apiKeyEntity.getUserId();
 
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context, filename);
@@ -234,7 +233,7 @@ public class FilterApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final String userId = apiKeyEntity.getUserId();
 
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN, filename);
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
@@ -268,7 +267,7 @@ public class FilterApiController extends AbstractApiController {
         }
     }
 
-    private ResponseEntity<byte[]> enqueueBinary(final ObjectId userId, final byte[] body, final MimeType inputMimeType,
+    private ResponseEntity<byte[]> enqueueBinary(final String userId, final byte[] body, final MimeType inputMimeType,
                                                  final String outputMimeType, final String policyName, final String contextName,
                                                  final String filename) throws PolicyNotFoundException {
 

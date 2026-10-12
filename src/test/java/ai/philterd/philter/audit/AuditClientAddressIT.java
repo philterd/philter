@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -35,7 +36,6 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -154,11 +154,11 @@ class AuditClientAddressIT {
         final String username = "audited-" + UUID.randomUUID();
         assertEquals(201, sendJson("POST", "/api/users",
                 "{\"username\":\"" + username + "\",\"password\":\"a-long-enough-password-1\"}", "203.0.113.11").statusCode());
-        final ObjectId userId = userService.findByUsername(username).getId();
+        final String userId = userService.findByUsername(username).getId();
 
-        assertFromTheApi("203.0.113.11", recorded(Filters.and(Filters.eq("associated_object", userId),
+        assertFromTheApi("203.0.113.11", recorded(Filters.and(Filters.eq("associated_object", MongoIds.objectId(userId)),
                 Filters.in("event", "user_created", "user_password_set"))));
-        assertEquals(2, recorded(Filters.eq("associated_object", userId)).size());
+        assertEquals(2, recorded(Filters.eq("associated_object", MongoIds.objectId(userId))).size());
     }
 
     @Test
@@ -224,9 +224,9 @@ class AuditClientAddressIT {
     @DisplayName("An event with no request behind it records no address and says it came from the system")
     void systemEvent() {
         // The administrator Philter creates at startup.
-        final ObjectId admin = userService.findAnyByUsername("admin").getId();
+        final String admin = userService.findAnyByUsername("admin").getId();
         for (final Document event : recorded(Filters.and(Filters.eq("event", "user_created"),
-                Filters.eq("associated_object", admin)))) {
+                Filters.eq("associated_object", MongoIds.objectId(admin))))) {
             assertNull(event.get("client_ip_address"), event.toJson());
             assertEquals("system", event.getString("source"), event.toJson());
         }

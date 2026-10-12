@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import com.mongodb.client.FindIterable;
@@ -77,7 +78,7 @@ class ContextDataServiceTest {
 
     @Test
     void create() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         
         // Mock findAll(userId).size() check and findOne
@@ -89,7 +90,7 @@ class ContextDataServiceTest {
 
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
 
         ServiceResponse response = contextDataService.create(contextName, userId, false, false);
 
@@ -101,13 +102,13 @@ class ContextDataServiceTest {
 
     @Test
     void createRejectsDuplicateNameForSameUser() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final FindIterable<Document> iterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(iterable);
         // The caller already owns a context with this name. That is checked before the limit, so a
         // duplicate is reported as one whatever the caller's count.
-        when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", userId));
+        when(iterable.first()).thenReturn(new Document("context_name", "dup").append("user_id", MongoIds.objectId(userId)));
 
         final ServiceResponse response = contextDataService.create("dup", userId, false, false);
 
@@ -119,7 +120,7 @@ class ContextDataServiceTest {
 
     @Test
     void createPersistsLedgerFlag() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String contextName = "testContext";
 
         final FindIterable<Document> findAllIterable = mock(FindIterable.class);
@@ -130,7 +131,7 @@ class ContextDataServiceTest {
 
         final InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
 
         contextDataService.create(contextName, userId, false, true);
 
@@ -142,7 +143,7 @@ class ContextDataServiceTest {
 
     @Test
     void createDefaultsLedgerFlagOff() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String contextName = "testContext";
 
         final FindIterable<Document> findAllIterable = mock(FindIterable.class);
@@ -153,7 +154,7 @@ class ContextDataServiceTest {
 
         final InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
 
         // The name-and-user create overload must leave the ledger off by default.
         contextDataService.create(contextName, userId);
@@ -166,7 +167,7 @@ class ContextDataServiceTest {
 
     @Test
     void findAll() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.iterator()).thenReturn(mock(MongoCursor.class));
@@ -179,9 +180,9 @@ class ContextDataServiceTest {
 
     @Test
     void findOne() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
-        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", userId);
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -194,11 +195,11 @@ class ContextDataServiceTest {
 
     @Test
     void deleteByName() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         
         // Mock findOne to return the context
-        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", userId);
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -221,11 +222,11 @@ class ContextDataServiceTest {
 
     @Test
     void deleteByNameDeletesDisambiguationVectorsForTheContext() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String contextName = "testContext";
 
         // findOne returns the context so deletion proceeds.
-        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", userId);
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -249,12 +250,12 @@ class ContextDataServiceTest {
 
     @Test
     void deleteByNameDeniesNonCreatorWhoIsNotAdmin() {
-        final ObjectId requester = new ObjectId();
-        final ObjectId owner = new ObjectId();
+        final String requester = MongoIds.newId();
+        final String owner = MongoIds.newId();
         final String contextName = "shared";
 
         // The context is owned by a different user than the requester.
-        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", owner);
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(owner));
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -269,11 +270,11 @@ class ContextDataServiceTest {
 
     @Test
     void deleteByNameAllowsAdminAndScopesDeletionToOwner() {
-        final ObjectId requester = new ObjectId(); // an admin, not the owner
-        final ObjectId owner = new ObjectId();
+        final String requester = MongoIds.newId(); // an admin, not the owner
+        final String owner = MongoIds.newId();
         final String contextName = "shared";
 
-        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", owner);
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(owner));
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -291,17 +292,17 @@ class ContextDataServiceTest {
         // The context is deleted scoped to its owner, not the admin requester.
         final ArgumentCaptor<Document> filterCaptor = ArgumentCaptor.forClass(Document.class);
         verify(mongoCollection).deleteOne(filterCaptor.capture());
-        assertEquals(owner, filterCaptor.getValue().get("user_id"),
+        assertEquals(MongoIds.objectId(owner), filterCaptor.getValue().get("user_id"),
                 "deletion must be scoped to the context owner");
     }
 
     @Test
     void emptyByNameDeletesDisambiguationVectorsForTheContext() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String contextName = "testContext";
 
         // findOne returns the context so emptying proceeds.
-        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", userId);
+        final Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -323,10 +324,10 @@ class ContextDataServiceTest {
 
     @Test
     void findOneByNameAndUserIdQueriesContextNameField() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "my-context";
 
-        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", userId);
+        Document doc = new Document("_id", new ObjectId()).append("context_name", contextName).append("user_id", MongoIds.objectId(userId));
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);

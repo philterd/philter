@@ -36,13 +36,12 @@ public class UserResponse {
     private final boolean mfaLocked;
 
     public UserResponse(final UserEntity user) {
-        this.id = user.getId() == null ? null : user.getId().toHexString();
+        this.id = user.getId();
         this.username = user.getUsername();
         this.email = user.getEmail();
         this.role = user.getRole();
         this.active = !user.isDeactivated();
-        // The ObjectId carries the creation time; users have no separate created field.
-        this.created = user.getId() == null ? null : user.getId().getDate();
+        this.created = user.getCreatedAt();
         this.deactivatedAt = user.getDeactivatedAt();
         this.passwordSet = user.getPassword() != null;
         this.passwordChangeRequired = user.isPasswordChangeRequired();

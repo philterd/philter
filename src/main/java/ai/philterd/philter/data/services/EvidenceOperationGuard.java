@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
@@ -24,7 +25,6 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 import java.util.UUID;
@@ -43,14 +43,14 @@ final class EvidenceOperationGuard {
                 .withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
     }
 
-    ServiceResponse execute(final ObjectId owner, final String operation, final Supplier<ServiceResponse> action) {
+    ServiceResponse execute(final String owner, final String operation, final Supplier<ServiceResponse> action) {
         if (owner == null) {
             return new ServiceResponse("Evidence owner is required.", false, 400);
         }
-        guards.updateOne(Filters.eq("_id", owner), Updates.setOnInsert("created_at", new Date()),
+        guards.updateOne(Filters.eq("_id", MongoIds.objectId(owner)), Updates.setOnInsert("created_at", new Date()),
                 new UpdateOptions().upsert(true));
         final String token = UUID.randomUUID().toString();
-        if (guards.updateOne(Filters.and(Filters.eq("_id", owner), Filters.exists("token", false)),
+        if (guards.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owner)), Filters.exists("token", false)),
                 Updates.combine(Updates.set("token", token), Updates.set("operation", operation),
                         Updates.set("started_at", new Date()))).getModifiedCount() != 1) {
             return new ServiceResponse("An evidence or legal-hold operation is active or requires recovery for this owner.",
@@ -59,7 +59,7 @@ final class EvidenceOperationGuard {
         // Deliberately not a finally block: a timeout can leave a server-side mutation running.
         // Releasing after an uncertain failure would let a hold succeed before that mutation ends.
         final ServiceResponse result = action.get();
-        if (guards.updateOne(Filters.and(Filters.eq("_id", owner), Filters.eq("token", token)),
+        if (guards.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owner)), Filters.eq("token", token)),
                 Updates.combine(Updates.unset("token"), Updates.unset("operation"), Updates.unset("started_at")))
                 .getModifiedCount() != 1) {
             throw new IllegalStateException("Evidence operation guard could not be released.");

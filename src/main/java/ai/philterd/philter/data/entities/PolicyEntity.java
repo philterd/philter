@@ -15,14 +15,14 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
 public class PolicyEntity extends AbstractEntity {
 
-    private ObjectId id;
+    private String id;
     private String policy;
     private String name;
     private Date createdTimestamp;
@@ -32,20 +32,20 @@ public class PolicyEntity extends AbstractEntity {
     private String notes;
     private String description;
     private boolean managed;
-    private ObjectId userId;
+    private String userId;
 
     /**
      * Who is making the change being saved, recorded on the version snapshot it produces. Not stored
      * on the policy itself, so it is set for each write and is {@code null} for a policy read back.
      */
-    private transient ObjectId authorId;
+    private transient String authorId;
 
     public static PolicyEntity fromDocument(final Document document) {
         final PolicyEntity policyEntity = new PolicyEntity();
-        policyEntity.setId(document.getObjectId("_id"));
+        policyEntity.setId(MongoIds.hex(document.getObjectId("_id")));
         policyEntity.setPolicy(document.getString("policy"));
         policyEntity.setName(document.getString("name"));
-        policyEntity.setUserId(document.getObjectId("user_id"));
+        policyEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         policyEntity.setCreatedTimestamp(document.getDate("created_timestamp"));
         policyEntity.setRevision(document.getInteger("revision", 0));
         policyEntity.setLastUpdatedTimestamp(document.getDate("last_updated_timestamp"));
@@ -60,11 +60,11 @@ public class PolicyEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
         document.put("policy", policy);
         document.put("name", name);
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("created_timestamp", createdTimestamp);
         document.put("revision", revision);
         document.put("last_updated_timestamp", lastUpdatedTimestamp);
@@ -79,11 +79,11 @@ public class PolicyEntity extends AbstractEntity {
         revision++;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -159,19 +159,19 @@ public class PolicyEntity extends AbstractEntity {
         this.description = description;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getAuthorId() {
+    public String getAuthorId() {
         return authorId;
     }
 
-    public void setAuthorId(final ObjectId authorId) {
+    public void setAuthorId(final String authorId) {
         this.authorId = authorId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

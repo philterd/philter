@@ -17,12 +17,12 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LedgerRetentionIT extends AbstractMongoIT {
-    private final ObjectId owner = new ObjectId();
+    private final String owner = MongoIds.newId();
     private final Date old = new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(10));
     private TestEncryptionService encryption;
     private SigningService signer;
@@ -59,7 +59,7 @@ class LedgerRetentionIT extends AbstractMongoIT {
         return mongoClient.getDatabase("philter").getCollection("ledger_chains");
     }
 
-    private LedgerEntity entry(final ObjectId user, final String doc, final String previous, final Date date)
+    private LedgerEntity entry(final String user, final String doc, final String previous, final Date date)
             throws Exception {
         final var entry = new LedgerEntity(user, doc, "token", "replacement", 0, "document-hash",
                 previous, "file", "", "policy", 1, "policy-hash");
@@ -68,7 +68,7 @@ class LedgerRetentionIT extends AbstractMongoIT {
         return entry;
     }
 
-    private void sealOld(final ObjectId user, final String doc) {
+    private void sealOld(final String user, final String doc) {
         service.completeChain(user, doc);
         states().updateOne(new Document("_id", user + ":" + doc),
                 new Document("$set", new Document("completed_at", old)));
@@ -80,7 +80,7 @@ class LedgerRetentionIT extends AbstractMongoIT {
         service.save(head);
         service.save(entry(owner, "shared", head.getHash(), old));
         sealOld(owner, "shared");
-        final var other = new ObjectId();
+        final var other = MongoIds.newId();
         service.save(entry(other, "shared", LedgerDataService.GENESIS, old));
         sealOld(other, "shared");
 

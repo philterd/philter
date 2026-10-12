@@ -46,7 +46,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -268,7 +267,7 @@ public class SignInApiController extends AbstractApiController {
             return limited;
         }
 
-        final ObjectId userId = challenges.consume(request.getChallenge());
+        final String userId = challenges.consume(request.getChallenge());
         final UserEntity user = userId == null ? null : userService.findOneById(userId);
 
         if (user == null || user.isDeactivated()) {

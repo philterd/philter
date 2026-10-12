@@ -15,8 +15,8 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
@@ -30,25 +30,25 @@ import java.util.Date;
  */
 public class PolicyVersionEntity extends AbstractEntity {
 
-    private ObjectId id;
+    private String id;
     private String name;
     private int revision;
     private String contentHash;
     private String policy;
-    private ObjectId userId;
+    private String userId;
     private Date capturedTimestamp;
-    private ObjectId authorId;
+    private String authorId;
 
     public static PolicyVersionEntity fromDocument(final Document document) {
         final PolicyVersionEntity entity = new PolicyVersionEntity();
-        entity.setId(document.getObjectId("_id"));
+        entity.setId(MongoIds.hex(document.getObjectId("_id")));
         entity.setName(document.getString("name"));
         entity.setRevision(document.getInteger("revision", 0));
         entity.setContentHash(document.getString("content_hash"));
         entity.setPolicy(document.getString("policy"));
-        entity.setUserId(document.getObjectId("user_id"));
+        entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         entity.setCapturedTimestamp(document.getDate("captured_timestamp"));
-        entity.setAuthorId(document.getObjectId("author_id"));
+        entity.setAuthorId(MongoIds.hex(document.getObjectId("author_id")));
         return entity;
     }
 
@@ -56,35 +56,35 @@ public class PolicyVersionEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
         document.put("name", name);
         document.put("revision", revision);
         document.put("content_hash", contentHash);
         document.put("policy", policy);
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("captured_timestamp", capturedTimestamp);
         if (authorId != null) {
-            document.put("author_id", authorId);
+            document.put("author_id", MongoIds.objectId(authorId));
         }
         return document;
     }
 
     @Override
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(final ObjectId id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
     /** The user whose change produced this revision, or {@code null} when it is not known. */
-    public ObjectId getAuthorId() {
+    public String getAuthorId() {
         return authorId;
     }
 
-    public void setAuthorId(final ObjectId authorId) {
+    public void setAuthorId(final String authorId) {
         this.authorId = authorId;
     }
 
@@ -120,11 +120,11 @@ public class PolicyVersionEntity extends AbstractEntity {
         this.policy = policy;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public void setUserId(final ObjectId userId) {
+    public void setUserId(final String userId) {
         this.userId = userId;
     }
 

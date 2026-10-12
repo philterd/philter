@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.data.entities.CustomListEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import java.util.List;
@@ -37,7 +38,6 @@ import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpMethod;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -78,15 +78,15 @@ class CustomListsApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -163,7 +163,7 @@ class CustomListsApiControllerTest {
 
     @Test
     void adminCanListAnotherUsersListsViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final UserEntity admin = new UserEntity();
         admin.setId(userId);
         admin.setRole("admin");
@@ -185,7 +185,7 @@ class CustomListsApiControllerTest {
 
     @Test
     void nonAdminNamingAnotherOwnerGets404() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
@@ -204,7 +204,7 @@ class CustomListsApiControllerTest {
     @Test
     void getOneListReturnsItsItemsScopedToTheOwningUser() throws Exception {
         final CustomListEntity entity = new CustomListEntity();
-        entity.setId(new ObjectId());
+        entity.setId(MongoIds.newId());
         entity.setName("my-list");
         entity.setItems(List.of("Project Cardinal", "ACME-1234"));
         when(customListService.findOneByName(eq("my-list"), eq(userId))).thenReturn(entity);
@@ -270,7 +270,7 @@ class CustomListsApiControllerTest {
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
         final UserEntity owner = new UserEntity();
-        owner.setId(new ObjectId());
+        owner.setId(MongoIds.newId());
         owner.setEmail("other@example.com");
         when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
 
@@ -329,7 +329,7 @@ class CustomListsApiControllerTest {
 
     @Test
     void adminCanReplaceAnotherUsersListViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final UserEntity admin = new UserEntity();
         admin.setId(userId);
         admin.setRole("admin");
@@ -356,7 +356,7 @@ class CustomListsApiControllerTest {
         caller.setRole("user");
         when(userService.findOneById(userId)).thenReturn(caller);
         final UserEntity owner = new UserEntity();
-        owner.setId(new ObjectId());
+        owner.setId(MongoIds.newId());
         owner.setEmail("other@example.com");
         when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
 

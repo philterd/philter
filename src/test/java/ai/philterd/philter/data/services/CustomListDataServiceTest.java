@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.CustomListEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -71,11 +72,11 @@ class CustomListDataServiceTest {
 
     @Test
     void findOneByName() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String name = "testList";
         Document doc = new Document("_id", new ObjectId())
                 .append("name", name)
-                .append("user_id", userId);
+                .append("user_id", MongoIds.objectId(userId));
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -88,7 +89,7 @@ class CustomListDataServiceTest {
 
     @Test
     void existsForUser() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String name = "testList";
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
@@ -99,7 +100,7 @@ class CustomListDataServiceTest {
 
     @Test
     void deleteByName() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String name = "testList";
 
         customListDataService.deleteByName(name, userId);
@@ -109,7 +110,7 @@ class CustomListDataServiceTest {
 
     @Test
     void deleteAll() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteMany(any(Bson.class))).thenReturn(deleteResult);
         when(deleteResult.getDeletedCount()).thenReturn(5L);
@@ -122,7 +123,7 @@ class CustomListDataServiceTest {
 
     @Test
     void findAll() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);

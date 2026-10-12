@@ -17,6 +17,7 @@ package ai.philterd.philter.services.webhook;
 
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -24,7 +25,6 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.util.Timeout;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -99,7 +99,7 @@ class WebhookTimeoutIT {
 
     private WebhookDeliveryEntity delivery() {
         final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
-        entity.setId(new ObjectId());
+        entity.setId(MongoIds.newId());
         entity.setUrl("http://127.0.0.1:" + serverSocket.getLocalPort() + "/hook");
         entity.setEventType(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE);
         entity.setPayload("{\"event\":\"document.redaction.complete\"}");

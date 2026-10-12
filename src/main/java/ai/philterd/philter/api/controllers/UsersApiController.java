@@ -289,7 +289,7 @@ public class UsersApiController extends AbstractApiController {
 
         final UserEntity created = userService.findAnyByUsername(username);
         return ResponseEntity.status(HttpStatus.CREATED).body(new CreatedUserResponse(
-                created == null ? null : created.getId().toHexString(), username, role));
+                created == null ? null : created.getId(), username, role));
 
     }
 

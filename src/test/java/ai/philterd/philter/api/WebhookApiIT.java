@@ -24,7 +24,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +78,7 @@ class WebhookApiIT {
         httpClient.close();
     }
 
-    private ObjectId seedUser(final String role) {
+    private String seedUser(final String role) {
         final String username = "hook-" + role + "-" + UUID.randomUUID();
         final ServiceResponse created = userService.createUser("req", username, null, role,
                 policyDataService, contextDataService, "test");
@@ -87,14 +86,14 @@ class WebhookApiIT {
         return userService.findByUsername(username).getId();
     }
 
-    private String seedKey(final ObjectId userId, final Set<String> scopes) {
+    private String seedKey(final String userId, final Set<String> scopes) {
         final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", scopes);
         assertTrue(response.isSuccessful(), "the API key must be created");
         return response.getMessage();
     }
 
     private String idOf(final String apiKey) {
-        return apiKeyDataService.findOneByApiKey(apiKey).getId().toHexString();
+        return apiKeyDataService.findOneByApiKey(apiKey).getId();
     }
 
     private HttpResponse<String> send(final String method, final String path, final String apiKey, final String body)
@@ -113,7 +112,7 @@ class WebhookApiIT {
     @DisplayName("A user sets, reads, and removes its webhook, and each change is audited")
     void configuresAWebhook() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = seedKey(user, Set.of("webhooks:read", "webhooks:write"));
 
         final HttpResponse<String> refused = send("PUT", "/api/webhook", key,
@@ -143,7 +142,7 @@ class WebhookApiIT {
         final Set<String> recorded = new HashSet<>();
         for (final var element : gson.fromJson(audit.body(), JsonObject.class).getAsJsonArray("events")) {
             final JsonObject event = element.getAsJsonObject();
-            if (event.has("associatedObject") && user.toHexString().equals(event.get("associatedObject").getAsString())
+            if (event.has("associatedObject") && user.equals(event.get("associatedObject").getAsString())
                     && event.has("details") && event.get("details").getAsString().contains("api_key: " + keyId)) {
                 recorded.add(event.get("event").getAsString());
             }
@@ -156,7 +155,7 @@ class WebhookApiIT {
     @Test
     @DisplayName("Another user's webhook is out of reach without an administrator and cross-user access")
     void anotherUsersWebhook() throws Exception {
-        final ObjectId other = seedUser("user");
+        final String other = seedUser("user");
         final String otherUsername = userService.findOneById(other).getUsername();
         final String mine = seedKey(seedUser("user"), ApiKeyScope.all());
 

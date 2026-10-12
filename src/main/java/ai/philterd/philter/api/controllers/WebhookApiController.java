@@ -29,6 +29,7 @@ import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -47,7 +48,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -253,7 +253,7 @@ public class WebhookApiController extends AbstractApiController {
                     ErrorReasons.WEBHOOK_NOT_SET));
         }
 
-        final String deliveryId = new ObjectId().toHexString();
+        final String deliveryId = MongoIds.newId();
         final Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("event", WebhookDeliveryEntity.EVENT_WEBHOOK_TEST);
         payload.put("test", true);
@@ -302,7 +302,7 @@ public class WebhookApiController extends AbstractApiController {
 
         final ApiKeyEntity caller = requireApiKey(authorizationHeader);
 
-        final ObjectId userId = resolveTargetUserId(userService, caller.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, caller.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -327,7 +327,7 @@ public class WebhookApiController extends AbstractApiController {
     private UserEntity targetUser(final String requestId, final ApiKeyEntity caller, final String owner,
                                   final String action) {
 
-        final ObjectId userId = resolveTargetUserId(userService, caller.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, caller.getUserId(), owner);
         if (userId == null) {
             return null;
         }

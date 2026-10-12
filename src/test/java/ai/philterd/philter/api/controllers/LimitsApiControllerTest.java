@@ -22,6 +22,7 @@ import ai.philterd.philter.config.SessionKeyConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
@@ -34,7 +35,6 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.webhook.WebhookSettings;
 import ai.philterd.philter.utils.PathSafeNames;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -71,12 +71,12 @@ class LimitsApiControllerTest {
     @Mock private UserService userService;
     @Mock private ContextDataService contextDataService;
 
-    private ObjectId callerUserId;
+    private String callerUserId;
     private ApiKeyEntity callerKey;
 
     @BeforeEach
     void setUp() {
-        callerUserId = new ObjectId();
+        callerUserId = MongoIds.newId();
         callerKey = keyHolding(Set.of("redact"));
         lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
         lenient().when(apiKeyCache.get(API_KEY_HASH)).thenAnswer(invocation -> callerKey);
@@ -84,7 +84,7 @@ class LimitsApiControllerTest {
 
     private ApiKeyEntity keyHolding(final Set<String> scopes) {
         final ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(new ObjectId());
+        key.setId(MongoIds.newId());
         key.setUserId(callerUserId);
         key.setApiKeyHash(API_KEY_HASH);
         key.setScopes(new LinkedHashSet<>(scopes));

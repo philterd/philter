@@ -15,7 +15,7 @@
  */
 package ai.philterd.philter.data.entities;
 
-import org.bson.types.ObjectId;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LedgerEntityTest {
 
     /** Builds a per-redaction entry the way RedactionService does: set fields, then compute the hash. */
-    private static LedgerEntity entry(final ObjectId userId, final String documentId, final String token,
+    private static LedgerEntity entry(final String userId, final String documentId, final String token,
                                       final String previousHash, final String policyName, final int policyVersion,
                                       final String policyContentHash) throws Exception {
         final LedgerEntity entity = new LedgerEntity();
@@ -60,7 +60,7 @@ class LedgerEntityTest {
 
     @Test
     void perRedactionEntryFormsAValidChainLink() throws Exception {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         // The genesis entry carries the governing policy too.
         final LedgerEntity genesis = new LedgerEntity(userId, "doc-1", "", "", 0, "inputhash", "[genesis]",
@@ -77,7 +77,7 @@ class LedgerEntityTest {
 
     @Test
     void policyVersionIsPartOfTheTamperEvidentHash() throws Exception {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final LedgerEntity v5 = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
         final LedgerEntity v6 = entry(userId, "doc-1", "John Smith", "prev", "default", 6, "hashA");
@@ -91,7 +91,7 @@ class LedgerEntityTest {
 
     @Test
     void theFilenameAndPiiTypeArePartOfTheTamperEvidentHash() throws Exception {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final LedgerEntity base = entry(userId, "doc-1", "John Smith", "prev", "default", 5, "hashA");
 
@@ -112,7 +112,7 @@ class LedgerEntityTest {
     }
 
     /** Fixed in every field but the timestamp. Non-ASCII token, to exercise the charset too. */
-    private static LedgerEntity entryAt(final ObjectId userId, final Date timestamp) {
+    private static LedgerEntity entryAt(final String userId, final Date timestamp) {
         final LedgerEntity entity = new LedgerEntity();
         entity.setUserId(userId);
         entity.setDocumentId("doc-1");
@@ -136,7 +136,7 @@ class LedgerEntityTest {
 
         try {
 
-            final ObjectId userId = new ObjectId();
+            final String userId = MongoIds.newId();
             final Date timestamp = new Date(1_767_225_600_123L);
 
             TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
@@ -161,7 +161,7 @@ class LedgerEntityTest {
     @Test
     void theChainHashKeepsMillisecondPrecision() throws Exception {
         // Entries are written in a tight loop and routinely share a second.
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final String first = entryAt(userId, new Date(1_767_225_600_000L)).calculateHash();
         final String later = entryAt(userId, new Date(1_767_225_600_001L)).calculateHash();
@@ -172,14 +172,14 @@ class LedgerEntityTest {
     @Test
     void anEntryWithNoTimestampStillHashes() throws Exception {
         // A record missing its timestamp must read as broken, not throw and fail the whole chain check.
-        final String hash = entryAt(new ObjectId(), null).calculateHash();
+        final String hash = entryAt(MongoIds.newId(), null).calculateHash();
 
         assertEquals(64, hash.length(), "a SHA-256 hex digest is 64 characters");
     }
 
     @Test
     void policyFieldsRoundTripThroughDocument() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         final LedgerEntity entity = new LedgerEntity();
         entity.setUserId(userId);
@@ -213,7 +213,7 @@ class LedgerEntityTest {
     }
 
     /** Two entries differing only in where the boundary between two adjacent fields falls. */
-    private static LedgerEntity entryWith(final ObjectId userId, final String token, final String replacement,
+    private static LedgerEntity entryWith(final String userId, final String token, final String replacement,
                                           final String filename, final String type) throws Exception {
         final LedgerEntity entity = new LedgerEntity();
         entity.setUserId(userId);
@@ -237,7 +237,7 @@ class LedgerEntityTest {
     @DisplayName("Moving a character between the token and the replacement changes the hash")
     void adjacentFieldsCannotBorrowFromEachOther() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         // Concatenated without lengths both read as "...abc...", so one could be rewritten as the
         // other and the chain would still verify.
@@ -253,7 +253,7 @@ class LedgerEntityTest {
     @DisplayName("The same holds for the other adjacent pairs")
     void everyFieldBoundaryIsFixed() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final LedgerEntity base = entryWith(userId, "tok", "rep", "report.pdf", "PERSON");
 
         assertNotEquals(base.getHash(), entryWith(userId, "tok", "rep", "report.pd", "fPERSON").getHash(),
@@ -267,7 +267,7 @@ class LedgerEntityTest {
     @DisplayName("A separator character inside a value cannot forge a boundary")
     void aValueContainingTheSeparatorIsStillUnambiguous() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         // Joining the fields with a colon instead of length-prefixing them, both of these read as
         // "a:b:c:", so a delimiter alone leaves exactly the hole this finding is about.
@@ -283,7 +283,7 @@ class LedgerEntityTest {
     @DisplayName("The hash is reproducible from the published recipe, in any language")
     void theCanonicalFormIsCountedInUtf8Bytes() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         // An accented name is where bytes and UTF-16 units part company, and it is ordinary.
         final LedgerEntity entry = entryWith(userId, "café", "REDACTED", "dossier.pdf", "PERSON");
@@ -299,7 +299,7 @@ class LedgerEntityTest {
 
         // Bytes, code points and UTF-16 units differ for each of these.
         for (final String token : new String[]{"café", "a🙂b", "\uD835\uDD18\uD835\uDD2B\uD835\uDD26"}) {
-            final ObjectId userId = new ObjectId();
+            final String userId = MongoIds.newId();
             final LedgerEntity entry = entryWith(userId, token, "REDACTED", "dossier.pdf", "PERSON");
             assertEquals(recomputeFromPublishedRecipe(userId, token), entry.getHash(),
                     "the published recipe must reproduce the hash for token: " + token);
@@ -308,7 +308,7 @@ class LedgerEntityTest {
     }
 
     /** The recipe as ledgers.md states it, implemented separately from the entity. */
-    private static String recomputeFromPublishedRecipe(final ObjectId userId, final String token) throws Exception {
+    private static String recomputeFromPublishedRecipe(final String userId, final String token) throws Exception {
 
         final ByteArrayOutputStream canonical = new ByteArrayOutputStream();
 

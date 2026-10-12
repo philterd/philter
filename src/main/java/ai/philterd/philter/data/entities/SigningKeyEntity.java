@@ -15,11 +15,11 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptedBytes;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
@@ -28,7 +28,7 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
     /** The signing key belongs to the instance, not a user; the key provider ignores this value. */
     private static final String SYSTEM_OWNER = "system";
 
-    private ObjectId id;
+    private String id;
     private String keyId;
     private byte[] privateKeyEncoded;
     private byte[] publicKeyEncoded;
@@ -36,7 +36,7 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
     /** Reads the record without touching the private key, for callers that only need the public half. */
     public static SigningKeyEntity publicPartFromDocument(final Document doc) {
         final SigningKeyEntity e = new SigningKeyEntity();
-        e.setId(doc.getObjectId("_id"));
+        e.setId(MongoIds.hex(doc.getObjectId("_id")));
         e.setKeyId(doc.getString("key_id"));
         e.setPublicKeyEncoded(doc.get("public_key", Binary.class).getData());
         e.setCreatedAt(doc.getDate("created_at"));
@@ -45,7 +45,7 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
 
     public static SigningKeyEntity fromDocument(final Document doc, final EncryptionService encryptionService) {
         final SigningKeyEntity e = new SigningKeyEntity();
-        e.setId(doc.getObjectId("_id"));
+        e.setId(MongoIds.hex(doc.getObjectId("_id")));
         e.setKeyId(doc.getString("key_id"));
 
         // The public key stays in the clear: GET /api/signing-key serves it unauthenticated so a
@@ -66,7 +66,7 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
     public Document toDocument(final EncryptionService encryptionService) {
         final Document doc = new Document();
         if (id != null) {
-            doc.put("_id", id);
+            doc.put("_id", MongoIds.objectId(id));
         }
         doc.put("key_id", keyId);
 
@@ -80,11 +80,11 @@ public class SigningKeyEntity extends AbstractEncryptedEntity {
     }
 
     @Override
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(final ObjectId id) {
+    public void setId(final String id) {
         this.id = id;
     }
 

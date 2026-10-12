@@ -18,11 +18,11 @@ package ai.philterd.philter.data.services;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
 import org.bson.types.Binary;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ import static org.mockito.Mockito.mock;
  */
 class PendingDocumentEncryptionIT extends AbstractMongoIT {
 
-    private static final ObjectId USER = new ObjectId();
+    private static final String USER = MongoIds.newId();
     private static final String SECRET = "Patient John Smith, SSN 123-45-6789, admitted 2026-01-04.";
 
     private PendingDocumentDataService service;

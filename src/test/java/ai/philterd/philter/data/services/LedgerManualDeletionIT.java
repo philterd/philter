@@ -2,6 +2,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
@@ -11,7 +12,6 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -22,12 +22,12 @@ import static org.mockito.Mockito.*;
 class LedgerManualDeletionIT extends AbstractMongoIT {
     private final TestEncryptionService encryption = new TestEncryptionService();
     private MongoDatabase isolated;
-    private final ObjectId owner = new ObjectId();
+    private final String owner = MongoIds.newId();
     @BeforeEach void realServerWhenRequested() {
         String uri = System.getProperty("philter.test.mongoUri");
         if (uri != null) {
             mongoClient.close(); mongoClient = spy(MongoClients.create(uri));
-            isolated = mongoClient.getDatabase("philter_r3_" + new ObjectId());
+            isolated = mongoClient.getDatabase("philter_r3_" + MongoIds.newId());
             doReturn(isolated).when(mongoClient).getDatabase("philter");
         }
     }

@@ -15,13 +15,14 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.RecordIds;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Read-only access to the audit log ({@code audit_events}): the {@code GET /api/audit}
@@ -85,12 +87,12 @@ public class AuditLogService {
      * in the export's order (older, or as old with a lower id), so events written after the export began,
      * which are newer, never shift it. Sent to clients as an opaque string.
      */
-    public record ExportCursor(Date timestamp, ObjectId id) {
+    public record ExportCursor(Date timestamp, String id) {
 
         /** The cursor as clients see it. */
         public String encode() {
             return Base64.getUrlEncoder().withoutPadding().encodeToString(
-                    (timestamp.getTime() + ":" + id.toHexString()).getBytes(StandardCharsets.US_ASCII));
+                    (timestamp.getTime() + ":" + id).getBytes(StandardCharsets.US_ASCII));
         }
 
         /**
@@ -102,8 +104,11 @@ public class AuditLogService {
             try {
                 final String decoded = new String(Base64.getUrlDecoder().decode(cursor.trim()), StandardCharsets.US_ASCII);
                 final int colon = decoded.indexOf(':');
-                return new ExportCursor(new Date(Long.parseLong(decoded.substring(0, colon))),
-                        new ObjectId(decoded.substring(colon + 1)));
+                final String id = decoded.substring(colon + 1);
+                if (!RecordIds.isValid(id)) {
+                    throw new IllegalArgumentException("not an id");
+                }
+                return new ExportCursor(new Date(Long.parseLong(decoded.substring(0, colon))), id.toLowerCase(Locale.ROOT));
             } catch (final RuntimeException ex) {
                 throw new IllegalArgumentException("cursor is not a cursor from an export page.");
             }
@@ -201,7 +206,7 @@ public class AuditLogService {
             conditions.add(Filters.lte("timestamp", cursor.timestamp()));
             conditions.add(Filters.or(
                     Filters.lt("timestamp", cursor.timestamp()),
-                    Filters.and(Filters.eq("timestamp", cursor.timestamp()), Filters.lt("_id", cursor.id()))));
+                    Filters.and(Filters.eq("timestamp", cursor.timestamp()), Filters.lt("_id", MongoIds.objectId(cursor.id())))));
         }
         final Bson query = Filters.and(conditions);
 
@@ -229,7 +234,7 @@ public class AuditLogService {
         }
 
         final String nextCursor = truncated
-                ? new ExportCursor(last.getDate("timestamp"), last.getObjectId("_id")).encode() : null;
+                ? new ExportCursor(last.getDate("timestamp"), MongoIds.hex(last.getObjectId("_id"))).encode() : null;
 
         return new CsvExport(csv.toString().getBytes(StandardCharsets.UTF_8), rows, truncated, effectiveZone, offset,
                 nextCursor);
@@ -240,13 +245,13 @@ public class AuditLogService {
      * A page of audit events, most recent first. A null filter does not narrow the result;
      * {@code principalId} matches {@code api_key_id} and {@code event} the wire name.
      */
-    public List<Document> find(final ObjectId principalId, final String event, final Date from,
+    public List<Document> find(final String principalId, final String event, final Date from,
                                final Date toExclusive, final int offset, final int limit) {
         return find(principalId, event, from, toExclusive, offset, limit, true);
     }
 
     /** As above, oldest first unless {@code descending}. */
-    public List<Document> find(final ObjectId principalId, final String event, final Date from,
+    public List<Document> find(final String principalId, final String event, final Date from,
                                final Date toExclusive, final int offset, final int limit, final boolean descending) {
 
         final List<Document> events = new ArrayList<>();
@@ -262,16 +267,16 @@ public class AuditLogService {
     }
 
     /** How many events match the filters, so a caller can page through them. */
-    public long count(final ObjectId principalId, final String event, final Date from, final Date toExclusive) {
+    public long count(final String principalId, final String event, final Date from, final Date toExclusive) {
         return collection.countDocuments(filter(principalId, event, from, toExclusive));
     }
 
-    private static Bson filter(final ObjectId principalId, final String event, final Date from, final Date toExclusive) {
+    private static Bson filter(final String principalId, final String event, final Date from, final Date toExclusive) {
 
         final List<Bson> conditions = new ArrayList<>();
 
         if (principalId != null) {
-            conditions.add(Filters.eq("api_key_id", principalId));
+            conditions.add(Filters.eq("api_key_id", MongoIds.objectId(principalId)));
         }
         if (event != null && !event.isBlank()) {
             conditions.add(Filters.eq("event", event));

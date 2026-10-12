@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
@@ -32,7 +33,6 @@ import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 class LedgerSigningIT extends AbstractMongoIT {
 
-    private static final ObjectId USER = new ObjectId();
+    private static final String USER = MongoIds.newId();
     private static final String DOC = "doc-signed";
 
     private SigningKeyDataService signingKeyDataService;
@@ -132,7 +132,7 @@ class LedgerSigningIT extends AbstractMongoIT {
 
         // token is encrypted at rest, so the tampered value has to be written the same way a real
         // attacker with database access would write it.
-        final var encrypted = new TestEncryptionService().encrypt("something-else", USER.toHexString());
+        final var encrypted = new TestEncryptionService().encrypt("something-else", USER);
         mongoClient.getDatabase("philter").getCollection("ledger").updateOne(
                 Filters.eq("hash", originalHash),
                 Updates.combine(
@@ -302,7 +302,7 @@ class LedgerSigningIT extends AbstractMongoIT {
         writeChain();
         final LedgerEntity target = ledgerDataService.getChain(USER, DOC).get(index);
         mongoClient.getDatabase("philter").getCollection("ledger").updateOne(
-                Filters.eq("_id", target.getId()), Updates.unset("signature"));
+                Filters.eq("_id", MongoIds.objectId(target.getId())), Updates.unset("signature"));
         final var result = ledgerDataService.validateChain(USER, DOC);
         assertTrue(result.hashChainValid());
         assertFalse(result.signaturesValid());
@@ -346,7 +346,7 @@ class LedgerSigningIT extends AbstractMongoIT {
             entry.setSignature(null);
             entry.setSigningKeyId(null);
             mongoClient.getDatabase("philter").getCollection("ledger").replaceOne(
-                    Filters.eq("_id", entry.getId()), entry.toDocument(new TestEncryptionService()));
+                    Filters.eq("_id", MongoIds.objectId(entry.getId())), entry.toDocument(new TestEncryptionService()));
             previousHash = entry.getHash();
         }
         final var result = ledgerDataService.validateChain(USER, DOC);

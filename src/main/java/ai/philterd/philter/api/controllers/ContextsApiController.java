@@ -29,6 +29,7 @@ import ai.philterd.philter.api.responses.ImportContextEntriesResponse;
 import ai.philterd.philter.api.responses.GetContextResponse;
 import ai.philterd.philter.api.responses.GetContextsResponse;
 import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
@@ -55,7 +56,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -115,7 +115,7 @@ public class ContextsApiController extends AbstractApiController {
      * Whether the user behind the given API key is an admin. A context may be deleted only by its
      * creator or by an admin.
      */
-    private boolean isAdmin(final ObjectId userId) {
+    private boolean isAdmin(final String userId) {
         final UserEntity user = userService.findOneById(userId);
         return user != null && "admin".equalsIgnoreCase(user.getRole());
     }
@@ -135,9 +135,9 @@ public class ContextsApiController extends AbstractApiController {
      * @param callerUserId The id of the user making the request.
      * @param ownerEmail The email of the context's owner, or null/blank for the caller's own context.
      */
-    private ContextEntity resolveAuthorizedContext(final String name, final ObjectId callerUserId, final String ownerEmail) {
+    private ContextEntity resolveAuthorizedContext(final String name, final String callerUserId, final String ownerEmail) {
 
-        final ObjectId targetUserId;
+        final String targetUserId;
 
         if (ownerEmail == null || ownerEmail.isBlank()) {
             // No owner specified: operate on the caller's own context.
@@ -190,7 +190,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId callerUserId = apiKeyEntity.getUserId();
+        final String callerUserId = apiKeyEntity.getUserId();
         final Listings.Sort contextSort = listingSort(sort, order, CONTEXT_SORT, "name", false);
 
         if (allUsers) {
@@ -207,7 +207,7 @@ public class ContextsApiController extends AbstractApiController {
 
         // The caller's own contexts, or — for an admin supplying owner — another user's. A null result
         // (non-admin naming another user, or unknown user) maps to 404 so it never reveals the user's existence.
-        final ObjectId userId = resolveTargetUserId(userService, callerUserId, owner);
+        final String userId = resolveTargetUserId(userService, callerUserId, owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -261,7 +261,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -331,7 +331,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -387,7 +387,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -459,7 +459,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -504,7 +504,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -523,7 +523,7 @@ public class ContextsApiController extends AbstractApiController {
         final List<ContextEntryView> views = new ArrayList<>(entries.size());
         for (final ContextEntryEntity entry : entries) {
             views.add(new ContextEntryView(
-                    entry.getId() != null ? entry.getId().toHexString() : null,
+                    entry.getId(),
                     entry.getReplacement(),
                     entry.getFilterType(),
                     entry.getReads(),
@@ -550,7 +550,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -587,19 +587,19 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
 
-        if (!ObjectId.isValid(entryId)) {
+        if (!RecordIds.isValid(entryId)) {
             return new ResponseEntity<>(new GenericResponse("Invalid entry id."), HttpStatus.BAD_REQUEST);
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
                 "delete entry " + entryId + " in context '" + name + "'");
 
-        final long deleted = contextEntryService.deleteByIdAndUserIdAndContext(new ObjectId(entryId), userId, name);
+        final long deleted = contextEntryService.deleteByIdAndUserIdAndContext(entryId.toLowerCase(Locale.ROOT), userId, name);
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getUserId(), null,
@@ -633,7 +633,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final String userId = apiKeyEntity.getUserId();
 
         // The caller's own context by name, or — for an admin supplying owner — another user's context.
         final ContextEntity context = resolveAuthorizedContext(name, userId, owner);
@@ -645,7 +645,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final ObjectId ownerUserId = context.getUserId();
+        final String ownerUserId = context.getUserId();
 
         final List<ContextEntryEntity> entries = contextEntryService.findAllByUserIdAndContext(ownerUserId, name);
 
@@ -693,7 +693,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = apiKeyEntity.getUserId();
+        final String userId = apiKeyEntity.getUserId();
 
         // The caller's own context by name, or — for an admin supplying owner — another user's context.
         // This authorization check runs before any input validation (on_conflict and the payload) so an
@@ -739,7 +739,7 @@ public class ContextsApiController extends AbstractApiController {
             }
         }
 
-        final ObjectId ownerUserId = context.getUserId();
+        final String ownerUserId = context.getUserId();
 
         int inserted = 0, overwritten = 0, skipped = 0;
         for (final ContextEntryExport entry : payload.getEntries()) {

@@ -48,7 +48,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -196,7 +195,7 @@ public class LedgerApiController extends AbstractApiController {
             final Listings.Page<LedgerEntity> page = ledgerService.listChains(requestId, null, query, chainSort,
                     normalizeOffset(offset), normalizeLimit(limit), Source.API.getSource());
             final List<LedgerEntity> chains = page.items();
-            final Map<ObjectId, String> owners = ownerNames(userService, chains, LedgerEntity::getUserId);
+            final Map<String, String> owners = ownerNames(userService, chains, LedgerEntity::getUserId);
             final List<LedgerEntryView> views = new ArrayList<>(chains.size());
             for (final LedgerEntity chain : chains) {
                 views.add(signed(buildView(chain, null, owners.get(chain.getUserId())), chain));
@@ -205,7 +204,7 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, (int) page.total())), HttpStatus.OK);
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -250,7 +249,7 @@ public class LedgerApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -300,7 +299,7 @@ public class LedgerApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -345,7 +344,7 @@ public class LedgerApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -430,7 +429,7 @@ public class LedgerApiController extends AbstractApiController {
             return refusal;
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
@@ -488,7 +487,7 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse("older_than_days must be zero or greater."), HttpStatus.BAD_REQUEST);
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }

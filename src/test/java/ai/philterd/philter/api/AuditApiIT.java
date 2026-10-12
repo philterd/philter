@@ -16,6 +16,7 @@
 package ai.philterd.philter.api;
 
 import ai.philterd.philter.config.AdminAccessConfig;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -27,7 +28,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.mongodb.client.MongoClient;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -86,7 +86,7 @@ class AuditApiIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String adminKey;
-    private ObjectId adminUserId;
+    private String adminUserId;
 
     @BeforeEach
     void setUp() {
@@ -116,11 +116,11 @@ class AuditApiIT {
         return username;
     }
 
-    private ObjectId userId(final String username) {
+    private String userId(final String username) {
         return userService.findByUsername(username).getId();
     }
 
-    private String createKey(final ObjectId userId, final Set<String> scopes) {
+    private String createKey(final String userId, final Set<String> scopes) {
         final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", scopes);
         assertTrue(response.isSuccessful(), "the API key must be created");
         return response.getMessage();
@@ -172,7 +172,7 @@ class AuditApiIT {
 
         // Keyed to this test's reader: the tests share a database, so other reads are recorded too.
         final Document recorded = mongoClient.getDatabase("philter").getCollection("audit_events")
-                .find(new Document("event", "audit_log_retrieved").append("api_key_id", adminUserId)).first();
+                .find(new Document("event", "audit_log_retrieved").append("api_key_id", MongoIds.objectId(adminUserId))).first();
 
         assertNotNull(recorded, "reading the audit log must itself be audited, naming the reader");
         assertNotNull(recorded.getString("client_ip_address"));

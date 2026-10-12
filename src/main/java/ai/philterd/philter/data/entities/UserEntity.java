@@ -15,16 +15,18 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 import java.util.Date;
 
 public class UserEntity extends AbstractEncryptedEntity {
 
-    private ObjectId id;
+    private String id;
+    /** When the user was created, from storage; not written back. */
+    private Date createdAt;
     private String username;
     private String email;
     private String role;
@@ -53,7 +55,9 @@ public class UserEntity extends AbstractEncryptedEntity {
 
     public static UserEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final UserEntity userEntity = new UserEntity();
-        userEntity.setId(document.getObjectId("_id"));
+        userEntity.setId(MongoIds.hex(document.getObjectId("_id")));
+        // The ObjectId carries the creation time; users have no separate created field.
+        userEntity.setCreatedAt(document.getObjectId("_id") == null ? null : document.getObjectId("_id").getDate());
         // The login identifier is the username. Accounts created before the username field existed
         // stored the login id under "email", so fall back to that when "username" is absent.
         userEntity.setUsername(document.getString("username") != null
@@ -98,7 +102,7 @@ public class UserEntity extends AbstractEncryptedEntity {
     public Document toDocument(final EncryptionService encryptionService) {
         final Document document = new Document();
         if (id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
         document.put("username", username);
         document.put("email", email);
@@ -130,19 +134,28 @@ public class UserEntity extends AbstractEncryptedEntity {
             document.put(field, "");
             document.put(field + "_key", "");
         } else {
-            final EncryptResult result = encryptionService.encrypt(value, id != null ? id.toHexString() : "");
+            final EncryptResult result = encryptionService.encrypt(value, id != null ? id : "");
             document.put(field, result.getEncryptedText());
             document.put(field + "_key", result.getEncryptionKey());
         }
     }
 
     @Override
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
+    }
+
+    /** When the user was created, or {@code null} for a user not yet stored. */
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(final Date createdAt) {
+        this.createdAt = createdAt;
     }
 
     public String getUsername() {

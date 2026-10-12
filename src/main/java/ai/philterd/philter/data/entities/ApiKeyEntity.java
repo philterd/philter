@@ -16,8 +16,8 @@
 package ai.philterd.philter.data.entities;
 
 import org.bson.Document;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ApiKeyScope;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -27,7 +27,7 @@ import java.util.Set;
 
 public class ApiKeyEntity extends AbstractEntity {
 
-    private ObjectId id;
+    private String id;
     private String apiKeyHash;
     private String apiKeyPrefix;
     // API keys are soft-deleted: a deleted key is revoked (it can never authenticate again) but the
@@ -37,7 +37,7 @@ public class ApiKeyEntity extends AbstractEntity {
     private Date deletedAt;
     private Date timestamp;
     private transient String apiKey;
-    private ObjectId userId;
+    private String userId;
     // True for a key seeded at startup from PHILTER_BOOTSTRAP_API_KEY, so a client can flag that the
     // bootstrap key is still in use and should be replaced with a narrower one.
     private boolean bootstrap;
@@ -70,8 +70,8 @@ public class ApiKeyEntity extends AbstractEntity {
 
     public static ApiKeyEntity fromDocument(final Document document) {
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
-        apiKeyEntity.setId(document.getObjectId("_id"));
-        apiKeyEntity.setUserId(document.getObjectId("user_id"));
+        apiKeyEntity.setId(MongoIds.hex(document.getObjectId("_id")));
+        apiKeyEntity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
 
         // Read hash and prefix from document
         apiKeyEntity.setApiKeyHash(document.getString("api_key_hash"));
@@ -103,9 +103,9 @@ public class ApiKeyEntity extends AbstractEntity {
     public Document toDocument() {
         final Document document = new Document();
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("api_key_hash", apiKeyHash);
         document.put("api_key_prefix", apiKeyPrefix);
         document.put("deleted", deleted);
@@ -131,11 +131,11 @@ public class ApiKeyEntity extends AbstractEntity {
         return document;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -187,11 +187,11 @@ public class ApiKeyEntity extends AbstractEntity {
         this.apiKeyPrefix = apiKeyPrefix;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

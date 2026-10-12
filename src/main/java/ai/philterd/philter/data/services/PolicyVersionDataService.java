@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -32,7 +33,6 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -208,9 +208,9 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
      * descending (most recent first). The {@code (user_id, name, revision)} compound index covers this
      * query efficiently.
      */
-    public List<PolicyVersionEntity> findAllByName(final String name, final ObjectId userId,
+    public List<PolicyVersionEntity> findAllByName(final String name, final String userId,
                                                     final int offset, final int limit) {
-        final Bson query = Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name));
+        final Bson query = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name));
         final FindIterable<Document> documents = collection.find(query)
                 .sort(Sorts.descending("revision"))
                 .skip(offset)
@@ -223,9 +223,9 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
     }
 
     /** A page of the policy's retained versions, by revision, and how many there are. */
-    public Listings.Page<PolicyVersionEntity> listByName(final String name, final ObjectId userId,
+    public Listings.Page<PolicyVersionEntity> listByName(final String name, final String userId,
                                                          final boolean descending, final int offset, final int limit) {
-        return Listings.page(collection, Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name)),
+        return Listings.page(collection, Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name)),
                 new Listings.Sort("revision", descending), offset, limit, PolicyVersionEntity::fromDocument);
     }
 
@@ -233,10 +233,10 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
      * Resolves a specific retained snapshot by policy name, owner, and revision number, or
      * {@code null} if no snapshot for that revision has been retained.
      */
-    public PolicyVersionEntity findByNameAndRevision(final String name, final ObjectId userId,
+    public PolicyVersionEntity findByNameAndRevision(final String name, final String userId,
                                                       final int revision) {
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("name", name),
                 Filters.eq("revision", revision));
         final Document document = collection.find(query).first();
@@ -248,7 +248,7 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
      * descending. Returns an empty list if there are no snapshots, and a single-element list if only
      * one snapshot exists.
      */
-    public List<PolicyVersionEntity> findTwoMostRecent(final String name, final ObjectId userId) {
+    public List<PolicyVersionEntity> findTwoMostRecent(final String name, final String userId) {
         return findAllByName(name, userId, 0, 2);
     }
 
@@ -256,24 +256,24 @@ public class PolicyVersionDataService extends AbstractService<PolicyVersionEntit
      * Records that a user's policy was deleted, replacing any earlier deletion of a policy with that
      * name, so the most recent deletion is the one reported.
      */
-    public void recordDeletion(final ObjectId userId, final String name, final int revision,
-                               final ObjectId deletedBy, final Date deletedAt) {
-        deletions.updateOne(Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name)),
-                new Document("$set", new Document("revision", revision).append("deleted_by", deletedBy)
+    public void recordDeletion(final String userId, final String name, final int revision,
+                               final String deletedBy, final Date deletedAt) {
+        deletions.updateOne(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name)),
+                new Document("$set", new Document("revision", revision).append("deleted_by", MongoIds.objectId(deletedBy))
                         .append("deleted_at", deletedAt)),
                 new com.mongodb.client.model.UpdateOptions().upsert(true));
     }
 
     /** The names of every policy the user has retained versions of, deleted or not. */
-    public List<String> findNames(final ObjectId userId) {
+    public List<String> findNames(final String userId) {
         final List<String> names = new ArrayList<>();
-        collection.distinct("name", Filters.eq("user_id", userId), String.class).into(names);
+        collection.distinct("name", Filters.eq("user_id", MongoIds.objectId(userId)), String.class).into(names);
         return names;
     }
 
     /** The user's most recent deletion of a policy with this name, or {@code null} when none was recorded. */
-    public Document findDeletion(final ObjectId userId, final String name) {
-        return deletions.find(Filters.and(Filters.eq("user_id", userId), Filters.eq("name", name))).first();
+    public Document findDeletion(final String userId, final String name) {
+        return deletions.find(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name))).first();
     }
 
     @Override

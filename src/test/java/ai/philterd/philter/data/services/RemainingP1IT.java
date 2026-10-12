@@ -2,13 +2,13 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.google.gson.Gson;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.CountDownLatch;
@@ -24,7 +24,7 @@ class RemainingP1IT extends AbstractMongoIT {
         if (uri != null) {
             mongoClient.close();
             mongoClient = spy(com.mongodb.client.MongoClients.create(uri));
-            isolated = mongoClient.getDatabase("philter_p1_races_" + new ObjectId());
+            isolated = mongoClient.getDatabase("philter_p1_races_" + MongoIds.newId());
             doReturn(isolated).when(mongoClient).getDatabase("philter");
         }
     }
@@ -52,7 +52,7 @@ class RemainingP1IT extends AbstractMongoIT {
 
     @Test void nameReuseKeepsBothGoverningContentsAndMonotonicRevision() {
         var versions = new PolicyVersionDataService(mongoClient, audit); var service = policies(versions);
-        ObjectId owner = new ObjectId();
+        String owner = MongoIds.newId();
         assertTrue(service.create("req", owner, json("old"), "", "", "reused", "test").isSuccessful());
         var old = service.findOne("reused", owner);
         assertTrue(service.deleteByName("req", "reused", owner, Source.API, owner, "10.0.0.1").isSuccessful());
@@ -65,7 +65,7 @@ class RemainingP1IT extends AbstractMongoIT {
 
     @Test void competingEditsPublishOnlyOneHeadAndRetainItsExactContent() throws Exception {
         var versions = new PolicyVersionDataService(mongoClient, audit); var service = policies(versions);
-        ObjectId owner = new ObjectId(); service.create("req", owner, json("base"), "", "", "race", "test");
+        String owner = MongoIds.newId(); service.create("req", owner, json("base"), "", "", "race", "test");
         var initial = service.findOne("race", owner);
         var bothRead = new CountDownLatch(2); var release = new CountDownLatch(1);
         var first = spy(policies(versions)); var second = spy(policies(versions));
@@ -88,7 +88,7 @@ class RemainingP1IT extends AbstractMongoIT {
 
     @Test void failedSnapshotPreventsPublishingLiveUpdate() {
         var versions = spy(new PolicyVersionDataService(mongoClient, audit)); var service = policies(versions);
-        ObjectId owner = new ObjectId(); service.create("req", owner, json("base"), "", "", "policy", "test");
+        String owner = MongoIds.newId(); service.create("req", owner, json("base"), "", "", "policy", "test");
         var initial = service.findOne("policy", owner);
         doThrow(new IllegalStateException("storage unavailable")).when(versions).snapshot(any());
         assertThrows(IllegalStateException.class, () -> service.update("req", owner, initial.getId(), json("new"), "", "", "test"));
@@ -98,7 +98,7 @@ class RemainingP1IT extends AbstractMongoIT {
         var cache = new ai.philterd.philter.services.cache.ApiKeyCache("", 0, "", false);
         var revoker = new ApiKeyDataService(mongoClient, audit, cache);
         var editor = spy(new ApiKeyDataService(mongoClient, audit, cache));
-        var owner = new ObjectId();
+        var owner = MongoIds.newId();
         var key = revoker.findOneByApiKey(revoker.createApiKey("req", owner, "test").getMessage());
         var read = new CountDownLatch(1); var resume = new CountDownLatch(1);
         doAnswer(call -> { var result = call.callRealMethod(); read.countDown();
@@ -112,7 +112,7 @@ class RemainingP1IT extends AbstractMongoIT {
             assertFalse(pending.get(5, TimeUnit.SECONDS).isSuccessful());
         }
         assertTrue(mongoClient.getDatabase("philter").getCollection("api_keys")
-                .find(new Document("_id", key.getId())).first().getBoolean("deleted"));
+                .find(new Document("_id", MongoIds.objectId(key.getId()))).first().getBoolean("deleted"));
         assertNull(revoker.findOneByApiKey("not-a-key"));
     }
 

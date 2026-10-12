@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AbstractEncryptedEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -26,7 +27,6 @@ import com.mongodb.client.result.UpdateResult;
 import org.bson.BsonObjectId;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,10 +59,10 @@ class AbstractEncryptedServiceTest {
     private AbstractEncryptedService<TestEncryptedEntity> abstractEncryptedService;
 
     private static class TestEncryptedEntity extends AbstractEncryptedEntity {
-        private ObjectId id;
+        private String id;
         @Override
-        public ObjectId getId() { return id; }
-        public void setId(ObjectId id) { this.id = id; }
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
         @Override
         public Document toDocument(EncryptionService encryptionService) { return new Document("test", "test"); }
     }
@@ -77,12 +77,12 @@ class AbstractEncryptedServiceTest {
     @Test
     void save() {
         TestEncryptedEntity entity = new TestEncryptedEntity();
-        ObjectId id = new ObjectId();
+        String id = MongoIds.newId();
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(id));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(id)));
 
-        ObjectId savedId = abstractEncryptedService.save(entity);
+        String savedId = abstractEncryptedService.save(entity);
 
         assertEquals(id, savedId);
         verify(mongoCollection).insertOne(any(Document.class));
@@ -91,7 +91,7 @@ class AbstractEncryptedServiceTest {
     @Test
     void update() {
         TestEncryptedEntity entity = new TestEncryptedEntity();
-        ObjectId id = new ObjectId();
+        String id = MongoIds.newId();
         entity.setId(id);
         
         UpdateResult updateResult = mock(UpdateResult.class);

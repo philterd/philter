@@ -43,7 +43,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -134,7 +133,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new BadRequestException("scopeValue is required.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -211,14 +210,14 @@ public class LegalHoldsApiController extends AbstractApiController {
             }
             final Listings.Page<LegalHoldEntity> page =
                     legalHoldDataService.list(null, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
-            final Map<ObjectId, String> owners = ownerNames(userService, page.items(), LegalHoldEntity::getUserId);
+            final Map<String, String> owners = ownerNames(userService, page.items(), LegalHoldEntity::getUserId);
             auditAllUsersListing(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), "list legal holds");
             return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().<LegalHoldResponse>map(hold -> new OwnedLegalHoldResponse(
                     hold.getReference(), hold.getScopeType(), hold.getScopeValue(), hold.getReason(), hold.getSetAt(),
                     owners.get(hold.getUserId()))).toList(), page.total()));
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -256,7 +255,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }
@@ -302,7 +301,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        final ObjectId userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
         if (userId == null) {
             throw new NotFoundException();
         }

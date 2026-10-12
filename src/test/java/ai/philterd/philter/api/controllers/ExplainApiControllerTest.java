@@ -22,6 +22,7 @@ import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -30,7 +31,6 @@ import ai.philterd.philter.services.filtering.RedactionOutcome;
 import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.signing.SigningService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -82,8 +82,8 @@ class ExplainApiControllerTest {
     @BeforeEach
     void setUp() {
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
-        apiKeyEntity.setUserId(new ObjectId());
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setUserId(MongoIds.newId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.

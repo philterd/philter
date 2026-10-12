@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoCollection;
@@ -38,7 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import org.bson.types.ObjectId;
 import ai.philterd.philter.model.AuditLogEvent;
 import org.mockito.ArgumentCaptor;
 
@@ -50,7 +50,7 @@ import org.mockito.ArgumentCaptor;
  */
 class AdminSettingsDataServiceIT extends AbstractMongoIT {
 
-    private static final ObjectId ACTING_ADMIN = new ObjectId();
+    private static final String ACTING_ADMIN = MongoIds.newId();
 
     private AdminSettingsDataService service;
 
@@ -58,8 +58,8 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     void setUpService() {
         service = new AdminSettingsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
         // Every settings change rechecks that the acting user is an active administrator.
-        mongoClient.getDatabase("philter").getCollection("users").replaceOne(new Document("_id", ACTING_ADMIN),
-                new Document("_id", ACTING_ADMIN).append("username", "settings-admin").append("role", "admin"),
+        mongoClient.getDatabase("philter").getCollection("users").replaceOne(new Document("_id", MongoIds.objectId(ACTING_ADMIN)),
+                new Document("_id", MongoIds.objectId(ACTING_ADMIN)).append("username", "settings-admin").append("role", "admin"),
                 new com.mongodb.client.model.ReplaceOptions().upsert(true));
     }
 

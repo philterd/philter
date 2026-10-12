@@ -1,6 +1,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.ConnectionString;
@@ -12,7 +13,6 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import java.util.List;
@@ -28,7 +28,7 @@ class RequiredSchemaMongoIT {
     private final AuditEventPublisher audit = mock(AuditEventPublisher.class);
     @BeforeEach void connect() {
         client = spy(MongoClients.create(System.getProperty("philter.test.mongoUri")));
-        database = client.getDatabase("philter_p1_" + new ObjectId());
+        database = client.getDatabase("philter_p1_" + MongoIds.newId());
         doReturn(database).when(client).getDatabase("philter");
     }
     @AfterEach void cleanup() { database.drop(); client.close(); }
@@ -84,7 +84,7 @@ class RequiredSchemaMongoIT {
                         .validator(new Document("required_flag", true))));
         var versions = new PolicyVersionDataService(client, audit);
         var policy = new ai.philterd.philter.data.entities.PolicyEntity();
-        policy.setUserId(new ObjectId()); policy.setName("policy"); policy.setPolicy("{}");
+        policy.setUserId(MongoIds.newId()); policy.setName("policy"); policy.setPolicy("{}");
         var failure = assertThrows(com.mongodb.MongoWriteException.class, () -> versions.snapshot(policy));
         assertEquals(121, failure.getError().getCode());
         assertNull(versions.findByContentHash(PolicyVersionDataService.contentHash("{}")));

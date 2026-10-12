@@ -16,13 +16,13 @@
 package ai.philterd.philter.audit;
 
 import ai.philterd.philter.config.AuditConfig;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.InsertOneResult;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,7 +74,7 @@ class RedactionAuditingSwitchTest {
 
     @Test
     void redactionEventsAreRecordedByDefault() {
-        publisher.auditEvent("req", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, new ObjectId());
+        publisher.auditEvent("req", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, MongoIds.newId());
         verify(collection).insertOne(any());
     }
 
@@ -82,8 +82,8 @@ class RedactionAuditingSwitchTest {
     void redactionEventsAreSuppressedWhenSwitchedOff() {
         AuditConfig.setOverrideForTesting(false);
 
-        publisher.auditEvent("req", AuditLogEvent.DOCUMENT_REDACTION_INITIATED, new ObjectId());
-        publisher.auditEvent("req", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, new ObjectId());
+        publisher.auditEvent("req", AuditLogEvent.DOCUMENT_REDACTION_INITIATED, MongoIds.newId());
+        publisher.auditEvent("req", AuditLogEvent.DOCUMENT_REDACTION_COMPLETED, MongoIds.newId());
 
         verify(collection, never()).insertOne(any());
     }
@@ -108,7 +108,7 @@ class RedactionAuditingSwitchTest {
                 AuditLogEvent.SIGNING_KEY_REGENERATED);
 
         for (final AuditLogEvent event : security) {
-            publisher.auditEvent("req", event, new ObjectId());
+            publisher.auditEvent("req", event, MongoIds.newId());
         }
 
         verify(collection, org.mockito.Mockito.times(security.size())).insertOne(any());

@@ -15,10 +15,12 @@
  */
 package ai.philterd.philter.services.cache;
 
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.services.encryption.ContextTokenHasher;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Locale;
 
 /**
  * An implementation of {@link Cache} for managing context-based token replacements.
@@ -64,23 +66,23 @@ public class ContextCache extends Cache {
      * <p>A null {@code userId} is rejected: an unnamespaced key would collapse every user's same-named
      * context into one shared entry, leaking one user's token mappings to another.
      */
-    private static String buildKey(final ObjectId userId, final String context) {
+    private static String buildKey(final String userId, final String context) {
         if (userId == null) {
             throw new IllegalArgumentException("userId must not be null when building a context cache key.");
         }
-        return userId.toHexString() + ":" + context;
+        return userId + ":" + context;
     }
 
     /**
      * Sets a token replacement in the cache, tagged with the entry's id so the caller can later
      * increment the entry's read count on a cache hit.
      */
-    public void setTokenReplacement(final ObjectId userId, final String context, final String token, final ObjectId entryId, final String replacement) {
+    public void setTokenReplacement(final String userId, final String context, final String token, final String entryId, final String replacement) {
         setTokenReplacement(userId, context, token, entryId, replacement, clock.getAsLong());
     }
 
-    public void setTokenReplacement(final ObjectId userId, final String context, final String token,
-                                    final ObjectId entryId, final String replacement, final long observedAt) {
+    public void setTokenReplacement(final String userId, final String context, final String token,
+                                    final String entryId, final String replacement, final long observedAt) {
 
         // The token must be hashed.
         final String tokenHash = ContextTokenHasher.hash(token);
@@ -92,7 +94,7 @@ public class ContextCache extends Cache {
         }
 
         final String key = buildKey(userId, context);
-        final String encoded = (observedAt + CONTEXT_CACHE_TTL_SECONDS * 1000L) + ":" + entryId.toHexString() + replacement;
+        final String encoded = (observedAt + CONTEXT_CACHE_TTL_SECONDS * 1000L) + ":" + entryId + replacement;
 
         backend.hset(key, tokenHash, encoded);
         // Set TTL of 60 minutes on the cache entry.
@@ -106,7 +108,7 @@ public class ContextCache extends Cache {
      * @return The cached entry, or {@code null} if not present or the cached value is in an
      *         unrecognized (legacy) format.
      */
-    public CachedReplacement getReplacement(final ObjectId userId, final String context, final String token) {
+    public CachedReplacement getReplacement(final String userId, final String context, final String token) {
 
         final String tokenHash = ContextTokenHasher.hash(token);
 
@@ -124,19 +126,19 @@ public class ContextCache extends Cache {
         }
 
         final String hexPrefix = raw.substring(0, ENTRY_ID_HEX_LENGTH);
-        if (!ObjectId.isValid(hexPrefix)) {
+        if (!RecordIds.isValid(hexPrefix)) {
             // Legacy value without an id prefix — treat as a cache miss so the caller refreshes from the DB.
             return null;
         }
 
-        return new CachedReplacement(new ObjectId(hexPrefix), raw.substring(ENTRY_ID_HEX_LENGTH));
+        return new CachedReplacement(hexPrefix.toLowerCase(Locale.ROOT), raw.substring(ENTRY_ID_HEX_LENGTH));
 
     }
 
     /**
      * A cached entry, paired with the id of the underlying database row.
      */
-    public record CachedReplacement(ObjectId entryId, String replacement) {}
+    public record CachedReplacement(String entryId, String replacement) {}
 
     /**
      * Checks if the cache contains a replacement for a token.
@@ -146,7 +148,7 @@ public class ContextCache extends Cache {
      * @param token   The token.
      * @return <code>true</code> if the cache contains a replacement; otherwise <code>false</code>.
      */
-    public boolean containsToken(final ObjectId userId, final String context, final String token) {
+    public boolean containsToken(final String userId, final String context, final String token) {
 
         return getReplacement(userId, context, token) != null;
 
@@ -162,14 +164,14 @@ public class ContextCache extends Cache {
      * Forgets one mapping, by the hash the entry is stored under. Import and deletion work from the
      * hash: the original token is not available to them.
      */
-    public void evictTokenHash(final ObjectId userId, final String context, final String tokenHash) {
+    public void evictTokenHash(final String userId, final String context, final String tokenHash) {
         if (tokenHash == null) {
             return;
         }
         backend.hdel(buildKey(userId, context), tokenHash);
     }
 
-    public void deleteContext(final ObjectId userId, final String context) {
+    public void deleteContext(final String userId, final String context) {
 
         LOGGER.info("Deleting context {} for user {} from cache.", context, userId);
 

@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -83,9 +84,9 @@ class WebhookDeliveryDataServiceTest {
 
     @Test
     void claimNextDueReturnsEntity() {
-        final ObjectId id = new ObjectId();
-        final var encrypted = encryption.encrypt("s", new ObjectId().toHexString());
-        final Document claimed = new Document("_id", id)
+        final String id = MongoIds.newId();
+        final var encrypted = encryption.encrypt("s", MongoIds.newId());
+        final Document claimed = new Document("_id", MongoIds.objectId(id))
                 .append("user_id", new ObjectId())
                 .append("document_id", "d")
                 .append("event_type", WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE)
@@ -111,7 +112,7 @@ class WebhookDeliveryDataServiceTest {
     @Test
     void markDeliveredSetsStatusDelivered() {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
-        service.markDelivered(new ObjectId(), "claim");
+        service.markDelivered(MongoIds.newId(), "claim");
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
     }
 
@@ -120,7 +121,7 @@ class WebhookDeliveryDataServiceTest {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
         final long beforeMs = System.currentTimeMillis();
-        service.rescheduleOrFail(new ObjectId(), "claim", 1, "boom");
+        service.rescheduleOrFail(MongoIds.newId(), "claim", 1, "boom");
 
         final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);
         verify(mongoCollection).updateOne(any(Bson.class), updateCaptor.capture());
@@ -138,7 +139,7 @@ class WebhookDeliveryDataServiceTest {
     void rescheduleAtMaxAttemptsMarksTerminalFailed() {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
-        service.rescheduleOrFail(new ObjectId(), "claim", WebhookDeliveryDataService.MAX_ATTEMPTS, "exhausted");
+        service.rescheduleOrFail(MongoIds.newId(), "claim", WebhookDeliveryDataService.MAX_ATTEMPTS, "exhausted");
 
         final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);
         verify(mongoCollection).updateOne(any(Bson.class), updateCaptor.capture());
@@ -158,7 +159,7 @@ class WebhookDeliveryDataServiceTest {
         for (int attempt = 1; attempt < WebhookDeliveryDataService.MAX_ATTEMPTS; attempt++) {
             final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);
             final long beforeMs = System.currentTimeMillis();
-            service.rescheduleOrFail(new ObjectId(), "claim", attempt, "retry");
+            service.rescheduleOrFail(MongoIds.newId(), "claim", attempt, "retry");
             verify(mongoCollection, org.mockito.Mockito.atLeastOnce()).updateOne(any(Bson.class), updateCaptor.capture());
 
             final Date next = extractDate(updateCaptor.getValue(), "next_attempt_at");

@@ -17,7 +17,6 @@ package ai.philterd.philter.api.responses;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -44,8 +43,8 @@ public class ApiKeyResponse {
     }
 
     /** A key, marked {@code current} when it is the key {@code callingKeyId} names. */
-    public ApiKeyResponse(final ApiKeyEntity apiKeyEntity, final ObjectId callingKeyId) {
-        this.id = apiKeyEntity.getId().toHexString();
+    public ApiKeyResponse(final ApiKeyEntity apiKeyEntity, final String callingKeyId) {
+        this.id = apiKeyEntity.getId();
         this.prefix = apiKeyEntity.getApiKeyPrefix();
         this.scopes = new ArrayList<>(apiKeyEntity.getScopes());
         this.created = apiKeyEntity.getTimestamp();

@@ -45,7 +45,7 @@ public class WebhookService {
 
     public void deliver(final WebhookDeliveryEntity delivery) throws Exception {
 
-        final int code = post(delivery.getUrl(), delivery.getEventType(), delivery.getId().toHexString(),
+        final int code = post(delivery.getUrl(), delivery.getEventType(), delivery.getId(),
                 delivery.getPayload(), delivery.getSecret());
         if (code < 200 || code >= 300) {
             throw new WebhookDeliveryException("Webhook responded with HTTP " + code);

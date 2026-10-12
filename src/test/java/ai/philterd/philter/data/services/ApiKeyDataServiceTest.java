@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import com.mongodb.client.FindIterable;
@@ -71,11 +72,11 @@ class ApiKeyDataServiceTest {
 
     @Test
     void createApiKey() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
-        ObjectId apiKeyId = new ObjectId();
+        String apiKeyId = MongoIds.newId();
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(apiKeyId));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(apiKeyId)));
         
         // Mocking doesApiKeyExist via mongoCollection.find
         FindIterable<Document> findIterable = mock(FindIterable.class);
@@ -108,7 +109,7 @@ class ApiKeyDataServiceTest {
 
     @Test
     void findAll() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.sort(any())).thenReturn(findIterable);
@@ -124,7 +125,7 @@ class ApiKeyDataServiceTest {
 
     @Test
     void count() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         when(mongoCollection.countDocuments(any(Document.class))).thenReturn(5L);
 
         int count = apiKeyDataService.count(userId);
@@ -134,14 +135,14 @@ class ApiKeyDataServiceTest {
 
     @Test
     void deleteByApiKey() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         ApiKeyEntity entity = new ApiKeyEntity();
-        entity.setId(new ObjectId());
+        entity.setId(MongoIds.newId());
         entity.setUserId(owner);
 
         // The service re-reads the key to check ownership against stored state, so the lookup must
         // return a key belonging to the caller.
-        final Document stored = new Document("_id", entity.getId()).append("user_id", owner).append("deleted", false);
+        final Document stored = new Document("_id", MongoIds.objectId(entity.getId())).append("user_id", MongoIds.objectId(owner)).append("deleted", false);
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(stored);
@@ -161,7 +162,7 @@ class ApiKeyDataServiceTest {
 
     @Test
     void findAllExcludesDeletedByDefaultButIncludesThemWhenRequested() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         final org.mockito.ArgumentCaptor<Document> queryCaptor = org.mockito.ArgumentCaptor.forClass(Document.class);
         when(mongoCollection.find(queryCaptor.capture())).thenReturn(findIterable);
@@ -184,28 +185,28 @@ class ApiKeyDataServiceTest {
         final org.mockito.ArgumentCaptor<Document> queryCaptor = org.mockito.ArgumentCaptor.forClass(Document.class);
         when(mongoCollection.countDocuments(queryCaptor.capture())).thenReturn(3L);
 
-        apiKeyDataService.count(new ObjectId());
+        apiKeyDataService.count(MongoIds.newId());
         assertEquals(Boolean.FALSE, queryCaptor.getValue().get("deleted"));
 
-        apiKeyDataService.count(new ObjectId(), true);
+        apiKeyDataService.count(MongoIds.newId(), true);
         assertFalse(queryCaptor.getValue().containsKey("deleted"));
     }
 
     @Test
     void deleteByApiKeyRefusesAKeyOwnedByAnotherUser() {
         final ApiKeyEntity entity = new ApiKeyEntity();
-        entity.setId(new ObjectId());
-        entity.setUserId(new ObjectId());
+        entity.setId(MongoIds.newId());
+        entity.setUserId(MongoIds.newId());
 
         // Stored state says the key belongs to someone else, whatever the passed entity claims.
-        final Document stored = new Document("_id", entity.getId())
+        final Document stored = new Document("_id", MongoIds.objectId(entity.getId()))
                 .append("user_id", new ObjectId()).append("deleted", false);
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(stored);
 
         final ServiceResponse response =
-                apiKeyDataService.deleteByApiKey("requestId", new ObjectId(), entity, "source");
+                apiKeyDataService.deleteByApiKey("requestId", MongoIds.newId(), entity, "source");
 
         assertFalse(response.isSuccessful());
         verify(mongoCollection, never()).updateOne(any(Bson.class), any(Document.class));

@@ -25,6 +25,7 @@ import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.strategies.AbstractFilterStrategy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.services.context.MongoContextService;
@@ -32,7 +33,6 @@ import ai.philterd.philter.services.vectors.NoOpVectorService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import org.apache.hc.client5.http.classic.HttpClient;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -81,7 +81,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void sameTokenInTwoRequestsYieldsSameSurrogateUnderContextScope() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String context = "patient-records";
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_CONTEXT,
                 Map.of(FilterType.SSN, AnonymizationMethod.REALISTIC));
@@ -108,7 +108,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void documentScopeDoesNotPersistOrShareAcrossRequests() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String context = "doc-scope";
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_DOCUMENT,
                 Map.of(FilterType.SSN, AnonymizationMethod.REALISTIC));
@@ -131,7 +131,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void consistencyHoldsForMultipleEntityTypesInOneContext() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String context = "multi-type";
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_CONTEXT, Map.of(
                 FilterType.SSN, AnonymizationMethod.REALISTIC,
@@ -155,7 +155,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void replacementsAreIsolatedPerContext() throws Exception {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_CONTEXT,
                 Map.of(FilterType.SSN, AnonymizationMethod.REALISTIC));
 
@@ -184,7 +184,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
         // sits above it in a live request. Capacity-triggered eviction *selection* — which entry is
         // dropped when a context is full — is covered by
         // ContextEntryDataServiceTest.putReplacementEvictsLeastReadWhenAtCapacity.
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String context = "eviction";
         final String token = "123-45-6789";
 
@@ -215,7 +215,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
      * {@link PlainTextFilterService} (as production does per request) and filters the text. Because the
      * context service is recreated each call, any cross-request consistency must come from MongoDB.
      */
-    private TextFilterResult redact(final ObjectId userId, final String context, final Policy policy,
+    private TextFilterResult redact(final String userId, final String context, final Policy policy,
                                     final String text) throws Exception {
 
         final Properties properties = new Properties();

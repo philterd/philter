@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
@@ -23,7 +24,6 @@ import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,16 +64,16 @@ class SigningApiControllerTest {
     private static final String API_KEY = "sk_abcdefghijklmnopqrstuvwxyz012345";
     private static final String AUTH_HEADER = "Bearer " + API_KEY;
 
-    private ObjectId userId;
+    private String userId;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
         lenient().when(apiKeyCache.containsApiKey(EncryptionService.hashSha256(API_KEY))).thenReturn(true);
         lenient().when(apiKeyCache.get(EncryptionService.hashSha256(API_KEY))).thenReturn(apiKeyEntity);
 

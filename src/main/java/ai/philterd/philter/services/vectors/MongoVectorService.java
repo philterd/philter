@@ -20,6 +20,7 @@ import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.VectorEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AbstractService;
 import ai.philterd.philter.utils.EnvUtils;
 import com.mongodb.client.MongoClient;
@@ -27,7 +28,6 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +41,9 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
     public static final int MAX_VECTORS_PER_CONTEXT =
             EnvUtils.getInt("MAX_VECTORS_PER_CONTEXT", 100000);
 
-    private final ObjectId userId;
+    private final String userId;
 
-    public MongoVectorService(final MongoClient mongoClient, final ObjectId userId, final AuditEventPublisher auditEventPublisher) {
+    public MongoVectorService(final MongoClient mongoClient, final String userId, final AuditEventPublisher auditEventPublisher) {
 
         super(mongoClient, "vectors", auditEventPublisher);
         this.userId = userId;
@@ -81,7 +81,7 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
         final Map<Double, Double> vectorRepresentation = new HashMap<>();
 
         final Bson filter = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context", context),
                 Filters.eq("filter_type", filterType.name())
         );
@@ -110,7 +110,7 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
     public void deleteByContext(final String context) {
 
         final Bson filter = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context", context)
         );
 
@@ -123,7 +123,7 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
     private void evictIfFull(final String context) {
 
         final Bson scope = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context", context)
         );
 
@@ -136,7 +136,7 @@ public class MongoVectorService extends AbstractService<VectorEntity> implements
         if (victim != null) {
             collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
             LOGGER.debug("Evicted vector {} from context {} to honor MAX_VECTORS_PER_CONTEXT={}",
-                    victim.getObjectId("_id"), context, MAX_VECTORS_PER_CONTEXT);
+                    MongoIds.hex(victim.getObjectId("_id")), context, MAX_VECTORS_PER_CONTEXT);
         }
 
     }

@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -24,7 +25,6 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.result.UpdateResult;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,10 +83,10 @@ class PendingDocumentDataServiceTest {
 
     @Test
     void claimNextPendingReturnsEntityWhenAvailable() {
-        final ObjectId id = new ObjectId();
-        final ObjectId userId = new ObjectId();
-        final Document claimed = new Document("_id", id)
-                .append("user_id", userId)
+        final String id = MongoIds.newId();
+        final String userId = MongoIds.newId();
+        final Document claimed = new Document("_id", MongoIds.objectId(id))
+                .append("user_id", MongoIds.objectId(userId))
                 .append("document_id", "doc-1")
                 .append("status", PendingDocumentEntity.STATUS_PROCESSING)
                 .append("input_mime_type", "APPLICATION_PDF")
@@ -120,18 +120,18 @@ class PendingDocumentDataServiceTest {
 
     @Test
     void markCompleteSetsStatusOutputAndClearsInput() {
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         final byte[] output = new byte[]{1, 2, 3};
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
-        service.markComplete(id, new ObjectId(), "attempt", output);
+        service.markComplete(id, MongoIds.newId(), "attempt", output);
 
         verify(mongoCollection).updateOne(any(Bson.class), any(Bson.class));
     }
 
     @Test
     void markFailedSetsStatusAndError() {
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(mock(UpdateResult.class));
 
         service.markFailed(id, "attempt", "boom");
@@ -156,7 +156,7 @@ class PendingDocumentDataServiceTest {
     @Test
     void countPendingByUserIdSumsPendingAndProcessing() {
         when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(4L);
-        assertEquals(4, service.countPendingByUserId(new ObjectId()));
+        assertEquals(4, service.countPendingByUserId(MongoIds.newId()));
     }
 
 }

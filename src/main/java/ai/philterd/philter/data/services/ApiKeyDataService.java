@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.SessionKeyConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
@@ -31,7 +32,6 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +100,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Creates a key carrying every scope. Retained for callers that provision a fully-privileged
      * credential, such as the bootstrap key.
      */
-    public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source) {
+    public ServiceResponse createApiKey(final String requestId, final String userId, final String source) {
         return createApiKey(requestId, userId, source, ApiKeyScope.all());
     }
 
@@ -108,7 +108,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Creates a key limited to the given scopes. A key with no scopes can call nothing, which is the
      * safe reading of "no permissions were granted".
      */
-    public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source,
+    public ServiceResponse createApiKey(final String requestId, final String userId, final String source,
                                         final Set<String> scopes) {
         return createApiKey(requestId, userId, source, scopes, null);
     }
@@ -119,7 +119,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * user other than the one asking for it, so the audit log says who did it and not only that a
      * key appeared.
      */
-    public ServiceResponse createApiKey(final String requestId, final ObjectId userId, final String source,
+    public ServiceResponse createApiKey(final String requestId, final String userId, final String source,
                                         final Set<String> scopes, final String auditDetails) {
 
         // Generate an API key.
@@ -138,7 +138,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         apiKeyEntity.setDeleted(false);
         apiKeyEntity.setTimestamp(new Date());
         apiKeyEntity.setScopes(scopes);
-        final ObjectId apiKeyId = save(apiKeyEntity);
+        final String apiKeyId = save(apiKeyEntity);
 
         // The key is the subject and the user it belongs to is the object: an event naming only the
         // key leaves a reader unable to say whose access was just created.
@@ -159,7 +159,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      *
      * @return {@code true} if a new key was created, {@code false} if it already existed
      */
-    public boolean ensureApiKey(final String requestId, final ObjectId userId, final String apiKey, final String source) {
+    public boolean ensureApiKey(final String requestId, final String userId, final String apiKey, final String source) {
 
         if (doesApiKeyExist(apiKey)) {
             return false;
@@ -178,7 +178,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // should be limited to, and a key with no scopes could call nothing at all.
         apiKeyEntity.setScopes(ApiKeyScope.all());
 
-        final ObjectId apiKeyId = save(apiKeyEntity);
+        final String apiKeyId = save(apiKeyEntity);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.API_KEY_CREATED, apiKeyId, source);
 
@@ -190,9 +190,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Returns the user's active (non-deleted) bootstrap key, or {@code null} if none. Shows
      * whether a key seeded from {@link #BOOTSTRAP_API_KEY_ENV} is still in use.
      */
-    public ApiKeyEntity findActiveBootstrapKey(final ObjectId userId) {
+    public ApiKeyEntity findActiveBootstrapKey(final String userId) {
 
-        final Document query = new Document("user_id", userId)
+        final Document query = new Document("user_id", MongoIds.objectId(userId))
                 .append("bootstrap", true)
                 .append("deleted", false);
 
@@ -206,13 +206,13 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Looks up an active key by its id. Used to re-read a key from the database before acting on it, so
      * an authorization check is made against stored state rather than against a caller-supplied object.
      */
-    public ApiKeyEntity findOneById(final ObjectId id) {
+    public ApiKeyEntity findOneById(final String id) {
 
         if (id == null) {
             return null;
         }
 
-        final Document document = collection.find(new Document("_id", id).append("deleted", false)).first();
+        final Document document = collection.find(new Document("_id", MongoIds.objectId(id)).append("deleted", false)).first();
 
         return document == null ? null : ApiKeyEntity.fromDocument(document);
 
@@ -244,7 +244,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     }
 
     /** Lists a page of a user's active (non-deleted) API keys. */
-    public List<ApiKeyEntity> findAll(final ObjectId userId, final int offset, final int limit) {
+    public List<ApiKeyEntity> findAll(final String userId, final int offset, final int limit) {
         return findAll(userId, offset, limit, false);
     }
 
@@ -252,12 +252,12 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Lists a page of a user's active API keys: only session keys when {@code session} is true, only
      * long-lived keys when false, and both when null.
      */
-    public List<ApiKeyEntity> findAllBySession(final ObjectId userId, final int offset, final int limit, final Boolean session) {
+    public List<ApiKeyEntity> findAllBySession(final String userId, final int offset, final int limit, final Boolean session) {
         return findAllBySession(userId, offset, limit, session, false);
     }
 
     /** As above, newest first when {@code descending}. */
-    public List<ApiKeyEntity> findAllBySession(final ObjectId userId, final int offset, final int limit, final Boolean session,
+    public List<ApiKeyEntity> findAllBySession(final String userId, final int offset, final int limit, final Boolean session,
                                                final boolean descending) {
         final List<ApiKeyEntity> keys = new ArrayList<>();
         for (final Document document : collection.find(activeKeys(userId, session))
@@ -267,13 +267,13 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         return keys;
     }
 
-    /** Counts what {@link #findAllBySession(ObjectId, int, int, Boolean)} lists. */
-    public int countBySession(final ObjectId userId, final Boolean session) {
+    /** Counts what {@link #findAllBySession(String, int, int, Boolean)} lists. */
+    public int countBySession(final String userId, final Boolean session) {
         return (int) collection.countDocuments(activeKeys(userId, session));
     }
 
-    private static Document activeKeys(final ObjectId userId, final Boolean session) {
-        final Document query = new Document("deleted", false).append("user_id", userId);
+    private static Document activeKeys(final String userId, final Boolean session) {
+        final Document query = new Document("deleted", false).append("user_id", MongoIds.objectId(userId));
         if (session != null) {
             // Keys made before session keys existed have no session field, and are long-lived.
             query.append("session", session ? true : new Document("$ne", true));
@@ -285,14 +285,14 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Lists a page of a user's API keys sorted by creation time. When {@code includeDeleted} is false,
      * soft-deleted keys are excluded; when true, deleted keys are included, marked as deleted (a deleted key is revoked and can never authenticate again).
      */
-    public List<ApiKeyEntity> findAll(final ObjectId userId, final int offset, final int limit, final boolean includeDeleted) {
+    public List<ApiKeyEntity> findAll(final String userId, final int offset, final int limit, final boolean includeDeleted) {
 
         final Document query = new Document();
         if (!includeDeleted) {
             query.append("deleted", false);
         }
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         final FindIterable<Document> documents = collection.find(query).sort(Sorts.ascending("timestamp")).skip(offset).limit(limit);
@@ -308,19 +308,19 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
     }
 
     /** Counts a user's active (non-deleted) API keys. */
-    public int count(final ObjectId userId) {
+    public int count(final String userId) {
         return count(userId, false);
     }
 
     /** Counts a user's API keys; when {@code includeDeleted} is false, soft-deleted keys are excluded. */
-    public int count(final ObjectId userId, final boolean includeDeleted) {
+    public int count(final String userId, final boolean includeDeleted) {
 
         final Document query = new Document();
         if (!includeDeleted) {
             query.append("deleted", false);
         }
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         return (int) collection.countDocuments(query);
@@ -337,7 +337,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * for the signed-in user, so a failure here means a bug or an attempt to act on someone else's key,
      * and is logged as such.
      */
-    private ApiKeyEntity requireOwnedKey(final ObjectId callerUserId, final ApiKeyEntity apiKeyEntity,
+    private ApiKeyEntity requireOwnedKey(final String callerUserId, final ApiKeyEntity apiKeyEntity,
                                          final String operation) {
 
         if (callerUserId == null || apiKeyEntity == null || apiKeyEntity.getId() == null) {
@@ -361,14 +361,14 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * Replaces the scopes on an existing key. The key itself is unchanged, so integrations keep working
      * with the same credential and only what it may call changes.
      */
-    public ServiceResponse updateScopes(final String requestId, final ObjectId callerUserId,
+    public ServiceResponse updateScopes(final String requestId, final String callerUserId,
                                         final ApiKeyEntity apiKeyEntity,
                                         final Set<String> scopes, final String source) {
         return updateScopes(requestId, callerUserId, apiKeyEntity, scopes, source, null);
     }
 
     /** As above, appending {@code auditDetails} (such as the acting principal) to the audit event. */
-    public ServiceResponse updateScopes(final String requestId, final ObjectId callerUserId,
+    public ServiceResponse updateScopes(final String requestId, final String callerUserId,
                                         final ApiKeyEntity apiKeyEntity,
                                         final Set<String> scopes, final String source,
                                         final String auditDetails) {
@@ -384,8 +384,8 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         final Set<String> previousScopes = new LinkedHashSet<>(stored.getScopes());
 
         stored.setScopes(scopes);
-        final var result = collection.updateOne(Filters.and(Filters.eq("_id", stored.getId()),
-                Filters.eq("user_id", callerUserId), Filters.ne("deleted", true)),
+        final var result = collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(stored.getId())),
+                Filters.eq("user_id", MongoIds.objectId(callerUserId)), Filters.ne("deleted", true)),
                 new Document("$set", new Document("scopes", new java.util.ArrayList<>(scopes))));
         if (result.getMatchedCount() != 1) return new ServiceResponse("API key not found.", false, 404);
 
@@ -406,13 +406,13 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
-    public ServiceResponse deleteByApiKey(final String requestId, final ObjectId callerUserId,
+    public ServiceResponse deleteByApiKey(final String requestId, final String callerUserId,
                                           final ApiKeyEntity apiKeyEntity, final String source) {
         return deleteByApiKey(requestId, callerUserId, apiKeyEntity, source, null);
     }
 
     /** As above, recording {@code auditDetails} (such as the acting principal) on the audit event. */
-    public ServiceResponse deleteByApiKey(final String requestId, final ObjectId callerUserId,
+    public ServiceResponse deleteByApiKey(final String requestId, final String callerUserId,
                                           final ApiKeyEntity apiKeyEntity, final String source,
                                           final String auditDetails) {
 
@@ -429,7 +429,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         // stored key, so persisting caller-supplied fields would let a tampered copy through the guard.
         owned.setDeleted(true);
         owned.setDeletedAt(new Date());
-        collection.updateOne(Filters.and(Filters.eq("_id", owned.getId()), Filters.eq("user_id", callerUserId)),
+        collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(owned.getId())), Filters.eq("user_id", MongoIds.objectId(callerUserId))),
                 ended(owned.getDeletedAt()));
 
         // Keep the caller's copy consistent with what was stored, so a caller holding the old object
@@ -447,9 +447,9 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
 
     }
 
-    public long deleteAllByUserId(final String requestId, final ObjectId userId, final String source) {
+    public long deleteAllByUserId(final String requestId, final String userId, final String source) {
 
-        final Document query = new Document("user_id", userId).append("deleted", false);
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("deleted", false);
 
         // Capture the affected keys for the audit trail before the bulk update.
         final List<ApiKeyEntity> affected = new ArrayList<>();
@@ -482,7 +482,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      *
      * @return the stored key, carrying the plaintext in {@link ApiKeyEntity#getApiKey()}, which is shown once.
      */
-    public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
+    public ApiKeyEntity createSessionKey(final String requestId, final String userId, final Set<String> scopes,
                                          final String source, final String auditDetails) {
         return createSessionKey(requestId, userId, scopes, false, false, source, auditDetails);
     }
@@ -502,7 +502,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * the key can change its user's password, with {@code mfaEnrollmentOnly} it can enroll in MFA, and
      * either way it can sign out, and nothing more.
      */
-    public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
+    public ApiKeyEntity createSessionKey(final String requestId, final String userId, final Set<String> scopes,
                                          final boolean passwordChangeOnly, final boolean mfaEnrollmentOnly,
                                          final String source, final String auditDetails) {
         return createSessionKey(requestId, userId, scopes, passwordChangeOnly, mfaEnrollmentOnly, source, auditDetails,
@@ -513,7 +513,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * As above, recording the address and user agent of the client that signed in, so a person can tell
      * their sessions apart. Both are removed when the session ends.
      */
-    public ApiKeyEntity createSessionKey(final String requestId, final ObjectId userId, final Set<String> scopes,
+    public ApiKeyEntity createSessionKey(final String requestId, final String userId, final Set<String> scopes,
                                          final boolean passwordChangeOnly, final boolean mfaEnrollmentOnly,
                                          final String source, final String auditDetails, final String clientAddress,
                                          final String userAgent) {
@@ -567,7 +567,7 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         final Date now = new Date();
 
         return collection.updateOne(
-                Filters.and(Filters.eq("_id", sessionKey.getId()), Filters.eq("session", true),
+                Filters.and(Filters.eq("_id", MongoIds.objectId(sessionKey.getId())), Filters.eq("session", true),
                         Filters.eq("deleted", false), Filters.gt("expires_at", now), Filters.gt("idle_expires_at", now)),
                 new Document("$set", new Document("last_used_at", now)
                         .append("idle_expires_at", idleExpiry(now, sessionKey.getIdleTimeoutSeconds(), sessionKey.getExpiresAt()))))
@@ -583,19 +583,19 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      * @param sessionKeyId one key to check, or {@code null} for every session key.
      * @return how many keys were expired.
      */
-    public long expireSessionKeys(final ObjectId sessionKeyId) {
+    public long expireSessionKeys(final String sessionKeyId) {
 
         final Date now = new Date();
         final org.bson.conversions.Bson due = Filters.and(Filters.eq("session", true), Filters.eq("deleted", false),
                 Filters.or(Filters.lte("expires_at", now), Filters.lte("idle_expires_at", now)));
 
         long expired = 0;
-        for (final Document document : collection.find(sessionKeyId == null ? due : Filters.and(Filters.eq("_id", sessionKeyId), due))) {
+        for (final Document document : collection.find(sessionKeyId == null ? due : Filters.and(Filters.eq("_id", MongoIds.objectId(sessionKeyId)), due))) {
 
             final ApiKeyEntity key = ApiKeyEntity.fromDocument(document);
             // The claim repeats the expiry condition: a request on another node may have moved the idle
             // window forward since the read, and that key is not expired.
-            final boolean claimed = collection.updateOne(Filters.and(Filters.eq("_id", key.getId()), due),
+            final boolean claimed = collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(key.getId())), due),
                     ended(now)).getMatchedCount() == 1;
 
             if (claimed) {
@@ -625,19 +625,19 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
      *
      * @return how many keys were revoked.
      */
-    public long revokeSessionKeys(final String requestId, final ObjectId userId, final String source,
+    public long revokeSessionKeys(final String requestId, final String userId, final String source,
                                   final String auditDetails) {
         return revokeSessionKeys(requestId, userId, source, auditDetails, null);
     }
 
     /** As above, leaving {@code keepKeyId}, when given, alone: signing out every session but the current one. */
-    public long revokeSessionKeys(final String requestId, final ObjectId userId, final String source,
-                                  final String auditDetails, final ObjectId keepKeyId) {
+    public long revokeSessionKeys(final String requestId, final String userId, final String source,
+                                  final String auditDetails, final String keepKeyId) {
 
         final List<ApiKeyEntity> affected = new ArrayList<>();
-        for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId),
+        for (final Document document : collection.find(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("session", true), Filters.eq("deleted", false),
-                keepKeyId == null ? new Document() : Filters.ne("_id", keepKeyId)))) {
+                keepKeyId == null ? new Document() : Filters.ne("_id", MongoIds.objectId(keepKeyId))))) {
             affected.add(ApiKeyEntity.fromDocument(document));
         }
 
@@ -646,11 +646,11 @@ public class ApiKeyDataService extends AbstractService<ApiKeyEntity> {
         }
 
         // By id, so a key created after the read is not revoked without being evicted and audited.
-        final List<ObjectId> ids = new ArrayList<>();
+        final List<String> ids = new ArrayList<>();
         for (final ApiKeyEntity key : affected) {
             ids.add(key.getId());
         }
-        collection.updateMany(Filters.and(Filters.in("_id", ids), Filters.eq("deleted", false)),
+        collection.updateMany(Filters.and(Filters.in("_id", MongoIds.objectIds(ids)), Filters.eq("deleted", false)),
                 ended(new Date()));
 
         for (final ApiKeyEntity key : affected) {

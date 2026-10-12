@@ -25,7 +25,6 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -90,7 +89,7 @@ class SigningKeyRotationIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String adminKey;
-    private ObjectId adminUserId;
+    private String adminUserId;
 
     @BeforeEach
     void setUp() {
@@ -111,7 +110,7 @@ class SigningKeyRotationIT {
         httpClient.close();
     }
 
-    private ObjectId createUser(final String role) {
+    private String createUser(final String role) {
         final String username = "rotation-" + UUID.randomUUID() + "@example.com";
         final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
@@ -119,7 +118,7 @@ class SigningKeyRotationIT {
         return userService.findByUsername(username).getId();
     }
 
-    private String createKey(final ObjectId userId, final Set<String> scopes) {
+    private String createKey(final String userId, final Set<String> scopes) {
         final ServiceResponse response = apiKeyDataService.createApiKey("req", userId, "test", scopes);
         assertTrue(response.isSuccessful(), "the API key must be created");
         return response.getMessage();

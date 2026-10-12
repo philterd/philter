@@ -16,6 +16,7 @@
 package ai.philterd.philter.api;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -29,7 +30,6 @@ import com.google.gson.JsonObject;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -90,7 +90,7 @@ class SessionKeysApiIT {
     private String baseUrl;
     private String adminKey;
 
-    private ObjectId adminUserId;
+    private String adminUserId;
 
     @BeforeEach
     void setUp() {
@@ -105,7 +105,7 @@ class SessionKeysApiIT {
         httpClient.close();
     }
 
-    private ObjectId seedUser(final String role) {
+    private String seedUser(final String role) {
         final String username = "sk-" + UUID.randomUUID();
         final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
@@ -113,7 +113,7 @@ class SessionKeysApiIT {
         return userService.findByUsername(username).getId();
     }
 
-    private String session(final ObjectId userId, final Set<String> scopes) {
+    private String session(final String userId, final Set<String> scopes) {
         return apiKeyDataService.createSessionKey("req", userId, scopes, "test", null).getApiKey();
     }
 
@@ -126,7 +126,7 @@ class SessionKeysApiIT {
 
     private void expireIdleWindow(final String apiKey) {
         mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(
-                Filters.eq("_id", apiKeyDataService.findOneByApiKey(apiKey).getId()),
+                Filters.eq("_id", MongoIds.objectId(apiKeyDataService.findOneByApiKey(apiKey).getId())),
                 Updates.set("idle_expires_at", new Date(System.currentTimeMillis() - 1000)));
     }
 
@@ -151,7 +151,7 @@ class SessionKeysApiIT {
     @DisplayName("A session key that has gone idle is refused even while a node holds it in its cache")
     void expiryIsDecidedByTheDatabaseNotTheCache() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = session(user, Set.of(ApiKeyScope.USERS_READ.getScope()));
         final ApiKeyEntity issued = apiKeyDataService.findOneByApiKey(key);
 
@@ -185,7 +185,7 @@ class SessionKeysApiIT {
     @DisplayName("A session key signs out without any particular scope; a long-lived key cannot sign itself out")
     void signsOut() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = session(user, Set.of(ApiKeyScope.REDACT.getScope()));
 
         assertEquals(204, send("DELETE", "/api/api-keys/current", key).statusCode());
@@ -202,7 +202,7 @@ class SessionKeysApiIT {
     @DisplayName("An administrator revokes all of a user's session keys and nothing else")
     void revokesAUsersSessions() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String username = userService.findOneById(user).getUsername();
         final String first = session(user, Set.of(ApiKeyScope.USERS_READ.getScope()));
         final String second = session(user, Set.of(ApiKeyScope.USERS_READ.getScope()));
@@ -229,7 +229,7 @@ class SessionKeysApiIT {
     @DisplayName("Listings tell session keys from long-lived keys")
     void listingsDistinguishSessionKeys() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String key = session(user, Set.of(ApiKeyScope.API_KEYS_READ.getScope()));
         apiKeyDataService.createApiKey("req", user, "test", Set.of(ApiKeyScope.REDACT.getScope()));
 

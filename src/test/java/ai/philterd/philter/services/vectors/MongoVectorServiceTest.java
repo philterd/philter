@@ -18,6 +18,7 @@ package ai.philterd.philter.services.vectors;
 import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -28,7 +29,6 @@ import com.mongodb.client.result.InsertOneResult;
 import org.bson.BsonObjectId;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,7 +59,7 @@ class MongoVectorServiceTest {
     @Mock
     private AuditEventPublisher auditEventPublisher;
 
-    private final ObjectId userId = new ObjectId();
+    private final String userId = MongoIds.newId();
 
     private MongoVectorService service;
 
@@ -73,7 +73,7 @@ class MongoVectorServiceTest {
     @Test
     void insertsSetUserIdOnTheStoredDocument() {
         final InsertOneResult insertResult = mock(InsertOneResult.class);
-        when(insertResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertResult);
         // Below cap: no eviction
         when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
@@ -85,7 +85,7 @@ class MongoVectorServiceTest {
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
         verify(mongoCollection).insertOne(docCaptor.capture());
-        assertEquals(userId, docCaptor.getValue().get("user_id"),
+        assertEquals(MongoIds.objectId(userId), docCaptor.getValue().get("user_id"),
                 "Stored vector must carry user_id so getVectorRepresentation can find it");
     }
 
@@ -102,18 +102,18 @@ class MongoVectorServiceTest {
     @Test
     void evictsOldestWhenAtCapacity() {
         final InsertOneResult insertResult = mock(InsertOneResult.class);
-        when(insertResult.getInsertedId()).thenReturn(new BsonObjectId(new ObjectId()));
+        when(insertResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(MongoIds.newId())));
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertResult);
 
         // First check (size before insert) -> at cap; subsequent checks irrelevant.
         when(mongoCollection.countDocuments(any(Bson.class)))
                 .thenReturn((long) MongoVectorService.MAX_VECTORS_PER_CONTEXT);
 
-        final ObjectId oldestId = new ObjectId();
+        final String oldestId = MongoIds.newId();
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.sort(any(Bson.class))).thenReturn(findIterable);
-        when(findIterable.first()).thenReturn(new Document("_id", oldestId));
+        when(findIterable.first()).thenReturn(new Document("_id", MongoIds.objectId(oldestId)));
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(mock(DeleteResult.class));
 
         final Span span = new Span();

@@ -17,9 +17,9 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ class PendingDocumentClaimLeaseIT extends AbstractMongoIT {
 
     private static final int SHORT_LEASE_SECONDS = 1;
 
-    private final ObjectId user = new ObjectId();
+    private final String user = MongoIds.newId();
 
     private PendingDocumentDataService service(final int leaseSeconds) {
         return new PendingDocumentDataService(mongoClient, new TestEncryptionService(),
@@ -54,7 +54,7 @@ class PendingDocumentClaimLeaseIT extends AbstractMongoIT {
     private String submit(final PendingDocumentDataService service) {
         final PendingDocumentEntity job = new PendingDocumentEntity();
         job.setUserId(user);
-        job.setDocumentId(new ObjectId().toHexString());
+        job.setDocumentId(MongoIds.newId());
         job.setStatus(PendingDocumentEntity.STATUS_PENDING);
         job.setSubmittedAt(new Date());
         job.setInput(new byte[]{1});

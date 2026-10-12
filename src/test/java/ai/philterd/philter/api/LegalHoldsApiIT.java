@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -28,7 +29,6 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -70,7 +70,7 @@ class LegalHoldsApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId userId;
+    private String userId;
     private String key;
 
     @BeforeEach
@@ -123,7 +123,7 @@ class LegalHoldsApiIT {
 
         // The guard as an interrupted operation leaves it: held until an operator recovers it.
         mongoClient.getDatabase("philter").getCollection("evidence_operation_guards").updateOne(
-                Filters.eq("_id", userId),
+                Filters.eq("_id", MongoIds.objectId(userId)),
                 new Document("$set", new Document("token", "stuck").append("operation", "delete_all_by_user")),
                 new UpdateOptions().upsert(true));
 

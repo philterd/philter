@@ -17,11 +17,11 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,13 +63,13 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         return "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
     }
 
-    private ServiceResponse create(final ObjectId userId, final String name) {
+    private ServiceResponse create(final String userId, final String name) {
         return service.create("req", userId, validPolicyJson(), "desc", "notes", name, "source");
     }
 
     @Test
     void createPersistsAndFindOneReadsItBack() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse response = create(user, "policy1");
         assertTrue(response.isSuccessful());
 
@@ -84,17 +84,17 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createRejectsInvalidPolicyJson() {
-        final ServiceResponse response = service.create("req", new ObjectId(),
+        final ServiceResponse response = service.create("req", MongoIds.newId(),
                 "{ not valid json", "desc", "notes", "bad", "source");
         assertFalse(response.isSuccessful());
         assertEquals(400, response.getStatusCode());
         // Nothing was persisted.
-        assertNull(service.findOne("bad", new ObjectId()));
+        assertNull(service.findOne("bad", MongoIds.newId()));
     }
 
     @Test
     void createRejectsDuplicateNameForSameUser() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "dup").isSuccessful());
 
         final ServiceResponse response = create(user, "dup");
@@ -105,8 +105,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void policiesAreScopedByUser() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         assertTrue(create(userA, "shared-name").isSuccessful());
 
         // findOne is owner-scoped: another user cannot see it.
@@ -120,35 +120,35 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void isPolicyNameUniqueReflectsPersistedState() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(service.isPolicyNameUnique("fresh", user));
 
         assertTrue(create(user, "fresh").isSuccessful());
         assertFalse(service.isPolicyNameUnique("fresh", user));
 
         // Uniqueness is per-user.
-        assertTrue(service.isPolicyNameUnique("fresh", new ObjectId()));
+        assertTrue(service.isPolicyNameUnique("fresh", MongoIds.newId()));
     }
 
     @Test
     void findOneByIdIsScopedToOwner() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse response = create(user, "byid");
-        final ObjectId policyId = response.getObjectId();
+        final String policyId = response.getObjectId();
 
         final PolicyEntity found = service.findOneById(policyId, user);
         assertNotNull(found);
         assertEquals("byid", found.getName());
 
         // A different user cannot look it up by id.
-        assertNull(service.findOneById(policyId, new ObjectId()));
+        assertNull(service.findOneById(policyId, MongoIds.newId()));
     }
 
     @Test
     void updateMutatesPersistedPolicy() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse created = create(user, "to-update");
-        final ObjectId policyId = created.getObjectId();
+        final String policyId = created.getObjectId();
 
         final int originalRevision = service.findOneById(policyId, user).getRevision();
 
@@ -167,8 +167,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A content change advances the revision")
     void aContentChangeAdvancesTheRevision() {
-        final ObjectId user = new ObjectId();
-        final ObjectId policyId = create(user, "to-edit").getObjectId();
+        final String user = MongoIds.newId();
+        final String policyId = create(user, "to-edit").getObjectId();
 
         final int originalRevision = service.findOneById(policyId, user).getRevision();
 
@@ -180,7 +180,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void updateReturns404WhenPolicyMissing() {
-        final ServiceResponse response = service.update("req", new ObjectId(), new ObjectId(),
+        final ServiceResponse response = service.update("req", MongoIds.newId(), MongoIds.newId(),
                 validPolicyJson(), "d", "n", "source");
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
@@ -188,7 +188,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void duplicateProducesANewDocument() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "original").isSuccessful());
 
         final ServiceResponse response = service.duplicatePolicy("req", user, "original", "copy", "source");
@@ -206,7 +206,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void duplicateRejectsExistingTargetName() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "src").isSuccessful());
         assertTrue(create(user, "taken").isSuccessful());
 
@@ -217,7 +217,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByNameRemovesPolicy() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "delete-me").isSuccessful());
 
         final ServiceResponse response = service.deleteByName("req", "delete-me", user, Source.API, user, "10.0.0.1");
@@ -228,7 +228,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("The default policy is not deleted, and the refusal says why")
     void deleteByNameKeepsTheDefaultPolicy() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "default").isSuccessful());
 
         final ServiceResponse response = service.deleteByName("req", "default", user, Source.API, user, "10.0.0.1");
@@ -240,15 +240,15 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByNameReturns404ForUnknownPolicy() {
-        final ServiceResponse response = service.deleteByName("req", "nope", new ObjectId(), Source.API, new ObjectId(), "10.0.0.1");
+        final ServiceResponse response = service.deleteByName("req", "nope", MongoIds.newId(), Source.API, MongoIds.newId(), "10.0.0.1");
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
     }
 
     @Test
     void deleteAllRemovesUnmanagedPolicies() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         assertTrue(create(userA, "p1").isSuccessful());
         assertTrue(create(userA, "p2").isSuccessful());
         assertTrue(create(userB, "p3").isSuccessful());
@@ -260,8 +260,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void countExcludesOtherUsers() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         assertTrue(create(userA, "a1").isSuccessful());
         assertTrue(create(userA, "a2").isSuccessful());
         assertTrue(create(userB, "b1").isSuccessful());
@@ -272,7 +272,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findAllSupportsPaging() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         for (int i = 0; i < 5; i++) {
             assertTrue(create(user, "policy-" + i).isSuccessful());
         }
@@ -283,12 +283,12 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertEquals(5, service.findAll(user, 0, 100, false).size());
 
         // findAll is scoped: another user sees nothing.
-        assertEquals(0, service.findAll(new ObjectId(), 0, 100, false).size());
+        assertEquals(0, service.findAll(MongoIds.newId(), 0, 100, false).size());
     }
 
     @Test
     void findAllSupportsSorting() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "bbb").isSuccessful());
         assertTrue(create(user, "aaa").isSuccessful());
         assertTrue(create(user, "ccc").isSuccessful());
@@ -304,7 +304,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findFiltersBySearchTermAcrossNameDescriptionNotes() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(service.create("req", user, validPolicyJson(), "the alpha policy", "notes", "first", "source").isSuccessful());
         assertTrue(service.create("req", user, validPolicyJson(), "desc", "notes", "second", "source").isSuccessful());
 
@@ -325,14 +325,14 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertTrue(service.find(user, "zzz").isEmpty());
 
         // Search is user-scoped.
-        assertTrue(service.find(new ObjectId(), "notes").isEmpty());
+        assertTrue(service.find(MongoIds.newId(), "notes").isEmpty());
     }
 
 
     @Test
     @DisplayName("An unchanged save does not advance the revision")
     void anUnchangedSaveDoesNotAdvanceTheRevision() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         service.create("req", userId, validPolicyJson(), null, null, "p", "test");
 
         final int created = service.findOne("p", userId).getRevision();
@@ -349,7 +349,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("Every revision the policy reaches has a snapshot behind it")
     void everyRevisionHasASnapshot() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         service.create("req", userId, validPolicyJson(), null, null, "p", "test");
 
         // A real edit, then a no-op save. The no-op must be what leaves the policy on its final
@@ -370,7 +370,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A rollback's new revision has a snapshot behind it")
     void aRollbackLeavesItsRevisionResolvable() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         service.create("req", userId, validPolicyJson(), null, null, "p", "test");
         service.update("req", userId, service.findOne("p", userId).getId(),
                 validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
@@ -387,7 +387,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A rollback that read the policy before another change is refused with policy_changed")
     void aRollbackOverAConcurrentChangeIsRefused() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         service.create("req", userId, validPolicyJson(), null, null, "p", "test");
         final PolicyEntity stale = service.findOne("p", userId);
 
@@ -405,8 +405,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("Editing back to earlier content still snapshots the new revision")
     void editingBackToEarlierContentIsSnapshotted() {
-        final ObjectId userId = new ObjectId();
-        final ObjectId policyId = service.create("req", userId, validPolicyJson(), null, null, "p", "test").getObjectId();
+        final String userId = MongoIds.newId();
+        final String policyId = service.create("req", userId, validPolicyJson(), null, null, "p", "test").getObjectId();
 
         service.update("req", userId, policyId, validPolicyJson().replace("REDACT", "MASK"), null, null, "test");
         service.update("req", userId, policyId, validPolicyJson(), null, null, "test");
@@ -420,8 +420,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("Two users with identical policy content each keep their own snapshot")
     void identicalContentIsSnapshottedPerUser() {
-        final ObjectId first = new ObjectId();
-        final ObjectId second = new ObjectId();
+        final String first = MongoIds.newId();
+        final String second = MongoIds.newId();
 
         service.create("req", first, validPolicyJson(), null, null, "shared-name", "test");
         service.create("req", second, validPolicyJson(), null, null, "shared-name", "test");
@@ -436,7 +436,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @DisplayName("Saving a policy that carries its own key warns, and saving one that does not is quiet")
     void savingAPolicyWithALiteralKeyWarns() {
 
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String withKey = "{\"crypto\":{\"key\":\"0011223344556677\"},"
                 + "\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
@@ -466,7 +466,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("The entity tag changes with the details, though the revision does not")
     void eTagFollowsTheDetails() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "tagged").isSuccessful());
         final PolicyEntity before = service.findOne("tagged", user);
 
@@ -484,7 +484,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A replace with a stale entity tag is refused and writes nothing; with the current one it lands")
     void replaceHonorsTheEntityTag() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "guarded").isSuccessful());
         final PolicyEntity read = service.findOne("guarded", user);
         final String staleTag = PolicyDataService.eTag(read);
@@ -518,7 +518,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("Without an entity tag, replace and details writes are not checked against an earlier read")
     void writesWithoutAnEntityTagAreUnconditional() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "open").isSuccessful());
         final PolicyEntity read = service.findOne("open", user);
         assertTrue(service.updateDetails("req", user, "open", "changed", null, "source").isSuccessful());
@@ -531,7 +531,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A replace sets the description and notes with the policy: empty clears, null keeps, too long is refused")
     void replaceWritesTheDetailsWithThePolicy() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "details").isSuccessful());
         final PolicyEntity read = service.findOne("details", user);
 
@@ -551,7 +551,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A change between the read and the write refuses the write even without an entity tag")
     void aConcurrentDetailsChangeRefusesTheWrite() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "raced").isSuccessful());
         final PolicyEntity read = service.findOne("raced", user);
         // Another writer changes the notes after this service read the policy.
@@ -580,7 +580,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("Details and rollback writes honor the entity tag too")
     void detailsAndRollbackHonorTheEntityTag() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(create(user, "both").isSuccessful());
         final PolicyEntity first = service.findOne("both", user);
         assertTrue(service.replace("req", user, first.getId(), OTHER_POLICY_JSON, null, null, "source", user, null)
@@ -615,7 +615,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
     @Test
     @DisplayName("A create stores the description and notes with the policy and returns it as written")
     void createPolicyReturnsThePolicyAsWritten() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final PolicyDataService.WriteOutcome created = service.createPolicy("req", user, validPolicyJson(), "d", "n",
                 "fresh-with-details", "source", user);
         assertTrue(created.response().isSuccessful());

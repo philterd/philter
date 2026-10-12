@@ -16,8 +16,8 @@
 package ai.philterd.philter.services.encryption;
 
 import ai.philterd.philter.data.entities.LedgerEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -199,7 +199,7 @@ class LocalEncryptionServiceTest {
         final LocalEncryptionService service = new LocalEncryptionService(new LocalKeyProvider(master));
 
         // The document written to MongoDB, produced the same way the data layer produces it.
-        final LedgerEntity entity = new LedgerEntity(new ObjectId(), "doc-1", "123-45-6789",
+        final LedgerEntity entity = new LedgerEntity(MongoIds.newId(), "doc-1", "123-45-6789",
                 "{{{REDACTED-ssn}}}", 0L, "dochash", "prevhash", "f.txt", "ssn", "policy", 1, "confighash");
         final Document document = entity.toDocument(service);
 

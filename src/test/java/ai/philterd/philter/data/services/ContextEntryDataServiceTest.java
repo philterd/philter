@@ -41,6 +41,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.cache.ContextCache;
 
 @ExtendWith(MockitoExtension.class)
@@ -69,7 +70,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void findAllByUserIdAndContext() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
@@ -89,7 +90,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void containsToken() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         String token = "sensitive";
         FindIterable<Document> findIterable = mock(FindIterable.class);
@@ -103,7 +104,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void containsReplacement() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         String replacement = "redacted";
         FindIterable<Document> findIterable = mock(FindIterable.class);
@@ -117,12 +118,12 @@ class ContextEntryDataServiceTest {
 
     @Test
     void getReplacement() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         String token = "sensitive";
         String replacement = "redacted";
         Document doc = new Document("_id", new ObjectId())
-                .append("user_id", userId)
+                .append("user_id", MongoIds.objectId(userId))
                 .append("context_name", contextName)
                 .append("replacement", replacement)
                 .append("reads", 0L);
@@ -138,7 +139,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void putReplacement() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         String token = "sensitive";
         String replacement = "redacted";
@@ -157,7 +158,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void deleteByContextName() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
 
         contextEntryDataService.deleteByContextName(contextName, userId);
@@ -167,7 +168,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void deleteByContextNameDeletesDefaultLikeAnyOther() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         // The "default" context is no longer special; its entries are deleted like any other context.
         contextEntryDataService.deleteByContextName("default", userId);
 
@@ -176,7 +177,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void getFilterTypeCounts() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         String contextName = "testContext";
         AggregateIterable<Document> aggregateIterable = mock(AggregateIterable.class);
         when(mongoCollection.aggregate(anyList())).thenReturn(aggregateIterable);
@@ -200,13 +201,13 @@ class ContextEntryDataServiceTest {
 
     @Test
     void putReplacementEvictsLeastReadWhenAtCapacity() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String contextName = "ctx";
 
-        final ObjectId victimId = new ObjectId();
+        final String victimId = MongoIds.newId();
         final FindIterable<Document> evictFind = mock(FindIterable.class);
         when(evictFind.sort(any(Bson.class))).thenReturn(evictFind);
-        when(evictFind.first()).thenReturn(new Document("_id", victimId).append("reads", 0L));
+        when(evictFind.first()).thenReturn(new Document("_id", MongoIds.objectId(victimId)).append("reads", 0L));
 
         when(mongoCollection.find(any(Bson.class))).thenReturn(evictFind);
 
@@ -226,7 +227,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void putReplacementSkipsEvictionWhenUnderCapacity() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
 
         when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(0L);
         when(mongoCollection.findOneAndUpdate(any(Bson.class), any(Bson.class), any()))
@@ -240,7 +241,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void incrementReadsIssuesIncUpdate() {
-        final ObjectId id = new ObjectId();
+        final String id = MongoIds.newId();
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class)))
                 .thenReturn(mock(com.mongodb.client.result.UpdateResult.class));
 
@@ -257,27 +258,27 @@ class ContextEntryDataServiceTest {
                         .append("context_name", "ctx")
                         .append("token_hash", "hash"));
 
-        assertEquals(1L, contextEntryDataService.deleteByIdAndUserId(new ObjectId(), new ObjectId()));
+        assertEquals(1L, contextEntryDataService.deleteByIdAndUserId(MongoIds.newId(), MongoIds.newId()));
     }
 
     @Test
     void deleteByIdAndUserIdReturnsZeroWhenNothingMatched() {
         when(mongoCollection.findOneAndDelete(any(Bson.class))).thenReturn(null);
 
-        assertEquals(0L, contextEntryDataService.deleteByIdAndUserId(new ObjectId(), new ObjectId()));
+        assertEquals(0L, contextEntryDataService.deleteByIdAndUserId(MongoIds.newId(), MongoIds.newId()));
     }
 
     @Test
     void findOneEntryByTokenReturnsEntityWhenPresent() {
-        final ObjectId id = new ObjectId();
-        final Document doc = new Document("_id", id)
+        final String id = MongoIds.newId();
+        final Document doc = new Document("_id", MongoIds.objectId(id))
                 .append("replacement", "R")
                 .append("reads", 0L);
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
 
-        final ContextEntryEntity entry = contextEntryDataService.findOneEntryByToken(new ObjectId(), "ctx", "tok");
+        final ContextEntryEntity entry = contextEntryDataService.findOneEntryByToken(MongoIds.newId(), "ctx", "tok");
         assertNotNull(entry);
         assertEquals(id, entry.getId());
         assertEquals("R", entry.getReplacement());
@@ -285,7 +286,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void findAllByUserIdAndContextUnboundedReturnsAllEntries() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.sort(any(Bson.class))).thenReturn(findIterable);
@@ -305,7 +306,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void importEntryByHashInsertsWhenAbsent() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
@@ -322,7 +323,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void importEntryByHashSkipsExistingWhenNotOverwriting() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(new Document("_id", new ObjectId()));
@@ -341,7 +342,7 @@ class ContextEntryDataServiceTest {
         // that hash is deterministic, re-importing reproduces a mapping that the same original token
         // will resolve to in any environment. This test exercises that round trip end to end through
         // the export DTOs.
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final String token = "John Smith";
         final String tokenHash = ai.philterd.philter.services.encryption.EncryptionService.hashSha256(token);
 
@@ -377,7 +378,7 @@ class ContextEntryDataServiceTest {
 
     @Test
     void importEntryByHashOverwritesExistingWhenOverwriting() {
-        final ObjectId userId = new ObjectId();
+        final String userId = MongoIds.newId();
         final FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Bson.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(new Document("_id", new ObjectId()));

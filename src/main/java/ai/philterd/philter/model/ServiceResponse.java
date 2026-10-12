@@ -15,13 +15,11 @@
  */
 package ai.philterd.philter.model;
 
-import org.bson.types.ObjectId;
-
 public class ServiceResponse {
 
     private final String message;
     private final boolean successful;
-    private final ObjectId objectId;
+    private final String objectId;
     private final int statusCode;
     private final String details;
 
@@ -79,7 +77,7 @@ public class ServiceResponse {
         this.details = details;
     }
 
-    public ServiceResponse(final String message, final boolean successful, final ObjectId objectId, final int statusCode) {
+    public ServiceResponse(final String message, final boolean successful, final String objectId, final int statusCode) {
         this.message = message;
         this.successful = successful;
         this.objectId = objectId;
@@ -103,7 +101,7 @@ public class ServiceResponse {
         return successful;
     }
 
-    public ObjectId getObjectId() {
+    public String getObjectId() {
         return objectId;
     }
 

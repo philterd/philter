@@ -22,6 +22,7 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
@@ -34,7 +35,6 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.webhook.WebhookService;
 import org.mockito.ArgumentCaptor;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -87,16 +87,16 @@ class WebhookApiControllerTest {
     @Mock private WebhookService webhookService;
     @Mock private WebhookDeliveryDataService webhookDeliveryDataService;
 
-    private ObjectId callerUserId;
-    private ObjectId callerApiKeyId;
+    private String callerUserId;
+    private String callerApiKeyId;
     private ApiKeyEntity callerKey;
     private UserEntity caller;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        callerUserId = new ObjectId();
-        callerApiKeyId = new ObjectId();
+        callerUserId = MongoIds.newId();
+        callerApiKeyId = MongoIds.newId();
         callerKey = keyHolding(ApiKeyScope.all());
         caller = user(callerUserId, "carol", "user");
 
@@ -126,7 +126,7 @@ class WebhookApiControllerTest {
         return key;
     }
 
-    private static UserEntity user(final ObjectId id, final String username, final String role) {
+    private static UserEntity user(final String id, final String username, final String role) {
         final UserEntity user = new UserEntity();
         user.setId(id);
         user.setUsername(username);
@@ -210,7 +210,7 @@ class WebhookApiControllerTest {
     @DisplayName("A non-administrator naming another owner gets a 404 and nothing changes")
     void aNonAdministratorCannotReachAnotherUser() throws Exception {
         AdminAccessConfig.setOverrideForTesting(true);
-        final UserEntity bob = user(new ObjectId(), "bob", "user");
+        final UserEntity bob = user(MongoIds.newId(), "bob", "user");
         when(userService.findAnyByUsername("bob")).thenReturn(bob);
 
         setWebhook("?owner=bob", "{\"url\":\"https://93.184.216.34/x\",\"secret\":\"a-secret-of-16ch\"}")
@@ -225,7 +225,7 @@ class WebhookApiControllerTest {
     @DisplayName("An administrator needs cross-user access enabled to reach another user's webhook")
     void anAdministratorNeedsCrossUserAccess() throws Exception {
         caller.setRole("admin");
-        final UserEntity bob = user(new ObjectId(), "bob", "user");
+        final UserEntity bob = user(MongoIds.newId(), "bob", "user");
         when(userService.findAnyByUsername("bob")).thenReturn(bob);
 
         AdminAccessConfig.setOverrideForTesting(false);
@@ -308,7 +308,7 @@ class WebhookApiControllerTest {
     @DisplayName("Deliveries are listed a page at a time with the total, and the page size is capped")
     void listsDeliveries() throws Exception {
         final WebhookDeliveryEntity delivery = new WebhookDeliveryEntity();
-        delivery.setId(new ObjectId());
+        delivery.setId(MongoIds.newId());
         delivery.setDocumentId("doc-1");
         delivery.setEventType(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE);
         delivery.setStatus(WebhookDeliveryEntity.STATUS_PENDING);

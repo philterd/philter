@@ -24,7 +24,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -80,7 +79,7 @@ class RequestIdsIT {
     private String keyFor(final String role) {
         final String username = "request-ids-" + UUID.randomUUID();
         assertTrue(userService.createUser("req", username, role, policyDataService, contextDataService, "test").isSuccessful());
-        final ObjectId userId = userService.findByUsername(username).getId();
+        final String userId = userService.findByUsername(username).getId();
         return apiKeyDataService.createApiKey("req", userId, "test", ApiKeyScope.all()).getMessage();
     }
 

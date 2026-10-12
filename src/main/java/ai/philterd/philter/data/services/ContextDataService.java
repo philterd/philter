@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.utils.PathSafeNames;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -86,10 +87,11 @@ public class ContextDataService extends AbstractService<ContextEntity> {
      */
     private void assignMissingSlots() {
         // Filters.eq(field, null) matches a missing field and a null one alike.
-        for (final ObjectId userId : collection.distinct("user_id", Filters.eq("slot", null), ObjectId.class)) {
+        for (final ObjectId storedUserId : collection.distinct("user_id", Filters.eq("slot", null), ObjectId.class)) {
+            final String userId = MongoIds.hex(storedUserId);
             final java.util.Set<Integer> used = usedSlots(userId);
             int next = 0;
-            for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId),
+            for (final Document document : collection.find(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)),
                     Filters.eq("slot", null))).sort(Sorts.ascending("_id"))) {
                 while (used.contains(next)) {
                     next++;
@@ -101,25 +103,25 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         }
     }
 
-    private java.util.Set<Integer> usedSlots(final ObjectId userId) {
+    private java.util.Set<Integer> usedSlots(final String userId) {
         final java.util.Set<Integer> used = new java.util.HashSet<>();
-        for (final Document document : collection.find(Filters.and(Filters.eq("user_id", userId), Filters.ne("slot", null)))
+        for (final Document document : collection.find(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.ne("slot", null)))
                 .projection(Projections.include("slot"))) {
             used.add(document.getInteger("slot"));
         }
         return used;
     }
 
-    public ServiceResponse create(final String contextName, final ObjectId userId) {
+    public ServiceResponse create(final String contextName, final String userId) {
         return create(contextName, userId, false, false);
     }
 
-    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean disambiguation, final boolean ledger) {
+    public ServiceResponse create(final String contextName, final String userId, final boolean disambiguation, final boolean ledger) {
         return create(contextName, userId, disambiguation, ContextEntity.DISAMBIGUATION_SCOPE_DOCUMENT, ledger);
     }
 
     /** As above, with a disambiguation scope: {@code document} or {@code context}, in any case. */
-    public ServiceResponse create(final String contextName, final ObjectId userId, final boolean disambiguation,
+    public ServiceResponse create(final String contextName, final String userId, final boolean disambiguation,
                                   final String disambiguationScope, final boolean ledger) {
 
         if(contextName == null || contextName.isBlank()) {
@@ -175,7 +177,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             contextEntity.setSlot(slot);
 
             try {
-                final ObjectId objectId = save(contextEntity);
+                final String objectId = save(contextEntity);
                 return new ServiceResponse("Context created", true, objectId, 201);
             } catch (final MongoWriteException | MongoWriteConcernException ex) {
                 if (!isDuplicateKey(ex)) {
@@ -211,7 +213,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     /**
      * Returns every context for every user. Intended for admin-only views; ordinary access must use the
-     * owner-scoped {@link #findAll(ObjectId)}.
+     * owner-scoped {@link #findAll(String)}.
      */
     public List<ContextEntity> findAllAcrossUsers() {
 
@@ -227,7 +229,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     /**
      * Returns one page of contexts across every user, ordered by name. Intended for admin-only views;
-     * ordinary access must use the owner-scoped {@link #findAll(ObjectId)}.
+     * ordinary access must use the owner-scoped {@link #findAll(String)}.
      */
     public List<ContextEntity> findAllAcrossUsers(final int offset, final int limit) {
 
@@ -246,12 +248,12 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         return (int) collection.countDocuments();
     }
 
-    public List<ContextEntity> findAll(final ObjectId userId) {
+    public List<ContextEntity> findAll(final String userId) {
 
         final Document query = new Document();
 
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         final Iterable<Document> documents = collection.find(query);
@@ -269,9 +271,9 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ContextEntity findOneByIdAndUserId(final ObjectId id, final ObjectId userId) {
+    public ContextEntity findOneByIdAndUserId(final String id, final String userId) {
 
-        final Document query = new Document("_id", id).append("user_id", userId);
+        final Document query = new Document("_id", MongoIds.objectId(id)).append("user_id", MongoIds.objectId(userId));
 
         final Document document = collection.find(query).first();
 
@@ -283,9 +285,9 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ContextEntity findOneByNameAndUserId(final String contextName, final ObjectId userId) {
+    public ContextEntity findOneByNameAndUserId(final String contextName, final String userId) {
 
-        final Document query = new Document("context_name", contextName).append("user_id", userId);
+        final Document query = new Document("context_name", contextName).append("user_id", MongoIds.objectId(userId));
 
         final Document document = collection.find(query).first();
 
@@ -301,17 +303,17 @@ public class ContextDataService extends AbstractService<ContextEntity> {
      * A page of the user's contexts, or every user's when {@code userId} is null, whose names contain
      * {@code q}, and their total.
      */
-    public Listings.Page<ContextEntity> list(final ObjectId userId, final String q, final Listings.Sort sort,
+    public Listings.Page<ContextEntity> list(final String userId, final String q, final Listings.Sort sort,
                                              final int offset, final int limit) {
-        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+        return Listings.page(collection, Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
                 Listings.contains("context_name", q)), sort, offset, limit, ContextEntity::fromDocument);
     }
 
-    public List<ContextEntity> findAll(final ObjectId userId, final int offset, final int limit) {
+    public List<ContextEntity> findAll(final String userId, final int offset, final int limit) {
         return findAll(userId, offset, limit, null, null);
     }
 
-    public List<ContextEntity> findAll(final ObjectId userId, final int offset, final int limit, final String sortField, final String sortDirection) {
+    public List<ContextEntity> findAll(final String userId, final int offset, final int limit, final String sortField, final String sortDirection) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
@@ -325,7 +327,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         final Document query = new Document();
 
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         final Iterable<Document> documents;
@@ -348,21 +350,21 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public int count(final ObjectId userId) {
+    public int count(final String userId) {
 
         final Document query = new Document();
 
         if (userId != null) {
-            query.append("user_id", userId);
+            query.append("user_id", MongoIds.objectId(userId));
         }
 
         return (int) collection.countDocuments(query);
 
     }
 
-    public ContextEntity findOne(final String contextName, final ObjectId userId) {
+    public ContextEntity findOne(final String contextName, final String userId) {
 
-        final Document query = new Document("context_name", contextName).append("user_id", userId);
+        final Document query = new Document("context_name", contextName).append("user_id", MongoIds.objectId(userId));
 
         final Document document = collection.find(query).first();
 
@@ -380,10 +382,10 @@ public class ContextDataService extends AbstractService<ContextEntity> {
      * as {@code context_updated}, naming each setting whose value changed, the acting user, and the acting
      * API key.
      */
-    public ServiceResponse updateSettings(final String requestId, final String contextName, final ObjectId userId,
+    public ServiceResponse updateSettings(final String requestId, final String contextName, final String userId,
                                           final Boolean disambiguation, final String disambiguationScope,
-                                          final Boolean ledger, final ObjectId actingUserId,
-                                          final ObjectId actingApiKeyId) {
+                                          final Boolean ledger, final String actingUserId,
+                                          final String actingApiKeyId) {
 
         final String scope = disambiguationScope == null ? null : ContextEntity.disambiguationScopeOf(disambiguationScope);
         if (disambiguationScope != null && scope == null) {
@@ -419,7 +421,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
             return new ServiceResponse("No setting was given.", false, 400);
         }
 
-        collection.updateOne(Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", userId)),
+        collection.updateOne(Filters.and(Filters.eq("context_name", contextName), Filters.eq("user_id", MongoIds.objectId(userId))),
                 Updates.combine(sets));
 
         if (!changed.isEmpty()) {
@@ -431,7 +433,7 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ServiceResponse emptyByName(final String contextName, final ObjectId userId) {
+    public ServiceResponse emptyByName(final String contextName, final String userId) {
 
         // Make sure the context exists.
         final ContextEntity contextEntity = findOne(contextName, userId);
@@ -454,12 +456,12 @@ public class ContextDataService extends AbstractService<ContextEntity> {
 
     }
 
-    public ServiceResponse deleteByName(final String contextName, final ObjectId userId) {
+    public ServiceResponse deleteByName(final String contextName, final String userId) {
         // A bare delete is treated as a non-admin request: it can only delete the caller's own context.
         return deleteByName(contextName, userId, false);
     }
 
-    public ServiceResponse deleteByName(final String contextName, final ObjectId requesterUserId, final boolean requesterIsAdmin) {
+    public ServiceResponse deleteByName(final String contextName, final String requesterUserId, final boolean requesterIsAdmin) {
 
         // Make sure the context exists. The lookup is scoped to the requester, so a non-admin can
         // only ever find (and therefore delete) a context they created.
@@ -480,9 +482,9 @@ public class ContextDataService extends AbstractService<ContextEntity> {
         // Scope all deletions to the context's owner. The lookup above is scoped to the requester,
         // so in the current call paths the owner is the requester; resolving the owner from the
         // entity keeps the deletions correct if the lookup is ever made owner-agnostic.
-        final ObjectId ownerUserId = contextEntity.getUserId();
+        final String ownerUserId = contextEntity.getUserId();
 
-        final Document filter = new Document("context_name", contextName).append("user_id", ownerUserId);
+        final Document filter = new Document("context_name", contextName).append("user_id", MongoIds.objectId(ownerUserId));
         collection.deleteOne(filter);
 
         // Delete the individual context entries for this context.

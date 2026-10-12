@@ -1,9 +1,9 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import java.util.Date;
@@ -21,14 +21,14 @@ class RemainingP2MongoIT extends RemainingP2IT {
         deliveries.insertMany(List.of(new Document("status", "DELIVERED").append("completed_at", expired),
                 new Document("status", "FAILED").append("completed_at", expired), new Document("status", "PENDING")));
         var jobs = db.getCollection("pending_documents");
-        ObjectId waiting = new ObjectId();
-        jobs.insertMany(List.of(new Document("_id", waiting).append("status", "COMPLETE").append("notification_pending", true)
+        String waiting = MongoIds.newId();
+        jobs.insertMany(List.of(new Document("_id", MongoIds.objectId(waiting)).append("status", "COMPLETE").append("notification_pending", true)
                         .append("completed_at", expired),
                 new Document("status", "COMPLETE").append("notification_pending", false).append("retention_at", expired)));
         long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
         while ((deliveries.countDocuments() != 1 || jobs.countDocuments() != 1) && System.nanoTime() < deadline) Thread.sleep(100);
         assertEquals(1, deliveries.countDocuments());
         assertEquals("PENDING", deliveries.find().first().getString("status"));
-        assertEquals(1, jobs.countDocuments()); assertNotNull(jobs.find(new Document("_id", waiting)).first());
+        assertEquals(1, jobs.countDocuments()); assertNotNull(jobs.find(new Document("_id", MongoIds.objectId(waiting))).first());
     }
 }

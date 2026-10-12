@@ -27,7 +27,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,7 +75,7 @@ class PathSafeNamesApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId userId;
+    private String userId;
     private String key;
 
     @BeforeEach

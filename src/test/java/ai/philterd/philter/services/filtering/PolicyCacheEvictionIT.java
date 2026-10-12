@@ -19,6 +19,7 @@ import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
@@ -34,7 +35,6 @@ import ai.philterd.philter.services.phield.PhieldPublisher;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,14 +59,14 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
             "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\",\"redactionFormat\":\"{{{SECOND-%t}}}\"}]}}}";
     private static final String TEXT = "Patient SSN 123-45-6789 was filed Monday.";
 
-    private ObjectId userId;
+    private String userId;
     private PolicyDataService policyDataService;
     private RedactionService redactionService;
 
     @BeforeEach
     void setUpServices() {
 
-        userId = new ObjectId();
+        userId = MongoIds.newId();
 
         final UserEntity userEntity = mock(UserEntity.class);
         when(userEntity.getId()).thenReturn(userId);

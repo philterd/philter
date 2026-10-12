@@ -16,11 +16,11 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
@@ -39,9 +39,9 @@ class SigningKeyDataServiceTest extends AbstractMongoIT {
     }
 
     /** Rotation rechecks that the acting user is an active administrator. */
-    private ObjectId admin() {
-        final ObjectId id = new ObjectId();
-        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", id).append("role", "admin"));
+    private String admin() {
+        final String id = MongoIds.newId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", MongoIds.objectId(id)).append("role", "admin"));
         return id;
     }
 

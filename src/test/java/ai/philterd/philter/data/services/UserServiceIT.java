@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
@@ -28,7 +29,6 @@ import ai.philterd.philter.services.encryption.KeyResponse;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import ai.philterd.philter.services.signing.SigningService;
 import org.junit.jupiter.api.Test;
@@ -245,7 +245,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser(
                 "req", "bob@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
 
-        final ObjectId userId = service.findByUsername("bob@example.com").getId();
+        final String userId = service.findByUsername("bob@example.com").getId();
 
         // A default policy is seeded for the new user...
         assertEquals(1, policyDataService.count(userId));
@@ -269,7 +269,7 @@ class UserServiceIT extends AbstractMongoIT {
     void missingFpeKeyFailsWithoutChangingAccount() {
         final UserEntity user = new UserEntity();
         user.setUsername("missing-key"); user.setRole("user");
-        final ObjectId id = service.save(user);
+        final String id = service.save(user);
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
                 () -> service.ensureFpeKey(service.findOneById(id)));
         assertNull(service.findOneById(id).getFpeKey());
@@ -325,7 +325,7 @@ class UserServiceIT extends AbstractMongoIT {
                 "req", "evidence@example.com", "user", policyDataService, contextDataService, "system")
                 .isSuccessful());
         final UserEntity user = service.findByUsername("evidence@example.com");
-        final ObjectId userId = user.getId();
+        final String userId = user.getId();
 
         // The user owns a policy (the default seeded at creation) ...
         assertTrue(policyDataService.count(userId) >= 1);
@@ -426,9 +426,9 @@ class UserServiceIT extends AbstractMongoIT {
         assertTrue(service.createUser("req", "h@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
         assertTrue(service.createUser("req", "i@example.com", "user", policyDataService, contextDataService, "system").isSuccessful());
 
-        final ObjectId h = service.findByUsername("h@example.com").getId();
-        final ObjectId i = service.findByUsername("i@example.com").getId();
-        final ObjectId missing = new ObjectId();
+        final String h = service.findByUsername("h@example.com").getId();
+        final String i = service.findByUsername("i@example.com").getId();
+        final String missing = MongoIds.newId();
 
         final var emails = service.findUsernamesByIds(List.of(h, i, missing));
 
@@ -466,7 +466,7 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void findByUsernameAndFindOneByIdReturnNullWhenAbsent() {
         assertNull(service.findByUsername("missing@example.com"));
-        assertNull(service.findOneById(new ObjectId()));
+        assertNull(service.findOneById(MongoIds.newId()));
     }
 
     /**
@@ -577,8 +577,8 @@ class UserServiceIT extends AbstractMongoIT {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
         final UserEntity user = createAndFind("emailed", "user");
-        final ObjectId acting = new ObjectId();
-        final ObjectId actingKey = new ObjectId();
+        final String acting = MongoIds.newId();
+        final String actingKey = MongoIds.newId();
 
         assertTrue(service.setEmail("req", user, " jordan@example.com ", "api", acting, actingKey).isSuccessful());
         assertEquals("jordan@example.com", service.findOneById(user.getId()).getEmail(), "the address is trimmed");
@@ -602,8 +602,8 @@ class UserServiceIT extends AbstractMongoIT {
     @Test
     void setEmailKeepsTheUsernameOfARecordFromBeforeUsernames() {
         // Such a record kept the login under "email" and has no "username" field.
-        final ObjectId id = new ObjectId();
-        mongoClient.getDatabase("philter").getCollection("users").insertOne(new org.bson.Document("_id", id)
+        final String id = MongoIds.newId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new org.bson.Document("_id", MongoIds.objectId(id))
                 .append("email", "legacy-login").append("role", "user"));
         final UserEntity legacy = service.findOneById(id);
         assertEquals("legacy-login", legacy.getUsername());
@@ -671,8 +671,8 @@ class UserServiceIT extends AbstractMongoIT {
         service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
         createAndFind("other-admin", "admin");
         final UserEntity user = createAndFind("audited", "user");
-        final ObjectId acting = new ObjectId();
-        final ObjectId actingKey = new ObjectId();
+        final String acting = MongoIds.newId();
+        final String actingKey = MongoIds.newId();
 
         service.setUserRole("req", user, "admin", "api", acting, actingKey);
         service.deactivateUser("req", service.findOneById(user.getId()), "api", acting, actingKey);
@@ -719,8 +719,8 @@ class UserServiceIT extends AbstractMongoIT {
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         service = new UserService(mongoClient, new RealLocalEncryptionService(), audit);
         final UserEntity user = createAndFind("hooked", "user");
-        final ObjectId acting = new ObjectId();
-        final ObjectId actingKey = new ObjectId();
+        final String acting = MongoIds.newId();
+        final String actingKey = MongoIds.newId();
 
         // Refused: nothing is stored and nothing is audited.
         assertFalse(service.setWebhook("req", user, "https://127.0.0.1/hook", "a-secret-of-16ch", null, "api", acting, actingKey).isSuccessful());
@@ -732,7 +732,7 @@ class UserServiceIT extends AbstractMongoIT {
         assertEquals("https://93.184.216.34/hook", saved.getWebhookUrl());
         assertEquals("a-secret-of-16ch", saved.getWebhookSecret());
         final org.bson.Document stored = mongoClient.getDatabase("philter").getCollection("users")
-                .find(new org.bson.Document("_id", user.getId())).first();
+                .find(new org.bson.Document("_id", MongoIds.objectId(user.getId()))).first();
         assertFalse(String.valueOf(stored.get("webhook_secret")).contains("a-secret-of-16ch"), "the secret is encrypted at rest");
         verify(audit).auditEvent(eq("req"), eq(AuditLogEvent.WEBHOOK_CONFIGURED), eq(acting), eq(user.getId()), eq("api"),
                 eq("secret: set, api_key: " + actingKey));

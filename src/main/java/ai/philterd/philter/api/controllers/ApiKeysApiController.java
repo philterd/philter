@@ -27,6 +27,7 @@ import ai.philterd.philter.api.responses.GetApiKeysResponse;
 import ai.philterd.philter.api.responses.RevokedSessionKeysResponse;
 import ai.philterd.philter.api.security.AnyApiKey;
 import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
@@ -43,7 +44,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.bson.types.ObjectId;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Locale;
 
 /**
  * Lists, creates, re-scopes, and revokes API keys. A caller manages its own user's keys; an
@@ -518,7 +519,7 @@ public class ApiKeysApiController extends AbstractApiController {
     /** The order a listing of keys can take. */
     private static final java.util.Map<String, String> KEY_SORT = sortFields("created", "timestamp");
 
-    private GetApiKeysResponse page(final ObjectId userId, final ObjectId callingKeyId, final String sort,
+    private GetApiKeysResponse page(final String userId, final String callingKeyId, final String sort,
                                     final String order, final int offset, final int limit, final Boolean session) {
         final boolean descending = listingSort(sort, order, KEY_SORT, "created", false).descending();
         final List<ApiKeyResponse> keys = new ArrayList<>();
@@ -542,7 +543,7 @@ public class ApiKeysApiController extends AbstractApiController {
         final ApiKeyEntity created = apiKeyService.findOneByApiKey(apiKey);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new CreatedApiKeyResponse(
-                created.getId().toHexString(), user.getUsername(), apiKey, new ArrayList<>(scopes)));
+                created.getId(), user.getUsername(), apiKey, new ArrayList<>(scopes)));
 
     }
 
@@ -553,11 +554,11 @@ public class ApiKeysApiController extends AbstractApiController {
      */
     private ApiKeyEntity findManageableKey(final String keyId, final ApiKeyEntity caller) {
 
-        if (keyId == null || !ObjectId.isValid(keyId)) {
+        if (keyId == null || !RecordIds.isValid(keyId)) {
             return null;
         }
 
-        final ApiKeyEntity stored = apiKeyService.findOneById(new ObjectId(keyId));
+        final ApiKeyEntity stored = apiKeyService.findOneById(keyId.toLowerCase(Locale.ROOT));
         if (stored == null) {
             return null;
         }

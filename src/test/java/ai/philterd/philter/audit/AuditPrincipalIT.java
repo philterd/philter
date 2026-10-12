@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.audit;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -25,7 +26,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,7 +88,7 @@ class AuditPrincipalIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String apiKey;
-    private ObjectId userId;
+    private String userId;
 
     @BeforeEach
     void setUp() {
@@ -147,7 +147,7 @@ class AuditPrincipalIT {
 
             assertNotNull(recorded, event.getAuditLogEvent() + " must have been recorded");
 
-            assertEquals(userId, recorded.get("api_key_id"),
+            assertEquals(MongoIds.objectId(userId), recorded.get("api_key_id"),
                     event.getAuditLogEvent() + " must name the caller as the acting principal");
 
             // Loopback, since the request came from this JVM. It used to hold the description.

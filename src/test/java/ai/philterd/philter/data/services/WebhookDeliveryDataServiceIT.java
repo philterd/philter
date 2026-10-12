@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.webhook.WebhookService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
@@ -24,7 +25,6 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import java.util.Date;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -54,9 +54,9 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
         service = new WebhookDeliveryDataService(mongoClient, encryption, mock(AuditEventPublisher.class));
     }
 
-    private ObjectId savePending(final String documentId, final Date nextAttemptAt) {
+    private String savePending(final String documentId, final Date nextAttemptAt) {
         final WebhookDeliveryEntity entity = new WebhookDeliveryEntity();
-        entity.setUserId(new ObjectId());
+        entity.setUserId(MongoIds.newId());
         entity.setDocumentId(documentId);
         entity.setEventType(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE);
         entity.setStatus(WebhookDeliveryEntity.STATUS_PENDING);
@@ -70,10 +70,10 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
         return service.save(entity);
     }
 
-    private WebhookDeliveryEntity reload(final ObjectId id) {
+    private WebhookDeliveryEntity reload(final String id) {
         final MongoCollection<Document> collection =
                 mongoClient.getDatabase("philter").getCollection("webhook_deliveries");
-        final Document document = collection.find(Filters.eq("_id", id)).first();
+        final Document document = collection.find(Filters.eq("_id", MongoIds.objectId(id))).first();
         return document != null ? WebhookDeliveryEntity.fromDocument(document, encryption) : null;
     }
 
@@ -83,7 +83,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
         assertNull(service.claimNextDue(now));
         savePending("future", new Date(now.getTime() + 60_000));
         assertNull(service.claimNextDue(now));
-        final ObjectId due = savePending("due", now);
+        final String due = savePending("due", now);
         final var claimed = service.claimNextDue(now);
         assertEquals(due, claimed.getId());
         assertEquals(WebhookDeliveryEntity.STATUS_PROCESSING, claimed.getStatus());
@@ -97,8 +97,8 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void activeClaimsDoNotBlockOtherDueDeliveries() {
         final Date now = new Date();
-        final ObjectId later = savePending("later", new Date(now.getTime() - 1000));
-        final ObjectId earlier = savePending("earlier", new Date(now.getTime() - 5000));
+        final String later = savePending("later", new Date(now.getTime() - 1000));
+        final String earlier = savePending("earlier", new Date(now.getTime() - 5000));
         final var first = service.claimNextDue(now);
         final var second = service.claimNextDue(now);
         assertEquals(earlier, first.getId());
@@ -115,7 +115,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void concurrentWorkersHaveExactlyOneWinner() throws Exception {
         final Date now = new Date();
-        final ObjectId id = savePending("contended", now);
+        final String id = savePending("contended", now);
         final var other = new WebhookDeliveryDataService(mongoClient, encryption, mock(AuditEventPublisher.class));
         final var start = new java.util.concurrent.CountDownLatch(1);
         try (final var pool = java.util.concurrent.Executors.newFixedThreadPool(12)) {
@@ -144,7 +144,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void expiredClaimIsRecoveredAndOldWorkerCannotChangeItsOutcome() {
         final Date now = new Date();
-        final ObjectId id = savePending("recovered", now);
+        final String id = savePending("recovered", now);
         final var old = service.claimNextDue(now);
         final var current = service.claimNextDue(old.getClaimExpiresAt());
         assertEquals(id, current.getId());
@@ -162,9 +162,9 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void expiredWorkerCannotFinishEvenBeforeAnotherWorkerClaims() {
         final Date now = new Date();
-        final ObjectId id = savePending("expired", now);
+        final String id = savePending("expired", now);
         final var claim = service.claimNextDue(now);
-        collection().updateOne(Filters.eq("_id", id), new Document("$set", new Document("claim_expires_at", new Date(0))));
+        collection().updateOne(Filters.eq("_id", MongoIds.objectId(id)), new Document("$set", new Document("claim_expires_at", new Date(0))));
         assertFalse(service.markDelivered(id, claim.getClaimToken()));
         assertFalse(service.rescheduleOrFail(id, claim.getClaimToken(), 1, "late"));
         assertEquals(WebhookDeliveryEntity.STATUS_PROCESSING, reload(id).getStatus());
@@ -173,7 +173,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void retryBackoffReleasesClaimAndUsesFreshToken() {
         final Date now = new Date();
-        final ObjectId id = savePending("retry", now);
+        final String id = savePending("retry", now);
         final var first = service.claimNextDue(now);
         assertFalse(service.rescheduleOrFail(id, first.getClaimToken(), 2, "wrong attempt count"));
         final long before = System.currentTimeMillis();
@@ -194,8 +194,8 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void finalFailedAttemptIsTerminalAndCannotBeOverwritten() {
         final Date now = new Date();
-        final ObjectId id = savePending("last", now);
-        collection().updateOne(Filters.eq("_id", id), new Document("$set", new Document("attempts", 7)));
+        final String id = savePending("last", now);
+        collection().updateOne(Filters.eq("_id", MongoIds.objectId(id)), new Document("$set", new Document("attempts", 7)));
         final var last = service.claimNextDue(now);
         assertEquals(WebhookDeliveryDataService.MAX_ATTEMPTS, last.getAttempts());
         assertTrue(service.rescheduleOrFail(id, last.getClaimToken(), last.getAttempts(), "exhausted"));
@@ -211,7 +211,7 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void repeatedAbandonedClaimsStopAtAttemptLimit() {
         Date now = new Date();
-        final ObjectId id = savePending("abandoned", now);
+        final String id = savePending("abandoned", now);
         for (int attempt = 1; attempt <= WebhookDeliveryDataService.MAX_ATTEMPTS; attempt++) {
             final var claim = service.claimNextDue(now);
             assertNotNull(claim);
@@ -230,8 +230,8 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
     @Test
     void storedSecretIsEncryptedAndRetryUsesOriginalSigningSecret() {
         final Date now = new Date();
-        final ObjectId id = savePending("encrypted", now);
-        final Document stored = collection().find(Filters.eq("_id", id)).first();
+        final String id = savePending("encrypted", now);
+        final Document stored = collection().find(Filters.eq("_id", MongoIds.objectId(id))).first();
         assertNotEquals("s", stored.getString("secret"));
         assertNotNull(stored.getString("secret_encrypted_key"));
         final var first = service.claimNextDue(now);
@@ -240,12 +240,12 @@ class WebhookDeliveryDataServiceIT extends AbstractMongoIT {
         assertTrue(service.rescheduleOrFail(id, first.getClaimToken(), 1, "retry"));
         final var retry = service.claimNextDue(reload(id).getNextAttemptAt());
         assertEquals("s", retry.getSecret());
-        assertEquals(stored.getString("secret"), collection().find(Filters.eq("_id", id)).first().getString("secret"));
+        assertEquals(stored.getString("secret"), collection().find(Filters.eq("_id", MongoIds.objectId(id))).first().getString("secret"));
     }
 
     @Test
     void missingClaimTokensCannotMutateDeliveries() {
-        final ObjectId id = savePending("pending", new Date());
+        final String id = savePending("pending", new Date());
         assertThrows(IllegalArgumentException.class, () -> service.markDelivered(id, null));
         assertThrows(IllegalArgumentException.class, () -> service.rescheduleOrFail(id, "", 1, "failure"));
         assertEquals(WebhookDeliveryEntity.STATUS_PENDING, reload(id).getStatus());

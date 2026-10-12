@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptedBytes;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
@@ -123,7 +124,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
     }
 
     @Override
-    public ObjectId save(final PendingDocumentEntity entity) {
+    public String save(final PendingDocumentEntity entity) {
         ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(entity.getEffectiveJson());
         if (entity.getEffectiveJson() != null && !java.util.Objects.equals(entity.getEffectiveHash(),
                 PolicyVersionDataService.contentHash(entity.getEffectiveJson()))) {
@@ -138,7 +139,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         // A snapshot failure must never strand the global queue guard.
         if (entity.getEffectiveJson() != null) {
             final Document retained = new Document("_id", entity.getUserId() + ":" + entity.getEffectiveHash())
-                    .append("user_id", entity.getUserId()).append("effective_hash", entity.getEffectiveHash())
+                    .append("user_id", MongoIds.objectId(entity.getUserId())).append("effective_hash", entity.getEffectiveHash())
                     .append("effective_json", document.getString("effective_json"))
                     .append("effective_key", document.getString("effective_key"));
             requireStorable(retained);
@@ -156,13 +157,13 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
                 throw new QueueCapacityException("Global async queue limit reached.", 503);
             }
             final Document globalRound = scheduling.find(Filters.eq("_id", "global")).first();
-            final Document ownerRound = scheduling.find(Filters.eq("_id", entity.getUserId())).first();
+            final Document ownerRound = scheduling.find(Filters.eq("_id", MongoIds.objectId(entity.getUserId()))).first();
             final long round = Math.max(globalRound == null ? 0 : globalRound.getLong("round"),
                     ownerRound == null ? 0 : ownerRound.getLong("round")) + 1;
-            scheduling.updateOne(Filters.eq("_id", entity.getUserId()), Updates.set("round", round),
+            scheduling.updateOne(Filters.eq("_id", MongoIds.objectId(entity.getUserId())), Updates.set("round", round),
                     new com.mongodb.client.model.UpdateOptions().upsert(true));
             document.put("fairness_round", round);
-            return jobs.insertOne(document).getInsertedId().asObjectId().getValue();
+            return MongoIds.hex(jobs.insertOne(document).getInsertedId().asObjectId().getValue());
         });
     }
 
@@ -182,9 +183,9 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
     }
 
     public record QueueStats(long jobs, long bytes, long oldestAgeSeconds) { }
-    public QueueStats queueStats(final ObjectId owner) {
+    public QueueStats queueStats(final String owner) {
         Bson query = Filters.in("status", PendingDocumentEntity.STATUS_PENDING, PendingDocumentEntity.STATUS_PROCESSING);
-        if (owner != null) query = Filters.and(query, Filters.eq("user_id", owner));
+        if (owner != null) query = Filters.and(query, Filters.eq("user_id", MongoIds.objectId(owner)));
         long count = 0, bytes = 0, oldest = clock.getAsLong();
         for (Document job : jobs.find(query).projection(com.mongodb.client.model.Projections.include("input_size", "submitted_at"))) {
             count++;
@@ -199,11 +200,11 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         throw new UnsupportedOperationException("Use fenced job transitions instead of replacing job state.");
     }
 
-    public PendingDocumentEntity findOneByDocumentIdAndUserId(final String documentId, final ObjectId userId) {
+    public PendingDocumentEntity findOneByDocumentIdAndUserId(final String documentId, final String userId) {
 
         final Bson query = Filters.and(
                 Filters.eq("document_id", documentId),
-                Filters.eq("user_id", userId)
+                Filters.eq("user_id", MongoIds.objectId(userId))
         );
 
         final Document document = jobs.find(query).first();
@@ -215,9 +216,9 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
      * A page of the user's queued documents, with the given status when one is given, and their total.
      * The documents themselves are left out: a listing has no use for them, and they are large.
      */
-    public Listings.Page<PendingDocumentEntity> list(final ObjectId userId, final String status, final Listings.Sort sort,
+    public Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
                                                      final int offset, final int limit) {
-        final Bson filter = Listings.all(Filters.eq("user_id", userId), status == null ? null : Filters.eq("status", status));
+        final Bson filter = Listings.all(Filters.eq("user_id", MongoIds.objectId(userId)), status == null ? null : Filters.eq("status", status));
         final List<PendingDocumentEntity> items = new ArrayList<>();
         for (final Document document : jobs.find(filter)
                 .projection(com.mongodb.client.model.Projections.exclude("input", "input_encrypted_key", "output",
@@ -228,9 +229,9 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         return new Listings.Page<>(items, jobs.countDocuments(filter));
     }
 
-    public List<PendingDocumentEntity> findAllByUserId(final ObjectId userId, final int offset, final int limit) {
+    public List<PendingDocumentEntity> findAllByUserId(final String userId, final int offset, final int limit) {
 
-        final Bson query = Filters.eq("user_id", userId);
+        final Bson query = Filters.eq("user_id", MongoIds.objectId(userId));
 
         final FindIterable<Document> documents = jobs.find(query)
                 .sort(Sorts.descending("submitted_at"))
@@ -325,22 +326,22 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     }
 
-    private Bson ownedClaim(final ObjectId id, final String claimToken) {
+    private Bson ownedClaim(final String id, final String claimToken) {
         if (claimToken == null || claimToken.isBlank()) {
             throw new IllegalArgumentException("A job claim token is required.");
         }
-        return Filters.and(Filters.eq("_id", id),
+        return Filters.and(Filters.eq("_id", MongoIds.objectId(id)),
                 Filters.eq("status", PendingDocumentEntity.STATUS_PROCESSING),
                 Filters.eq("claim_token", claimToken));
     }
 
-    private Bson liveComputation(final ObjectId id, final String claimToken) {
+    private Bson liveComputation(final String id, final String claimToken) {
         return Filters.and(ownedClaim(id, claimToken),
                 Filters.gt("claim_expires_at", new Date(clock.getAsLong())),
                 Filters.exists("publication_started_at", false));
     }
 
-    public boolean renewClaim(final ObjectId id, final String claimToken) {
+    public boolean renewClaim(final String id, final String claimToken) {
         return jobs.updateOne(liveComputation(id, claimToken),
                 Updates.set("claim_expires_at", new Date(clock.getAsLong() + claimLeaseMillis)))
                 .getMatchedCount() == 1;
@@ -351,19 +352,19 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
      * This phase never expires: reclaiming it could race an already-issued external write.
      * An interrupted publisher requires operator recovery after the old worker is stopped.
      */
-    public boolean beginPublication(final ObjectId id, final String claimToken) {
+    public boolean beginPublication(final String id, final String claimToken) {
         return jobs.updateOne(liveComputation(id, claimToken),
                 Updates.set("publication_started_at", new Date(clock.getAsLong())))
                 .getModifiedCount() == 1;
     }
 
-    public boolean markComplete(final ObjectId id, final ObjectId userId, final String claimToken, final byte[] output) {
+    public boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output) {
 
         // Encrypted here as well as in the entity: this is a partial update, so it never passes
         // through toDocument and would otherwise write the redacted document in the clear.
-        final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId.toHexString());
+        final EncryptedBytes encrypted = encryptionService.encryptBytes(output, userId);
 
-        final Bson query = Filters.and(ownedClaim(id, claimToken), Filters.eq("user_id", userId),
+        final Bson query = Filters.and(ownedClaim(id, claimToken), Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.exists("publication_started_at", true));
         final Bson update = Updates.combine(
                 Updates.set("status", PendingDocumentEntity.STATUS_COMPLETE),
@@ -379,7 +380,7 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     }
 
-    public boolean markFailed(final ObjectId id, final String claimToken, final String errorMessage) {
+    public boolean markFailed(final String id, final String claimToken, final String errorMessage) {
 
         final Bson query = Filters.and(ownedClaim(id, claimToken), Filters.or(
                 Filters.exists("publication_started_at", true),
@@ -397,37 +398,37 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
 
     }
 
-    public long deleteByDocumentIdAndUserId(final String documentId, final ObjectId userId) {
+    public long deleteByDocumentIdAndUserId(final String documentId, final String userId) {
 
         final Bson query = Filters.and(
                 Filters.eq("document_id", documentId),
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.ne("notification_pending", true)
         );
 
         final DeleteResult result = jobs.deleteMany(query);
         if (result.getDeletedCount() == 0 && jobs.countDocuments(Filters.and(Filters.eq("document_id", documentId),
-                Filters.eq("user_id", userId), Filters.eq("notification_pending", true))) > 0) {
+                Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("notification_pending", true))) > 0) {
             throw new QueueCapacityException("Notification dispatch is pending. Retry deletion later.", 409);
         }
         return result.getDeletedCount();
 
     }
 
-    public int countByUserId(final ObjectId userId) {
-        return (int) jobs.countDocuments(Filters.eq("user_id", userId));
+    public int countByUserId(final String userId) {
+        return (int) jobs.countDocuments(Filters.eq("user_id", MongoIds.objectId(userId)));
     }
 
-    public int countPendingByUserId(final ObjectId userId) {
+    public int countPendingByUserId(final String userId) {
         return (int) jobs.countDocuments(Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.in("status", PendingDocumentEntity.STATUS_PENDING, PendingDocumentEntity.STATUS_PROCESSING)
         ));
     }
 
-    public boolean hasOpenJobsForContext(final ObjectId userId, final String contextName) {
+    public boolean hasOpenJobsForContext(final String userId, final String contextName) {
         return jobs.countDocuments(Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context_name", contextName),
                 Filters.in("status", PendingDocumentEntity.STATUS_PENDING, PendingDocumentEntity.STATUS_PROCESSING)
         )) > 0;
@@ -443,13 +444,13 @@ public class PendingDocumentDataService extends AbstractEncryptedService<Pending
         return result;
     }
 
-    public void recordNotificationAttempt(final ObjectId jobId) {
-        jobs.updateOne(Filters.and(Filters.eq("_id", jobId), Filters.eq("notification_pending", true)),
+    public void recordNotificationAttempt(final String jobId) {
+        jobs.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(jobId)), Filters.eq("notification_pending", true)),
                 Updates.set("notification_attempted_at", new Date(clock.getAsLong())));
     }
 
-    public void acknowledgeNotification(final ObjectId jobId) {
-        jobs.updateOne(Filters.and(Filters.eq("_id", jobId), Filters.eq("notification_pending", true)),
+    public void acknowledgeNotification(final String jobId) {
+        jobs.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(jobId)), Filters.eq("notification_pending", true)),
                 Updates.combine(Updates.set("notification_pending", false),
                         Updates.set("retention_at", new Date(clock.getAsLong()))));
     }

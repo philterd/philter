@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.entities;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptResult;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
@@ -31,7 +32,7 @@ import java.util.Locale;
 
 public class LedgerEntity extends AbstractEncryptedEntity {
 
-    private ObjectId id;
+    private String id;
     private String documentId;
     private String token;
     private String tokenEncryptedKey;
@@ -44,7 +45,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     private String hash;
     private String filename;
     private String type;
-    private ObjectId userId;
+    private String userId;
     // The policy that governed this redaction, stamped inline so the entry proves which policy (by
     // name, version, and content fingerprint) was applied even if the retained version snapshot is
     // later purged under a retention action. The fields feed the chain hash, so they are tamper-evident.
@@ -62,7 +63,7 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
     }
 
-    public LedgerEntity(ObjectId userId, String documentId, String token, String replacement,
+    public LedgerEntity(String userId, String documentId, String token, String replacement,
                         long startPosition, String documentHash, String previousHash, String filename, String type,
                         String policyName, int policyVersion, String policyContentHash) throws NoSuchAlgorithmException {
 
@@ -99,8 +100,8 @@ public class LedgerEntity extends AbstractEncryptedEntity {
             final LedgerEntity entity = new LedgerEntity();
             entity.unreadable = true;
             entity.unreadableCause = unreadableEntry;
-            entity.id = document.get("_id") instanceof ObjectId id ? id : null;
-            entity.userId = document.get("user_id") instanceof ObjectId user ? user : null;
+            entity.id = document.get("_id") instanceof ObjectId id ? MongoIds.hex(id) : null;
+            entity.userId = document.get("user_id") instanceof ObjectId user ? MongoIds.hex(user) : null;
             entity.documentId = text(document, "document_id");
             entity.filename = text(document, "filename");
             entity.type = text(document, "type");
@@ -131,8 +132,8 @@ public class LedgerEntity extends AbstractEncryptedEntity {
     public static LedgerEntity fromDocument(final Document document, final EncryptionService encryptionService) {
 
         final LedgerEntity ledgerEntity = new LedgerEntity();
-        ledgerEntity.id = document.getObjectId("_id");
-        ledgerEntity.userId = document.getObjectId("user_id");
+        ledgerEntity.id = MongoIds.hex(document.getObjectId("_id"));
+        ledgerEntity.userId = MongoIds.hex(document.getObjectId("user_id"));
         ledgerEntity.documentId = document.getString("document_id");
         ledgerEntity.startPosition = document.getLong("start_position");
         ledgerEntity.documentHash = document.getString("document_hash");
@@ -166,18 +167,18 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         final Document document = new Document();
 
         if(id != null) {
-            document.put("_id", id);
+            document.put("_id", MongoIds.objectId(id));
         }
 
-        final EncryptResult tokenEncryptResult = encryptionService.encrypt(token, userId.toHexString());
+        final EncryptResult tokenEncryptResult = encryptionService.encrypt(token, userId);
         document.put("token", tokenEncryptResult.getEncryptedText());
         document.put("token_encrypted_key", tokenEncryptResult.getEncryptionKey());
 
-        final EncryptResult replacementEncryptResult = encryptionService.encrypt(replacement, userId.toHexString());
+        final EncryptResult replacementEncryptResult = encryptionService.encrypt(replacement, userId);
         document.put("replacement", replacementEncryptResult.getEncryptedText());
         document.put("replacement_encrypted_key", replacementEncryptResult.getEncryptionKey());
 
-        document.put("user_id", userId);
+        document.put("user_id", MongoIds.objectId(userId));
         document.put("document_id", documentId);
         document.put("start_position", startPosition);
         document.put("document_hash", documentHash);
@@ -273,11 +274,11 @@ public class LedgerEntity extends AbstractEncryptedEntity {
 
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -361,11 +362,11 @@ public class LedgerEntity extends AbstractEncryptedEntity {
         this.type = type;
     }
 
-    public void setUserId(ObjectId userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
-    public ObjectId getUserId() {
+    public String getUserId() {
         return userId;
     }
 

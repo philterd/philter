@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -22,7 +23,6 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,13 +61,13 @@ public class SignInChallengeDataService {
         }
     }
 
-    public Challenge create(final ObjectId userId) {
+    public Challenge create(final String userId) {
         final byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         final String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         final Date expiresAt = new Date(System.currentTimeMillis() + LIFETIME_SECONDS * 1000L);
         collection.insertOne(new Document("token_hash", EncryptionService.hashSha256(token))
-                .append("user_id", userId).append("expires_at", expiresAt));
+                .append("user_id", MongoIds.objectId(userId)).append("expires_at", expiresAt));
         return new Challenge(token, expiresAt);
     }
 
@@ -77,13 +77,13 @@ public class SignInChallengeDataService {
      *
      * @return the user it was issued to, or {@code null} if it is unknown, used, or expired.
      */
-    public ObjectId consume(final String token) {
+    public String consume(final String token) {
         if (token == null || token.isBlank()) {
             return null;
         }
         final Document document = collection.findOneAndDelete(Filters.and(
                 Filters.eq("token_hash", EncryptionService.hashSha256(token)), Filters.gt("expires_at", new Date())));
-        return document == null ? null : document.getObjectId("user_id");
+        return document == null ? null : MongoIds.hex(document.getObjectId("user_id"));
     }
 
 }

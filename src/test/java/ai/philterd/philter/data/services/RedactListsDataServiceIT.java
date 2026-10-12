@@ -17,13 +17,13 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.RedactListsDataService.ListContents;
 import ai.philterd.philter.data.services.RedactListsDataService.RedactList;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -53,7 +53,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void saveOrUpdatePersistsAndFindReadsItBack() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.saveOrUpdate("req", user, List.of("ssn", "secret"), List.of("public"), "source");
 
         final RedactListsEntity found = service.find(user);
@@ -65,19 +65,19 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findReturnsNullWhenNothingSaved() {
-        assertNull(service.find(new ObjectId()));
+        assertNull(service.find(MongoIds.newId()));
     }
 
     @Test
     void secondSaveOrUpdateUpdatesAndDoesNotDuplicate() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.saveOrUpdate("req", user, List.of("a"), List.of("b"), "source");
         // A second save for the same user must update the existing document, not insert another.
         service.saveOrUpdate("req", user, List.of("c", "d"), List.of("e"), "source");
 
         final MongoCollection<Document> redactLists =
                 mongoClient.getDatabase("philter").getCollection("redact_lists");
-        assertEquals(1L, redactLists.countDocuments(new Document("user_id", user)));
+        assertEquals(1L, redactLists.countDocuments(new Document("user_id", MongoIds.objectId(user))));
 
         final RedactListsEntity found = service.find(user);
         assertEquals(List.of("c", "d"), found.getTermsToAlwaysRedact());
@@ -86,8 +86,8 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void redactListsAreScopedByUser() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         service.saveOrUpdate("req", userA, List.of("a"), List.of("b"), "source");
 
         // Another user has no redact lists of their own.
@@ -108,7 +108,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
      */
     @Test
     void findWithNullUserIdDoesNotReturnAnotherUsersLists() {
-        final ObjectId userA = new ObjectId();
+        final String userA = MongoIds.newId();
         service.saveOrUpdate("req", userA, List.of("ssn", "secret"), List.of("public"), "source");
 
         // The old read pattern: a null id must not reveal userA's lists.
@@ -128,19 +128,19 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
         redactLists.insertOne(new Document("terms_to_always_redact", List.of("legacy"))
                 .append("terms_to_never_redact", List.of()));
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.saveOrUpdate("req", user, List.of("mine"), List.of(), "source");
 
         // The user sees only their own terms, never the orphan document.
         assertEquals(List.of("mine"), service.find(user).getTermsToAlwaysRedact());
         // A different user with nothing saved sees nothing — not the orphan.
-        assertNull(service.find(new ObjectId()));
+        assertNull(service.find(MongoIds.newId()));
     }
 
 
     @Test
     void replacingAListForAUserWithNoneCreatesItAtRevisionOne() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final ListContents written = service.replaceList("req", user, RedactList.ALWAYS, List.of("ssn"), null, "source");
 
@@ -150,7 +150,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void aWriteAtTheCurrentRevisionSucceedsAndAStaleOneIsRefused() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.replaceList("req", user, RedactList.ALWAYS, List.of("a"), 0L, "source");
 
         assertEquals(new ListContents(List.of("b"), 2L),
@@ -163,19 +163,19 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void expectingRevisionZeroIsRefusedOnceTheListHasBeenWritten() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertNotNull(service.replaceList("req", user, RedactList.NEVER, List.of("acme"), 0L, "source"));
 
         // Two clients that both read the empty list: the second must not create a second document.
         assertNull(service.replaceList("req", user, RedactList.NEVER, List.of("other"), 0L, "source"));
         assertEquals(new ListContents(List.of("acme"), 1L), service.findList(user, RedactList.NEVER));
         assertEquals(1L, mongoClient.getDatabase("philter").getCollection("redact_lists")
-                .countDocuments(new Document("user_id", user)));
+                .countDocuments(new Document("user_id", MongoIds.objectId(user))));
     }
 
     @Test
     void eachListHasItsOwnRevision() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.replaceList("req", user, RedactList.ALWAYS, List.of("a"), 0L, "source");
 
         // The never-redact list was never written, so it is still at 0 although the document exists.
@@ -188,7 +188,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void writingBothListsMovesBothRevisionsSoAPerListWriterNotices() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.replaceList("req", user, RedactList.ALWAYS, List.of("a"), 0L, "source");
 
         service.saveOrUpdate("req", user, List.of("a"), List.of("b"), "source");
@@ -201,7 +201,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void writingOneListThroughSaveOrUpdateLeavesTheOtherAlone() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.saveOrUpdate("req", user, List.of("a"), List.of("b"), "source");
 
         service.saveOrUpdate("req", user, List.of("a", "c"), null, "source");
@@ -212,9 +212,9 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @Test
     void listsWrittenBeforeRevisionsAreAtRevisionZero() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         mongoClient.getDatabase("philter").getCollection("redact_lists")
-                .insertOne(new Document("user_id", user).append("terms_to_always_redact", List.of("legacy"))
+                .insertOne(new Document("user_id", MongoIds.objectId(user)).append("terms_to_always_redact", List.of("legacy"))
                         .append("terms_to_never_redact", List.of()));
 
         assertEquals(new ListContents(List.of("legacy"), 0L), service.findList(user, RedactList.ALWAYS));

@@ -20,6 +20,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
@@ -28,7 +29,6 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -81,15 +81,15 @@ class LedgerApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -536,7 +536,7 @@ class LedgerApiControllerTest {
 
     @Test
     void deletingAnotherUsersChainRequiresCrossUserAccess() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         LedgerDeletionConfig.setOverrideForTesting(true);
@@ -592,7 +592,7 @@ class LedgerApiControllerTest {
     }
 
     /** Stubs userService.findByUsername so the email resolves to a user with the given id. */
-    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+    private void makeOwnerLookup(final String email, final String ownerId) {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
@@ -601,7 +601,7 @@ class LedgerApiControllerTest {
 
     @Test
     void adminCanGetAnotherUsersChainViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeCallerAdmin();
         makeOwnerLookup("other@example.com", otherUser);
         when(ledgerService.chainExists(otherUser, "doc-1")).thenReturn(true);
@@ -620,7 +620,7 @@ class LedgerApiControllerTest {
 
     @Test
     void nonAdminNamingAnotherOwnerGets404() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUser);
         // The caller is not an admin.
         final UserEntity caller = new UserEntity();
@@ -646,7 +646,7 @@ class LedgerApiControllerTest {
 
     @Test
     void getChainForAnotherUsersDocumentReturns404() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final String documentId = "doc-owned-by-other";
         // Scoped to the caller, the chain does not exist even though it does for otherUser.
         when(ledgerService.chainExists(userId, documentId)).thenReturn(false);
@@ -662,7 +662,7 @@ class LedgerApiControllerTest {
 
     @Test
     void exportingAnotherUsersChainReturns404() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final String documentId = "doc-owned-by-other";
         when(ledgerService.getChain(userId, documentId)).thenReturn(Collections.emptyList());
 

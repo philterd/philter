@@ -20,13 +20,13 @@ import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,7 +69,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
                 webhookDeliveryDataService, mock(PolicyVersionDataService.class), new Gson());
     }
 
-    private PendingDocumentEntity newPending(final ObjectId userId, final String documentId) {
+    private PendingDocumentEntity newPending(final String userId, final String documentId) {
         final PendingDocumentEntity entity = new PendingDocumentEntity();
         entity.setUserId(userId);
         entity.setDocumentId(documentId);
@@ -94,7 +94,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
     @Test
     void pollClaimsPendingJobRedactsItAndMarksComplete() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
         final byte[] redacted = new byte[]{9, 8, 7};
@@ -116,7 +116,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
     @Test
     void pollMarksJobFailedWhenRedactionThrows() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
@@ -137,7 +137,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
     @Test
     void crashedJobLeftProcessingIsReclaimedAndReprocessedToCompletion() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         // Simulate a job a crashed worker claimed and never finished: PROCESSING with an old claim time
         // (older than the worker's 10-minute stuck threshold).
@@ -162,7 +162,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
 
     /** A user with a webhook configured, so the worker enqueues a delivery. */
-    private void userWithWebhook(final ObjectId userId) {
+    private void userWithWebhook(final String userId) {
         final ai.philterd.philter.data.entities.UserEntity user =
                 mock(ai.philterd.philter.data.entities.UserEntity.class);
         when(user.getId()).thenReturn(userId);
@@ -181,7 +181,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     @DisplayName("The completion webhook reports COMPLETE, not the status the job was claimed with")
     void completionWebhookReportsComplete() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         userWithWebhook(user);
         pendingDocumentDataService.save(newPending(user, "doc-1"));
         stubRedactionReturns(new byte[]{9});
@@ -197,7 +197,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     @DisplayName("The failure webhook reports FAILED")
     void failureWebhookReportsFailed() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         userWithWebhook(user);
         pendingDocumentDataService.save(newPending(user, "doc-1"));
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
@@ -214,7 +214,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     @DisplayName("One poll drains the queue rather than taking a single job")
     void onePollDrainsTheQueue() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         for (int i = 1; i <= 5; i++) {
             pendingDocumentDataService.save(newPending(user, "doc-" + i));
         }
@@ -233,7 +233,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     @DisplayName("A failing job does not stop the rest of the queue")
     void aFailingJobDoesNotStallTheQueue() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         pendingDocumentDataService.save(newPending(user, "doc-bad"));
         pendingDocumentDataService.save(newPending(user, "doc-good"));
 
@@ -261,7 +261,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
     void pausedWorkerCannotPublishOrNotifyAfterNewWorkerCompletes(final boolean lateFailure) throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         userWithWebhook(user);
         pendingDocumentDataService.save(newPending(user, "race-doc"));
         final var entered = new java.util.concurrent.CountDownLatch(1);
@@ -311,7 +311,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
 
     @Test
     void heartbeatRunsWhileFilteringIsBlocked() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         pendingDocumentDataService.save(newPending(user, "slow"));
         final var service = org.mockito.Mockito.spy(pendingDocumentDataService);
         final var renewed = new java.util.concurrent.CountDownLatch(1);
@@ -334,7 +334,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     }
     @Test
     void queuedZipResultContainsTheRedactedPdf() throws Exception {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         final var job = newPending(owner, "zip-result");
         job.setOutputMimeType("application/zip");
         pendingDocumentDataService.save(job);

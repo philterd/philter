@@ -41,7 +41,6 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -128,7 +127,7 @@ class ApiFilterChainIT {
                 policyDataService, contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
 
-        final ObjectId userId = userService.findByUsername(username).getId();
+        final String userId = userService.findByUsername(username).getId();
         final ServiceResponse keyResponse = apiKeyDataService.createApiKey("req", userId, "test");
         assertTrue(keyResponse.isSuccessful(), "the API key must be created");
         apiKey = keyResponse.getMessage();
@@ -416,7 +415,7 @@ class ApiFilterChainIT {
 
     /** Mints an additional key for the same user carrying only the given scopes. */
     private String scopedKey(final ApiKeyScope... scopes) {
-        final ObjectId userId = userService.findByUsername(username).getId();
+        final String userId = userService.findByUsername(username).getId();
         final Set<String> granted = new LinkedHashSet<>();
         for (final ApiKeyScope scope : scopes) {
             granted.add(scope.getScope());

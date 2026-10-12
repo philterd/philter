@@ -21,13 +21,13 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.RedactListsDataService.RedactList;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -77,16 +77,16 @@ class RedactListsApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ai.philterd.philter.services.cache.ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
         // A distinct API-key _id so a regression to getId() instead of getUserId() would fail.
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it, and load-bearing: a stub keyed any other way
         // authenticates nobody and every test in the class fails on a 401.
@@ -311,7 +311,7 @@ class RedactListsApiControllerTest {
 
     @Test
     void adminCanReplaceAnotherUsersListsViaOwner() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final UserEntity admin = new UserEntity();
         admin.setId(userId);
         admin.setRole("admin");
@@ -334,7 +334,7 @@ class RedactListsApiControllerTest {
 
     @Test
     void nonAdminNamingAnotherOwnerGets404() throws Exception {
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         final UserEntity owner = new UserEntity();
         owner.setId(otherUser);
         owner.setEmail("other@example.com");

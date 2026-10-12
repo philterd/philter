@@ -21,6 +21,7 @@ import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -73,15 +74,15 @@ class AuditApiControllerTest {
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private ApiKeyCache apiKeyCache;
 
-    private ObjectId userId;
+    private String userId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
+        userId = MongoIds.newId();
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);
-        apiKeyEntity.setId(new ObjectId());
+        apiKeyEntity.setId(MongoIds.newId());
 
         // Keyed by the hash, as production keys it. See LedgerApiControllerTest.
         lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
@@ -118,7 +119,7 @@ class AuditApiControllerTest {
         when(userService.findOneById(userId)).thenReturn(user);
     }
 
-    private void makeOwnerLookup(final String email, final ObjectId ownerId) {
+    private void makeOwnerLookup(final String email, final String ownerId) {
         final UserEntity owner = new UserEntity();
         owner.setId(ownerId);
         owner.setEmail(email);
@@ -225,7 +226,7 @@ class AuditApiControllerTest {
     @Test
     void filtersByOwner() throws Exception {
         makeCallerAdmin();
-        final ObjectId otherUser = new ObjectId();
+        final String otherUser = MongoIds.newId();
         makeOwnerLookup("other@example.com", otherUser);
         when(auditLogService.find(eq(otherUser), any(), any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(List.of());
 
@@ -423,7 +424,7 @@ class AuditApiControllerTest {
     void exportPagesByCursor() throws Exception {
         makeCallerAdmin();
         final AuditLogService.ExportCursor cursor =
-                new AuditLogService.ExportCursor(new java.util.Date(1_791_000_000_000L), new org.bson.types.ObjectId());
+                new AuditLogService.ExportCursor(new java.util.Date(1_791_000_000_000L), MongoIds.newId());
         when(auditLogService.export(any(), any(), any(), eq(cursor), eq(100))).thenReturn(new AuditLogService.CsvExport(
                 "timestamp,event\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), 100, true, java.time.ZoneId.of("UTC"), 0,
                 "next-cursor"));
@@ -457,7 +458,7 @@ class AuditApiControllerTest {
     @DisplayName("A cursor that is not one, or a cursor with an offset, is a 400 naming the cursor")
     void exportRejectsABadCursor() throws Exception {
         makeCallerAdmin();
-        final String cursor = new AuditLogService.ExportCursor(new java.util.Date(), new org.bson.types.ObjectId()).encode();
+        final String cursor = new AuditLogService.ExportCursor(new java.util.Date(), MongoIds.newId()).encode();
 
         for (final String query : new String[]{"&cursor=not-a-cursor", "&cursor=" + cursor + "&offset=0"}) {
             final String body = perform("/api/audit/export?from=2026-10-01&to=2026-10-01" + query)

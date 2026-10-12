@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.testutil.AbstractMongoIT;
@@ -63,7 +64,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createThenFindOneScopedToOwner() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(service.create("c1", user).isSuccessful());
 
         final ContextEntity found = service.findOne("c1", user);
@@ -71,14 +72,14 @@ class ContextDataServiceIT extends AbstractMongoIT {
         assertEquals(user, found.getUserId());
 
         // findOne is owner-scoped: another user cannot see it.
-        assertNull(service.findOne("c1", new ObjectId()));
+        assertNull(service.findOne("c1", MongoIds.newId()));
     }
 
     @Test
     void createAllowsSameNameForDifferentUsers() {
         // Names are unique per user, so two different users may each hold a context with the same name.
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         assertTrue(service.create("dup", userA).isSuccessful());
 
         final ServiceResponse response = service.create("dup", userB);
@@ -91,7 +92,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createRejectsDuplicateNameForSameUser() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         assertTrue(service.create("dup", user).isSuccessful());
 
         final ServiceResponse response = service.create("dup", user);
@@ -105,11 +106,11 @@ class ContextDataServiceIT extends AbstractMongoIT {
         // Insert directly, bypassing the application-level check, to prove the storage layer also
         // enforces per-user uniqueness: the same name under the SAME user must be rejected...
         final MongoCollection<Document> contexts = mongoClient.getDatabase("philter").getCollection("contexts");
-        final ObjectId user = new ObjectId();
-        contexts.insertOne(new Document("context_name", "x").append("user_id", user));
+        final String user = MongoIds.newId();
+        contexts.insertOne(new Document("context_name", "x").append("user_id", MongoIds.objectId(user)));
 
         assertThrows(MongoException.class, () ->
-                contexts.insertOne(new Document("context_name", "x").append("user_id", user)));
+                contexts.insertOne(new Document("context_name", "x").append("user_id", MongoIds.objectId(user))));
 
         // ...while the same name under a DIFFERENT user is allowed.
         contexts.insertOne(new Document("context_name", "x").append("user_id", new ObjectId()));
@@ -123,12 +124,12 @@ class ContextDataServiceIT extends AbstractMongoIT {
         // rather than letting the raw MongoWriteException escape (which would surface as a 500).
         final ContextDataService spied = spy(service);
         final String name = "already-present";
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         doReturn(null).when(spied).findOne(name, user);
 
         // Seed the same (user, name) directly so the unique index trips when the spied create() inserts.
         mongoClient.getDatabase("philter").getCollection("contexts")
-                .insertOne(new Document("context_name", name).append("user_id", user));
+                .insertOne(new Document("context_name", name).append("user_id", MongoIds.objectId(user)));
 
         final ServiceResponse response = spied.create(name, user);
 
@@ -145,7 +146,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
         // use the same user so the per-user uniqueness constraint is the one under contention.
         final int threads = 8;
         final String name = "race";
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final ExecutorService pool = Executors.newFixedThreadPool(threads);
         final CountDownLatch start = new CountDownLatch(1);
@@ -185,7 +186,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByNameRemovesContextAndCascadesToEntries() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("c", owner).isSuccessful());
         entryService.putReplacement(owner, "c", "John Smith", "David Jones", "PERSON");
 
@@ -198,12 +199,12 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByNameDeniesNonOwner() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("c", owner).isSuccessful());
 
         // A different, non-admin user cannot delete a context they do not own; it remains. The lookup is
         // scoped to the requester, so to them the context does not exist.
-        final ServiceResponse refused = service.deleteByName("c", new ObjectId(), false);
+        final ServiceResponse refused = service.deleteByName("c", MongoIds.newId(), false);
         assertFalse(refused.isSuccessful());
         assertEquals(404, refused.getStatusCode());
         assertNotNull(service.findOne("c", owner));
@@ -211,7 +212,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByNameReturns404ForAMissingContext() {
-        final ServiceResponse response = service.deleteByName("missing", new ObjectId(), false);
+        final ServiceResponse response = service.deleteByName("missing", MongoIds.newId(), false);
         assertFalse(response.isSuccessful());
         assertEquals(404, response.getStatusCode());
         assertEquals("Context does not exist.", response.getMessage());
@@ -220,17 +221,17 @@ class ContextDataServiceIT extends AbstractMongoIT {
     @Test
     void defaultContextIsDeletableLikeAnyOther() {
         // The "default" context is not reserved; its creator can delete it like any other.
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("default", owner).isSuccessful());
 
         assertTrue(service.deleteByName("default", owner, false).isSuccessful());
         assertNull(service.findOne("default", owner));
     }
 
-    private java.util.Set<Integer> slotsOf(final ObjectId userId) {
+    private java.util.Set<Integer> slotsOf(final String userId) {
         final java.util.Set<Integer> slots = new java.util.TreeSet<>();
         for (final Document document : mongoClient.getDatabase("philter").getCollection("contexts")
-                .find(new Document("user_id", userId))) {
+                .find(new Document("user_id", MongoIds.objectId(userId)))) {
             assertTrue(slots.add(document.getInteger("slot")), "no two contexts share a slot");
         }
         return slots;
@@ -238,7 +239,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void concurrentCreatesNeverExceedTheLimit() throws Exception {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final int threads = 30;
         final CountDownLatch start = new CountDownLatch(1);
         final List<Future<ServiceResponse>> results = new ArrayList<>();
@@ -267,7 +268,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deletingAContextFreesItsSlot() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         for (int i = 0; i < ContextDataService.MAXIMUM_CONTEXTS_PER_USER; i++) {
             assertTrue(service.create("c" + i, user).isSuccessful());
         }
@@ -282,21 +283,21 @@ class ContextDataServiceIT extends AbstractMongoIT {
         final MongoCollection<Document> contexts = mongoClient.getDatabase("philter").getCollection("contexts");
         // As a database written before slots existed: no slot index and no slots.
         contexts.dropIndex("user_id_slot_unique");
-        final ObjectId few = new ObjectId();
-        final ObjectId many = new ObjectId();
-        final ObjectId mixed = new ObjectId();
+        final String few = MongoIds.newId();
+        final String many = MongoIds.newId();
+        final String mixed = MongoIds.newId();
         for (int i = 0; i < 3; i++) {
-            contexts.insertOne(new Document("context_name", "f" + i).append("user_id", few));
+            contexts.insertOne(new Document("context_name", "f" + i).append("user_id", MongoIds.objectId(few)));
         }
         for (int i = 0; i < 12; i++) {
-            contexts.insertOne(new Document("context_name", "m" + i).append("user_id", many));
+            contexts.insertOne(new Document("context_name", "m" + i).append("user_id", MongoIds.objectId(many)));
         }
-        contexts.insertOne(new Document("context_name", "held").append("user_id", mixed).append("slot", 0));
-        contexts.insertOne(new Document("context_name", "loose").append("user_id", mixed));
+        contexts.insertOne(new Document("context_name", "held").append("user_id", MongoIds.objectId(mixed)).append("slot", 0));
+        contexts.insertOne(new Document("context_name", "loose").append("user_id", MongoIds.objectId(mixed)));
         // A slot stored as null counts as missing, or two of them would block the index.
-        final ObjectId nulls = new ObjectId();
-        contexts.insertOne(new Document("context_name", "n0").append("user_id", nulls).append("slot", null));
-        contexts.insertOne(new Document("context_name", "n1").append("user_id", nulls).append("slot", null));
+        final String nulls = MongoIds.newId();
+        contexts.insertOne(new Document("context_name", "n0").append("user_id", MongoIds.objectId(nulls)).append("slot", null));
+        contexts.insertOne(new Document("context_name", "n1").append("user_id", MongoIds.objectId(nulls)).append("slot", null));
 
         final ContextDataService started = new ContextDataService(mongoClient, new ContextCache(null, 0, null, false),
                 mock(AuditEventPublisher.class));
@@ -313,7 +314,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void updateSettingsPersistsFlags() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("c", owner, false, false).isSuccessful());
 
         assertTrue(service.updateSettings("req", "c", owner, true, null, true, owner, null).isSuccessful());
@@ -325,7 +326,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void anOmittedSettingKeepsItsValueInBothDirections() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("partial", owner, false, true).isSuccessful());
 
         // Turning disambiguation on must not turn the ledger off.
@@ -343,7 +344,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void neitherSettingChangesNothingAndIsRefused() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("neither", owner, true, true).isSuccessful());
         final ServiceResponse response = service.updateSettings("req", "neither", owner, null, null, null, owner, null);
         assertFalse(response.isSuccessful());
@@ -353,7 +354,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createStoresEachDisambiguationScopeAndDefaultsToDocument() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("default-scope", owner, true, false).isSuccessful());
         assertTrue(service.create("document-scope", owner, true, "document", false).isSuccessful());
         assertTrue(service.create("context-scope", owner, true, "CONTEXT", false).isSuccessful());
@@ -365,7 +366,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createRefusesAnUnknownDisambiguationScope() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         final ServiceResponse response = service.create("bad-scope", owner, true, "user", false);
         assertFalse(response.isSuccessful());
         assertEquals(400, response.getStatusCode());
@@ -375,7 +376,7 @@ class ContextDataServiceIT extends AbstractMongoIT {
 
     @Test
     void updateSettingsChangesTheScopeAloneAndRefusesAnUnknownOne() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         assertTrue(service.create("scoped", owner, true, true).isSuccessful());
 
         assertTrue(service.updateSettings("req", "scoped", owner, null, "context", null, owner, null).isSuccessful());

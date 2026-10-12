@@ -17,7 +17,6 @@ package ai.philterd.philter.services.cache;
 
 import ai.philterd.philter.utils.EnvUtils;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 
 import java.util.List;
 
@@ -46,38 +45,38 @@ public class RedactionCache {
     private final Gson gson = new Gson();
 
     /** Returns the cached policy (JSON plus revision) for the user and policy name, or null if absent. */
-    public CachedPolicy getPolicy(final ObjectId userId, final String policyName) {
+    public CachedPolicy getPolicy(final String userId, final String policyName) {
         final String json = backend.get(policyKey(userId, policyName));
         return json == null ? null : gson.fromJson(json, CachedPolicy.class);
     }
 
     /** Caches the policy JSON and its revision for the user and policy name. */
-    public void putPolicy(final ObjectId userId, final String policyName, final String policyJson, final int revision) {
+    public void putPolicy(final String userId, final String policyName, final String policyJson, final int revision) {
         backend.setex(policyKey(userId, policyName), TTL_SECONDS, gson.toJson(new CachedPolicy(policyJson, revision)));
     }
 
     /** Called from every policy write, so an edit governs the next request rather than the next TTL. */
-    public void evictPolicy(final ObjectId userId, final String policyName) {
+    public void evictPolicy(final String userId, final String policyName) {
         backend.del(policyKey(userId, policyName));
     }
 
     /** Returns the cached redact lists for the user, or null if not cached. */
-    public CachedRedactLists getRedactLists(final ObjectId userId) {
+    public CachedRedactLists getRedactLists(final String userId) {
         final String json = backend.get(redactListsKey(userId));
         return json == null ? null : gson.fromJson(json, CachedRedactLists.class);
     }
 
     /** Caches the user's always/never redact term lists. */
-    public void putRedactLists(final ObjectId userId, final List<String> alwaysRedact, final List<String> neverRedact) {
+    public void putRedactLists(final String userId, final List<String> alwaysRedact, final List<String> neverRedact) {
         backend.setex(redactListsKey(userId), TTL_SECONDS, gson.toJson(new CachedRedactLists(alwaysRedact, neverRedact)));
     }
 
-    private static String policyKey(final ObjectId userId, final String policyName) {
-        return "redaction_policy_" + userId.toHexString() + "_" + policyName;
+    private static String policyKey(final String userId, final String policyName) {
+        return "redaction_policy_" + userId + "_" + policyName;
     }
 
-    private static String redactListsKey(final ObjectId userId) {
-        return "redaction_lists_" + userId.toHexString();
+    private static String redactListsKey(final String userId) {
+        return "redaction_lists_" + userId;
     }
 
     /** Immutable holder for a cached policy: its JSON body and the revision (version) it was at. */

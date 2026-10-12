@@ -15,9 +15,9 @@
  */
 package ai.philterd.philter.testutil;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.MongoClient;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 /** Seeds administrators for changes that recheck the acting user, such as rotating the signing key. */
 public final class TestAdministrators {
@@ -25,13 +25,13 @@ public final class TestAdministrators {
     private TestAdministrators() {
     }
 
-    public static ObjectId create(final MongoClient mongoClient) {
-        return create(mongoClient, new ObjectId());
+    public static String create(final MongoClient mongoClient) {
+        return create(mongoClient, MongoIds.newId());
     }
 
-    public static ObjectId create(final MongoClient mongoClient, final ObjectId id) {
-        mongoClient.getDatabase("philter").getCollection("users").replaceOne(new Document("_id", id),
-                new Document("_id", id).append("username", "admin-" + id).append("role", "admin"),
+    public static String create(final MongoClient mongoClient, final String id) {
+        mongoClient.getDatabase("philter").getCollection("users").replaceOne(new Document("_id", MongoIds.objectId(id)),
+                new Document("_id", MongoIds.objectId(id)).append("username", "admin-" + id).append("role", "admin"),
                 new com.mongodb.client.model.ReplaceOptions().upsert(true));
         return id;
     }

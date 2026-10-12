@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -40,7 +41,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -92,13 +92,13 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename,
+    public void initializeLedger(final String userId, final String documentId, final String inputDocumentHash, final String filename,
                                  final String policyName, final int policyVersion, final String policyContentHash) throws Exception {
         addTransaction(new LedgerEntity(userId, documentId, EMPTY_ENTRY, EMPTY_ENTRY, 0, inputDocumentHash, GENESIS, filename, "",
                 policyName, policyVersion, policyContentHash));
     }
 
-    public void initializeLedger(final ObjectId userId, final String documentId, final String inputDocumentHash, final String filename,
+    public void initializeLedger(final String userId, final String documentId, final String inputDocumentHash, final String filename,
                                  final String policyName, final int policyVersion, final String policyContentHash, final String effectiveHash) throws Exception {
         final LedgerEntity entry = new LedgerEntity(userId, documentId, EMPTY_ENTRY, EMPTY_ENTRY, 0, inputDocumentHash, GENESIS, filename, "",
                 policyName, policyVersion, policyContentHash);
@@ -113,7 +113,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     /** Every insert must be signed, including callers of the inherited persistence API. */
     @Override
-    public ObjectId save(final LedgerEntity ledgerEntity) {
+    public String save(final LedgerEntity ledgerEntity) {
         if (ledgerEntity.getHash() == null || ledgerEntity.getHash().isBlank()) {
             throw new IllegalArgumentException("A ledger entry must have a hash before signing.");
         }
@@ -131,7 +131,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         ledgerEntity.setSigningKeyId(signed.keyId());
         final String chainId = chainId(ledgerEntity.getUserId(), ledgerEntity.getDocumentId());
         chainStates.updateOne(Filters.eq("_id", chainId),
-                new Document("$setOnInsert", new Document("user_id", ledgerEntity.getUserId())
+                new Document("$setOnInsert", new Document("user_id", MongoIds.objectId(ledgerEntity.getUserId()))
                         .append("document_id", ledgerEntity.getDocumentId()).append("state", "open")),
                 new UpdateOptions().upsert(true));
         // A database CAS fences sealing/purging against appends across all instances.
@@ -140,7 +140,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             throw new IllegalStateException("Ledger chain is not open for writing.");
         }
         try {
-            final ObjectId id = super.save(ledgerEntity);
+            final String id = super.save(ledgerEntity);
             chainStates.updateOne(Filters.eq("_id", chainId), Updates.combine(
                     Updates.max("latest_entry_at", ledgerEntity.getTimestamp()),
                     Updates.set("state", "open")));
@@ -152,15 +152,15 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         }
     }
 
-    private static String chainId(final ObjectId userId, final String documentId) {
+    private static String chainId(final String userId, final String documentId) {
         if (userId == null || documentId == null || documentId.isBlank()) {
             throw new IllegalArgumentException("A ledger chain requires an owner and document ID.");
         }
-        return userId.toHexString() + ":" + documentId;
+        return userId + ":" + documentId;
     }
 
     /** Seals successfully recorded evidence. Further appends to this document ID are rejected. */
-    public void completeChain(final ObjectId userId, final String documentId) {
+    public void completeChain(final String userId, final String documentId) {
         if (chainStates.updateOne(Filters.and(Filters.eq("_id", chainId(userId, documentId)),
                         Filters.eq("state", "open")),
                 Updates.combine(Updates.set("state", "complete"), Updates.set("completed_at", new Date())))
@@ -204,7 +204,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     public static final String CHAIN_UNVERIFIABLE =
             "The chain could not be validated, so it is not reported as valid. An entry could not be read or checked.";
 
-    public boolean isChainValid(final ObjectId userId, final String documentId) {
+    public boolean isChainValid(final String userId, final String documentId) {
         return validateChain(userId, documentId).valid();
     }
 
@@ -214,7 +214,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      * thrown: a chain that cannot be validated is not a valid chain. A database failure still throws, since
      * it says nothing about the chain.
      */
-    public ChainValidation validateChain(final ObjectId userId, final String documentId) {
+    public ChainValidation validateChain(final String userId, final String documentId) {
         try {
             return checkChain(userId, documentId);
         } catch (final MongoException e) {
@@ -226,12 +226,12 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     }
 
     /** Whether the owner has any entry for the document, without reading one. */
-    public boolean chainExists(final ObjectId userId, final String documentId) {
-        return collection.countDocuments(Filters.and(Filters.eq("user_id", userId), Filters.eq("document_id", documentId)),
+    public boolean chainExists(final String userId, final String documentId) {
+        return collection.countDocuments(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("document_id", documentId)),
                 new CountOptions().limit(1)) > 0;
     }
 
-    private ChainValidation checkChain(final ObjectId userId, final String documentId) throws Exception {
+    private ChainValidation checkChain(final String userId, final String documentId) throws Exception {
 
         final List<LedgerEntity> chain = getChain(userId, documentId);
 
@@ -309,12 +309,12 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
     }
 
     /** Built in one place so a search and its count cannot describe different result sets. */
-    private Bson searchQuery(final ObjectId userId, final String searchTerm) {
+    private Bson searchQuery(final String userId, final String searchTerm) {
 
         final Pattern pattern = Pattern.compile(".*" + Pattern.quote(searchTerm) + ".*", Pattern.CASE_INSENSITIVE);
 
         return Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("previous_hash", GENESIS),
                 Filters.or(
                         Filters.regex("document_id", pattern),
@@ -330,12 +330,12 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      * file name contains {@code q} when one is given, and their total. A user's listing is audited as a
      * ledger query, with a hash of the search term rather than the term.
      */
-    public Listings.Page<LedgerEntity> listChains(final String requestId, final ObjectId userId, final String q,
+    public Listings.Page<LedgerEntity> listChains(final String requestId, final String userId, final String q,
                                                   final Listings.Sort sort, final int offset, final int limit,
                                                   final String source) {
 
         final boolean searching = q != null && !q.isBlank();
-        final Bson filter = Listings.all(userId == null ? null : Filters.eq("user_id", userId),
+        final Bson filter = Listings.all(userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("previous_hash", GENESIS),
                 searching ? Filters.or(Listings.contains("document_id", q), Listings.contains("filename", q)) : null);
 
@@ -350,11 +350,11 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public int countChainsByUserIdMatching(final ObjectId userId, final String searchTerm) {
+    public int countChainsByUserIdMatching(final String userId, final String searchTerm) {
         return (int) collection.countDocuments(searchQuery(userId, searchTerm));
     }
 
-    public List<LedgerEntity> searchChainsByUserId(final String requestId, final ObjectId userId,
+    public List<LedgerEntity> searchChainsByUserId(final String requestId, final String userId,
             final String searchTerm, final int offset, final int limit, final String source) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
@@ -393,7 +393,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      *         a 423 with the blocking hold references when a hold is in force.
      */
     public ServiceResponse deleteChainsByUserIdAndOlderThan(final String requestId,
-                                                             final ObjectId userId,
+                                                             final String userId,
                                                              final int daysToKeep) {
 
         if (daysToKeep < 0) {
@@ -416,7 +416,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             cal.add(Calendar.DAY_OF_MONTH, -daysToKeep);
             final Date cutoffDate = cal.getTime();
 
-            final Bson eligible = Filters.and(Filters.eq("user_id", userId), Filters.eq("state", "complete"),
+            final Bson eligible = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("state", "complete"),
                     Filters.lt("completed_at", cutoffDate), Filters.lt("latest_entry_at", cutoffDate));
             long deletedCount = 0;
             long deletedChains = 0;
@@ -425,7 +425,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
                     final Document chain = cursor.next();
                     // Sealed chains cannot acquire another writer. Delete by owner and document,
                     // never by individual entry timestamp. On failure the marker remains retryable.
-                    deletedCount += evidence.deleteMany(Filters.and(Filters.eq("user_id", userId),
+                    deletedCount += evidence.deleteMany(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)),
                             Filters.eq("document_id", chain.getString("document_id")))).getDeletedCount();
                     chainStates.updateOne(Filters.eq("_id", chain.getString("_id")), Updates.set("state", "purged"));
                     deletedChains++;
@@ -441,16 +441,16 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         });
     }
 
-    public List<LedgerEntity> findChainsByUserId(final String requestId, final ObjectId userId, final int offset, final int limit, final String source) {
+    public List<LedgerEntity> findChainsByUserId(final String requestId, final String userId, final int offset, final int limit, final String source) {
         return findChainsByUserId(requestId, userId, offset, limit, source, "timestamp", false);
     }
 
-    public List<LedgerEntity> findChainsByUserId(final String requestId, final ObjectId userId, final int offset, final int limit, final String source, final String sortField, final boolean ascending) {
+    public List<LedgerEntity> findChainsByUserId(final String requestId, final String userId, final int offset, final int limit, final String source, final String sortField, final boolean ascending) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("previous_hash", GENESIS)
         );
 
@@ -501,10 +501,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
         return (int) collection.countDocuments(Filters.eq("previous_hash", GENESIS));
     }
 
-    public int countChainsByUserId(final ObjectId userId) {
+    public int countChainsByUserId(final String userId) {
 
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("previous_hash", GENESIS)
         );
 
@@ -512,10 +512,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public List<LedgerEntity> getChain(final ObjectId userId, final String documentId) {
+    public List<LedgerEntity> getChain(final String userId, final String documentId) {
 
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("document_id", documentId)
         );
 
@@ -542,10 +542,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public LedgerEntity getLatestTransaction(final ObjectId userId, final String documentId) {
+    public LedgerEntity getLatestTransaction(final String userId, final String documentId) {
 
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("document_id", documentId)
         );
 
@@ -563,10 +563,10 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
     }
 
-    public boolean isDocumentIdUnique(final ObjectId userId, final String documentId) {
+    public boolean isDocumentIdUnique(final String userId, final String documentId) {
 
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("document_id", documentId)
         );
 
@@ -585,7 +585,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      * this document ID, or if any {@code user}-scoped hold exists for the owner. The blocked
      * attempt is audited as {@code legal_hold_blocked_deletion}.
      */
-    public ServiceResponse deleteByDocumentId(final String requestId, final ObjectId userId,
+    public ServiceResponse deleteByDocumentId(final String requestId, final String userId,
                                                final String documentId, final String source) {
 
         return evidenceGuard.execute(userId, "delete_document_chain", () -> {
@@ -609,7 +609,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
             if (!deletableChain(chain)) return publicationConflict();
             markDeleted(chain);
             final Bson query = Filters.and(
-                    Filters.eq("user_id", userId),
+                    Filters.eq("user_id", MongoIds.objectId(userId)),
                     Filters.eq("document_id", documentId));
 
             evidence.deleteMany(query);
@@ -626,7 +626,7 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
      * <p><strong>Hold enforcement:</strong> returns 423 if any active hold exists for this user.
      * The blocked attempt is audited as {@code legal_hold_blocked_deletion}.
      */
-    public ServiceResponse deleteAllByUserId(final String requestId, final ObjectId userId) {
+    public ServiceResponse deleteAllByUserId(final String requestId, final String userId) {
 
         return evidenceGuard.execute(userId, "delete_all_by_user", () -> {
             if (legalHoldDataService.hasAnyHold(userId)) {
@@ -644,12 +644,12 @@ public class LedgerDataService extends AbstractEncryptedService<LedgerEntity> {
 
             // Freeze the deletion set. A chain created after this read must not be swept up
             // by an owner-wide delete while its genesis or subsequent entries are being written.
-            final List<Document> chains = chainStates.find(Filters.eq("user_id", userId)).into(new ArrayList<>());
+            final List<Document> chains = chainStates.find(Filters.eq("user_id", MongoIds.objectId(userId))).into(new ArrayList<>());
             if (chains.stream().anyMatch(chain -> !deletableChain(chain))) return publicationConflict();
             long deletedCount = 0;
             for (final Document chain : chains) {
                 markDeleted(chain);
-                deletedCount += evidence.deleteMany(Filters.and(Filters.eq("user_id", userId),
+                deletedCount += evidence.deleteMany(Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)),
                         Filters.eq("document_id", chain.getString("document_id")))).getDeletedCount();
             }
 

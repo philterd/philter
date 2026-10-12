@@ -24,6 +24,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
@@ -36,7 +37,6 @@ import ai.philterd.philter.services.filtering.RedactionService;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.signing.SigningService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,14 +92,14 @@ class FilterApiControllerTest {
     @Mock
     private SigningService signingService;
 
-    private ObjectId userId;
-    private ObjectId apiKeyId;
+    private String userId;
+    private String apiKeyId;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        userId = new ObjectId();
-        apiKeyId = new ObjectId();
+        userId = MongoIds.newId();
+        apiKeyId = MongoIds.newId();
 
         final ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
         apiKeyEntity.setUserId(userId);

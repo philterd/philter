@@ -15,7 +15,7 @@
  */
 package ai.philterd.philter.services.cache;
 
-import org.bson.types.ObjectId;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -33,7 +33,7 @@ class RedactionCacheTest {
 
     @Test
     void policyRoundTripsAndIsScopedToUserAndName() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         // Nothing cached yet.
         assertNull(cache.getPolicy(user, "default"));
@@ -46,12 +46,12 @@ class RedactionCacheTest {
         // A different policy name for the same user is a separate entry.
         assertNull(cache.getPolicy(user, "other"));
         // A different user does not see this user's cached policy.
-        assertNull(cache.getPolicy(new ObjectId(), "default"));
+        assertNull(cache.getPolicy(MongoIds.newId(), "default"));
     }
 
     @Test
     void redactListsRoundTripAndAreScopedToUser() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         assertNull(cache.getRedactLists(user));
 
@@ -62,12 +62,12 @@ class RedactionCacheTest {
         assertEquals(List.of("acme"), cached.getNeverRedact());
 
         // A different user has nothing cached.
-        assertNull(cache.getRedactLists(new ObjectId()));
+        assertNull(cache.getRedactLists(MongoIds.newId()));
     }
 
     @Test
     void cachedRedactListsTreatNullListsAsEmpty() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         // A user with no saved terms is cached as empty lists, never null on read.
         cache.putRedactLists(user, null, null);

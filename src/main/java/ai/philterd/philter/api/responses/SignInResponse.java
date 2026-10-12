@@ -35,7 +35,7 @@ public class SignInResponse {
     private final boolean mfaEnrollmentRequired;
 
     public SignInResponse(final String username, final ApiKeyEntity sessionKey) {
-        this.id = sessionKey.getId() == null ? null : sessionKey.getId().toHexString();
+        this.id = sessionKey.getId();
         this.apiKey = sessionKey.getApiKey();
         this.username = username;
         this.scopes = new ArrayList<>(sessionKey.getScopes());

@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.ApiKeyScope;
 import java.util.Set;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -23,7 +24,6 @@ import org.mockito.ArgumentCaptor;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.AbstractMongoIT;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,7 +62,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByApiKeyEvictsFromCache() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String apiKey = service.createApiKey("req", user, "src").getMessage();
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
 
@@ -78,7 +78,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createThenFindByApiKey() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse response = service.createApiKey("req", user, "src");
 
         assertTrue(response.isSuccessful());
@@ -103,8 +103,8 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findAllAndCountAreScopedByUser() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         service.createApiKey("req", userA, "src");
         service.createApiKey("req", userA, "src");
         service.createApiKey("req", userB, "src");
@@ -125,7 +125,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findAllSupportsPaging() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         for (int i = 0; i < 5; i++) {
             service.createApiKey("req", user, "src");
         }
@@ -138,11 +138,11 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByApiKeySoftDeletesAndHidesFromLookup() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String apiKey = service.createApiKey("req", user, "src").getMessage();
 
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
-        final ObjectId keyId = entity.getId();
+        final String keyId = entity.getId();
         assertTrue(service.deleteByApiKey("req", entity.getUserId(), entity, "src").isSuccessful());
         assertTrue(entity.isDeleted());
         // The deletion time is stamped.
@@ -165,7 +165,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deletedKeyCanNeverAuthenticateAgain() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String apiKey = service.createApiKey("req", user, "src").getMessage();
         final ApiKeyEntity entity = service.findOneByApiKey(apiKey);
 
@@ -176,17 +176,17 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertNull(service.findOneByApiKey(apiKey));
     }
 
-    private void setSessionTimes(final ObjectId keyId, final java.util.Date expiresAt, final java.util.Date idleExpiresAt) {
-        mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(new org.bson.Document("_id", keyId),
+    private void setSessionTimes(final String keyId, final java.util.Date expiresAt, final java.util.Date idleExpiresAt) {
+        mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(new org.bson.Document("_id", MongoIds.objectId(keyId)),
                 new org.bson.Document("$set", new org.bson.Document("expires_at", expiresAt).append("idle_expires_at", idleExpiresAt)));
     }
 
     /** The stored document, read directly, so a field that was removed is seen to be gone. */
-    private org.bson.Document storedKey(final ObjectId keyId) {
-        return mongoClient.getDatabase("philter").getCollection("api_keys").find(new org.bson.Document("_id", keyId)).first();
+    private org.bson.Document storedKey(final String keyId) {
+        return mongoClient.getDatabase("philter").getCollection("api_keys").find(new org.bson.Document("_id", MongoIds.objectId(keyId))).first();
     }
 
-    private ApiKeyEntity signedIn(final ObjectId user) {
+    private ApiKeyEntity signedIn(final String user) {
         final ApiKeyEntity issued = service.createSessionKey("req", user, Set.of("redact"), false, false, "api", null,
                 "203.0.113.7", "Mozilla/5.0 (Test)");
         return service.findOneByApiKey(issued.getApiKey());
@@ -194,7 +194,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void aSessionKeepsItsClientDetailsOnlyWhileItLasts() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final ApiKeyEntity live = signedIn(user);
         assertEquals("203.0.113.7", live.getClientAddress());
@@ -240,7 +240,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createSessionKeyRecordsItsLimitsFromTheDefaults() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ApiKeyEntity issued = service.createSessionKey("req", user, Set.of("redact"), "api", null);
 
         final ApiKeyEntity stored = service.findOneByApiKey(issued.getApiKey());
@@ -255,7 +255,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void aRequestMovesTheIdleWindowButNeverPastTheLifetime() throws Exception {
-        final ApiKeyEntity issued = service.createSessionKey("req", new ObjectId(), Set.of("redact"), "api", null);
+        final ApiKeyEntity issued = service.createSessionKey("req", MongoIds.newId(), Set.of("redact"), "api", null);
         final ApiKeyEntity stored = service.findOneByApiKey(issued.getApiKey());
         final java.util.Date before = stored.getIdleExpiresAt();
 
@@ -273,7 +273,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void anIdleOrOutlivedSessionKeyIsRejectedAndExpiredOnce() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ApiKeyEntity idle = service.findOneByApiKey(service.createSessionKey("req", user, Set.of("redact"), "api", null).getApiKey());
         final ApiKeyEntity outlived = service.findOneByApiKey(service.createSessionKey("req", user, Set.of("redact"), "api", null).getApiKey());
         final String longLived = service.createApiKey("req", user, "src").getMessage();
@@ -309,7 +309,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         org.mockito.Mockito.when(database.getCollection("api_keys")).thenReturn(racing);
         final ApiKeyDataService sweeper = new ApiKeyDataService(client, auditEventPublisher, apiKeyCache);
 
-        final String plaintext = service.createSessionKey("req", new ObjectId(), Set.of("redact"), "api", null).getApiKey();
+        final String plaintext = service.createSessionKey("req", MongoIds.newId(), Set.of("redact"), "api", null).getApiKey();
         final ApiKeyEntity key = service.findOneByApiKey(plaintext);
         final java.util.Date future = new java.util.Date(System.currentTimeMillis() + 3_600_000);
         setSessionTimes(key.getId(), future, new java.util.Date(System.currentTimeMillis() - 1000));
@@ -317,7 +317,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         // A request on another node, whose clock runs behind, refreshes the key after the sweep has read
         // it as idle and before the sweep claims it.
         org.mockito.Mockito.doAnswer(invocation -> {
-            stored.updateOne(new org.bson.Document("_id", key.getId()),
+            stored.updateOne(new org.bson.Document("_id", MongoIds.objectId(key.getId())),
                     new org.bson.Document("$set", new org.bson.Document("idle_expires_at", future)));
             return invocation.callRealMethod();
         }).when(racing).updateOne(any(org.bson.conversions.Bson.class), any(org.bson.conversions.Bson.class));
@@ -329,14 +329,14 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void revokeSessionKeysRevokesOnlyThatUsersSessionKeysAndEvictsThem() {
-        final ObjectId user = new ObjectId();
-        final ObjectId other = new ObjectId();
+        final String user = MongoIds.newId();
+        final String other = MongoIds.newId();
         final String session = service.createApiKey("req", user, "src").getMessage();
         final String longLived = service.createApiKey("req", user, "src").getMessage();
         final String othersSession = service.createApiKey("req", other, "src").getMessage();
         for (final String key : List.of(session, othersSession)) {
             mongoClient.getDatabase("philter").getCollection("api_keys").updateOne(
-                    new org.bson.Document("_id", service.findOneByApiKey(key).getId()),
+                    new org.bson.Document("_id", MongoIds.objectId(service.findOneByApiKey(key).getId())),
                     new org.bson.Document("$set", new org.bson.Document("session", true)));
         }
         final ApiKeyEntity sessionEntity = service.findOneByApiKey(session);
@@ -357,7 +357,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteAllByUserIdStampsDeletedAtAndRetainsRecords() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         service.createApiKey("req", user, "src");
         service.createApiKey("req", user, "src");
 
@@ -375,8 +375,8 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteAllByUserIdScopesToOwningUser() {
-        final ObjectId userA = new ObjectId();
-        final ObjectId userB = new ObjectId();
+        final String userA = MongoIds.newId();
+        final String userB = MongoIds.newId();
         service.createApiKey("req", userA, "src");
         service.createApiKey("req", userA, "src");
         service.createApiKey("req", userB, "src");
@@ -390,7 +390,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void ensureApiKeyCreatesAndIsFindable() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String key = "sk_" + "a".repeat(32);
 
         assertTrue(service.ensureApiKey("req", user, key, "src"), "first call creates the key");
@@ -403,7 +403,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void ensureApiKeyIsIdempotent() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String key = "sk_" + "b".repeat(32);
 
         assertTrue(service.ensureApiKey("req", user, key, "src"));
@@ -414,7 +414,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void ensureApiKeyDoesNotResurrectADeletedKey() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String key = "sk_" + "c".repeat(32);
 
         service.ensureApiKey("req", user, key, "src");
@@ -427,7 +427,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void ensureApiKeyMarksTheKeyAsBootstrapAndIsFindable() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String key = "sk_" + "d".repeat(32);
 
         service.ensureApiKey("req", user, key, "src");
@@ -437,14 +437,14 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
         assertTrue(bootstrap.isBootstrap());
 
         // A regular key is not reported as the bootstrap key.
-        final ObjectId other = new ObjectId();
+        final String other = MongoIds.newId();
         service.createApiKey("req", other, "src");
         assertNull(service.findActiveBootstrapKey(other));
     }
 
     @Test
     void findActiveBootstrapKeyIgnoresADeletedBootstrapKey() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String key = "sk_" + "e".repeat(32);
 
         service.ensureApiKey("req", user, key, "src");
@@ -455,7 +455,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createdKeyPersistsItsScopesAndRoundTrips() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final Set<String> scopes = Set.of(ApiKeyScope.REDACT.getScope(), ApiKeyScope.LEDGER_READ.getScope());
 
         final ServiceResponse response = service.createApiKey("req", user, "src", scopes);
@@ -471,7 +471,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void createWithoutScopesGrantsThemAll() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final ServiceResponse response = service.createApiKey("req", user, "src");
 
@@ -482,7 +482,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void updateScopesReplacesThemAndKeepsTheKeyUsable() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse created = service.createApiKey("req", user, "src",
                 Set.of(ApiKeyScope.REDACT.getScope()));
         final String apiKey = created.getMessage();
@@ -499,7 +499,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void aKeyWithNoScopesGrantsNothing() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse created = service.createApiKey("req", user, "src", Set.of());
 
         final ApiKeyEntity found = service.findOneByApiKey(created.getMessage());
@@ -511,7 +511,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void changingScopesRecordsASecurityAuditEventNamingTheChange() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ServiceResponse created = service.createApiKey("req", user, "src",
                 Set.of(ApiKeyScope.REDACT.getScope()));
         final ApiKeyEntity entity = service.findOneByApiKey(created.getMessage());
@@ -539,7 +539,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void theBootstrapKeyIsUsableBecauseItCarriesEveryScope() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final String bootstrapKey = "sk_abcdefghijklmnopqrstuvwxyz012345";
 
         assertTrue(service.ensureApiKey("req", user, bootstrapKey, "system"));
@@ -556,7 +556,7 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void scopesSurviveTheApiKeyCacheRoundTrip() {
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final Set<String> scopes = Set.of(ApiKeyScope.REDACT.getScope(), ApiKeyScope.LEDGER_READ.getScope());
         final ServiceResponse created = service.createApiKey("req", user, "src", scopes);
         final String apiKey = created.getMessage();
@@ -577,8 +577,8 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void updateScopesRefusesAKeyOwnedByAnotherUser() {
-        final ObjectId owner = new ObjectId();
-        final ObjectId attacker = new ObjectId();
+        final String owner = MongoIds.newId();
+        final String attacker = MongoIds.newId();
         final ServiceResponse created = service.createApiKey("req", owner, "src",
                 Set.of(ApiKeyScope.REDACT.getScope()));
         final ApiKeyEntity key = service.findOneByApiKey(created.getMessage());
@@ -597,14 +597,14 @@ class ApiKeyDataServiceIT extends AbstractMongoIT {
 
     @Test
     void updateScopesIgnoresATamperedOwnerOnTheSuppliedEntity() {
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         final ServiceResponse created = service.createApiKey("req", owner, "src",
                 Set.of(ApiKeyScope.REDACT.getScope()));
         final ApiKeyEntity key = service.findOneByApiKey(created.getMessage());
 
         // The caller claims the key is theirs by rewriting the owner on the object they pass in. The
         // check reads stored state, so the claim is worthless.
-        final ObjectId attacker = new ObjectId();
+        final String attacker = MongoIds.newId();
         key.setUserId(attacker);
 
         final ServiceResponse response = service.updateScopes("req", attacker, key,

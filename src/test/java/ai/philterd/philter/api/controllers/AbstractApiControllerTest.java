@@ -17,11 +17,11 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,15 +68,15 @@ class AbstractApiControllerTest {
     @Mock private ApiKeyCache apiKeyCache;
 
     private TestController controller;
-    private ObjectId callerId;
+    private String callerId;
 
     @BeforeEach
     void setUp() {
         controller = new TestController(apiKeyDataService, apiKeyCache);
-        callerId = new ObjectId();
+        callerId = MongoIds.newId();
     }
 
-    private UserEntity user(final ObjectId id, final String email, final String role) {
+    private UserEntity user(final String id, final String email, final String role) {
         final UserEntity user = new UserEntity();
         user.setId(id);
         user.setEmail(email);
@@ -98,7 +98,7 @@ class AbstractApiControllerTest {
 
     @Test
     void nonAdminNamingAnotherOwnerResolvesToNull() {
-        final ObjectId otherId = new ObjectId();
+        final String otherId = MongoIds.newId();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "caller@example.com", "user"));
 
@@ -107,7 +107,7 @@ class AbstractApiControllerTest {
 
     @Test
     void adminNamingAnotherOwnerResolvesToThatOwner() {
-        final ObjectId otherId = new ObjectId();
+        final String otherId = MongoIds.newId();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "admin@example.com", "admin"));
 
@@ -117,7 +117,7 @@ class AbstractApiControllerTest {
     @Test
     void adminNamingADeactivatedOwnerResolvesToThatOwner() {
         // Deactivation keeps a user's data, so an administrator can still reach it.
-        final ObjectId otherId = new ObjectId();
+        final String otherId = MongoIds.newId();
         final UserEntity leaver = user(otherId, "leaver@example.com", "user");
         leaver.setDeactivated(true);
         when(userService.findAnyByUsername("leaver@example.com")).thenReturn(leaver);
@@ -128,7 +128,7 @@ class AbstractApiControllerTest {
 
     @Test
     void nonAdminNamingADeactivatedOwnerResolvesToNull() {
-        final ObjectId otherId = new ObjectId();
+        final String otherId = MongoIds.newId();
         final UserEntity leaver = user(otherId, "leaver@example.com", "user");
         leaver.setDeactivated(true);
         when(userService.findAnyByUsername("leaver@example.com")).thenReturn(leaver);
@@ -141,7 +141,7 @@ class AbstractApiControllerTest {
     void killSwitchDisablesAdminCrossUserAccess() {
         // With cross-user access disabled, even an admin naming another user is denied (resolves to null).
         controller.crossUserAccessEnabled = false;
-        final ObjectId otherId = new ObjectId();
+        final String otherId = MongoIds.newId();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(user(otherId, "other@example.com", "user"));
 
         assertNull(controller.resolveTargetUserId(userService, callerId, "other@example.com"));
@@ -180,7 +180,7 @@ class AbstractApiControllerTest {
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
     }
 
-    private ApiKeyEntity apiKeyEntity(final String apiKey, final ObjectId userId) {
+    private ApiKeyEntity apiKeyEntity(final String apiKey, final String userId) {
         final ApiKeyEntity entity = new ApiKeyEntity();
         entity.setUserId(userId);
         entity.setApiKeyHash(EncryptionService.hashSha256(apiKey));
@@ -189,7 +189,7 @@ class AbstractApiControllerTest {
 
     @Test
     void reusesStashedKeyWhenItMatchesTheRequestCredential() {
-        final ApiKeyEntity stashed = apiKeyEntity("sk_match", new ObjectId());
+        final ApiKeyEntity stashed = apiKeyEntity("sk_match", MongoIds.newId());
         bindRequestWithStashedKey(stashed);
 
         final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
@@ -204,11 +204,11 @@ class AbstractApiControllerTest {
     @Test
     void doesNotTrustStashedKeyThatDoesNotMatchTheRequestCredential() {
         // A stash that belongs to a DIFFERENT credential (e.g. a stale/mis-bound request attribute).
-        final ApiKeyEntity wrongStash = apiKeyEntity("sk_other", new ObjectId());
+        final ApiKeyEntity wrongStash = apiKeyEntity("sk_other", MongoIds.newId());
         bindRequestWithStashedKey(wrongStash);
 
         // The credential actually presented on this request resolves (freshly) to a different entity.
-        final ApiKeyEntity correct = apiKeyEntity("sk_match", new ObjectId());
+        final ApiKeyEntity correct = apiKeyEntity("sk_match", MongoIds.newId());
         when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(correct);
 
@@ -223,7 +223,7 @@ class AbstractApiControllerTest {
     @Test
     void resolvesFromCacheOrDbWhenNoStashIsPresent() {
         // No request bound / no stashed attribute (e.g. a caller that bypassed the filter).
-        final ApiKeyEntity correct = apiKeyEntity("sk_match", new ObjectId());
+        final ApiKeyEntity correct = apiKeyEntity("sk_match", MongoIds.newId());
         when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(correct);
 
@@ -234,7 +234,7 @@ class AbstractApiControllerTest {
 
     @Test
     void resolvesFromTheCacheWithoutTouchingTheDatabase() {
-        final ApiKeyEntity cached = apiKeyEntity("sk_match", new ObjectId());
+        final ApiKeyEntity cached = apiKeyEntity("sk_match", MongoIds.newId());
         final String hash = EncryptionService.hashSha256("sk_match");
         when(apiKeyCache.containsApiKey(hash)).thenReturn(true);
         when(apiKeyCache.get(hash)).thenReturn(cached);
@@ -247,7 +247,7 @@ class AbstractApiControllerTest {
     void cachesUnderTheHashSoTheFilterAndTheControllerAgree() {
         // The filter looks the key up by hash. Caching under anything else would mean every request
         // reaches the database, and the plaintext key would sit in the cache besides.
-        final ApiKeyEntity resolved = apiKeyEntity("sk_match", new ObjectId());
+        final ApiKeyEntity resolved = apiKeyEntity("sk_match", MongoIds.newId());
         when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(resolved);
 
@@ -269,11 +269,11 @@ class AbstractApiControllerTest {
         when(userService.findOneById(callerId)).thenReturn(user(callerId, "a@example.com", "admin"));
         assertTrue(controller.isAdmin(userService, callerId));
 
-        final ObjectId plainId = new ObjectId();
+        final String plainId = MongoIds.newId();
         when(userService.findOneById(plainId)).thenReturn(user(plainId, "u@example.com", "user"));
         assertFalse(controller.isAdmin(userService, plainId));
 
-        final ObjectId missingId = new ObjectId();
+        final String missingId = MongoIds.newId();
         when(userService.findOneById(missingId)).thenReturn(null);
         assertFalse(controller.isAdmin(userService, missingId));
     }

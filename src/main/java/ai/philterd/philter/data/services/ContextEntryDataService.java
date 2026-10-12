@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.encryption.ContextTokenHasher;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
@@ -27,7 +28,6 @@ import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,25 +70,25 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         ensureIndex(Indexes.ascending("user_id", "context_name", "timestamp"));
     }
 
-    public void incrementReads(final ObjectId id) {
-        collection.updateOne(Filters.eq("_id", id), Updates.inc("reads", 1L));
+    public void incrementReads(final String id) {
+        collection.updateOne(Filters.eq("_id", MongoIds.objectId(id)), Updates.inc("reads", 1L));
     }
 
-    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int limit) {
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, int limit) {
         return findAllByUserIdAndContext(userId, contextName, 0, limit);
     }
 
-    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int offset, int limit) {
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, int offset, int limit) {
         return findAllByUserIdAndContext(userId, contextName, offset, limit, new Listings.Sort("timestamp", true));
     }
 
     /** A page of the context's entries in {@code sort} order. */
-    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName, int offset, int limit,
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, int offset, int limit,
                                                               final Listings.Sort sort) {
 
         final int effectiveLimit = Math.min(limit, MAX_LIMIT);
 
-        final Document query = new Document("user_id", userId).append("context_name", contextName);
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName);
 
         final Iterable<Document> documents = collection.find(query)
                 .sort(sort.toBson())
@@ -105,8 +105,8 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     }
 
-    public int countByUserIdAndContext(final ObjectId userId, final String contextName) {
-        return (int) collection.countDocuments(new Document("user_id", userId).append("context_name", contextName));
+    public int countByUserIdAndContext(final String userId, final String contextName) {
+        return (int) collection.countDocuments(new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName));
     }
 
     /**
@@ -114,9 +114,9 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
      * {@link #findAllByUserIdAndContext}. Intended for exporting an entire mapping table. A context
      * is bounded by {@link #MAX_CONTEXT_SIZE}, so the result set is bounded too.
      */
-    public List<ContextEntryEntity> findAllByUserIdAndContext(final ObjectId userId, final String contextName) {
+    public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName) {
 
-        final Document query = new Document("user_id", userId).append("context_name", contextName);
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName);
 
         final List<ContextEntryEntity> entries = new ArrayList<>();
         for (final Document document : collection.find(query).sort(Sorts.descending("timestamp"))) {
@@ -138,12 +138,12 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
      * ImportOutcome#OVERWRITTEN}). A new mapping is inserted otherwise, honoring {@link
      * #MAX_CONTEXT_SIZE} eviction, and returns {@link ImportOutcome#INSERTED}.
      */
-    public ImportOutcome importEntryByHash(final ObjectId userId, final String contextName, final String tokenHash,
+    public ImportOutcome importEntryByHash(final String userId, final String contextName, final String tokenHash,
                                            final String replacement, final String filterType, final boolean replacementUuid,
                                            final boolean overwrite) {
 
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context_name", contextName),
                 Filters.eq("token_hash", tokenHash));
 
@@ -185,17 +185,17 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     }
 
-    public long deleteByIdAndUserId(final ObjectId id, final ObjectId userId) {
+    public long deleteByIdAndUserId(final String id, final String userId) {
 
-        return deleteMatching(userId, Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId)));
+        return deleteMatching(userId, Filters.and(Filters.eq("_id", MongoIds.objectId(id)), Filters.eq("user_id", MongoIds.objectId(userId))));
     }
 
-    public long deleteByIdAndUserIdAndContext(final ObjectId id, final ObjectId userId, final String contextName) {
-        return deleteMatching(userId, Filters.and(Filters.eq("_id", id), Filters.eq("user_id", userId),
+    public long deleteByIdAndUserIdAndContext(final String id, final String userId, final String contextName) {
+        return deleteMatching(userId, Filters.and(Filters.eq("_id", MongoIds.objectId(id)), Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context_name", contextName)));
     }
 
-    private long deleteMatching(final ObjectId userId, final Bson predicate) {
+    private long deleteMatching(final String userId, final Bson predicate) {
         // findOneAndDelete rather than deleteOne: the removed document carries the context and token
         // hash the cache is keyed by, and reading them first would race the delete.
         final Document deleted = collection.findOneAndDelete(predicate);
@@ -210,28 +210,28 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
 
     }
 
-    public boolean containsToken(final ObjectId userId, final String contextName, final String token) {
+    public boolean containsToken(final String userId, final String contextName, final String token) {
 
         // The token must be hashed.
         final String tokenHash = ContextTokenHasher.hash(token);
 
-        final Document query = new Document("user_id", userId).append("context_name", contextName).append("token_hash", tokenHash);
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("token_hash", tokenHash);
         final Document document = collection.find(query).first();
         return document != null;
 
     }
 
-    public boolean containsReplacement(final ObjectId userId, final String contextName, final String replacement) {
+    public boolean containsReplacement(final String userId, final String contextName, final String replacement) {
 
         // Replacement is not encrypted because it is not PII/PHI.
 
-        final Document query = new Document("user_id", userId).append("context_name", contextName).append("replacement", replacement);
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("replacement", replacement);
         final Document document = collection.find(query).first();
         return document != null;
 
     }
 
-    public String getReplacement(final ObjectId userId, final String contextName, final String token) {
+    public String getReplacement(final String userId, final String contextName, final String token) {
         final ContextEntryEntity entry = findOneEntryByToken(userId, contextName, token);
         if (entry == null) {
             return null;
@@ -240,12 +240,12 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
         return entry.getReplacement();
     }
 
-    public ContextEntryEntity findOneEntryByToken(final ObjectId userId, final String contextName, final String token) {
+    public ContextEntryEntity findOneEntryByToken(final String userId, final String contextName, final String token) {
 
         // The token must be hashed.
         final String tokenHash = ContextTokenHasher.hash(token);
 
-        final Document query = new Document("user_id", userId).append("context_name", contextName).append("token_hash", tokenHash);
+        final Document query = new Document("user_id", MongoIds.objectId(userId)).append("context_name", contextName).append("token_hash", tokenHash);
         final Document document = collection.find(query).first();
 
         return document != null ? ContextEntryEntity.fromDocument(document) : null;
@@ -253,11 +253,11 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     }
 
     @Override
-    public ObjectId save(final ContextEntryEntity contextEntryEntity) {
+    public String save(final ContextEntryEntity contextEntryEntity) {
         throw new UnsupportedOperationException("Use putReplacement() instead.");
     }
 
-    public void putReplacement(final ObjectId userId, final String contextName, final String token, final String replacement, final String filterType) {
+    public void putReplacement(final String userId, final String contextName, final String token, final String replacement, final String filterType) {
         putReplacementIfAbsent(userId, contextName, token, replacement, filterType);
     }
 
@@ -267,18 +267,18 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
      * to use the returned value rather than the one it proposed: reading, deciding and inserting
      * separately let both callers decide "absent" and both insert.
      */
-    public ContextEntryEntity putReplacementIfAbsent(final ObjectId userId, final String contextName,
+    public ContextEntryEntity putReplacementIfAbsent(final String userId, final String contextName,
                                                      final String token, final String replacement,
                                                      final String filterType) {
 
         final String tokenHash = ContextTokenHasher.hash(token);
         final Bson query = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context_name", contextName),
                 Filters.eq("token_hash", tokenHash));
 
         final Bson insert = Updates.combine(
-                Updates.setOnInsert("user_id", userId),
+                Updates.setOnInsert("user_id", MongoIds.objectId(userId)),
                 Updates.setOnInsert("context_name", contextName),
                 Updates.setOnInsert("token_hash", tokenHash),
                 Updates.setOnInsert("replacement", replacement),
@@ -327,16 +327,16 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
     }
 
     /** Forgets a mapping the store no longer has, or no longer has under that value. */
-    private void evict(final ObjectId userId, final String contextName, final String tokenHash) {
+    private void evict(final String userId, final String contextName, final String tokenHash) {
         if (contextCache != null && contextName != null && tokenHash != null) {
             contextCache.evictTokenHash(userId, contextName, tokenHash);
         }
     }
 
-    private void evictIfFull(final ObjectId userId, final String contextName) {
+    private void evictIfFull(final String userId, final String contextName) {
 
         final Bson contextFilter = Filters.and(
-                Filters.eq("user_id", userId),
+                Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.eq("context_name", contextName)
         );
 
@@ -353,14 +353,14 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
             collection.deleteOne(Filters.eq("_id", victim.getObjectId("_id")));
             evict(userId, contextName, victim.getString("token_hash"));
             LOGGER.info("Evicted context entry {} from context {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
-                    victim.getObjectId("_id"), contextName, victim.getLong("reads"), MAX_CONTEXT_SIZE);
+                    MongoIds.hex(victim.getObjectId("_id")), contextName, victim.getLong("reads"), MAX_CONTEXT_SIZE);
         }
 
     }
 
-    public void deleteByContextName(final String contextName, final ObjectId userId) {
+    public void deleteByContextName(final String contextName, final String userId) {
 
-        final Document filter = new Document("context_name", contextName).append("user_id", userId);
+        final Document filter = new Document("context_name", contextName).append("user_id", MongoIds.objectId(userId));
         collection.deleteMany(filter);
 
         // Here rather than only in the caller, so nothing between the delete and the caller's own
@@ -376,11 +376,11 @@ public class ContextEntryDataService extends AbstractService<ContextEntryEntity>
      * counts sum to the context's size; entries stored without a filter type are counted under the
      * {@code null} key.
      */
-    public Map<String, Long> getFilterTypeCounts(final String contextName, final ObjectId userId) {
+    public Map<String, Long> getFilterTypeCounts(final String contextName, final String userId) {
 
         final Document matchStage = new Document("$match",
                 new Document("context_name", contextName)
-                        .append("user_id", userId));
+                        .append("user_id", MongoIds.objectId(userId)));
 
         final Document groupStage = new Document("$group",
                 new Document("_id", "$filter_type")

@@ -17,11 +17,11 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,8 +44,8 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
 
     private final AuditEventPublisher audit = mock(AuditEventPublisher.class);
     private AdminSettingsDataService service;
-    private ObjectId admin;
-    private final ObjectId key = new ObjectId();
+    private String admin;
+    private final String key = MongoIds.newId();
 
     @BeforeEach
     void setUp() {
@@ -53,9 +53,9 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
         admin = user("admin", false);
     }
 
-    private ObjectId user(final String role, final boolean deactivated) {
-        final ObjectId id = new ObjectId();
-        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", id)
+    private String user(final String role, final boolean deactivated) {
+        final String id = MongoIds.newId();
+        mongoClient.getDatabase("philter").getCollection("users").insertOne(new Document("_id", MongoIds.objectId(id))
                 .append("username", "u-" + id).append("role", role)
                 .append("deactivated", deactivated));
         return id;
@@ -132,8 +132,8 @@ class AdminSettingsUpdateIT extends AbstractMongoIT {
     @Test
     @DisplayName("Only a current, active administrator may change settings")
     void requiresAnActiveAdministrator() {
-        for (final ObjectId notAllowed : List.of(user("user", false), user("admin", true),
-                new ObjectId())) {
+        for (final String notAllowed : List.of(user("user", false), user("admin", true),
+                MongoIds.newId())) {
             assertThrows(AccessDeniedException.class,
                     () -> service.update(update(true, null, null, null, null, null), notAllowed, key));
         }

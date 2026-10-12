@@ -17,6 +17,7 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AbstractEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -25,7 +26,6 @@ import com.mongodb.client.result.UpdateResult;
 import org.bson.BsonObjectId;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,10 +56,10 @@ class AbstractServiceTest {
     private AbstractService<TestEntity> abstractService;
 
     private static class TestEntity extends AbstractEntity {
-        private ObjectId id;
+        private String id;
         @Override
-        public ObjectId getId() { return id; }
-        public void setId(ObjectId id) { this.id = id; }
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
         @Override
         public Document toDocument() { return new Document("test", "test"); }
     }
@@ -74,12 +74,12 @@ class AbstractServiceTest {
     @Test
     void save() {
         TestEntity entity = new TestEntity();
-        ObjectId id = new ObjectId();
+        String id = MongoIds.newId();
         InsertOneResult insertOneResult = mock(InsertOneResult.class);
         when(mongoCollection.insertOne(any(Document.class))).thenReturn(insertOneResult);
-        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(id));
+        when(insertOneResult.getInsertedId()).thenReturn(new BsonObjectId(MongoIds.objectId(id)));
 
-        ObjectId savedId = abstractService.save(entity);
+        String savedId = abstractService.save(entity);
 
         assertEquals(id, savedId);
         verify(mongoCollection).insertOne(any(Document.class));
@@ -88,7 +88,7 @@ class AbstractServiceTest {
     @Test
     void update() {
         TestEntity entity = new TestEntity();
-        ObjectId id = new ObjectId();
+        String id = MongoIds.newId();
         entity.setId(id);
         
         UpdateResult updateResult = mock(UpdateResult.class);

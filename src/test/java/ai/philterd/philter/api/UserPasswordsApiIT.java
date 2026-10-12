@@ -26,7 +26,6 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,7 +87,7 @@ class UserPasswordsApiIT {
 
     private HttpClient httpClient;
     private String baseUrl;
-    private ObjectId adminUserId;
+    private String adminUserId;
     private String adminKey;
 
     @BeforeEach
@@ -104,7 +103,7 @@ class UserPasswordsApiIT {
         httpClient.close();
     }
 
-    private ObjectId seedUser(final String role) {
+    private String seedUser(final String role) {
         final String username = "pw-" + UUID.randomUUID();
         final ServiceResponse created = userService.createUser("req", username, role,
                 policyDataService, contextDataService, "test");
@@ -113,7 +112,7 @@ class UserPasswordsApiIT {
     }
 
     /** Sign-in does not exist yet, so session keys are issued directly. */
-    private String seedKey(final ObjectId userId, final Set<String> scopes, final boolean session) {
+    private String seedKey(final String userId, final Set<String> scopes, final boolean session) {
         if (session) {
             return apiKeyDataService.createSessionKey("req", userId, scopes, "test", null).getApiKey();
         }
@@ -122,7 +121,7 @@ class UserPasswordsApiIT {
         return response.getMessage();
     }
 
-    private String username(final ObjectId userId) {
+    private String username(final String userId) {
         return userService.findOneById(userId).getUsername();
     }
 
@@ -139,13 +138,13 @@ class UserPasswordsApiIT {
         return "{\"currentPassword\":\"" + current + "\",\"newPassword\":\"" + next + "\"}";
     }
 
-    private List<JsonObject> auditEvents(final String event, final ObjectId associatedObject) throws Exception {
+    private List<JsonObject> auditEvents(final String event, final String associatedObject) throws Exception {
         final HttpResponse<String> audit = send("GET", "/api/audit?limit=500&event=" + event, adminKey, null);
         assertEquals(200, audit.statusCode(), audit.body());
         final List<JsonObject> found = new ArrayList<>();
         for (final JsonElement element : gson.fromJson(audit.body(), JsonObject.class).getAsJsonArray("events")) {
             final JsonObject e = element.getAsJsonObject();
-            if (e.has("associatedObject") && associatedObject.toHexString().equals(e.get("associatedObject").getAsString())) {
+            if (e.has("associatedObject") && associatedObject.equals(e.get("associatedObject").getAsString())) {
                 found.add(e);
             }
         }
@@ -175,7 +174,7 @@ class UserPasswordsApiIT {
 
         final List<JsonObject> set = auditEvents("user_password_set", user.getId());
         assertEquals(1, set.size());
-        assertEquals(adminUserId.toHexString(), set.getFirst().get("apiKeyId").getAsString());
+        assertEquals(adminUserId, set.getFirst().get("apiKeyId").getAsString());
         assertFalse(set.getFirst().toString().contains(FIRST), "the audit log must not carry the password");
 
     }
@@ -203,7 +202,7 @@ class UserPasswordsApiIT {
         assertEquals(400, send("POST", "/api/users", adminKey,
                 "{\"username\":\"pw-" + UUID.randomUUID() + "\",\"password\":\"" + tooLong + "\"}").statusCode());
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         assertEquals(400, send("PUT", "/api/users/" + username(user) + "/password", adminKey,
                 "{\"password\":\"" + tooShort + "\"}").statusCode());
         assertNull(userService.findOneById(user).getPassword(), "nothing was saved");
@@ -214,7 +213,7 @@ class UserPasswordsApiIT {
     @DisplayName("An administrator resets another user's password, forcing a change and revoking session keys only")
     void resetsAnotherUsersPassword() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String longLived = seedKey(user, Set.of(ApiKeyScope.USERS_READ.getScope()), false);
         final String session = seedKey(user, Set.of(ApiKeyScope.USERS_READ.getScope()), true);
         assertEquals(200, send("GET", "/api/users/me", session, null).statusCode());
@@ -243,7 +242,7 @@ class UserPasswordsApiIT {
     @DisplayName("A user changes their own password with the current one, clearing the required change")
     void changesOwnPassword() throws Exception {
 
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         assertEquals(204, send("PUT", "/api/users/" + username(user) + "/password", adminKey,
                 "{\"password\":\"" + FIRST + "\"}").statusCode());
         final String own = seedKey(user, Set.of(ApiKeyScope.USERS_WRITE.getScope()), false);
@@ -267,7 +266,7 @@ class UserPasswordsApiIT {
 
         final List<JsonObject> changed = auditEvents("user_password_changed", user);
         assertEquals(1, changed.size());
-        assertEquals(user.toHexString(), changed.getFirst().get("apiKeyId").getAsString());
+        assertEquals(user, changed.getFirst().get("apiKeyId").getAsString());
         assertFalse(changed.getFirst().toString().contains(FIRST) || changed.getFirst().toString().contains(SECOND));
 
     }
@@ -275,7 +274,7 @@ class UserPasswordsApiIT {
     @Test
     @DisplayName("A user without a password cannot set one by changing it")
     void cannotChangeAPasswordThatDoesNotExist() throws Exception {
-        final ObjectId user = seedUser("user");
+        final String user = seedUser("user");
         final String own = seedKey(user, Set.of(ApiKeyScope.USERS_WRITE.getScope()), false);
         assertEquals(409, send("PUT", "/api/users/me/password", own, changeBody(FIRST, SECOND)).statusCode());
         assertNull(userService.findOneById(user).getPassword());
@@ -322,8 +321,8 @@ class UserPasswordsApiIT {
     @DisplayName("A non-administrator cannot set another user's password, and a key without users:write cannot change its own")
     void requiresTheRightCaller() throws Exception {
 
-        final ObjectId user = seedUser("user");
-        final ObjectId other = seedUser("user");
+        final String user = seedUser("user");
+        final String other = seedUser("user");
         final String userKey = seedKey(user, ApiKeyScope.all(), false);
         assertEquals(403, send("PUT", "/api/users/" + username(other) + "/password", userKey,
                 "{\"password\":\"" + FIRST + "\"}").statusCode());

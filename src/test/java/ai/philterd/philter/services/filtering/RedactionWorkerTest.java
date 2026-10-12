@@ -22,12 +22,12 @@ import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.WebhookDeliveryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
 import com.google.gson.Gson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,9 +73,9 @@ class RedactionWorkerTest {
 
     private PendingDocumentEntity pdfJob() {
         final PendingDocumentEntity job = new PendingDocumentEntity();
-        job.setId(new ObjectId());
+        job.setId(MongoIds.newId());
         job.setClaimToken("attempt");
-        job.setUserId(new ObjectId());
+        job.setUserId(MongoIds.newId());
         job.setDocumentId("doc-1");
         job.setInputMimeType(MimeType.APPLICATION_PDF.name());
         job.setPolicyName("default");

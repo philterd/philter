@@ -17,9 +17,9 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,7 +63,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
         for (int round = 0; round < 40; round++) {
 
-            final ObjectId user = new ObjectId();
+            final String user = MongoIds.newId();
             final CountDownLatch go = new CountDownLatch(1);
             final List<String> returned = Collections.synchronizedList(new ArrayList<>());
 
@@ -95,7 +95,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
     @DisplayName("The winner's replacement is the one stored, and the loser is told it")
     void theLoserIsToldTheStoredValue() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final ContextEntryEntity first = service.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
         final ContextEntryEntity second = service.putReplacementIfAbsent(user, "ctx", "John Smith", "Alice Brown", "PERSON");
@@ -111,7 +111,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
     @DisplayName("A second write does not disturb the entry that is already there")
     void asecondWriteLeavesTheStoredEntryAlone() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         final ContextEntryEntity first = service.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
         service.incrementReads(first.getId());
@@ -146,8 +146,8 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
     @DisplayName("Different tokens, contexts and users stay separate")
     void uniquenessIsScopedToOneTokenInOneContextForOneUser() {
 
-        final ObjectId user = new ObjectId();
-        final ObjectId other = new ObjectId();
+        final String user = MongoIds.newId();
+        final String other = MongoIds.newId();
 
         service.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
         service.putReplacementIfAbsent(user, "ctx", "Jane Doe", "Mary Poe", "PERSON");
@@ -168,7 +168,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
     @DisplayName("Many writers of many tokens store exactly one row each")
     void manyConcurrentWritersOfManyTokens() throws Exception {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final int tokens = 30;
         final int writersPerToken = 4;
         final CountDownLatch go = new CountDownLatch(1);
@@ -202,7 +202,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
     @DisplayName("A token is still readable and counted after the race")
     void theStoredEntryIsUsableAfterwards() throws Exception {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final CountDownLatch go = new CountDownLatch(1);
         final List<String> returned = Collections.synchronizedList(new ArrayList<>());
 
@@ -226,7 +226,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
 
     }
 
-    private Thread writer(final CountDownLatch go, final List<String> returned, final ObjectId user,
+    private Thread writer(final CountDownLatch go, final List<String> returned, final String user,
                           final String token, final String proposal) {
         return new Thread(() -> {
             try {
@@ -244,7 +244,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
     @DisplayName("A repeat write does not evict anything, because it stored nothing")
     void aRepeatWriteEvictsNothing() {
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
 
         for (int i = 0; i < 10; i++) {
             service.putReplacementIfAbsent(user, "ctx", "token-" + i, "replacement-" + i, "PERSON");
@@ -274,7 +274,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
         final ContextEntryDataService cached =
                 new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         cached.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
 
         // Warm the cache the way a redaction does.
@@ -299,7 +299,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
         final ContextEntryDataService cached =
                 new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         final ContextEntryEntity doomed = cached.putReplacementIfAbsent(user, "ctx", "John Smith", "David Jones", "PERSON");
         final ContextEntryEntity kept = cached.putReplacementIfAbsent(user, "ctx", "Jane Doe", "Mary Poe", "PERSON");
 
@@ -321,11 +321,11 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
         final ContextEntryDataService cached =
                 new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
 
-        final ObjectId owner = new ObjectId();
+        final String owner = MongoIds.newId();
         final ContextEntryEntity entry = cached.putReplacementIfAbsent(owner, "ctx", "John Smith", "David Jones", "PERSON");
         cache.setTokenReplacement(owner, "ctx", "John Smith", entry.getId(), "David Jones");
 
-        assertEquals(0L, cached.deleteByIdAndUserId(entry.getId(), new ObjectId()));
+        assertEquals(0L, cached.deleteByIdAndUserId(entry.getId(), MongoIds.newId()));
 
         assertTrue(cache.containsToken(owner, "ctx", "John Smith"),
                 "another user's delete must not evict this mapping");
@@ -340,7 +340,7 @@ class ContextEntryConcurrencyIT extends AbstractMongoIT {
         final ContextEntryDataService cached =
                 new ContextEntryDataService(mongoClient, mock(AuditEventPublisher.class), cache);
 
-        final ObjectId user = new ObjectId();
+        final String user = MongoIds.newId();
         for (int i = 0; i < 5; i++) {
             final ContextEntryEntity entry =
                     cached.putReplacementIfAbsent(user, "ctx", "token-" + i, "replacement-" + i, "PERSON");

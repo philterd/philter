@@ -17,16 +17,17 @@ package ai.philterd.philter.data.services;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
+import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.testutil.TestEncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.UpdateOptions;
+import org.bson.types.ObjectId;
 import org.mockito.ArgumentCaptor;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,8 +69,8 @@ class RedactListsDataServiceTest {
 
     @Test
     void find() {
-        ObjectId userId = new ObjectId();
-        Document doc = new Document("_id", new ObjectId()).append("user_id", userId);
+        String userId = MongoIds.newId();
+        Document doc = new Document("_id", new ObjectId()).append("user_id", MongoIds.objectId(userId));
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(doc);
@@ -82,7 +83,7 @@ class RedactListsDataServiceTest {
 
     @Test
     void findNotFound() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         FindIterable<Document> findIterable = mock(FindIterable.class);
         when(mongoCollection.find(any(Document.class))).thenReturn(findIterable);
         when(findIterable.first()).thenReturn(null);
@@ -94,7 +95,7 @@ class RedactListsDataServiceTest {
 
     @Test
     void saveOrUpdateUpsertsTheUsersDocumentAndMovesBothRevisions() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
         List<String> always = Arrays.asList("a", "b");
         List<String> never = Arrays.asList("c", "d");
 
@@ -114,7 +115,7 @@ class RedactListsDataServiceTest {
 
     @Test
     void saveOrUpdateLeavesANullListAndItsRevisionAlone() {
-        ObjectId userId = new ObjectId();
+        String userId = MongoIds.newId();
 
         redactListsDataService.saveOrUpdate("req", userId, List.of("a"), null, "source");
 

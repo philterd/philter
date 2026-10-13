@@ -124,16 +124,18 @@ class TaxIdentifierFiltersApiIT {
 
         assertEquals("SSN {{{REDACTED-ssn}}}, ITIN {{{REDACTED-itin}}}, EIN {{{REDACTED-ein}}}, SIN {{{REDACTED-canada-sin}}}.",
                 redact("tax-ids", "SSN 123-45-6789, ITIN 912-70-1234, EIN 12-3456789, SIN 046-454-286."));
-        // Only the SSN filter accepts other hyphens, such as U+2010, so such a value is reported as an SSN.
-        assertEquals("EIN {{{REDACTED-ssn}}}.", redact("tax-ids", "EIN 12\u20103456789."));
+        // The EIN filter accepts the same other hyphens as the SSN filter, such as U+2010.
+        assertEquals("EIN {{{REDACTED-ein}}}.", redact("tax-ids", "EIN 12\u20103456789."));
+        // An EIN wrapped across a line break after its hyphen is detected as a whole.
+        assertEquals("EIN {{{REDACTED-ein}}} on file.", redact("tax-ids", "EIN 12-\n3456789 on file."));
     }
 
     @Test
-    @DisplayName("The SSN filter does not report ITINs, and reports EIN-shaped values unless the EIN filter is on")
+    @DisplayName("The SSN filter does not report ITINs or EINs")
     void theSsnFilterAlone() throws Exception {
         savePolicy("ssn-only", "\"ssn\":{\"ssnFilterStrategies\":" + REDACT + "}");
 
-        assertEquals("ITIN 912-70-1234, EIN {{{REDACTED-ssn}}}.", redact("ssn-only", "ITIN 912-70-1234, EIN 12-3456789."));
+        assertEquals("ITIN 912-70-1234, EIN 12-3456789.", redact("ssn-only", "ITIN 912-70-1234, EIN 12-3456789."));
     }
 
     @Test

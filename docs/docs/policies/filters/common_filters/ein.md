@@ -2,11 +2,17 @@
 
 ## Filter
 
-This filter identifies values in the form of US Employer Identification Numbers (EIN), the federal tax ID for businesses, and reports them with the span type `ein`. It detects the hyphenated form `NN-NNNNNNN`, two digits, a hyphen, and seven digits, such as `12-3456789`. The hyphen must be an ASCII hyphen.
+This filter identifies values in the form of US Employer Identification Numbers (EIN), the federal tax ID for businesses, and reports them with the span type `ein`. It detects the hyphenated form `NN-NNNNNNN`, two digits, a hyphen, and seven digits, such as `12-3456789`.
 
-A bare nine-digit number is not reported as an EIN, since it cannot be told apart from an SSN; the hyphen after the second digit is what marks an EIN. The [SSN filter](ssns-and-tins.md) also reports values in the `NN-NNNNNNN` form, as `ssn`. When both filters are enabled, those values are reported as `ein`. The SSN filter also accepts other hyphen characters, such as a non-breaking hyphen, that this filter does not, so a value written with one of them is reported as `ssn`.
+A bare nine-digit number is not reported as an EIN, since it cannot be told apart from an SSN; the hyphen after the second digit is what marks an EIN. This is the only filter that detects the `NN-NNNNNNN` form: the [SSN filter](ssns-and-tins.md) does not, so a policy must enable `ein` to detect EINs.
 
 Detection is based on the format of the value, so a number in this form that is not an EIN can be reported. Setting `onlyValidPrefixes` reduces this. Validate the results against your own documents.
+
+### Separators and line breaks
+
+In place of the ASCII hyphen the filter also accepts the soft hyphen (U+00AD), the dashes U+2010 through U+2015, the minus sign (U+2212), and the small and fullwidth hyphen-minus forms (U+FE58, U+FE63, U+FF0D), the same hyphens the SSN filter accepts. An EIN wrapped across a line break is detected when the break follows the hyphen, such as `12-` at the end of one line followed by `3456789` on the next.
+
+Not detected: an EIN inside a longer token joined by hyphens, such as `45-6789123` in `123-45-6789123-45-6789`; a line break that no hyphen precedes, or a break inside the seven digits; and digits outside ASCII (such as fullwidth digits). An en dash or em dash next to an EIN is treated as punctuation, so an EIN followed directly by an em dash is still detected.
 
 ### Required Parameters
 

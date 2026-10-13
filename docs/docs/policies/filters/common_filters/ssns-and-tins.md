@@ -8,7 +8,7 @@ Detection is based on the format of the value. A nine-digit number that is not a
 
 **ITINs.** A value in the SSN format that begins with 9 is an Individual Taxpayer Identification Number (ITIN), and this filter never reports it. Enable the [ITIN filter](itin.md) to detect ITINs.
 
-**The EIN format.** This filter also reports values in the form `NN-NNNNNNN`, two digits, a hyphen, and seven digits, which is the form of an Employer Identification Number (EIN). When the [EIN filter](ein.md) is also enabled, those values are reported as `ein` instead of `ssn`, except when written with one of the other hyphen characters listed below, which the EIN filter does not accept.
+**The EIN format.** This filter does not report values in the form `NN-NNNNNNN`, two digits, a hyphen, and seven digits, which is the form of an Employer Identification Number (EIN). Enable the [EIN filter](ein.md) to detect them.
 
 **Canadian SINs.** An unformatted nine-digit value can match both this filter and the [Canadian SIN filter](canada-sin.md) when both are enabled. It is then reported as one of the two types, `ssn` or `canada-sin`, and which one is not fixed. If that matters, give both filters the same strategy, or enable only the one you need. Hyphenated values do not collide, since an SSN is grouped `NNN-NN-NNNN` and a SIN `NNN-NNN-NNN`.
 

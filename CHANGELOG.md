@@ -62,9 +62,13 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   carries `oldValue`, the value before the change.
 - **Filters for ITINs, EINs, and Canadian SINs:** `itin`, `ein`, and `canadaSin` report US Individual
   Taxpayer Identification Numbers, Employer Identification Numbers, and Canadian Social Insurance
-  Numbers as their own types. The `ssn` filter does not report ITINs. See
+  Numbers as their own types. The `ssn` filter reports neither ITINs nor values in the EIN form
+  `NN-NNNNNNN`, so a policy, including the managed policies, must enable `ein` to detect EINs. See
   [Filters](docs/docs/policies/filters.md).
 - **Asynchronous PDF redaction** with signed webhooks.
+- **Fairness keys on queued documents:** an asynchronous PDF request can pass `fairness_key`, and
+  documents one account queues with different keys take turns, as different accounts do. See
+  [Fairness keys](docs/docs/api_and_sdks/api/filtering_api.md#fairness-keys).
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
   trusted-proxy handling.

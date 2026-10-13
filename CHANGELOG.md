@@ -66,6 +66,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `NN-NNNNNNN`, so a policy, including the managed policies, must enable `ein` to detect EINs. See
   [Filters](docs/docs/policies/filters.md).
 - **Asynchronous PDF redaction** with signed webhooks.
+- **Client certificates (mutual TLS):** when Philter serves HTTPS itself, `SSL_CLIENT_AUTH=need` with
+  `SSL_TRUSTSTORE` requires every client to present a certificate issued by one in the trust store,
+  in addition to its API key. See [Client certificates](docs/docs/settings.md#client-certificates-mutual-tls).
 - **Fairness keys on queued documents:** an asynchronous PDF request can pass `fairness_key`, and
   documents one account queues with different keys take turns, as different accounts do. See
   [Fairness keys](docs/docs/api_and_sdks/api/filtering_api.md#fairness-keys).

@@ -78,6 +78,49 @@ Running the JAR directly serves plain HTTP unless you set `SSL_ENABLED=true`, si
 | `SSL_KEY_ALIAS` | The alias of the key to use within the keystore. | `philter` |
 | `SSL_CERTIFICATE_HOSTNAME` | The hostname recorded in the generated certificate's subject and subject alternative name. Used only when generating one. | `localhost` |
 
+### Client certificates (mutual TLS)
+
+Philter can require each client to present a certificate, in addition to its API key, when it serves HTTPS itself. A client whose certificate was not issued by a certificate in Philter's trust store is refused during the TLS handshake, before any request reaches the API. This applies to every path on the port, including `/api/health` and `/actuator/prometheus`, so health checks and metrics scrapers need a client certificate too.
+
+A client certificate does not identify a Philter user and does not replace an API key: a client still needs a valid API key for every endpoint that requires one. The [Java SDK](api_and_sdks/sdks.md) presents a client certificate with `withClientCertificate`.
+
+Put the certificates that issue your client certificates, usually your own certificate authority's, in a PKCS12 trust store:
+
+```
+keytool -importcert -alias clients-ca -file clients-ca.crt \
+  -keystore /opt/philter/ssl/clients.p12 -storetype PKCS12 -storepass changeit -noprompt
+```
+
+Then mount it and turn client authentication on:
+
+```yaml
+services:
+  philter:
+    environment:
+      SSL_CLIENT_AUTH: need
+      SSL_TRUSTSTORE: /opt/philter/ssl/clients.p12
+      SSL_TRUSTSTORE_PASSWORD: changeit
+    volumes:
+      - ./clients.p12:/opt/philter/ssl/clients.p12:ro
+```
+
+Check it with a client certificate and its key:
+
+```
+curl --cacert philter.crt --cert client.crt --key client.key https://localhost:8080/api/health
+```
+
+Trust only the certificate authorities you use for Philter's clients. Every certificate one of them issues is accepted.
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `SSL_CLIENT_AUTH` | `need` requires a client certificate issued by a certificate in the trust store. `want` asks for one but serves clients without one, or with one the trust store does not vouch for, so it does not restrict access. `none` asks for none. With `need` or `want`, Philter refuses to start unless `SSL_ENABLED` is `true` and `SSL_TRUSTSTORE` is set. | `none` |
+| `SSL_TRUSTSTORE` | Path to the trust store holding the certificates that issue client certificates. Used only when `SSL_CLIENT_AUTH` is `need` or `want`. | None |
+| `SSL_TRUSTSTORE_PASSWORD` | The trust store password. | None |
+| `SSL_TRUSTSTORE_TYPE` | The trust store format, `PKCS12` or `JKS`. | `PKCS12` |
+
+When TLS is terminated in front of Philter, require client certificates at the load balancer, ingress, or service mesh instead: Philter only sees connections from the proxy.
+
 ### Outbound TLS
 
 The settings above govern the certificate Philter *serves*. This one governs how Philter treats certificates it *receives* when the redaction pipeline calls another service over HTTPS, such as a [ph-eye](system_requirements.md) instance behind its own certificate.

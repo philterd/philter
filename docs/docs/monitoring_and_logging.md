@@ -10,7 +10,7 @@ Philter publishes metrics at:
 /actuator/prometheus
 ```
 
-Point your Prometheus scraper at this endpoint (for example, `https://your-philter-endpoint:8080/actuator/prometheus`). The Docker image serves HTTPS by default; use `http` when `SSL_ENABLED=false` (see [TLS](settings.md#tls)). With the generated self-signed certificate, the scraper must skip verification or trust that certificate.
+Point your Prometheus scraper at this endpoint (for example, `https://your-philter-endpoint:8080/actuator/prometheus`). The Docker image serves HTTPS by default; use `http` when `SSL_ENABLED=false` (see [TLS](settings.md#tls)). With the generated self-signed certificate, the scraper must skip verification or trust that certificate. When Philter [requires client certificates](settings.md#client-certificates-mutual-tls), the scraper must present one too.
 
 The actuator endpoints are served **without authentication**, so a scraper needs no API key. Only `health` and `prometheus` are exposed, and the metrics carry low-cardinality labels only (`filter_type`, `method`, `status`), never a user, context, policy name, or any redacted value. They do reveal redaction volume, so restrict `/actuator/**` to your monitoring network at the firewall or ingress if that is sensitive in your deployment.
 

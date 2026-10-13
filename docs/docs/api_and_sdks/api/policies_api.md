@@ -195,7 +195,7 @@ The description and notes are not accepted as query parameters, since free text 
 
 ### Validation
 
-The policy is validated before it is stored. It must be valid JSON in the native Phileas policy format and contain a non-empty `identifiers` object describing the information to redact. A missing name or an invalid policy is rejected with `400 Bad Request` and a message describing the problem, and nothing is saved.
+The policy is validated before it is stored. It must be valid JSON in the native Phileas policy format and contain a non-empty `identifiers` object describing the information to redact, and Phileas must be able to load it: a strategy condition that cannot be parsed or that no filter evaluates (see [Filter Strategy Conditions](../../policies/filter_strategies.md#filter-strategy-conditions)), a regular expression that does not compile or fails its check, or an invalid value such as an unknown `sensitivity` is refused. A missing name or an invalid policy is rejected with `400 Bad Request` and a message describing the problem, and nothing is saved.
 
 ### Responses
 
@@ -420,7 +420,7 @@ Requires `policies:write`. The source is one of the caller's policies or, for a 
 
 The copy has the source's policy and description. A copy of a managed policy has the note `Created from managed policy <name>`; a copy of the caller's own policy keeps its notes. Returns `201 Created` with the copy's details, and its `ETag`.
 
-* `400 Bad Request` - The new name is missing or invalid.
+* `400 Bad Request` - The new name is missing or invalid, or the policy being copied is one Phileas refuses to load, such as one saved before Philter checked this. The body carries Phileas's reason.
 * `404 Not Found` - There is no such policy to copy.
 * `409 Conflict` - A policy with the new name already exists. The body carries a `message` and the `reason` `policy_exists`, as when [creating a policy](#save-a-policy).
 
@@ -556,7 +556,7 @@ Send the `ETag` from your read in `If-Match` so the rollback is refused if someo
 #### Responses
 
 * `201 Created` - Rollback succeeded. Body contains the new revision number, and the `ETag` header identifies the policy as rolled back.
-* `400 Bad Request` - The `revision` parameter is missing or is not a number, or `If-Match` is not an entity tag this API returned. The body carries a `message`.
+* `400 Bad Request` - The `revision` parameter is missing or is not a number, `If-Match` is not an entity tag this API returned, or the revision is a policy Phileas refuses to load, in which case the message begins `Revision N cannot be restored:` followed by Phileas's reason and the current policy is unchanged. The body carries a `message`.
 * `404 Not Found` - The policy or the target revision does not exist. The body's `message` says which, for example `Revision 99 does not exist.`. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not rolled back. The body carries a `message` and a `reason`:
     * `policy_managed` - Managed policies cannot be rolled back.

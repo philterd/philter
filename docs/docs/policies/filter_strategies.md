@@ -376,6 +376,17 @@ A condition compares a field to a value. The values compared with the identified
 
 The date filter also supports `token is` and `token is not`, to tell birth and death dates apart. See [Dates](filters/common_filters/dates.md#differentiating-between-dates-and-birth-dates).
 
+A condition is checked when the policy is saved. Only these field and operator combinations are evaluated:
+
+| Field | Operators |
+|---|---|
+| `token` | `==`, `!=`, and `startswith`; `is` and `is not` with `"birthdate"`, `"deathdate"`, or `"birthdate or deathdate"` |
+| `context` | `==` and `!=` |
+| `confidence` | `<`, `<=`, `>`, `>=`, `==`, and `!=` |
+| `population` | `<`, `<=`, `>`, `>=`, `==`, and `!=` with a whole number, on the zip code filter only |
+
+A policy with a condition that cannot be parsed, such as a value that is not in double quotes, or with any other combination, such as `context startswith "a"`, `token is "x"`, or any condition on `type`, is refused with `400 Bad Request`. The message names the filter, the strategy's position in its list, and the field and operator or the character where the condition stops making sense. It never repeats the condition, since a condition can contain a sensitive value.
+
 The following is an example policy for credit cards that contains a condition to only redact credit card numbers that start with the digits `3000`:
 
 ```

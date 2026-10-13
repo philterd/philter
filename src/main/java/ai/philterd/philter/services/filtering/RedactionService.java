@@ -265,6 +265,14 @@ public class RedactionService {
         final Policy phileasPolicy = effective == null ? resolveEffectivePolicy(policyJson, userEntity)
                 : gson.fromJson(effective.policyJson(), Policy.class);
 
+        // Refuse a policy Phileas will not load with its reason, before any context or ledger work, rather than
+        // letting the refusal surface from filtering as a server error. A policy saved before Philter checked
+        // this on save, or that a later Phileas release refuses, reaches here.
+        final String refusal = PolicyLoadCheck.shared().refusal(phileasPolicy);
+        if (refusal != null) {
+            throw new ai.philterd.philter.services.policies.PolicyResolutionException(refusal);
+        }
+
         // Initialize the contextCache. It is created per request and must be closed before returning
         // so that, when backed by Valkey/Redis, its connection pool is released rather than leaked.
         LOGGER.info("Initializing contextCache with hostname: {}:{}", CACHE_HOSTNAME, CACHE_PORT);
@@ -552,6 +560,11 @@ public class RedactionService {
         final UserEntity user = userService.findOneById(policy.getUserId());
         if (user == null) throw new IllegalStateException("Account no longer exists.");
         final Policy resolved = resolveEffectivePolicy(policy.getPolicy(), user);
+        // Refused when the document is submitted, not left to fail in the worker after it was accepted.
+        final String refusal = PolicyLoadCheck.shared().refusal(resolved);
+        if (refusal != null) {
+            throw new ai.philterd.philter.services.policies.PolicyResolutionException(refusal);
+        }
         final ContextEntity context = contextName == null || contextName.isBlank() ? null
                 : contextService.findOneByNameAndUserId(contextName, user.getId());
         if (contextName != null && !contextName.isBlank() && context == null) {

@@ -261,6 +261,8 @@ Synchronous text, PDF, and ZIP responses expose `X-Document-Id`, allowing lookup
 
 Account async capacity returns 429; global capacity, admission contention, or required recovery returns 503, with `Retry-After: 5`. An incompatible `Accept` returns 406 and an unsupported `Content-Type` returns 415. `/api/explain` returns a JSON object containing `filteredText`, `explanation`, and governing-policy metadata; it does not return plain text.
 
+A request whose policy Phileas refuses to load, such as one saved before Philter checked policies when they are saved, returns `400 Bad Request` with Phileas's reason. An asynchronous PDF request is refused this way when it is submitted, before it is queued. See [Filter Strategy Conditions](../../policies/filter_strategies.md#filter-strategy-conditions).
+
 Malformed, unparseable, and password-protected PDFs return `400 Bad Request`. This applies to PDF and ZIP output, including asynchronous submissions, which are validated before queue admission. A PDF must contain at least one page. Storage, signing, and other infrastructure failures remain server errors. PDF validation does not perform OCR; image-only PDFs are outside the supported redaction scope.
 
 Async PDF admission (including ZIP output) retries acknowledged guard contention for up to 500 ms, with randomized 5–25 ms pauses. This bounds contention waiting, not database/network operation timeouts. Once the guard is acquired, account and global capacity checks still apply. An exhausted wait returns 503; account capacity returns 429. Both responses include `Retry-After: 5`. Database exceptions do not trigger application-level acquisition retries, guard release, or job-insert replay. Plain text and `async=false` requests bypass queue admission.

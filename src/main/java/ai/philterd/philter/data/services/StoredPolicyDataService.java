@@ -23,6 +23,7 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.RedactionCache;
+import ai.philterd.philter.services.filtering.PolicyLoadCheck;
 import ai.philterd.philter.services.policies.ManagedPolicyLoader;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
@@ -361,7 +362,15 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
             }
 
             // Confirm the policy is structurally compatible with the native Phileas policy model.
-            gson.fromJson(policyJson, Policy.class);
+            final Policy policy = gson.fromJson(policyJson, Policy.class);
+
+            // And that Phileas will load it: Phileas checks conditions, patterns, and some values only when it
+            // builds the filters, so a policy it refuses would otherwise be saved and fail every redaction.
+            final String refusal = PolicyLoadCheck.shared().refusal(policy);
+            if (refusal != null) {
+                LOGGER.warn("Policy validation failed: Phileas refuses to load the policy.");
+                return PolicyValidation.invalid(refusal);
+            }
 
             LOGGER.info("Policy validation successful.");
             return PolicyValidation.valid("Policy is valid");
@@ -484,6 +493,14 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
         final ServiceResponse stale = staleRefusal(live, expectedETag);
         if (stale != null) {
             return WriteOutcome.refused(stale);
+        }
+
+        // An earlier revision may be one this release of Phileas refuses to load, so it is checked as a new
+        // policy would be rather than restored as it was.
+        final PolicyValidation validation = validatePolicy(targetVersion.getPolicy());
+        if (!validation.isValid()) {
+            return WriteOutcome.refused(new ServiceResponse("Revision " + targetRevision + " cannot be restored: "
+                    + validation.getMessage(), false, 400));
         }
 
         final int expectedRevision = live.getRevision();

@@ -81,6 +81,13 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Java 25 is required.**
 - **No built-in UI.** [Philter UI](https://github.com/philterd/philter-ui), in development, is separate.
 - **PDF redaction is asynchronous by default.** Append `?async=false` for the previous behavior.
+- **Policies Phileas cannot load are refused with 400.** A policy is checked by building its filters through
+  Phileas when it is created, replaced, copied, or rolled back to, and before a redaction or asynchronous
+  submission uses it. A strategy condition that cannot be parsed or that no filter evaluates, a regular
+  expression that does not compile or fails its check, or an invalid value such as an unknown `sensitivity`
+  returns `400 Bad Request` with Phileas's reason, which never repeats a condition's text. Previously such a
+  policy was saved and every redaction with it failed with `500`. See
+  [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).
 - **`token !=` conditions apply.** A strategy with a condition such as `token != "127.0.0.1"` was
   never applied before; it now applies to every value other than the one named, ignoring case. Review
   policies that use `token !=`. See [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).

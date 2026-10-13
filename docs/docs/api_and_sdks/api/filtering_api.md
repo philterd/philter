@@ -131,7 +131,7 @@ curl -k -X POST "https://localhost:8080/api/filter?fairness_key=reviewer-42" \
 
 * The key is opaque to Philter. Use an internal identifier such as a user or group ID. **Do not put personal data in a fairness key**: it is stored unencrypted with the queued document so that the queue can be ordered.
 * A key is 1 to 64 characters of letters, digits, `.`, `_`, `:` and `-`. Any other value is refused with `400 Bad Request`, as is a key on a request with `async=false`.
-* Fairness keys change only the order of your own account's documents. Your account's share of the queue, relative to other accounts, is the same with or without them.
+* Fairness keys are designed to change only the order of your own account's documents, not your account's share of the queue relative to other accounts. With MongoDB storage, a document claimed at the moment another is being queued can occasionally give an account one extra turn.
 * Documents queued without a key take turns together, as if they shared one key. An account that never passes a key has its documents claimed in submission order, as before.
 
 ## Explain

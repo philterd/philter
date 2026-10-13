@@ -1,6 +1,6 @@
 # Quick Start with SQLite
 
-By default Philter keeps all of its data in a single SQLite file, so a single Philter instance runs with no database server. Use it to evaluate Philter, or for a small, single-server, edge, or air-gapped deployment. Several instances behind a load balancer need MongoDB; see [High Availability](../high_availability.md).
+By default Philter keeps all of its data in a single SQLite file, so a single Philter instance runs with no database server. Use it to evaluate Philter, or for a small, single-server, edge, or air-gapped deployment. Several instances behind a load balancer need MongoDB; see [High Availability](../high_availability.md). A deployment that outgrows one instance moves its data from SQLite to MongoDB with the `migrate-storage` command; see [Moving from SQLite to MongoDB](../database.md#moving-from-sqlite-to-mongodb).
 
 ## Run Philter with Docker Compose
 

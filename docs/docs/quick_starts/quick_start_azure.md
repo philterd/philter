@@ -24,7 +24,7 @@ Congratulations! You have deployed Philter in Azure. You are now ready to filter
 
 ## Where your data is stored
 
-Philter on the marketplace image stores its data, including policies, contexts, the redaction ledger, and the audit log, in a [SQLite](../database.md#sqlite) database on the virtual machine's disk. No database server runs beside it. Back up the disk regularly, or back up the database with SQLite's online backup as described in [Database](../database.md#sqlite), and keep `PHILTER_ENCRYPTION_KEY` with the backups, since the data cannot be read without it. One virtual machine runs one Philter; to run several instances behind a load balancer, use MongoDB storage as described in [High Availability](../high_availability.md).
+Philter on the marketplace image stores its data, including policies, contexts, the redaction ledger, and the audit log, in a [SQLite](../database.md#sqlite) database on the virtual machine's disk. No database server runs beside it. Back up the disk regularly, or back up the database with SQLite's online backup as described in [Database](../database.md#sqlite), and keep `PHILTER_ENCRYPTION_KEY` with the backups, since the data cannot be read without it. One virtual machine runs one Philter; to run several instances behind a load balancer, use MongoDB storage as described in [High Availability](../high_availability.md), and move the existing data to it with the `migrate-storage` command as described in [Moving from SQLite to MongoDB](../database.md#moving-from-sqlite-to-mongodb).
 
 ## Try it out!
 

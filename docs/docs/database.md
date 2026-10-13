@@ -4,7 +4,7 @@ Philter stores everything it persists in a [SQLite](#sqlite) file by default, fo
 
 ## Choosing SQLite or MongoDB
 
-Choose the storage with `STORAGE_TYPE` before Philter's first start. Philter does not move data from one to the other.
+Choose the storage with `STORAGE_TYPE` before Philter's first start. A deployment that starts on SQLite can later move its data to MongoDB with the `migrate-storage` command (see [Moving from SQLite to MongoDB](#moving-from-sqlite-to-mongodb)); Philter does not move data from MongoDB to SQLite.
 
 | | SQLite (`STORAGE_TYPE=sqlite`, the default) | MongoDB (`STORAGE_TYPE=mongodb`) |
 |---|---|---|

@@ -60,6 +60,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `STORAGE_TYPE`, rather than guess which storage you meant.
 - **Policy diffs show both sides:** each `replace` and `remove` from `GET /api/policies/{name}/diff`
   carries `oldValue`, the value before the change.
+- **Filters for ITINs, EINs, and Canadian SINs:** `itin`, `ein`, and `canadaSin` report US Individual
+  Taxpayer Identification Numbers, Employer Identification Numbers, and Canadian Social Insurance
+  Numbers as their own types. The `ssn` filter does not report ITINs. See
+  [Filters](docs/docs/policies/filters.md).
 - **Asynchronous PDF redaction** with signed webhooks.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and

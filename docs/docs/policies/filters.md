@@ -29,15 +29,17 @@ Philter uses several methods to identify person's names.
 | [Ages](filters/common_filters/ages.md)                                                                                           | Identifies ages such as `3.5 years old`                                         |
 | [Bank Routing Numbers](filters/common_filters/bank-routing-numbers.md)                                                        | Identifies bank routing numbers                                                 |
 | [Bitcoin Addresses](filters/common_filters/bitcoin-addresses.md)                                                                 | Identifies Bitcoin addresses such as `127NVqnjf8gB9BFAW2dnQeM6wqmy1gbGtv`       |
+| [Canadian SINs](filters/common_filters/canada-sin.md)                                                                            | Identifies Canadian Social Insurance Numbers that pass the Luhn check          |
 | [Cities](filters/locations/cities.md)                                                                                       | Identifies common cities                                                        |
 | [Counties](filters/locations/counties.md)                                                                                   | Identifies common counties                                                      |
 | [Credit Card Numbers](filters/common_filters/creditcards.md)                                                                    | Identifies VISA, American Express, MasterCard, and Discover credit card numbers |
 | Currency (`currency`, see the [Policy Schema](policy_schema.md#available-filters))                                               | Identifies currency values such as `$100.00` and `50 EUR`                       |
 | [Dates](filters/common_filters/dates.md)                                                                                         | Identifies dates in many formats such as May 22, 1999                           |
 | [Driver's License Numbers](filters/common_filters/drivers-license-numbers.md)                                                    | Identifies driver's license numbers for all 50 US states                        |
-| EINs (`ein`, see the [Policy Schema](policy_schema.md#available-filters))                                                        | Identifies US Employer Identification Numbers                                   |
+| [EINs](filters/common_filters/ein.md)                                                                                            | Identifies US Employer Identification Numbers in the form `NN-NNNNNNN`          |
 | [Email Addresses](filters/common_filters/email-addresses.md)                                                                     | Identifies email addresses                                                      |
 | [Hospitals](filters/locations/hospitals.md)                                                                                      | Identifies common hospital names                                                |
+| [ITINs](filters/common_filters/itin.md)                                                                                          | Identifies US Individual Taxpayer Identification Numbers                        |
 | [IBAN Codes](filters/common_filters/iban-codes.md)                                                                               | Identifies international bank account numbers                                   |
 | [IP Addresses](filters/common_filters/ip-addresses.md)                                                                           | Identifies IPv4 and IPv6 addresses                                              |
 | [MAC Addresses](filters/common_filters/mac-addresses.md)                                                                         | Identifies network MAC addresses                                                |
@@ -45,7 +47,7 @@ Philter uses several methods to identify person's names.
 | [Phone Numbers](filters/common_filters/phone-numbers.md)                                                                         | Identifies phone numbers                                                        |
 | [Phone Number Extensions](filters/common_filters/phone-number-extensions.md)                                                     | Identifies phone numbers                                                        |
 | [Sections](filters/common_filters/sections.md)                                                                                   | Identifies sections in text denoted by                                          |
-| [SSNs and TINs](filters/common_filters/ssns-and-tins.md)                                                                         | Identifies US SSNs and TINs                                                     |
+| [SSNs](filters/common_filters/ssns-and-tins.md)                                                                                  | Identifies US Social Security Numbers; ITINs have their own filter             |
 | [States](filters/locations/states.md)                 | Identifies US state names                                    |
 | [State Abbreviations](filters/locations/state-abbreviations.md) | Identifies US state names by their abbreviations                                |
 | Street Addresses (`streetAddress`, see the [Policy Schema](policy_schema.md#available-filters))                                   | Identifies street addresses                                                     |

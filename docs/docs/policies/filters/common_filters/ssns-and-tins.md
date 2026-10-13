@@ -1,8 +1,23 @@
-# SSNs and TINs
+# Social Security Numbers (SSN)
 
 ## Filter
 
-This filter identifies US SSNs and TINs such as `123-45-6789` and `123456789` in text.
+This filter identifies values in the form of US Social Security Numbers (SSN), such as `123-45-6789`, `123 45 6789`, and `123456789`, and reports them with the span type `ssn`. It does not report values that cannot be SSNs: an area number (the first three digits) of `000`, `666`, or `9NN`, a group number (the middle two digits) of `00`, or a serial number (the last four digits) of `0000`.
+
+Detection is based on the format of the value. A nine-digit number that is not an SSN, such as an account number, can be reported, and an SSN written in a form the filter does not accept is not. Validate the results against your own documents.
+
+**ITINs.** A value in the SSN format that begins with 9 is an Individual Taxpayer Identification Number (ITIN), and this filter never reports it. Enable the [ITIN filter](itin.md) to detect ITINs.
+
+**The EIN format.** This filter also reports values in the form `NN-NNNNNNN`, two digits, a hyphen, and seven digits, which is the form of an Employer Identification Number (EIN). When the [EIN filter](ein.md) is also enabled, those values are reported as `ein` instead of `ssn`, except when written with one of the other hyphen characters listed below, which the EIN filter does not accept.
+
+**Canadian SINs.** An unformatted nine-digit value can match both this filter and the [Canadian SIN filter](canada-sin.md) when both are enabled. It is then reported as one of the two types, `ssn` or `canada-sin`, and which one is not fixed. If that matters, give both filters the same strategy, or enable only the one you need. Hyphenated values do not collide, since an SSN is grouped `NNN-NN-NNNN` and a SIN `NNN-NNN-NNN`.
+
+### Separators and line breaks
+
+Between digit groups the filter accepts a hyphen, a single space or other horizontal whitespace character, or nothing at all. In place of the ASCII hyphen it also accepts the soft hyphen (U+00AD), the dashes U+2010 through U+2015, the minus sign (U+2212), and the small and fullwidth hyphen-minus forms (U+FE58, U+FE63, U+FF0D). A value wrapped across a line break is detected when the break follows a hyphen, such as `123-45-` at the end of one line followed by `6789` on the next. A match does not begin or end partway through a longer run of digits or letters.
+
+Not detected: digits split across lines with no hyphen before the break, a break inside a digit group, digits outside ASCII (such as fullwidth digits), and more than one whitespace character between groups.
+
 
 ### Required Parameters
 
@@ -23,6 +38,8 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 | Strategy              | Description                                                                                                         |
 | --------------------- |---------------------------------------------------------------------------------------------------------------------|
 | `REDACT`              | Replace the sensitive text with a placeholder.                                                                      |
+| `MASK`                | Replace each character of the sensitive text with a mask character (`*` by default).                                |
+| `TRUNCATE`            | Replace all but a few characters of the sensitive text with a truncation character (`*` by default).                |
 | `RANDOM_REPLACE`      | Replace the sensitive text with a similar, random value.                                                            |
 | `STATIC_REPLACE`      | Replace the sensitive text with a given value.                                                                      |
 | `CRYPTO_REPLACE`      | Replace the sensitive text with its encrypted value.                                                                |

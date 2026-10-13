@@ -101,7 +101,7 @@
         <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
         <skipSqliteITs>false</skipSqliteITs>
         <!-- The integration tests run with SQLite storage: those that reach storage only through Philter's API. -->
-        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT</sqlite.it.test>
+        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT</sqlite.it.test>
         <phileas.version>4.5.0-SNAPSHOT</phileas.version>
         <springdoc.version>3.1.0</springdoc.version>
         <!-- Build plugin versions -->

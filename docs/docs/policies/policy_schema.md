@@ -113,6 +113,7 @@ The `identifiers` object selects which types of sensitive information to detect 
 | `age` | Age values (for example, "35 years old", "age 42"). |
 | `bankRoutingNumber` | Bank routing numbers. |
 | `bitcoinAddress` | Bitcoin wallet addresses. |
+| `canadaSin` | Canadian Social Insurance Numbers. See [Canadian SINs](filters/common_filters/canada-sin.md). |
 | `city` | City names (dictionary). |
 | `county` | County names (dictionary). |
 | `creditCard` | Credit card numbers. |
@@ -120,12 +121,13 @@ The `identifiers` object selects which types of sensitive information to detect 
 | `date` | Dates in various formats. |
 | `dictionaries` | Array of custom dictionary filters (user-defined term sets). |
 | `driversLicense` | Driver's license numbers. |
-| `ein` | U.S. Employer Identification Numbers. |
+| `ein` | U.S. Employer Identification Numbers. See [EINs](filters/common_filters/ein.md). |
 | `emailAddress` | Email addresses. |
 | `firstName` | First names (dictionary). |
 | `hospital` | Hospital names (dictionary). |
 | `ibanCode` | International Bank Account Numbers (IBAN). |
 | `identifiers` | Array of custom regex-based identifier filters. |
+| `itin` | U.S. Individual Taxpayer Identification Numbers. See [ITINs](filters/common_filters/itin.md). |
 | `ipAddress` | IPv4 and IPv6 addresses. |
 | `macAddress` | MAC addresses. |
 | `passportNumber` | Passport numbers. |
@@ -134,7 +136,7 @@ The `identifiers` object selects which types of sensitive information to detect 
 | `phoneNumber` | Phone numbers. |
 | `phoneNumberExtension` | Phone number extensions (for example, "ext. 1234"). |
 | `sections` | Array of section filters (start/end regex pairs). |
-| `ssn` | U.S. Social Security Numbers. |
+| `ssn` | U.S. Social Security Numbers. See [SSNs](filters/common_filters/ssns-and-tins.md). |
 | `state` | U.S. state names (dictionary). |
 | `stateAbbreviation` | U.S. state abbreviations (for example, "CA", "NY"). |
 | `streetAddress` | Street addresses. |

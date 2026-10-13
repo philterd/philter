@@ -117,7 +117,7 @@ The `identifiers` object selects which types of sensitive information to detect 
 | `city` | City names (dictionary). |
 | `county` | County names (dictionary). |
 | `creditCard` | Credit card numbers. |
-| `currency` | Currency values (for example, "$100.00", "50 EUR"). |
+| `currency` | Currency values (for example, "$100.00", "50 EUR"). See [Currency](filters/common_filters/currency.md). |
 | `date` | Dates in various formats. |
 | `dictionaries` | Array of custom dictionary filters (user-defined term sets). |
 | `driversLicense` | Driver's license numbers. |
@@ -139,7 +139,7 @@ The `identifiers` object selects which types of sensitive information to detect 
 | `ssn` | U.S. Social Security Numbers. See [SSNs](filters/common_filters/ssns-and-tins.md). |
 | `state` | U.S. state names (dictionary). |
 | `stateAbbreviation` | U.S. state abbreviations (for example, "CA", "NY"). |
-| `streetAddress` | Street addresses. |
+| `streetAddress` | Street addresses. See [Street Addresses](filters/common_filters/street-address.md). |
 | `surname` | Surnames (dictionary). |
 | `trackingNumber` | Shipping tracking numbers (UPS, FedEx, USPS). |
 | `url` | URLs. |

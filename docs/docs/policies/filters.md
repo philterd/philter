@@ -33,7 +33,7 @@ Philter uses several methods to identify person's names.
 | [Cities](filters/locations/cities.md)                                                                                       | Identifies common cities                                                        |
 | [Counties](filters/locations/counties.md)                                                                                   | Identifies common counties                                                      |
 | [Credit Card Numbers](filters/common_filters/creditcards.md)                                                                    | Identifies VISA, American Express, MasterCard, and Discover credit card numbers |
-| Currency (`currency`, see the [Policy Schema](policy_schema.md#available-filters))                                               | Identifies currency values such as `$100.00` and `50 EUR`                       |
+| [Currency](filters/common_filters/currency.md)                                                                                   | Identifies monetary amounts written with a currency symbol or code, such as `$100.00` and `50 EUR` |
 | [Dates](filters/common_filters/dates.md)                                                                                         | Identifies dates in many formats such as May 22, 1999                           |
 | [Driver's License Numbers](filters/common_filters/drivers-license-numbers.md)                                                    | Identifies driver's license numbers for all 50 US states                        |
 | [EINs](filters/common_filters/ein.md)                                                                                            | Identifies US Employer Identification Numbers in the form `NN-NNNNNNN`          |
@@ -50,7 +50,7 @@ Philter uses several methods to identify person's names.
 | [SSNs](filters/common_filters/ssns-and-tins.md)                                                                                  | Identifies US Social Security Numbers; ITINs have their own filter             |
 | [States](filters/locations/states.md)                 | Identifies US state names                                    |
 | [State Abbreviations](filters/locations/state-abbreviations.md) | Identifies US state names by their abbreviations                                |
-| Street Addresses (`streetAddress`, see the [Policy Schema](policy_schema.md#available-filters))                                   | Identifies street addresses                                                     |
+| [Street Addresses](filters/common_filters/street-address.md)                                                                     | Identifies the street line of US-style addresses and PO boxes                   |
 | [Tracking Numbers](filters/common_filters/tracking-numbers.md)                                                                   | Identifies UPS, FedEx, and USPS tracking numbers                                |
 | [URLs](filters/common_filters/urls.md)                                                                                           | Identifies URLs                                                                 |
 | [VINs](filters/common_filters/vins.md)                                                                                           | Identifies vehicle identification numbers                                       |

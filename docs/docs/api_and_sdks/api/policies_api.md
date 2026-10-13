@@ -75,7 +75,7 @@ Example response with `managed=true`:
 {
   "policies": [
     { "name": "managed_common_pii", "description": "Common PII including names, emails, phone numbers, and SSNs" },
-    { "name": "managed_financial_pii", "description": "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses" },
+    { "name": "managed_financial_pii", "description": "Financial PII including credit cards, bank routing numbers, IBANs, Bitcoin addresses, emails, phone numbers, and SSNs" },
     { "name": "managed_healthcare_phi", "description": "Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs" }
   ],
   "total": 3

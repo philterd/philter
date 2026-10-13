@@ -49,7 +49,7 @@ public class ManagedPolicyLoader {
             new ManagedPolicy("healthcare-phi.json", "managed_healthcare_phi",
                     "Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs"),
             new ManagedPolicy("financial-pii.json", "managed_financial_pii",
-                    "Financial PII including credit cards, bank routing numbers, and Bitcoin addresses")
+                    "Financial PII including credit cards, bank routing numbers, IBANs, Bitcoin addresses, emails, phone numbers, and SSNs")
     );
 
     private final Gson gson;

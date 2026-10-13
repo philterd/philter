@@ -10,7 +10,7 @@ Philter includes built-in managed policies that can be used as starting points:
 |------|-------------|
 | `managed_common_pii` | Common PII including names, emails, phone numbers, and SSNs |
 | `managed_healthcare_phi` | Healthcare PHI including names, dates, ages, cities, states, zip codes, emails, phone numbers, and SSNs |
-| `managed_financial_pii` | Financial PII including credit cards, bank routing numbers, and Bitcoin addresses |
+| `managed_financial_pii` | Financial PII including credit cards, bank routing numbers, IBANs, Bitcoin addresses, emails, phone numbers, and SSNs |
 
 The managed policies do not include the [ITIN](filters/common_filters/itin.md), [EIN](filters/common_filters/ein.md), or [Canadian SIN](filters/common_filters/canada-sin.md) filters, and the SSN filter they use does not detect ITINs. To redact ITINs, EINs, or Canadian SINs, copy a managed policy and add those filters to the copy.
 

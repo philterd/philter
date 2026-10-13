@@ -60,17 +60,23 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /** The MongoDB storage, built as {@link MongoStorageConfiguration} builds it for Philter, for the contract tests. */
-final class MongoStorageUnderTest implements StorageUnderTest {
+public final class MongoStorageUnderTest implements StorageUnderTest {
 
     private final MongoClient mongoClient;
     private final MongoStorageConfiguration configuration;
-    private final EncryptionService encryption = new TestEncryptionService();
+    private final EncryptionService encryption;
     private final ContextCache contextCache = new ContextCache("", 0, "", false);
     private final ApiKeyCache apiKeyCache = new ApiKeyCache("", 0, "", false);
     private final Map<String, Object> services = new HashMap<>();
 
     MongoStorageUnderTest(final MongoClient mongoClient) {
+        this(mongoClient, new TestEncryptionService());
+    }
+
+    /** Over {@code mongoClient}, encrypting with {@code encryption}. */
+    public MongoStorageUnderTest(final MongoClient mongoClient, final EncryptionService encryption) {
         this.mongoClient = mongoClient;
+        this.encryption = encryption;
         this.configuration = new MongoStorageConfiguration(mongoClient);
     }
 
@@ -293,7 +299,7 @@ final class MongoStorageUnderTest implements StorageUnderTest {
 
     @Override
     public StorageUnderTest anotherInstance() {
-        return new MongoStorageUnderTest(mongoClient);
+        return new MongoStorageUnderTest(mongoClient, encryption);
     }
 
     @Override

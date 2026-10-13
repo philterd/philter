@@ -72,6 +72,11 @@ public final class SchemaMigrator {
 
     /** The version this release expects: the last migration's, or the baseline when there are none. */
     public int expectedVersion() {
+        return expectedVersion(migrations);
+    }
+
+    /** The version {@code migrations} bring data to: the last one's, or the baseline when there are none. */
+    public static int expectedVersion(final List<Migration> migrations) {
         return migrations.isEmpty() ? BASELINE_VERSION : migrations.get(migrations.size() - 1).version();
     }
 

@@ -34,6 +34,12 @@ changing the rest of Philter. There are two: SQLite, the default, for a single P
   `SqliteSchema`; later changes are migrations in `SqliteMigrations`. Only this package may use the SQLite
   driver or JDBC (`org.sqlite`, `java.sql`). Only this package may use the MongoDB driver (`com.mongodb`) or BSON (`org.bson`);
   `StorageBoundaryTest` fails the build if any other class does.
+* `ai.philterd.philter.data.migration` moves a SQLite database to MongoDB (`migrate-storage`). It is the one
+  package that uses both storage implementations, through `SqliteExport` in the SQLite package and `MongoImport`
+  in the MongoDB package, never through the drivers; `StorageBoundaryTest` allows it and nothing else. When you add
+  a SQLite table, add it to `SqliteExport.TABLES` and `MongoImport` (`StorageMigrationIT` fails until you do). When
+  you add a column, copy it in `MongoImport` (`MongoImportIT` fails until you do, or until you list it as not copied
+  with the reason), and check it in `StorageMigrationIT`.
 * Interfaces for other storage-backed services live with their callers: `AuditLogService` and
   `StoredAuditEventPublisher` in `ai.philterd.philter.audit`, `ContextServices` in
   `ai.philterd.philter.services.context`, `VectorServices` in `ai.philterd.philter.services.vectors`, and

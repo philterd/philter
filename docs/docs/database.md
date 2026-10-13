@@ -175,7 +175,39 @@ SQLite storage, the default (`STORAGE_TYPE=sqlite`), keeps all of Philter's data
 
 A backup holds everything the database does, including password hashes and the audit log, and a copy made with `sqlite3` or `cp` gets the permissions your umask gives new files, not the database's. Keep backups where only the people who administer Philter can read them, for example with `umask 077` before making the copy, or `chmod 600` on the backup file and `chmod 700` on its directory.
 
-**Changing storage.** Philter does not move data between MongoDB and SQLite. Choose the storage before you put data in Philter. A deployment that sets `MONGODB_CONNECTION_STRING` must also set `STORAGE_TYPE`; Philter refuses to start otherwise, so a deployment that used MongoDB does not start on a new, empty SQLite database.
+**Changing storage.** A deployment that outgrows one instance can move its SQLite database to MongoDB; see [Moving from SQLite to MongoDB](#moving-from-sqlite-to-mongodb). Philter does not move data from MongoDB to SQLite. A deployment that sets `MONGODB_CONNECTION_STRING` must also set `STORAGE_TYPE`; Philter refuses to start otherwise, so a deployment that used MongoDB does not start on a new, empty SQLite database.
+
+## Moving from SQLite to MongoDB
+
+A deployment that starts on SQLite and later needs several Philter instances behind a load balancer, as in [High Availability](high_availability.md), moves its data to MongoDB with the `migrate-storage` command. It copies everything SQLite storage holds into an empty MongoDB database: users with their password hashes and MFA, API keys, policies with their version history, custom and redact lists, contexts with their mappings, legal holds, the redaction ledger, the signing keys, asynchronous documents and webhook deliveries, PII counts, and the audit log.
+
+Records are copied as stored. Every record keeps its id, timestamps, revisions, and state; ledger entries keep their hashes and signatures, so chains signed before the move still verify after it; encrypted fields are copied without being decrypted, so the same `PHILTER_ENCRYPTION_KEY` reads them on MongoDB. Nothing is re-audited or re-signed.
+
+1. **Stop Philter.** The command refuses to run while a Philter is using the SQLite database.
+2. **Back up the SQLite database** (see [Backups](#sqlite)). The command opens it read-only and does not change it, but keep the backup until Philter is running on MongoDB.
+3. **Run the command** with the SQLite database, an empty MongoDB database, and the encryption key:
+
+    ```
+    SQLITE_PATH=/opt/philter/data/philter.db \
+    MONGODB_CONNECTION_STRING=mongodb://... \
+    PHILTER_ENCRYPTION_KEY=... \
+    java -jar philter.jar migrate-storage --to mongodb
+    ```
+
+    With Docker, run the image with the data volume mounted, the same variables, and the command in place of the image's own (Docker Compose prefixes the bundled `docker-compose.yml`'s `philter-data` volume with the project name; `docker volume ls` shows the full name):
+
+    ```
+    docker run --rm -v philter-data:/opt/philter/data \
+        -e MONGODB_CONNECTION_STRING=mongodb://... -e PHILTER_ENCRYPTION_KEY=... \
+        philterd/philter java -jar /opt/philter/philter.jar migrate-storage --to mongodb
+    ```
+4. **Start Philter** with `STORAGE_TYPE=mongodb`, the same `MONGODB_CONNECTION_STRING`, and the same `PHILTER_ENCRYPTION_KEY`. Keep the SQLite database until you have confirmed Philter works on MongoDB; going back means starting Philter on it again with `STORAGE_TYPE=sqlite`.
+
+The command refuses, writing nothing to MongoDB, when the MongoDB database already holds Philter data (it never merges), when the SQLite database is not at the schema version this Philter expects (start this release on it once, stop it, and migrate), when a Philter is using the SQLite database, or when a Philter stopped part way through an operation and left a lock held in it (start Philter on it once with `STORAGE_TYPE=sqlite`, which clears the lock and records that in the audit log, stop it, and migrate).
+
+After copying, it checks the copy: the number of records of each kind, every ledger chain's hashes and signatures, the active signing key and every retained public key, and a sample of each kind of encrypted field, decrypted with `PHILTER_ENCRYPTION_KEY`. It prints how many records of each kind it copied, and exits with status 0 only when every check passes. When a check fails, it says what did not match and exits with status 1; do not start Philter on that MongoDB database. Drop its `philter` database, fix the cause (most often a different `PHILTER_ENCRYPTION_KEY`, or a ledger chain that did not validate in SQLite either), and run the command again. A successful migration is recorded in the audit log on MongoDB as `storage_migrated`, with the source file and the counts copied.
+
+Not copied: the schema version history, which MongoDB records afresh at the version copied, and locks held by operations in progress, which hold nothing once Philter has stopped.
 
 ## See also
 

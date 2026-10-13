@@ -27,6 +27,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   operation is cleared at the next start and recorded as `storage_guard_recovered`. See
   [Database](docs/docs/database.md#sqlite) and the
   [SQLite quick start](docs/docs/quick_starts/quick_start_sqlite.md).
+- **Moving from SQLite to MongoDB:** `java -jar philter.jar migrate-storage --to mongodb`, run with
+  Philter stopped, copies a SQLite database to an empty MongoDB as stored (ids, ledger signatures,
+  and encrypted fields unchanged), verifies the copy, and records it as `storage_migrated`. See
+  [Moving from SQLite to MongoDB](docs/docs/database.md#moving-from-sqlite-to-mongodb).
 - **Limits API:** `GET /api/limits` returns the limits and rules Philter enforces and what the caller
   may do, and `GET /api/sign-in` gives a sign-in page the password rules.
 - **Per-list redact list endpoints:** `GET` and `PUT /api/redact-lists/{list}` read and replace the

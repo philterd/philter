@@ -20,6 +20,7 @@ import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteErrorCode;
 import org.sqlite.SQLiteException;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -65,6 +66,32 @@ public final class SqliteDatabase implements AutoCloseable {
             this.connection = DriverManager.getConnection("jdbc:sqlite:" + path, config.toProperties());
         } catch (final SQLException ex) {
             throw new IllegalStateException("Unable to open the SQLite database at " + path + ": " + ex.getMessage(), ex);
+        }
+    }
+
+    private SqliteDatabase(final String path, final Connection connection) {
+        this.path = path;
+        this.connection = connection;
+    }
+
+    /**
+     * Opens an existing database read-only, changing nothing about the file: not its contents, its permissions, or
+     * its journal mode. For reading a database another tool will take over, such as a migration to other storage.
+     *
+     * @throws IllegalStateException when there is no database at {@code path}, or it cannot be opened.
+     */
+    public static SqliteDatabase openReadOnly(final String path) {
+        if (!Files.isRegularFile(Path.of(path))) {
+            throw new IllegalStateException("There is no SQLite database at " + path + ".");
+        }
+        final SQLiteConfig config = new SQLiteConfig();
+        config.setReadOnly(true);
+        config.setBusyTimeout(BUSY_TIMEOUT_MILLIS);
+        try {
+            return new SqliteDatabase(path, DriverManager.getConnection("jdbc:sqlite:" + path, config.toProperties()));
+        } catch (final SQLException ex) {
+            throw new IllegalStateException("Unable to open the SQLite database at " + path + " read-only: "
+                    + ex.getMessage(), ex);
         }
     }
 

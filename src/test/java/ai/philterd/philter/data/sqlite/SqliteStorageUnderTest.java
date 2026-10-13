@@ -62,34 +62,40 @@ import java.util.function.Supplier;
  * file, as another Philter process would; SQLite storage supports one instance, but its writes must still be
  * atomic across connections.
  */
-final class SqliteStorageUnderTest implements StorageUnderTest {
+public final class SqliteStorageUnderTest implements StorageUnderTest {
 
     private final String path;
     private final SqliteDatabase database;
     private final List<SqliteDatabase> opened;
-    private final EncryptionService encryption = new TestEncryptionService();
+    private final EncryptionService encryption;
     private final ContextCache contextCache = new ContextCache("", 0, "", false);
     private final ApiKeyCache apiKeyCache = new ApiKeyCache("", 0, "", false);
     private final Map<String, Object> services = new HashMap<>();
 
     /** Opens a new database file at {@code path}, brought to the current schema version. */
     static SqliteStorageUnderTest create(final String path) {
+        return create(path, new TestEncryptionService());
+    }
+
+    /** As above, encrypting with {@code encryption}. */
+    public static SqliteStorageUnderTest create(final String path, final EncryptionService encryption) {
         final List<SqliteDatabase> opened = new ArrayList<>();
-        final SqliteStorageUnderTest storage = new SqliteStorageUnderTest(path, opened);
+        final SqliteStorageUnderTest storage = new SqliteStorageUnderTest(path, opened, encryption);
         new SchemaMigrator(new SqliteSchemaStore(storage.database, SqliteMigrations.all(storage.database)),
                 SqliteMigrations.all(storage.database), Duration.ofSeconds(10)).migrate();
         return storage;
     }
 
-    private SqliteStorageUnderTest(final String path, final List<SqliteDatabase> opened) {
+    private SqliteStorageUnderTest(final String path, final List<SqliteDatabase> opened, final EncryptionService encryption) {
         this.path = path;
+        this.encryption = encryption;
         this.database = new SqliteDatabase(path);
         this.opened = opened;
         opened.add(database);
     }
 
     /** Closes every connection this storage and its other instances opened. */
-    void close() {
+    public void close() {
         opened.forEach(SqliteDatabase::close);
     }
 
@@ -295,7 +301,7 @@ final class SqliteStorageUnderTest implements StorageUnderTest {
 
     @Override
     public StorageUnderTest anotherInstance() {
-        return new SqliteStorageUnderTest(path, opened);
+        return new SqliteStorageUnderTest(path, opened, encryption);
     }
 
     @Override

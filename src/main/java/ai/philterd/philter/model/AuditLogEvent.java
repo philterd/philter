@@ -121,6 +121,9 @@ public enum AuditLogEvent {
     // A storage lock left held by a Philter that stopped was cleared when SQLite storage started.
     STORAGE_GUARD_RECOVERED("storage_guard_recovered"),
 
+    // Philter's data was copied from SQLite to MongoDB with migrate-storage, and the copy verified.
+    STORAGE_MIGRATED("storage_migrated"),
+
     // Settings
     SETTINGS_UPDATED("settings_updated"),
 

@@ -24,6 +24,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.config.TlsVerificationConfig;
+import ai.philterd.philter.data.migration.MigrateStorageCommand;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
@@ -116,6 +117,12 @@ public class PhilterApplication {
     private final boolean CACHE_SSL = Boolean.parseBoolean(System.getenv().getOrDefault("CACHE_SSL", "false"));
 
     static void main(String[] args) {
+
+        // A command run instead of Philter, with Philter stopped.
+        if (args.length > 0 && MigrateStorageCommand.NAME.equals(args[0])) {
+            System.exit(MigrateStorageCommand.run(java.util.Arrays.asList(args).subList(1, args.length), System.getenv(),
+                    System.out, System.err));
+        }
 
         LOGGER.info("Starting Philter...");
         SpringApplication.run(PhilterApplication.class, args);

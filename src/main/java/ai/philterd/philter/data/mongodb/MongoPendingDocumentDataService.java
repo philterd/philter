@@ -17,6 +17,7 @@ package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.services.FairnessKeys;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredPendingDocumentDataService;
@@ -44,7 +45,9 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /** Stores the asynchronous queue in MongoDB, which removes finished documents after their retention period. */
@@ -149,9 +152,25 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
     }
 
     @Override
-    protected String insert(final SealedJob job, final long round) {
+    protected String insert(final SealedJob job, final Function<List<FairnessKeys.Queued>, FairnessKeys.Plan> planner) {
+        final List<FairnessKeys.Queued> pending = new ArrayList<>();
+        for (final Document queued : jobs.find(Filters.and(
+                        Filters.eq("user_id", MongoIds.objectId(job.entity().getUserId())),
+                        Filters.eq("status", PendingDocumentEntity.STATUS_PENDING)))
+                .projection(Projections.include("fairness_key", "fairness_round"))
+                .sort(Sorts.ascending("fairness_round", "submitted_at"))) {
+            pending.add(new FairnessKeys.Queued(MongoIds.hex(queued.getObjectId("_id")), queued.getString("fairness_key"),
+                    queued.getLong("fairness_round")));
+        }
+        final FairnessKeys.Plan plan = planner.apply(pending);
+        // Admission is serialized, but claims are not: a document claimed meanwhile keeps the round it was claimed
+        // in, which can give its owner one extra turn and never claims a document twice.
+        for (final Map.Entry<String, Long> moved : plan.reassigned().entrySet()) {
+            jobs.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(moved.getKey())),
+                    Filters.eq("status", PendingDocumentEntity.STATUS_PENDING)), Updates.set("fairness_round", moved.getValue()));
+        }
         final Document document = PendingDocumentDocuments.toDocument(job);
-        document.put("fairness_round", round);
+        document.put("fairness_round", plan.round());
         return MongoIds.hex(jobs.insertOne(document).getInsertedId().asObjectId().getValue());
     }
 

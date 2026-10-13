@@ -41,6 +41,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -137,7 +138,8 @@ class StorageFlowsApiIT {
 
         savePolicy("ssn-only", SSN_POLICY);
 
-        final HttpResponse<String> accepted = send(authenticated("/api/filter?p=ssn-only&c=default&filename=claim.pdf")
+        final HttpResponse<String> accepted = send(authenticated("/api/filter?p=ssn-only&c=default&filename=claim.pdf"
+                + "&fairness_key=reviewer-42")
                 .header("Content-Type", "application/pdf").POST(HttpRequest.BodyPublishers.ofByteArray(blankPdf())).build());
         assertEquals(202, accepted.statusCode(), accepted.body());
         final String documentId = gson.fromJson(accepted.body(), JsonObject.class).get("documentId").getAsString();
@@ -170,6 +172,22 @@ class StorageFlowsApiIT {
         }
         assertTrue(deleted == 200 || deleted == 204, "deleted: " + deleted);
         assertEquals(404, send(authenticated("/api/documents/" + documentId + "/status").GET().build()).statusCode());
+
+    }
+
+    @Test
+    @DisplayName("A fairness key that is not valid, or is on a synchronous request, is refused")
+    void anUnusableFairnessKeyIsRefused() throws Exception {
+
+        savePolicy("ssn-only", SSN_POLICY);
+
+        for (final String query : List.of("fairness_key=jane%40example.com", "fairness_key=", "fairness_key=" + "x".repeat(65),
+                "fairness_key=reviewer-42&async=false")) {
+            final HttpResponse<String> refused = send(authenticated("/api/filter?p=ssn-only&c=default&" + query)
+                    .header("Content-Type", "application/pdf").POST(HttpRequest.BodyPublishers.ofByteArray(blankPdf())).build());
+            assertEquals(400, refused.statusCode(), query + ": " + refused.body());
+            assertTrue(refused.body().contains("fairness_key"), refused.body());
+        }
 
     }
 

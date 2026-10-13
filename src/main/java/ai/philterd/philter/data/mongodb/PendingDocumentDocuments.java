@@ -40,6 +40,7 @@ public final class PendingDocumentDocuments {
         entity.setPolicyVersion(document.getInteger("policy_version", -1));
         entity.setPolicyContentHash(document.getString("policy_content_hash"));
         entity.setContextName(document.getString("context_name"));
+        entity.setFairnessKey(document.getString("fairness_key"));
         entity.setClientIpAddress(document.getString("client_ip_address"));
         entity.setEffectiveHash(document.getString("effective_hash"));
         entity.setEffectiveJson(SecretFields.open(encryptionService, document.getString("effective_json"), document.getString("effective_key")));
@@ -90,6 +91,7 @@ public final class PendingDocumentDocuments {
         document.put("policy_version", entity.getPolicyVersion());
         document.put("policy_content_hash", entity.getPolicyContentHash());
         document.put("context_name", entity.getContextName());
+        document.put("fairness_key", entity.getFairnessKey());
         document.put("client_ip_address", entity.getClientIpAddress());
         document.put("input_size", entity.getInput() == null ? 0L : (long) entity.getInput().length);
         document.put("effective_hash", entity.getEffectiveHash());

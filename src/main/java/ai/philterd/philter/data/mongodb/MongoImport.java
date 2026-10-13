@@ -398,6 +398,7 @@ public final class MongoImport implements AutoCloseable {
                     .append("claim_expires_at", date(row, "claim_expires_at"))
                     .append("reclaim_count", int32(row, "reclaim_count"))
                     .append("fairness_round", int64(row, "fairness_round"))
+                    .append("fairness_key", text(row, "fairness_key"))
                     .append("notification_pending", bool(row, "notification_pending"));
             // Left out, not null, when unset: claims and publication match on the field being absent.
             putIfPresent(job, "publication_started_at", date(row, "publication_started_at"));

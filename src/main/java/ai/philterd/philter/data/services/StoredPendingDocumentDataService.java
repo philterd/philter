@@ -21,15 +21,18 @@ import ai.philterd.philter.services.policies.EffectiveConfigurationLimits;
 import ai.philterd.philter.utils.EnvUtils;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
  * The rules for the asynchronous queue, the same in every storage implementation: the per-account and global
- * limits and their admission guard, the fairness rounds that keep one account from starving the others, the
- * claim lease, the checks on a submitted configuration, and how long finished documents are kept. An
- * implementation stores the documents and makes the claims and fenced transitions atomic.
+ * limits and their admission guard, the fairness rounds that keep one account from starving the others and the
+ * fairness keys that do the same within an account, the claim lease, the checks on a submitted configuration, and
+ * how long finished documents are kept. An implementation stores the documents and makes the claims and fenced
+ * transitions atomic.
  */
 public abstract class StoredPendingDocumentDataService implements PendingDocumentDataService {
 
@@ -105,8 +108,12 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
     /** Records the owner's last admitted round. */
     protected abstract void setOwnerRound(final String userId, final long round);
 
-    /** Stores an admitted document in this fairness round, and returns its id. */
-    protected abstract String insert(final SealedJob job, final long round);
+    /**
+     * Stores an admitted document and returns its id. The owner's pending documents, in the order they would be
+     * claimed, are passed to {@code planner}; the documents it names move to their new rounds, and the new document
+     * is stored in the round it gives.
+     */
+    protected abstract String insert(final SealedJob job, final Function<List<FairnessKeys.Queued>, FairnessKeys.Plan> planner);
 
     /**
      * Claims the pending document with the lowest fairness round, oldest first, for this worker with this token
@@ -172,7 +179,7 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
             }
             final long round = Math.max(globalRound(), ownerRound(entity.getUserId())) + 1;
             setOwnerRound(entity.getUserId(), round);
-            return insert(sealed, round);
+            return insert(sealed, pending -> FairnessKeys.plan(pending, entity.getFairnessKey(), round));
         });
     }
 

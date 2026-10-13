@@ -3373,6 +3373,15 @@
               "type": "boolean",
               "default": true
             }
+          },
+          {
+            "description": "Optional, asynchronous requests only. Documents queued by one account with different fairness keys take turns, as different accounts do. The key is opaque to Philter: use an internal identifier, such as a user or group ID, and never personal data. 1 to 64 characters of letters, digits, '.', '_', ':' and '-'.",
+            "name": "fairness_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {

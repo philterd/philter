@@ -323,6 +323,73 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
         }
     }
 
+    private PendingDocumentEntity keyed(final String owner, final String fairnessKey) {
+        final PendingDocumentEntity job = job(owner, 1);
+        job.setFairnessKey(fairnessKey);
+        return job;
+    }
+
+    /** Claims every pending document, and returns each one's owner and key in the order they were claimed. */
+    private List<String> claimAll(final PendingDocumentDataService jobs, final String... owners) {
+        final List<String> claimed = new ArrayList<>();
+        for (PendingDocumentEntity next = jobs.claimNextPending("worker"); next != null; next = jobs.claimNextPending("worker")) {
+            claimed.add(List.of(owners).indexOf(next.getUserId()) + ":" + next.getFairnessKey());
+        }
+        return claimed;
+    }
+
+    @Test
+    default void pendingDocumentFairnessKeysOfOneOwnerTakeTurns() {
+        final PendingDocumentDataService jobs = storage().pendingDocuments();
+        final String owner = RecordIds.newId();
+        for (final String key : List.of("a", "a", "a", "b", "b")) {
+            jobs.save(keyed(owner, key));
+        }
+        assertEquals(List.of("0:a", "0:b", "0:a", "0:b", "0:a"), claimAll(jobs, owner));
+    }
+
+    @Test
+    default void pendingDocumentDocumentsWithoutAFairnessKeyAreClaimedInSubmissionOrder() {
+        final PendingDocumentDataService jobs = storage().pendingDocuments();
+        final String owner = RecordIds.newId();
+        final List<String> submitted = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            final PendingDocumentEntity job = job(owner, 1);
+            jobs.save(job);
+            submitted.add(job.getDocumentId());
+        }
+        final List<String> claimed = new ArrayList<>();
+        for (PendingDocumentEntity next = jobs.claimNextPending("worker"); next != null; next = jobs.claimNextPending("worker")) {
+            assertNull(next.getFairnessKey());
+            claimed.add(next.getDocumentId());
+        }
+        assertEquals(submitted, claimed);
+    }
+
+    @Test
+    default void pendingDocumentFairnessKeysDoNotChangeHowOwnersShareTheQueue() {
+        final PendingDocumentDataService jobs = storage().pendingDocuments();
+        final String keyed = RecordIds.newId();
+        final String plain = RecordIds.newId();
+        jobs.save(keyed(keyed, "a"));
+        jobs.save(keyed(keyed, "a"));
+        jobs.save(keyed(keyed, "b"));
+        jobs.save(job(plain, 1));
+        jobs.save(job(plain, 1));
+        // Without keys the owners would go 0, 1, 0, 1, 0. The keys reorder only the first owner's own documents.
+        assertEquals(List.of("0:a", "1:null", "0:b", "1:null", "0:a"), claimAll(jobs, keyed, plain));
+    }
+
+    @Test
+    default void pendingDocumentAFairnessKeyIsKeptWithTheDocument() {
+        final PendingDocumentDataService jobs = storage().pendingDocuments();
+        final String owner = RecordIds.newId();
+        final PendingDocumentEntity job = keyed(owner, "reviewer-42");
+        jobs.save(job);
+        assertEquals("reviewer-42", jobs.findOneByDocumentIdAndUserId(job.getDocumentId(), owner).getFairnessKey());
+        assertEquals("reviewer-42", jobs.claimNextPending("worker").getFairnessKey());
+    }
+
     @Test
     default void pendingDocumentConcurrentSubmissionsNeverExceedTheQueueLimits() throws Exception {
         try (MockedStatic<EnvUtils> env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {

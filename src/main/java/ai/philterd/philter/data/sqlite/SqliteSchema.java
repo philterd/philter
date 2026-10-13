@@ -289,6 +289,7 @@ final class SqliteSchema {
                 claim_expires_at INTEGER,
                 reclaim_count INTEGER NOT NULL DEFAULT 0,
                 fairness_round INTEGER NOT NULL DEFAULT 0,
+                fairness_key TEXT,
                 publication_started_at INTEGER,
                 notification_pending INTEGER NOT NULL DEFAULT 0,
                 notification_attempted_at INTEGER,

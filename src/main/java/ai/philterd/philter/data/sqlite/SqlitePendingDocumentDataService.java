@@ -16,6 +16,7 @@
 package ai.philterd.philter.data.sqlite;
 
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
+import ai.philterd.philter.data.services.FairnessKeys;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredPendingDocumentDataService;
@@ -26,6 +27,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
@@ -68,6 +71,7 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
         entity.setPolicyVersion(version == null ? -1 : version);
         entity.setPolicyContentHash(row.string("policy_content_hash"));
         entity.setContextName(row.string("context_name"));
+        entity.setFairnessKey(row.string("fairness_key"));
         entity.setClientIpAddress(row.string("client_ip_address"));
         entity.setEffectiveHash(row.string("effective_hash"));
         entity.setStatus(row.string("status"));
@@ -140,7 +144,7 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
     }
 
     @Override
-    protected String insert(final SealedJob job, final long round) {
+    protected String insert(final SealedJob job, final Function<List<FairnessKeys.Queued>, FairnessKeys.Plan> planner) {
         final PendingDocumentEntity entity = job.entity();
         final String id = entity.getId() != null ? entity.getId() : ai.philterd.philter.data.RecordIds.newId();
         final SecretFields.Sealed effective = job.effective();
@@ -148,12 +152,21 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
         final SecretFields.SealedBytes output = job.output();
         database.write(connection -> {
             prune(connection);
+            // In the same write as the claims, so no document is claimed while its round is moving.
+            final FairnessKeys.Plan plan = planner.apply(Sql.query(connection, "SELECT id, fairness_key, fairness_round "
+                    + "FROM pending_documents WHERE user_id = ? AND status = ? ORDER BY fairness_round ASC, submitted_at ASC, "
+                    + "seq ASC", row -> new FairnessKeys.Queued(row.string("id"), row.string("fairness_key"),
+                    row.longValue("fairness_round")), entity.getUserId(), PendingDocumentEntity.STATUS_PENDING));
+            for (final Map.Entry<String, Long> moved : plan.reassigned().entrySet()) {
+                Sql.update(connection, "UPDATE pending_documents SET fairness_round = ? WHERE id = ?",
+                        moved.getValue(), moved.getKey());
+            }
             return Sql.update(connection, "INSERT INTO pending_documents (id, user_id, document_id, file_name, input_mime_type, "
                     + "output_mime_type, policy_name, policy_version, policy_content_hash, context_name, client_ip_address, "
                     + "input_size, effective_hash, effective_json, effective_key, status, error_message, input, "
                     + "input_encrypted_key, output, output_encrypted_key, submitted_at, started_at, completed_at, claimed_by, "
-                    + "claimed_at, claim_token, claim_expires_at, reclaim_count, fairness_round) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    + "claimed_at, claim_token, claim_expires_at, reclaim_count, fairness_round, fairness_key) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     id, entity.getUserId(), entity.getDocumentId(), entity.getFileName(), entity.getInputMimeType(),
                     entity.getOutputMimeType(), entity.getPolicyName(), entity.getPolicyVersion(), entity.getPolicyContentHash(),
                     entity.getContextName(), entity.getClientIpAddress(),
@@ -163,7 +176,7 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
                     input == null ? null : input.key(), output == null ? null : output.ciphertext(),
                     output == null ? null : output.key(), entity.getSubmittedAt(), entity.getStartedAt(),
                     entity.getCompletedAt(), entity.getClaimedBy(), entity.getClaimedAt(), entity.getClaimToken(),
-                    entity.getClaimExpiresAt(), entity.getReclaimCount(), round);
+                    entity.getClaimExpiresAt(), entity.getReclaimCount(), plan.round(), entity.getFairnessKey());
         });
         return id;
     }

@@ -26,6 +26,7 @@ The types of sensitive information found and how each type is redacted is determ
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
+* `fairness_key` - **Asynchronous PDF only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
 * `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF and ZIP requests with `sign=true` are refused with `400 Bad Request`, because PDF responses are not signed.
 
 ### Headers
@@ -116,6 +117,22 @@ curl -k -X POST "https://localhost:8080/api/filter?async=false" \
 ```
 
 > **Migration from 3.x.** Clients that previously consumed the redacted bytes directly from `POST /api/filter` should either (a) add `?async=false` to keep the synchronous behavior, or (b) switch to the async flow (poll `GET /api/documents/{id}/status`, then download from `GET /api/documents/{id}`). Async deliveries can additionally trigger a signed [webhook](webhooks.md) when they complete.
+
+#### Fairness keys
+
+Queued documents from different accounts take turns, so one account's large batch does not hold up every other account's documents. A client that submits on behalf of many people under one account, such as a review application, can pass `fairness_key` to get the same turn-taking among its own documents: documents with different keys take turns. A key's first document waits for one document from each key already in the queue, not for all of them.
+
+```
+curl -k -X POST "https://localhost:8080/api/filter?fairness_key=reviewer-42" \
+  -d @file.pdf \
+  -H "Content-Type: application/pdf" \
+  -H "Authorization: Bearer <token>"
+```
+
+* The key is opaque to Philter. Use an internal identifier such as a user or group ID. **Do not put personal data in a fairness key**: it is stored unencrypted with the queued document so that the queue can be ordered.
+* A key is 1 to 64 characters of letters, digits, `.`, `_`, `:` and `-`. Any other value is refused with `400 Bad Request`, as is a key on a request with `async=false`.
+* Fairness keys change only the order of your own account's documents. Your account's share of the queue, relative to other accounts, is the same with or without them.
+* Documents queued without a key take turns together, as if they shared one key. An account that never passes a key has its documents claimed in submission order, as before.
 
 ## Explain
 

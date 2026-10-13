@@ -43,6 +43,8 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     public void setEffectiveHash(String value) { effectiveHash = value; }
 
     private String contextName;
+    // Opaque to Philter: documents of one account with different keys take turns in the queue.
+    private String fairnessKey;
     // The address of the request that submitted the document, recorded on the audit events the worker writes.
     private String clientIpAddress;
     private String status;
@@ -138,6 +140,14 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
 
     public void setContextName(final String contextName) {
         this.contextName = contextName;
+    }
+
+    public String getFairnessKey() {
+        return fairnessKey;
+    }
+
+    public void setFairnessKey(final String fairnessKey) {
+        this.fairnessKey = fairnessKey;
     }
 
     public String getClientIpAddress() {

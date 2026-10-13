@@ -33,6 +33,7 @@ import ai.philterd.philter.audit.ClientAddress;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
+import ai.philterd.philter.data.services.FairnessKeys;
 import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -40,6 +41,7 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -88,6 +90,12 @@ public class FilterApiController extends AbstractApiController {
                     + "admin setting is a floor: with it on every response is signed and sign=false "
                     + "does not change that.";
 
+    private static final String FAIRNESS_KEY_PARAMETER =
+            "Optional, asynchronous requests only. Documents queued by one account with different fairness keys take "
+                    + "turns, as different accounts do. The key is opaque to Philter: use an internal identifier, such as "
+                    + "a user or group ID, and never personal data. 1 to 64 characters of letters, digits, '.', '_', ':' "
+                    + "and '-'.";
+
     private final SigningService signingService;
 
     @Autowired
@@ -126,6 +134,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as ZIP. async={}", async);
@@ -137,11 +147,13 @@ public class FilterApiController extends AbstractApiController {
         }
 
         rejectSigningRequest(sign);
+        rejectFairnessKey(async, fairnessKey);
 
         final String userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context, filename);
+            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context, filename,
+                    fairnessKey);
         }
 
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename);
@@ -174,6 +186,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as PDF. async={}", async);
@@ -185,11 +199,13 @@ public class FilterApiController extends AbstractApiController {
         }
 
         rejectSigningRequest(sign);
+        rejectFairnessKey(async, fairnessKey);
 
         final String userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context, filename);
+            return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context, filename,
+                    fairnessKey);
         }
 
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename);
@@ -267,9 +283,26 @@ public class FilterApiController extends AbstractApiController {
         }
     }
 
+    /**
+     * A fairness key orders queued documents, so one on a synchronous request, or one that is not a valid key, is
+     * refused rather than ignored.
+     */
+    private static void rejectFairnessKey(final boolean async, final String fairnessKey) {
+        if (fairnessKey == null) {
+            return;
+        }
+        if (!async) {
+            throw new BadRequestException("fairness_key applies only to asynchronous requests. Omit it, or omit async=false.");
+        }
+        if (!FairnessKeys.isValid(fairnessKey)) {
+            throw new BadRequestException("fairness_key must be 1 to " + FairnessKeys.MAX_LENGTH
+                    + " characters of letters, digits, '.', '_', ':' and '-'.");
+        }
+    }
+
     private ResponseEntity<byte[]> enqueueBinary(final String userId, final byte[] body, final MimeType inputMimeType,
                                                  final String outputMimeType, final String policyName, final String contextName,
-                                                 final String filename) throws PolicyNotFoundException {
+                                                 final String filename, final String fairnessKey) throws PolicyNotFoundException {
 
         ai.philterd.philter.services.filtering.PdfInputValidator.validate(body);
 
@@ -283,6 +316,7 @@ public class FilterApiController extends AbstractApiController {
         entity.setOutputMimeType(outputMimeType);
         entity.setPolicyName(policyName);
         entity.setContextName(contextName);
+        entity.setFairnessKey(fairnessKey);
         entity.setClientIpAddress(ClientAddress.current());
         entity.setStatus(PendingDocumentEntity.STATUS_PENDING);
         entity.setInput(body);

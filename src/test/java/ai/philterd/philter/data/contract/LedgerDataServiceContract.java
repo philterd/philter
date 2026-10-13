@@ -321,4 +321,20 @@ public interface LedgerDataServiceContract extends StorageContract {
         assertTrue(storage().ledger().validateChain(owner, "doc").valid(), "one unbroken chain");
     }
 
+    @Test
+    default void ledgerARefusedFirstEntryLeavesTheEmptyChainWithNoLatestEntryTime() throws Exception {
+        final String owner = RecordIds.newId();
+        // The first entry of an empty chain must be a genesis entry; this one is refused.
+        final LedgerEntity notGenesis = entryAt(owner, "empty", "not-the-genesis", daysAgo(10));
+        assertThrows(StaleLedgerEntryException.class, () -> storage().ledger().addTransaction(notGenesis));
+
+        // The chain has no entries, so it has no time of a latest entry, and a purge by age never treats it as old:
+        // purging it would fence its document id against any later chain.
+        storage().ledger().completeChain(owner, "empty");
+        storage().backdateLedgerChainCompletion(owner, "empty", daysAgo(10));
+        final ServiceResponse purged = storage().ledger().deleteChainsByUserIdAndOlderThan("req", owner, 1);
+        assertTrue(purged.isSuccessful(), purged.getMessage());
+        assertTrue(purged.getMessage().contains("in 0 completed chains"), purged.getMessage());
+    }
+
 }

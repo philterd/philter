@@ -181,7 +181,7 @@ Each filter holds its strategies under a filter-specific key. The key is the fil
 
 ### Filters with extra properties
 
-Most filters only add their strategies list to the common properties. The following filters have additional, filter-specific properties.
+Many filters accept properties of their own, besides their strategies list and the common properties. Each built-in filter's page under [Filters](filters.md) lists them; the custom filters are documented here.
 
 **`dictionaries` (custom dictionary filter)** detects terms from a user-defined list. Uses `customFilterStrategies`.
 
@@ -192,7 +192,7 @@ Most filters only add their strategies list to the common properties. The follow
 | `files` | array of strings | | Paths to files of terms to detect. |
 | `fuzzy` | boolean | `false` | Enable approximate matching. |
 | `sensitivity` | string | `medium` | Fuzzy-match strictness: `auto`, `off`, `low`, `medium`, `high`. Applies only when `fuzzy` is `true`. The bundled schema lists a default of `off`; the engine's default is `medium`. |
-| `capitalized` | boolean | `false` | Only match capitalized variants. |
+| `capitalized` | boolean | `false` | Only report a match whose first letter is uppercase. Applies only when `fuzzy` is `true`; with exact matching it has no effect. |
 
 **`identifiers` (custom identifier filter)** detects matches of a custom regex. Uses `identifierFilterStrategies`.
 

@@ -14,6 +14,8 @@ This filter has no required parameters.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | `fuzzy`                   | When set to true, matching is fuzzy, using `sensitivity` to control the fuzziness. When false, terms are matched exactly, ignoring case. | `false`       |
 | `sensitivity`             | Controls the "fuzziness" of allowed values to account for misspellings and derivations. Valid values are `auto`, `off`, `low`, `medium`, and `high`. Only applies when `fuzzy` is set to `true`. | `medium`      |
+| `terms` | A list of terms to detect in place of the list bundled with Philter. When given, only these terms are detected and the bundled list is not used; an empty list uses the bundled list. They are matched the way `fuzzy` says: exactly, ignoring case, or fuzzily. | None (the bundled list) |
+| `capitalized` | When set to true, a match is reported only when its first letter is uppercase, so a term that is also an ordinary word is not reported when written in lowercase. Applies only when `fuzzy` is set to `true`; with exact matching it has no effect, and a match is reported whatever its case. | `false` |
 | `surnameFilterStrategies` | A list of filter strategies.                                                                                                          | None          |
 | `enabled`                 | When set to false, the filter will be disabled and not applied                                                                        | `true`        |
 | `ignored`                 | A list of terms to be ignored by the filter.                                                                                          | None          |
@@ -29,6 +31,7 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 | `STATIC_REPLACE`      | Replace the sensitive text with a given value.           |
 | `CRYPTO_REPLACE`      | Replace the sensitive text with its encrypted value.     |
 | `HASH_SHA256_REPLACE` | Replace the sensitive text with its SHA256 hash value.   |
+| `ABBREVIATE`          | Replace the sensitive text with the uppercase initials of its words, such as `J` for `John`. See [ABBREVIATE](../../filter_strategies.md#the-abbreviate-filter-strategy). |
 
 ### Conditions
 
@@ -46,6 +49,28 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 {
    "identifiers": {
       "surname": {
+         "surnameFilterStrategies": [
+            {
+               "strategy": "REDACT",
+               "redactionFormat": "{{{REDACTED-%t}}}"
+            }
+         ]
+      }
+   }
+}
+```
+
+### Using your own terms
+
+To detect only your own list of terms, give them in `terms`. With `fuzzy` set to `true`, close misspellings of a term can also be detected, as `sensitivity` allows; with `capitalized` also set to `true`, a term written in lowercase is not reported:
+
+```
+{
+   "identifiers": {
+      "surname": {
+         "terms": ["Baker", "Cook"],
+         "fuzzy": true,
+         "capitalized": true,
          "surnameFilterStrategies": [
             {
                "strategy": "REDACT",

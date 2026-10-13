@@ -23,6 +23,7 @@ At least one of `terms` or `files` must be provided.
 | `fuzzy`          | When set to true, the dictionary will employ fuzzy comparisons. Use the `sensitivity` parameter to control the level of fuzziness. Setting this value to false will disable fuzziness and provide a higher level of performance. | `false`               |
 | `classification` | Used to apply an arbitrary label to the identifier, such as "patient-id", or "account-number."                                                                                                                                   | None                  |
 | `sensitivity`    | Controls the "fuzziness" of allowed values to account for misspellings and derivations. Valid values are `auto`, `off`, `low`, `medium`, and `high`. Only applies when `fuzzy` is set to `true`.                                 | `medium`              |
+| `capitalized`    | When set to true, a match is reported only when its first letter is uppercase, so a term that is also an ordinary word is not reported when written in lowercase. Applies only when `fuzzy` is set to `true`; with exact matching it has no effect. | `false` |
 
 ### Filter Strategies
 

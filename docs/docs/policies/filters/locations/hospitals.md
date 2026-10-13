@@ -15,6 +15,8 @@ This filter has no required parameters.
 | `hospitalFilterStrategies` | A list of filter strategies.                                                                                                          | None          |
 | `fuzzy`                    | When set to true, matching is fuzzy, using `sensitivity` to control the fuzziness. When false, terms are matched exactly, ignoring case. | `false`       |
 | `sensitivity`              | Controls the "fuzziness" of allowed values to account for misspellings and derivations. Valid values are `auto`, `off`, `low`, `medium`, and `high`. Only applies when `fuzzy` is set to `true`. | `medium`      |
+| `terms` | A list of terms to detect in place of the list bundled with Philter. When given, only these terms are detected and the bundled list is not used; an empty list uses the bundled list. They are matched the way `fuzzy` says: exactly, ignoring case, or fuzzily. | None (the bundled list) |
+| `capitalized` | When set to true, a match is reported only when its first letter is uppercase, so a term that is also an ordinary word is not reported when written in lowercase. Applies only when `fuzzy` is set to `true`; with exact matching it has no effect, and a match is reported whatever its case. | `false` |
 
 ### Filter Strategies
 
@@ -46,6 +48,28 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
       "hospital": {
          "fuzzy": true,
          "sensitivity": "medium",
+         "hospitalFilterStrategies": [
+            {
+               "strategy": "REDACT",
+               "redactionFormat": "{{{REDACTED-%t}}}"
+            }
+         ]
+      }
+   }
+}
+```
+
+### Using your own terms
+
+To detect only your own list of terms, give them in `terms`. With `fuzzy` set to `true`, close misspellings of a term can also be detected, as `sensitivity` allows; with `capitalized` also set to `true`, a term written in lowercase is not reported:
+
+```
+{
+   "identifiers": {
+      "hospital": {
+         "terms": ["Mercy General", "St. Jude"],
+         "fuzzy": true,
+         "capitalized": true,
          "hospitalFilterStrategies": [
             {
                "strategy": "REDACT",

@@ -4,6 +4,8 @@
 
 This filter identifies tracking numbers in text. FedEx, UPS, and USPS tracking number formats are supported.
 
+By default a tracking number must be written without spaces, except for a 20-digit USPS number beginning with 92, 93, 94, or 95 and written in groups of four digits, such as `9400 1000 0000 0000 0000`, which is always detected. Set `allowSpaces` to `true` to detect other spaced forms.
+
 ### Required Parameters
 
 This filter has no required parameters.
@@ -18,6 +20,7 @@ This filter has no required parameters.
 | `ups`                            | When set to false, UPS tracking number formats are not detected.   | `true`        |
 | `fedex`                          | When set to false, FedEx tracking number formats are not detected. | `true`        |
 | `usps`                           | When set to false, USPS tracking number formats are not detected.  | `true`        |
+| `allowSpaces`                    | When set to true, a tracking number is also detected when written with single spaces between its characters, such as `1Z 999 AA1 0123 4567 84`. This also makes other spaced runs of digits of the same lengths match, such as `1234 5678 9012`, which has the length of a FedEx number, so it can report values that are not tracking numbers. | `false`       |
 
 ### Filter Strategies
 

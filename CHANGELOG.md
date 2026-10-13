@@ -78,6 +78,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Java 25 is required.**
 - **No built-in UI.** [Philter UI](https://github.com/philterd/philter-ui), in development, is separate.
 - **PDF redaction is asynchronous by default.** Append `?async=false` for the previous behavior.
+- **`token !=` conditions apply.** A strategy with a condition such as `token != "127.0.0.1"` was
+  never applied before; it now applies to every value other than the one named, ignoring case. Review
+  policies that use `token !=`. See [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).
 - **Outbound HTTPS verifies certificates.** `TLS_TRUST_ALL_ENABLED=true` restores the previous behavior.
 - **`POST /api/policies` only creates.** A name in use returns `409`; replace a policy with
   `PUT /api/policies/{name}`.

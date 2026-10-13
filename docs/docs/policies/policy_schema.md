@@ -299,12 +299,13 @@ Additional date strategy properties:
 
 ### Conditions
 
-The `condition` property is an expression that gates whether a strategy applies. It supports the fields `token`, `context`, `confidence`, and `population` (zip code filter), the operators `startswith`, `==`, `!=`, `>`, `<`, `>=`, `<=`, `is`, and `is not`, and multiple clauses joined with `and` or `AND`. String values must be in double quotes. For `token`, the engine evaluates `==` (case-insensitive), `startswith`, and, on the date filter, `is` and `is not` with `"birthdate"`, `"deathdate"`, or `"birthdate or deathdate"`. `context` supports `==` and `!=`. The grammar also accepts a `type` field (`PER` or `LOC`), but no filter evaluates it, so a clause on `type` is never satisfied.
+The `condition` property is an expression that gates whether a strategy applies. It supports the fields `token`, `context`, `confidence`, and `population` (zip code filter), the operators `startswith`, `==`, `!=`, `>`, `<`, `>=`, `<=`, `is`, and `is not`, and multiple clauses joined with `and` or `AND`. String values must be in double quotes. For `token`, the engine evaluates `==` and `!=` (both case-insensitive), `startswith` (case-sensitive), and, on the date filter, `is` and `is not` with `"birthdate"`, `"deathdate"`, or `"birthdate or deathdate"`. `context` supports `==` and `!=`. The grammar also accepts a `type` field (`PER` or `LOC`), but no filter evaluates it, so a clause on `type` is never satisfied.
 
 Examples:
 
 * `confidence > 0.9`
 * `token startswith "5"`
+* `token != "127.0.0.1"`
 * `population < 4500`
 * `token is "birthdate"` (date filter)
 * `token is "birthdate or deathdate"` (date filter)

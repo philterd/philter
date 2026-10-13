@@ -34,7 +34,7 @@ Each filter strategy may have one condition. The strategy is only applied when t
 
 | Conditional  | Description                                                              | Operators                          |
 | ------------ | ------------------------------------------------------------------------ | ---------------------------------- |
-| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `startswith`                 |
+| `TOKEN`      | Compares the value of the sensitive text.                                | `==`, `!=`, `startswith`           |
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 

@@ -164,4 +164,17 @@ class FilterOptionsApiIT {
         assertEquals("J and M went home.", redact("abbreviate", "John and Mary went home."));
     }
 
+    @Test
+    @DisplayName("A token != condition applies its strategy to every value except the one it names, ignoring case")
+    void tokenNotEquals() throws Exception {
+        savePolicy("not-localhost", "\"ipAddress\":{\"ipAddressFilterStrategies\":[{\"condition\":\"token != \\\"127.0.0.1\\\"\","
+                + "\"strategy\":\"STATIC_REPLACE\",\"staticReplacement\":\"IP_ADDRESS\"}]}");
+        assertEquals("From IP_ADDRESS to 127.0.0.1.", redact("not-localhost", "From 192.168.1.20 to 127.0.0.1."));
+
+        savePolicy("not-test", "\"emailAddress\":{\"emailAddressFilterStrategies\":[{\"condition\":"
+                + "\"token != \\\"Test@Example.com\\\"\",\"strategy\":\"REDACT\",\"redactionFormat\":\"{{{REDACTED-%t}}}\"}]}");
+        assertEquals("Write {{{REDACTED-email-address}}}, not test@example.com.",
+                redact("not-test", "Write jane@example.org, not test@example.com."));
+    }
+
 }

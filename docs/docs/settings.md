@@ -206,7 +206,7 @@ Required TTL indexes are verified at startup. Conflicting options or unexpected 
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
-| `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep terminal asynchronous records after notification acknowledgement. | `604800` (7 days) |
+| `PENDING_DOCUMENTS_TTL_SECONDS` | How long to keep a finished asynchronous redaction's record, including its encrypted redacted document, after the job completed or failed and its notification was queued. Deleting the document removes it sooner. See [what Philter keeps](api_and_sdks/api/documents_api.md#what-philter-keeps-and-for-how-long). | `604800` (7 days) |
 | `WEBHOOK_DELIVERIES_TTL_SECONDS` | How long to keep delivered or failed webhook records after completion. | `2592000` (30 days) |
 | `DOCUMENT_CLAIM_LEASE_SECONDS` | How long a worker owns an asynchronous document job before another worker may recover it. Must be positive; a non-positive value prevents startup. A worker that stops mid-redaction parks the job until this expires, so a deployment doing short redactions may want less than the default. A worker renews its lease every third of this value (at most every 60 seconds) while it is still working, so a long redaction is not interrupted by a short lease. | `600` (10 minutes) |
 | `WEBHOOK_CLAIM_LEASE_SECONDS` | How long a worker owns a webhook attempt before another worker may recover it. Must be positive; allow enough time for the configured HTTP timeouts and processing overhead. Abandoned claims count toward the eight-attempt limit. | `300` (5 minutes) |

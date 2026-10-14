@@ -175,6 +175,8 @@ class StorageFlowsApiIT {
         assertTrue(listed.body().contains(documentId), listed.body());
         assertTrue(listed.body().contains("\"policyName\":\"ssn-only\""), listed.body());
 
+        assertEquals(1, storedJobRecords(documentId), "the check reads the job's record before it is deleted");
+
         // Deleting waits until the completion notification has been dispatched.
         int deleted = 0;
         for (int attempt = 0; attempt < 100 && deleted != 200 && deleted != 204; attempt++) {
@@ -185,6 +187,7 @@ class StorageFlowsApiIT {
         }
         assertTrue(deleted == 200 || deleted == 204, "deleted: " + deleted);
         assertEquals(404, send(authenticated("/api/documents/" + documentId + "/status").GET().build()).statusCode());
+        assertEquals(0, storedJobRecords(documentId), "no record of the document, its input, or its output remains");
 
     }
 
@@ -258,6 +261,24 @@ class StorageFlowsApiIT {
 
     @Autowired
     private org.springframework.context.ApplicationContext context;
+
+    /** How many job records the storage this run uses holds for the document, read directly rather than through Philter. */
+    private long storedJobRecords(final String documentId) {
+        if (context.getBeanNamesForType(ai.philterd.philter.data.sqlite.SqliteDatabase.class).length > 0) {
+            return context.getBean(ai.philterd.philter.data.sqlite.SqliteDatabase.class).read(connection -> {
+                try (java.sql.PreparedStatement statement = connection.prepareStatement(
+                        "SELECT COUNT(*) FROM pending_documents WHERE document_id = ?")) {
+                    statement.setString(1, documentId);
+                    try (java.sql.ResultSet rows = statement.executeQuery()) {
+                        rows.next();
+                        return rows.getLong(1);
+                    }
+                }
+            });
+        }
+        return context.getBean(com.mongodb.client.MongoClient.class).getDatabase("philter")
+                .getCollection("pending_documents").countDocuments(new org.bson.Document("document_id", documentId));
+    }
 
     @Test
     @DisplayName("Only the selected storage is set up, and it is the storage this run is for")

@@ -38,6 +38,20 @@ A submitted document moves through one of the following statuses:
 
 Terminal records are retained for `PENDING_DOCUMENTS_TTL_SECONDS` (default 7 days) from `retention_at`, set when notification enqueueing is acknowledged. Undispatched intents do not expire and deletion returns HTTP 409 with `Retry-After: 5` while an intent is pending.
 
+### What Philter keeps, and for how long
+
+An asynchronous redaction is the only place Philter keeps a whole document. The submitted document, the redacted document, and the configuration captured for the job are encrypted at rest under `PHILTER_ENCRYPTION_KEY`; the status, error message, file name, and policy name are not. Each part is removed at a defined point:
+
+| Part | Kept until |
+|------|------------|
+| The submitted document | The job completes or fails. A job whose worker stops is recovered and retried; after three recoveries it fails, and its document is removed the same way. |
+| The redacted document | You delete it with `DELETE /api/documents/{documentId}`, or its record expires. Downloading it does not remove it. |
+| The record: status, error, file name, policy, and the configuration captured for the job | You delete it, or `PENDING_DOCUMENTS_TTL_SECONDS` (default 7 days) after the job finished and its notification was queued. |
+
+Deleting a document removes its whole record at once, including a job that has not run yet. Expiry is applied by a TTL index with MongoDB, whose background task runs about once a minute, and by a check every minute with SQLite, so a record can outlast its retention period by a short time, longer when the database is busy. Download the result and delete it as soon as you have it to keep it for the least time.
+
+When the document's context has the [redaction ledger](../../redaction/ledgers.md) on, the ledger also records the original value of each redacted span, encrypted. Deleting the document or its expiry does not remove those entries; see [How and When Ledger Entries Are Deleted](../../redaction/ledgers.md#how-and-when-ledger-entries-are-deleted).
+
 ## List Documents
 
 | Method | Endpoint         | Description                                              |

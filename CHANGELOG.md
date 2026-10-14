@@ -199,6 +199,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   [Users API](docs/docs/api_and_sdks/api/users_api.md#change-your-own-password). The API documentation now also
   says which limits Philter enforces and recommends per-key limits at a proxy for re-identification and ledger
   export. See [Rate limiting](docs/docs/api_and_sdks/api.md#rate-limiting).
+- **What an asynchronous redaction keeps is documented and tested.** The Documents API documentation now says what
+  Philter keeps for a queued document and for how long, and storage tests on MongoDB and SQLite confirm that the
+  submitted and redacted documents are encrypted at rest, that deleting a document removes its record, and that a
+  failed job, including one abandoned after its final recovery, keeps no copy of the submitted document. See
+  [Documents API](docs/docs/api_and_sdks/api/documents_api.md#what-philter-keeps-and-for-how-long).
 - **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
   cached data, and when it was full every username was treated as locked, so one user redacting a document with many
   distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, where no other

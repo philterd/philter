@@ -428,4 +428,84 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
                 + "and in its snapshot");
     }
 
+    private static byte[] bytes(final String text) {
+        return text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Test
+    default void pendingDocumentInputAndOutputAreEncryptedAtRest() {
+        final String owner = RecordIds.newId();
+        final byte[] input = bytes("Patient Jane Roe, SSN 123-45-6789, submitted for redaction.");
+        final String documentId = submit(owner, input);
+        assertFalse(storage().storageContainsBytes(input), "the submitted document is not stored readably");
+        assertFalse(storage().storageContains("123-45-6789"));
+
+        final PendingDocumentDataService jobs = storage().pendingDocuments();
+        final PendingDocumentEntity claim = jobs.claimNextPending("worker");
+        assertTrue(jobs.beginPublication(claim.getId(), claim.getClaimToken()));
+        final byte[] output = bytes("Patient [REDACTED], SSN [REDACTED], redacted output 7f3a.");
+        assertTrue(jobs.markComplete(claim.getId(), owner, claim.getClaimToken(), output));
+        assertFalse(storage().storageContainsBytes(output), "the redacted document is not stored readably");
+        assertArrayEquals(output, jobs.findOneByDocumentIdAndUserId(documentId, owner).getOutput());
+    }
+
+    @Test
+    default void pendingDocumentDeletingADocumentRemovesWhatItHolds() {
+        // Stored as is, so a copy left behind would be found in the raw storage.
+        final PendingDocumentDataService jobs = storage().pendingDocumentsEncryptingWith(
+                new ai.philterd.philter.testutil.PlaintextEncryptionService());
+        final String owner = RecordIds.newId();
+
+        final PendingDocumentEntity queued = job(owner, 0);
+        final byte[] queuedInput = bytes("queued input 5c1e");
+        queued.setInput(queuedInput);
+        jobs.save(queued);
+        assertTrue(storage().storageContainsBytes(queuedInput), "the check can see a stored copy");
+        assertEquals(1, jobs.deleteByDocumentIdAndUserId(queued.getDocumentId(), owner));
+        assertFalse(storage().storageContainsBytes(queuedInput), "a queued document's input is removed");
+        assertFalse(storage().storageContains(queued.getDocumentId()), "and no record of it remains");
+
+        final PendingDocumentEntity done = job(owner, 0);
+        done.setInput(bytes("completed input 9d2b"));
+        jobs.save(done);
+        final PendingDocumentEntity claim = jobs.claimNextPending("worker");
+        assertTrue(jobs.beginPublication(claim.getId(), claim.getClaimToken()));
+        final byte[] output = bytes("completed output 4e8a");
+        assertTrue(jobs.markComplete(claim.getId(), owner, claim.getClaimToken(), output));
+        assertTrue(storage().storageContainsBytes(output));
+        jobs.recordNotificationAttempt(claim.getId());
+        jobs.acknowledgeNotification(claim.getId());
+        assertEquals(1, jobs.deleteByDocumentIdAndUserId(done.getDocumentId(), owner));
+        assertFalse(storage().storageContainsBytes(output), "a completed document's output is removed");
+        assertFalse(storage().storageContains(done.getDocumentId()), "and no record of it remains");
+    }
+
+    @Test
+    default void pendingDocumentAFailedDocumentKeepsNoInput() {
+        final PendingDocumentDataService jobs = storage().pendingDocumentsEncryptingWith(
+                new ai.philterd.philter.testutil.PlaintextEncryptionService());
+        final String owner = RecordIds.newId();
+
+        // Abandoned past the reclaim limit.
+        final PendingDocumentEntity abandoned = job(owner, 0);
+        final byte[] abandonedInput = bytes("abandoned input 2b7c");
+        abandoned.setInput(abandonedInput);
+        jobs.save(abandoned);
+        assertTrue(storage().storageContainsBytes(abandonedInput), "the check can see a stored copy");
+        assertNotNull(jobs.claimNextPending("worker that dies"));
+        assertEquals(0, jobs.reclaimStuckJobs(afterTheLease(), 0), "past the limit it is not returned to the queue");
+        assertEquals(PendingDocumentEntity.STATUS_FAILED,
+                jobs.findOneByDocumentIdAndUserId(abandoned.getDocumentId(), owner).getStatus());
+        assertFalse(storage().storageContainsBytes(abandonedInput), "a document abandoned too often keeps no input");
+
+        // Failed by its worker.
+        final PendingDocumentEntity failing = job(owner, 0);
+        final byte[] failingInput = bytes("failing input 8a1d");
+        failing.setInput(failingInput);
+        jobs.save(failing);
+        final PendingDocumentEntity claim = jobs.claimNextPending("worker");
+        assertTrue(jobs.markFailed(claim.getId(), claim.getClaimToken(), "The redaction failed."));
+        assertFalse(storage().storageContainsBytes(failingInput), "a failed document keeps no input");
+    }
+
 }

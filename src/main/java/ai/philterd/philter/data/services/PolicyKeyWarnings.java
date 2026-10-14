@@ -44,7 +44,7 @@ public final class PolicyKeyWarnings {
             LOGGER.warn("Policy '{}' stores its {} key in the policy itself. Policies are not encrypted "
                             + "at rest, so that key is readable by anyone who can read the database, and "
                             + "the values it encrypted are stored there too. Use \"env:VARIABLE_NAME\" to "
-                            + "read it from the environment instead.",
+                            + "read it from an environment variable listed in POLICY_ALLOWED_ENV_KEYS instead.",
                     policyName, section);
         }
 

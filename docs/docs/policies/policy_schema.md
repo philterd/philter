@@ -87,7 +87,7 @@ Global configuration settings.
 
 ## `crypto`
 
-Encryption settings used by the `CRYPTO_REPLACE` strategy. Philter encrypts using AES in GCM mode (authenticated encryption) with a random nonce generated per value. Only `key` is required. The `key` may be prefixed with `env:` to read it from an environment variable (for example, `env:CRYPTO_KEY`) so the secret is not stored in the policy.
+Encryption settings used by the `CRYPTO_REPLACE` strategy. Philter encrypts using AES in GCM mode (authenticated encryption) with a random nonce generated per value. Only `key` is required. The `key` may be prefixed with `env:` to read it from an environment variable (for example, `env:CRYPTO_KEY`) so the secret is not stored in the policy. The variable must be listed in `POLICY_ALLOWED_ENV_KEYS`; see [Environment variables in a policy](../settings.md#environment-variables-in-a-policy).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -95,7 +95,7 @@ Encryption settings used by the `CRYPTO_REPLACE` strategy. Philter encrypts usin
 
 ## `fpe`
 
-Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy. Optional: if omitted, Philter applies a stable per-user key it manages automatically, so the strategy works with no configuration. Supply this object to use your own key instead. The encryption is deterministic and reversible for a given key and tweak. Either value may be prefixed with `env:` to read it from an environment variable so the secret is not stored in the policy.
+Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy. Optional: if omitted, Philter applies a stable per-user key it manages automatically, so the strategy works with no configuration. Supply this object to use your own key instead. The encryption is deterministic and reversible for a given key and tweak. Either value may be prefixed with `env:` to read it from an environment variable listed in `POLICY_ALLOWED_ENV_KEYS` so the secret is not stored in the policy; see [Environment variables in a policy](../settings.md#environment-variables-in-a-policy).
 
 | Property | Type | Description |
 |----------|------|-------------|

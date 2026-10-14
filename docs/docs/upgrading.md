@@ -64,7 +64,7 @@ These affect only policies that use the feature in question. A policy that does 
 
     Set the ph-eye service's address with `PHEYE_ENDPOINT` rather than in each policy. A policy may name only `PHEYE_ENDPOINT` or an endpoint in `PHEYE_ALLOWED_ENDPOINTS`; see [Redaction services](settings.md#redaction-services).
 
-* **`CRYPTO_REPLACE` now uses AES-GCM with a hex key.** In 3.x this strategy used AES-CBC and required a top-level `crypto` object with a base64 `key` and an initialization vector (`iv`). In 4.x it uses authenticated AES-GCM with a random nonce per value. Supply a hex-encoded `key` (64 hex characters for AES-256) and remove the `iv`, which is no longer used. The `key` may be given as `env:VAR_NAME` to read it from an environment variable instead of storing it in the policy.
+* **`CRYPTO_REPLACE` now uses AES-GCM with a hex key.** In 3.x this strategy used AES-CBC and required a top-level `crypto` object with a base64 `key` and an initialization vector (`iv`). In 4.x it uses authenticated AES-GCM with a random nonce per value. Supply a hex-encoded `key` (64 hex characters for AES-256) and remove the `iv`, which is no longer used. The `key` may be given as `env:VAR_NAME` to read it from an environment variable listed in `POLICY_ALLOWED_ENV_KEYS` instead of storing it in the policy.
 
     Before (3.x):
 
@@ -82,6 +82,7 @@ These affect only policies that use the feature in question. A policy that does 
 
 * **Span disambiguation is now configured per context.** In 3.x, span disambiguation was a global, instance-wide setting. In 4.x it is enabled on an individual context, with the context's entity type disambiguation option, when you create or edit the context. It is not configured in the policy or through global settings. See [Span Disambiguation](other_features/span_disambiguation.md).
 * **A policy can name files only from directories an administrator allows.** In 3.x a policy could name any file for a custom dictionary's `files`, a filter's `ignoredFiles`, the top-level `ignored` `files`, or a `MAP_REPLACE` strategy's `mappingFiles`. In 4.x each must be a regular file inside a directory in `POLICY_FILES_DIRECTORIES`, no larger than `POLICY_FILES_MAX_BYTES`; with `POLICY_FILES_DIRECTORIES` unset, a policy may name no file. Move these files into a directory, set `POLICY_FILES_DIRECTORIES`, and update the paths in your policies, or move the terms into [custom lists](redaction/custom_lists.md). See [Policy files](settings.md#policy-files).
+* **A policy can name only environment variables an administrator allows.** In 3.x a `crypto` or `fpe` value of `env:NAME` could name any environment variable. In 4.x it must name one in `POLICY_ALLOWED_ENV_KEYS`; with that unset, a policy may name no variable, and Philter's own secrets can never be listed. List the variables your policies use. See [Environment variables in a policy](settings.md#environment-variables-in-a-policy).
 * **A policy can reach only the PhEye and generator services an administrator allows.** A policy's ph-eye `endpoint` must be `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, a generator's `endpoint` must be in `GENERATOR_ALLOWED_ENDPOINTS`, and a policy cannot set a ph-eye `bearerToken`; set the token with `PHEYE_BEARER_TOKEN`. See [Redaction services](settings.md#redaction-services).
 
 ## Upgrading from 1.x or 2.x to 3.x

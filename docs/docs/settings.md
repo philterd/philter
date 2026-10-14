@@ -237,6 +237,7 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `GENERATOR_ALLOWED_ENDPOINTS` | Endpoints a policy's [replacement generators](policies/filter_strategies.md#the-map_replace-filter-strategy) may name, separated by commas. A trailing slash is ignored. A policy naming any other endpoint is refused. | (none) |
 | `POLICY_FILES_DIRECTORIES` | Directories, separated by commas, that the files a policy names must be inside. Unset, a policy may name no file. Each must exist and be a directory, and cannot be the filesystem root, or Philter refuses to start. See [Policy files](#policy-files). | (none) |
 | `POLICY_FILES_MAX_BYTES` | The largest file, in bytes, a policy may name. Must be a positive number, or Philter refuses to start. Set these two rather than Phileas's own `policy.files.*` properties: Philter refuses to start if one of those is set as an environment variable or system property, since it would override them. | `10485760` (10 MB) |
+| `POLICY_ALLOWED_ENV_KEYS` | Environment variables, separated by commas, that a policy may name as `env:NAME` for a `crypto` or `fpe` key or tweak. Unset, a policy may name no variable. Philter refuses to start if a name is not a valid variable name or is one of Philter's own secrets. Set this rather than Phileas's own `policy.env.allowed` property: Philter refuses to start if that is set as an environment variable or system property. See [Environment variables in a policy](#environment-variables-in-a-policy). | (none) |
 | `PHEYE_TIMEOUT` | Connection-request and response timeout, in seconds, for calls to ph-eye, used when the policy sets none. | `600` |
 
 ### Redaction services
@@ -258,6 +259,20 @@ services:
       POLICY_FILES_DIRECTORIES: /opt/philter/policy-files
     volumes:
       - ./policy-files:/opt/philter/policy-files:ro
+```
+
+### Environment variables in a policy
+
+A policy's `crypto` and `fpe` keys can name an environment variable as `env:NAME` instead of holding the key itself, so the key is not stored in the policy. Philter reads that variable, so the variables a policy may name are the operator's decision: a policy may name only a variable in `POLICY_ALLOWED_ENV_KEYS`, and with it unset, the default, no variable. A policy naming any other variable is refused with `400 Bad Request` when it is saved, before a redaction or asynchronous submission uses it, and when [re-identification](redaction/re-identification.md) uses it. The variable is not read, so the message is the same whether or not it is set. Philter's own secrets, such as `PHILTER_ENCRYPTION_KEY`, `PHILTER_BOOTSTRAP_API_KEY`, `CACHE_PASSWORD`, `MONGODB_CONNECTION_STRING`, `PHEYE_BEARER_TOKEN`, and the TLS store passwords, can never be listed.
+
+**Every policy author can use every listed variable.** The list is per deployment, not per user: anyone who can write a policy can name a listed key and use it to encrypt, or [re-identify](redaction/re-identification.md) values encrypted with it. List only keys meant to be shared by everyone who writes policies. A user who needs a key of their own can leave `fpe` out to use the per-user FPE key Philter manages. `crypto` has no per-user key: a `CRYPTO_REPLACE` key not shared through this list must be written into the policy, where it is stored in the clear (see [what is encrypted at rest](database.md#what-is-encrypted-at-rest)).
+
+```yaml
+services:
+  philter:
+    environment:
+      POLICY_ALLOWED_ENV_KEYS: PHILTER_CRYPTO_KEY,PHILTER_FPE_KEY,PHILTER_FPE_TWEAK
+      PHILTER_CRYPTO_KEY: <64 hex characters>
 ```
 
 ## Output Signing

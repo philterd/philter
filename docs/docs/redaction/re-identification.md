@@ -126,7 +126,7 @@ A successful reversal has `decrypted` set and no `error` field. A failed reversa
 | Code | Meaning |
 |---|---|
 | `200 OK` | Request accepted. Check each result's `error` field for per-value failures. |
-| `400 Bad Request` | Invalid request: `values` is empty, `reason` is blank, `strategy` is unrecognized, `policyName` is missing for `CRYPTO_REPLACE`, or the named policy has no crypto key configured. |
+| `400 Bad Request` | Invalid request: `values` is empty, `reason` is blank, `strategy` is unrecognized, `policyName` is missing for `CRYPTO_REPLACE`, the named policy has no crypto key configured, or the policy's key names an environment variable not in [`POLICY_ALLOWED_ENV_KEYS`](../settings.md#environment-variables-in-a-policy). |
 | `401 Unauthorized` | The `Authorization` header is absent or the API key is not recognized. |
 | `403 Forbidden` | The API key does not have the `reidentify` scope. |
 | `404 Not Found` | The specified `policyName` does not exist, or a non-admin caller supplied an `owner` that is not their own account. |

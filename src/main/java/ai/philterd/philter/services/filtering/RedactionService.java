@@ -592,7 +592,13 @@ public class RedactionService {
             var value = entry.getValue();
             if ((entry.getKey().equals("key") || entry.getKey().equals("tweak")) && value.isJsonPrimitive()
                     && value.getAsJsonPrimitive().isString() && value.getAsString().startsWith("env:")) {
-                final String resolved = System.getenv(value.getAsString().substring(4));
+                // Only a variable in POLICY_ALLOWED_ENV_KEYS. PolicyLoadCheck refuses any other before this.
+                final String resolved;
+                try {
+                    resolved = ai.philterd.phileas.policy.PolicyEnvironment.resolve("policy key", value.getAsString());
+                } catch (final ai.philterd.phileas.policy.InvalidPolicyEnvironmentException e) {
+                    throw new ai.philterd.philter.services.policies.PolicyResolutionException(e.getMessage());
+                }
                 if (resolved == null || resolved.isBlank()) throw new ai.philterd.philter.services.policies.PolicyResolutionException("Required environment key is unavailable.");
                 entry.setValue(new com.google.gson.JsonPrimitive(resolved));
             } else freezeEnvironmentKeys(value);

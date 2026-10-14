@@ -64,30 +64,38 @@ class PolicyLoadRefusalApiIT {
     private static final String VALID = "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
     /** Each policy Phileas refuses, with the start of Phileas's reason. */
-    private static final Map<String, String[]> REFUSED = Map.of(
-            "sensitivity", new String[]{"{\"identifiers\":{\"city\":{\"fuzzy\":true,\"sensitivity\":\"meduim\"}}}",
-                    "The sensitivity 'meduim' of the city filter is not valid."},
-            "malformed", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"condition\":\"token == SECRET9\",\"strategy\":\"REDACT\"}]}}}",
-                    "Strategy 1 of the ssn filter has a condition that is not valid"},
-            "unsupported", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"condition\":"
+    private static final Map<String, String[]> REFUSED = Map.ofEntries(
+            Map.entry("sensitivity", new String[]{"{\"identifiers\":{\"city\":{\"fuzzy\":true,\"sensitivity\":\"meduim\"}}}",
+                    "The sensitivity 'meduim' of the city filter is not valid."}),
+            Map.entry("malformed", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"condition\":\"token == SECRET9\",\"strategy\":\"REDACT\"}]}}}",
+                    "Strategy 1 of the ssn filter has a condition that is not valid"}),
+            Map.entry("unsupported", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"condition\":"
                     + "\"token == \\\"SECRET9\\\" and context startswith \\\"x\\\"\",\"strategy\":\"REDACT\"}]}}}",
-                    "Strategy 1 of the ssn filter has a condition that is not supported: context supports == and !=, not startswith."},
-            "regex", new String[]{"{\"identifiers\":{\"identifiers\":[{\"pattern\":\"([a-z\",\"identifierFilterStrategies\":[{\"strategy\":\"REDACT\"}]}]}}",
-                    "The identifier 'custom-identifier' pattern is not a valid regular expression"},
+                    "Strategy 1 of the ssn filter has a condition that is not supported: context supports == and !=, not startswith."}),
+            Map.entry("regex", new String[]{"{\"identifiers\":{\"identifiers\":[{\"pattern\":\"([a-z\",\"identifierFilterStrategies\":[{\"strategy\":\"REDACT\"}]}]}}",
+                    "The identifier 'custom-identifier' pattern is not a valid regular expression"}),
             // A policy cannot direct Philter's requests or credentials to a service the deployment does not allow.
-            "pheye-endpoint", new String[]{"{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":{\"endpoint\":\"http://127.0.0.1:9\"}}]}}",
-                    "The PhEye endpoint is not one this deployment allows."},
-            "pheye-token", new String[]{"{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":{\"bearerToken\":\"SECRET9\"}}]}}",
-                    "A policy cannot set a PhEye bearerToken."},
-            "generator", new String[]{"{\"generators\":{\"names\":{\"type\":\"OLLAMA\",\"endpoint\":\"http://127.0.0.1:9\",\"model\":\"m\"}},"
+            Map.entry("pheye-endpoint", new String[]{"{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":{\"endpoint\":\"http://127.0.0.1:9\"}}]}}",
+                    "The PhEye endpoint is not one this deployment allows."}),
+            Map.entry("pheye-token", new String[]{"{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":{\"bearerToken\":\"SECRET9\"}}]}}",
+                    "A policy cannot set a PhEye bearerToken."}),
+            Map.entry("generator", new String[]{"{\"generators\":{\"names\":{\"type\":\"OLLAMA\",\"endpoint\":\"http://127.0.0.1:9\",\"model\":\"m\"}},"
                     + "\"identifiers\":{\"ssn\":{}}}",
-                    "The endpoint of generator 'names' is not one this deployment allows."},
+                    "The endpoint of generator 'names' is not one this deployment allows."}),
             // With POLICY_FILES_DIRECTORIES unset, as here, a policy may name no file.
-            "dictionary-file", new String[]{"{\"identifiers\":{\"dictionaries\":[{\"files\":[\"/etc/hosts\"]}]}}",
-                    "named by identifiers.dictionaries[0].files cannot be read"},
-            "mapping-file", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"MAP_REPLACE\","
+            Map.entry("dictionary-file", new String[]{"{\"identifiers\":{\"dictionaries\":[{\"files\":[\"/etc/hosts\"]}]}}",
+                    "named by identifiers.dictionaries[0].files cannot be read"}),
+            Map.entry("mapping-file", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"MAP_REPLACE\","
                     + "\"mappingFiles\":[\"/etc/hosts\"]}]}}}",
-                    "named by identifiers.ssn.ssnFilterStrategies[0].mappingFiles cannot be read"});
+                    "named by identifiers.ssn.ssnFilterStrategies[0].mappingFiles cannot be read"}),
+            // With POLICY_ALLOWED_ENV_KEYS unset, as here, a policy may name no environment variable. The message names
+            // the variable but never its value.
+            Map.entry("crypto-env", new String[]{"{\"crypto\":{\"key\":\"env:PATH\",\"iv\":\"env:PATH\"},"
+                    + "\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"CRYPTO_REPLACE\"}]}}}",
+                    "The crypto key names the environment variable PATH, which a policy may not use here."}),
+            Map.entry("fpe-env", new String[]{"{\"fpe\":{\"key\":\"env:HOME\",\"tweak\":\"env:HOME\"},"
+                    + "\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"FPE_ENCRYPT_REPLACE\"}]}}}",
+                    "The fpe key names the environment variable HOME, which a policy may not use here."}));
 
     @Autowired private Environment environment;
     @Autowired private UserService userService;
@@ -213,6 +221,30 @@ class PolicyLoadRefusalApiIT {
         assertTrue(message(response).startsWith("Revision " + old.getRevision() + " cannot be restored: "), response.body());
         assertEquals(gson.fromJson(VALID, JsonObject.class),
                 gson.fromJson(send("GET", "/api/policies/rolled", null, null).body(), JsonObject.class));
+    }
+
+    @Test
+    @DisplayName("Re-identifying with a stored policy that names an environment variable not allowed returns 400 without reading it")
+    void reidentifyingWithADisallowedEnvironmentVariableIsRefused() throws Exception {
+        for (final String strategy : new String[]{"crypto", "fpe"}) {
+            final String name = "reidentify-" + strategy;
+            storeUnchecked(name, REFUSED.get(strategy + "-env")[0], 1);
+            final JsonObject request = new JsonObject();
+            final com.google.gson.JsonArray values = new com.google.gson.JsonArray();
+            values.add("0123456789");
+            request.add("values", values);
+            request.addProperty("strategy", "crypto".equals(strategy) ? "CRYPTO_REPLACE" : "FPE_ENCRYPT_REPLACE");
+            request.addProperty("policyName", name);
+            request.addProperty("reason", "test");
+            final HttpResponse<String> response = send("POST", "/api/reidentify", "application/json", request.toString());
+            assertRefused(response, REFUSED.get(strategy + "-env")[1]);
+            for (final String variable : new String[]{"PATH", "HOME"}) {
+                final String value = System.getenv(variable);
+                if (value != null && !value.isBlank()) {
+                    assertFalse(response.body().contains(value), "the variable's value is never returned: " + response.body());
+                }
+            }
+        }
     }
 
 }

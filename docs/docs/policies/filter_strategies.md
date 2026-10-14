@@ -105,7 +105,7 @@ Because `CRYPTO_REPLACE` is reversible, the key is a sensitive secret. Rather th
 }
 ```
 
-With the example above, Philter reads the key from the `PHILTER_CRYPTO_KEY` environment variable.
+With the example above, Philter reads the key from the `PHILTER_CRYPTO_KEY` environment variable. A policy may name only a variable an administrator lists in `POLICY_ALLOWED_ENV_KEYS`, and every policy author can use a listed variable; see [Environment variables in a policy](../settings.md#environment-variables-in-a-policy).
 
 An example policy using the `CRYPTO_REPLACE` filter strategy:
 
@@ -195,7 +195,7 @@ openssl rand -hex 32   # key (256-bit)
 openssl rand -hex 7    # tweak (56-bit)
 ```
 
-Either value may be prefixed with `env:` to read it from an environment variable (for example, `env:PHILTER_FPE_KEY`) so the secret is not stored in the policy.
+Either value may be prefixed with `env:` to read it from an environment variable (for example, `env:PHILTER_FPE_KEY`) so the secret is not stored in the policy. The variable must be listed in `POLICY_ALLOWED_ENV_KEYS`; see [Environment variables in a policy](../settings.md#environment-variables-in-a-policy).
 
 For more information on these values and format-preserving encryption, refer to the resources below:
 

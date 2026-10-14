@@ -82,7 +82,8 @@ exception you control.
 > and the values those keys encrypted are held in `context_entries`, which is not encrypted either,
 > so a key written into a policy can be read by anyone who can read the database, along with
 > everything it encrypted. Prefix the value with `env:` (for example `env:CRYPTO_KEY`) to keep the key
-> in the environment and store only the variable's name. Philter logs a warning when a policy is saved
+> in the environment and store only the variable's name; the variable must be listed in
+> [`POLICY_ALLOWED_ENV_KEYS`](settings.md#environment-variables-in-a-policy). Philter logs a warning when a policy is saved
 > with a key in it. Note that a version snapshot keeps whatever the policy held at the time, so
 > changing an existing policy to use `env:` does not remove the old key from its history.
 

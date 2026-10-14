@@ -18,6 +18,7 @@ package ai.philterd.philter.api.controllers;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.phileas.policy.Crypto;
 import ai.philterd.phileas.policy.FPE;
+import ai.philterd.phileas.policy.InvalidPolicyEnvironmentException;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.utils.Encryption;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -152,6 +153,9 @@ public class ReidentifyApiController extends AbstractApiController {
             return new ResponseEntity<>(gson.toJson(new GenericResponse(e.getMessage())), HttpStatus.NOT_FOUND);
         } catch (MissingCryptoKeyException e) {
             return badRequest(e.getMessage());
+        } catch (InvalidPolicyEnvironmentException e) {
+            // The policy names an environment variable outside POLICY_ALLOWED_ENV_KEYS; it was not read.
+            return badRequest(e.getMessage());
         }
 
         final long successCount = results.stream().filter(r -> r.getError() == null).count();
@@ -190,6 +194,8 @@ public class ReidentifyApiController extends AbstractApiController {
         }
 
         final Crypto crypto = policy.getCrypto();
+        // getKey() above refuses an environment variable outside POLICY_ALLOWED_ENV_KEYS; so does the IV.
+        crypto.getIv();
         final List<ReidentifyResponse.ReidentifyResult> results = new ArrayList<>(request.getValues().size());
 
         for (final String encryptedValue : request.getValues()) {
@@ -223,6 +229,11 @@ public class ReidentifyApiController extends AbstractApiController {
             }
             final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
             fpe = policy.getFpe();
+            if (fpe != null) {
+                // Refuses an environment variable outside POLICY_ALLOWED_ENV_KEYS before anything is decrypted.
+                fpe.getKey();
+                fpe.getTweak();
+            }
         }
 
         if (fpe == null) {

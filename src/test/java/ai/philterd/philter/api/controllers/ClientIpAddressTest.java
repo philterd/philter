@@ -31,8 +31,15 @@ class ClientIpAddressTest {
         TrustedProxiesConfig.setOverrideForTesting(null);
     }
 
+    /** Proxies on a private network, listed as a deployment behind an internal load balancer lists them. */
+    private static final String PRIVATE_PROXIES = "127.0.0.0/8, ::1, 10.0.0.0/8, 192.168.0.0/16, fc00::/7";
+
     private static String client(final String remote, final String... forwardedFor) {
-        TrustedProxiesConfig.setOverrideForTesting(TrustedProxiesConfig.DEFAULT);
+        return clientTrusting(PRIVATE_PROXIES, remote, forwardedFor);
+    }
+
+    private static String clientTrusting(final String trusted, final String remote, final String... forwardedFor) {
+        TrustedProxiesConfig.setOverrideForTesting(trusted);
         final MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr(remote);
         for (final String value : forwardedFor) {
@@ -86,6 +93,17 @@ class ClientIpAddressTest {
         assertEquals("10.0.0.8", client("10.0.0.5", "10.0.0.8, 10.0.0.9"));
         // Text where the client's address should be stops the walk.
         assertEquals("10.0.0.5", client("10.0.0.5", "198.51.100.7, unknown"));
+    }
+
+    @Test
+    @DisplayName("By default only loopback is trusted, so a client on the private network cannot choose its address")
+    void theDefaultTrustsOnlyLoopback() {
+        final String defaults = TrustedProxiesConfig.DEFAULT;
+        assertEquals("198.51.100.7", clientTrusting(defaults, "127.0.0.1", "198.51.100.7"), "a proxy on the same host");
+        assertEquals("2001:db8::1", clientTrusting(defaults, "::1", "2001:db8::1"));
+        for (final String internal : new String[]{"10.0.0.5", "172.16.4.4", "192.168.1.9", "169.254.1.1", "fd00::2", "fe80::1"}) {
+            assertEquals(internal, clientTrusting(defaults, internal, "198.51.100.7"), internal + " is not trusted by default");
+        }
     }
 
     @Test

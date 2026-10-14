@@ -330,15 +330,15 @@ public final class SqliteStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
-    public void storePiiCounts(final String context, final LocalDate day, final Map<String, Long> counts,
+    public void storePiiCounts(final String userId, final String context, final LocalDate day, final Map<String, Long> counts,
                                final long totalDocuments) {
         final Date bucketStart = Date.from(day.atStartOfDay(ZoneOffset.UTC).toInstant());
         database.write(connection -> {
-            Sql.update(connection, "INSERT INTO pii_count_aggregates (context, bucket_start, total_documents, updated_at) "
-                    + "VALUES (?, ?, ?, ?)", context, bucketStart, totalDocuments, bucketStart);
+            Sql.update(connection, "INSERT INTO pii_count_aggregates (user_id, context, bucket_start, total_documents, "
+                    + "updated_at) VALUES (?, ?, ?, ?, ?)", userId, context, bucketStart, totalDocuments, bucketStart);
             for (final Map.Entry<String, Long> count : counts.entrySet()) {
-                Sql.update(connection, "INSERT INTO pii_counts (context, bucket_start, pii_type, count) VALUES (?, ?, ?, ?)",
-                        context, bucketStart, count.getKey(), count.getValue());
+                Sql.update(connection, "INSERT INTO pii_counts (user_id, context, bucket_start, pii_type, count) "
+                        + "VALUES (?, ?, ?, ?, ?)", userId, context, bucketStart, count.getKey(), count.getValue());
             }
             return null;
         });

@@ -466,7 +466,7 @@ public class RedactionService {
         LOGGER.debug("Redaction request processed successfully. Tokens: {}, Redactions: {}", tokenCount, filterResult.getExplanation().appliedSpans().size());
 
         // Publish redaction metrics to Micrometer (scraped via /actuator/prometheus).
-        recordRedactionMetrics(filterResult);
+        recordRedactionMetrics(userEntity.getId(), filterResult);
 
         // Audit that the document redaction completed. The generated documentId serves as the
         // request correlation id, and the number of redactions is recorded as a detail.
@@ -489,7 +489,7 @@ public class RedactionService {
      * per-filter-type redaction counter. Exposed at package scope so the counter emission can be
      * tested with a real {@link MeterRegistry} without standing up the full filtering pipeline.
      */
-    void recordRedactionMetrics(final AbstractFilterResult filterResult) {
+    void recordRedactionMetrics(final String userId, final AbstractFilterResult filterResult) {
 
         meterRegistry.counter("philter.tokens").increment(filterResult.getTokens());
 
@@ -505,7 +505,7 @@ public class RedactionService {
 
         // Optionally record document-presence PII type counts for differential-privacy reporting with
         // Philter Diffuse. No-op unless enabled by the admin; best-effort so it cannot affect redaction.
-        piiCountAggregatePublisher.record(filterResult.getContext(), filterTypeCounts.keySet());
+        piiCountAggregatePublisher.record(userId, filterResult.getContext(), filterTypeCounts.keySet());
 
     }
 

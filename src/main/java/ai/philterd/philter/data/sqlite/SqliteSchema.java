@@ -352,18 +352,20 @@ final class SqliteSchema {
             "CREATE INDEX audit_events_time ON audit_events (timestamp, id)",
             """
             CREATE TABLE pii_count_aggregates (
+                user_id TEXT NOT NULL,
                 context TEXT NOT NULL,
                 bucket_start INTEGER NOT NULL,
                 total_documents INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER,
-                PRIMARY KEY (context, bucket_start))""",
+                PRIMARY KEY (user_id, context, bucket_start))""",
             """
             CREATE TABLE pii_counts (
+                user_id TEXT NOT NULL,
                 context TEXT NOT NULL,
                 bucket_start INTEGER NOT NULL,
                 pii_type TEXT NOT NULL,
                 count INTEGER NOT NULL,
-                PRIMARY KEY (context, bucket_start, pii_type))"""
+                PRIMARY KEY (user_id, context, bucket_start, pii_type))"""
     );
 
 }

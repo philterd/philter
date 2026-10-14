@@ -450,6 +450,7 @@ public final class MongoImport implements AutoCloseable {
                 .append("details", text(row, "details"))));
 
         TARGETS.put("pii_count_aggregates", new Target("pii_count_aggregates", row -> new Document("_id", new ObjectId())
+                .append("user_id", id(row, "user_id"))
                 .append("context", text(row, "context"))
                 .append("bucket_start", date(row, "bucket_start"))
                 .append("total_documents", int32(row, "total_documents"))
@@ -513,7 +514,8 @@ public final class MongoImport implements AutoCloseable {
         final long[] copied = {0};
         source.accept(row -> {
             final long matched = aggregates.updateOne(
-                    Filters.and(Filters.eq("context", text(row, "context")), Filters.eq("bucket_start", date(row, "bucket_start"))),
+                    Filters.and(Filters.eq("user_id", id(row, "user_id")), Filters.eq("context", text(row, "context")),
+                            Filters.eq("bucket_start", date(row, "bucket_start"))),
                     Updates.set("counts." + text(row, "pii_type"), int32(row, "count"))).getMatchedCount();
             if (matched != 1) {
                 throw new IllegalStateException("The PII counts for context " + text(row, "context") + " on "

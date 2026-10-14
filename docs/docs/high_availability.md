@@ -42,6 +42,7 @@ High availability needs MongoDB storage: set `STORAGE_TYPE=mongodb` on every nod
 
 Every node must share the same backing services:
 
+- **Trusted proxies.** List the load balancer's addresses in `TRUSTED_PROXIES` on every node, so each request is recorded, and rate limited, as coming from its client rather than the load balancer. See [API Access](settings.md#api-access).
 - **Same cache.** Set `CACHE_HOSTNAME` (and `CACHE_PORT`, `CACHE_PASSWORD`, `CACHE_SSL` as needed) identically on every node so they share one Valkey/Redis. With more than one node this is required: running several nodes without a shared cache is not a supported deployment. Without it, each node keeps its own in-process cache, invalidations do not reach the other nodes, and a revoked API key stays usable on other nodes until their cached copy expires. MongoDB still coordinates creation of new token mappings. The full configuration table is in [Caching](caching.md#configuration).
 - **Same database.** Set `STORAGE_TYPE=mongodb` and point every node at the same MongoDB. See [Database](database.md).
 - **Same encryption key.** Set the same `PHILTER_ENCRYPTION_KEY` on every node. It is required to decrypt shared records and derive consistent keyed token hashes. Preserve it across restarts; see [Encryption](settings.md#encryption).

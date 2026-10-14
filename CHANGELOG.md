@@ -158,6 +158,16 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it
   redacts, condition values, and keys. Names and content hashes stay readable. See
   [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
+- **Only loopback is a trusted proxy by default.** `TRUSTED_PROXIES` defaulted to every private and link-local range,
+  so any client on an internal network could set `X-Forwarded-For` and choose the address recorded in the audit log
+  and counted by the sign-in rate limit. The default is now `127.0.0.0/8, ::1`. **Behind a load balancer on another
+  host, set `TRUSTED_PROXIES` to its addresses**; Philter logs once when it ignores the header. See
+  [API Access](docs/docs/settings.md#api-access).
+- **PII counts are kept per user.** Counts were bucketed by context name alone, so two users' contexts of one name
+  were counted together, and the PII Counts API showed every user's context names to any administrator. Counts are
+  now recorded per user's context and day; each entry has a stable `id`, and another user's context name and username
+  are returned only with `ADMIN_CROSS_USER_ACCESS_ENABLED`, while their counts still are. An `owner` filter was
+  added. See [PII Counts API](docs/docs/api_and_sdks/api/pii_counts_api.md).
 - **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
   cached data, and when it was full every username was treated as locked, so one user redacting a document with many
   distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, where no other

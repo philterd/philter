@@ -82,7 +82,7 @@ class RedactionServiceMetricsTest {
 
     @Test
     void recordsTokenCounter() {
-        redactionService.recordRedactionMetrics(resultWith(42L, Collections.emptyList()));
+        redactionService.recordRedactionMetrics("user", resultWith(42L, Collections.emptyList()));
 
         final Counter tokens = meterRegistry.find("philter.tokens").counter();
         assertNotNull(tokens, "philter.tokens counter should exist");
@@ -96,7 +96,7 @@ class RedactionServiceMetricsTest {
         spans.add(appliedSpan(FilterType.PERSON));
         spans.add(appliedSpan(FilterType.SSN));
 
-        redactionService.recordRedactionMetrics(resultWith(10L, spans));
+        redactionService.recordRedactionMetrics("user", resultWith(10L, spans));
 
         final Counter personCounter = meterRegistry.find("philter.redactions")
                 .tag("filter_type", FilterType.PERSON.getType())
@@ -113,7 +113,7 @@ class RedactionServiceMetricsTest {
 
     @Test
     void noRedactionsEmitsTokenCounterButNoTypeCounters() {
-        redactionService.recordRedactionMetrics(resultWith(0L, Collections.emptyList()));
+        redactionService.recordRedactionMetrics("user", resultWith(0L, Collections.emptyList()));
 
         assertNotNull(meterRegistry.find("philter.tokens").counter());
         // With no applied spans there are no per-filter-type counters.

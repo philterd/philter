@@ -41,6 +41,9 @@ import static org.mockito.Mockito.mock;
  */
 class PiiCountAggregatePublisherIT extends AbstractMongoIT {
 
+    /** The user the counts are recorded for. */
+    private static final String USER = "6a0f1c2e9b1d4e3f2a1b0c9d";
+
     private static final String ACTING_ADMIN = MongoIds.newId();
 
     private AdminSettingsDataService adminSettingsDataService;
@@ -64,7 +67,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     void recordWritesAggregateDocumentWithCounts() {
         final PiiCountAggregatePublisher publisher = enabledPublisher();
 
-        publisher.record("ctx", Set.of("PERSON", "EMAIL_ADDRESS"));
+        publisher.record(USER, "ctx", Set.of("PERSON", "EMAIL_ADDRESS"));
 
         final Document doc = aggregates.find(new Document("context", "ctx")).first();
         assertNotNull(doc, "an aggregate document must be written for the context");
@@ -81,8 +84,8 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     void recordTwiceUpsertsIntoSameDailyBucket() {
         final PiiCountAggregatePublisher publisher = enabledPublisher();
 
-        publisher.record("ctx", Set.of("PERSON", "EMAIL_ADDRESS"));
-        publisher.record("ctx", Set.of("PERSON", "PHONE_NUMBER"));
+        publisher.record(USER, "ctx", Set.of("PERSON", "EMAIL_ADDRESS"));
+        publisher.record(USER, "ctx", Set.of("PERSON", "PHONE_NUMBER"));
 
         // Both records land in the same (context, day) bucket — a single document, not a duplicate.
         assertEquals(1L, aggregates.countDocuments(new Document("context", "ctx")));
@@ -101,8 +104,8 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     void recordScopesAggregatesByContext() {
         final PiiCountAggregatePublisher publisher = enabledPublisher();
 
-        publisher.record("ctxA", Set.of("PERSON"));
-        publisher.record("ctxB", Set.of("PERSON"));
+        publisher.record(USER, "ctxA", Set.of("PERSON"));
+        publisher.record(USER, "ctxB", Set.of("PERSON"));
 
         // Distinct contexts produce distinct aggregate documents.
         assertEquals(1L, aggregates.countDocuments(new Document("context", "ctxA")));
@@ -115,7 +118,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
         final PiiCountAggregatePublisher publisher =
                 new MongoPiiCountAggregatePublisher(mongoClient, adminSettingsDataService);
 
-        publisher.record("ctx", Set.of("PERSON"));
+        publisher.record(USER, "ctx", Set.of("PERSON"));
 
         assertEquals(0L, aggregates.countDocuments(), "nothing must be written when disabled");
         assertNull(aggregates.find(new Document("context", "ctx")).first());
@@ -125,7 +128,7 @@ class PiiCountAggregatePublisherIT extends AbstractMongoIT {
     void recordIsNoOpForEmptyPiiTypesEvenWhenEnabled() {
         final PiiCountAggregatePublisher publisher = enabledPublisher();
 
-        publisher.record("ctx", Set.of());
+        publisher.record(USER, "ctx", Set.of());
 
         assertEquals(0L, aggregates.countDocuments(), "no document for a redaction with no PII types");
     }

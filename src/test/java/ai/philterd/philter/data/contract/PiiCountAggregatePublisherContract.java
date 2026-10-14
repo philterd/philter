@@ -35,6 +35,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** The guarantees of {@link PiiCountAggregatePublisher}. */
 public interface PiiCountAggregatePublisherContract extends StorageContract {
 
+    /** The user the counts are recorded for. */
+    String OWNER = "6a0f1c2e9b1d4e3f2a1b0c9d";
+
     private void enable(final boolean enabled) {
         assertTrue(storage().users().createUser("req", "admin", null, UserService.ROLE_ADMIN, storage().policies(),
                 storage().contexts(), "test").isSuccessful());
@@ -46,7 +49,7 @@ public interface PiiCountAggregatePublisherContract extends StorageContract {
     private Map<String, Long> today(final String context) {
         final LocalDate today = LocalDate.now(ZoneOffset.UTC);
         final List<PiiCountDataService.Aggregate> aggregates =
-                storage().piiCountData().list(today, today, context, 0, 10).items();
+                storage().piiCountData().list(today, today, OWNER, context, 0, 10).items();
         final Map<String, Long> counts = new HashMap<>();
         if (!aggregates.isEmpty()) {
             assertEquals(1, aggregates.size());
@@ -60,10 +63,10 @@ public interface PiiCountAggregatePublisherContract extends StorageContract {
     default void piiCountConcurrentRedactionsAreAllCounted() throws Exception {
         enable(true);
         StorageContract.concurrently(10, () -> {
-            storage().piiCounts().record("claims", Set.of("PERSON", "SSN"));
+            storage().piiCounts().record(OWNER, "claims", Set.of("PERSON", "SSN"));
             return null;
         });
-        storage().piiCounts().record("claims", Set.of("PERSON"));
+        storage().piiCounts().record(OWNER, "claims", Set.of("PERSON"));
         final Map<String, Long> counts = today("claims");
         assertEquals(11L, counts.get("total_documents"));
         assertEquals(11L, counts.get("PERSON"));
@@ -72,12 +75,20 @@ public interface PiiCountAggregatePublisherContract extends StorageContract {
     }
 
     @Test
+    default void piiCountUsersAreCountedApart() {
+        enable(true);
+        storage().piiCounts().record(OWNER, "default", Set.of("SSN"));
+        storage().piiCounts().record("6a0f1c2e9b1d4e3f2a1b0c9e", "default", Set.of("SSN"));
+        assertEquals(1L, today("default").get("SSN"), "another user's context of the same name is counted apart");
+    }
+
+    @Test
     default void piiCountRecordingIsANoOpWhenDisabledAndNeverThrows() {
         enable(false);
-        storage().piiCounts().record("claims", Set.of("PERSON"));
+        storage().piiCounts().record(OWNER, "claims", Set.of("PERSON"));
         assertTrue(today("claims").isEmpty());
-        assertDoesNotThrow(() -> storage().piiCounts().record(null, null));
-        assertDoesNotThrow(() -> storage().piiCounts().record("claims", Set.of()));
+        assertDoesNotThrow(() -> storage().piiCounts().record(null, null, null));
+        assertDoesNotThrow(() -> storage().piiCounts().record(OWNER, "claims", Set.of()));
     }
 
 }

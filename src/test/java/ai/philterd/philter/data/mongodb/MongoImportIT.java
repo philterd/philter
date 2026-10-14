@@ -59,7 +59,7 @@ class MongoImportIT extends AbstractMongoIT {
     private static final Set<String> NOT_COPIED = Set.of("users.created_at", "admin_settings.id");
 
     /** The columns the PII counts are folded into their aggregates from. */
-    private static final Set<String> PII_COUNT_COLUMNS = Set.of("context", "bucket_start", "pii_type", "count");
+    private static final Set<String> PII_COUNT_COLUMNS = Set.of("user_id", "context", "bucket_start", "pii_type", "count");
 
     /** A row that records which of its columns are read. */
     private static final class ReadColumns extends HashMap<String, Object> {

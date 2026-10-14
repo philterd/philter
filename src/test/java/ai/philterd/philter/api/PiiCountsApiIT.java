@@ -48,6 +48,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -117,8 +118,8 @@ class PiiCountsApiIT {
         claims = "claims-" + UUID.randomUUID();
         billing = "billing-" + UUID.randomUUID();
         for (int day = 0; day < 3; day++) {
-            store(claims, FIRST.plusDays(day), new Document("SSN", 1 + day).append("PERSON", 5), 9);
-            store(billing, FIRST.plusDays(day), new Document("SSN", 10 + day), 20 + day);
+            store(adminUserId, claims, FIRST.plusDays(day), new Document("SSN", 1 + day).append("PERSON", 5), 9);
+            store(adminUserId, billing, FIRST.plusDays(day), new Document("SSN", 10 + day), 20 + day);
         }
 
     }
@@ -131,9 +132,11 @@ class PiiCountsApiIT {
     }
 
     /** Stores counts as the recorder writes them. */
-    private void store(final String context, final LocalDate day, final Document counts, final int totalDocuments) {
+    private void store(final String userId, final String context, final LocalDate day, final Document counts,
+                       final int totalDocuments) {
         final Date bucketStart = Date.from(day.atStartOfDay(ZoneOffset.UTC).toInstant());
-        mongoClient.getDatabase("philter").getCollection("pii_count_aggregates").insertOne(new Document("context", context)
+        mongoClient.getDatabase("philter").getCollection("pii_count_aggregates").insertOne(new Document("user_id",
+                        new org.bson.types.ObjectId(userId)).append("context", context)
                 .append("bucket_start", bucketStart).append("counts", counts).append("total_documents", totalDocuments)
                 .append("updated_at", bucketStart));
     }
@@ -202,7 +205,75 @@ class PiiCountsApiIT {
         assertEquals(5, entry.getAsJsonObject("counts").get("PERSON").getAsLong());
         assertEquals(9, entry.get("totalDocuments").getAsLong());
         assertNotNull(entry.get("updatedAt"));
-        assertEquals(Set.of("context", "day", "counts", "totalDocuments", "updatedAt"), entry.keySet());
+        assertEquals(32, entry.get("id").getAsString().length());
+        assertEquals(userService.findOneById(adminUserId).getUsername(), entry.get("owner").getAsString());
+        assertEquals(Set.of("id", "owner", "context", "day", "counts", "totalDocuments", "updatedAt"), entry.keySet());
+
+    }
+
+    /** The entries in a listing for one day, keyed by id. */
+    private Map<String, JsonObject> onDay(final JsonObject body, final String day) {
+        final Map<String, JsonObject> entries = new java.util.HashMap<>();
+        body.getAsJsonArray("counts").forEach(element -> {
+            final JsonObject entry = element.getAsJsonObject();
+            if (day.equals(entry.get("day").getAsString())) {
+                entries.put(entry.get("id").getAsString(), entry);
+            }
+        });
+        return entries;
+    }
+
+    @Test
+    @DisplayName("Another user's counts are included but unnamed without cross-user access, and kept apart from yours")
+    void anotherUsersCountsAreUnnamedWithoutCrossUserAccess() throws Exception {
+
+        final String other = userId(createUser("counts-user-", "user"));
+        final String shared = "default-" + UUID.randomUUID();
+        final LocalDate day = LocalDate.parse("2025-01-15");
+        store(adminUserId, shared, day, new Document("SSN", 3), 3);
+        store(other, shared, day, new Document("SSN", 5), 5);
+        AdminAccessConfig.setOverrideForTesting(false);
+
+        final Map<String, JsonObject> entries = onDay(read("?from=2025-01-15&to=2025-01-15&limit=100"), "2025-01-15");
+        assertEquals(2, entries.size(), "two users' contexts of one name are separate entries, with separate ids");
+        int unnamed = 0;
+        for (final JsonObject entry : entries.values()) {
+            if (entry.has("context")) {
+                assertEquals(shared, entry.get("context").getAsString());
+                assertEquals(3, entry.getAsJsonObject("counts").get("SSN").getAsLong(), "the caller's own");
+            } else {
+                unnamed++;
+                assertFalse(entry.has("owner"), "another user's username is not shown");
+                assertEquals(5, entry.getAsJsonObject("counts").get("SSN").getAsLong(), "but their counts are");
+            }
+        }
+        assertEquals(1, unnamed);
+
+        // Naming a context, or another user, does not reach their counts without cross-user access.
+        assertEquals(1, read("?context=" + shared).get("total").getAsLong(), "only the caller's own");
+        final String otherName = userService.findOneById(other).getUsername();
+        assertEquals(404, get("?owner=" + otherName, adminKey).statusCode());
+
+    }
+
+    @Test
+    @DisplayName("With cross-user access, another user's counts are named, and the listing is audited as cross-user access")
+    void anotherUsersCountsAreNamedWithCrossUserAccess() throws Exception {
+
+        final String other = userId(createUser("counts-user-", "user"));
+        final String theirs = "theirs-" + UUID.randomUUID();
+        store(other, theirs, LocalDate.parse("2025-02-01"), new Document("SSN", 2), 2);
+
+        final JsonObject body = read("?context=" + theirs);
+        assertEquals(1, body.get("total").getAsLong());
+        final JsonObject entry = body.getAsJsonArray("counts").get(0).getAsJsonObject();
+        assertEquals(theirs, entry.get("context").getAsString());
+        assertEquals(userService.findOneById(other).getUsername(), entry.get("owner").getAsString());
+
+        final HttpResponse<String> audit = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl
+                        + "/api/audit?event=admin_cross_user_access&limit=200")).header("Authorization", "Bearer " + adminKey)
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertTrue(audit.body().contains("list PII counts"), audit.body());
 
     }
 

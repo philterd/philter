@@ -22,7 +22,8 @@ import java.util.Set;
  * reporting with <a href="https://github.com/philterd/philterdiffuse">Philter Diffuse</a>.
  *
  * <p>Counts are <strong>document-presence</strong> counts: for each redaction, every distinct PII
- * type present increments that type's counter by one in the day's bucket for the context. This keeps
+ * type present increments that type's counter by one in the day's bucket for the user's context. Counts are kept per
+ * user, since context names are unique only per user and two users' contexts must not be counted together. This keeps
  * each redaction's contribution to any count at most one, which preserves the {@code sensitivity = 1}
  * assumption Diffuse's differential-privacy guarantee relies on. Only counts are stored; never any PII.
  *
@@ -41,11 +42,12 @@ public interface PiiCountAggregatePublisher {
 
     /**
      * Records the distinct PII types present in one redaction into the current day's aggregate for the
-     * given context. No-op when disabled or when there are no PII types. Never throws.
+     * user's context. No-op when disabled or when there are no PII types. Never throws.
      *
+     * @param userId    The user whose redaction it was.
      * @param context   The redaction context.
      * @param piiTypes  The distinct PII type names present in the redaction.
      */
-    void record(String context, Set<String> piiTypes);
+    void record(String userId, String context, Set<String> piiTypes);
 
 }

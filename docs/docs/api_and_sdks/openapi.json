@@ -6023,6 +6023,14 @@
             }
           },
           {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -14090,7 +14098,7 @@
         "type": "object",
         "properties": {
           "context": {
-            "description": "The context the redactions ran in.",
+            "description": "The context the redactions ran in. Given for the caller's own counts, and for other users' only when ADMIN_CROSS_USER_ACCESS_ENABLED is true; otherwise absent.",
             "type": "string"
           },
           "counts": {
@@ -14108,6 +14116,14 @@
           "day": {
             "description": "The UTC day the redactions ran on, as YYYY-MM-DD.",
             "example": "2026-10-01",
+            "type": "string"
+          },
+          "id": {
+            "description": "Identifies this user's context and day, the same on every read, so a client paging through the counts can tell buckets apart without their names.",
+            "type": "string"
+          },
+          "owner": {
+            "description": "The username of the user whose redactions these are. Given for the caller's own counts, and for other users' only when ADMIN_CROSS_USER_ACCESS_ENABLED is true; otherwise absent.",
             "type": "string"
           },
           "totalDocuments": {

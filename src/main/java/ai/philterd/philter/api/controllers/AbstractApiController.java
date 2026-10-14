@@ -376,6 +376,9 @@ public abstract class AbstractApiController {
 
         final InetAddress remoteAddress = IpAddresses.parseLiteral(remote);
         if (remoteAddress == null || !TrustedProxiesConfig.isTrusted(remoteAddress)) {
+            if (httpServletRequest.getHeader("X-Forwarded-For") != null) {
+                TrustedProxiesConfig.untrustedForwarding(remote);
+            }
             return remote;
         }
 

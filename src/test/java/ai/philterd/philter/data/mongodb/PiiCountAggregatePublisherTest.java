@@ -44,6 +44,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PiiCountAggregatePublisherTest {
 
+    /** The user the counts are recorded for. */
+    private static final String USER = "6a0f1c2e9b1d4e3f2a1b0c9d";
+
     @Mock private MongoClient mongoClient;
     @Mock private MongoDatabase mongoDatabase;
     @Mock private MongoCollection<Document> collection;
@@ -65,7 +68,7 @@ class PiiCountAggregatePublisherTest {
         settings.setDiffuseCountsEnabled(false);
         when(adminSettingsDataService.findAdminSettings()).thenReturn(settings);
 
-        publisher().record("ctx", Set.of("SSN", "EMAIL_ADDRESS"));
+        publisher().record(USER, "ctx", Set.of("SSN", "EMAIL_ADDRESS"));
 
         verify(collection, never()).updateOne(any(Bson.class), any(Bson.class), any(UpdateOptions.class));
     }
@@ -73,7 +76,7 @@ class PiiCountAggregatePublisherTest {
     @Test
     void doesNotWriteWhenNoPiiTypes() {
         // With nothing to record there is no need to even consult the admin setting.
-        publisher().record("ctx", Set.of());
+        publisher().record(USER, "ctx", Set.of());
 
         verify(collection, never()).updateOne(any(Bson.class), any(Bson.class), any(UpdateOptions.class));
     }
@@ -85,7 +88,7 @@ class PiiCountAggregatePublisherTest {
         when(adminSettingsDataService.findAdminSettings()).thenReturn(settings);
         when(collection.updateOne(any(Bson.class), any(Bson.class), any(UpdateOptions.class))).thenReturn(mock(UpdateResult.class));
 
-        publisher().record("ctx-a", Set.of("SSN", "EMAIL_ADDRESS"));
+        publisher().record(USER, "ctx-a", Set.of("SSN", "EMAIL_ADDRESS"));
 
         final ArgumentCaptor<Bson> filterCaptor = ArgumentCaptor.forClass(Bson.class);
         final ArgumentCaptor<Bson> updateCaptor = ArgumentCaptor.forClass(Bson.class);

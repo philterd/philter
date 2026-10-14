@@ -31,11 +31,15 @@ public interface PiiCountDataServiceContract extends StorageContract {
 
     LocalDate FIRST = LocalDate.parse("2026-09-01");
 
+    /** The users the counts belong to. */
+    String OWNER = "6a0f1c2e9b1d4e3f2a1b0c9d";
+    String OTHER = "6a0f1c2e9b1d4e3f2a1b0c9e";
+
     /** Three days of counts for two contexts. */
     private void storeThreeDays() {
         for (int day = 0; day < 3; day++) {
-            storage().storePiiCounts("billing", FIRST.plusDays(day), Map.of("SSN", 10L + day), 20 + day);
-            storage().storePiiCounts("claims", FIRST.plusDays(day), Map.of("SSN", 1L + day, "PERSON", 5L), 9);
+            storage().storePiiCounts(OWNER, "billing", FIRST.plusDays(day), Map.of("SSN", 10L + day), 20 + day);
+            storage().storePiiCounts(OWNER, "claims", FIRST.plusDays(day), Map.of("SSN", 1L + day, "PERSON", 5L), 9);
         }
     }
 
@@ -44,10 +48,22 @@ public interface PiiCountDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void piiCountDataKeepsEachUsersContextsApart() {
+        storage().storePiiCounts(OWNER, "default", FIRST, Map.of("SSN", 3L), 3);
+        storage().storePiiCounts(OTHER, "default", FIRST, Map.of("SSN", 5L), 5);
+        final List<PiiCountDataService.Aggregate> both = storage().piiCountData().list(null, null, null, "default", 0, 10).items();
+        assertEquals(2, both.size(), "two users' contexts of one name are not counted together");
+        final List<PiiCountDataService.Aggregate> mine = storage().piiCountData().list(null, null, OWNER, "default", 0, 10).items();
+        assertEquals(1, mine.size());
+        assertEquals(OWNER, mine.get(0).userId());
+        assertEquals(Map.of("SSN", 3L), mine.get(0).counts());
+    }
+
+    @Test
     default void piiCountDataReadsBackTheRecordedCounts() {
-        storage().storePiiCounts("claims", FIRST, Map.of("SSN", 1240L, "EMAIL_ADDRESS", 8900L), 10_000);
+        storage().storePiiCounts(OWNER, "claims", FIRST, Map.of("SSN", 1240L, "EMAIL_ADDRESS", 8900L), 10_000);
         final List<PiiCountDataService.Aggregate> aggregates =
-                storage().anotherInstance().piiCountData().list(null, null, null, 0, 10).items();
+                storage().anotherInstance().piiCountData().list(null, null, null, null, 0, 10).items();
         assertEquals(1, aggregates.size());
         assertEquals("claims", aggregates.get(0).context());
         assertEquals(FIRST, aggregates.get(0).day());
@@ -60,7 +76,7 @@ public interface PiiCountDataServiceContract extends StorageContract {
         storeThreeDays();
         final List<String> paged = new ArrayList<>();
         for (int offset = 0; offset < 6; offset += 4) {
-            final Listings.Page<PiiCountDataService.Aggregate> page = storage().piiCountData().list(null, null, null, offset, 4);
+            final Listings.Page<PiiCountDataService.Aggregate> page = storage().piiCountData().list(null, null, null, null, offset, 4);
             assertEquals(6, page.total());
             paged.addAll(keys(page.items()));
         }
@@ -72,16 +88,16 @@ public interface PiiCountDataServiceContract extends StorageContract {
     default void piiCountDataNarrowsByDaysAndContext() {
         storeThreeDays();
         final Listings.Page<PiiCountDataService.Aggregate> middle =
-                storage().piiCountData().list(FIRST.plusDays(1), FIRST.plusDays(1), null, 0, 10);
+                storage().piiCountData().list(FIRST.plusDays(1), FIRST.plusDays(1), null, null, 0, 10);
         assertEquals(List.of("2026-09-02 billing", "2026-09-02 claims"), keys(middle.items()));
         assertEquals(2, middle.total());
         final Listings.Page<PiiCountDataService.Aggregate> claimsFrom =
-                storage().piiCountData().list(FIRST.plusDays(1), null, "claims", 0, 10);
+                storage().piiCountData().list(FIRST.plusDays(1), null, null, "claims", 0, 10);
         assertEquals(List.of("2026-09-03 claims", "2026-09-02 claims"), keys(claimsFrom.items()));
         assertEquals(2, claimsFrom.total());
         assertEquals(List.of("2026-09-01 billing"),
-                keys(storage().piiCountData().list(null, FIRST, "billing", 0, 10).items()));
-        assertEquals(0, storage().piiCountData().list(null, null, "other", 0, 10).total());
+                keys(storage().piiCountData().list(null, FIRST, null, "billing", 0, 10).items()));
+        assertEquals(0, storage().piiCountData().list(null, null, null, "other", 0, 10).total());
     }
 
 }

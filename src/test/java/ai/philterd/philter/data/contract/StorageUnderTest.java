@@ -132,7 +132,7 @@ public interface StorageUnderTest {
     void expireSignInChallenge(String token);
 
     /** Stores the PII counts for a context and UTC day, as if they had been recorded that day. */
-    void storePiiCounts(String context, LocalDate day, Map<String, Long> counts, long totalDocuments);
+    void storePiiCounts(String userId, String context, LocalDate day, Map<String, Long> counts, long totalDocuments);
 
     /**
      * Whether the text appears anywhere in what is stored, in any record and field, read as stored: text as it is

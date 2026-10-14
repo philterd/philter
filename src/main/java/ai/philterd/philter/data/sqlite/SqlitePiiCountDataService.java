@@ -40,11 +40,12 @@ public class SqlitePiiCountDataService implements PiiCountDataService {
     }
 
     @Override
-    public Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String context, final int offset,
-                                         final int limit) {
+    public Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String userId, final String context,
+                                         final int offset, final int limit) {
         final List<Object> params = new ArrayList<>();
         String start = null;
         String end = null;
+        String owned = null;
         String named = null;
         if (from != null) {
             start = "bucket_start >= ?";
@@ -54,27 +55,32 @@ public class SqlitePiiCountDataService implements PiiCountDataService {
             end = "bucket_start < ?";
             params.add(startOf(to.plusDays(1)));
         }
+        if (userId != null) {
+            owned = "user_id = ?";
+            params.add(userId);
+        }
         if (context != null) {
             named = "context = ?";
             params.add(context);
         }
-        final String where = Sql.where(start, end, named);
+        final String where = Sql.where(start, end, owned, named);
         return database.read(connection -> {
             final List<Object> paged = new ArrayList<>(params);
             paged.add(limit);
             paged.add(offset);
             final List<Aggregate> items = new ArrayList<>();
             for (final Object[] row : Sql.query(connection, "SELECT * FROM pii_count_aggregates" + where
-                            + " ORDER BY bucket_start DESC, context ASC LIMIT ? OFFSET ?",
+                            + " ORDER BY bucket_start DESC, user_id ASC, context ASC LIMIT ? OFFSET ?",
                     r -> new Object[]{r.string("context"), r.longValue("bucket_start"), r.longValue("total_documents"),
-                            r.date("updated_at")}, paged.toArray())) {
+                            r.date("updated_at"), r.string("user_id")}, paged.toArray())) {
                 final Map<String, Long> counts = new LinkedHashMap<>();
                 for (final Object[] count : Sql.query(connection, "SELECT pii_type, count FROM pii_counts "
-                                + "WHERE context = ? AND bucket_start = ? ORDER BY pii_type",
-                        r -> new Object[]{r.string("pii_type"), r.longValue("count")}, row[0], row[1])) {
+                                + "WHERE user_id = ? AND context = ? AND bucket_start = ? ORDER BY pii_type",
+                        r -> new Object[]{r.string("pii_type"), r.longValue("count")}, row[4], row[0], row[1])) {
                     counts.put((String) count[0], (Long) count[1]);
                 }
-                items.add(new Aggregate((String) row[0], new Date((Long) row[1]).toInstant().atZone(ZoneOffset.UTC).toLocalDate(),
+                items.add(new Aggregate((String) row[4], (String) row[0],
+                        new Date((Long) row[1]).toInstant().atZone(ZoneOffset.UTC).toLocalDate(),
                         counts, (Long) row[2], (Date) row[3]));
             }
             return new Listings.Page<>(items, Sql.count(connection, "SELECT COUNT(*) AS n FROM pii_count_aggregates" + where,

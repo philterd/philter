@@ -25,16 +25,20 @@ import java.util.List;
 
 /**
  * The proxies whose X-Forwarded-For header Philter believes, from {@code TRUSTED_PROXIES}: a
- * comma-separated list of IP addresses and CIDR ranges. When it is unset, loopback, private, link-local,
- * and IPv6 unique-local addresses are trusted, which covers a load balancer or ingress on the same
- * network without configuration while ignoring the header from a client on the internet.
+ * comma-separated list of IP addresses and CIDR ranges. When it is unset, only loopback is trusted: a proxy on the
+ * same host works without configuration, and no other client, including one on the same private network, can choose
+ * the address recorded for it. A load balancer or ingress elsewhere must be listed. Until it is, its requests are
+ * attributed to it, and Philter logs once that it is ignoring the header, naming the address it came from.
  */
 public final class TrustedProxiesConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TrustedProxiesConfig.class);
 
-    public static final String DEFAULT =
-            "127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10";
+    public static final String DEFAULT = "127.0.0.0/8, ::1";
+
+    /** Whether the header has been seen from an address that is not trusted, which is logged once. */
+    private static final java.util.concurrent.atomic.AtomicBoolean UNTRUSTED_FORWARDING_LOGGED =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     private static volatile List<IpAddresses.Cidr> configured;
 
@@ -62,6 +66,18 @@ public final class TrustedProxiesConfig {
             configured = parse(value == null || value.isBlank() ? DEFAULT : value);
         }
         return configured;
+    }
+
+    /**
+     * Notes a request that carried X-Forwarded-For from an address that is not trusted, so the header was ignored. The
+     * first is logged, to point an operator whose load balancer is not listed at the setting.
+     */
+    public static void untrustedForwarding(final String remote) {
+        if (UNTRUSTED_FORWARDING_LOGGED.compareAndSet(false, true)) {
+            LOGGER.warn("Ignoring X-Forwarded-For from {}, which TRUSTED_PROXIES does not list, so requests from it are "
+                    + "recorded and rate limited as coming from it. If it is your load balancer or proxy, add its "
+                    + "addresses to TRUSTED_PROXIES. This is logged once.", remote);
+        }
     }
 
     /** The ranges in a comma-separated list. An entry that is not one is logged and left out. */

@@ -42,17 +42,18 @@ public class MongoPiiCountDataService implements PiiCountDataService {
     }
 
     @Override
-    public Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String context,
+    public Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String userId, final String context,
                                          final int offset, final int limit) {
 
         final Bson filter = MongoListings.all(
                 from == null ? null : Filters.gte("bucket_start", startOf(from)),
                 to == null ? null : Filters.lt("bucket_start", startOf(to.plusDays(1))),
+                userId == null ? null : Filters.eq("user_id", MongoIds.objectId(userId)),
                 context == null ? null : Filters.eq("context", context));
 
         final List<Aggregate> items = new ArrayList<>();
         for (final Document document : collection.find(filter)
-                .sort(Sorts.orderBy(Sorts.descending("bucket_start"), Sorts.ascending("context", "_id")))
+                .sort(Sorts.orderBy(Sorts.descending("bucket_start"), Sorts.ascending("user_id", "context", "_id")))
                 .skip(offset).limit(limit)) {
             items.add(toAggregate(document));
         }
@@ -72,7 +73,7 @@ public class MongoPiiCountDataService implements PiiCountDataService {
             stored.forEach((type, count) -> counts.put(type, ((Number) count).longValue()));
         }
         final Number total = document.get("total_documents", Number.class);
-        return new Aggregate(document.getString("context"),
+        return new Aggregate(MongoIds.hex(document.getObjectId("user_id")), document.getString("context"),
                 document.getDate("bucket_start").toInstant().atZone(ZoneOffset.UTC).toLocalDate(),
                 counts, total == null ? 0 : total.longValue(), document.getDate("updated_at"));
     }

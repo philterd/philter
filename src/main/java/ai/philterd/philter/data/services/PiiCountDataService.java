@@ -27,29 +27,32 @@ import java.util.Map;
  * <p>Guarantees every implementation must provide:
  * <ul>
  *   <li>Listings return their total and page by offset without repeating or skipping aggregates, ordered by day,
- *   most recent first, then by context.</li>
+ *   most recent first, then by user and context.</li>
+ *   <li>Counts are kept per user and context: two users' contexts of one name are separate aggregates.</li>
  *   <li>Each aggregate's counts are the counts recorded for its context and day, read back unchanged.</li>
  * </ul>
  */
 public interface PiiCountDataService {
 
     /**
-     * The counts for one context and day.
+     * The counts for one user's context and day.
      *
+     * @param userId         The user whose redactions they were.
      * @param context        The context the redactions ran in.
      * @param day            The UTC day the redactions ran on.
      * @param counts         For each PII type, how many redactions found at least one of it.
      * @param totalDocuments How many redactions found any PII.
      * @param updatedAt      When a redaction was last counted.
      */
-    record Aggregate(String context, LocalDate day, Map<String, Long> counts, long totalDocuments, Date updatedAt) {
+    record Aggregate(String userId, String context, LocalDate day, Map<String, Long> counts, long totalDocuments, Date updatedAt) {
     }
 
     /**
      * A page of the aggregates for the UTC days from {@code from} through {@code to}, both inclusive, and their
-     * total. A null {@code from}, {@code to}, or {@code context} does not narrow the listing.
+     * total, ordered by day, most recent first, then by user and context. A null {@code from}, {@code to},
+     * {@code userId}, or {@code context} does not narrow the listing.
      */
-    Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String context, final int offset,
-            final int limit);
+    Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String userId, final String context,
+            final int offset, final int limit);
 
 }

@@ -20,17 +20,21 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.Date;
 import java.util.Map;
 
-/** The PII counts for one context and day, as returned by the PII counts API. Only counts, never any PII. */
+/** The PII counts for one user's context and day, as returned by the PII counts API. Only counts, never any PII. */
 public class PiiCountView {
 
+    private final String id;
+    private final String owner;
     private final String context;
     private final String day;
     private final Map<String, Long> counts;
     private final long totalDocuments;
     private final Date updatedAt;
 
-    public PiiCountView(final String context, final String day, final Map<String, Long> counts,
-                        final long totalDocuments, final Date updatedAt) {
+    public PiiCountView(final String id, final String owner, final String context, final String day,
+                        final Map<String, Long> counts, final long totalDocuments, final Date updatedAt) {
+        this.id = id;
+        this.owner = owner;
         this.context = context;
         this.day = day;
         this.counts = counts;
@@ -38,7 +42,20 @@ public class PiiCountView {
         this.updatedAt = updatedAt;
     }
 
-    @Schema(description = "The context the redactions ran in.")
+    @Schema(description = "Identifies this user's context and day, the same on every read, so a client paging through "
+            + "the counts can tell buckets apart without their names.")
+    public String getId() {
+        return id;
+    }
+
+    @Schema(description = "The username of the user whose redactions these are. Given for the caller's own counts, and "
+            + "for other users' only when ADMIN_CROSS_USER_ACCESS_ENABLED is true; otherwise absent.")
+    public String getOwner() {
+        return owner;
+    }
+
+    @Schema(description = "The context the redactions ran in. Given for the caller's own counts, and for other users' "
+            + "only when ADMIN_CROSS_USER_ACCESS_ENABLED is true; otherwise absent.")
     public String getContext() {
         return context;
     }

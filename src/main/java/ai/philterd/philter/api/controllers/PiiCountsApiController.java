@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.BadRequestException;
+import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetPiiCountsResponse;
@@ -24,6 +25,7 @@ import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
+import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.Listings;
@@ -32,6 +34,7 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -54,7 +57,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "PII Counts", description = "Read the PII type counts Philter records for Philter Diffuse. Requires an administrator.")
 @Controller
@@ -110,6 +115,7 @@ public class PiiCountsApiController extends AbstractApiController {
             final @RequestParam(value = "from", required = false) String from,
             final @RequestParam(value = "to", required = false) String to,
             final @RequestParam(value = "context", required = false) String context,
+            final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
@@ -133,13 +139,40 @@ public class PiiCountsApiController extends AbstractApiController {
         }
         final String contextFilter = context == null || context.isBlank() ? null : context.trim();
 
-        final Listings.Page<PiiCountDataService.Aggregate> page = piiCountDataService.list(fromDay, toDay,
-                contextFilter, normalizeOffset(offset), normalizeLimit(limit));
+        // Every user's counts are listed, for the deployment-wide totals Philter Diffuse needs, but another user's
+        // context names and username only with cross-user access. Without it, naming a context or another user
+        // narrows to the caller's own, so the listing cannot be used to learn which contexts other users have.
+        final String callerId = apiKeyEntity.getUserId();
+        final boolean crossUser = isCrossUserAccessEnabled();
+        String userFilter = null;
+        if (owner != null && !owner.isBlank()) {
+            userFilter = resolveTargetUserId(userService, callerId, owner);
+            if (userFilter == null) {
+                throw new NotFoundException();
+            }
+        } else if (contextFilter != null && !crossUser) {
+            userFilter = callerId;
+        }
 
+        final Listings.Page<PiiCountDataService.Aggregate> page = piiCountDataService.list(fromDay, toDay,
+                userFilter, contextFilter, normalizeOffset(offset), normalizeLimit(limit));
+
+        final Map<String, String> usernames = new HashMap<>();
+        boolean namedOtherUsers = false;
         final List<PiiCountView> counts = new ArrayList<>(page.items().size());
         for (final PiiCountDataService.Aggregate aggregate : page.items()) {
-            counts.add(new PiiCountView(aggregate.context(), aggregate.day().toString(), aggregate.counts(),
-                    aggregate.totalDocuments(), aggregate.updatedAt()));
+            final boolean own = callerId.equals(aggregate.userId());
+            final boolean named = own || crossUser;
+            namedOtherUsers |= named && !own;
+            final String username = !named ? null : usernames.computeIfAbsent(aggregate.userId(), id -> {
+                final UserEntity user = userService.findOneById(id);
+                return user == null ? null : user.getUsername();
+            });
+            counts.add(new PiiCountView(bucketId(aggregate), username, named ? aggregate.context() : null,
+                    aggregate.day().toString(), aggregate.counts(), aggregate.totalDocuments(), aggregate.updatedAt()));
+        }
+        if (namedOtherUsers) {
+            auditAllUsersListing(auditEventPublisher, requestId, callerId, "list PII counts");
         }
 
         final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
@@ -149,11 +182,21 @@ public class PiiCountsApiController extends AbstractApiController {
                 getClientIpAddress(httpServletRequest),
                 "from: " + (fromDay == null ? "any" : fromDay) + ", to: " + (toDay == null ? "any" : toDay)
                         + ", context: " + (contextFilter == null ? "any" : contextFilter)
+                        + ", owner: " + (userFilter == null ? "any" : userFilter)
                         + ", returned: " + counts.size() + ", total: " + page.total());
 
         return new ResponseEntity<>(gson.toJson(new GetPiiCountsResponse(recordingEnabled, counts, page.total())),
                 HttpStatus.OK);
 
+    }
+
+    /**
+     * A stable identifier for one user's context and day, which tells buckets apart, such as two users' contexts of one
+     * name, without naming either. A hash, so it reveals neither the user nor the context.
+     */
+    static String bucketId(final PiiCountDataService.Aggregate aggregate) {
+        return EncryptionService.hashSha256(aggregate.userId() + "\n" + aggregate.context() + "\n" + aggregate.day())
+                .substring(0, 32);
     }
 
     private static LocalDate parseDay(final String value, final String parameter) {

@@ -329,11 +329,11 @@ public final class MongoStorageUnderTest implements StorageUnderTest {
     }
 
     @Override
-    public void storePiiCounts(final String context, final LocalDate day, final Map<String, Long> counts,
+    public void storePiiCounts(final String userId, final String context, final LocalDate day, final Map<String, Long> counts,
                                final long totalDocuments) {
         final Date bucketStart = Date.from(day.atStartOfDay(ZoneOffset.UTC).toInstant());
         mongoClient.getDatabase("philter").getCollection(MongoPiiCountAggregatePublisher.COLLECTION).insertOne(
-                new Document("context", context).append("bucket_start", bucketStart)
+                new Document("user_id", MongoIds.objectId(userId)).append("context", context).append("bucket_start", bucketStart)
                         .append("counts", new Document(new HashMap<>(counts))).append("total_documents", totalDocuments)
                         .append("updated_at", bucketStart));
     }

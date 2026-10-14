@@ -48,14 +48,14 @@ public abstract class StoredPiiCountAggregatePublisher implements PiiCountAggreg
     }
 
     /**
-     * Adds one to the context's count for the day for each of the types, and one to its total, creating the
+     * Adds one to the user's context's count for the day for each of the types, and one to its total, creating the
      * day's counts when there are none. Concurrent calls are all counted.
      */
-    protected abstract void increment(final String context, final Date bucketStart, final Set<String> piiTypes,
-            final Date now);
+    protected abstract void increment(final String userId, final String context, final Date bucketStart,
+            final Set<String> piiTypes, final Date now);
 
     @Override
-    public void record(final String context, final Set<String> piiTypes) {
+    public void record(final String userId, final String context, final Set<String> piiTypes) {
 
         if (piiTypes == null || piiTypes.isEmpty() || !isEnabled()) {
             return;
@@ -63,7 +63,7 @@ public abstract class StoredPiiCountAggregatePublisher implements PiiCountAggreg
 
         try {
             final Instant now = Instant.now();
-            increment(context, Date.from(now.truncatedTo(ChronoUnit.DAYS)), piiTypes, Date.from(now));
+            increment(userId, context, Date.from(now.truncatedTo(ChronoUnit.DAYS)), piiTypes, Date.from(now));
         } catch (final Exception ex) {
             LOGGER.debug("Unable to record PII count aggregate: {}", ex.getMessage());
         }

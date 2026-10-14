@@ -6,10 +6,11 @@ When this is enabled, after each redaction Philter records **counts only**, neve
 
 ## What Philter records
 
-Philter writes aggregated, time-bucketed **document-presence** counts to `pii_count_aggregates` in its database, one record per `(context, day)`. As MongoDB stores it:
+Philter writes aggregated, time-bucketed **document-presence** counts to `pii_count_aggregates` in its database, one record per user's `(context, day)`. As MongoDB stores it:
 
 ```json
 {
+  "user_id": ObjectId("6a0f1c2e9b1d4e3f2a1b0c9d"),
   "context": "claims-intake",
   "bucket_start": ISODate("2026-05-31T00:00:00Z"),
   "counts": { "SSN": 1240, "EMAIL_ADDRESS": 8900, "PERSON": 9500 },
@@ -22,11 +23,11 @@ For each redaction that finds PII, every distinct PII type present increments th
 
 This "document-presence" counting is deliberate: it ensures each redaction contributes at most one to any count, which preserves the `sensitivity = 1` assumption that Diffuse's differential-privacy guarantee depends on. (Counting the total number of SSN spans instead would let a single document contribute many, which would weaken the privacy guarantee Diffuse reports.)
 
-Because the counts are bucketed per `(context, day)`, the collection stays small regardless of redaction volume, so no retention TTL is required.
+Because the counts are bucketed per user's `(context, day)`, the collection stays small regardless of redaction volume, so no retention TTL is required.
 
 ## Reading the counts through the API
 
-The [PII Counts API](api_and_sdks/api/pii_counts_api.md) (`GET /api/pii-counts`) returns the same counts with an API key, so a reader needs no access to Philter's database and does not depend on how Philter stores them. Each entry gives a context, a UTC day, the count for each PII type, and `totalDocuments`. Narrow it by day range and context, and page through it with `offset` and `limit`. It requires an administrator and the `pii-counts:read` scope, and each read is recorded in the audit log.
+The [PII Counts API](api_and_sdks/api/pii_counts_api.md) (`GET /api/pii-counts`) returns the same counts with an API key, so a reader needs no access to Philter's database and does not depend on how Philter stores them. Each entry gives an `id`, a UTC day, the count for each PII type, and `totalDocuments`, and the context and its owner when the reader may see them. Narrow it by day range and context, and page through it with `offset` and `limit`. It requires an administrator and the `pii-counts:read` scope, and each read is recorded in the audit log.
 
 ```bash
 curl -k -H "Authorization: Bearer <token>" \

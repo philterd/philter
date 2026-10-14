@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Date;
 import java.util.Set;
 
-/** Records PII count aggregates in MongoDB, one document per context and day. */
+/** Records PII count aggregates in MongoDB, one document per user's context and day. */
 public class MongoPiiCountAggregatePublisher extends StoredPiiCountAggregatePublisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PiiCountAggregatePublisher.class);
@@ -42,18 +42,20 @@ public class MongoPiiCountAggregatePublisher extends StoredPiiCountAggregatePubl
         super(adminSettingsDataService);
         this.collection = mongoClient.getDatabase("philter").getCollection(COLLECTION);
 
-        // One aggregate document per (context, daily bucket).
+        // One aggregate document per (user, context, daily bucket).
         try {
-            collection.createIndex(Indexes.ascending("context", "bucket_start"), new IndexOptions().unique(true));
+            collection.createIndex(Indexes.ascending("user_id", "context", "bucket_start"), new IndexOptions().unique(true));
         } catch (final Exception ex) {
             LOGGER.warn("Unable to create index on {}: {}", COLLECTION, ex.getMessage());
         }
     }
 
     @Override
-    protected void increment(final String context, final Date bucketStart, final Set<String> piiTypes, final Date now) {
+    protected void increment(final String userId, final String context, final Date bucketStart, final Set<String> piiTypes,
+                             final Date now) {
 
-        final Document filter = new Document("context", context).append("bucket_start", bucketStart);
+        final Document filter = new Document("user_id", MongoIds.objectId(userId)).append("context", context)
+                .append("bucket_start", bucketStart);
 
         // Increment each present type's count by exactly one (document-presence), plus the total.
         final Document increments = new Document("total_documents", 1);

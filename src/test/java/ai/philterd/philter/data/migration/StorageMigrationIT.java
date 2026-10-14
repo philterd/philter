@@ -221,8 +221,8 @@ class StorageMigrationIT {
             delivery.setUpdatedAt(new Date());
             storage.webhookDeliveries().enqueueOnce(delivery);
 
-            storage.piiCounts().record("claims", Set.of("PERSON", "SSN"));
-            storage.piiCounts().record("claims", Set.of("PERSON"));
+            storage.piiCounts().record(jordan.getId(), "claims", Set.of("PERSON", "SSN"));
+            storage.piiCounts().record(jordan.getId(), "claims", Set.of("PERSON"));
 
             return new Filled(adminId, jordan.getId(), password, mfaSecret, apiKey, sessionKey, challenge, firstKeyId,
                     secondKeyId, replacement, claim.getDocumentId(), output);
@@ -317,7 +317,7 @@ class StorageMigrationIT {
         assertEquals(1, mongo.pendingDocuments().pendingNotifications(10).size());
         assertEquals("delivery secret", mongo.webhookDeliveries().claimNextDue(new Date()).getSecret());
         final Map<String, Long> counts = mongo.piiCountData().list(LocalDate.now(ZoneOffset.UTC), LocalDate.now(ZoneOffset.UTC),
-                "claims", 0, 10).items().get(0).counts();
+                null, "claims", 0, 10).items().get(0).counts();
         assertEquals(Map.of("PERSON", 2L, "SSN", 1L), counts);
 
         // The audit log came along, and records the migration.

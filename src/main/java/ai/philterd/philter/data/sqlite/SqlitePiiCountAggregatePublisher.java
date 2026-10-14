@@ -21,7 +21,7 @@ import ai.philterd.philter.services.diffuse.StoredPiiCountAggregatePublisher;
 import java.util.Date;
 import java.util.Set;
 
-/** Records PII counts in SQLite, one row per context and day, and one per PII type in it. */
+/** Records PII counts in SQLite, one row per user's context and day, and one per PII type in it. */
 public class SqlitePiiCountAggregatePublisher extends StoredPiiCountAggregatePublisher {
 
     private final SqliteDatabase database;
@@ -32,15 +32,16 @@ public class SqlitePiiCountAggregatePublisher extends StoredPiiCountAggregatePub
     }
 
     @Override
-    protected void increment(final String context, final Date bucketStart, final Set<String> piiTypes, final Date now) {
+    protected void increment(final String userId, final String context, final Date bucketStart, final Set<String> piiTypes,
+                             final Date now) {
         database.write(connection -> {
-            Sql.update(connection, "INSERT INTO pii_count_aggregates (context, bucket_start, total_documents, updated_at) "
-                    + "VALUES (?, ?, 1, ?) ON CONFLICT (context, bucket_start) DO UPDATE SET "
-                    + "total_documents = total_documents + 1, updated_at = excluded.updated_at", context, bucketStart, now);
+            Sql.update(connection, "INSERT INTO pii_count_aggregates (user_id, context, bucket_start, total_documents, "
+                    + "updated_at) VALUES (?, ?, ?, 1, ?) ON CONFLICT (user_id, context, bucket_start) DO UPDATE SET "
+                    + "total_documents = total_documents + 1, updated_at = excluded.updated_at", userId, context, bucketStart, now);
             for (final String piiType : piiTypes) {
-                Sql.update(connection, "INSERT INTO pii_counts (context, bucket_start, pii_type, count) VALUES (?, ?, ?, 1) "
-                        + "ON CONFLICT (context, bucket_start, pii_type) DO UPDATE SET count = count + 1",
-                        context, bucketStart, piiType);
+                Sql.update(connection, "INSERT INTO pii_counts (user_id, context, bucket_start, pii_type, count) "
+                        + "VALUES (?, ?, ?, ?, 1) ON CONFLICT (user_id, context, bucket_start, pii_type) DO UPDATE SET "
+                        + "count = count + 1", userId, context, bucketStart, piiType);
             }
             return null;
         });

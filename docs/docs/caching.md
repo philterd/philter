@@ -23,7 +23,7 @@ The in-memory backend bounds live and non-expiring entries by entry count and ac
 
 ## Valkey/Redis cache (distributed deployments)
 
-When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance remains valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`). That is a security concern. [Sign-in](sign_in_security.md#lockout-and-rate-limiting) lockout is not: an account's failures and lock are stored with the user in the database, so every instance shares them with or without a shared cache. Only the per-address sign-in rate limit is counted per instance.
+`CACHE_HOSTNAME` is **required when more than one Philter instance shares a database**: every instance must use the same Valkey/Redis, and running several instances without one is not a supported deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance would remain valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`), and the per-address [sign-in](sign_in_security.md#lockout-and-rate-limiting) rate limit would be counted per instance. A single instance needs no shared cache.
 
 Newly created context replacements are **not** in this list, because consistency there is enforced in
 the database by a unique constraint on the token, an atomic insert, and concurrent writers being handed the stored

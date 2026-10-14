@@ -160,8 +160,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
 - **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
   cached data, and when it was full every username was treated as locked, so one user redacting a document with many
-  distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, so they hold
-  across instances without a shared cache; usernames with no account and the per-address rate limit use a store of
+  distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, where no other
+  traffic can push them out; usernames with no account and the per-address rate limit use a store of
   their own; IPv6 clients are rate limited per /64; and a full in-memory store drops its entries nearest to expiring
   instead of refusing. See [Lockout and rate limiting](docs/docs/sign_in_security.md#lockout-and-rate-limiting).
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address

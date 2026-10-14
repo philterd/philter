@@ -17,13 +17,14 @@ package ai.philterd.philter.api.filters.auth;
 
 import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.api.exceptions.ApiErrors;
-import ai.philterd.philter.model.ErrorReasons;
+import ai.philterd.philter.api.filters.RequestPaths;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.SignInConfig;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.services.RequestIdGenerator;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -92,7 +93,7 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     @Override
     public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
 
-        final String path = ((HttpServletRequest) request).getRequestURI();
+        final String path = RequestPaths.of((HttpServletRequest) request);
 
         LOGGER.debug("API path requested: {}", path);
 

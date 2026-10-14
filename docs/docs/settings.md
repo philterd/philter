@@ -231,8 +231,15 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `MAX_FILE_SIZE_BYTES` | Maximum request body size, in bytes, for the endpoints that accept a document to redact: `POST /api/filter` and `POST /api/explain`. | `10485760` (10 MB) |
 | `MAX_FILE_SIZE_BYTES_OTHER` | Maximum request body size, in bytes, for every other `POST` and `PUT`. These carry configuration (policies, contexts, lists), not documents. The default accommodates the largest body these endpoints accept: a [redact lists](redaction/redact_lists.md) `POST` replaces both lists at once, so at the documented maximum of 1,000 terms of 100 characters per list it reaches roughly 203 KB. | `262144` (256 KB) |
 | `PHEYE_ENDPOINT` | The endpoint of the ph-eye NER service, used by a policy's ph-eye filter when the policy sets no endpoint. | `http://philter-ph-eye-1:5000/` |
-| `PHEYE_BEARER_TOKEN` | Bearer token sent to ph-eye, used when the policy sets none. | (none) |
+| `PHEYE_BEARER_TOKEN` | Bearer token sent to ph-eye. It is sent only to `PHEYE_ENDPOINT`, never to another endpoint a policy names, and a policy cannot set a token of its own. | (none) |
+| `PHEYE_ALLOWED_ENDPOINTS` | Other ph-eye endpoints a policy may name, separated by commas. A trailing slash is ignored. A policy naming any endpoint other than these and `PHEYE_ENDPOINT` is refused. See [Redaction services](#redaction-services). | (none) |
+| `PHEYE_ALLOWED_MODEL_PATHS` | Local GLiNER model directories a policy's ph-eye `modelPath` may name, separated by commas. A policy naming any other path is refused. | (none) |
+| `GENERATOR_ALLOWED_ENDPOINTS` | Endpoints a policy's [replacement generators](policies/filter_strategies.md#the-map_replace-filter-strategy) may name, separated by commas. A trailing slash is ignored. A policy naming any other endpoint is refused. | (none) |
 | `PHEYE_TIMEOUT` | Connection-request and response timeout, in seconds, for calls to ph-eye, used when the policy sets none. | `600` |
+
+### Redaction services
+
+Any user can write a policy, so the services and files a policy reaches are the operator's decision, not the policy author's. A policy is refused, when it is saved and before a redaction or asynchronous submission uses it, if it names a ph-eye `endpoint` other than `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, sets a ph-eye `bearerToken`, names a `modelPath` not in `PHEYE_ALLOWED_MODEL_PATHS`, or names a generator `endpoint` not in `GENERATOR_ALLOWED_ENDPOINTS`. Without this, a policy could send the text being redacted, or the deployment's ph-eye token, to a server of its author's choosing. Philter does not follow redirects from these services, so an allowed endpoint cannot redirect a request elsewhere.
 
 ## Output Signing
 

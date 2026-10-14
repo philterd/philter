@@ -88,6 +88,12 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   returns `400 Bad Request` with Phileas's reason, which never repeats a condition's text. Previously such a
   policy was saved and every redaction with it failed with `500`. See
   [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).
+- **A policy cannot direct Philter's requests or credentials.** A policy that names a ph-eye `endpoint` other than
+  `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, sets a ph-eye `bearerToken`, names a `modelPath` not in
+  `PHEYE_ALLOWED_MODEL_PATHS`, or names a generator `endpoint` not in `GENERATOR_ALLOWED_ENDPOINTS` is refused
+  with `400`. Previously any user's policy could send the text being redacted, and the deployment's
+  `PHEYE_BEARER_TOKEN`, to a server of its choosing. Requests to these services no longer follow redirects, and
+  connecting is bounded at 10 seconds. See [Redaction services](docs/docs/settings.md#redaction-services).
 - **`token !=` conditions apply.** A strategy with a condition such as `token != "127.0.0.1"` was
   never applied before; it now applies to every value other than the one named, ignoring case. Review
   policies that use `token !=`. See [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).
@@ -133,5 +139,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **`PHILTER_ENCRYPTION_KEY` is required.** Back it up: data cannot be recovered without it.
 - **Cross-user access is opt-in** through `ADMIN_CROSS_USER_ACCESS_ENABLED`.
 - **Ledger exports contain original values** and must be treated as sensitive.
+- **Access is decided by the path a request is routed by.** Authentication, scope checks, request size limits,
+  and content verification all use the decoded path, so a percent-encoded path such as `/%61pi/documents` is
+  treated exactly as `/api/documents`. Before this, such a path reached the endpoint without the scope check or
+  the live checks on the key, so a key could use endpoints outside its scopes and a deactivated user's key or a
+  restricted session key kept working.
 
 [4.0.0]: https://github.com/philterd/philter/releases/tag/4.0.0

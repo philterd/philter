@@ -59,10 +59,12 @@ import ai.philterd.philter.utils.HttpUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,7 +120,11 @@ public class RedactionService {
             return HttpUtils.getPoolingHttpClientConnectionManagerBuilder()
                     .setMaxConnTotal(10)
                     .setMaxConnPerRoute(10)
-                    .setValidateAfterInactivity(TimeValue.ofSeconds(5))
+                    // PhEye and generator calls set their own response timeouts; this bounds connecting.
+                    .setDefaultConnectionConfig(ConnectionConfig.custom()
+                            .setConnectTimeout(Timeout.ofSeconds(10))
+                            .setValidateAfterInactivity(TimeValue.ofSeconds(5))
+                            .build())
                     .build();
         } catch (Exception ex) {
             throw new RuntimeException("Unable to create connection manager: " + ex.getMessage(), ex);
@@ -140,6 +146,8 @@ public class RedactionService {
                     .evictExpiredConnections()
                     // Helps reduce overhead when reusing across invocations
                     .disableAutomaticRetries() // optional; consider enabling if idempotent
+                    // A service a policy may reach could otherwise redirect the request somewhere it may not.
+                    .disableRedirectHandling()
                     .build();
 
     public RedactionService(final ContextServices contextServices,

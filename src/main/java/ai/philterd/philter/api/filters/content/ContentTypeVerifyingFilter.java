@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.filters.content;
 
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
+import ai.philterd.philter.api.filters.RequestPaths;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,7 +63,7 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(final HttpServletRequest request, final HttpServletResponse response,
                                     final FilterChain filterChain) throws ServletException, IOException {
 
-        if (!"POST".equalsIgnoreCase(request.getMethod()) || !VERIFIED_PATHS.contains(request.getRequestURI())) {
+        if (!"POST".equalsIgnoreCase(request.getMethod()) || !VERIFIED_PATHS.contains(RequestPaths.of(request))) {
             filterChain.doFilter(request, response);
             return;
         }

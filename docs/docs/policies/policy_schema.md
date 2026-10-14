@@ -223,12 +223,12 @@ Many filters accept properties of their own, besides their strategies list and t
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `endpoint` | string (URI) | `PHEYE_ENDPOINT` environment variable, else `http://philter-ph-eye-1:5000/` | URL of the PhEye service. |
-| `bearerToken` | string | | Bearer token for the PhEye service. |
+| `endpoint` | string (URI) | `PHEYE_ENDPOINT` environment variable, else `http://philter-ph-eye-1:5000/` | URL of the PhEye service. Must be the deployment's own (`PHEYE_ENDPOINT`) or one an administrator allows with `PHEYE_ALLOWED_ENDPOINTS`; any other endpoint refuses the policy. Leave it out to use the deployment's PhEye service. |
+| `bearerToken` | string | | Not accepted in a policy: a policy that sets it is refused. The deployment's `PHEYE_BEARER_TOKEN` is sent to its own PhEye service (`PHEYE_ENDPOINT`) only. |
 | `timeout` | integer | `600` | Request timeout in seconds. |
 | `maxIdleConnections` | integer | `30` | Maximum idle HTTP connections. |
 | `labels` | array of strings | | Entity labels to detect (for example, "PER", "LOC", "ORG"). |
-| `modelPath` | string | | Path to a local GLiNER model directory. When set, entities are detected on-device instead of through `endpoint`. |
+| `modelPath` | string | | Path to a local GLiNER model directory. When set, entities are detected on-device instead of through `endpoint`. Must be a path an administrator allows with `PHEYE_ALLOWED_MODEL_PATHS`; any other path refuses the policy. |
 
 ## Filter strategies
 
@@ -396,7 +396,7 @@ A small but complete policy that redacts SSNs to their last four digits, replace
         "phEyeFilterStrategies": [
           { "strategy": "REDACT", "condition": "confidence > 0.9" }
         ],
-        "phEyeConfiguration": { "endpoint": "http://ph-eye:5000" },
+        "phEyeConfiguration": { "labels": ["PER"] },
         "thresholds": { "PER": 0.8 }
       }
     ]

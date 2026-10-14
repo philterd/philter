@@ -17,10 +17,11 @@ package ai.philterd.philter.api.security;
 
 import ai.philterd.philter.api.controllers.AbstractApiController;
 import ai.philterd.philter.api.exceptions.ApiErrors;
-import ai.philterd.philter.model.ErrorReasons;
+import ai.philterd.philter.api.filters.RequestPaths;
+import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.model.ApiKeyScope;
-import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
+import ai.philterd.philter.model.ErrorReasons;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -63,7 +64,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
     public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response,
                              final Object handler) throws Exception {
 
-        final String path = request.getRequestURI();
+        final String path = RequestPaths.of(request);
 
         if (!path.startsWith("/api/") || isUnauthenticated(path, request.getMethod())) {
             return true;

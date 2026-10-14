@@ -73,7 +73,15 @@ class PolicyLoadRefusalApiIT {
                     + "\"token == \\\"SECRET9\\\" and context startswith \\\"x\\\"\",\"strategy\":\"REDACT\"}]}}}",
                     "Strategy 1 of the ssn filter has a condition that is not supported: context supports == and !=, not startswith."},
             "regex", new String[]{"{\"identifiers\":{\"identifiers\":[{\"pattern\":\"([a-z\",\"identifierFilterStrategies\":[{\"strategy\":\"REDACT\"}]}]}}",
-                    "The identifier 'custom-identifier' pattern is not a valid regular expression"});
+                    "The identifier 'custom-identifier' pattern is not a valid regular expression"},
+            // A policy cannot direct Philter's requests or credentials to a service the deployment does not allow.
+            "pheye-endpoint", new String[]{"{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":{\"endpoint\":\"http://127.0.0.1:9\"}}]}}",
+                    "The PhEye endpoint is not one this deployment allows."},
+            "pheye-token", new String[]{"{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":{\"bearerToken\":\"SECRET9\"}}]}}",
+                    "A policy cannot set a PhEye bearerToken."},
+            "generator", new String[]{"{\"generators\":{\"names\":{\"type\":\"OLLAMA\",\"endpoint\":\"http://127.0.0.1:9\",\"model\":\"m\"}},"
+                    + "\"identifiers\":{\"ssn\":{}}}",
+                    "The endpoint of generator 'names' is not one this deployment allows."});
 
     @Autowired private Environment environment;
     @Autowired private UserService userService;

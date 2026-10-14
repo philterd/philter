@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.filters.size;
 
+import ai.philterd.philter.api.filters.RequestPaths;
 import ai.philterd.philter.model.Constants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -56,7 +57,7 @@ public class SizeLimitingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(final HttpServletRequest request, final HttpServletResponse response, final FilterChain filterChain)
             throws ServletException, IOException {
 
-        final String path = request.getRequestURI();
+        final String path = RequestPaths.of(request);
         final String method = request.getMethod();
 
         // Determine the appropriate size limit based on endpoint and method

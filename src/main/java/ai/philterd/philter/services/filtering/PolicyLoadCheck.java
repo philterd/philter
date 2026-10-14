@@ -19,6 +19,7 @@ import ai.philterd.phileas.policy.InvalidPolicyConditionException;
 import ai.philterd.phileas.policy.InvalidPolicyPatternException;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.FilterPolicyLoader;
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +29,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Finds a policy that Phileas refuses to load, by building its filters as redaction does. Phileas checks a
+ * Finds a policy that Phileas refuses to load, by building its filters as redaction does, or that reaches a service
+ * or file the deployment does not allow (see {@link PolicyResourceCheck}). Phileas checks a
  * policy when it builds the filters, not when the JSON is read, so without this a policy it refuses would be
  * saved and then fail every redaction. Only Phileas's refusals of the policy are reported: an unparseable or
  * unsupported strategy condition, a policy regular expression that does not compile or fails its probe, and an
@@ -43,7 +45,10 @@ public final class PolicyLoadCheck {
 
     private static final PolicyLoadCheck SHARED = new PolicyLoadCheck();
 
+    private static final Gson GSON = new Gson();
+
     private final FilterPolicyLoader loader;
+    private final PolicyResourceCheck resources = new PolicyResourceCheck(System::getenv);
     private final Set<String> loadable = ConcurrentHashMap.newKeySet();
 
     private PolicyLoadCheck() {
@@ -68,6 +73,12 @@ public final class PolicyLoadCheck {
         final String key = policy.getCacheKey();
         if (loadable.contains(key)) {
             return null;
+        }
+
+        // Before the filters are built: building a PhEye filter with a modelPath loads that model.
+        final String resource = resources.refusal(GSON.toJsonTree(policy).getAsJsonObject());
+        if (resource != null) {
+            return resource;
         }
 
         try {

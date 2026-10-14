@@ -20,8 +20,10 @@ import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredPolicyDataService;
 import ai.philterd.philter.services.cache.RedactionCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 
 import java.sql.SQLException;
@@ -34,30 +36,47 @@ import java.util.Set;
 /** Stores policies in SQLite, one row per policy, with a revision counter per owner and name. */
 public class SqlitePolicyDataService extends StoredPolicyDataService {
 
-    private static final String UNCHANGED = " AND revision = ? AND description IS ? AND notes IS ?";
+    private static final String UNCHANGED = " AND revision = ? AND details_revision = ?";
 
     private final SqliteDatabase database;
+    private final EncryptionService encryptionService;
 
-    public SqlitePolicyDataService(final SqliteDatabase database, final AuditEventPublisher auditEventPublisher, final Gson gson,
+    public SqlitePolicyDataService(final SqliteDatabase database, final EncryptionService encryptionService,
+                                   final AuditEventPublisher auditEventPublisher, final Gson gson,
                                    final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {
         super(auditEventPublisher, gson, policyVersionDataService, redactionCache);
         this.database = database;
+        this.encryptionService = encryptionService;
     }
 
-    private static PolicyEntity read(final Sql.Row row) throws SQLException {
+    // The policy, its description, and its notes are encrypted: a policy can hold the terms it redacts and keys.
+    private PolicyEntity read(final Sql.Row row) throws SQLException {
         final PolicyEntity policy = new PolicyEntity();
         policy.setId(row.string("id"));
         policy.setUserId(row.string("user_id"));
         policy.setName(row.string("name"));
-        policy.setPolicy(row.string("policy"));
+        policy.setPolicy(SecretFields.open(encryptionService, row.string("policy"), row.string("policy_key")));
         policy.setCreatedTimestamp(row.date("created_timestamp"));
         policy.setRevision(row.intValue("revision"));
         policy.setLastUpdatedTimestamp(row.date("last_updated_timestamp"));
         policy.setShared(row.bool("shared"));
-        policy.setNotes(row.string("notes"));
-        policy.setDescription(row.string("description"));
+        policy.setNotes(SecretFields.open(encryptionService, row.string("notes"), row.string("notes_key")));
+        policy.setDescription(SecretFields.open(encryptionService, row.string("description"), row.string("description_key")));
+        policy.setDetailsRevision(row.intValue("details_revision"));
         policy.setManaged(row.bool("managed"));
         return policy;
+    }
+
+    private SecretFields.Sealed seal(final String value, final PolicyEntity policy) {
+        return SecretFields.seal(encryptionService, value, policy.getUserId());
+    }
+
+    private static String ciphertext(final SecretFields.Sealed sealed) {
+        return sealed == null ? null : sealed.ciphertext();
+    }
+
+    private static String key(final SecretFields.Sealed sealed) {
+        return sealed == null ? null : sealed.key();
     }
 
     @Override
@@ -76,27 +95,37 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
     @Override
     protected String insert(final PolicyEntity policy) {
         final String id = RecordIds.newId();
-        database.write(connection -> Sql.update(connection, "INSERT INTO policies (id, user_id, name, policy, created_timestamp, "
-                + "revision, last_updated_timestamp, shared, notes, description, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                id, policy.getUserId(), policy.getName(), policy.getPolicy(), policy.getCreatedTimestamp(), policy.getRevision(),
-                policy.getLastUpdatedTimestamp(), policy.isShared(), policy.getNotes(), policy.getDescription(), policy.isManaged()));
+        final SecretFields.Sealed json = seal(policy.getPolicy(), policy);
+        final SecretFields.Sealed notes = seal(policy.getNotes(), policy);
+        final SecretFields.Sealed description = seal(policy.getDescription(), policy);
+        database.write(connection -> Sql.update(connection, "INSERT INTO policies (id, user_id, name, policy, policy_key, "
+                + "created_timestamp, revision, last_updated_timestamp, shared, notes, notes_key, description, description_key, "
+                + "details_revision, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                id, policy.getUserId(), policy.getName(), ciphertext(json), key(json), policy.getCreatedTimestamp(),
+                policy.getRevision(), policy.getLastUpdatedTimestamp(), policy.isShared(), ciphertext(notes), key(notes),
+                ciphertext(description), key(description), policy.getDetailsRevision(), policy.isManaged()));
         return id;
     }
 
     private boolean replace(final PolicyEntity policy, final String condition, final Object... conditionValues) {
+        final SecretFields.Sealed json = seal(policy.getPolicy(), policy);
+        final SecretFields.Sealed notes = seal(policy.getNotes(), policy);
+        final SecretFields.Sealed description = seal(policy.getDescription(), policy);
         final List<Object> params = new ArrayList<>(java.util.Arrays.asList(policy.getUserId(), policy.getName(),
-                policy.getPolicy(), policy.getCreatedTimestamp(), policy.getRevision(), policy.getLastUpdatedTimestamp(),
-                policy.isShared(), policy.getNotes(), policy.getDescription(), policy.isManaged(), policy.getId()));
+                ciphertext(json), key(json), policy.getCreatedTimestamp(), policy.getRevision(), policy.getLastUpdatedTimestamp(),
+                policy.isShared(), ciphertext(notes), key(notes), ciphertext(description), key(description),
+                policy.getDetailsRevision(), policy.isManaged(), policy.getId()));
         params.addAll(java.util.Arrays.asList(conditionValues));
         return database.write(connection -> Sql.update(connection, "UPDATE policies SET user_id = ?, name = ?, policy = ?, "
-                + "created_timestamp = ?, revision = ?, last_updated_timestamp = ?, shared = ?, notes = ?, description = ?, "
-                + "managed = ? WHERE id = ?" + condition, params.toArray())) == 1;
+                + "policy_key = ?, created_timestamp = ?, revision = ?, last_updated_timestamp = ?, shared = ?, notes = ?, "
+                + "notes_key = ?, description = ?, description_key = ?, details_revision = ?, managed = ? WHERE id = ?"
+                + condition, params.toArray())) == 1;
     }
 
     @Override
     protected boolean replaceIfUnchanged(final PolicyEntity policy, final int expectedRevision,
-                                         final String expectedDescription, final String expectedNotes) {
-        return replace(policy, UNCHANGED, expectedRevision, expectedDescription, expectedNotes);
+                                         final int expectedDetailsRevision) {
+        return replace(policy, UNCHANGED, expectedRevision, expectedDetailsRevision);
     }
 
     @Override
@@ -110,16 +139,21 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
         final List<String> sets = new ArrayList<>();
         final List<Object> params = new ArrayList<>();
         if (description != null) {
-            sets.add("description = ?");
-            params.add(description);
+            final SecretFields.Sealed sealed = seal(description, policy);
+            sets.add("description = ?, description_key = ?");
+            params.add(sealed.ciphertext());
+            params.add(sealed.key());
         }
         if (notes != null) {
-            sets.add("notes = ?");
-            params.add(notes);
+            final SecretFields.Sealed sealed = seal(notes, policy);
+            sets.add("notes = ?, notes_key = ?");
+            params.add(sealed.ciphertext());
+            params.add(sealed.key());
         }
+        sets.add("details_revision = details_revision + 1");
         sets.add("last_updated_timestamp = ?");
         params.addAll(java.util.Arrays.asList(now, policy.getId(), policy.getUserId(), policy.getRevision(),
-                policy.getDescription(), policy.getNotes()));
+                policy.getDetailsRevision()));
         return database.write(connection -> Sql.update(connection, "UPDATE policies SET " + String.join(", ", sets)
                 + " WHERE id = ? AND user_id = ?" + UNCHANGED, params.toArray())) == 1;
     }
@@ -133,7 +167,7 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
     @Override
     protected PolicyEntity findManaged(final String name) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policies WHERE name = ? AND managed = 1",
-                SqlitePolicyDataService::read, name));
+                this::read, name));
     }
 
     @Override
@@ -145,20 +179,20 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
     @Override
     public PolicyEntity findOne(final String name, final String userId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policies WHERE user_id = ? AND name = ?",
-                SqlitePolicyDataService::read, userId, name));
+                this::read, userId, name));
     }
 
     @Override
     public PolicyEntity findOneById(final String id, final String userId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policies WHERE id = ? AND "
-                + "(user_id = ? OR shared = 1)", SqlitePolicyDataService::read, id, userId));
+                + "(user_id = ? OR shared = 1)", this::read, id, userId));
     }
 
     private Listings.Page<PolicyEntity> page(final String condition, final List<Object> params, final String q,
                                              final Listings.Sort sort, final int offset, final int limit) {
         final String where = Sql.where(condition, Sql.contains("name", q, params));
         return database.read(connection -> Sql.page(connection, "policies", where, params, sort, offset, limit,
-                SqlitePolicyDataService::read));
+                this::read));
     }
 
     @Override

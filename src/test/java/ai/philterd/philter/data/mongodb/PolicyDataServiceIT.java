@@ -54,8 +54,8 @@ class PolicyDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        versionService = new MongoPolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class));
-        service = new MongoPolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson,
+        versionService = new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class));
+        service = new MongoPolicyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class), gson,
                 versionService, new ai.philterd.philter.services.cache.RedactionCache());
     }
 
@@ -356,7 +356,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final String quiet = capturingPolicyLogs(() ->
                 service.create("req", userId, validPolicyJson(), "d", null, "no-key", "test"));
 
-        assertFalse(quiet.contains("not encrypted at rest"),
+        assertFalse(quiet.contains("Anyone who can read the policy"),
                 "a policy holding no key must not be warned about: " + quiet);
 
         // The warning is advice, not a refusal: the policy is still stored.
@@ -461,6 +461,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final String user = MongoIds.newId();
         assertTrue(create(user, "raced").isSuccessful());
         final PolicyEntity read = service.findOne("raced", user);
+        final String originalPolicy = read.getPolicy();
         // Another writer changes the notes after this service read the policy.
         assertTrue(service.updateDetails("req", user, "raced", null, "theirs", "source").isSuccessful());
 
@@ -470,10 +471,9 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         assertEquals(409, details.response().getStatusCode());
         assertEquals(PolicyDataService.REASON_POLICY_CHANGED, details.response().getDetails());
 
-        final PolicyEntity readAgain = service.findOne("raced", user);
-        readAgain.setNotes("notes");
+        // Replacing the content from the same stale read is refused too: the details changed since it was read.
         final PolicyDataService racingReplace = spy(service);
-        doReturn(readAgain).when(racingReplace).findOneById(read.getId(), user);
+        doReturn(read).when(racingReplace).findOneById(read.getId(), user);
         final PolicyDataService.WriteOutcome replaced = racingReplace.replace("req", user, read.getId(), OTHER_POLICY_JSON,
                 null, null, "source", user, null);
         assertEquals(409, replaced.response().getStatusCode());
@@ -481,7 +481,7 @@ class PolicyDataServiceIT extends AbstractMongoIT {
         final PolicyEntity stored = service.findOne("raced", user);
         assertEquals("desc", stored.getDescription());
         assertEquals("theirs", stored.getNotes());
-        assertEquals(read.getPolicy(), stored.getPolicy());
+        assertEquals(originalPolicy, stored.getPolicy());
     }
 
     @Test

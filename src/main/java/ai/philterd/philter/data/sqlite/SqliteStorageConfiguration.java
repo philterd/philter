@@ -161,13 +161,16 @@ public class SqliteStorageConfiguration {
     }
 
     @Bean
-    public PolicyVersionDataService policyVersionDataService() {
-        return new SqlitePolicyVersionDataService(database);
+    public PolicyVersionDataService policyVersionDataService(final EncryptionService encryptionService) {
+        return new SqlitePolicyVersionDataService(database, encryptionService);
     }
 
     @Bean
-    public PolicyDataService policyDataService(final Gson gson, final RedactionCache redactionCache) {
-        return new SqlitePolicyDataService(database, auditEventPublisher(), gson, policyVersionDataService(), redactionCache);
+    public PolicyDataService policyDataService(final Gson gson, final RedactionCache redactionCache,
+                                               final EncryptionService encryptionService,
+                                               final PolicyVersionDataService policyVersionDataService) {
+        return new SqlitePolicyDataService(database, encryptionService, auditEventPublisher(), gson, policyVersionDataService,
+                redactionCache);
     }
 
     @Bean

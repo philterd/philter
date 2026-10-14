@@ -111,12 +111,16 @@ final class SqliteSchema {
                 user_id TEXT,
                 name TEXT NOT NULL,
                 policy TEXT,
+                policy_key TEXT,
                 created_timestamp INTEGER,
                 revision INTEGER NOT NULL DEFAULT 0,
                 last_updated_timestamp INTEGER,
                 shared INTEGER NOT NULL DEFAULT 0,
                 notes TEXT,
+                notes_key TEXT,
                 description TEXT,
+                description_key TEXT,
+                details_revision INTEGER NOT NULL DEFAULT 0,
                 managed INTEGER NOT NULL DEFAULT 0)""",
             "CREATE UNIQUE INDEX policies_name ON policies (ifnull(user_id, ''), name)",
             """
@@ -134,6 +138,7 @@ final class SqliteSchema {
                 revision INTEGER NOT NULL,
                 content_hash TEXT,
                 policy TEXT,
+                policy_key TEXT,
                 captured_timestamp INTEGER,
                 author_id TEXT)""",
             "CREATE UNIQUE INDEX policy_versions_revision ON policy_versions (ifnull(user_id, ''), name, revision)",
@@ -141,7 +146,8 @@ final class SqliteSchema {
             """
             CREATE TABLE policy_contents (
                 hash TEXT PRIMARY KEY,
-                policy TEXT NOT NULL)""",
+                policy TEXT NOT NULL,
+                policy_key TEXT NOT NULL)""",
             """
             CREATE TABLE policy_deletions (
                 user_id TEXT NOT NULL,

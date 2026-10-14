@@ -91,7 +91,7 @@ Encryption settings used by the `CRYPTO_REPLACE` strategy. Philter encrypts usin
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `key` | string | Hex-encoded AES key (64 hex characters for a 256-bit key, 32 for 128-bit). Prefix with `env:` to read it from an environment variable; a key written here is stored in the clear, see [what is encrypted at rest](../database.md#what-is-encrypted-at-rest). |
+| `key` | string | Hex-encoded AES key (64 hex characters for a 256-bit key, 32 for 128-bit). Prefix with `env:` to read it from an environment variable; a key written here can be read by anyone who can read the policy and is kept in every revision, see [what is encrypted at rest](../database.md#what-is-encrypted-at-rest). |
 
 ## `fpe`
 
@@ -99,7 +99,7 @@ Format-preserving encryption settings used by the `FPE_ENCRYPT_REPLACE` strategy
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `key` | string | FPE encryption key (hex, 128/192/256-bit). Prefix with `env:` to read it from an environment variable; a key written here is stored in the clear, see [what is encrypted at rest](../database.md#what-is-encrypted-at-rest). |
+| `key` | string | FPE encryption key (hex, 128/192/256-bit). Prefix with `env:` to read it from an environment variable; a key written here can be read by anyone who can read the policy and is kept in every revision, see [what is encrypted at rest](../database.md#what-is-encrypted-at-rest). |
 | `tweak` | string | FPE tweak value (hex, 56- or 64-bit). May be prefixed with `env:`. |
 
 ## `identifiers`

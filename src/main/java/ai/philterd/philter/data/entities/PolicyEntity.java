@@ -37,6 +37,21 @@ public class PolicyEntity extends AbstractEntity {
      */
     private transient String authorId;
 
+    /**
+     * Counts changes to the description and notes, so a write can tell they changed since the policy was read without
+     * comparing them: they are stored encrypted, and the same text never encrypts the same way twice. Stored with the
+     * policy, but not part of it, so it is left out of the policy's JSON.
+     */
+    private transient int detailsRevision;
+
+    public int getDetailsRevision() {
+        return detailsRevision;
+    }
+
+    public void setDetailsRevision(final int detailsRevision) {
+        this.detailsRevision = detailsRevision;
+    }
+
     public void incrementRevision() {
         revision++;
     }

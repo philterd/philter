@@ -20,7 +20,9 @@ import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.DuplicateRecordException;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredPolicyVersionDataService;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.model.Filters;
@@ -46,8 +48,13 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
     /** When each of a user's policies was last deleted, and by whom, so deleted policies can be listed. */
     private final com.mongodb.client.MongoCollection<Document> deletions;
 
-    public MongoPolicyVersionDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher) {
-        records = new MongoRecords<>(mongoClient, "policy_versions", PolicyVersionDocuments::toDocument);
+    private final EncryptionService encryptionService;
+
+    public MongoPolicyVersionDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                                         final AuditEventPublisher auditEventPublisher) {
+        this.encryptionService = encryptionService;
+        records = new MongoRecords<>(mongoClient, "policy_versions",
+                entity -> PolicyVersionDocuments.toDocument(entity, encryptionService));
         collection = records.collection;
 
         contents = mongoClient.getDatabase("philter").getCollection("policy_contents");
@@ -65,7 +72,10 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
     @Override
     protected void insertContent(final String contentHash, final String policyJson) {
         try {
-            contents.insertOne(new Document("_id", contentHash).append("policy", policyJson));
+            // Shared by every owner whose policy has this content, so it is sealed without one.
+            final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, policyJson, null);
+            contents.insertOne(new Document("_id", contentHash).append("policy", sealed.ciphertext())
+                    .append("policy_key", sealed.key()));
         } catch (final com.mongodb.MongoWriteException e) {
             throw MongoRecords.isDuplicate(e) ? new DuplicateRecordException(e) : e;
         }
@@ -74,7 +84,8 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
     @Override
     protected String findContent(final String contentHash) {
         final Document document = contents.find(Filters.eq("_id", contentHash)).first();
-        return document == null ? null : document.getString("policy");
+        return document == null ? null
+                : SecretFields.open(encryptionService, document.getString("policy"), document.getString("policy_key"));
     }
 
     @Override
@@ -92,7 +103,7 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
                 .limit(limit);
         final List<PolicyVersionEntity> versions = new ArrayList<>();
         for (final Document doc : documents) {
-            versions.add(PolicyVersionDocuments.fromDocument(doc));
+            versions.add(PolicyVersionDocuments.fromDocument(doc, encryptionService));
         }
         return versions;
     }
@@ -101,7 +112,7 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
     public Listings.Page<PolicyVersionEntity> listByName(final String name, final String userId,
                                                          final boolean descending, final int offset, final int limit) {
         return MongoListings.page(collection, Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name)),
-                new Listings.Sort("revision", descending), offset, limit, PolicyVersionDocuments::fromDocument);
+                new Listings.Sort("revision", descending), offset, limit, document -> PolicyVersionDocuments.fromDocument(document, encryptionService));
     }
 
     @Override
@@ -112,7 +123,7 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
                 Filters.eq("name", name),
                 Filters.eq("revision", revision));
         final Document document = collection.find(query).first();
-        return document != null ? PolicyVersionDocuments.fromDocument(document) : null;
+        return document != null ? PolicyVersionDocuments.fromDocument(document, encryptionService) : null;
     }
 
     @Override

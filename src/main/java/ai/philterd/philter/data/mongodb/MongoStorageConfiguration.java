@@ -155,13 +155,16 @@ public class MongoStorageConfiguration {
     }
 
     @Bean
-    public PolicyVersionDataService policyVersionDataService() {
-        return new MongoPolicyVersionDataService(mongoClient, auditEventPublisher());
+    public PolicyVersionDataService policyVersionDataService(final EncryptionService encryptionService) {
+        return new MongoPolicyVersionDataService(mongoClient, encryptionService, auditEventPublisher());
     }
 
     @Bean
-    public PolicyDataService policyDataService(final Gson gson, final RedactionCache redactionCache) {
-        return new MongoPolicyDataService(mongoClient, auditEventPublisher(), gson, policyVersionDataService(), redactionCache);
+    public PolicyDataService policyDataService(final Gson gson, final RedactionCache redactionCache,
+                                               final EncryptionService encryptionService,
+                                               final PolicyVersionDataService policyVersionDataService) {
+        return new MongoPolicyDataService(mongoClient, encryptionService, auditEventPublisher(), gson, policyVersionDataService,
+                redactionCache);
     }
 
     @Bean

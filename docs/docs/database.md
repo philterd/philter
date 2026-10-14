@@ -59,6 +59,9 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 |---|---|
 | `users` | Account details and the webhook secret |
 | `ledger` | The original token and its replacement |
+| `policies` | The policy, its description, and its notes |
+| `policy_versions` | Each revision of a policy |
+| `policy_contents` | Policy content, by its SHA-256 hash; the hash stays readable, since redaction evidence names it |
 | `custom_lists` | List items |
 | `redact_lists` | Always/never redact terms |
 | `webhook_deliveries` | The queued webhook signing secret; delivery metadata and payload remain readable |
@@ -71,16 +74,14 @@ it unusable for the reporting it exists for. It records event names, the acting 
 id, a client address and a short detail string, not document content.
 
 **Not encrypted:** API keys (stored as a hash), context entries (stored as a token hash, not the
-original value), policies and their version snapshots, contexts, legal holds, disambiguation vectors (`vectors`, hashes only), sign-in challenges (stored as a hash), the rest of the admin
+original value), policy names, contexts, legal holds, disambiguation vectors (`vectors`, hashes only), sign-in challenges (stored as a hash), the rest of the admin
 settings, webhook delivery metadata and payloads, a pending document's submitting client address (recorded on its
-audit events, which hold it in the clear too), and the audit log. These hold no recoverable secret, with one
-exception you control.
+audit events, which hold it in the clear too), and the audit log. These hold no recoverable secret.
 
-> **A policy can hold a secret, and then it is stored in the clear.** The `crypto` and `fpe` sections
-> of a policy may contain an encryption key. Policies and their version snapshots are not encrypted,
-> and the values those keys encrypted are held in `context_entries`, which is not encrypted either,
-> so a key written into a policy can be read by anyone who can read the database, along with
-> everything it encrypted. Prefix the value with `env:` (for example `env:CRYPTO_KEY`) to keep the key
+> **A key written into a policy can be read by anyone who can read the policy.** The `crypto` and `fpe`
+> sections of a policy may contain an encryption key. Policies are encrypted at rest, but the policy's owner, and an
+> administrator when `ADMIN_CROSS_USER_ACCESS_ENABLED` is on, can read the policy and the key in it, and reverse
+> what that key encrypted. Prefix the value with `env:` (for example `env:CRYPTO_KEY`) to keep the key
 > in the environment and store only the variable's name; the variable must be listed in
 > [`POLICY_ALLOWED_ENV_KEYS`](settings.md#environment-variables-in-a-policy). Philter logs a warning when a policy is saved
 > with a key in it. Note that a version snapshot keeps whatever the policy held at the time, so

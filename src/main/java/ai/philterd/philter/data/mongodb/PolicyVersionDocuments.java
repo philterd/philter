@@ -16,6 +16,8 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
+import ai.philterd.philter.data.services.SecretFields;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import org.bson.Document;
 
 /** Maps {@link PolicyVersionEntity} to and from the documents MongoDB stores. */
@@ -24,20 +26,21 @@ public final class PolicyVersionDocuments {
     private PolicyVersionDocuments() {
     }
 
-    public static PolicyVersionEntity fromDocument(final Document document) {
+    // Each revision's policy is encrypted, as the live policy is.
+    public static PolicyVersionEntity fromDocument(final Document document, final EncryptionService encryptionService) {
         final PolicyVersionEntity entity = new PolicyVersionEntity();
         entity.setId(MongoIds.hex(document.getObjectId("_id")));
         entity.setName(document.getString("name"));
         entity.setRevision(document.getInteger("revision", 0));
         entity.setContentHash(document.getString("content_hash"));
-        entity.setPolicy(document.getString("policy"));
+        entity.setPolicy(SecretFields.open(encryptionService, document.getString("policy"), document.getString("policy_key")));
         entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         entity.setCapturedTimestamp(document.getDate("captured_timestamp"));
         entity.setAuthorId(MongoIds.hex(document.getObjectId("author_id")));
         return entity;
     }
 
-    public static Document toDocument(final PolicyVersionEntity entity) {
+    public static Document toDocument(final PolicyVersionEntity entity, final EncryptionService encryptionService) {
         final Document document = new Document();
         if (entity.getId() != null) {
             document.put("_id", MongoIds.objectId(entity.getId()));
@@ -45,7 +48,8 @@ public final class PolicyVersionDocuments {
         document.put("name", entity.getName());
         document.put("revision", entity.getRevision());
         document.put("content_hash", entity.getContentHash());
-        document.put("policy", entity.getPolicy());
+        PolicyDocuments.putSealed(document, "policy", "policy_key",
+                SecretFields.seal(encryptionService, entity.getPolicy(), entity.getUserId()));
         document.put("user_id", MongoIds.objectId(entity.getUserId()));
         document.put("captured_timestamp", entity.getCapturedTimestamp());
         if (entity.getAuthorId() != null) {

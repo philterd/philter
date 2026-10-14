@@ -81,18 +81,19 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
     protected abstract String insert(final PolicyEntity policy);
 
     /**
-     * Replaces the stored policy only if it is still at {@code expectedRevision} with the expected description
-     * and notes, and returns whether it did.
+     * Replaces the stored policy only if it is still at {@code expectedRevision} and its description and notes are
+     * still at {@code expectedDetailsRevision}, and returns whether it did.
      */
     protected abstract boolean replaceIfUnchanged(final PolicyEntity policy, final int expectedRevision,
-            final String expectedDescription, final String expectedNotes);
+            final int expectedDetailsRevision);
 
     /** Replaces the stored policy only if it is still at {@code expectedRevision}, and returns whether it did. */
     protected abstract boolean replaceIfAtRevision(final PolicyEntity policy, final int expectedRevision);
 
     /**
-     * Sets the description and notes that are not null, and the last-updated time, only if the stored policy
-     * still has the given policy's revision, description, and notes, and returns whether it did.
+     * Sets the description and notes that are not null, and the last-updated time, and advances the details
+     * revision, only if the stored policy still has the given policy's revision and details revision, and returns
+     * whether it did.
      */
     protected abstract boolean updateDetailsIfUnchanged(final PolicyEntity policy, final String description,
             final String notes, final Date now);
@@ -160,8 +161,7 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
 
         // The write below only lands if none of these changed since the policy was read.
         final int expectedRevision = policyEntity.getRevision();
-        final String expectedDescription = policyEntity.getDescription();
-        final String expectedNotes = policyEntity.getNotes();
+        final int expectedDetailsRevision = policyEntity.getDetailsRevision();
 
         // Metadata-only saves retain the current content revision.
         final boolean contentChanged = !Objects.equals(
@@ -184,12 +184,15 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
             policyEntity.setNotes(notes);
             detailsChanged.add("notes");
         }
+        if (!detailsChanged.isEmpty()) {
+            policyEntity.setDetailsRevision(expectedDetailsRevision + 1);
+        }
 
         PolicyKeyWarnings.warnAboutLiteralKeys(policyEntity.getName(), policyJson);
 
         policyEntity.setAuthorId(authorId);
         policyVersionDataService.snapshot(policyEntity);
-        if (!replaceIfUnchanged(policyEntity, expectedRevision, expectedDescription, expectedNotes)) {
+        if (!replaceIfUnchanged(policyEntity, expectedRevision, expectedDetailsRevision)) {
             return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
         }
 
@@ -455,6 +458,7 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
         if (notes != null) {
             policyEntity.setNotes(notes);
         }
+        policyEntity.setDetailsRevision(policyEntity.getDetailsRevision() + 1);
         policyEntity.setLastUpdatedTimestamp(now);
         return new WriteOutcome(ServiceResponse.success(), policyEntity);
 
@@ -511,7 +515,7 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
         final int newRevision = live.getRevision();
         live.setAuthorId(principalId);
         policyVersionDataService.snapshot(live);
-        if (!replaceIfUnchanged(live, expectedRevision, live.getDescription(), live.getNotes())) {
+        if (!replaceIfUnchanged(live, expectedRevision, live.getDetailsRevision())) {
             return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
         }
 
@@ -607,6 +611,7 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
                 final int expectedRevision = existingPolicy.getRevision();
                 existingPolicy.setPolicy(managedPolicy.getPolicy());
                 existingPolicy.setDescription(managedPolicy.getDescription());
+                existingPolicy.setDetailsRevision(existingPolicy.getDetailsRevision() + 1);
                 existingPolicy.setLastUpdatedTimestamp(new Date());
                 existingPolicy.setRevision(reserveRevision(existingPolicy.getUserId(), existingPolicy.getName(), expectedRevision + 1));
 

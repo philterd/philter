@@ -18,7 +18,9 @@ package ai.philterd.philter.data.sqlite;
 import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.PolicyVersionEntity;
 import ai.philterd.philter.data.services.Listings;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredPolicyVersionDataService;
+import ai.philterd.philter.services.encryption.EncryptionService;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -29,19 +31,22 @@ import java.util.List;
 public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataService {
 
     private final SqliteDatabase database;
+    private final EncryptionService encryptionService;
 
-    public SqlitePolicyVersionDataService(final SqliteDatabase database) {
+    public SqlitePolicyVersionDataService(final SqliteDatabase database, final EncryptionService encryptionService) {
         this.database = database;
+        this.encryptionService = encryptionService;
     }
 
-    private static PolicyVersionEntity read(final Sql.Row row) throws SQLException {
+    // Each revision's policy is encrypted, as the live policy is.
+    private PolicyVersionEntity read(final Sql.Row row) throws SQLException {
         final PolicyVersionEntity version = new PolicyVersionEntity();
         version.setId(row.string("id"));
         version.setUserId(row.string("user_id"));
         version.setName(row.string("name"));
         version.setRevision(row.intValue("revision"));
         version.setContentHash(row.string("content_hash"));
-        version.setPolicy(row.string("policy"));
+        version.setPolicy(SecretFields.open(encryptionService, row.string("policy"), row.string("policy_key")));
         version.setCapturedTimestamp(row.date("captured_timestamp"));
         version.setAuthorId(row.string("author_id"));
         return version;
@@ -49,23 +54,27 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
 
     @Override
     protected void insertContent(final String contentHash, final String policyJson) {
-        database.write(connection -> Sql.update(connection, "INSERT INTO policy_contents (hash, policy) VALUES (?, ?)",
-                contentHash, policyJson));
+        // Shared by every owner whose policy has this content, so it is sealed without one.
+        final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, policyJson, null);
+        database.write(connection -> Sql.update(connection, "INSERT INTO policy_contents (hash, policy, policy_key) "
+                + "VALUES (?, ?, ?)", contentHash, sealed.ciphertext(), sealed.key()));
     }
 
     @Override
     protected String findContent(final String contentHash) {
-        return database.read(connection -> Sql.first(connection, "SELECT policy FROM policy_contents WHERE hash = ?",
-                row -> row.string("policy"), contentHash));
+        return database.read(connection -> Sql.first(connection, "SELECT policy, policy_key FROM policy_contents WHERE hash = ?",
+                row -> SecretFields.open(encryptionService, row.string("policy"), row.string("policy_key")), contentHash));
     }
 
     @Override
     protected void insertVersion(final PolicyVersionEntity version) {
+        final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, version.getPolicy(), version.getUserId());
         database.write(connection -> Sql.update(connection,
-                "INSERT INTO policy_versions (id, user_id, name, revision, content_hash, policy, captured_timestamp, author_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO policy_versions (id, user_id, name, revision, content_hash, policy, policy_key, captured_timestamp, "
+                        + "author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 RecordIds.newId(), version.getUserId(), version.getName(), version.getRevision(), version.getContentHash(),
-                version.getPolicy(), version.getCapturedTimestamp(), version.getAuthorId()));
+                sealed == null ? null : sealed.ciphertext(), sealed == null ? null : sealed.key(),
+                version.getCapturedTimestamp(), version.getAuthorId()));
     }
 
     private static String owner(final String userId) {
@@ -84,7 +93,7 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
     @Override
     public List<PolicyVersionEntity> findAllByName(final String name, final String userId, final int offset, final int limit) {
         return database.read(connection -> Sql.query(connection, "SELECT * FROM policy_versions WHERE " + owner(userId)
-                + " AND name = ? ORDER BY revision DESC LIMIT ? OFFSET ?", SqlitePolicyVersionDataService::read,
+                + " AND name = ? ORDER BY revision DESC LIMIT ? OFFSET ?", this::read,
                 ownerParams(userId, name, limit, offset).toArray()));
     }
 
@@ -93,13 +102,13 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
                                                          final int offset, final int limit) {
         return database.read(connection -> Sql.page(connection, "policy_versions", Sql.where(owner(userId), "name = ?"),
                 ownerParams(userId, name), new Listings.Sort("revision", descending), offset, limit,
-                SqlitePolicyVersionDataService::read));
+                this::read));
     }
 
     @Override
     public PolicyVersionEntity findByNameAndRevision(final String name, final String userId, final int revision) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policy_versions WHERE " + owner(userId)
-                + " AND name = ? AND revision = ?", SqlitePolicyVersionDataService::read,
+                + " AND name = ? AND revision = ?", this::read,
                 ownerParams(userId, name, revision).toArray()));
     }
 

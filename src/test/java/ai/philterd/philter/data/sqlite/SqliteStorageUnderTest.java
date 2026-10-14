@@ -178,13 +178,13 @@ public final class SqliteStorageUnderTest implements StorageUnderTest {
 
     @Override
     public PolicyDataService policies() {
-        return once("policies", () -> new SqlitePolicyDataService(database, auditEvents(), new Gson(), policyVersions(),
+        return once("policies", () -> new SqlitePolicyDataService(database, encryption, auditEvents(), new Gson(), policyVersions(),
                 new RedactionCache()));
     }
 
     @Override
     public PolicyVersionDataService policyVersions() {
-        return once("policyVersions", () -> new SqlitePolicyVersionDataService(database));
+        return once("policyVersions", () -> new SqlitePolicyVersionDataService(database, encryption));
     }
 
     @Override

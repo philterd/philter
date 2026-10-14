@@ -154,12 +154,12 @@ public final class MongoStorageUnderTest implements StorageUnderTest {
 
     @Override
     public PolicyDataService policies() {
-        return once("policies", () -> configuration.policyDataService(new Gson(), new RedactionCache()));
+        return once("policies", () -> configuration.policyDataService(new Gson(), new RedactionCache(), encryption, policyVersions()));
     }
 
     @Override
     public PolicyVersionDataService policyVersions() {
-        return once("policyVersions", configuration::policyVersionDataService);
+        return once("policyVersions", () -> configuration.policyVersionDataService(encryption));
     }
 
     @Override

@@ -247,12 +247,16 @@ public final class MongoImport implements AutoCloseable {
                 .append("user_id", id(row, "user_id"))
                 .append("name", text(row, "name"))
                 .append("policy", text(row, "policy"))
+                .append("policy_key", text(row, "policy_key"))
                 .append("created_timestamp", date(row, "created_timestamp"))
                 .append("revision", int32(row, "revision"))
                 .append("last_updated_timestamp", date(row, "last_updated_timestamp"))
                 .append("shared", bool(row, "shared"))
                 .append("notes", text(row, "notes"))
+                .append("notes_key", text(row, "notes_key"))
                 .append("description", text(row, "description"))
+                .append("description_key", text(row, "description_key"))
+                .append("details_revision", int32(row, "details_revision"))
                 .append("managed", bool(row, "managed"))));
 
         TARGETS.put("policy_revision_counters", new Target("policy_revision_counters", row -> new Document("_id",
@@ -266,13 +270,15 @@ public final class MongoImport implements AutoCloseable {
                     .append("revision", int32(row, "revision"))
                     .append("content_hash", text(row, "content_hash"))
                     .append("policy", text(row, "policy"))
+                    .append("policy_key", text(row, "policy_key"))
                     .append("captured_timestamp", date(row, "captured_timestamp"));
             putIfPresent(version, "author_id", id(row, "author_id"));
             return version;
         }));
 
         TARGETS.put("policy_contents", new Target("policy_contents", row -> new Document("_id", text(row, "hash"))
-                .append("policy", text(row, "policy"))));
+                .append("policy", text(row, "policy"))
+                .append("policy_key", text(row, "policy_key"))));
 
         TARGETS.put("policy_deletions", new Target("policy_deletions", row -> new Document("_id", new ObjectId())
                 .append("user_id", id(row, "user_id"))
@@ -604,6 +610,11 @@ public final class MongoImport implements AutoCloseable {
             new EncryptedField("users", "mfa_secret", "mfa_secret_key", false),
             new EncryptedField("users", "mfa_pending_secret", "mfa_pending_secret_key", false),
             new EncryptedField("admin_settings", "phield_api_key", "phield_api_key_key", false),
+            new EncryptedField("policies", "policy", "policy_key", false),
+            new EncryptedField("policies", "notes", "notes_key", false),
+            new EncryptedField("policies", "description", "description_key", false),
+            new EncryptedField("policy_versions", "policy", "policy_key", false),
+            new EncryptedField("policy_contents", "policy", "policy_key", false),
             new EncryptedField("custom_lists", "items", "items_encrypted_key", false),
             new EncryptedField("redact_lists", "terms_to_always_redact", "terms_to_always_redact_key", false),
             new EncryptedField("redact_lists", "terms_to_never_redact", "terms_to_never_redact_key", false),

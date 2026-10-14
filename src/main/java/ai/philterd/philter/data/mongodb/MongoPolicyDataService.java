@@ -19,8 +19,10 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
+import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredPolicyDataService;
 import ai.philterd.philter.services.cache.RedactionCache;
+import ai.philterd.philter.services.encryption.EncryptionService;
 import com.google.gson.Gson;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -46,10 +48,14 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
     private final MongoRecords<PolicyEntity> records;
     private final MongoCollection<Document> collection;
     private final MongoCollection<Document> revisionCounters;
+    private final EncryptionService encryptionService;
 
-    public MongoPolicyDataService(final MongoClient mongoClient, final AuditEventPublisher auditEventPublisher, final Gson gson, final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {
+    public MongoPolicyDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                                  final AuditEventPublisher auditEventPublisher, final Gson gson,
+                                  final PolicyVersionDataService policyVersionDataService, final RedactionCache redactionCache) {
         super(auditEventPublisher, gson, policyVersionDataService, redactionCache);
-        this.records = new MongoRecords<>(mongoClient, "policies", PolicyDocuments::toDocument);
+        this.encryptionService = encryptionService;
+        this.records = new MongoRecords<>(mongoClient, "policies", entity -> PolicyDocuments.toDocument(entity, encryptionService));
         this.collection = records.collection;
         this.revisionCounters = mongoClient.getDatabase("philter").getCollection("policy_revision_counters");
 
@@ -83,22 +89,22 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
         return records.insert(policy);
     }
 
-    private static Bson unchanged(final int revision, final String description, final String notes) {
-        return Filters.and(Filters.eq("revision", revision), Filters.eq("description", description),
-                Filters.eq("notes", notes));
+    private static Bson unchanged(final int revision, final int detailsRevision) {
+        return Filters.and(Filters.eq("revision", revision), Filters.eq("details_revision", detailsRevision));
     }
 
     @Override
     protected boolean replaceIfUnchanged(final PolicyEntity policy, final int expectedRevision,
-                                         final String expectedDescription, final String expectedNotes) {
+                                         final int expectedDetailsRevision) {
         return collection.replaceOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
-                unchanged(expectedRevision, expectedDescription, expectedNotes)), PolicyDocuments.toDocument(policy)).getMatchedCount() == 1;
+                unchanged(expectedRevision, expectedDetailsRevision)),
+                PolicyDocuments.toDocument(policy, encryptionService)).getMatchedCount() == 1;
     }
 
     @Override
     protected boolean replaceIfAtRevision(final PolicyEntity policy, final int expectedRevision) {
         return collection.replaceOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
-                Filters.eq("revision", expectedRevision)), PolicyDocuments.toDocument(policy)).getMatchedCount() == 1;
+                Filters.eq("revision", expectedRevision)), PolicyDocuments.toDocument(policy, encryptionService)).getMatchedCount() == 1;
     }
 
     @Override
@@ -106,15 +112,20 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
                                                final Date now) {
         final List<Bson> updates = new ArrayList<>();
         if (description != null) {
-            updates.add(Updates.set("description", description));
+            final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, description, policy.getUserId());
+            updates.add(Updates.set("description", sealed.ciphertext()));
+            updates.add(Updates.set("description_key", sealed.key()));
         }
         if (notes != null) {
-            updates.add(Updates.set("notes", notes));
+            final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, notes, policy.getUserId());
+            updates.add(Updates.set("notes", sealed.ciphertext()));
+            updates.add(Updates.set("notes_key", sealed.key()));
         }
+        updates.add(Updates.inc("details_revision", 1));
         updates.add(Updates.set("last_updated_timestamp", now));
         return collection.updateOne(Filters.and(Filters.eq("_id", MongoIds.objectId(policy.getId())),
                         Filters.eq("user_id", MongoIds.objectId(policy.getUserId())),
-                        unchanged(policy.getRevision(), policy.getDescription(), policy.getNotes())),
+                        unchanged(policy.getRevision(), policy.getDetailsRevision())),
                 Updates.combine(updates)).getMatchedCount() == 1;
     }
 
@@ -140,7 +151,7 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
 
     private PolicyEntity first(final Bson filter) {
         final Document document = collection.find(filter).first();
-        return document == null ? null : PolicyDocuments.fromDocument(document);
+        return document == null ? null : PolicyDocuments.fromDocument(document, encryptionService);
     }
 
     @Override
@@ -158,21 +169,25 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
     public Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort,
                                                final int offset, final int limit) {
         return MongoListings.page(collection, MongoListings.all(Filters.or(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("shared", true)),
-                Filters.ne("managed", true), MongoListings.contains("name", q)), sort, offset, limit, PolicyDocuments::fromDocument);
+                Filters.ne("managed", true), MongoListings.contains("name", q)), sort, offset, limit, this::fromDocument);
     }
 
     @Override
     public Listings.Page<PolicyEntity> listAcrossUsers(final String q, final Listings.Sort sort, final int offset,
                                                        final int limit) {
         return MongoListings.page(collection, MongoListings.all(Filters.ne("managed", true), MongoListings.contains("name", q)), sort, offset,
-                limit, PolicyDocuments::fromDocument);
+                limit, this::fromDocument);
     }
 
     @Override
     public Listings.Page<PolicyEntity> listManaged(final String q, final Listings.Sort sort, final int offset,
                                                    final int limit) {
         return MongoListings.page(collection, MongoListings.all(Filters.eq("managed", true), MongoListings.contains("name", q)), sort,
-                offset, limit, PolicyDocuments::fromDocument);
+                offset, limit, this::fromDocument);
+    }
+
+    private PolicyEntity fromDocument(final Document document) {
+        return PolicyDocuments.fromDocument(document, encryptionService);
     }
 
     @Override

@@ -92,6 +92,23 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
                 .isSuccessful());
         final String redactTerm = "redact-term-" + RecordIds.newId();
         storage().redactLists().saveOrUpdate("req", owner, List.of(redactTerm), List.of(), "test");
+        // A policy holds the terms it redacts, condition values, and sometimes a key, so its content, every revision
+        // of it, and its description and notes are encrypted.
+        final String policyTerm = "policyterm" + RecordIds.newId();
+        final String conditionValue = "conditionvalue" + RecordIds.newId();
+        final String cryptoKey = RecordIds.newId() + RecordIds.newId().substring(0, 16);
+        final String policyJson = "{\"crypto\":{\"key\":\"" + cryptoKey + "\"},\"identifiers\":{\"dictionaries\":[{\"terms\":[\""
+                + policyTerm + "\"]}],\"ssn\":{\"ssnFilterStrategies\":[{\"condition\":\"token == \\\"" + conditionValue
+                + "\\\"\",\"strategy\":\"REDACT\"}]}}}";
+        final String policyDescription = "policy-description-" + RecordIds.newId();
+        final String policyNotes = "policy-notes-" + RecordIds.newId();
+        assertTrue(storage().policies().create("req", owner, policyJson, policyDescription, "first notes", "secrets",
+                "test").isSuccessful());
+        // A second revision, so the first is kept as history, and notes set as a separate change.
+        final String revisedJson = policyJson.replace(policyTerm, policyTerm + "-revised");
+        assertTrue(storage().policies().update("req", owner, storage().policies().findOne("secrets", owner).getId(), revisedJson,
+                null, null, "test").isSuccessful());
+        assertTrue(storage().policies().updateDetails("req", owner, "secrets", null, policyNotes, "test").isSuccessful());
         final String ledgerToken = "ledger-token-" + RecordIds.newId();
         final String ledgerReplacement = "ledger-replacement-" + RecordIds.newId();
         completeChain(owner, "doc", ledgerToken, ledgerReplacement);
@@ -123,7 +140,8 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         storage().webhookDeliveries().enqueueOnce(delivery);
 
         for (final String secret : List.of(fpeKey, mfaSecret, confirmedMfaSecret, webhookSecret, phieldKey, listItem,
-                redactTerm, ledgerToken, ledgerReplacement, documentText, configuration, deliverySecret)) {
+                redactTerm, ledgerToken, ledgerReplacement, documentText, configuration, deliverySecret, policyTerm,
+                conditionValue, cryptoKey, policyDescription, policyNotes, "first notes")) {
             assertFalse(storage().storageContains(secret), "stored in the clear: " + secret);
         }
 
@@ -147,6 +165,14 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         assertEquals(documentText, new String(storedJob.getInput(), StandardCharsets.UTF_8));
         assertEquals(job.getEffectiveJson(), storedJob.getEffectiveJson());
         assertEquals(deliverySecret, storage().anotherInstance().webhookDeliveries().claimNextDue(new Date()).getSecret());
+        final var storedPolicy = storage().anotherInstance().policies().findOne("secrets", owner);
+        assertEquals(revisedJson, storedPolicy.getPolicy());
+        assertEquals(policyDescription, storedPolicy.getDescription());
+        assertEquals(policyNotes, storedPolicy.getNotes());
+        final var firstRevision = storage().anotherInstance().policyVersions().findByNameAndRevision("secrets", owner, 0);
+        assertEquals(policyJson, firstRevision.getPolicy());
+        assertEquals(policyJson, storage().anotherInstance().policyVersions().findByContentHash(firstRevision.getContentHash())
+                .getPolicy());
     }
 
     @Test

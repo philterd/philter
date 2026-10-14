@@ -51,6 +51,11 @@ class PolicyVersionDataServiceTest {
 
     private PolicyVersionDataService service;
 
+    /** A policy as it is stored: encrypted, with the key that opens it. */
+    private static final ai.philterd.philter.data.services.SecretFields.Sealed SEALED_POLICY =
+            ai.philterd.philter.data.services.SecretFields.seal(new ai.philterd.philter.testutil.TestEncryptionService(),
+                    "{\"identifiers\":{}}", null);
+
     @BeforeEach
     void setUp() {
         ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
@@ -62,7 +67,7 @@ class PolicyVersionDataServiceTest {
         ai.philterd.philter.testutil.MongoSchemaMocks.configure(deletions);
         org.mockito.Mockito.lenient().when(mongoDatabase.getCollection("policy_deletions")).thenReturn(deletions);
         // ensureIndex calls createIndex; Mockito returns null by default — fine, AbstractService wraps in try/catch.
-        service = new MongoPolicyVersionDataService(mongoClient, auditEventPublisher);
+        service = new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), auditEventPublisher);
     }
 
     // -------------------------------------------------------------------------
@@ -120,7 +125,7 @@ class PolicyVersionDataServiceTest {
                 .append("user_id", MongoIds.objectId(userId))
                 .append("revision", 7)
                 .append("content_hash", "abc123")
-                .append("policy", "{\"identifiers\":{}}")
+                .append("policy", SEALED_POLICY.ciphertext()).append("policy_key", SEALED_POLICY.key())
                 .append("captured_timestamp", now);
 
         final FindIterable<Document> fi = iterableOf(doc);
@@ -241,7 +246,7 @@ class PolicyVersionDataServiceTest {
                 .append("user_id", MongoIds.objectId(userId))
                 .append("revision", revision)
                 .append("content_hash", hash)
-                .append("policy", "{\"identifiers\":{}}")
+                .append("policy", SEALED_POLICY.ciphertext()).append("policy_key", SEALED_POLICY.key())
                 .append("captured_timestamp", new Date());
     }
 

@@ -82,8 +82,8 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
         // One instance shared by writer and reader, as in the application.
         final RedactionCache redactionCache = new RedactionCache();
 
-        policyDataService = new MongoPolicyDataService(mongoClient, mock(AuditEventPublisher.class), new Gson(),
-                new MongoPolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), redactionCache);
+        policyDataService = new MongoPolicyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class), new Gson(),
+                new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class)), redactionCache);
 
         final RedactListsDataService redactListsService = mock(RedactListsDataService.class);
         when(redactListsService.find(userId)).thenReturn(null);

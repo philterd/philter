@@ -154,6 +154,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 ### Security
 
 - **`PHILTER_ENCRYPTION_KEY` is required.** Back it up: data cannot be recovered without it.
+- **Policies are encrypted at rest.** A policy's content, every revision of it, and its description and notes are
+  encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it
+  redacts, condition values, and keys. Names and content hashes stay readable. See
+  [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
 - **A queued document's captured configuration is kept only with the job.** It holds the resolved policy,
   list contents, and keys, is encrypted, and is removed when the job expires or is deleted; no other copy is kept.
 - **Cross-user access is opt-in** through `ADMIN_CROSS_USER_ACCESS_ENABLED`. While it is off, an administrator can

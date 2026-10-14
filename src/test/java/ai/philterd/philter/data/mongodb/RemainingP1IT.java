@@ -48,13 +48,13 @@ class RemainingP1IT extends AbstractMongoIT {
         users.insert(other);
     }
     private PolicyDataService policies(PolicyVersionDataService versions) {
-        return new MongoPolicyDataService(mongoClient, audit, new Gson(), versions,
+        return new MongoPolicyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit, new Gson(), versions,
                 new ai.philterd.philter.services.cache.RedactionCache());
     }
     private static String json(String value) { return "{\"identifiers\":{\"ssn\":{}},\"name\":\"" + value + "\"}"; }
 
     @Test void nameReuseKeepsBothGoverningContentsAndMonotonicRevision() {
-        var versions = new MongoPolicyVersionDataService(mongoClient, audit); var service = policies(versions);
+        var versions = new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit); var service = policies(versions);
         String owner = MongoIds.newId();
         assertTrue(service.create("req", owner, json("old"), "", "", "reused", "test").isSuccessful());
         var old = service.findOne("reused", owner);
@@ -67,7 +67,7 @@ class RemainingP1IT extends AbstractMongoIT {
     }
 
     @Test void competingEditsPublishOnlyOneHeadAndRetainItsExactContent() throws Exception {
-        var versions = new MongoPolicyVersionDataService(mongoClient, audit); var service = policies(versions);
+        var versions = new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit); var service = policies(versions);
         String owner = MongoIds.newId(); service.create("req", owner, json("base"), "", "", "race", "test");
         var initial = service.findOne("race", owner);
         var bothRead = new CountDownLatch(2); var release = new CountDownLatch(1);
@@ -90,7 +90,7 @@ class RemainingP1IT extends AbstractMongoIT {
     }
 
     @Test void failedSnapshotPreventsPublishingLiveUpdate() {
-        var versions = spy(new MongoPolicyVersionDataService(mongoClient, audit)); var service = policies(versions);
+        var versions = spy(new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit)); var service = policies(versions);
         String owner = MongoIds.newId(); service.create("req", owner, json("base"), "", "", "policy", "test");
         var initial = service.findOne("policy", owner);
         doThrow(new IllegalStateException("storage unavailable")).when(versions).snapshot(any());

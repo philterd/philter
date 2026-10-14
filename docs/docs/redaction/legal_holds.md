@@ -175,7 +175,7 @@ Philter retains configuration history and redaction evidence separately. Their c
 
 ### Retained policy versions
 
-Policy versions preserve the supplied policy JSON. That JSON can contain personal data in literal dictionary entries or ignored terms, as well as encryption keys. Raw policies and their version history are not encrypted. Use environment references for keys and review policy contents before saving them; changing a policy does not remove values from its history. See [Database](../database.md#what-is-encrypted-at-rest).
+Policy versions preserve the supplied policy JSON. That JSON can contain personal data in literal dictionary entries or ignored terms, as well as encryption keys. Policies and their version history are encrypted at rest, but anyone who can read a policy can read its history. Use environment references for keys and review policy contents before saving them; changing a policy does not remove values from its history. See [Database](../database.md#what-is-encrypted-at-rest).
 
 Policy version snapshots are append-only through Philter: there is no API for deleting them. A legal hold is not what preserves them. Neither their role as evidence nor their retention behavior establishes an exemption from your organization's data-handling obligations. The effective configuration captured for a queued job is not kept this way: it is stored only with the job and is removed with it.
 

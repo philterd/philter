@@ -45,8 +45,8 @@ class PhiSqlPolicyCompileIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        policyDataService = new MongoPolicyDataService(mongoClient, mock(AuditEventPublisher.class), gson,
-                new ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService(mongoClient, mock(AuditEventPublisher.class)), new ai.philterd.philter.services.cache.RedactionCache());
+        policyDataService = new MongoPolicyDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class), gson,
+                new ai.philterd.philter.data.mongodb.MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), mock(AuditEventPublisher.class)), new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     @Test

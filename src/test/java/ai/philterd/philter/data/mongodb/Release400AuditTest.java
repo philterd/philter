@@ -97,7 +97,7 @@ class Release400AuditTest extends AbstractMongoIT {
 
     @Test
     void conflictingPolicyRevisionIsRejectedAndOriginalRemainsResolvable() {
-        final PolicyVersionDataService service = new MongoPolicyVersionDataService(mongoClient, audit);
+        final PolicyVersionDataService service = new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit);
         final PolicyEntity policy = new PolicyEntity();
         policy.setUserId(MongoIds.newId());
         policy.setName("audit-policy");

@@ -82,7 +82,7 @@ class RequiredSchemaMongoIT {
         database.createCollection("policy_contents", new com.mongodb.client.model.CreateCollectionOptions()
                 .validationOptions(new com.mongodb.client.model.ValidationOptions()
                         .validator(new Document("required_flag", true))));
-        var versions = new MongoPolicyVersionDataService(client, audit);
+        var versions = new MongoPolicyVersionDataService(client, new ai.philterd.philter.testutil.TestEncryptionService(), audit);
         var policy = new ai.philterd.philter.data.entities.PolicyEntity();
         policy.setUserId(MongoIds.newId()); policy.setName("policy"); policy.setPolicy("{}");
         var failure = assertThrows(com.mongodb.MongoWriteException.class, () -> versions.snapshot(policy));

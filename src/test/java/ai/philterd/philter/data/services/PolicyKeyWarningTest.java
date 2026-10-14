@@ -24,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Policies are not encrypted at rest, so a key written into one is stored beside the values it
- * encrypted. The env: prefix keeps it out; this is what notices when it was not used.
+ * A key written into a policy can be read by anyone who can read the policy, and every revision keeps it.
+ * The env: prefix keeps it out; this is what notices when it was not used.
  */
 class PolicyKeyWarningTest {
 
@@ -114,7 +114,7 @@ class PolicyKeyWarningTest {
         assertTrue(logged.contains("my-policy"), "the policy must be named: " + logged);
         assertTrue(logged.contains("crypto"), "the section must be named: " + logged);
         assertTrue(logged.contains("env:"), "the way out must be given: " + logged);
-        assertTrue(logged.contains("not encrypted at rest"), "the reason must be given: " + logged);
+        assertTrue(logged.contains("Anyone who can read the policy"), "the reason must be given: " + logged);
 
     }
 

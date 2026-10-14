@@ -24,6 +24,8 @@ This feature is optional and can be enabled or disabled on a per-context basis. 
 
 Contexts are managed with the [Contexts API](../api_and_sdks/api/contexts_api.md). Every new user starts with a context named `default`, created automatically; you can use it, change its settings, or delete it like any other.
 
+A context's name is your own label and can say whose data it holds, so Philter's application log refers to a context's owner by user ID and does not write the name. The [audit log](../auditing.md) does record context names, as it records the other things a request acted on.
+
 | Task | Request |
 | --- | --- |
 | List your contexts | [`GET /api/contexts`](../api_and_sdks/api/contexts_api.md#get-context-names) |

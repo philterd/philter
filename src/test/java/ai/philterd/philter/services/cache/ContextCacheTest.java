@@ -16,10 +16,12 @@
 package ai.philterd.philter.services.cache;
 
 import ai.philterd.philter.data.mongodb.MongoIds;
+import ai.philterd.philter.testutil.LogCapture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -97,5 +99,13 @@ class ContextCacheTest {
         cache.setTokenReplacement(owner, "context", "token", MongoIds.newId(), "stale", readStarted);
         org.junit.jupiter.api.Assertions.assertNull(cache.getReplacement(owner, "context", "token"));
         cache.deleteContext(owner, "context");
+    }
+
+    @Test
+    void deletingAContextDoesNotLogItsName() {
+        try (final LogCapture log = new LogCapture()) {
+            cache.deleteContext(MongoIds.newId(), "cohort-alpha-7f3");
+            assertFalse(log.contains("cohort-alpha-7f3"), log.messages().toString());
+        }
     }
 }

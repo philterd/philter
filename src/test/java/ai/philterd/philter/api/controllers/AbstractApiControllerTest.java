@@ -197,7 +197,7 @@ class AbstractApiControllerTest {
         // The stashed entity matches this request's credential, so it is reused as-is...
         assertSame(stashed, resolved);
         // ...without any cache or database lookup.
-        verify(apiKeyCache, never()).containsApiKey(anyString());
+        verify(apiKeyCache, never()).get(anyString());
         verify(apiKeyDataService, never()).findOneByApiKey(anyString());
     }
 
@@ -209,7 +209,6 @@ class AbstractApiControllerTest {
 
         // The credential actually presented on this request resolves (freshly) to a different entity.
         final ApiKeyEntity correct = apiKeyEntity("sk_match", MongoIds.newId());
-        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(correct);
 
         final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
@@ -224,7 +223,6 @@ class AbstractApiControllerTest {
     void resolvesFromCacheOrDbWhenNoStashIsPresent() {
         // No request bound / no stashed attribute (e.g. a caller that bypassed the filter).
         final ApiKeyEntity correct = apiKeyEntity("sk_match", MongoIds.newId());
-        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(correct);
 
         final ApiKeyEntity resolved = controller.getApiKeyEntity("Bearer sk_match");
@@ -236,7 +234,6 @@ class AbstractApiControllerTest {
     void resolvesFromTheCacheWithoutTouchingTheDatabase() {
         final ApiKeyEntity cached = apiKeyEntity("sk_match", MongoIds.newId());
         final String hash = EncryptionService.hashSha256("sk_match");
-        when(apiKeyCache.containsApiKey(hash)).thenReturn(true);
         when(apiKeyCache.get(hash)).thenReturn(cached);
 
         assertSame(cached, controller.getApiKeyEntity("Bearer sk_match"));
@@ -248,7 +245,6 @@ class AbstractApiControllerTest {
         // The filter looks the key up by hash. Caching under anything else would mean every request
         // reaches the database, and the plaintext key would sit in the cache besides.
         final ApiKeyEntity resolved = apiKeyEntity("sk_match", MongoIds.newId());
-        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("sk_match"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("sk_match")).thenReturn(resolved);
 
         controller.getApiKeyEntity("Bearer sk_match");

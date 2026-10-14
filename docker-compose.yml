@@ -12,7 +12,7 @@ services:
       # In-memory cache unless these are set. See README.md.
       # CACHE_HOSTNAME: valkey
       # CACHE_PORT: "6379"
-      # CACHE_PASSWORD: ""
+      # CACHE_PASSWORD: ""  # set one: anyone who can reach the cache can delete Philter's entries
       # CACHE_SSL: "false"
       STORAGE_TYPE: sqlite
       SQLITE_PATH: /opt/philter/data/philter.db

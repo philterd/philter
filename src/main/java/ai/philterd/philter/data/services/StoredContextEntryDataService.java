@@ -263,8 +263,8 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
 
         if (victim != null && deleteById(victim.getId(), userId, contextName) != null) {
             evict(userId, contextName, victim.getTokenHash());
-            LOGGER.info("Evicted context entry {} from context {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
-                    victim.getId(), contextName, victim.getReads(), capacity);
+            LOGGER.info("Evicted context entry {} for user {} (reads={}) to honor MAX_CONTEXT_SIZE={}",
+                    victim.getId(), userId, victim.getReads(), capacity);
         }
 
     }

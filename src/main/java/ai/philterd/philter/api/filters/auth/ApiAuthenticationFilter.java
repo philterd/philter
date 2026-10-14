@@ -80,8 +80,10 @@ public class ApiAuthenticationFilter extends GenericFilterBean {
     private ApiKeyEntity resolveApiKey(final String apiKey) {
         // The cache is keyed by the key's hash so a deleted key can be evicted without the plaintext.
         final String apiKeyHash = EncryptionService.hashSha256(apiKey);
-        if (apiKeyCache.containsApiKey(apiKeyHash)) {
-            return apiKeyCache.get(apiKeyHash);
+        // One read, so an entry that expires or fails to decrypt falls through to the database.
+        final ApiKeyEntity cached = apiKeyCache.get(apiKeyHash);
+        if (cached != null) {
+            return cached;
         }
         final ApiKeyEntity apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);
         if (apiKeyEntity != null) {

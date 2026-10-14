@@ -19,6 +19,7 @@ import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
+import ai.philterd.philter.testutil.LogCapture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -129,4 +131,12 @@ class StoredContextServiceTest {
         org.junit.jupiter.api.Assertions.assertTrue(service.containsToken("tok"));
     }
 
+    @Test
+    void theContextNameIsNotLogged() {
+        // A context name is the user's own label, such as a patient's or a case's, so it stays out of the log.
+        try (final LogCapture log = new LogCapture()) {
+            new StoredContextService(contextCache, contextEntryService, userId, "cohort-alpha-7f3");
+            assertFalse(log.contains("cohort-alpha-7f3"), log.messages().toString());
+        }
+    }
 }

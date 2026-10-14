@@ -165,7 +165,6 @@ class FilterApiControllerTest {
 
     @Test
     void missingAuthorizationIsUnauthorized() throws Exception {
-        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("nope"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("nope")).thenReturn(null);
 
         mockMvc.perform(post("/api/filter")
@@ -409,7 +408,6 @@ class FilterApiControllerTest {
 
     @Test
     void unauthorizedResponseDoesNotIncludeSignatureHeader() throws Exception {
-        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("bad-key"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("bad-key")).thenReturn(null);
 
         final var response = mockMvc.perform(post("/api/filter")

@@ -171,7 +171,7 @@ public class ContextCache extends Cache {
 
     public void deleteContext(final String userId, final String context) {
 
-        LOGGER.info("Deleting context {} for user {} from cache.", context, userId);
+        LOGGER.info("Deleting a context for user {} from cache.", userId);
 
         backend.del(buildKey(userId, context));
 

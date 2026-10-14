@@ -53,6 +53,18 @@ Set the following environment variables on each Philter instance. When `CACHE_HO
 | `CACHE_PASSWORD` | No | _(none)_ | Password, if the server requires authentication. |
 | `CACHE_SSL` | No | `false` | Set to `true` to connect over TLS. |
 
+### Protecting the cache
+
+Treat Valkey like the database. Philter encrypts what it stores there, but anything that can reach the server can still delete entries, which costs only a database read, and can see how much is cached and when.
+
+* **Values are encrypted and authenticated.** Each value is encrypted with AES-256-GCM under a key derived from `PHILTER_ENCRYPTION_KEY`, and bound to the name it is stored under. A value that was not written by Philter, was copied from another entry, or was written back after it expired reads as absent, so Philter goes to the database instead. This is designed so that something able to write to Valkey cannot make Philter accept an API key it did not issue, or change the replacements written into redacted output.
+* **Names are hashed.** Key and field names are replaced by keyed hashes, so the cache does not show user IDs, context names, or API key hashes.
+* **Not covered:** the per-address sign-in rate limit counts, which Valkey increments itself and so are stored as plain numbers under hashed names. Changing them can only weaken that limit; account lockout is kept in the database. Context replacements carry no expiry of their own, so a replacement removed from the cache can be written back until its context's entry expires; it is still a replacement Philter issued for that same value.
+
+Every instance sharing a cache must use the same `PHILTER_ENCRYPTION_KEY`, as they must for a shared database. When the key changes, entries written under the old key read as absent and are replaced as they are used. Philter logs one warning the first time it finds an entry it cannot decrypt.
+
+When `CACHE_HOSTNAME` names a host other than this machine and `CACHE_PASSWORD` is empty or `CACHE_SSL` is `false`, Philter logs a warning at startup. Set a password, use TLS unless the cache is reachable only on a private network, and allow only Philter's instances to connect.
+
 ### Cache lifetimes (TTL)
 
 Two caches keep entries for a short, configurable time. Both default to a low value so stale data is short-lived; raise them to trade freshness for fewer database reads.
@@ -64,7 +76,7 @@ Two caches keep entries for a short, configurable time. Both default to a low va
 
 ### Docker Compose example
 
-The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache, add a Valkey service and set `CACHE_HOSTNAME` on the `philter` service to point at it:
+The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache, add a Valkey service with a password and set `CACHE_HOSTNAME` and `CACHE_PASSWORD` on the `philter` service to point at it. Valkey is reachable only on the Compose network here, so this example does not use TLS, and Philter logs the warning described in [Protecting the cache](#protecting-the-cache):
 
 ```yaml
   philter:
@@ -72,6 +84,7 @@ The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache
     environment:
       CACHE_HOSTNAME: valkey
       CACHE_PORT: 6379
+      CACHE_PASSWORD: ${CACHE_PASSWORD:?set CACHE_PASSWORD}
       CACHE_SSL: false
       # ...existing environment...
     depends_on:
@@ -83,9 +96,11 @@ The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache
     image: valkey/valkey:latest
     networks:
       - philter
-    command: valkey-server --save 60 1 --loglevel warning
+    environment:
+      CACHE_PASSWORD: ${CACHE_PASSWORD:?set CACHE_PASSWORD}
+    command: ["sh", "-c", "exec valkey-server --save 60 1 --loglevel warning --requirepass \"$$CACHE_PASSWORD\""]
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD-SHELL", "valkey-cli --no-auth-warning -a \"$$CACHE_PASSWORD\" ping"]
       interval: 10s
       timeout: 5s
       retries: 5

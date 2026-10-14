@@ -49,6 +49,12 @@ public class ApiKeyCache extends Cache {
         this.gson = new Gson();
     }
 
+    /** Over the given backend, for tests. */
+    ApiKeyCache(final CacheBackend backend) {
+        super(backend);
+        this.gson = new Gson();
+    }
+
     // Entries are keyed by the API key's SHA-256 hash, not the plaintext key. This lets a key be
     // evicted on deletion (where only the stored hash is available, never the plaintext) and keeps the
     // plaintext key out of the cache key space.

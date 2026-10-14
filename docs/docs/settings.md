@@ -30,14 +30,14 @@ Philter encrypts sensitive data at rest and requires an encryption key. Encrypti
 
 ## Cache Settings
 
-The cache is used for API key and context caching. Philter supports Valkey/Redis as the backend cache. The cache is **optional for a single instance** and **required when more than one instance shares a database**, with every instance using the same one. When `CACHE_HOSTNAME` is unset or blank, Philter uses an in-memory cache instead. The in-memory cache is ephemeral (it is not shared across instances and is lost on restart) and a warning is printed at startup. Configure Valkey for a durable, shared cache.
+The cache is used for API key and context caching. What Philter stores in Valkey is encrypted under `PHILTER_ENCRYPTION_KEY`; see [Protecting the cache](caching.md#protecting-the-cache). Philter supports Valkey/Redis as the backend cache. The cache is **optional for a single instance** and **required when more than one instance shares a database**, with every instance using the same one. When `CACHE_HOSTNAME` is unset or blank, Philter uses an in-memory cache instead. The in-memory cache is ephemeral (it is not shared across instances and is lost on restart) and a warning is printed at startup. Configure Valkey for a durable, shared cache.
 
 | Environment Variable | Description | Default Value |
 |----------------------|-------------|---------------|
 | `CACHE_HOSTNAME` | The hostname or IP address of the Valkey cache. Leave unset to use an in-memory cache. | (empty; in-memory) |
 | `CACHE_PORT` | The Valkey port. | `6379` |
-| `CACHE_PASSWORD` | The Valkey password. | (empty) |
-| `CACHE_SSL` | Whether to use SSL for communication with the Valkey cache. | `false` |
+| `CACHE_PASSWORD` | The Valkey password. Philter warns at startup when a cache on another host has none. See [Protecting the cache](caching.md#protecting-the-cache). | (empty) |
+| `CACHE_SSL` | Whether to use TLS for communication with the Valkey cache. Philter warns at startup when a cache on another host is used without it. | `false` |
 | `SCHEDULER_POOL_SIZE` | Threads shared by Philter's four scheduled background tasks: claiming and redacting asynchronous documents, reconciling their completion notifications, delivering webhooks, and expiring session keys. Tasks wait for a free thread, so with a single thread a slow document delays webhook delivery. | `2` |
 | `API_KEY_CACHE_TTL_SECONDS` | How long a resolved API key is cached. Revoking a key through the API evicts it immediately; this bounds how long a key revoked out-of-band keeps working. See [Caching](caching.md). | `60` |
 | `REDACTION_CACHE_TTL_SECONDS` | How long the filtering endpoints keep a user's policy and always/never redact lists in-process. An edited or deleted policy or list applies to the next request on every instance regardless: a cached copy is used only while its revisions match the stored ones. Never written to Valkey/Redis. See [Caching](caching.md). | `60` |

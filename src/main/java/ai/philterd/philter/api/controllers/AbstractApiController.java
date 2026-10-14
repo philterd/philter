@@ -114,8 +114,11 @@ public abstract class AbstractApiController {
         // Resolve from the cache (keyed by the hash so a deleted key can be evicted without the
         // plaintext), then the database. This path also serves callers that did not pass through the
         // filter, such as unit tests.
-        if (apiKeyCache.containsApiKey(apiKeyHash)) {
-            return apiKeyCache.get(apiKeyHash);
+        // One read, not a check and then a read, so an entry that expires or fails to decrypt between the two
+        // falls through to the database instead of refusing a valid key.
+        final ApiKeyEntity cached = apiKeyCache.get(apiKeyHash);
+        if (cached != null) {
+            return cached;
         }
 
         final ApiKeyEntity apiKeyEntity = apiKeyService.findOneByApiKey(apiKey);

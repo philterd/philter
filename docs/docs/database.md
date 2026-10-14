@@ -69,6 +69,8 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 | `signing_keys` | The private half of the signing keypair (the public half stays readable, since verifiers need it) |
 | `admin_settings` | The Phield API key |
 
+What Philter stores in a [Valkey cache](caching.md#protecting-the-cache) is encrypted under `PHILTER_ENCRYPTION_KEY` too, and its key names are hashed.
+
 The audit log is deliberately readable: it is evidence of who did what, and encrypting it would make
 it unusable for the reporting it exists for. It records event names, the acting API key, an object
 id, a client address and a short detail string, not document content.

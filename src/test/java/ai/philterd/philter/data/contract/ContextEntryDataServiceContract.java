@@ -18,6 +18,7 @@ package ai.philterd.philter.data.contract;
 import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.services.ContextEntryDataService;
+import ai.philterd.philter.testutil.LogCapture;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -26,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -124,4 +126,16 @@ public interface ContextEntryDataServiceContract extends StorageContract {
         assertEquals(1, entries.countByUserIdAndContext(other, "default"));
     }
 
+    @Test
+    default void contextEntryEvictionDoesNotLogTheContextName() {
+        final String owner = newOwner();
+        final ContextEntryDataService entries = storage().contextEntriesHolding(1);
+        try (final LogCapture log = new LogCapture()) {
+            entries.putReplacementIfAbsent(owner, "cohort-alpha-7f3", "first", "replacement-1", "PERSON");
+            entries.putReplacementIfAbsent(owner, "cohort-alpha-7f3", "second", "replacement-2", "PERSON");
+            assertEquals(1, entries.countByUserIdAndContext(owner, "cohort-alpha-7f3"), "an entry was evicted");
+            assertTrue(log.contains("Evicted context entry"), log.messages().toString());
+            assertFalse(log.contains("cohort-alpha-7f3"), log.messages().toString());
+        }
+    }
 }

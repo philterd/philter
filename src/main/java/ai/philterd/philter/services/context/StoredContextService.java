@@ -39,7 +39,8 @@ public class StoredContextService implements ContextService {
 
     public StoredContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final String userId, final String contextName) {
 
-        LOGGER.info("Instantiating StoredContextService for user {} and context {}", userId, contextName);
+        // A context name is the user's own label and can describe whose data it holds, so it is not logged.
+        LOGGER.info("Instantiating StoredContextService for user {}", userId);
 
         this.contextCache = contextCache;
         this.contextEntryService = contextEntryService;

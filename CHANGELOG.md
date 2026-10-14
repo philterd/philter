@@ -175,6 +175,22 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   generically or by its kind, with the full error in Philter's log. See
   [Documents API](docs/docs/api_and_sdks/api/documents_api.md) and
   [Delivery errors](docs/docs/api_and_sdks/api/webhooks.md#delivery-errors).
+- **Context names are no longer written to the application log.** Creating a context's stored service, deleting a
+  context, and evicting an entry to honor `MAX_CONTEXT_SIZE` logged the context's name, which is the user's own label
+  and can describe whose data it holds. These messages now name only the owner's user ID. The audit log still records
+  context names. See [Redaction Contexts](docs/docs/redaction/contexts.md#managing-contexts).
+- **Built filters are cached by a SHA-256 hash of the policy.** Every user's redactions share Phileas's filter
+  cache, which was keyed by a 64-bit FNV-1a hash of the policy. That hash is not designed to resist deliberately made
+  collisions, so a policy could in principle be written to take another user's key and be filtered with that user's
+  dictionaries and keys. Phileas 4.5 keys the cache with SHA-256.
+- **What Philter stores in Valkey is encrypted and authenticated.** Cached API key records were readable JSON under
+  names derived from the key, and Philter trusted them without checking the database, so anything that could write to
+  the cache could copy a record to the hash of a key of its choosing and use that key as the record's user, an
+  administrator included. Values are now encrypted with AES-256-GCM under a key derived from
+  `PHILTER_ENCRYPTION_KEY` and bound to their names, and names are keyed hashes; a value that does not open, or was
+  written back after it expired, reads as absent and Philter uses the database. Philter also warns at startup when a
+  cache on another host is used without `CACHE_PASSWORD` or `CACHE_SSL`. Existing cache entries are ignored after
+  upgrading. See [Protecting the cache](docs/docs/caching.md#protecting-the-cache).
 - **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
   cached data, and when it was full every username was treated as locked, so one user redacting a document with many
   distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, where no other

@@ -30,6 +30,9 @@ public abstract class Cache {
     // Ensures the ephemeral-cache warning is printed only once per process.
     private static final AtomicBoolean EPHEMERAL_WARNING_PRINTED = new AtomicBoolean(false);
 
+    // Ensures the unprotected-cache warning is printed only once per process.
+    private static final AtomicBoolean UNPROTECTED_WARNING_PRINTED = new AtomicBoolean(false);
+
     protected final CacheBackend backend;
 
     /**
@@ -61,9 +64,50 @@ public abstract class Cache {
             this.backend = inMemory;
 
         } else {
-            this.backend = new JedisCacheBackend(host, port, password, ssl);
+            warnIfUnprotected(host, password, ssl);
+            // Encrypted and authenticated, so what is stored in Valkey can neither be read nor forged.
+            this.backend = SealedCacheBackend.fromEnvironment(new JedisCacheBackend(host, port, password, ssl));
         }
 
+    }
+
+    /** Over the given backend, for tests. */
+    protected Cache(final CacheBackend backend) {
+        this.backend = backend;
+    }
+
+    /**
+     * Warns, once per process, when Valkey is reached over a network without a password or without TLS.
+     * Anyone who can reach an unprotected cache can delete or replace what Philter keeps there, so it should
+     * be protected like the database.
+     */
+    static void warnIfUnprotected(final String host, final String password, final boolean ssl) {
+        final String warning = unprotectedWarning(host, password, ssl);
+        if (warning != null && UNPROTECTED_WARNING_PRINTED.compareAndSet(false, true)) {
+            LOGGER.warn(warning);
+        }
+    }
+
+    /** The warning for a cache reached this way, or null when there is nothing to warn about. */
+    static String unprotectedWarning(final String host, final String password, final boolean ssl) {
+
+        final boolean noPassword = password == null || password.isEmpty();
+        if (isLoopback(host) || (!noPassword && ssl)) {
+            return null;
+        }
+
+        return "The Valkey cache at " + host + " is used "
+                + (noPassword && !ssl ? "without a password or TLS" : noPassword ? "without a password" : "without TLS")
+                + ". Anyone who can reach it can delete or replace Philter's cached entries, so protect it like the "
+                + "database: set CACHE_PASSWORD and CACHE_SSL, and allow only Philter's instances to connect.";
+
+    }
+
+    /** Whether the host is this machine, judged from its name alone without a DNS lookup. */
+    static boolean isLoopback(final String host) {
+        final String h = host.trim().toLowerCase(java.util.Locale.ROOT);
+        return h.equals("localhost") || h.endsWith(".localhost") || h.matches("127(\\.\\d{1,3}){3}")
+                || h.equals("::1") || h.equals("[::1]");
     }
 
     /**

@@ -231,7 +231,6 @@ class ExplainApiControllerTest {
 
     @Test
     void unauthorizedExplainResponseDoesNotIncludeSignatureHeader() throws Exception {
-        when(apiKeyCache.containsApiKey(EncryptionService.hashSha256("bad-key"))).thenReturn(false);
         when(apiKeyDataService.findOneByApiKey("bad-key")).thenReturn(null);
 
         final var response = mockMvc.perform(post("/api/explain")

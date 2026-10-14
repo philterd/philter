@@ -15,7 +15,7 @@ services:
       # In-memory cache unless these are set. Several instances need a shared one. See README.md.
       # CACHE_HOSTNAME: valkey
       # CACHE_PORT: "6379"
-      # CACHE_PASSWORD: ""
+      # CACHE_PASSWORD: ""  # set one: anyone who can reach the cache can delete Philter's entries
       # CACHE_SSL: "false"
       STORAGE_TYPE: mongodb
       MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin

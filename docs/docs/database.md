@@ -63,7 +63,6 @@ stored wrapped under `PHILTER_ENCRYPTION_KEY`, so the master key is required to 
 | `redact_lists` | Always/never redact terms |
 | `webhook_deliveries` | The queued webhook signing secret; delivery metadata and payload remain readable |
 | `pending_documents` | The submitted document, the redacted result, and the resolved configuration captured for the job |
-| `execution_snapshots` | The resolved configuration retained for asynchronous jobs |
 | `signing_keys` | The private half of the signing keypair (the public half stays readable, since verifiers need it) |
 | `admin_settings` | The Phield API key |
 
@@ -220,4 +219,4 @@ Policy JSON is retained in `policy_contents` by SHA-256, independently of immuta
 
 ## Async coordination and retention
 
-`pending_documents` uses `retention_at` for TTL, set only after durable notification intent is acknowledged. `webhook_deliveries` uses terminal `completed_at` for both success and failure. Unexpected TTL fields prevent startup. `execution_snapshots` retains account-encrypted resolved configurations by owner and content hash independently of job retention; snapshots have no automatic TTL. `queue_admission` serializes capacity checks and insertion across instances; ambiguous operations retain the guard for [operator recovery](settings.md#async-queue-admission). `queue_scheduling` retains per-account/global scheduling rounds for fair claims. A job's optional `fairness_key` orders an account's own jobs among its rounds and is stored unencrypted. No legacy migration or backfill is performed.
+`pending_documents` uses `retention_at` for TTL, set only after durable notification intent is acknowledged. `webhook_deliveries` uses terminal `completed_at` for both success and failure. Unexpected TTL fields prevent startup. A job's resolved configuration is stored only on its `pending_documents` record and expires or is deleted with it. `queue_admission` serializes capacity checks and insertion across instances; ambiguous operations retain the guard for [operator recovery](settings.md#async-queue-admission). `queue_scheduling` retains per-account/global scheduling rounds for fair claims. A job's optional `fairness_key` orders an account's own jobs among its rounds and is stored unencrypted. No legacy migration or backfill is performed.

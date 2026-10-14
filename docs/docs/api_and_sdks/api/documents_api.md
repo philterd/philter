@@ -65,7 +65,10 @@ curl -k -H "Authorization: Bearer <token>" \
       "fileName": "patient-record.pdf",
       "status": "COMPLETE",
       "timestamp": "2026-05-22T20:00:00.000Z",
-      "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f"
+      "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f",
+      "policyName": "hipaa",
+      "policyVersion": 3,
+      "policyContentHash": "9f2c..."
     }
   ],
   "total": 1
@@ -86,9 +89,15 @@ curl -k -H "Authorization: Bearer <token>" \
 ```json
 {
   "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f",
-  "status": "PROCESSING"
+  "status": "PROCESSING",
+  "effectiveConfigurationHash": "4b1e...",
+  "policyName": "hipaa",
+  "policyVersion": 3,
+  "policyContentHash": "9f2c..."
 }
 ```
+
+`policyName`, `policyVersion`, and `policyContentHash` name the policy the document was submitted with, and the same values are in the listing; see [Which policy redacted a document](#which-policy-redacted-a-document).
 
 Returns `404 Not Found` if no document with that id exists for the calling user.
 
@@ -124,13 +133,22 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
   https://localhost:8080/api/documents/c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f
 ```
 
+## Which policy redacted a document
+
+Philter reports the policy's name, revision, and content hash with every redaction and keeps every revision of every policy, so you can find the policy behind a redaction and read it as it was. For a synchronous redaction, keep the response headers or use a context with a ledger: without a ledger, Philter keeps no record of which policy it used.
+
+1. Find the policy and revision. Each `/api/filter` response, synchronous or the asynchronous `202`, carries `X-Philter-Policy-Name`, `X-Philter-Policy-Version`, and `X-Philter-Policy-Hash`. For an asynchronous document, the status and listing responses carry the same values as `policyName`, `policyVersion`, and `policyContentHash` while the job is retained. When the context records a [ledger](../../redaction/ledgers.md), each entry carries them too, for as long as the ledger is kept.
+2. Read that revision with [`GET /api/policies/{name}/versions/{revision}`](../../redaction/policies.md). Revisions are kept after the policy is changed or deleted, and `policyContentHash` matches the revision's `contentHash`.
+
+The policy revision does not include the custom-list contents, always/never-redact lists, or context settings in force at the time; those are not kept once the job is removed.
+
 ## Notifications
 
 If a webhook URL and secret are configured for your user, Philter sends a signed POST when each async redaction reaches `COMPLETE` or `FAILED`. See the [Webhooks](webhooks.md) page for the headers, payload shape, and replay-protected signing scheme.
 
 ## Configuration captured at submission
 
-Async submission freezes the resolved policy, custom-list contents, managed FPE key/tweak, environment key/tweak references, always/never-redact lists, and context settings. The encrypted snapshot is retained independently of the job. `X-Effective-Configuration-SHA256` in the 202 response, `effectiveConfigurationHash` in status, and `effectiveHash` in ledger entries identify it. The ledger hash binds this fingerprint. Raw policy identity remains separately available. Context mappings, vector contents, and execution software remain live; this is a configuration guarantee, not a promise of byte-identical replay. Cached global lists are captured as observed at submission.
+Async submission freezes the resolved policy, custom-list contents, managed FPE key/tweak, the values of `env:` keys, always/never-redact lists, and context settings, so a policy change after submission does not change a queued job. This configuration is stored, encrypted, only with the job, and is removed with it. `X-Effective-Configuration-SHA256` in the 202 response, `effectiveConfigurationHash` in status, and `effectiveHash` in ledger entries are its SHA-256. The ledger hash binds this fingerprint, but once the job is gone the configuration itself cannot be recovered from it. The policy remains identifiable; see below. Context mappings, vector contents, and execution software remain live; this is a configuration guarantee, not a promise of byte-identical replay. Cached global lists are captured as observed at submission.
 
 Admission limits active jobs and input bytes globally and per account; see [queue settings](../../settings.md#async-queue-admission). Owner limits return 429, and global limits or admission contention return 503, with `Retry-After: 5`.
 

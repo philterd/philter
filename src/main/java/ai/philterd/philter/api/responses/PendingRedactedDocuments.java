@@ -23,12 +23,22 @@ public class PendingRedactedDocuments {
     private final String status;
     private final Date timestamp;
     private final String documentId;
+    private final String policyName;
+    private final Integer policyVersion;
+    private final String policyContentHash;
 
-    public PendingRedactedDocuments(final String fileName, final String status, final Date timestamp, final String documentId) {
+    /**
+     * @param policyVersion The policy's revision when the document was submitted; negative means none was recorded.
+     */
+    public PendingRedactedDocuments(final String fileName, final String status, final Date timestamp, final String documentId,
+                                    final String policyName, final int policyVersion, final String policyContentHash) {
         this.fileName = fileName;
         this.status = status;
         this.timestamp = timestamp;
         this.documentId = documentId;
+        this.policyName = policyName;
+        this.policyVersion = policyVersion < 0 ? null : policyVersion;
+        this.policyContentHash = policyContentHash;
     }
 
     public String getFileName() {
@@ -45,6 +55,18 @@ public class PendingRedactedDocuments {
 
     public String getDocumentId() {
         return documentId;
+    }
+
+    public String getPolicyName() {
+        return policyName;
+    }
+
+    public Integer getPolicyVersion() {
+        return policyVersion;
+    }
+
+    public String getPolicyContentHash() {
+        return policyContentHash;
     }
 
 }

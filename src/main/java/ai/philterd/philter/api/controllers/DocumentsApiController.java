@@ -115,7 +115,10 @@ public class DocumentsApiController extends AbstractApiController {
                     entity.getFileName(),
                     entity.getStatus(),
                     entity.getSubmittedAt(),
-                    entity.getDocumentId()
+                    entity.getDocumentId(),
+                    entity.getPolicyName(),
+                    entity.getPolicyVersion(),
+                    entity.getPolicyContentHash()
             ));
         }
 
@@ -144,7 +147,10 @@ public class DocumentsApiController extends AbstractApiController {
         throw new BadRequestException("status must be one of: " + String.join(", ", DOCUMENT_STATUSES) + ".", "status");
     }
 
-    @Operation(summary = "Get the status of an async redaction.")
+    @Operation(summary = "Get the status of an async redaction.",
+            description = "Returns the status, any error, the effective configuration hash, and the policy the document "
+                    + "was submitted with: policyName, policyVersion, and policyContentHash. Read that revision with "
+                    + "GET /api/policies/{policyName}/versions/{revision}.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Unknown document id.")
@@ -174,6 +180,7 @@ public class DocumentsApiController extends AbstractApiController {
 
         final GetRedactionStatusResponse response = new GetRedactionStatusResponse(entity.getStatus(), entity.getDocumentId());
         response.setEffectiveConfigurationHash(entity.getEffectiveHash());
+        response.setPolicy(entity.getPolicyName(), entity.getPolicyVersion(), entity.getPolicyContentHash());
         response.setError(entity.getErrorMessage());
         return new ResponseEntity<>(gson.toJson(response), HttpStatus.OK);
 

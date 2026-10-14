@@ -59,7 +59,6 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
     static final int MAX_ADMISSION_BSON_BYTES = 16 * 1024 * 1024 - 16 * 1024;
 
     private final MongoCollection<Document> jobs;
-    private final MongoCollection<Document> snapshots;
     private final MongoCollection<Document> scheduling;
 
     public MongoPendingDocumentDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
@@ -82,7 +81,6 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
         super(encryptionService, clock, claimLeaseSeconds, new QueueAdmission(mongoClient));
         final MongoRecords<PendingDocumentEntity> records = new MongoRecords<>(mongoClient, "pending_documents",
                 entity -> PendingDocumentDocuments.toDocument(entity, encryptionService));
-        snapshots = mongoClient.getDatabase("philter").getCollection("execution_snapshots");
         scheduling = mongoClient.getDatabase("philter").getCollection("queue_scheduling");
         jobs = records.collection.withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
 
@@ -117,20 +115,6 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
                         "Encrypted async job or configuration exceeds the storage size limit.");
             }
         }
-    }
-
-    @Override
-    protected void retainSnapshot(final SealedJob job) {
-        // The same ciphertext the job stores: the configuration is encrypted once.
-        final PendingDocumentEntity entity = job.entity();
-        final SecretFields.Sealed sealed = job.effective();
-        final Document retained = new Document("_id", entity.getUserId() + ":" + entity.getEffectiveHash())
-                .append("user_id", MongoIds.objectId(entity.getUserId())).append("effective_hash", entity.getEffectiveHash())
-                .append("effective_json", sealed.ciphertext())
-                .append("effective_key", sealed.key());
-        requireStorable(retained);
-        snapshots.withWriteConcern(WriteConcern.MAJORITY).updateOne(Filters.eq("_id", retained.getString("_id")),
-                new Document("$setOnInsert", retained), new UpdateOptions().upsert(true));
     }
 
     @Override

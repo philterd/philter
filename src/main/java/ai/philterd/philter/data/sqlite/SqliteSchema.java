@@ -307,13 +307,6 @@ final class SqliteSchema {
                 owner TEXT PRIMARY KEY,
                 round INTEGER NOT NULL)""",
             """
-            CREATE TABLE execution_snapshots (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                effective_hash TEXT,
-                effective_json TEXT,
-                effective_key TEXT)""",
-            """
             CREATE TABLE webhook_deliveries (
                 seq INTEGER PRIMARY KEY AUTOINCREMENT,
                 id TEXT NOT NULL UNIQUE,

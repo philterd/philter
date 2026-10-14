@@ -96,9 +96,6 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
      */
     protected abstract void requireStorable(final SealedJob job);
 
-    /** Keeps the document's effective configuration, encrypted, by its owner and hash, unless already kept. */
-    protected abstract void retainSnapshot(final SealedJob job);
-
     /** The fairness round of the last document claimed, or 0. */
     protected abstract long globalRound();
 
@@ -162,11 +159,6 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
         }
         final SealedJob sealed = seal(entity);
         requireStorable(sealed);
-        // Immutable snapshots are safe to retain before admission, even if admission later fails.
-        // A snapshot failure must never strand the global queue guard.
-        if (entity.getEffectiveJson() != null) {
-            retainSnapshot(sealed);
-        }
         return admission.execute(() -> {
             final QueueStats global = queueStats(null);
             final QueueStats owner = queueStats(entity.getUserId());

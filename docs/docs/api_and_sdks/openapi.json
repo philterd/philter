@@ -3002,7 +3002,7 @@
           "Documents"
         ],
         "summary": "Get the status of an async redaction.",
-        "description": "Requires the `documents:read` scope.",
+        "description": "Returns the status, any error, the effective configuration hash, and the policy the document was submitted with: policyName, policyVersion, and policyContentHash. Read that revision with GET /api/policies/{policyName}/versions/{revision}. Requires the `documents:read` scope.",
         "operationId": "getStatus",
         "parameters": [
           {
@@ -13594,6 +13594,16 @@
           "error": {
             "type": "string"
           },
+          "policyContentHash": {
+            "type": "string"
+          },
+          "policyName": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
           "status": {
             "type": "string"
           }
@@ -14056,6 +14066,16 @@
           },
           "fileName": {
             "type": "string"
+          },
+          "policyContentHash": {
+            "type": "string"
+          },
+          "policyName": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "type": "integer",
+            "format": "int32"
           },
           "status": {
             "type": "string"

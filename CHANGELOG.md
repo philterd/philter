@@ -72,6 +72,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Fairness keys on queued documents:** an asynchronous PDF request can pass `fairness_key`, and
   documents one account queues with different keys take turns, as different accounts do. See
   [Fairness keys](docs/docs/api_and_sdks/api/filtering_api.md#fairness-keys).
+- **The policy behind a queued document:** document status and listing responses include `policyName`,
+  `policyVersion`, and `policyContentHash`, and that revision can be read through the policy versions API. See
+  [Which policy redacted a document](docs/docs/api_and_sdks/api/documents_api.md#which-policy-redacted-a-document).
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
   trusted-proxy handling.
@@ -149,6 +152,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 ### Security
 
 - **`PHILTER_ENCRYPTION_KEY` is required.** Back it up: data cannot be recovered without it.
+- **A queued document's captured configuration is kept only with the job.** It holds the resolved policy,
+  list contents, and keys, is encrypted, and is removed when the job expires or is deleted; no other copy is kept.
 - **Cross-user access is opt-in** through `ADMIN_CROSS_USER_ACCESS_ENABLED`. While it is off, an administrator can
   create an API key for another user only as that user's first key, so the setting cannot be bypassed by creating
   a key for a user who already holds data and acting as them. With it on, such a key and every read of another

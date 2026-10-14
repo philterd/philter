@@ -145,13 +145,25 @@ class StorageFlowsApiIT {
         final String documentId = gson.fromJson(accepted.body(), JsonObject.class).get("documentId").getAsString();
 
         String status = null;
+        JsonObject polledStatus = null;
         for (int attempt = 0; attempt < 150 && !"COMPLETE".equals(status) && !"FAILED".equals(status); attempt++) {
             Thread.sleep(200);
             final HttpResponse<String> polled = send(authenticated("/api/documents/" + documentId + "/status").GET().build());
             assertEquals(200, polled.statusCode(), polled.body());
-            status = gson.fromJson(polled.body(), JsonObject.class).get("status").getAsString();
+            polledStatus = gson.fromJson(polled.body(), JsonObject.class);
+            status = polledStatus.get("status").getAsString();
         }
         assertEquals("COMPLETE", status);
+
+        // The status names the policy the document was submitted with, as the 202 did, so that revision can be read.
+        assertEquals("ssn-only", polledStatus.get("policyName").getAsString());
+        assertEquals(accepted.headers().firstValue("X-Philter-Policy-Version").orElseThrow(),
+                polledStatus.get("policyVersion").getAsString());
+        assertEquals(accepted.headers().firstValue("X-Philter-Policy-Hash").orElseThrow(),
+                polledStatus.get("policyContentHash").getAsString());
+        final HttpResponse<String> revision = send(authenticated("/api/policies/ssn-only/versions/"
+                + polledStatus.get("policyVersion").getAsInt()).GET().build());
+        assertEquals(200, revision.statusCode(), revision.body());
 
         final HttpResponse<byte[]> result = httpClient.send(authenticated("/api/documents/" + documentId).GET().build(),
                 HttpResponse.BodyHandlers.ofByteArray());
@@ -161,6 +173,7 @@ class StorageFlowsApiIT {
         final HttpResponse<String> listed = send(authenticated("/api/documents").GET().build());
         assertEquals(200, listed.statusCode(), listed.body());
         assertTrue(listed.body().contains(documentId), listed.body());
+        assertTrue(listed.body().contains("\"policyName\":\"ssn-only\""), listed.body());
 
         // Deleting waits until the completion notification has been dispatched.
         int deleted = 0;

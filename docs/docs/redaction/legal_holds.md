@@ -173,11 +173,11 @@ invalidate the hold/deletion ordering guarantee.
 
 Philter retains configuration history and redaction evidence separately. Their contents and retention controls differ.
 
-### Retained policy versions and execution snapshots
+### Retained policy versions
 
 Policy versions preserve the supplied policy JSON. That JSON can contain personal data in literal dictionary entries or ignored terms, as well as encryption keys. Raw policies and their version history are not encrypted. Use environment references for keys and review policy contents before saving them; changing a policy does not remove values from its history. See [Database](../database.md#what-is-encrypted-at-rest).
 
-Policy version snapshots are append-only through Philter: there is no API for deleting them. Expanded execution snapshots capture the effective configuration used by a queued job, are encrypted, and remain after the job is deleted. A legal hold is not what preserves these snapshots; they have no application deletion path. Neither their configuration role nor their retention behavior establishes an exemption from your organization's data-handling obligations.
+Policy version snapshots are append-only through Philter: there is no API for deleting them. A legal hold is not what preserves them. Neither their role as evidence nor their retention behavior establishes an exemption from your organization's data-handling obligations. The effective configuration captured for a queued job is not kept this way: it is stored only with the job and is removed with it.
 
 ### Redaction ledger entries
 
@@ -185,7 +185,7 @@ Ledger entries retain encrypted original values and replacements, along with doc
 
 ### Coordinating retention and deletion
 
-Determine which records your retention or erasure process must address before using the deletion controls. Deleting a ledger chain does not delete policy history, execution snapshots, context mappings, or every other record associated with a request.
+Determine which records your retention or erasure process must address before using the deletion controls. Deleting a ledger chain does not delete policy history, context mappings, or every other record associated with a request.
 
 Ledger deletion requires an administrator and `LEDGER_DELETION_ENABLED=true`. A covering hold blocks deletion with HTTP 423; active or uncertain chains also have completion/recovery restrictions. Releasing a hold does not delete the evidence. Once release is authorized under your organization's process, use the [ledger deletion controls](ledgers.md) for eligible chains and handle other retained records separately. Philter's controls do not determine the legal basis for retaining or erasing a record.
 

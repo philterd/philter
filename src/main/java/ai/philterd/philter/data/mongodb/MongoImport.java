@@ -411,12 +411,6 @@ public final class MongoImport implements AutoCloseable {
                 "global".equals(text(row, "owner")) ? "global" : id(row, "owner"))
                 .append("round", int64(row, "round"))));
 
-        TARGETS.put("execution_snapshots", new Target("execution_snapshots", row -> new Document("_id", text(row, "id"))
-                .append("user_id", id(row, "user_id"))
-                .append("effective_hash", text(row, "effective_hash"))
-                .append("effective_json", text(row, "effective_json"))
-                .append("effective_key", text(row, "effective_key"))));
-
         TARGETS.put("webhook_deliveries", new Target("webhook_deliveries", row -> new Document("_id", id(row, "id"))
                 .append("user_id", id(row, "user_id"))
                 .append("document_id", text(row, "document_id"))
@@ -618,7 +612,6 @@ public final class MongoImport implements AutoCloseable {
             new EncryptedField("pending_documents", "effective_json", "effective_key", false),
             new EncryptedField("pending_documents", "input", "input_encrypted_key", true),
             new EncryptedField("pending_documents", "output", "output_encrypted_key", true),
-            new EncryptedField("execution_snapshots", "effective_json", "effective_key", false),
             new EncryptedField("webhook_deliveries", "secret", "secret_encrypted_key", false),
             new EncryptedField("signing_keys", "private_key", "private_key_encrypted_key", true));
 

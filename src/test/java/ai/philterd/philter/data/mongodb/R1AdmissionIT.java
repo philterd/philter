@@ -8,11 +8,8 @@ import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.services.policies.EffectiveConfigurationLimits;
 import ai.philterd.philter.testutil.AbstractMongoIT;
 import ai.philterd.philter.testutil.TestEncryptionService;
-import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 import org.bson.types.Binary;
 import org.junit.jupiter.api.Test;
 import java.util.Date;
@@ -55,7 +52,6 @@ class R1AdmissionIT extends AbstractMongoIT {
         job.setEffectiveJson("x".repeat(EffectiveConfigurationLimits.MAX_BYTES + 1));
         job.setEffectiveHash(PolicyVersionDataService.contentHash(job.getEffectiveJson()));
         assertThrows(PayloadTooLargeException.class, () -> jobs.save(job));
-        assertEquals(0, mongoClient.getDatabase("philter").getCollection("execution_snapshots").countDocuments());
         assertOtherOwnerCanSubmit();
     }
 
@@ -65,12 +61,11 @@ class R1AdmissionIT extends AbstractMongoIT {
         assertOtherOwnerCanSubmit();
     }
 
-    @Test void completeEncryptedRecordIsCheckedBeforeSnapshotOrAdmission() {
+    @Test void completeEncryptedRecordIsCheckedBeforeAdmission() {
         var jobs = service(); var job = job();
         job.setInput(new byte[MongoPendingDocumentDataService.MAX_ADMISSION_BSON_BYTES]);
         job.setEffectiveJson("{}"); job.setEffectiveHash(PolicyVersionDataService.contentHash("{}"));
         assertThrows(PayloadTooLargeException.class, () -> jobs.save(job));
-        assertEquals(0, mongoClient.getDatabase("philter").getCollection("execution_snapshots").countDocuments());
         assertOtherOwnerCanSubmit();
     }
 
@@ -82,17 +77,4 @@ class R1AdmissionIT extends AbstractMongoIT {
                 new Document("payload", new Binary(new byte[MongoPendingDocumentDataService.MAX_ADMISSION_BSON_BYTES - 18]))));
     }
 
-    @Test void snapshotStorageFailureCannotStrandAdmission() {
-        var client = mock(com.mongodb.client.MongoClient.class, org.mockito.AdditionalAnswers.delegatesTo(mongoClient)); var database = spy(mongoClient.getDatabase("philter"));
-        doReturn(database).when(client).getDatabase("philter");
-        var snapshots = spy(database.getCollection("execution_snapshots"));
-        doReturn(snapshots).when(database).getCollection("execution_snapshots");
-        doReturn(snapshots).when(snapshots).withWriteConcern(any(WriteConcern.class));
-        doThrow(new IllegalStateException("uncertain snapshot write")).when(snapshots)
-                .updateOne(any(Bson.class), any(Bson.class), any(UpdateOptions.class));
-        var jobs = new MongoPendingDocumentDataService(client, encryption, audit); var job = job();
-        job.setEffectiveJson("{}"); job.setEffectiveHash(PolicyVersionDataService.contentHash("{}"));
-        assertThrows(IllegalStateException.class, () -> jobs.save(job));
-        assertOtherOwnerCanSubmit();
-    }
 }

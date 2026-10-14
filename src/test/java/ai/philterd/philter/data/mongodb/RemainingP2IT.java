@@ -94,17 +94,22 @@ class RemainingP2IT extends AbstractMongoIT {
         assertThrows(IllegalStateException.class, () -> new QueueAdmission(mongoClient).execute(() -> { throw new IllegalStateException("uncertain insert"); }));
         assertEquals(503, assertThrows(QueueCapacityException.class, () -> jobs().save(job(MongoIds.newId()))).getStatus());
     }
-    @Test void executionSnapshotIsEncryptedAndRetainedAfterJobDeletion() {
+    @Test void resolvedConfigurationIsNotRetainedAfterJobDeletion() {
         var jobs = jobs(); var pending = job(MongoIds.newId());
         pending.setEffectiveJson("{\"key\":\"sensitive-configuration\"}");
         pending.setEffectiveHash(PolicyVersionDataService.contentHash(pending.getEffectiveJson()));
         jobs.save(pending);
         var stored = jobs.findOneByDocumentIdAndUserId(pending.getDocumentId(), pending.getUserId());
         assertEquals(pending.getEffectiveJson(), stored.getEffectiveJson());
+        var database = mongoClient.getDatabase("philter");
+        var ciphertext = database.getCollection("pending_documents").find().first().getString("effective_json");
         jobs.deleteByDocumentIdAndUserId(pending.getDocumentId(), pending.getUserId());
-        var snapshot = mongoClient.getDatabase("philter").getCollection("execution_snapshots").find().first();
-        assertFalse(snapshot.toJson().contains("sensitive-configuration"));
-        assertEquals(pending.getEffectiveJson(), new TestEncryptionService().decrypt(snapshot.getString("effective_json"), snapshot.getString("effective_key")));
+        // Only the job held the configuration, so deleting the job leaves no copy of it.
+        for (var name : database.listCollectionNames()) {
+            for (var document : database.getCollection(name).find()) {
+                assertFalse(document.toJson().contains(ciphertext), name + " still holds the configuration");
+            }
+        }
     }
     @Test void anotherInstanceWaitsForAnActiveAdmissionToFinish() throws Exception {
         var guard = new QueueAdmission(mongoClient); var contender = jobs();

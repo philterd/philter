@@ -110,17 +110,6 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
         // SQLite's own limit on a row is far above the request size limits, so nothing is refused here.
     }
 
-    @Override
-    protected void retainSnapshot(final SealedJob job) {
-        // The same ciphertext the job stores: the configuration is encrypted once.
-        final PendingDocumentEntity entity = job.entity();
-        final SecretFields.Sealed sealed = job.effective();
-        database.write(connection -> Sql.update(connection, "INSERT INTO execution_snapshots (id, user_id, effective_hash, "
-                + "effective_json, effective_key) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING",
-                entity.getUserId() + ":" + entity.getEffectiveHash(), entity.getUserId(), entity.getEffectiveHash(),
-                sealed.ciphertext(), sealed.key()));
-    }
-
     private long round(final String owner) {
         final Long round = database.read(connection -> Sql.first(connection,
                 "SELECT round FROM queue_scheduling WHERE owner = ?", row -> row.longValue("round"), owner));

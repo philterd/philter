@@ -102,7 +102,7 @@ public interface StorageEncryptionAndRecoveryContract extends StorageContract {
         job.setStatus(PendingDocumentEntity.STATUS_PENDING);
         job.setSubmittedAt(new Date());
         job.setInput(documentText.getBytes(StandardCharsets.UTF_8));
-        // The resolved configuration is kept with the job and, separately, as an execution snapshot.
+        // The resolved configuration is kept with the job, and only there.
         final String configuration = "configuration-" + RecordIds.newId();
         job.setEffectiveJson("{\"key\":\"" + configuration + "\"}");
         job.setEffectiveHash(PolicyVersionDataService.contentHash(job.getEffectiveJson()));

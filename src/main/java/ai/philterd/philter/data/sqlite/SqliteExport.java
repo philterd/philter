@@ -45,7 +45,7 @@ public final class SqliteExport implements AutoCloseable {
             "admin_settings", "users", "api_keys", "sign_in_challenges", "signing_keys", "signing_key_state",
             "policies", "policy_revision_counters", "policy_versions", "policy_contents", "policy_deletions",
             "custom_lists", "redact_lists", "contexts", "context_entries", "vectors", "legal_holds", "ledger",
-            "ledger_chains", "pending_documents", "queue_scheduling", "execution_snapshots", "webhook_deliveries",
+            "ledger_chains", "pending_documents", "queue_scheduling", "webhook_deliveries",
             "audit_events", "pii_count_aggregates", "pii_counts");
 
     private final SqliteInstanceLock lock;

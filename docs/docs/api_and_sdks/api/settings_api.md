@@ -25,7 +25,7 @@ These endpoints read and change the deployment's admin settings: differential-pr
 
 * `diffuseCountsEnabled` - Record PII counts for [differential-privacy reporting](../../diffuse.md). Read them with the [PII Counts API](pii_counts_api.md).
 * `signingEnabled` - Sign every text filter and explain response. See [Output Signing](../../output_signing.md).
-* `webhookAllowlist` - Where a user's [webhook](webhooks.md#where-a-webhook-may-point) may point: comma-separated hostnames, IP addresses, and CIDR ranges. Empty allows any public address.
+* `webhookAllowlist` - Where a user's [webhook](webhooks.md#where-a-webhook-may-point) may point: comma-separated hostnames, IP addresses, and CIDR ranges. Empty allows any public address; private, shared, loopback, link-local, reserved and other special-purpose addresses are refused unless listed.
 * `phieldEnabled`, `phieldUrl`, `phieldSourceId`, `phieldOrganization` - [Phield](../../phield.md) publishing.
 * `phieldApiKeySet` - Whether a Phield API key is set. The key itself is never returned.
 * `mfaAvailable` - Whether users may enroll in [TOTP multi-factor authentication](users_api.md#multi-factor-authentication) for [sign-in](sign_in_api.md). Users already enrolled are asked for a code whatever this says.

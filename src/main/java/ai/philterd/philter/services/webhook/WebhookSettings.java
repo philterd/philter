@@ -58,7 +58,7 @@ public final class WebhookSettings {
             final WebhookDestinationPolicy policy = new WebhookDestinationPolicy(allowlist);
             if (!policy.isDestinationAllowed(parsed.getHost())) {
                 return policy.isEmpty()
-                        ? "Webhooks cannot be sent to a private or loopback address."
+                        ? "Webhooks cannot be sent to a private, loopback, or other special-purpose address."
                         : "Your administrator does not permit webhook delivery to " + parsed.getHost() + ".";
             }
 

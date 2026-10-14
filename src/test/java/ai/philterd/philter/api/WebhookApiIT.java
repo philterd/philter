@@ -118,7 +118,7 @@ class WebhookApiIT {
         final HttpResponse<String> refused = send("PUT", "/api/webhook", key,
                 "{\"url\":\"https://127.0.0.1/hook\",\"secret\":\"a-secret-of-16ch\"}");
         assertEquals(400, refused.statusCode(), refused.body());
-        assertTrue(refused.body().contains("private or loopback"), refused.body());
+        assertTrue(refused.body().contains("special-purpose address"), refused.body());
 
         final HttpResponse<String> set = send("PUT", "/api/webhook", key,
                 "{\"url\":\"https://93.184.216.34/hook\",\"secret\":\"a-secret-of-16ch\"}");

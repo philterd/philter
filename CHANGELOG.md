@@ -158,6 +158,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it
   redacts, condition values, and keys. Names and content hashes stay readable. See
   [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
+- **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
+  space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
+  ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused
+  unless an administrator lists them; NAT64 and 6to4 are judged by the IPv4 address they lead to, so public endpoints
+  still work. See [Where a webhook may point](docs/docs/api_and_sdks/api/webhooks.md#where-a-webhook-may-point).
 - **Policy and redact list changes apply to the next redaction.** A change to the always/never redact lists used
   to take up to `REDACTION_CACHE_TTL_SECONDS` (60 seconds) to apply, so a term added to always-redact, or removed
   from never-redact, kept being let through; a policy edit did the same on instances other than the one that made

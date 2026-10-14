@@ -254,13 +254,13 @@ After the 8th failure, the delivery is marked `FAILED` and no further attempts a
 
 ## Where a webhook may point
 
-Philter refuses to deliver to private, loopback and link-local addresses, so a webhook cannot be aimed at the network Philter itself sits on. An administrator can widen or narrow that with the [Settings API](settings_api.md) (`webhookAllowlist`), with a comma-separated list of hostnames and IP addresses or CIDR ranges:
+Philter refuses to deliver to special-purpose addresses, so a webhook cannot be aimed at the network Philter itself sits on or at a cloud's instance metadata service. That covers private (10/8, 172.16/12, 192.168/16), shared (100.64/10), loopback, link-local (including 169.254.169.254), reserved, documentation, benchmarking, broadcast and multicast addresses, and the IPv6 equivalents: unique-local, link-local, site-local and multicast. An IPv6 address that embeds an IPv4 address (IPv4-mapped, NAT64 `64:ff9b::/96`, and 6to4 `2002::/16`) is judged by the IPv4 address it leads to, so NAT64 still reaches public endpoints. IPv4-compatible, local-use NAT64 and Teredo addresses are refused. An administrator can widen or narrow that with the [Settings API](settings_api.md) (`webhookAllowlist`), with a comma-separated list of hostnames and IP addresses or CIDR ranges:
 
 ```
 hooks.example.com, 203.0.113.0/24, 10.4.0.0/16
 ```
 
-Leaving it empty allows any public address. Listing an internal range permits that range and no other, which is how to deliver to a collector inside your own network.
+Leaving it empty allows any public address. Listing a range permits it even when it is special-purpose, and no other, which is how to deliver to a collector inside your own network.
 
 The rule is applied when a URL is saved, again before each delivery, and once more against the address the hostname actually resolves to at the moment of connection. Redirects are not followed, so a permitted endpoint cannot forward a delivery somewhere else. A delivery refused by the policy is recorded as a failed attempt.
 

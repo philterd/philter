@@ -55,9 +55,9 @@ class WebhookSettingsTest {
     @Test
     @DisplayName("With no allowlist, private and loopback destinations are refused")
     void refusesLocalDestinationsByDefault() {
-        assertEquals("Webhooks cannot be sent to a private or loopback address.",
+        assertEquals("Webhooks cannot be sent to a private, loopback, or other special-purpose address.",
                 WebhookSettings.validate("https://127.0.0.1/hook", SECRET, null));
-        assertEquals("Webhooks cannot be sent to a private or loopback address.",
+        assertEquals("Webhooks cannot be sent to a private, loopback, or other special-purpose address.",
                 WebhookSettings.validate("https://10.0.0.5/hook", SECRET, ""));
     }
 

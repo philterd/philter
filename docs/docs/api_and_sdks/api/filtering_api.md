@@ -25,7 +25,7 @@ The types of sensitive information found and how each type is redacted is determ
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
-* `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
+* `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
 * `fairness_key` - **Asynchronous PDF only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
 * `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF and ZIP requests with `sign=true` are refused with `400 Bad Request`, because PDF responses are not signed.
 
@@ -148,7 +148,7 @@ The types of sensitive information found and how each type is redacted is determ
 
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
-* `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`.
+* `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
 * `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) in the `X-Philter-Signature` header when the deployment has not enabled signing. The signature covers the JSON response body.
 
 ### Headers

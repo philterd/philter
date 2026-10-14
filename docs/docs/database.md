@@ -80,6 +80,12 @@ original value), policy names, contexts, legal holds, disambiguation vectors (`v
 settings, webhook delivery metadata and payloads, a pending document's submitting client address (recorded on its
 audit events, which hold it in the clear too), and the audit log. These hold no recoverable secret.
 
+> **File names are stored in the clear.** The file name sent with a redaction (the `filename` parameter) is kept
+> readable on its [ledger](redaction/ledgers.md) chain, so the Ledger API can search and sort by it, and on its
+> asynchronous job, so the Documents API can sort by it. An asynchronous job's [webhook](api_and_sdks/api/webhooks.md)
+> payload also carries it, and queued delivery payloads are stored readably. Do not put sensitive values, such as a
+> person's name, in file names; use an identifier instead.
+
 > **A key written into a policy can be read by anyone who can read the policy.** The `crypto` and `fpe`
 > sections of a policy may contain an encryption key. Policies are encrypted at rest, but the policy's owner, and an
 > administrator when `ADMIN_CROSS_USER_ACCESS_ENABLED` is on, can read the policy and the key in it, and reverse

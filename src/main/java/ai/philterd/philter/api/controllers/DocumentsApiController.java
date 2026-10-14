@@ -104,6 +104,7 @@ public class DocumentsApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "list documents");
         final Listings.Page<PendingDocumentEntity> page = pendingDocumentDataService.list(userId, statusFilter, documentSort,
                 normalizeOffset(offset), normalizeLimit(limit));
         final List<PendingDocumentEntity> entities = page.items();
@@ -164,6 +165,7 @@ public class DocumentsApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "read status of document '" + documentId + "'");
 
         final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId);
         if (entity == null) {
@@ -200,6 +202,7 @@ public class DocumentsApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "download document '" + documentId + "'");
 
         final PendingDocumentEntity entity = pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId);
         if (entity == null) {

@@ -23,6 +23,7 @@ import ai.philterd.philter.api.responses.ApiKeyResponse;
 import ai.philterd.philter.api.responses.ApiKeyScopesResponse;
 import ai.philterd.philter.api.responses.CreatedApiKeyResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.api.responses.GetApiKeysResponse;
 import ai.philterd.philter.api.responses.RevokedSessionKeysResponse;
 import ai.philterd.philter.api.security.AnyApiKey;
@@ -80,12 +81,15 @@ import java.util.Locale;
 public class ApiKeysApiController extends AbstractApiController {
 
     private final UserService userService;
+    private final AuditEventPublisher auditEventPublisher;
 
     public ApiKeysApiController(final ApiKeyDataService apiKeyDataService,
                                 final ApiKeyCache apiKeyCache,
-                                final UserService userService) {
+                                final UserService userService,
+                                final AuditEventPublisher auditEventPublisher) {
         super(apiKeyDataService, apiKeyCache);
         this.userService = userService;
+        this.auditEventPublisher = auditEventPublisher;
     }
 
     @Operation(
@@ -214,6 +218,9 @@ public class ApiKeysApiController extends AbstractApiController {
                     + "once: only the hash is stored, so the response is the one chance to capture it. The scopes "
                     + "must be a subset of those the calling key holds, so this cannot be used to widen access "
                     + "beyond the credential making the request. Requires an administrator as well as the scope. "
+                    + "A key for another user who already has, or has had, a key (including a session key) also "
+                    + "requires ADMIN_CROSS_USER_ACCESS_ENABLED, and is recorded as admin_cross_user_access as well; "
+                    + "without it an administrator can create only a user's first key, to provision them. "
                     + "Recorded as an api_key_created audit event naming the calling user and API key.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The key was created. The value is returned here and nowhere else.",
@@ -221,7 +228,7 @@ public class ApiKeysApiController extends AbstractApiController {
                             schema = @Schema(implementation = CreatedApiKeyResponse.class))),
             @ApiResponse(responseCode = "400", description = "No scopes were given, or one of them is not a scope."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, is a session key, the caller is not an administrator, or a requested scope is not held by the calling key.",
+            @ApiResponse(responseCode = "403", description = "The key does not hold api-keys:write, is a session key, the caller is not an administrator, a requested scope is not held by the calling key, or the user already has or has had a key and ADMIN_CROSS_USER_ACCESS_ENABLED is off.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "There is no active user with that username.",
@@ -261,7 +268,23 @@ public class ApiKeysApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        return mint(requestId, caller, user, scopes);
+        // A key for another user lets the administrator act as them. That is allowed without
+        // ADMIN_CROSS_USER_ACCESS_ENABLED only for a user's first key, which provisions a new user who has
+        // never had a credential and so holds no data of their own. Revoked and session keys count.
+        final boolean otherUser = !user.getId().equals(caller.getUserId());
+        final boolean firstKey = !otherUser || apiKeyService.count(user.getId(), true) == 0;
+        if (!firstKey && !isCrossUserAccessEnabled()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
+                    "This user already has, or has had, an API key. An administrator can create only a user's first "
+                            + "key unless ADMIN_CROSS_USER_ACCESS_ENABLED is true.", ErrorReasons.FEATURE_DISABLED));
+        }
+
+        final ResponseEntity<Object> created = mint(requestId, caller, user, scopes);
+        if (!firstKey) {
+            auditAdminCrossUserAccess(auditEventPublisher, requestId, caller.getUserId(), user.getId(),
+                    "create API key with scopes [" + String.join(", ", scopes) + "]");
+        }
+        return created;
 
     }
 

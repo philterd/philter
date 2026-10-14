@@ -149,7 +149,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 ### Security
 
 - **`PHILTER_ENCRYPTION_KEY` is required.** Back it up: data cannot be recovered without it.
-- **Cross-user access is opt-in** through `ADMIN_CROSS_USER_ACCESS_ENABLED`.
+- **Cross-user access is opt-in** through `ADMIN_CROSS_USER_ACCESS_ENABLED`. While it is off, an administrator can
+  create an API key for another user only as that user's first key, so the setting cannot be bypassed by creating
+  a key for a user who already holds data and acting as them. With it on, such a key and every read of another
+  user's policies, custom lists, documents, and ledger through `owner` are recorded as `admin_cross_user_access`;
+  before, only changes and some reads were.
 - **Ledger exports contain original values** and must be treated as sensitive.
 - **Access is decided by the path a request is routed by.** Authentication, scope checks, request size limits,
   and content verification all use the decoded path, so a percent-encoded path such as `/%61pi/documents` is

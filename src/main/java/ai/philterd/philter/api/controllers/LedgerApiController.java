@@ -208,6 +208,7 @@ public class LedgerApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId, "list ledger chains");
 
         final int pageOffset = normalizeOffset(offset);
         final int pageLimit = normalizeLimit(limit);
@@ -253,6 +254,7 @@ public class LedgerApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId, "read ledger '" + documentId + "'");
 
         // Checked without reading an entry, so a damaged one is reported by validation rather than thrown here.
         if (!ledgerService.chainExists(userId, documentId)) {
@@ -303,6 +305,7 @@ public class LedgerApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "validate ledger '" + documentId + "'");
 
         if (!ledgerService.chainExists(userId, documentId)) {
             throw new NotFoundException();

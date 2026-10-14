@@ -140,6 +140,7 @@ public class CustomListsApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId, "list custom lists");
 
         final Listings.Page<CustomListEntity> page =
                 customListService.list(userId, q, listSort, normalizeOffset(offset), normalizeLimit(limit));
@@ -189,6 +190,7 @@ public class CustomListsApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId, "read custom list '" + name + "'");
 
         final CustomListEntity customListEntity = customListService.findOneByName(name, userId);
 

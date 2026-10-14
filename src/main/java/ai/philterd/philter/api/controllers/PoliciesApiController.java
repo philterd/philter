@@ -187,6 +187,7 @@ public class PoliciesApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId, "list policies");
 
         final Listings.Page<PolicyEntity> page = policyDataService.listOwn(userId, q, policySort, pageOffset, pageLimit);
 
@@ -235,6 +236,7 @@ public class PoliciesApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "read policy '" + policyName + "'");
 
         final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
         if (policyEntity == null) {
@@ -570,6 +572,7 @@ public class PoliciesApiController extends AbstractApiController {
         if (userId == null) {
             throw new NotFoundException();
         }
+        auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "read details of policy '" + policyName + "'");
 
         final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
         if (policyEntity == null) {

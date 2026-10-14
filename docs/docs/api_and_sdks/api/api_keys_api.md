@@ -101,6 +101,8 @@ POST /api/users/{username}/api-keys
 
 The first form creates a key for the calling key's user and does not require an administrator, so a key can be rotated by the user that owns it. The second creates a key for the named user and requires an administrator; it returns `404 Not Found` if there is no active user with that username. Both require `api-keys:write`.
 
+A key for another user lets whoever holds it act as that user. Unless [`ADMIN_CROSS_USER_ACCESS_ENABLED`](../../settings.md#api-access) is `true`, an administrator can create a key for another user only if that user has never had a key, including a revoked or session key: enough to provision a new user, who can then create and rotate their own keys and revoke the one the administrator created. With the setting on, a key for a user who has had one is also recorded as an `admin_cross_user_access` audit event.
+
 ```json
 {
   "scopes": ["redact"]
@@ -125,7 +127,7 @@ The key value is returned once, in this response. Philter stores only its SHA-25
 | Status | Meaning |
 |--------|---------|
 | 400 | No scopes were given, or one of them is not a scope. |
-| 403 | The key does not hold `api-keys:write`, is a [session key](../../account/api_keys.md#session-keys), the caller is not an administrator (second form), or a requested scope is not held by the calling key. The message says which. A session key cannot create keys, so a session cannot produce a credential that outlives it. |
+| 403 | The key does not hold `api-keys:write`, is a [session key](../../account/api_keys.md#session-keys), the caller is not an administrator (second form), a requested scope is not held by the calling key, or the user has had a key and `ADMIN_CROSS_USER_ACCESS_ENABLED` is off (second form, `feature_disabled`). The message says which. A session key cannot create keys, so a session cannot produce a credential that outlives it. |
 
 ```
 curl -k "https://localhost:8080/api/api-keys" \

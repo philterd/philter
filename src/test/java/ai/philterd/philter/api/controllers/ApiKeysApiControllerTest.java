@@ -17,12 +17,14 @@ package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.api.security.ApiKeyScopeInterceptor;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -83,6 +85,10 @@ class ApiKeysApiControllerTest {
     @Mock private ApiKeyDataService apiKeyDataService;
     @Mock private ApiKeyCache apiKeyCache;
     @Mock private UserService userService;
+    @Mock private AuditEventPublisher auditEventPublisher;
+
+    /** ADMIN_CROSS_USER_ACCESS_ENABLED, off by default as in a deployment. */
+    private boolean crossUserAccess;
 
     private String callerUserId;
     private String callerApiKeyId;
@@ -99,7 +105,13 @@ class ApiKeysApiControllerTest {
         lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
         lenient().when(apiKeyCache.get(API_KEY_HASH)).thenAnswer(invocation -> callerKey);
 
-        final ApiKeysApiController controller = new ApiKeysApiController(apiKeyDataService, apiKeyCache, userService);
+        final ApiKeysApiController controller = new ApiKeysApiController(apiKeyDataService, apiKeyCache, userService,
+                auditEventPublisher) {
+            @Override
+            protected boolean isCrossUserAccessEnabled() {
+                return crossUserAccess;
+            }
+        };
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .addInterceptors(new ApiKeyScopeInterceptor())
@@ -212,6 +224,54 @@ class ApiKeysApiControllerTest {
 
         verify(apiKeyDataService).createApiKey(eq("req-provision"), eq(target.getId()), eq("api"),
                 eq(Set.of("redact")), contains("created by user: " + callerUserId + ", api_key: " + callerApiKeyId));
+    }
+
+    @Test
+    @DisplayName("An administrator cannot create a key for a user who has had one while cross-user access is off")
+    void cannotCreateAKeyForAUserWhoHasHadOne() throws Exception {
+        callerIsAdministrator(true);
+        final UserEntity target = targetUser("ci");
+        when(userService.findByUsername("ci")).thenReturn(target);
+        // Revoked and session keys count: the user may hold data from any of them.
+        when(apiKeyDataService.count(target.getId(), true)).thenReturn(1);
+
+        final String body = createApiKey("ci", "{\"scopes\":[\"redact\"]}")
+                .andExpect(status().isForbidden())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("ADMIN_CROSS_USER_ACCESS_ENABLED") && body.contains("feature_disabled"), body);
+        verify(apiKeyDataService, never()).createApiKey(anyString(), any(), anyString(), any(), anyString());
+        verifyNoInteractions(auditEventPublisher);
+    }
+
+    @Test
+    @DisplayName("With cross-user access on, a key for a user who has had one is created and audited as cross-user access")
+    void createsAndAuditsAKeyForAUserWhoHasHadOneWhenAllowed() throws Exception {
+        crossUserAccess = true;
+        callerIsAdministrator(true);
+        final UserEntity target = targetUser("ci");
+        when(userService.findByUsername("ci")).thenReturn(target);
+        when(apiKeyDataService.count(target.getId(), true)).thenReturn(2);
+        mintSucceeds();
+
+        createApiKey("ci", "{\"scopes\":[\"redact\"]}").andExpect(status().isCreated());
+
+        verify(auditEventPublisher).auditEvent(eq("req-provision"), eq(AuditLogEvent.ADMIN_CROSS_USER_ACCESS),
+                eq(callerUserId), eq(target.getId()), any(), contains("create API key with scopes [redact]"));
+    }
+
+    @Test
+    @DisplayName("A user's first key is created without cross-user access, and is not cross-user access")
+    void createsAUsersFirstKeyWithoutCrossUserAccess() throws Exception {
+        callerIsAdministrator(true);
+        final UserEntity target = targetUser("ci");
+        when(userService.findByUsername("ci")).thenReturn(target);
+        when(apiKeyDataService.count(target.getId(), true)).thenReturn(0);
+        mintSucceeds();
+
+        createApiKey("ci", "{\"scopes\":[\"redact\"]}").andExpect(status().isCreated());
+
+        verifyNoInteractions(auditEventPublisher);
     }
 
     @Test

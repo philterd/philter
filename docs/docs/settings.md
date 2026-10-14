@@ -236,7 +236,7 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `PHEYE_ALLOWED_MODEL_PATHS` | Local GLiNER model directories a policy's ph-eye `modelPath` may name, separated by commas. A policy naming any other path is refused. | (none) |
 | `GENERATOR_ALLOWED_ENDPOINTS` | Endpoints a policy's [replacement generators](policies/filter_strategies.md#the-map_replace-filter-strategy) may name, separated by commas. A trailing slash is ignored. A policy naming any other endpoint is refused. | (none) |
 | `POLICY_FILES_DIRECTORIES` | Directories, separated by commas, that the files a policy names must be inside. Unset, a policy may name no file. Each must exist and be a directory, and cannot be the filesystem root, or Philter refuses to start. See [Policy files](#policy-files). | (none) |
-| `POLICY_FILES_MAX_BYTES` | The largest file, in bytes, a policy may name. Must be a positive number, or Philter refuses to start. | `10485760` (10 MB) |
+| `POLICY_FILES_MAX_BYTES` | The largest file, in bytes, a policy may name. Must be a positive number, or Philter refuses to start. Set these two rather than Phileas's own `policy.files.*` properties: Philter refuses to start if one of those is set as an environment variable or system property, since it would override them. | `10485760` (10 MB) |
 | `PHEYE_TIMEOUT` | Connection-request and response timeout, in seconds, for calls to ph-eye, used when the policy sets none. | `600` |
 
 ### Redaction services

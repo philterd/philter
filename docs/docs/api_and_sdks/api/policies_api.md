@@ -195,7 +195,7 @@ The description and notes are not accepted as query parameters, since free text 
 
 ### Validation
 
-The policy is validated before it is stored. It must be valid JSON in the native Phileas policy format and contain a non-empty `identifiers` object describing the information to redact, and Phileas must be able to load it: a strategy condition that cannot be parsed or that no filter evaluates (see [Filter Strategy Conditions](../../policies/filter_strategies.md#filter-strategy-conditions)), a regular expression that does not compile or fails its check, or an invalid value such as an unknown `sensitivity` is refused. A missing name or an invalid policy is rejected with `400 Bad Request` and a message describing the problem, and nothing is saved.
+The policy is validated before it is stored. It must be valid JSON in the native Phileas policy format and contain a non-empty `identifiers` object describing the information to redact, and Phileas must be able to load it: a strategy condition that cannot be parsed or that no filter evaluates (see [Filter Strategy Conditions](../../policies/filter_strategies.md#filter-strategy-conditions)), a regular expression that does not compile or fails its check, an invalid value such as an unknown `sensitivity`, a file outside [`POLICY_FILES_DIRECTORIES`](../../settings.md#policy-files), or a ph-eye or generator endpoint the deployment does not allow (see [Redaction services](../../settings.md#redaction-services)) is refused. A missing name or an invalid policy is rejected with `400 Bad Request` and a message describing the problem, and nothing is saved.
 
 ### Responses
 

@@ -21,8 +21,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Checks {@code POLICY_FILES_DIRECTORIES} and {@code POLICY_FILES_MAX_BYTES} when Philter starts, so a mistake in them
- * stops Philter instead of silently allowing or refusing the files policies name.
+ * Checks {@code POLICY_FILES_DIRECTORIES} and {@code POLICY_FILES_MAX_BYTES} when Philter starts, and that no Phileas
+ * {@code policy.files.*} property is set directly, so a mistake stops Philter instead of silently allowing or refusing
+ * the files policies name.
  */
 @Configuration
 public class PolicyFilesConfig {
@@ -30,6 +31,7 @@ public class PolicyFilesConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(PolicyFilesConfig.class);
 
     public PolicyFilesConfig() {
+        PolicyFilesSettings.refuseDirectPhileasSettings(System::getenv, System::getProperty);
         final PolicyFilesSettings settings = PolicyFilesSettings.fromEnvironment(System::getenv);
         if (settings.directories().isEmpty()) {
             LOGGER.info("POLICY_FILES_DIRECTORIES is not set, so a policy may not name files.");

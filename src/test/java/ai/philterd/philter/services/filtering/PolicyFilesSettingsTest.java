@@ -83,4 +83,16 @@ class PolicyFilesSettingsTest {
         }
     }
 
+    @Test
+    void aPhileasPolicyFileSettingSetDirectlyStopsPhilter() {
+        PolicyFilesSettings.refuseDirectPhileasSettings(name -> null, name -> null);
+        for (final String property : PolicyFilesSettings.PHILEAS_PROPERTIES) {
+            final String fromEnvironment = assertThrows(IllegalStateException.class, () -> PolicyFilesSettings.refuseDirectPhileasSettings(
+                    name -> name.equals(property) ? "false" : null, name -> null)).getMessage();
+            assertTrue(fromEnvironment.startsWith(property + " is set directly"), fromEnvironment);
+            assertThrows(IllegalStateException.class, () -> PolicyFilesSettings.refuseDirectPhileasSettings(
+                    name -> null, name -> name.equals(property) ? "/" : null));
+        }
+    }
+
 }

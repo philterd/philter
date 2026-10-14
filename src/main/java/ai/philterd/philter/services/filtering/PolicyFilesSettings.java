@@ -85,6 +85,30 @@ public record PolicyFilesSettings(List<String> directories, long maxBytes) {
 
     }
 
+    /** The Phileas properties these settings set, which Phileas would otherwise read ahead of them. */
+    static final List<String> PHILEAS_PROPERTIES = List.of("policy.files.restricted", "policy.files.directories",
+            "policy.files.max.bytes");
+
+    /**
+     * Refuses a Phileas policy file property set directly as an environment variable or system property. Phileas reads
+     * those ahead of the settings Philter passes it, so one would silently replace them: turning the restriction off, or
+     * naming a directory that was never checked.
+     * @param environment Reads an environment variable, such as {@code System::getenv}.
+     * @param systemProperties Reads a system property, such as {@code System::getProperty}.
+     * @throws IllegalStateException if one is set.
+     */
+    public static void refuseDirectPhileasSettings(final Function<String, String> environment,
+                                                   final Function<String, String> systemProperties) {
+        for (final String property : PHILEAS_PROPERTIES) {
+            final String fromEnvironment = environment.apply(property);
+            final String fromSystem = systemProperties.apply(property);
+            if ((fromEnvironment != null && !fromEnvironment.isBlank()) || (fromSystem != null && !fromSystem.isBlank())) {
+                throw new IllegalStateException(property + " is set directly, which would override how Philter limits the "
+                        + "files a policy may name. Remove it and use POLICY_FILES_DIRECTORIES and POLICY_FILES_MAX_BYTES.");
+            }
+        }
+    }
+
     /** Sets the Phileas properties that enforce these settings. The restriction is always on. */
     public void applyTo(final Properties properties) {
         properties.put("policy.files.restricted", "true");

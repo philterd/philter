@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
@@ -55,11 +57,18 @@ class RedactionCacheTest {
 
         assertNull(cache.getRedactLists(user));
 
-        cache.putRedactLists(user, List.of("alice", "bob"), List.of("acme"));
+        cache.putRedactLists(user, new RedactionCache.CachedRedactLists(List.of("alice", "bob"), List.of("acme"), 3, 5));
 
         final RedactionCache.CachedRedactLists cached = cache.getRedactLists(user);
         assertEquals(List.of("alice", "bob"), cached.getAlwaysRedact());
         assertEquals(List.of("acme"), cached.getNeverRedact());
+        assertTrue(cached.isAt(3, 5));
+        assertFalse(cached.isAt(4, 5), "a later always-redact revision is not this copy");
+        assertFalse(cached.isAt(3, 6), "a later never-redact revision is not this copy");
+
+        // A list write evicts the copy.
+        cache.evictRedactLists(user);
+        assertNull(cache.getRedactLists(user));
 
         // A different user has nothing cached.
         assertNull(cache.getRedactLists(MongoIds.newId()));
@@ -70,7 +79,7 @@ class RedactionCacheTest {
         final String user = MongoIds.newId();
 
         // A user with no saved terms is cached as empty lists, never null on read.
-        cache.putRedactLists(user, null, null);
+        cache.putRedactLists(user, new RedactionCache.CachedRedactLists(null, null, 0, 0));
 
         final RedactionCache.CachedRedactLists cached = cache.getRedactLists(user);
         assertEquals(List.of(), cached.getAlwaysRedact());

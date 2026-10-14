@@ -82,6 +82,16 @@ public interface RedactListsDataService {
     record ListContents(List<String> terms, long revision) {
     }
 
+    /** The revisions of a user's two lists. */
+    record Revisions(long alwaysRedact, long neverRedact) {
+    }
+
+    /**
+     * The revisions of the user's lists, without reading or decrypting their terms, so a cached copy can be checked
+     * cheaply before every redaction. A user with no saved lists is at 0 and 0.
+     */
+    Revisions revisions(final String userId);
+
     /**
      * Writes the given lists for the user, creating the user's lists if there are none. A
      * {@code null} list is left as it is. Each list written moves to its next revision, whether or not

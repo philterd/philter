@@ -59,7 +59,7 @@ public final class RedactListsDocuments {
     }
 
     /** A list's revision, which counts its changes. A document written before revisions existed is at 0. */
-    private static long readRevision(final Document document, final String field) {
+    static long readRevision(final Document document, final String field) {
         final Object raw = document.get(field);
         return raw instanceof Number number ? number.longValue() : 0L;
     }

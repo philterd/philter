@@ -130,8 +130,9 @@ public class MongoStorageConfiguration {
     }
 
     @Bean
-    public RedactListsDataService redactListsService(final EncryptionService encryptionService) {
-        return new MongoRedactListsDataService(mongoClient, encryptionService, auditEventPublisher());
+    public RedactListsDataService redactListsService(final EncryptionService encryptionService,
+                                                     final RedactionCache redactionCache) {
+        return new MongoRedactListsDataService(mongoClient, encryptionService, auditEventPublisher(), redactionCache);
     }
 
     @Bean

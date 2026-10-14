@@ -34,8 +34,10 @@ import java.util.List;
  * <p>The user's managed FPE key is <em>not</em> cached here — it is resolved and injected into the
  * policy fresh on every request, so no key material lives in the cache.
  *
- * <p>Entries expire after {@code REDACTION_CACHE_TTL_SECONDS} (default 60). Policy writes evict
- * explicitly; the TTL is still the staleness bound for the redact lists, which have no eviction.
+ * <p>Each entry records the revision it was read at, and redaction uses it only while the stored revision is the
+ * same, checked before every request, so an edit governs the next request on every instance. Writes also evict their
+ * entries on the instance that made them. Entries expire after {@code REDACTION_CACHE_TTL_SECONDS} (default 60),
+ * which bounds memory, not staleness.
  */
 public class RedactionCache {
 
@@ -66,9 +68,14 @@ public class RedactionCache {
         return json == null ? null : gson.fromJson(json, CachedRedactLists.class);
     }
 
-    /** Caches the user's always/never redact term lists. */
-    public void putRedactLists(final String userId, final List<String> alwaysRedact, final List<String> neverRedact) {
-        backend.setex(redactListsKey(userId), TTL_SECONDS, gson.toJson(new CachedRedactLists(alwaysRedact, neverRedact)));
+    /** Caches the user's always/never redact term lists, at the revisions they were read at. */
+    public void putRedactLists(final String userId, final CachedRedactLists lists) {
+        backend.setex(redactListsKey(userId), TTL_SECONDS, gson.toJson(lists));
+    }
+
+    /** Called from every redact list write, so the next request on this instance reads the lists again. */
+    public void evictRedactLists(final String userId) {
+        backend.del(redactListsKey(userId));
     }
 
     private static String policyKey(final String userId, final String policyName) {
@@ -100,15 +107,25 @@ public class RedactionCache {
 
     }
 
-    /** Immutable holder for a user's always-redact and never-redact term lists. */
+    /** Immutable holder for a user's always-redact and never-redact term lists and the revisions they are at. */
     public static final class CachedRedactLists {
 
         private final List<String> alwaysRedact;
         private final List<String> neverRedact;
+        private final long alwaysRedactRevision;
+        private final long neverRedactRevision;
 
-        public CachedRedactLists(final List<String> alwaysRedact, final List<String> neverRedact) {
+        public CachedRedactLists(final List<String> alwaysRedact, final List<String> neverRedact,
+                                 final long alwaysRedactRevision, final long neverRedactRevision) {
             this.alwaysRedact = alwaysRedact;
             this.neverRedact = neverRedact;
+            this.alwaysRedactRevision = alwaysRedactRevision;
+            this.neverRedactRevision = neverRedactRevision;
+        }
+
+        /** Whether these are the lists at the given revisions. */
+        public boolean isAt(final long alwaysRedactRevision, final long neverRedactRevision) {
+            return this.alwaysRedactRevision == alwaysRedactRevision && this.neverRedactRevision == neverRedactRevision;
         }
 
         public List<String> getAlwaysRedact() {

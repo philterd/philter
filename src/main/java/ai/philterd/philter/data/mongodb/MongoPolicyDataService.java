@@ -160,6 +160,13 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
     }
 
     @Override
+    public Integer findRevision(final String name, final String userId) {
+        final Document document = collection.find(Filters.and(Filters.eq("name", name),
+                Filters.eq("user_id", MongoIds.objectId(userId)))).projection(new Document("revision", 1)).first();
+        return document == null ? null : document.getInteger("revision", 0);
+    }
+
+    @Override
     public PolicyEntity findOneById(final String id, final String userId) {
         return first(Filters.and(Filters.eq("_id", MongoIds.objectId(id)),
                 Filters.or(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("shared", true))));

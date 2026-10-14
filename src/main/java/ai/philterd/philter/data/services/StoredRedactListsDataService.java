@@ -18,6 +18,7 @@ package ai.philterd.philter.data.services;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.services.cache.RedactionCache;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -31,9 +32,11 @@ import java.util.Map;
 public abstract class StoredRedactListsDataService implements RedactListsDataService {
 
     protected final AuditEventPublisher auditEventPublisher;
+    private final RedactionCache redactionCache;
 
-    protected StoredRedactListsDataService(final AuditEventPublisher auditEventPublisher) {
+    protected StoredRedactListsDataService(final AuditEventPublisher auditEventPublisher, final RedactionCache redactionCache) {
         this.auditEventPublisher = auditEventPublisher;
+        this.redactionCache = redactionCache;
     }
 
     /**
@@ -70,6 +73,8 @@ public abstract class StoredRedactListsDataService implements RedactListsDataSer
         }
 
         write(userId, lists);
+        // So the next redaction on this instance uses the new lists. Other instances check the revisions.
+        redactionCache.evictRedactLists(userId);
 
         // The always-redact / never-redact lists are security-relevant: they force or suppress
         // redaction regardless of policy, so changes are audited.
@@ -104,6 +109,7 @@ public abstract class StoredRedactListsDataService implements RedactListsDataSer
         if (contents == null) {
             return null;
         }
+        redactionCache.evictRedactLists(userId);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACT_LISTS_UPDATED, userId, userId, source,
                 "list: " + list.getName() + ", terms: " + terms.size() + ", revision: " + contents.revision());

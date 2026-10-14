@@ -189,7 +189,7 @@ public final class SqliteStorageUnderTest implements StorageUnderTest {
 
     @Override
     public RedactListsDataService redactLists() {
-        return once("redactLists", () -> new SqliteRedactListsDataService(database, encryption, auditEvents()));
+        return once("redactLists", () -> new SqliteRedactListsDataService(database, encryption, auditEvents(), new RedactionCache()));
     }
 
     @Override

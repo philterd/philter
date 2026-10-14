@@ -87,6 +87,7 @@ class PolicyCacheEvictionIT extends AbstractMongoIT {
 
         final RedactListsDataService redactListsService = mock(RedactListsDataService.class);
         when(redactListsService.find(userId)).thenReturn(null);
+        when(redactListsService.revisions(userId)).thenReturn(new RedactListsDataService.Revisions(0, 0));
 
         redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)), new MongoVectorServices(mongoClient), policyDataService,
                 mock(CustomListDataService.class), redactListsService, mock(ContextDataService.class),

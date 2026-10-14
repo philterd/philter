@@ -90,7 +90,7 @@ class UserServiceIT extends AbstractMongoIT {
         contextDataService = new MongoContextDataService(mongoClient, audit, new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false)), new MongoVectorServices(mongoClient));
         policyDataService = new MongoPolicyDataService(mongoClient, encryptionService, audit, new Gson(),
                 new MongoPolicyVersionDataService(mongoClient, encryptionService, audit), new ai.philterd.philter.services.cache.RedactionCache());
-        redactListsDataService = new MongoRedactListsDataService(mongoClient, encryptionService, audit);
+        redactListsDataService = new MongoRedactListsDataService(mongoClient, encryptionService, audit, new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     @Test

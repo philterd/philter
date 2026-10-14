@@ -91,9 +91,11 @@ class LedgerFilenameIT extends AbstractMongoIT {
         when(policyEntity.getRevision()).thenReturn(1);
         final PolicyDataService policyDataService = mock(PolicyDataService.class);
         when(policyDataService.findOne(POLICY_NAME, userId)).thenReturn(policyEntity);
+        when(policyDataService.findRevision(POLICY_NAME, userId)).thenAnswer(invocation -> policyEntity.getRevision());
 
         final RedactListsDataService redactListsService = mock(RedactListsDataService.class);
         when(redactListsService.find(userId)).thenReturn(null);
+        when(redactListsService.revisions(userId)).thenReturn(new RedactListsDataService.Revisions(0, 0));
 
         final ContextEntity context = mock(ContextEntity.class);
         when(context.getContextName()).thenReturn(CONTEXT);

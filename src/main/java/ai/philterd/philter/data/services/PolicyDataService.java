@@ -213,6 +213,12 @@ public interface PolicyDataService {
     PolicyEntity findOne(final String name, final String userId);
 
     /**
+     * The revision of the owner's policy with this name, or null when there is none, without reading or decrypting the
+     * policy, so a cached copy can be checked cheaply before every redaction.
+     */
+    Integer findRevision(final String name, final String userId);
+
+    /**
      * Restores a prior revision of a policy as a new revision. History is never rewritten: the target
      * revision's content becomes the new head revision, and a snapshot of that new head is retained.
      *

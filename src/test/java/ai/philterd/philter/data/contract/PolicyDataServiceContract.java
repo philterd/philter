@@ -48,6 +48,21 @@ public interface PolicyDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void policyRevisionIsReadWithoutThePolicy() {
+        final String owner = RecordIds.newId();
+        assertNull(storage().policies().findRevision("claims", owner), "no policy, no revision");
+        final PolicyEntity created = createPolicy(owner, "claims", POLICY_A);
+        assertEquals(created.getRevision(), storage().policies().findRevision("claims", owner));
+        final PolicyDataService.WriteOutcome written = storage().policies().replace("req", owner, created.getId(),
+                POLICY_B, null, null, "test", owner, null);
+        assertTrue(written.response().isSuccessful(), written.response().getMessage());
+        assertEquals(written.policy().getRevision(), storage().policies().findRevision("claims", owner),
+                "an edit moves the revision redaction checks its cached copy against");
+        assertNotEquals(created.getRevision(), written.policy().getRevision());
+        assertNull(storage().policies().findRevision("claims", RecordIds.newId()), "another user's policy is not found");
+    }
+
+    @Test
     default void policyNamesAreUniquePerUser() {
         final String owner = RecordIds.newId();
         createPolicy(owner, "claims", POLICY_A);

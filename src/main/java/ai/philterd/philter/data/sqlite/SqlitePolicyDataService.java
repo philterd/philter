@@ -183,6 +183,12 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
     }
 
     @Override
+    public Integer findRevision(final String name, final String userId) {
+        return database.read(connection -> Sql.first(connection, "SELECT revision FROM policies WHERE user_id = ? AND name = ?",
+                row -> row.intValue("revision"), userId, name));
+    }
+
+    @Override
     public PolicyEntity findOneById(final String id, final String userId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policies WHERE id = ? AND "
                 + "(user_id = ? OR shared = 1)", this::read, id, userId));

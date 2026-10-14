@@ -64,7 +64,7 @@ class RedactListsDataServiceTest {
         when(mongoClient.getDatabase("philter")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("redact_lists")).thenReturn(mongoCollection);
         ai.philterd.philter.testutil.MongoSchemaMocks.configure(mongoCollection);
-        redactListsDataService = new MongoRedactListsDataService(mongoClient, new TestEncryptionService(), auditEventPublisher);
+        redactListsDataService = new MongoRedactListsDataService(mongoClient, new TestEncryptionService(), auditEventPublisher, new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     @Test

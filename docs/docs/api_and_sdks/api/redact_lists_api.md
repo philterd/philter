@@ -206,4 +206,4 @@ Example conflict:
 }
 ```
 
-A changed list takes effect for redaction within `REDACTION_CACHE_TTL_SECONDS` (default 60 seconds), as with the other writes; see [Caching](../../caching.md).
+A changed list applies to the next redaction, on every Philter instance; see [Caching](../../caching.md).

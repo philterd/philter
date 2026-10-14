@@ -158,6 +158,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it
   redacts, condition values, and keys. Names and content hashes stay readable. See
   [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
+- **Policy and redact list changes apply to the next redaction.** A change to the always/never redact lists used
+  to take up to `REDACTION_CACHE_TTL_SECONDS` (60 seconds) to apply, so a term added to always-redact, or removed
+  from never-redact, kept being let through; a policy edit did the same on instances other than the one that made
+  it. Redaction now uses its cached copy only while the stored revisions match, on every instance. See
+  [Caching](docs/docs/caching.md).
 - **Context token hashes are keyed per user.** Each user's context tokens are hashed under a key derived from
   `PHILTER_ENCRYPTION_KEY` and their username, so one user cannot match another's exported hashes by redacting
   guesses in a context of their own, or import another's export to learn what its replacements stand for. An export

@@ -48,7 +48,7 @@ class RedactListsDataServiceIT extends AbstractMongoIT {
 
     @BeforeEach
     void setUpService() {
-        service = new MongoRedactListsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class));
+        service = new MongoRedactListsDataService(mongoClient, new TestEncryptionService(), mock(AuditEventPublisher.class), new ai.philterd.philter.services.cache.RedactionCache());
     }
 
     @Test

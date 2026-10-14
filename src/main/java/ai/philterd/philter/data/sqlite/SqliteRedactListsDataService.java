@@ -20,6 +20,7 @@ import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.services.SecretFields;
 import ai.philterd.philter.data.services.StoredRedactListsDataService;
+import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 
 import java.sql.Connection;
@@ -34,8 +35,8 @@ public class SqliteRedactListsDataService extends StoredRedactListsDataService {
     private final EncryptionService encryptionService;
 
     public SqliteRedactListsDataService(final SqliteDatabase database, final EncryptionService encryptionService,
-                                        final AuditEventPublisher auditEventPublisher) {
-        super(auditEventPublisher);
+                                        final AuditEventPublisher auditEventPublisher, final RedactionCache redactionCache) {
+        super(auditEventPublisher, redactionCache);
         this.database = database;
         this.encryptionService = encryptionService;
     }
@@ -102,6 +103,14 @@ public class SqliteRedactListsDataService extends StoredRedactListsDataService {
     @Override
     public RedactListsEntity find(final String userId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM redact_lists WHERE user_id = ?", this::read, userId));
+    }
+
+    @Override
+    public Revisions revisions(final String userId) {
+        final Revisions revisions = database.read(connection -> Sql.first(connection, "SELECT always_redact_revision, "
+                + "never_redact_revision FROM redact_lists WHERE user_id = ?", row -> new Revisions(
+                row.longValue("always_redact_revision"), row.longValue("never_redact_revision")), userId));
+        return revisions == null ? new Revisions(0, 0) : revisions;
     }
 
 }

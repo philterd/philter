@@ -33,6 +33,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 public interface RedactListsDataServiceContract extends StorageContract {
 
     @Test
+    default void redactListRevisionsAreReadWithoutTheTerms() {
+        final String owner = RecordIds.newId();
+        assertEquals(new RedactListsDataService.Revisions(0, 0), storage().redactLists().revisions(owner),
+                "a user with no lists is at 0 and 0");
+        storage().redactLists().saveOrUpdate("req", owner, List.of("a"), null, "test");
+        assertEquals(new RedactListsDataService.Revisions(1, 0), storage().redactLists().revisions(owner));
+        storage().redactLists().replaceList("req", owner, RedactList.NEVER, List.of("b"), null, "test");
+        assertEquals(new RedactListsDataService.Revisions(1, 1), storage().redactLists().revisions(owner));
+    }
+
+    @Test
     default void redactListWritesAtTheReadRevisionApplyAndReturnTheNextOne() {
         final String owner = RecordIds.newId();
         final ListContents first = storage().redactLists().replaceList("req", owner, RedactList.ALWAYS,

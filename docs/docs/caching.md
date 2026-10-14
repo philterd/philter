@@ -60,7 +60,7 @@ Two caches keep entries for a short, configurable time. Both default to a low va
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `API_KEY_CACHE_TTL_SECONDS` | `60` | How long a resolved API key is cached. Revoking a key through the API evicts it from the cache immediately; this TTL bounds how long a key revoked out-of-band (for example, edited directly in the database) keeps working. |
-| `REDACTION_CACHE_TTL_SECONDS` | `60` | How long the filtering endpoints cache a user's policy and always/never redact lists in-process. Also the upper bound on how long an edited or deleted policy / redact list keeps being used. This cache is always in-process and is never written to Valkey/Redis. |
+| `REDACTION_CACHE_TTL_SECONDS` | `60` | How long the filtering endpoints keep a user's policy and always/never redact lists in-process. A cached copy is used only while its revisions match the stored ones, checked on every request, so an edited or deleted policy or list applies to the next request on every instance, with or without a shared cache; this setting bounds memory, not staleness. This cache is always in-process and is never written to Valkey/Redis. |
 
 ### Docker Compose example
 

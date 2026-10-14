@@ -18,6 +18,7 @@ package ai.philterd.philter.data.mongodb;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.RedactListsEntity;
 import ai.philterd.philter.data.services.StoredRedactListsDataService;
+import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoServerException;
@@ -42,8 +43,9 @@ public class MongoRedactListsDataService extends StoredRedactListsDataService {
     private final EncryptionService encryptionService;
     private final MongoRecords<RedactListsEntity> records;
 
-    public MongoRedactListsDataService(final MongoClient mongoClient, final EncryptionService encryptionService, final AuditEventPublisher auditEventPublisher) {
-        super(auditEventPublisher);
+    public MongoRedactListsDataService(final MongoClient mongoClient, final EncryptionService encryptionService,
+                                       final AuditEventPublisher auditEventPublisher, final RedactionCache redactionCache) {
+        super(auditEventPublisher, redactionCache);
         this.encryptionService = encryptionService;
         this.records = new MongoRecords<>(mongoClient, "redact_lists",
                 entity -> RedactListsDocuments.toDocument(entity, encryptionService));
@@ -111,6 +113,16 @@ public class MongoRedactListsDataService extends StoredRedactListsDataService {
     public RedactListsEntity find(final String userId) {
         final Document document = records.collection.find(new Document("user_id", MongoIds.objectId(userId))).first();
         return document == null ? null : RedactListsDocuments.fromDocument(document, encryptionService);
+    }
+
+    @Override
+    public Revisions revisions(final String userId) {
+        final Document document = records.collection.find(new Document("user_id", MongoIds.objectId(userId)))
+                .projection(new Document(revisionField(RedactList.ALWAYS), 1).append(revisionField(RedactList.NEVER), 1))
+                .first();
+        return document == null ? new Revisions(0, 0) : new Revisions(
+                RedactListsDocuments.readRevision(document, revisionField(RedactList.ALWAYS)),
+                RedactListsDocuments.readRevision(document, revisionField(RedactList.NEVER)));
     }
 
     /** The stored field holding a list's encrypted terms. */

@@ -164,7 +164,7 @@ public final class MongoStorageUnderTest implements StorageUnderTest {
 
     @Override
     public RedactListsDataService redactLists() {
-        return once("redactLists", () -> configuration.redactListsService(encryption));
+        return once("redactLists", () -> configuration.redactListsService(encryption, new RedactionCache()));
     }
 
     @Override

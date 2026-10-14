@@ -240,8 +240,14 @@ public class RedactionService {
             policyJson = pinnedPolicy.policyJson();
             policyRevision = pinnedPolicy.version();
         } else {
+            // The cached copy only while it is the stored revision, checked without reading the policy, so an edit
+            // made on any instance governs the next request.
+            final Integer storedRevision = policyDataService.findRevision(policyName, userEntity.getId());
+            if (storedRevision == null) {
+                throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
+            }
             final RedactionCache.CachedPolicy cached = redactionCache.getPolicy(userEntity.getId(), policyName);
-            if (cached != null) {
+            if (cached != null && cached.getRevision() == storedRevision) {
                 policyJson = cached.getPolicyJson();
                 policyRevision = cached.getRevision();
             } else {
@@ -517,14 +523,19 @@ public class RedactionService {
         final Policy phileasPolicy = new PolicyResolver(gson, customListService)
                 .resolve(policyJson, userEntity.getId(), fpeKey, fpeTweak);
 
-        // Get the always/never redact lists, from the in-process cache when warm, else the database.
+        // Get the always/never redact lists, from the in-process cache while it holds the stored revisions, else the
+        // database. Checked before every request, so a change made on any instance applies to the next one.
+        final RedactListsDataService.Revisions storedRevisions = redactListsService.revisions(userEntity.getId());
         RedactionCache.CachedRedactLists cachedRedactLists = redactionCache.getRedactLists(userEntity.getId());
-        if (cachedRedactLists == null) {
+        if (cachedRedactLists == null
+                || !cachedRedactLists.isAt(storedRevisions.alwaysRedact(), storedRevisions.neverRedact())) {
             final RedactListsEntity entity = redactListsService.find(userEntity.getId());
-            final List<String> alwaysRedact = entity != null ? entity.getTermsToAlwaysRedact() : List.of();
-            final List<String> neverRedact = entity != null ? entity.getTermsToNeverRedact() : List.of();
-            redactionCache.putRedactLists(userEntity.getId(), alwaysRedact, neverRedact);
-            cachedRedactLists = new RedactionCache.CachedRedactLists(alwaysRedact, neverRedact);
+            // Cached at the revisions read with the terms, so a write between the two reads is caught next time.
+            cachedRedactLists = entity == null
+                    ? new RedactionCache.CachedRedactLists(List.of(), List.of(), 0, 0)
+                    : new RedactionCache.CachedRedactLists(entity.getTermsToAlwaysRedact(), entity.getTermsToNeverRedact(),
+                            entity.getAlwaysRedactRevision(), entity.getNeverRedactRevision());
+            redactionCache.putRedactLists(userEntity.getId(), cachedRedactLists);
         }
 
         // Reconstruct the entity shape the rest of this method expects (never null; lists may be empty).

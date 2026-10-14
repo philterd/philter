@@ -128,8 +128,9 @@ public class SqliteStorageConfiguration {
     }
 
     @Bean
-    public RedactListsDataService redactListsService(final EncryptionService encryptionService) {
-        return new SqliteRedactListsDataService(database, encryptionService, auditEventPublisher());
+    public RedactListsDataService redactListsService(final EncryptionService encryptionService,
+                                                     final RedactionCache redactionCache) {
+        return new SqliteRedactListsDataService(database, encryptionService, auditEventPublisher(), redactionCache);
     }
 
     @Bean

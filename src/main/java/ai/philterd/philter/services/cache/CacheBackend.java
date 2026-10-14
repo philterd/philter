@@ -21,9 +21,6 @@ package ai.philterd.philter.services.cache;
  */
 public interface CacheBackend {
 
-    /** True while counters cannot be stored for lack of room; callers counting failures must refuse. */
-    default boolean counterCapacityExceeded() { return false; }
-
     /**
      * Adds one to the counter at {@code key} and returns the new value. The counter expires
      * {@code windowSeconds} after it was created, and further increments do not move that, so it counts

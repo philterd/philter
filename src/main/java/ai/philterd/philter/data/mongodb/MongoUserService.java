@@ -34,6 +34,7 @@ import org.bson.conversions.Bson;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -218,6 +219,50 @@ public class MongoUserService extends StoredUserService {
     @Override
     public long countActiveAdmins() {
         return collection.countDocuments(activeAdmin());
+    }
+
+    @Override
+    public long beginSignInAttempt(final String userId, final long nowMillis, final long windowMillis) {
+        // Each step is one atomic update: count in the open window, or else start a new one. A race between them
+        // (another attempt starting the window first) is retried, and anything unresolved is refused, never let in.
+        final Date now = new Date(nowMillis);
+        for (int tries = 0; tries < 5; tries++) {
+            final Document counted = collection.findOneAndUpdate(Filters.and(byId(userId), Filters.gt("sign_in_window_until", now)),
+                    new Document("$inc", new Document("sign_in_failures", 1)),
+                    new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER));
+            if (counted != null) {
+                return ((Number) counted.get("sign_in_failures")).longValue();
+            }
+            final Document started = collection.findOneAndUpdate(Filters.and(byId(userId),
+                            Filters.or(Filters.exists("sign_in_window_until", false), Filters.eq("sign_in_window_until", null),
+                                    Filters.lte("sign_in_window_until", now))),
+                    new Document("$set", new Document("sign_in_failures", 1)
+                            .append("sign_in_window_until", new Date(nowMillis + windowMillis))),
+                    new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER));
+            if (started != null) {
+                return 1;
+            }
+            if (collection.countDocuments(byId(userId)) == 0) {
+                return 0;
+            }
+        }
+        return Long.MAX_VALUE;
+    }
+
+    @Override
+    public boolean isSignInLocked(final String userId, final long nowMillis) {
+        return collection.countDocuments(Filters.and(byId(userId), Filters.gt("sign_in_locked_until", new Date(nowMillis)))) > 0;
+    }
+
+    @Override
+    public void lockSignIn(final String userId, final long untilMillis) {
+        collection.updateOne(byId(userId), new Document("$set", new Document("sign_in_locked_until", new Date(untilMillis))));
+    }
+
+    @Override
+    public void resetSignInAttempts(final String userId) {
+        collection.updateOne(byId(userId), new Document("$set", new Document("sign_in_failures", 0))
+                .append("$unset", new Document("sign_in_window_until", "")));
     }
 
 }

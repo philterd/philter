@@ -142,7 +142,7 @@ Both refusals have the same status and header, so the body's `reason` tells them
 }
 ```
 
-Both are counted in the cache. With a shared [Valkey/Redis cache](../../caching.md), the counts are shared across every instance. With the default in-memory cache they are **per instance**, so behind a load balancer that spreads requests across instances, an attacker gets each instance's allowance and can evade them. Use a shared cache for any deployment with more than one instance. If the in-memory cache is full, sign-in is refused until counters can be stored again, rather than letting attempts go uncounted.
+An account's failures and lock are stored with the user, so every instance shares them, with or without a shared cache, and no amount of other traffic can push them out. A username with no account is counted and refused the same way, in the cache. The rate limit is counted per client address, and per /64 for IPv6, in the cache: shared through a [Valkey/Redis cache](../../caching.md) when one is configured, and otherwise per instance. Without a shared cache, these counts are kept apart from cached data, and when that store is full its oldest counts make way, which never unlocks an account early.
 
 Codes at the MFA step have their own lock, which needs an administrator to clear; see [Multi-factor authentication](users_api.md#multi-factor-authentication).
 

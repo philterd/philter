@@ -182,13 +182,14 @@ public class SignInApiController extends AbstractApiController {
         }
 
         // Refused before the password is checked, so a locked username cannot be guessed at.
-        if (throttle.isLocked(username)) {
+        final SignInThrottle.Account account = throttle.account(username);
+        if (account.isLocked()) {
             return lockedOut();
         }
-        final long attempt = throttle.beginAttempt(username);
+        final long attempt = account.beginAttempt();
         if (attempt > throttle.getMaxFailures()) {
             // Parallel requests past the limit, which arrived before the lock was set.
-            throttle.lock(username);
+            account.lock();
             return lockedOut();
         }
 
@@ -197,7 +198,7 @@ public class SignInApiController extends AbstractApiController {
         if (user == null) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_FAILED, null, null, clientIp,
                     "username: " + auditable(username));
-            if (throttle.recordFailure(username, attempt)) {
+            if (throttle.recordFailure(account, attempt)) {
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_LOCKED, null, null, clientIp,
                         "username: " + auditable(username) + ", after " + throttle.getMaxFailures()
                                 + " failed sign-ins, for " + throttle.getLockoutSeconds() / 60 + " minutes");
@@ -205,7 +206,7 @@ public class SignInApiController extends AbstractApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new GenericResponse(FAILED));
         }
 
-        throttle.reset(username);
+        account.reset();
 
         // An enrolled user is always challenged, even if MFA has since been made unavailable: turning a
         // setting off must not quietly let someone in on a password alone.

@@ -81,6 +81,24 @@ public interface UserService {
     UserEntity findByUsername(final String username);
 
     /**
+     * Counts a password sign-in attempt for the user, before the password is checked, in a window that begins at the
+     * first attempt and lasts {@code windowMillis}: one atomic update, so parallel attempts are all counted. Stored with
+     * the user, so it holds across instances and cannot be pushed out of a cache.
+     *
+     * @return this attempt's number in the window, or 0 when there is no such user.
+     */
+    long beginSignInAttempt(final String userId, final long nowMillis, final long windowMillis);
+
+    /** Whether the user's password sign-in is locked at {@code nowMillis}. */
+    boolean isSignInLocked(final String userId, final long nowMillis);
+
+    /** Locks the user's password sign-in until {@code untilMillis}. */
+    void lockSignIn(final String userId, final long untilMillis);
+
+    /** Clears the user's count of sign-in attempts, after a sign-in whose password was right. */
+    void resetSignInAttempts(final String userId);
+
+    /**
      * Looks up a user by username regardless of deactivation state. Used when creating an account to
      * reject a username that already belongs to any user, active or deactivated: a deactivated account
      * keeps its username reserved so it can be reactivated rather than duplicated.

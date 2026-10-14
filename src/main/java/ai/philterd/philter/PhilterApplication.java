@@ -303,8 +303,8 @@ public class PhilterApplication {
     }
 
     @Bean
-    public SignInThrottle signInThrottle() {
-        return new SignInThrottle(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL);
+    public SignInThrottle signInThrottle(final UserService userService) {
+        return new SignInThrottle(CACHE_HOSTNAME, CACHE_PORT, CACHE_PASSWORD, CACHE_SSL, userService);
     }
 
     @Bean

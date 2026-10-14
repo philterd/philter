@@ -297,4 +297,37 @@ public class SqliteUserService extends StoredUserService {
                 "SELECT COUNT(*) AS n FROM users WHERE " + ACTIVE_ADMIN));
     }
 
+    @Override
+    public long beginSignInAttempt(final String userId, final long nowMillis, final long windowMillis) {
+        // One write: SQLite runs writes one at a time, and every SET reads the row as it was.
+        return database.write(connection -> {
+            Sql.update(connection, "UPDATE users SET sign_in_failures = CASE WHEN sign_in_window_until IS NULL "
+                    + "OR sign_in_window_until <= ? THEN 1 ELSE sign_in_failures + 1 END, sign_in_window_until = CASE "
+                    + "WHEN sign_in_window_until IS NULL OR sign_in_window_until <= ? THEN ? ELSE sign_in_window_until END "
+                    + "WHERE id = ?", nowMillis, nowMillis, nowMillis + windowMillis, userId);
+            final Long count = Sql.first(connection, "SELECT sign_in_failures FROM users WHERE id = ?",
+                    row -> row.longValue("sign_in_failures"), userId);
+            return count == null ? 0L : count;
+        });
+    }
+
+    @Override
+    public boolean isSignInLocked(final String userId, final long nowMillis) {
+        final Long until = database.read(connection -> Sql.first(connection,
+                "SELECT sign_in_locked_until FROM users WHERE id = ?", row -> row.longValue("sign_in_locked_until"), userId));
+        return until != null && until > nowMillis;
+    }
+
+    @Override
+    public void lockSignIn(final String userId, final long untilMillis) {
+        database.write(connection -> Sql.update(connection, "UPDATE users SET sign_in_locked_until = ? WHERE id = ?",
+                untilMillis, userId));
+    }
+
+    @Override
+    public void resetSignInAttempts(final String userId) {
+        database.write(connection -> Sql.update(connection,
+                "UPDATE users SET sign_in_failures = 0, sign_in_window_until = NULL WHERE id = ?", userId));
+    }
+
 }

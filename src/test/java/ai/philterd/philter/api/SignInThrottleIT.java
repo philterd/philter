@@ -64,8 +64,9 @@ class SignInThrottleIT {
     @TestConfiguration
     static class Config extends InMemoryTestConfiguration {
         @Bean
-        public SignInThrottle signInThrottle() {
-            return new SignInThrottle("", 0, "", false, MAX_FAILURES, LOCKOUT_SECONDS, RATE_PER_MINUTE);
+        public SignInThrottle signInThrottle(final UserService userService) {
+            return new SignInThrottle("", 0, "", false, userService, System::currentTimeMillis, MAX_FAILURES,
+                    LOCKOUT_SECONDS, RATE_PER_MINUTE);
         }
     }
 
@@ -226,7 +227,41 @@ class SignInThrottleIT {
         for (int i = 0; i < MAX_FAILURES; i++) {
             assertEquals(401, signIn(username, "anything-at-all-0123").statusCode());
         }
-        assertEquals(429, signIn(username, "anything-at-all-0123").statusCode());
+        final HttpResponse<String> locked = signIn(username, "anything-at-all-0123");
+        assertEquals(429, locked.statusCode());
+        assertEquals("locked", reason(locked), "the same refusal an account gets");
+        assertEquals(String.valueOf(LOCKOUT_SECONDS), locked.headers().firstValue("Retry-After").orElse(null));
+    }
+
+    @Test
+    @DisplayName("Filling the shared cache with data does not lock anyone out of sign-in")
+    void fillingTheCacheDoesNotLockSignIn() throws Exception {
+        final String username = seedUser();
+        // What redacting a large document into a context does: more distinct entries than the store holds.
+        final var store = ai.philterd.philter.services.cache.InMemoryCacheBackend.INSTANCE;
+        final String prefix = "flood-" + UUID.randomUUID() + "-";
+        try {
+            // Long enough to outlast the test, so the store is still full when signing in.
+            for (int i = 0; i < 110_000; i++) {
+                store.setex(prefix + i, 600, "value");
+            }
+            assertEquals(200, signIn(username, PASSWORD).statusCode(), "sign-in counts are not kept with cached data");
+            assertEquals(401, signIn(username, "not-the-password-0123").statusCode(), "and failures are still counted");
+        } finally {
+            for (int i = 0; i < 110_000; i++) {
+                store.del(prefix + i);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("An account's lock is stored with the user, so every instance sees it, with or without a shared cache")
+    void anAccountLockIsStoredWithTheUser() throws Exception {
+        final String username = seedUser();
+        for (int i = 0; i < MAX_FAILURES; i++) {
+            signIn(username, "not-the-password-0123");
+        }
+        assertTrue(userService.isSignInLocked(userService.findByUsername(username).getId(), System.currentTimeMillis()));
     }
 
     @Test

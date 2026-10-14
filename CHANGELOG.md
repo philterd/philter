@@ -158,6 +158,12 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it
   redacts, condition values, and keys. Names and content hashes stay readable. See
   [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
+- **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
+  cached data, and when it was full every username was treated as locked, so one user redacting a document with many
+  distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, so they hold
+  across instances without a shared cache; usernames with no account and the per-address rate limit use a store of
+  their own; IPv6 clients are rate limited per /64; and a full in-memory store drops its entries nearest to expiring
+  instead of refusing. See [Lockout and rate limiting](docs/docs/sign_in_security.md#lockout-and-rate-limiting).
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
   space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
   ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused

@@ -41,6 +41,12 @@ public abstract class Cache {
      * @param ssl Whether to use SSL for the connection.
      */
     public Cache(final String host, final int port, final String password, final boolean ssl) {
+        this(host, port, password, ssl, InMemoryCacheBackend.INSTANCE);
+    }
+
+    /** As above, using {@code inMemory} rather than the shared in-memory store when no host is configured. */
+    protected Cache(final String host, final int port, final String password, final boolean ssl,
+                    final InMemoryCacheBackend inMemory) {
 
         if (host == null || host.isBlank()) {
 
@@ -52,7 +58,7 @@ public abstract class Cache {
                         + "deployment.");
             }
 
-            this.backend = InMemoryCacheBackend.INSTANCE;
+            this.backend = inMemory;
 
         } else {
             this.backend = new JedisCacheBackend(host, port, password, ssl);

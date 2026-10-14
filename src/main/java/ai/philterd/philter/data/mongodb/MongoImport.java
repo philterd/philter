@@ -198,6 +198,9 @@ public final class MongoImport implements AutoCloseable {
                 .append("mfa_failed_attempts", int32(row, "mfa_failed_attempts"))
                 .append("mfa_locked", bool(row, "mfa_locked"))
                 .append("mfa_last_used_time_step", int64(row, "mfa_last_used_time_step"))
+                .append("sign_in_failures", int32(row, "sign_in_failures"))
+                .append("sign_in_window_until", date(row, "sign_in_window_until"))
+                .append("sign_in_locked_until", date(row, "sign_in_locked_until"))
                 .append("deactivated", bool(row, "deactivated"))
                 .append("deactivated_at", date(row, "deactivated_at"))));
 

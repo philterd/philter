@@ -23,7 +23,7 @@ The in-memory backend bounds live and non-expiring entries by entry count and ac
 
 ## Valkey/Redis cache (distributed deployments)
 
-When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance remains valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`). Sign-in lockout and rate limiting are also counted per instance, so behind a load balancer that spreads requests across instances, an attacker gets each instance's allowance separately and can evade them. Both are security concerns.
+When you run more than one Philter instance behind a load balancer, the instances **must** share a cache. Configuring `CACHE_HOSTNAME` is effectively required, not optional, for any multi-instance deployment. Without a shared cache, each instance keeps its own in-process cache, so an API key revoked on one instance remains valid in another instance's cache until that entry expires (`API_KEY_CACHE_TTL_SECONDS`). That is a security concern. [Sign-in](sign_in_security.md#lockout-and-rate-limiting) lockout is not: an account's failures and lock are stored with the user in the database, so every instance shares them with or without a shared cache. Only the per-address sign-in rate limit is counted per instance.
 
 Newly created context replacements are **not** in this list, because consistency there is enforced in
 the database by a unique constraint on the token, an atomic insert, and concurrent writers being handed the stored
@@ -92,7 +92,7 @@ The bundled `docker-compose.yml` uses the in-memory cache. To add a shared cache
       start_period: 10s
 ```
 
-The in-memory backend bounds both entry count (including every hash field) and accounted retained bytes. Defaults are 100,000 entries and 64 MiB; configure `IN_MEMORY_CACHE_MAX_ENTRIES` and `IN_MEMORY_CACHE_MAX_BYTES` with positive values. Overflow becomes a cache miss. Increasing capacity does not make the in-memory backend suitable for multiple instances; those still require a shared cache.
+The in-memory backend bounds both entry count (including every hash field) and accounted retained bytes. Defaults are 100,000 entries and 64 MiB; configure `IN_MEMORY_CACHE_MAX_ENTRIES` and `IN_MEMORY_CACHE_MAX_BYTES` with positive values. A full store makes room rather than refusing: it drops expired entries, then those nearest to expiring, so a heavy user lowers the hit rate instead of stopping caching. Sign-in counts are kept in a separate store with the same bounds, so no amount of cached data can push them out. Increasing capacity does not make the in-memory backend suitable for multiple instances; those still require a shared cache.
 
 ## Context mapping freshness
 

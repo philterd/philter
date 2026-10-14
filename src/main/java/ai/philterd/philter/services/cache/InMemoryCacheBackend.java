@@ -28,6 +28,12 @@ import java.util.function.LongSupplier;
  * Philter instances. A single shared instance ({@link #INSTANCE}) is used so that callers which
  * construct a cache per request still share the same data within a process, mirroring how all callers
  * would otherwise share one external cache.
+ *
+ * <p>Bounded by {@code IN_MEMORY_CACHE_MAX_ENTRIES} and {@code IN_MEMORY_CACHE_MAX_BYTES}. A store that is full makes
+ * room rather than refusing: it drops expired entries, then those nearest to expiring, until it is back under nine
+ * tenths of its bounds. So one caller filling the store degrades caching for everyone rather than stopping it, and a
+ * counter is always stored. Sign-in counters use a store of their own ({@link #newStore()}), so no amount of cached
+ * data can push them out.
  */
 public class InMemoryCacheBackend implements CacheBackend {
 
@@ -49,7 +55,6 @@ public class InMemoryCacheBackend implements CacheBackend {
     private final int maxEntries;
     private long bytes;
     private int entries;
-    private volatile long counterOverflowUntil;
 
     InMemoryCacheBackend(final LongSupplier clock, final int maxEntries, final long maxBytes) {
         if (maxEntries <= 0 || maxBytes <= 0) throw new IllegalArgumentException("Cache capacity must be positive.");
@@ -65,11 +70,49 @@ public class InMemoryCacheBackend implements CacheBackend {
         return size;
     }
 
-    private boolean reserve(int count, long size) {
-        if (entries + count > maxEntries || bytes + size > maxBytes) return false;
+    private boolean fits(final int count, final long size, final long entryLimit, final long byteLimit) {
+        return entries + count <= entryLimit && bytes + size <= byteLimit;
+    }
+
+    /** Takes room for {@code count} entries of {@code size}, making room first if needed, never by dropping {@code keep}. */
+    private boolean reserve(final int count, final long size, final String keep) {
+        if (!fits(count, size, maxEntries, maxBytes) && !makeRoom(count, size, keep)) return false;
         entries += count;
         bytes += size;
         return true;
+    }
+
+    /**
+     * Drops expired entries, then the entries nearest to expiring (those with no expiry last), other than {@code keep},
+     * until the new entries fit under nine tenths of the bounds, so the next writes do not each have to make room.
+     *
+     * @return whether the new entries fit; false only when they are larger than the store.
+     */
+    private synchronized boolean makeRoom(final int count, final long size, final String keep) {
+        removeExpiredEntries();
+        final long entryTarget = Math.max(count, maxEntries * 9L / 10);
+        final long byteTarget = Math.max(size, maxBytes * 9 / 10);
+        if (fits(count, size, entryTarget, byteTarget)) return true;
+        record Candidate(String key, boolean hash, Entry<?> entry) {
+            long expiry() {
+                return entry.expiresAtMillis() == 0 ? Long.MAX_VALUE : entry.expiresAtMillis();
+            }
+        }
+        final java.util.List<Candidate> candidates = new java.util.ArrayList<>();
+        strings.forEach((key, entry) -> { if (!key.equals(keep)) candidates.add(new Candidate(key, false, entry)); });
+        hashes.forEach((key, entry) -> { if (!key.equals(keep)) candidates.add(new Candidate(key, true, entry)); });
+        candidates.sort(java.util.Comparator.comparingLong(Candidate::expiry));
+        for (final Candidate candidate : candidates) {
+            if (fits(count, size, entryTarget, byteTarget)) break;
+            if (candidate.hash()) {
+                @SuppressWarnings("unchecked") final Entry<Map<String, String>> entry = (Entry<Map<String, String>>) candidate.entry();
+                removeHash(candidate.key(), entry);
+            } else {
+                @SuppressWarnings("unchecked") final Entry<String> entry = (Entry<String>) candidate.entry();
+                removeString(candidate.key(), entry);
+            }
+        }
+        return fits(count, size, maxEntries, maxBytes);
     }
 
     private synchronized void removeString(String key, Entry<String> observed) {
@@ -89,7 +132,7 @@ public class InMemoryCacheBackend implements CacheBackend {
 
     private InMemoryCacheBackend() {
         this(System::currentTimeMillis);
-        // The singleton owns this daemon for the lifetime of the process. Cache wrappers are
+        // The store owns this daemon for the lifetime of the process. Cache wrappers are
         // short-lived borrowers, so closing one must not stop cleanup for all other callers.
         final var cleaner = Executors.newSingleThreadScheduledExecutor(task -> {
             final Thread thread = new Thread(task, "philter-cache-expiry");
@@ -97,6 +140,11 @@ public class InMemoryCacheBackend implements CacheBackend {
             return thread;
         });
         cleaner.scheduleWithFixedDelay(this::removeExpiredEntries, 1, 1, TimeUnit.SECONDS);
+    }
+
+    /** A process-wide store separate from {@link #INSTANCE}, with the same bounds, for data that must not compete with it. */
+    public static InMemoryCacheBackend newStore() {
+        return new InMemoryCacheBackend();
     }
 
     // Isolated stores with a controllable clock for deterministic expiry/concurrency tests.
@@ -127,7 +175,7 @@ public class InMemoryCacheBackend implements CacheBackend {
     public synchronized void setex(final String key, final int ttlSeconds, final String value) {
         final Entry<String> old = strings.get(key);
         if (old != null) removeString(key, old);
-        if (reserve(1, weight(key, value))) strings.put(key, new Entry<>(value, expiryFrom(ttlSeconds)));
+        if (reserve(1, weight(key, value), key)) strings.put(key, new Entry<>(value, expiryFrom(ttlSeconds)));
     }
 
     @Override
@@ -143,19 +191,12 @@ public class InMemoryCacheBackend implements CacheBackend {
         final long next = count == Long.MAX_VALUE ? count : count + 1;
         final String value = Long.toString(next);
         final long delta = weight(key, value) - (old == null ? 0 : weight(key, old.value()));
-        if (!reserve(old == null ? 1 : 0, delta)) {
-            // A counter that cannot be stored must not read as zero: report the limit as reached, and
-            // keep reporting it for the window, so flooding the cache cannot reset anyone's count.
-            counterOverflowUntil = Math.max(counterOverflowUntil, expiryFrom(windowSeconds));
+        if (!reserve(old == null ? 1 : 0, delta, key)) {
+            // Only a store smaller than one counter gets here. A counter that cannot be stored must not read as zero.
             return Long.MAX_VALUE;
         }
         strings.put(key, new Entry<>(value, old == null ? expiryFrom(windowSeconds) : old.expiresAtMillis()));
         return next;
-    }
-
-    @Override
-    public boolean counterCapacityExceeded() {
-        return clock.getAsLong() < counterOverflowUntil;
     }
 
     @Override
@@ -192,7 +233,7 @@ public class InMemoryCacheBackend implements CacheBackend {
         final int count = (hash == null ? 1 : 0) + (old == null ? 1 : 0);
         final long delta = (hash == null ? weight(key) : 0) + weight(field, value)
                 - (old == null ? 0 : weight(field, old));
-        if (!reserve(count, delta)) {
+        if (!reserve(count, delta, key)) {
             // A failed cache refresh must not leave the previous field value looking current.
             hdel(key, field);
             return;

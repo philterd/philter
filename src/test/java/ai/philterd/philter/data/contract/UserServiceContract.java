@@ -53,6 +53,37 @@ public interface UserServiceContract extends StorageContract {
     }
 
     @Test
+    default void userSignInAttemptsAreCountedInAWindowAndLockWithTheUser() {
+        final String userId = createAndFind("jordan", UserService.ROLE_USER).getId();
+        final long window = 60_000;
+        assertEquals(1, storage().users().beginSignInAttempt(userId, 1_000, window));
+        assertEquals(2, storage().users().beginSignInAttempt(userId, 30_000, window));
+        // Another instance sees the same count: it is stored with the user.
+        assertEquals(3, storage().anotherInstance().users().beginSignInAttempt(userId, 60_999, window));
+        assertEquals(1, storage().users().beginSignInAttempt(userId, 61_000, window),
+                "the window ran from the first attempt, so a new one starts");
+        storage().users().resetSignInAttempts(userId);
+        assertEquals(1, storage().users().beginSignInAttempt(userId, 61_001, window), "a reset starts again");
+
+        assertFalse(storage().users().isSignInLocked(userId, 61_001));
+        storage().users().lockSignIn(userId, 100_000);
+        assertTrue(storage().anotherInstance().users().isSignInLocked(userId, 99_999));
+        assertFalse(storage().users().isSignInLocked(userId, 100_000), "the lock ends on time");
+
+        assertEquals(0, storage().users().beginSignInAttempt(RecordIds.newId(), 1_000, window), "no such user");
+        assertFalse(storage().users().isSignInLocked(RecordIds.newId(), 1_000));
+    }
+
+    @Test
+    default void userParallelSignInAttemptsAreAllCounted() throws Exception {
+        final String userId = createAndFind("riley", UserService.ROLE_USER).getId();
+        final List<Long> counts = StorageContract.concurrently(8, () ->
+                storage().anotherInstance().users().beginSignInAttempt(userId, 1_000, 60_000));
+        assertEquals(Set.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L), new HashSet<>(counts),
+                "each attempt gets its own number, so parallel attempts cannot all pass the limit");
+    }
+
+    @Test
     default void userNamesAreUniqueIncludingDeactivatedUsers() throws Exception {
         createAndFind("admin", UserService.ROLE_ADMIN);
         final List<ServiceResponse> results = StorageContract.concurrently(6,

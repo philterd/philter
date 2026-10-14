@@ -168,19 +168,31 @@ public class InMemoryCacheBackendTest {
     }
 
     @Test
-    void aCounterThatCannotBeStoredReportsTheLimitReachedForItsWindow() {
+    void aFullStoreMakesRoomForACounterByDroppingWhatExpiresSoonest() {
         final AtomicLong now = new AtomicLong(1000);
-        final var cache = new InMemoryCacheBackend(now::get, 1, 4096);
-        assertEquals(1, cache.incrementInWindow("existing", 60));
-        assertEquals(Long.MAX_VALUE, cache.incrementInWindow("overflow", 60), "no room: never reads as zero");
-        assertTrue(cache.counterCapacityExceeded());
-        assertEquals(2, cache.incrementInWindow("existing", 60), "an existing counter keeps counting");
-        cache.del("existing");
-        assertTrue(cache.counterCapacityExceeded(), "deleting a counter does not end the overflow window");
-        now.set(61000);
-        cache.removeExpiredEntries();
-        assertFalse(cache.counterCapacityExceeded());
-        assertEquals(1, cache.incrementInWindow("new", 60));
+        final var cache = new InMemoryCacheBackend(now::get, 10, 1_000_000);
+        for (int i = 0; i < 10; i++) {
+            cache.setex("cached-" + i, 100 + i, "value");
+        }
+        // Full: a new counter is still counted, never refused, and the entries nearest to expiring make way.
+        assertEquals(1, cache.incrementInWindow("counter", 60));
+        assertEquals(2, cache.incrementInWindow("counter", 60));
+        assertNull(cache.get("cached-0"), "the soonest to expire is dropped first");
+        assertEquals("value", cache.get("cached-9"), "the latest to expire is kept");
+    }
+
+    @Test
+    void makingRoomNeverDropsTheEntryBeingWritten() {
+        final var cache = new InMemoryCacheBackend(() -> 1000L, 4, 1_000_000);
+        cache.setex("a", 100, "a");
+        cache.setex("b", 200, "b");
+        cache.hset("context", "first", "one");
+        cache.expire("context", 1);
+        // Full, and the hash expires soonest, but it is the one being written to: the others make way instead.
+        cache.hset("context", "second", "two");
+        assertEquals("one", cache.hget("context", "first"));
+        assertEquals("two", cache.hget("context", "second"));
+        assertNull(cache.get("a"));
     }
 
     @Test
@@ -237,10 +249,10 @@ public class InMemoryCacheBackendTest {
             cache.setex("more-" + i, 0, "value");
             cache.hset("hash", "more-" + i, "value");
         }
-        assertEquals(1, storedEntries(cache, "strings").size());
-        assertNull(cache.hget("hash", "more-0"));
+        assertTrue(storedEntries(cache, "strings").size() + storedEntries(cache, "hashes").size() <= 3,
+                "the store makes room rather than growing past its bounds");
         cache.hset("hash", "field", "x".repeat(4096));
-        assertNull(cache.hget("hash", "field"), "Rejected refresh must discard the stale value");
+        assertNull(cache.hget("hash", "field"), "a value larger than the store is refused, and the stale value discarded");
         cache.setex("one", 0, "x".repeat(4096));
         assertNull(cache.get("one"));
     }
@@ -256,6 +268,6 @@ public class InMemoryCacheBackendTest {
             }
             for (var task : tasks) task.get(5, TimeUnit.SECONDS);
         }
-        assertEquals(50, storedEntries(cache, "strings").size());
+        assertTrue(storedEntries(cache, "strings").size() <= 50, "never more than the bounds allow");
     }
 }

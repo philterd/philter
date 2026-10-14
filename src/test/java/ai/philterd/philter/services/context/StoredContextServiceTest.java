@@ -48,6 +48,9 @@ class StoredContextServiceTest {
     @BeforeEach
     void setUp() {
         service = new StoredContextService(contextCache, contextEntryService, userId, contextName);
+        // The cache is keyed by the token's hash, which the entry service computes for the context's owner.
+        org.mockito.Mockito.lenient().when(contextEntryService.tokenHash(org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> "hash:" + invocation.getArgument(1));
     }
 
     @Test
@@ -55,7 +58,7 @@ class StoredContextServiceTest {
         final String entryId = MongoIds.newId();
         final ContextCache.CachedReplacement cached = new ContextCache.CachedReplacement(entryId, "REDACTED");
 
-        when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(cached);
+        when(contextCache.getReplacement(userId, contextName, "hash:token")).thenReturn(cached);
 
         final String replacement = service.getReplacement("token");
 
@@ -72,19 +75,19 @@ class StoredContextServiceTest {
         entry.setId(entryId);
         entry.setReplacement("FROM-DB");
 
-        when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(null);
+        when(contextCache.getReplacement(userId, contextName, "hash:token")).thenReturn(null);
         when(contextEntryService.findOneEntryByToken(userId, contextName, "token")).thenReturn(entry);
 
         final String replacement = service.getReplacement("token");
 
         assertEquals("FROM-DB", replacement);
         verify(contextEntryService).incrementReads(entryId);
-        verify(contextCache).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(contextName), org.mockito.ArgumentMatchers.eq("token"), org.mockito.ArgumentMatchers.eq(entryId), org.mockito.ArgumentMatchers.eq("FROM-DB"), org.mockito.ArgumentMatchers.anyLong());
+        verify(contextCache).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(contextName), org.mockito.ArgumentMatchers.eq("hash:token"), org.mockito.ArgumentMatchers.eq(entryId), org.mockito.ArgumentMatchers.eq("FROM-DB"), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
     void cacheMissAndDbMissReturnsNull() {
-        when(contextCache.getReplacement(userId, contextName, "token")).thenReturn(null);
+        when(contextCache.getReplacement(userId, contextName, "hash:token")).thenReturn(null);
         when(contextEntryService.findOneEntryByToken(userId, contextName, "token")).thenReturn(null);
 
         assertNull(service.getReplacement("token"));
@@ -109,19 +112,19 @@ class StoredContextServiceTest {
         service.putReplacement("tok", "R", "PERSON");
 
         verify(contextEntryService).putReplacementIfAbsent(userId, contextName, "tok", "R", "PERSON");
-        verify(contextCache).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(contextName), org.mockito.ArgumentMatchers.eq("tok"), org.mockito.ArgumentMatchers.eq(entryId), org.mockito.ArgumentMatchers.eq("R"), org.mockito.ArgumentMatchers.anyLong());
+        verify(contextCache).setTokenReplacement(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(contextName), org.mockito.ArgumentMatchers.eq("hash:tok"), org.mockito.ArgumentMatchers.eq(entryId), org.mockito.ArgumentMatchers.eq("R"), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
     void containsTokenChecksCacheFirst() {
-        when(contextCache.containsToken(userId, contextName, "tok")).thenReturn(true);
+        when(contextCache.containsToken(userId, contextName, "hash:tok")).thenReturn(true);
         org.junit.jupiter.api.Assertions.assertTrue(service.containsToken("tok"));
         verify(contextEntryService, never()).containsToken(userId, contextName, "tok");
     }
 
     @Test
     void containsTokenFallsBackToDb() {
-        when(contextCache.containsToken(userId, contextName, "tok")).thenReturn(false);
+        when(contextCache.containsToken(userId, contextName, "hash:tok")).thenReturn(false);
         when(contextEntryService.containsToken(userId, contextName, "tok")).thenReturn(true);
         org.junit.jupiter.api.Assertions.assertTrue(service.containsToken("tok"));
     }

@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -38,6 +40,12 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
     private static final Pattern UUID_REGEX_PATTERN = Pattern.compile(
             "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
     );
+
+    /**
+     * Each user's username, by id, for hashing their tokens. A username never changes and a user is never deleted,
+     * so an entry stays correct for as long as the process runs, whichever instance of this service looked it up.
+     */
+    private static final Map<String, String> USERNAMES = new ConcurrentHashMap<>();
 
     private final ContextCache contextCache;
     private final int capacity;
@@ -90,6 +98,22 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
 
     /** Removes every entry in the context. */
     protected abstract void deleteContext(final String userId, final String contextName);
+
+    /** The username of the user with this id, or null when there is none. */
+    protected abstract String findUsername(final String userId);
+
+    @Override
+    public String tokenHash(final String userId, final String token) {
+        final String username = USERNAMES.computeIfAbsent(userId, id -> {
+            final String found = findUsername(id);
+            if (found == null) {
+                // Hashing under anything else would store entries that this user's later lookups could not find.
+                throw new IllegalStateException("No user owns the context being read.");
+            }
+            return found;
+        });
+        return ContextTokenHasher.hash(username, token);
+    }
 
     @Override
     public List<ContextEntryEntity> findAllByUserIdAndContext(final String userId, final String contextName, final int limit) {
@@ -165,7 +189,7 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
 
     @Override
     public ContextEntryEntity findOneEntryByToken(final String userId, final String contextName, final String token) {
-        return findByTokenHash(userId, contextName, ContextTokenHasher.hash(token));
+        return findByTokenHash(userId, contextName, tokenHash(userId, token));
     }
 
     @Override
@@ -178,7 +202,7 @@ public abstract class StoredContextEntryDataService implements ContextEntryDataS
                                                      final String token, final String replacement,
                                                      final String filterType) {
 
-        final ContextEntryEntity stored = insertIfAbsent(entry(userId, contextName, ContextTokenHasher.hash(token),
+        final ContextEntryEntity stored = insertIfAbsent(entry(userId, contextName, tokenHash(userId, token),
                 replacement, filterType, UUID_REGEX_PATTERN.matcher(replacement).matches()));
 
         if (stored != null && replacement.equals(stored.getReplacement())) {

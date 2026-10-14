@@ -671,7 +671,8 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Import a mapping table into a context.",
             description = "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. "
                     + "By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite "
-                    + "to replace existing replacements instead.")
+                    + "to replace existing replacements instead. Token hashes are keyed per username, so mappings match "
+                    + "only when exported from a context of the same username under the same PHILTER_ENCRYPTION_KEY.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "400", description = "The payload or on_conflict value is invalid."),

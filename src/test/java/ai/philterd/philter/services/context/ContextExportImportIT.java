@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -63,55 +63,71 @@ class ContextExportImportIT extends AbstractMongoIT {
         contextEntryService = new MongoContextEntryDataService(mongoClient, new ContextCache(null, 0, null, false));
     }
 
-    @Test
-    void roundTripReproducesIdenticalPseudonymizationInAnotherContext() {
+    private static final String TOKEN = "John Smith";
+    private static final String FILTER_TYPE = "PERSON";
+    private static final String LEARNED = "David Jones";
 
-        final String token = "John Smith";
-        final String filterType = "PERSON";
-        final String learnedReplacement = "David Jones";
+    /** Learns a mapping through the real redaction path and exports it as the export endpoint does. */
+    private ContextEntriesExport learnAndExport(final String user, final String context) {
 
-        // --- Source environment: learn a mapping through the real CONTEXT-scope redaction path. ---
-        final String sourceUser = MongoIds.newId();
-        final String sourceContext = "src";
-        final ContextService sourceService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), sourceUser, sourceContext);
+        final ContextService source = new ai.philterd.philter.services.context.StoredContextServices(
+                new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), user, context);
+        assertEquals(LEARNED, source.computeReplacementIfAbsent(TOKEN, FILTER_TYPE, () -> LEARNED));
 
-        final String firstReplacement = sourceService.computeReplacementIfAbsent(token, filterType, () -> learnedReplacement);
-        assertEquals(learnedReplacement, firstReplacement);
-
-        // --- Export: build the payload exactly as the export endpoint does. ---
         final List<ContextEntryExport> exported = new ArrayList<>();
-        for (final ContextEntryEntity entry : contextEntryService.findAllByUserIdAndContext(sourceUser, sourceContext)) {
+        for (final ContextEntryEntity entry : contextEntryService.findAllByUserIdAndContext(user, context)) {
             exported.add(new ContextEntryExport(entry.getTokenHash(), entry.getReplacement(),
                     entry.getFilterType(), entry.isReplacementUuid()));
         }
         assertEquals(1, exported.size());
 
-        // --- Transport: serialize and parse back, as if moving to another environment. ---
-        final String json = new Gson().toJson(new ContextEntriesExport(sourceContext, exported));
-        final ContextEntriesExport reloaded = new Gson().fromJson(json, ContextEntriesExport.class);
+        // Serialized and parsed back, as if carried to where it is imported.
+        final String json = new Gson().toJson(new ContextEntriesExport(context, exported));
+        return new Gson().fromJson(json, ContextEntriesExport.class);
 
-        // --- Import into a DIFFERENT user and context (a separate "environment"). ---
-        final String destUser = MongoIds.newId();
-        final String destContext = "dst";
-        for (final ContextEntryExport entry : reloaded.getEntries()) {
-            contextEntryService.importEntryByHash(destUser, destContext, entry.getTokenHash(),
+    }
+
+    /** Imports the export, then redacts the same token there and returns what replaced it, or null if regenerated. */
+    private String importAndRedact(final ContextEntriesExport export, final String user, final String context) {
+
+        for (final ContextEntryExport entry : export.getEntries()) {
+            contextEntryService.importEntryByHash(user, context, entry.getTokenHash(),
                     entry.getReplacement(), entry.getFilterType(), entry.isReplacementUuid(), false);
         }
 
-        // --- Redact in the destination context: the same input token must resolve to the imported
-        //     replacement, and the "generate a new replacement" supplier must NOT be invoked. ---
         final AtomicBoolean regenerated = new AtomicBoolean(false);
-        final ContextService destService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), destUser, destContext);
-
-        final String resolved = destService.computeReplacementIfAbsent(token, filterType, () -> {
+        final ContextService destination = new ai.philterd.philter.services.context.StoredContextServices(
+                new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), user, context);
+        final String resolved = destination.computeReplacementIfAbsent(TOKEN, FILTER_TYPE, () -> {
             regenerated.set(true);
             return "A_DIFFERENT_REPLACEMENT";
         });
+        return regenerated.get() ? null : resolved;
 
-        assertEquals(learnedReplacement, resolved,
-                "the same input token must yield the same replacement after export/import into another context");
-        assertFalse(regenerated.get(),
-                "the imported mapping must be used directly, not regenerated");
+    }
+
+    @Test
+    void roundTripReproducesIdenticalPseudonymizationInAnotherContext() {
+
+        final String user = newUser();
+        final ContextEntriesExport export = learnAndExport(user, "src");
+
+        assertEquals(LEARNED, importAndRedact(export, user, "dst"),
+                "the same input token must yield the same replacement after export/import into another of the user's "
+                        + "contexts, used directly rather than regenerated");
+
+    }
+
+    @Test
+    void anotherUsersExportDoesNotMatchTheirTokens() {
+
+        // Tokens are hashed per user, so one user cannot import another's export and redact guesses to learn which
+        // values it holds and what replaced them.
+        final ContextEntriesExport export = learnAndExport(newUser(), "src");
+
+        assertNull(importAndRedact(export, newUser(), "dst"),
+                "another user's imported hashes must not match the same token, so a new replacement is made");
+
     }
 
 }

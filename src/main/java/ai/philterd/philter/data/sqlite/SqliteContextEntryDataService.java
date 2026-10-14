@@ -48,6 +48,12 @@ public class SqliteContextEntryDataService extends StoredContextEntryDataService
         return new SqliteContextEntryDataService(database, contextCache, capacity());
     }
 
+    @Override
+    protected String findUsername(final String userId) {
+        return database.read(connection -> Sql.first(connection, "SELECT username FROM users WHERE id = ?",
+                row -> row.string("username"), userId));
+    }
+
     private static ContextEntryEntity read(final Sql.Row row) throws SQLException {
         final ContextEntryEntity entry = new ContextEntryEntity();
         entry.setId(row.string("id"));

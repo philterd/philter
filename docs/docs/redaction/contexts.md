@@ -38,7 +38,7 @@ Context names are **unique per user**. You cannot have two contexts with the sam
 
 Each user can have **at most 10 contexts**, including `default`. The limit is per user: other users' contexts do not count toward it. A request for an eleventh is refused with `409 Conflict` and `reason` set to `context_limit_reached`; delete a context to make room. The limit is fixed and cannot be changed with a setting. The [redaction ledger](ledgers.md) is off for a new context unless `ledger=true` is set.
 
-Listing entries returns replacement metadata; exports include keyed token hashes and require the same deployment encryption key when imported elsewhere.
+Listing entries returns replacement metadata; exports include keyed token hashes, which match only for the same username and `PHILTER_ENCRYPTION_KEY` (see [Exporting and Importing Mappings](#exporting-and-importing-mappings)).
 
 ### Clearing a Context
 
@@ -67,7 +67,7 @@ If your application uses [asynchronous PDF redaction](../api_and_sdks/api/docume
 
 A context's mapping table can be exported and imported through the [Contexts API](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table). This lets you reuse the same replacements across separate environments or rebuild a context's mappings after it has been cleared:
 
-*   **Export** returns the context's mappings as a JSON document. Only a keyed hash of each original value is exported, never the original value itself, so the same value continues to map to the same replacement wherever the table is imported. The key is derived from `PHILTER_ENCRYPTION_KEY`, so an export can be imported elsewhere in the same deployment but not into a different one.
+*   **Export** returns the context's mappings as a JSON document. Only a keyed hash of each original value is exported, never the original value itself, so the same value continues to map to the same replacement wherever the table is imported. Each user's hashes are keyed by `PHILTER_ENCRYPTION_KEY` and their username, so an export matches only in contexts of the same username: in this deployment, or in another deployment with the same `PHILTER_ENCRYPTION_KEY` where a user has that username. Another user's import does not match, so one user cannot use another's export to learn which values it holds and what replaced them.
 *   **Import** loads such a document into an existing context. By default an incoming value that already exists is skipped; you can choose to overwrite instead.
 
 Export and import are restricted to the user that **created** the context or to an **admin** with `ADMIN_CROSS_USER_ACCESS_ENABLED=true`. Because context names are unique only per user, an admin reaching another user's context supplies that user's username in the `owner` query parameter to identify it unambiguously; without `owner`, the operation applies to the caller's own context of that name.
@@ -76,6 +76,6 @@ Export and import are restricted to the user that **created** the context or to 
 
 *   **Organization**: Use contexts to mirror your internal organizational structure or project list.
 *   **Consistency**: Always use the same context for documents that belong to the same logical dataset to ensure referential integrity.
-*   **Portability**: Use the [export and import endpoints](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table) to carry consistent replacements between environments (for example, from staging to production).
+*   **Portability**: Use the [export and import endpoints](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table) to carry consistent replacements between environments (for example, from staging to production), with the same `PHILTER_ENCRYPTION_KEY` and the same username in both.
 *   **Automation**: Context names can be passed as a parameter in [API requests](../developers/developer_quick_start.md), allowing for seamless integration into your automated workflows.
 

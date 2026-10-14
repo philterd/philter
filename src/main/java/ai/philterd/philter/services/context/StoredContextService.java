@@ -51,7 +51,7 @@ public class StoredContextService implements ContextService {
     @Override
     public boolean containsToken(final String token) {
 
-        if (contextCache.containsToken(userId, contextName, token)) {
+        if (contextCache.containsToken(userId, contextName, contextEntryService.tokenHash(userId, token))) {
             return true;
         }
 
@@ -67,7 +67,8 @@ public class StoredContextService implements ContextService {
     @Override
     public String getReplacement(final String token) {
 
-        final ContextCache.CachedReplacement cached = contextCache.getReplacement(userId, contextName, token);
+        final String tokenHash = contextEntryService.tokenHash(userId, token);
+        final ContextCache.CachedReplacement cached = contextCache.getReplacement(userId, contextName, tokenHash);
         if (cached != null) {
             contextEntryService.incrementReads(cached.entryId());
             return cached.replacement();
@@ -80,7 +81,7 @@ public class StoredContextService implements ContextService {
         }
 
         contextEntryService.incrementReads(entry.getId());
-        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement(), observedAt);
+        contextCache.setTokenReplacement(userId, contextName, tokenHash, entry.getId(), entry.getReplacement(), observedAt);
 
         return entry.getReplacement();
 
@@ -119,7 +120,8 @@ public class StoredContextService implements ContextService {
             return null;
         }
 
-        contextCache.setTokenReplacement(userId, contextName, token, entry.getId(), entry.getReplacement(), observedAt);
+        contextCache.setTokenReplacement(userId, contextName, contextEntryService.tokenHash(userId, token), entry.getId(),
+                entry.getReplacement(), observedAt);
 
         return entry.getReplacement();
 

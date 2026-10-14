@@ -42,12 +42,14 @@ import java.util.Map;
 public class MongoContextEntryDataService extends StoredContextEntryDataService {
 
     private final MongoCollection<Document> collection;
+    private final MongoCollection<Document> users;
 
     public MongoContextEntryDataService(final MongoClient mongoClient, final ContextCache contextCache) {
         super(contextCache);
         final MongoRecords<ContextEntryEntity> records =
                 new MongoRecords<>(mongoClient, "context_entries", ContextEntryDocuments::toDocument);
         this.collection = records.collection;
+        this.users = mongoClient.getDatabase("philter").getCollection("users");
 
         // Token lookups during redaction hit (user_id, context_name, token_hash); listing/eviction
         // scans (user_id, context_name) ordered by timestamp/reads.
@@ -70,20 +72,29 @@ public class MongoContextEntryDataService extends StoredContextEntryDataService 
         }
     }
 
-    private MongoContextEntryDataService(final MongoCollection<Document> collection, final ContextCache contextCache,
-                                         final int capacity) {
+    private MongoContextEntryDataService(final MongoCollection<Document> collection, final MongoCollection<Document> users,
+                                         final ContextCache contextCache, final int capacity) {
         super(contextCache, capacity);
         this.collection = collection;
+        this.users = users;
     }
 
     /** The same stored entries, with contexts that hold at most {@code capacity} entries, for tests. */
     MongoContextEntryDataService withCapacity(final ContextCache contextCache, final int capacity) {
-        return new MongoContextEntryDataService(collection, contextCache, capacity);
+        return new MongoContextEntryDataService(collection, users, contextCache, capacity);
     }
 
     @Override
     public MongoContextEntryDataService withCache(final ContextCache contextCache) {
-        return new MongoContextEntryDataService(collection, contextCache, capacity());
+        return new MongoContextEntryDataService(collection, users, contextCache, capacity());
+    }
+
+    @Override
+    protected String findUsername(final String userId) {
+        // The username only: an email can change, and the key it derives with it, losing every stored match.
+        final Document user = users.find(Filters.eq("_id", MongoIds.objectId(userId)))
+                .projection(new Document("username", 1)).first();
+        return user == null ? null : user.getString("username");
     }
 
     private static Bson inContext(final String userId, final String contextName) {

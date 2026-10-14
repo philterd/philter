@@ -86,6 +86,12 @@ public interface ContextEntryDataService {
 
     String getReplacement(final String userId, final String contextName, final String token);
 
+    /**
+     * The hash a token is stored under in this user's contexts: keyed per user, so one user's hashes cannot be
+     * matched by another's. See {@link ai.philterd.philter.services.encryption.ContextTokenHasher}.
+     */
+    String tokenHash(final String userId, final String token);
+
     ContextEntryEntity findOneEntryByToken(final String userId, final String contextName, final String token);
 
     void putReplacement(final String userId, final String contextName, final String token, final String replacement, final String filterType);

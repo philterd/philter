@@ -35,7 +35,7 @@ public interface ContextEntryDataServiceContract extends StorageContract {
 
     @Test
     default void contextEntryConcurrentRedactionsOfOneTokenShareOneReplacement() throws Exception {
-        final String owner = RecordIds.newId();
+        final String owner = newOwner();
         final AtomicInteger next = new AtomicInteger();
         final List<String> replacements = StorageContract.concurrently(8, () -> storage().anotherInstance().contextEntries()
                 .putReplacementIfAbsent(owner, "default", "Jordan Smith", "replacement-" + next.incrementAndGet(), "PERSON")
@@ -47,7 +47,7 @@ public interface ContextEntryDataServiceContract extends StorageContract {
 
     @Test
     default void contextEntryConcurrentReadsAreAllCounted() throws Exception {
-        final String owner = RecordIds.newId();
+        final String owner = newOwner();
         final ContextEntryEntity entry = storage().contextEntries()
                 .putReplacementIfAbsent(owner, "default", "Jordan Smith", "replacement", "PERSON");
         final long before = storage().contextEntries().findOneEntryByToken(owner, "default", "Jordan Smith").getReads();
@@ -60,13 +60,13 @@ public interface ContextEntryDataServiceContract extends StorageContract {
 
     @Test
     default void contextEntryListingsCountAndPageWithoutRepeats() {
-        final String owner = RecordIds.newId();
+        final String owner = newOwner();
         for (int i = 0; i < 5; i++) {
             storage().contextEntries().putReplacementIfAbsent(owner, "default", "token-" + i, "replacement-" + i, "PERSON");
         }
         storage().contextEntries().putReplacementIfAbsent(owner, "other", "token", "replacement", "PERSON");
         // Another owner's context of the same name is never listed or counted.
-        final String other = RecordIds.newId();
+        final String other = newOwner();
         for (int i = 0; i < 3; i++) {
             storage().contextEntries().putReplacementIfAbsent(other, "default", "token-" + i, "theirs-" + i, "PERSON");
         }
@@ -84,7 +84,7 @@ public interface ContextEntryDataServiceContract extends StorageContract {
 
     @Test
     default void contextEntryAFullContextEvictsItsLeastReadEntry() {
-        final String owner = RecordIds.newId();
+        final String owner = newOwner();
         final ContextEntryDataService entries = storage().contextEntriesHolding(3);
         final ContextEntryEntity first = entries.putReplacementIfAbsent(owner, "default", "first", "replacement-1", "PERSON");
         entries.putReplacementIfAbsent(owner, "default", "second", "replacement-2", "PERSON");
@@ -118,7 +118,7 @@ public interface ContextEntryDataServiceContract extends StorageContract {
         }
 
         // Another owner's context is not counted or evicted from.
-        final String other = RecordIds.newId();
+        final String other = newOwner();
         entries.putReplacementIfAbsent(other, "default", "first", "replacement", "PERSON");
         assertEquals(3, entries.countByUserIdAndContext(owner, "default"));
         assertEquals(1, entries.countByUserIdAndContext(other, "default"));

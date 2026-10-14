@@ -2273,7 +2273,7 @@
           "Contexts"
         ],
         "summary": "Import a mapping table into a context.",
-        "description": "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite to replace existing replacements instead. Requires the `contexts:write` scope.",
+        "description": "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite to replace existing replacements instead. Token hashes are keyed per username, so mappings match only when exported from a context of the same username under the same PHILTER_ENCRYPTION_KEY. Requires the `contexts:write` scope.",
         "operationId": "importEntries",
         "parameters": [
           {

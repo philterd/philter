@@ -16,7 +16,6 @@
 package ai.philterd.philter.services.cache;
 
 import ai.philterd.philter.data.RecordIds;
-import ai.philterd.philter.services.encryption.ContextTokenHasher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,15 +76,16 @@ public class ContextCache extends Cache {
      * Sets a token replacement in the cache, tagged with the entry's id so the caller can later
      * increment the entry's read count on a cache hit.
      */
-    public void setTokenReplacement(final String userId, final String context, final String token, final String entryId, final String replacement) {
-        setTokenReplacement(userId, context, token, entryId, replacement, clock.getAsLong());
+    public void setTokenReplacement(final String userId, final String context, final String tokenHash, final String entryId, final String replacement) {
+        setTokenReplacement(userId, context, tokenHash, entryId, replacement, clock.getAsLong());
     }
 
-    public void setTokenReplacement(final String userId, final String context, final String token,
+    /**
+     * As above, at {@code observedAt}. Takes the token's hash, as the context entries store it, never the token:
+     * see {@link ai.philterd.philter.data.services.ContextEntryDataService#tokenHash}.
+     */
+    public void setTokenReplacement(final String userId, final String context, final String tokenHash,
                                     final String entryId, final String replacement, final long observedAt) {
-
-        // The token must be hashed.
-        final String tokenHash = ContextTokenHasher.hash(token);
 
         if (entryId == null) {
             // Without an id, the cache value would be ambiguous on read; skip caching rather than store a value
@@ -108,9 +108,7 @@ public class ContextCache extends Cache {
      * @return The cached entry, or {@code null} if not present or the cached value is in an
      *         unrecognized (legacy) format.
      */
-    public CachedReplacement getReplacement(final String userId, final String context, final String token) {
-
-        final String tokenHash = ContextTokenHasher.hash(token);
+    public CachedReplacement getReplacement(final String userId, final String context, final String tokenHash) {
 
         final String value = backend.hget(buildKey(userId, context), tokenHash);
         if (value == null) return null;
@@ -145,12 +143,12 @@ public class ContextCache extends Cache {
      *
      * @param userId  The id of the user that owns the context.
      * @param context The context.
-     * @param token   The token.
+     * @param tokenHash The token's hash.
      * @return <code>true</code> if the cache contains a replacement; otherwise <code>false</code>.
      */
-    public boolean containsToken(final String userId, final String context, final String token) {
+    public boolean containsToken(final String userId, final String context, final String tokenHash) {
 
-        return getReplacement(userId, context, token) != null;
+        return getReplacement(userId, context, tokenHash) != null;
 
     }
 

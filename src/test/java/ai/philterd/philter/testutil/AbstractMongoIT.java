@@ -43,6 +43,17 @@ public abstract class AbstractMongoIT {
         mongoClient = MongoClients.create("mongodb://" + address.getHostName() + ":" + address.getPort());
     }
 
+    /**
+     * Stores a user and returns their id. Context tokens are hashed for their owner's username, so a context's owner
+     * has to exist.
+     */
+    protected String newUser() {
+        final org.bson.types.ObjectId id = new org.bson.types.ObjectId();
+        mongoClient.getDatabase("philter").getCollection("users")
+                .insertOne(new org.bson.Document("_id", id).append("username", "user-" + id.toHexString()));
+        return id.toHexString();
+    }
+
     @AfterEach
     void stopMongo() {
         if (mongoClient != null) {

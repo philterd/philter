@@ -250,7 +250,7 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 |--------|-----------------------------------------|-------------------------------------------------------------|
 | `GET`  | `/api/contexts/{name}/entries/export`   | Export the complete mapping table for a context as JSON.    |
 
-Exports every token-to-replacement mapping in the context in a JSON form that can be re-imported into another context or account, or an environment using the same `PHILTER_ENCRYPTION_KEY` (see [Import](#import-a-mapping-table-into-a-context) below). Imports into an environment with a different key will not match the original tokens during redaction.
+Exports every token-to-replacement mapping in the context in a JSON form that can be re-imported into another of the same user's contexts, in this deployment or another with the same `PHILTER_ENCRYPTION_KEY` and a user with the same username (see [Import](#import-a-mapping-table-into-a-context) below). Imported anywhere else, it will not match the original tokens during redaction.
 
 **Authorization:** only the user that **created** the context or an **admin** may export it. Any other caller receives `404 Not Found`, which is also returned when the context does not exist. The endpoint does not reveal the existence of a context you are not allowed to access.
 
@@ -260,9 +260,9 @@ Exports every token-to-replacement mapping in the context in a JSON form that ca
 
 Returns `200 OK` with the export document. The response is sent with a `Content-Disposition` header so it can be saved directly to a file.
 
-> **Security:** the export contains a **keyed hash** (HMAC-SHA256) of each original token, never the original value, along with its replacement. The key is derived from `PHILTER_ENCRYPTION_KEY` and never leaves the deployment, so the hash cannot be reversed by guessing candidate values. That matters because most of what Philter detects is low-entropy: an SSN is only 10<sup>9</sup> possibilities, a date of birth far fewer. A bare digest of one is recoverable by enumeration in seconds. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
+> **Security:** the export contains a **keyed hash** (HMAC-SHA256) of each original token, never the original value, along with its replacement. The key is derived from `PHILTER_ENCRYPTION_KEY` and the context owner's username and never leaves the deployment, so the hash cannot be reversed by guessing candidate values, and another user cannot match it by redacting guesses in a context of their own. That matters because most of what Philter detects is low-entropy: an SSN is only 10<sup>9</sup> possibilities, a date of birth far fewer. A bare digest of one is recoverable by enumeration in seconds. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
 
-> **Portability:** because the hash is keyed to the deployment, an export can be imported into another context or account **within the same Philter deployment**, but not into a different one: the hashes would not match, and the original tokens are not stored, so they cannot be recomputed. Moving pseudonymization consistency between installations requires the same `PHILTER_ENCRYPTION_KEY`.
+> **Portability:** because the hash is keyed to the deployment's key and the owner's username, an export matches only in contexts owned by **the same username**: another of that user's contexts, or a context in another installation with the same `PHILTER_ENCRYPTION_KEY` whose user has that username. Imported into another user's context, the hashes do not match, and the original tokens are not stored, so they cannot be recomputed. An administrator moving a user's mappings imports them into that user's own context, with `owner`.
 
 Example request:
 
@@ -315,7 +315,7 @@ Accepts a document in the same format produced by the [export](#export-a-context
 ### Behavior and Validation
 
 * The payload is fully validated before anything is written, so a malformed entry cannot leave a partially-imported table. Each entry must have a valid 64-character hex `tokenHash` and a non-empty `replacement`.
-* **The export must come from a deployment sharing this one's `PHILTER_ENCRYPTION_KEY`.** Token hashes are keyed (see [Export](#export-a-contexts-mapping-table)), and a hash from a differently-keyed deployment is indistinguishable from a valid one: it will import successfully and then never match during redaction. Importing between contexts or accounts within one deployment is unaffected.
+* **The export must come from a context owned by the same username, in a deployment sharing this one's `PHILTER_ENCRYPTION_KEY`.** Token hashes are keyed per user (see [Export](#export-a-contexts-mapping-table)), and a hash from another user or a differently-keyed deployment is indistinguishable from a valid one: it will import successfully and then never match during redaction.
 * Imported entries start with a read count of zero. As with normal redaction, imports honor the context's `MAX_CONTEXT_SIZE` and may evict least-read entries when the context is full.
 
 Returns `200 OK` with a summary, `400 Bad Request` for an invalid `on_conflict` value or malformed payload, and `404 Not Found` if the context does not exist or the caller is not authorized to access it.

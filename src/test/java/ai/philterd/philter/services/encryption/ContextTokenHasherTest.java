@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ContextTokenHasherTest {
 
@@ -28,7 +29,7 @@ class ContextTokenHasherTest {
     @Test
     @DisplayName("The same token always hashes the same, so lookups still resolve")
     void hashingIsDeterministic() {
-        assertEquals(ContextTokenHasher.hash(SSN), ContextTokenHasher.hash(SSN));
+        assertEquals(ContextTokenHasher.hash("jordan", SSN), ContextTokenHasher.hash("jordan", SSN));
     }
 
     @Test
@@ -36,20 +37,34 @@ class ContextTokenHasherTest {
     void theHashIsKeyed() {
         // A bare SHA-256 of an SSN is 10^9 candidates: enumerable, and identical everywhere. If this
         // ever matches, the stored value has become guessable from the token alone again.
-        assertNotEquals(EncryptionService.hashSha256(SSN), ContextTokenHasher.hash(SSN),
+        assertNotEquals(EncryptionService.hashSha256(SSN), ContextTokenHasher.hash("jordan", SSN),
                 "the stored hash must not be derivable from the token without the key");
     }
 
     @Test
     @DisplayName("Different tokens hash differently")
     void differentTokensHashDifferently() {
-        assertNotEquals(ContextTokenHasher.hash(SSN), ContextTokenHasher.hash("987-65-4321"));
+        assertNotEquals(ContextTokenHasher.hash("jordan", SSN), ContextTokenHasher.hash("jordan", "987-65-4321"));
+    }
+
+    @Test
+    @DisplayName("The same token hashes differently for different users")
+    void eachUserHasTheirOwnKey() {
+        // Otherwise one user could hash guesses in their own context and match them against another user's export.
+        assertNotEquals(ContextTokenHasher.hash("jordan", SSN), ContextTokenHasher.hash("riley", SSN));
+    }
+
+    @Test
+    @DisplayName("A token is hashed only for a named owner")
+    void anOwnerIsRequired() {
+        assertThrows(IllegalArgumentException.class, () -> ContextTokenHasher.hash(null, SSN));
+        assertThrows(IllegalArgumentException.class, () -> ContextTokenHasher.hash("", SSN));
     }
 
     @Test
     @DisplayName("The hash is a SHA-256-width hex digest")
     void theHashIsHexOfTheExpectedWidth() {
-        assertEquals(64, ContextTokenHasher.hash(SSN).length());
+        assertEquals(64, ContextTokenHasher.hash("jordan", SSN).length());
     }
 
 }

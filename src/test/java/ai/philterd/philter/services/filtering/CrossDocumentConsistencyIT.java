@@ -82,7 +82,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void sameTokenInTwoRequestsYieldsSameSurrogateUnderContextScope() throws Exception {
 
-        final String userId = MongoIds.newId();
+        final String userId = newUser();
         final String context = "patient-records";
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_CONTEXT,
                 Map.of(FilterType.SSN, AnonymizationMethod.REALISTIC));
@@ -109,7 +109,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void documentScopeDoesNotPersistOrShareAcrossRequests() throws Exception {
 
-        final String userId = MongoIds.newId();
+        final String userId = newUser();
         final String context = "doc-scope";
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_DOCUMENT,
                 Map.of(FilterType.SSN, AnonymizationMethod.REALISTIC));
@@ -132,7 +132,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void consistencyHoldsForMultipleEntityTypesInOneContext() throws Exception {
 
-        final String userId = MongoIds.newId();
+        final String userId = newUser();
         final String context = "multi-type";
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_CONTEXT, Map.of(
                 FilterType.SSN, AnonymizationMethod.REALISTIC,
@@ -156,7 +156,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
     @Test
     void replacementsAreIsolatedPerContext() throws Exception {
 
-        final String userId = MongoIds.newId();
+        final String userId = newUser();
         final Policy policy = anonymizePolicy(AbstractFilterStrategy.REPLACEMENT_SCOPE_CONTEXT,
                 Map.of(FilterType.SSN, AnonymizationMethod.REALISTIC));
 
@@ -185,7 +185,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
         // sits above it in a live request. Capacity-triggered eviction *selection* (which entry is
         // dropped when a context is full) is covered by
         // ContextEntryDataServiceContract.contextEntryAFullContextEvictsItsLeastReadEntry.
-        final String userId = MongoIds.newId();
+        final String userId = newUser();
         final String context = "eviction";
         final String token = "123-45-6789";
 

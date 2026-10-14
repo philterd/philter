@@ -158,6 +158,12 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it
   redacts, condition values, and keys. Names and content hashes stay readable. See
   [What is encrypted at rest](docs/docs/database.md#what-is-encrypted-at-rest).
+- **Context token hashes are keyed per user.** Each user's context tokens are hashed under a key derived from
+  `PHILTER_ENCRYPTION_KEY` and their username, so one user cannot match another's exported hashes by redacting
+  guesses in a context of their own, or import another's export to learn what its replacements stand for. An export
+  now matches only in contexts of the same username under the same key: within a deployment, or carried to another
+  with the same key and username, such as from staging to production. See
+  [Exporting and Importing Mappings](docs/docs/redaction/contexts.md#exporting-and-importing-mappings).
 - **A queued document's captured configuration is kept only with the job.** It holds the resolved policy,
   list contents, and keys, is encrypted, and is removed when the job expires or is deleted; no other copy is kept.
 - **Cross-user access is opt-in** through `ADMIN_CROSS_USER_ACCESS_ENABLED`. While it is off, an administrator can

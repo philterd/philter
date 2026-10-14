@@ -16,10 +16,10 @@
 package ai.philterd.philter.api.responses;
 
 /**
- * A single token-to-replacement mapping in a portable form. The original token is never present;
- * only its SHA-256 hash is, which is what redaction looks up. Because {@code tokenHash} is a plain
- * (unsalted) SHA-256 of the original token, the same token hashes identically in every environment,
- * so an exported mapping reproduces the same pseudonymization wherever it is imported.
+ * A single token-to-replacement mapping in a portable form. The original token is never present; only its keyed
+ * hash is, which is what redaction looks up. The hash is keyed by the deployment's {@code PHILTER_ENCRYPTION_KEY} and
+ * the owner's username (see {@link ai.philterd.philter.services.encryption.ContextTokenHasher}), so an exported
+ * mapping reproduces the same pseudonymization only in contexts of the same username under the same key.
  */
 public class ContextEntryExport {
 

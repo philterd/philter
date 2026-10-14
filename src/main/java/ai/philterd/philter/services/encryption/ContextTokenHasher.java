@@ -24,6 +24,8 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Hashes a context's original token into the value stored and looked up in its place.
@@ -33,6 +35,12 @@ import java.util.Base64;
  * and identical for every user and deployment. An HMAC under a key held outside the database is not.
  *
  * <p>Deterministic, so redaction still finds a token by exact match on the stored value.
+ *
+ * <p>Keyed per user, by username: each user's tokens are hashed under a key derived from the deployment's and
+ * their username. Otherwise any user could hash guesses in a context of their own and compare them with, or import,
+ * another user's exported hashes, and learn which values that user's contexts hold and what replaced them. Usernames
+ * never change, so a user's hashes are stable, and match those of the same username in a deployment with the same
+ * {@code PHILTER_ENCRYPTION_KEY}, which is what lets an export move from staging to production.
  */
 public final class ContextTokenHasher {
 
@@ -45,11 +53,25 @@ public final class ContextTokenHasher {
 
     private static final byte[] KEY = deriveKey();
 
+    /** Each user's key, by username, derived once. */
+    private static final Map<String, byte[]> USER_KEYS = new ConcurrentHashMap<>();
+
     private ContextTokenHasher() {
     }
 
-    public static String hash(final String token) {
-        return Hex.encodeHexString(hmac(KEY, token.getBytes(StandardCharsets.UTF_8)));
+    /**
+     * Hashes a token in one of a user's contexts.
+     * @param username The username of the user that owns the context.
+     * @param token The original token.
+     * @return The hash, in hex.
+     */
+    public static String hash(final String username, final String token) {
+        if (username == null || username.isEmpty()) {
+            throw new IllegalArgumentException("A context token is hashed for its owner's username.");
+        }
+        final byte[] key = USER_KEYS.computeIfAbsent(username,
+                name -> hmac(KEY, ("user:" + name).getBytes(StandardCharsets.UTF_8)));
+        return Hex.encodeHexString(hmac(key, token.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static byte[] deriveKey() {

@@ -53,14 +53,14 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void putThenLookUpResolvesByHashedToken() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         service.putReplacement(user, "ctx", "John Smith", "David Jones", "PERSON");
 
         assertTrue(service.containsToken(user, "ctx", "John Smith"));
         assertEquals("David Jones", service.getReplacement(user, "ctx", "John Smith"));
 
         final ContextEntryEntity entry = service.findOneEntryByToken(user, "ctx", "John Smith");
-        assertEquals(ContextTokenHasher.hash("John Smith"), entry.getTokenHash());
+        assertEquals(service.tokenHash(user, "John Smith"), entry.getTokenHash());
         assertNotEquals(EncryptionService.hashSha256("John Smith"), entry.getTokenHash(),
                 "the stored hash must be keyed, not a bare digest of the token");
         assertEquals("David Jones", entry.getReplacement());
@@ -69,7 +69,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void putReplacementIsIdempotentForSameToken() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         service.putReplacement(user, "ctx", "John Smith", "David Jones", "PERSON");
         // A second put for the same token must not insert a duplicate or change the replacement.
         service.putReplacement(user, "ctx", "John Smith", "Someone Else", "PERSON");
@@ -80,7 +80,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void getReplacementIncrementsReads() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         service.putReplacement(user, "ctx", "John Smith", "David Jones", "PERSON");
 
         service.getReplacement(user, "ctx", "John Smith");
@@ -91,8 +91,8 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void entriesAreScopedByUserAndContext() {
-        final String userA = MongoIds.newId();
-        final String userB = MongoIds.newId();
+        final String userA = newUser();
+        final String userB = newUser();
         service.putReplacement(userA, "ctx", "John Smith", "David Jones", "PERSON");
 
         // Same token, different user — not visible.
@@ -105,9 +105,9 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void importSkipKeepsExistingAndOverwriteReplaces() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         // An import supplies the hash, so it must be computed the same way redaction computes it.
-        final String hash = ContextTokenHasher.hash("John Smith");
+        final String hash = service.tokenHash(user, "John Smith");
 
         assertEquals(ContextEntryDataService.ImportOutcome.INSERTED,
                 service.importEntryByHash(user, "ctx", hash, "R1", "PERSON", false, false));
@@ -127,7 +127,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void getFilterTypeCountsCountsEveryEntrySoTheySumToTheSize() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         service.putReplacement(user, "ctx", "John Smith", "David Jones", "PERSON");
         service.putReplacement(user, "ctx", "Jane Roe", "Mary Major", "PERSON");
         service.putReplacement(user, "ctx", "john@example.com", "noone@example.com", "EMAIL_ADDRESS");
@@ -137,7 +137,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
         service.putReplacement(user, "ctx", "untyped token", "untyped replacement", null);
         // Another context and another user are not counted.
         service.putReplacement(user, "other", "Ann Lee", "Bea Kim", "PERSON");
-        service.putReplacement(MongoIds.newId(), "ctx", "Joe Bloggs", "Tom Doe", "PERSON");
+        service.putReplacement(newUser(), "ctx", "Joe Bloggs", "Tom Doe", "PERSON");
 
         final Map<String, Long> counts = service.getFilterTypeCounts("ctx", user);
 
@@ -151,7 +151,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByContextNameRemovesEntriesForAnyContext() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         service.putReplacement(user, "ctx", "John Smith", "David Jones", "PERSON");
         service.putReplacement(user, "default", "Jane Roe", "Mary Major", "PERSON");
 
@@ -165,8 +165,8 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteByIdAndUserIdScopesToOwningUser() {
-        final String userA = MongoIds.newId();
-        final String userB = MongoIds.newId();
+        final String userA = newUser();
+        final String userB = newUser();
         service.putReplacement(userA, "ctx", "John Smith", "David Jones", "PERSON");
         final String entryId = service.findOneEntryByToken(userA, "ctx", "John Smith").getId();
 
@@ -181,7 +181,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void deleteEntryMustMatchTheContextInTheRoute() {
-        final String owner = MongoIds.newId();
+        final String owner = newUser();
         service.putReplacement(owner, "actual", "John", "David", "PERSON");
         final String id = service.findOneEntryByToken(owner, "actual", "John").getId();
         assertEquals(0, service.deleteByIdAndUserIdAndContext(id, owner, "different"));
@@ -192,7 +192,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
 
     @Test
     void findAllSupportsPagingAndUnboundedReads() {
-        final String user = MongoIds.newId();
+        final String user = newUser();
         for (int i = 0; i < 5; i++) {
             service.putReplacement(user, "ctx", "token-" + i, "R" + i, "PERSON");
         }
@@ -211,7 +211,7 @@ class ContextEntryDataServiceIT extends AbstractMongoIT {
     @DisplayName("A context larger than a page is counted in full, and fetching is still paged")
     void countingIsNotLimitedByThePageSize() {
 
-        final String user = MongoIds.newId();
+        final String user = newUser();
         for (int i = 0; i < ContextEntryDataService.MAX_LIMIT + 50; i++) {
             service.putReplacement(user, "ctx", "token-" + i, "replacement-" + i, "PERSON");
         }

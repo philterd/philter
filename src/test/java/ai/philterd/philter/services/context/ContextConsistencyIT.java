@@ -53,7 +53,7 @@ class ContextConsistencyIT extends AbstractMongoIT {
 
         for (int round = 0; round < 30; round++) {
 
-            final String user = MongoIds.newId();
+            final String user = newUser();
             final String context = "case-" + round;
 
             // Two requests, each with its own service instance and its own cache, as two concurrent
@@ -88,7 +88,7 @@ class ContextConsistencyIT extends AbstractMongoIT {
     @DisplayName("A later document reuses the pseudonym the first one established")
     void alaterDocumentReusesTheStoredPseudonym() {
 
-        final String user = MongoIds.newId();
+        final String user = newUser();
         final ContextService first = serviceFor(user, "case");
 
         final String established = first.computeReplacementIfAbsent("John Smith", "PERSON", () -> "David Jones");

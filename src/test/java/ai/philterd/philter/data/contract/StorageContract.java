@@ -34,6 +34,19 @@ public interface StorageContract {
     /** The implementation under test, over a database that is empty when each test starts. */
     StorageUnderTest storage();
 
+    /**
+     * Stores a user and returns their id. Context tokens are hashed for their owner's username, so a context's owner
+     * has to exist.
+     */
+    default String newOwner() {
+        final String username = "user-" + ai.philterd.philter.data.RecordIds.newId();
+        if (!storage().users().createUser("req", username, null, ai.philterd.philter.data.services.UserService.ROLE_USER,
+                storage().policies(), storage().contexts(), "test").isSuccessful()) {
+            throw new IllegalStateException("The test user was not created.");
+        }
+        return storage().users().findByUsername(username).getId();
+    }
+
     /** Runs {@code callers} copies of {@code call} at once, released together, and returns their results. */
     static <T> List<T> concurrently(final int callers, final Callable<T> call) throws Exception {
         final CountDownLatch start = new CountDownLatch(1);

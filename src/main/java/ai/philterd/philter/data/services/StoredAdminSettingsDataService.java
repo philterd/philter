@@ -275,8 +275,8 @@ public abstract class StoredAdminSettingsDataService implements AdminSettingsDat
     }
 
     /**
-     * Decrypts the stored Phield API key. A value with no accompanying data key was set directly in
-     * the database and is returned as-is. A value that cannot be decrypted is reported as unset rather
+     * Decrypts the stored Phield API key. A value with no accompanying data key was not written by
+     * Philter, so it is treated as unset, with a warning, rather than used. A value that cannot be decrypted is reported as unset rather
      * than thrown: every read of the admin settings comes through here, so failing would take output
      * signing and {@code GET /api/settings} down with it, and {@code PATCH /api/settings} is where the
      * key would be re-entered.

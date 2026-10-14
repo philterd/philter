@@ -27,10 +27,12 @@ import ai.philterd.philter.api.requests.SetUserRoleRequest;
 import ai.philterd.philter.api.responses.CreatedUserResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetUsersResponse;
+import ai.philterd.philter.api.responses.SignInThrottledResponse;
 import ai.philterd.philter.api.responses.MfaEnrollmentResponse;
 import ai.philterd.philter.api.responses.CurrentUserResponse;
 import ai.philterd.philter.api.responses.UserResponse;
 import ai.philterd.philter.api.security.RequiresScope;
+import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.AdminSettingsEntity;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
@@ -41,10 +43,12 @@ import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
+import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.ApiKeyCache;
+import ai.philterd.philter.services.cache.SignInThrottle;
 import ai.philterd.philter.utils.PathSafeNames;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -52,6 +56,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -90,18 +95,24 @@ public class UsersApiController extends AbstractApiController {
     private final PolicyDataService policyDataService;
     private final ContextDataService contextDataService;
     private final AdminSettingsDataService adminSettingsDataService;
+    private final SignInThrottle signInThrottle;
+    private final AuditEventPublisher auditEventPublisher;
 
     public UsersApiController(final ApiKeyDataService apiKeyDataService,
                               final ApiKeyCache apiKeyCache,
                               final UserService userService,
                               final PolicyDataService policyDataService,
                               final ContextDataService contextDataService,
-                              final AdminSettingsDataService adminSettingsDataService) {
+                              final AdminSettingsDataService adminSettingsDataService,
+                              final SignInThrottle signInThrottle,
+                              final AuditEventPublisher auditEventPublisher) {
         super(apiKeyDataService, apiKeyCache);
         this.userService = userService;
         this.policyDataService = policyDataService;
         this.contextDataService = contextDataService;
         this.adminSettingsDataService = adminSettingsDataService;
+        this.signInThrottle = signInThrottle;
+        this.auditEventPublisher = auditEventPublisher;
     }
 
     @Operation(
@@ -299,7 +310,8 @@ public class UsersApiController extends AbstractApiController {
                     + "The new password must differ from it. Clears any required change and revokes the user's session "
                     + "keys, including the calling key if it is one; long-lived keys are unaffected. Requires the "
                     + "scope, not an administrator. Recorded as a user_password_changed audit event, without either "
-                    + "password.")
+                    + "password. A wrong current password counts toward the user's sign-in lockout, so a key cannot be "
+                    + "used to guess the password; while the user is locked, the change is refused with 429.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "The password was changed.", content = @Content),
             @ApiResponse(responseCode = "400", description = "A password is missing, the new password is shorter than 16 "
@@ -313,7 +325,11 @@ public class UsersApiController extends AbstractApiController {
             @ApiResponse(responseCode = "409", description = "The user has no password yet, so an administrator sets the "
                     + "first one, or the password was changed by a concurrent request.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "429", description = "The user is locked after repeated wrong passwords, at "
+                    + "sign-in or here. Retry-After gives the seconds to wait.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = SignInThrottledResponse.class)))
     })
     @RequiresScope(ApiKeyScope.USERS_WRITE)
     @RequestMapping(value = "/api/users/" + SELF + "/password", method = RequestMethod.PUT,
@@ -321,7 +337,8 @@ public class UsersApiController extends AbstractApiController {
     public @ResponseBody ResponseEntity<Object> changeOwnPassword(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestAttribute("requestId") String requestId,
-            final @RequestBody ChangePasswordRequest request) {
+            final @RequestBody ChangePasswordRequest request,
+            final HttpServletRequest httpServletRequest) {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
 
@@ -334,8 +351,33 @@ public class UsersApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        // The current password is checked under the same lockout as sign-in, so a key, such as a stolen session key,
+        // cannot be used to guess it, and guesses here and at sign-in count together.
+        final SignInThrottle.Account account = signInThrottle.account(user.getUsername());
+        if (account.isLocked()) {
+            return lockedOut();
+        }
+        final long attempt = account.beginAttempt();
+        if (attempt > signInThrottle.getMaxFailures()) {
+            account.lock();
+            return lockedOut();
+        }
+
         final ServiceResponse response = userService.changeOwnPassword(requestId, user, request.getCurrentPassword(),
                 request.getNewPassword(), Source.API.getSource(), apiKeyEntity.getId());
+
+        if (ErrorReasons.WRONG_PASSWORD.equals(response.getDetails())) {
+            if (signInThrottle.recordFailure(account, attempt)) {
+                // Names the key that made the guesses, so it can be revoked.
+                auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_LOCKED, apiKeyEntity.getId(), user.getId(),
+                        getClientIpAddress(httpServletRequest), "username: " + user.getUsername() + ", after "
+                                + signInThrottle.getMaxFailures() + " wrong passwords, the last when changing the "
+                                + "password, for " + signInThrottle.getLockoutSeconds() / 60 + " minutes");
+            }
+        } else {
+            account.reset();
+        }
+
         if (!response.isSuccessful()) {
             return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
         }
@@ -344,6 +386,13 @@ public class UsersApiController extends AbstractApiController {
 
         return ResponseEntity.noContent().build();
 
+    }
+
+    private ResponseEntity<Object> lockedOut() {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(signInThrottle.getLockoutSeconds()))
+                .body(new SignInThrottledResponse("Too many wrong passwords for this user. Try again later.",
+                        SignInThrottledResponse.REASON_LOCKED));
     }
 
     @Operation(

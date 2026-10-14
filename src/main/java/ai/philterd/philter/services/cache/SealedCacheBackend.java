@@ -43,9 +43,10 @@ import java.util.function.LongSupplier;
  * from {@code PHILTER_ENCRYPTION_KEY}, which every instance sharing a cache already shares. A value that
  * cannot be opened reads as absent, so the caller goes to the database.
  *
- * <p>Not covered: the sign-in rate limit's counters, which Valkey increments itself and so cannot be
- * sealed (changing one only weakens the per-address limit); deleting entries, which only costs a database
- * read; and writing back a context replacement that was removed, which carries no expiry of its own.
+ * <p>Not covered: the sign-in counters (requests per address, and failures for usernames with no account),
+ * which Valkey increments itself and so cannot be sealed, so changing one only weakens those limits; deleting
+ * entries, which only costs a database read; and writing back a context replacement that was removed, which
+ * is accepted until the expiry sealed inside it, an hour after it was cached.
  */
 public final class SealedCacheBackend implements CacheBackend {
 
@@ -63,8 +64,9 @@ public final class SealedCacheBackend implements CacheBackend {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final HexFormat HEX = HexFormat.of();
 
-    // Warned once, since a changed PHILTER_ENCRYPTION_KEY makes every entry unreadable at once.
-    private final AtomicBoolean warned = new AtomicBoolean(false);
+    // Warned once per process, since a changed PHILTER_ENCRYPTION_KEY makes every entry unreadable at once, and
+    // redaction builds a cache, and so one of these, for each request.
+    private static final AtomicBoolean WARNED = new AtomicBoolean(false);
 
     private final CacheBackend delegate;
     private final byte[] nameKey;
@@ -197,7 +199,7 @@ public final class SealedCacheBackend implements CacheBackend {
             cipher.updateAAD(associatedData(name, field));
             plaintext = cipher.doFinal(raw, NONCE_BYTES, raw.length - NONCE_BYTES);
         } catch (final Exception ex) {
-            if (warned.compareAndSet(false, true)) {
+            if (WARNED.compareAndSet(false, true)) {
                 LOGGER.warn("A cache entry could not be decrypted, so it was ignored and the database was used instead. "
                         + "This is expected once after {} changes; otherwise something other than Philter wrote to the cache.",
                         LocalKeyProvider.ENCRYPTION_KEY_ENV);

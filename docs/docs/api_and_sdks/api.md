@@ -138,6 +138,37 @@ To authorize a request from Swagger UI, send your API key as a bearer token in t
 
 Philter serves its API over HTTPS, using a self-signed certificate generated on first start unless you supply your own. See [TLS](../settings.md#tls) for how to replace the certificate or terminate TLS in front of Philter.
 
+## Rate limiting
+
+Philter enforces the limits that depend on who a request is for, which only Philter can see:
+
+* **Password guessing.** Failed [sign-ins](api/sign_in_api.md#lockout-and-rate-limiting) and wrong current passwords when [changing a password](api/users_api.md#change-your-own-password) lock the user for a while, and sign-in is limited per client address.
+* **Asynchronous documents.** [Queue admission](../settings.md#async-queue-admission) limits active jobs and input bytes per account and overall.
+* **Request size.** Request bodies are capped by `MAX_FILE_SIZE_BYTES` for documents and `MAX_FILE_SIZE_BYTES_OTHER` for everything else.
+
+Philter does not limit how many requests a client or API key makes. Put a reverse proxy, load balancer, or API gateway in front of Philter to limit request rates, as you would for any API. Consider tighter per-key limits on the two endpoints that return original values in the clear, so a stolen or misused key cannot reverse a whole dataset quickly:
+
+* `POST /api/reidentify` (scope `reidentify`), where each request can carry as many values as fit in `MAX_FILE_SIZE_BYTES_OTHER`.
+* `GET /api/ledger/{documentId}/export` (scope `ledger:export`).
+
+For example, with NGINX, keyed by the `Authorization` header so each API key is limited separately:
+
+```nginx
+limit_req_zone $http_authorization zone=philter_reversal:10m rate=10r/m;
+
+location = /api/reidentify {
+    limit_req zone=philter_reversal burst=5 nodelay;
+    proxy_pass https://philter:8080;
+}
+
+location ~ ^/api/ledger/[^/]+/export$ {
+    limit_req zone=philter_reversal burst=5 nodelay;
+    proxy_pass https://philter:8080;
+}
+```
+
+Grant `reidentify` and `ledger:export` only to the keys that need them, and watch the `redaction_reversed` and `redaction_ledger_exported` events in the [audit log](../auditing.md) for unexpected volume.
+
 ## SDKs
 
 The Philter [Java SDK](sdks.md) provides convenient methods for using Philter's API. For other languages, generate a client from the OpenAPI specification above. See [Client SDKs](sdks.md) for more information.

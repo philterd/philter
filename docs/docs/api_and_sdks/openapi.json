@@ -10662,7 +10662,7 @@
           "Users"
         ],
         "summary": "Change the calling user's password.",
-        "description": "Changes the password of the calling key's own user, which requires the current password. The new password must differ from it. Clears any required change and revokes the user's session keys, including the calling key if it is one; long-lived keys are unaffected. Requires the scope, not an administrator. Recorded as a user_password_changed audit event, without either password. Requires the `users:write` scope.",
+        "description": "Changes the password of the calling key's own user, which requires the current password. The new password must differ from it. Clears any required change and revokes the user's session keys, including the calling key if it is one; long-lived keys are unaffected. Requires the scope, not an administrator. Recorded as a user_password_changed audit event, without either password. A wrong current password counts toward the user's sign-in lockout, so a key cannot be used to guess the password; while the user is locked, the change is refused with 429. Requires the `users:write` scope.",
         "operationId": "changeOwnPassword",
         "parameters": [
           {
@@ -10757,6 +10757,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The user is locked after repeated wrong passwords, at sign-in or here. Retry-After gives the seconds to wait.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInThrottledResponse"
                 }
               }
             }

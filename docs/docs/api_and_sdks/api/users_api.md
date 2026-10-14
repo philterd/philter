@@ -226,6 +226,9 @@ Changes the password of the calling key's own user. The current password is requ
 | 400 | A field is missing, the new password breaks the [password rules](#password-rules), or it is the same as the current one. |
 | 403 | The current password is not correct, or the key does not hold `users:write`. |
 | 409 | The user has no password, so an administrator sets the first one, or another request changed the password at the same time. |
+| 429 | The user is locked after repeated wrong passwords. `Retry-After` gives the seconds to wait, and `reason` is `locked`. |
+
+A wrong current password counts toward the user's [sign-in lockout](sign_in_api.md#lockout-and-rate-limiting), together with failed sign-ins, so a key, such as a stolen session key, cannot be used to guess the password. When the count reaches `SIGN_IN_MAX_FAILURES`, both sign-in and this request are refused for `SIGN_IN_LOCKOUT_MINUTES`, even with the right password.
 
 ### Set or reset a user's password
 

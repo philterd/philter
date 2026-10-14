@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api;
 
+import ai.philterd.philter.config.SignInConfig;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -268,6 +269,47 @@ class UserPasswordsApiIT {
         assertEquals(1, changed.size());
         assertEquals(user, changed.getFirst().get("apiKeyId").getAsString());
         assertFalse(changed.getFirst().toString().contains(FIRST) || changed.getFirst().toString().contains(SECOND));
+
+    }
+
+    @Test
+    @DisplayName("Wrong current passwords lock the user, as failed sign-ins do, so a key cannot be used to guess it")
+    void wrongCurrentPasswordsLockTheUser() throws Exception {
+
+        final String user = seedUser("user");
+        assertEquals(204, send("PUT", "/api/users/" + username(user) + "/password", adminKey,
+                "{\"password\":\"" + FIRST + "\"}").statusCode());
+        final String own = seedKey(user, Set.of(ApiKeyScope.USERS_WRITE.getScope()), true);
+
+        // SIGN_IN_MAX_FAILURES defaults to 5.
+        for (int i = 0; i < 5; i++) {
+            assertEquals(403, send("PUT", "/api/users/me/password", own, changeBody("guess-" + i + "-0123456789", SECOND))
+                    .statusCode(), "wrong guess " + (i + 1));
+        }
+
+        final HttpResponse<String> locked = send("PUT", "/api/users/me/password", own, changeBody(FIRST, SECOND));
+        assertEquals(429, locked.statusCode(), "even the right password is refused while locked");
+        assertTrue(locked.headers().firstValue("Retry-After").isPresent());
+        assertEquals("locked", gson.fromJson(locked.body(), JsonObject.class).get("reason").getAsString());
+        assertTrue(userService.passwordMatches(userService.findOneById(user), FIRST), "nothing changed");
+
+        // The lock is the user's sign-in lock, so it also refuses sign-in.
+        SignInConfig.setOverrideForTesting(true);
+        try {
+            final HttpResponse<String> signIn = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/sign-in"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            "{\"username\":\"" + username(user) + "\",\"password\":\"" + FIRST + "\"}"))
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(429, signIn.statusCode(), signIn.body());
+        } finally {
+            SignInConfig.setOverrideForTesting(null);
+        }
+
+        final List<JsonObject> lock = auditEvents("sign_in_locked", user);
+        assertEquals(1, lock.size(), "the lock is audited once");
+        assertEquals(apiKeyDataService.findOneByApiKey(own).getId(), lock.getFirst().get("apiKeyId").getAsString(),
+                "naming the key that made the guesses");
 
     }
 

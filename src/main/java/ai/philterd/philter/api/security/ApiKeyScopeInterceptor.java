@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.HandlerMapping;
 
 import java.util.Set;
 
@@ -78,7 +79,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
 
         if (requiresScope == null && handlerMethod.hasMethodAnnotation(AnyApiKey.class)) {
             if (request.getAttribute(AbstractApiController.API_KEY_ENTITY_ATTRIBUTE) == null) {
-                LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), path);
+                LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), route(request));
                 return refuse(response, "Unauthorized.", ErrorReasons.INVALID_CREDENTIALS);
             }
             return true;
@@ -86,7 +87,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
 
         if (requiresScope == null) {
             LOGGER.error("Refusing {} {}: the handler declares no required scope. Annotate it with @RequiresScope.",
-                    request.getMethod(), path);
+                    request.getMethod(), route(request));
             return refuse(response, "This endpoint is not available.", ErrorReasons.FORBIDDEN);
         }
 
@@ -96,7 +97,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
         if (apiKeyEntity == null) {
             // The authentication filter should already have refused this. Treat a missing key as a
             // refusal rather than assuming the request is authorized.
-            LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), path);
+            LOGGER.warn("Refusing {} {}: no API key on the request.", request.getMethod(), route(request));
             return refuse(response, "Unauthorized.", ErrorReasons.INVALID_CREDENTIALS);
         }
 
@@ -104,7 +105,7 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
 
         if (!apiKeyEntity.hasScope(scope)) {
             LOGGER.warn("Refusing {} {}: the API key does not carry the '{}' scope.",
-                    request.getMethod(), path, scope.getScope());
+                    request.getMethod(), route(request), scope.getScope());
             return refuse(response, "This API key does not have the '" + scope.getScope() + "' scope.", ErrorReasons.MISSING_SCOPE);
         }
 
@@ -116,6 +117,15 @@ public class ApiKeyScopeInterceptor implements HandlerInterceptor {
      * Reads of a public signing key need no key and so no scope. Rotation lives under the same prefix
      * and is not a read, so it is scope-checked like every other write.
      */
+    /**
+     * The route a refusal is logged under: the mapping's pattern, such as {@code /api/contexts/{name}}, not the
+     * path. A path can carry a context, policy, or list name, which is the user's own label and stays out of the log.
+     */
+    private static String route(final HttpServletRequest request) {
+        final Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        return pattern == null ? "(unmapped)" : pattern.toString();
+    }
+
     private static boolean isUnauthenticated(final String path, final String method) {
         return UNAUTHENTICATED_PATHS.contains(path)
                 || ApiAuthenticationFilter.isPublicSigningKeyRead(path, method)

@@ -141,6 +141,7 @@ A test's `error` and a delivery's `lastError` say what kind of failure it was, n
 |-------|---------|
 | `Webhook responded with HTTP <code>` | Your endpoint answered with a status outside `2xx`. |
 | `Delivery to <host> is not permitted by the webhook allowlist.` | The host is not in the administrator's allowlist. See [Where a webhook may point](#where-a-webhook-may-point). |
+| `Webhook delivery to <host> is not permitted by the administrator's allowlist.` | The allowlist changed while the delivery was being made, so the host is no longer in it. |
 | `Webhook delivery to <host> resolved only to addresses that are not permitted.` | The host resolved only to addresses the destination rules refuse. |
 | `The webhook host could not be resolved.` | The host name did not resolve. |
 | `Could not connect to the webhook URL.` | The connection was refused or could not be made. |

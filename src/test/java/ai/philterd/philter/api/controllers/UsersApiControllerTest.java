@@ -84,6 +84,9 @@ class UsersApiControllerTest {
     @Mock private PolicyDataService policyDataService;
     @Mock private ContextDataService contextDataService;
     @Mock private ai.philterd.philter.data.services.AdminSettingsDataService adminSettingsDataService;
+    @Mock private ai.philterd.philter.services.cache.SignInThrottle signInThrottle;
+    @Mock private ai.philterd.philter.services.cache.SignInThrottle.Account signInAccount;
+    @Mock private ai.philterd.philter.audit.AuditEventPublisher auditEventPublisher;
 
     private String callerUserId;
     private String callerApiKeyId;
@@ -99,9 +102,13 @@ class UsersApiControllerTest {
 
         lenient().when(apiKeyCache.containsApiKey(API_KEY_HASH)).thenReturn(true);
         lenient().when(apiKeyCache.get(API_KEY_HASH)).thenAnswer(invocation -> callerKey);
+        lenient().when(signInThrottle.account(org.mockito.ArgumentMatchers.any())).thenReturn(signInAccount);
+        lenient().when(signInThrottle.getMaxFailures()).thenReturn(5);
+        lenient().when(signInAccount.beginAttempt()).thenReturn(1L);
 
         final UsersApiController controller = new UsersApiController(
-                apiKeyDataService, apiKeyCache, userService, policyDataService, contextDataService, adminSettingsDataService);
+                apiKeyDataService, apiKeyCache, userService, policyDataService, contextDataService, adminSettingsDataService,
+                signInThrottle, auditEventPublisher);
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .addInterceptors(new ApiKeyScopeInterceptor())

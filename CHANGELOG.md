@@ -177,8 +177,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   [Delivery errors](docs/docs/api_and_sdks/api/webhooks.md#delivery-errors).
 - **Context names are no longer written to the application log.** Creating a context's stored service, deleting a
   context, and evicting an entry to honor `MAX_CONTEXT_SIZE` logged the context's name, which is the user's own label
-  and can describe whose data it holds. These messages now name only the owner's user ID. The audit log still records
-  context names. See [Redaction Contexts](docs/docs/redaction/contexts.md#managing-contexts).
+  and can describe whose data it holds. These messages now name only the owner's user ID, and a request refused for a
+  missing scope is logged by its route (such as `/api/contexts/{name}`) rather than its path. The audit log still
+  records context names. See [Redaction Contexts](docs/docs/redaction/contexts.md#managing-contexts).
 - **Built filters are cached by a SHA-256 hash of the policy.** Every user's redactions share Phileas's filter
   cache, which was keyed by a 64-bit FNV-1a hash of the policy. That hash is not designed to resist deliberately made
   collisions, so a policy could in principle be written to take another user's key and be filtered with that user's
@@ -191,6 +192,13 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   written back after it expired, reads as absent and Philter uses the database. Philter also warns at startup when a
   cache on another host is used without `CACHE_PASSWORD` or `CACHE_SSL`. Existing cache entries are ignored after
   upgrading. See [Protecting the cache](docs/docs/caching.md#protecting-the-cache).
+- **A wrong current password counts toward sign-in lockout.** `PUT /api/users/me/password` checked the current
+  password without any limit, so a key holding `users:write`, such as a stolen session key, could be used to guess its
+  user's password. A wrong current password now counts as a failed sign-in, a locked user cannot change their password
+  either (`429`, `reason: locked`), and the lock's audit event names the key that made the guesses. See
+  [Users API](docs/docs/api_and_sdks/api/users_api.md#change-your-own-password). The API documentation now also
+  says which limits Philter enforces and recommends per-key limits at a proxy for re-identification and ledger
+  export. See [Rate limiting](docs/docs/api_and_sdks/api.md#rate-limiting).
 - **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
   cached data, and when it was full every username was treated as locked, so one user redacting a document with many
   distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, where no other

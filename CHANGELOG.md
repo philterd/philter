@@ -94,6 +94,12 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   with `400`. Previously any user's policy could send the text being redacted, and the deployment's
   `PHEYE_BEARER_TOKEN`, to a server of its choosing. Requests to these services no longer follow redirects, and
   connecting is bounded at 10 seconds. See [Redaction services](docs/docs/settings.md#redaction-services).
+- **A policy can name only files an administrator allows.** A custom dictionary's `files`, a filter's
+  `ignoredFiles`, the top-level `ignored` `files`, and a `MAP_REPLACE` strategy's `mappingFiles` must be regular
+  files inside `POLICY_FILES_DIRECTORIES` and no larger than `POLICY_FILES_MAX_BYTES` (default 10 MB). Unset, a
+  policy may name no file. A policy naming any other file is refused with `400`. Previously any user's policy could
+  read any file the server could read, and a device such as `/dev/zero` could exhaust its memory. See
+  [Policy files](docs/docs/settings.md#policy-files).
 - **`token !=` conditions apply.** A strategy with a condition such as `token != "127.0.0.1"` was
   never applied before; it now applies to every value other than the one named, ignoring case. Review
   policies that use `token !=`. See [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).

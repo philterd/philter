@@ -280,7 +280,7 @@ Replaces the identified text using a lookup table. Not available to the date, zi
 | Property           | Description                                                                                                                                       | Default  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `mappings`         | An object mapping an identified value to its replacement. Inline entries take precedence over entries loaded from `mappingFiles`.                 | None     |
-| `mappingFiles`     | A list of local file paths. Each file is tab-delimited with one key and replacement per line.                                                    | None     |
+| `mappingFiles`     | A list of local file paths. Each file is tab-delimited with one key and replacement per line. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files). | None     |
 | `caseSensitive`    | Whether lookup keys are matched case-sensitively.                                                                                                 | `false`  |
 | `generator`        | The name of a generator in the policy's top-level `generators` object, called for a value not in the lookup table.                                | None     |
 | `fallbackStrategy` | The strategy applied when the value is not in the lookup table and no generator produces an accepted value. `MAP_REPLACE` is treated as `REDACT`. | `REDACT` |

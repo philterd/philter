@@ -11,7 +11,7 @@ At least one of `terms` or `files` must be provided.
 | Parameter | Description                                    | Default Value |
 | --------- | ---------------------------------------------- | ------------- |
 | `terms`   | A list of terms in the dictionary.             | None          |
-| `files`   | A list of files containing terms one per line. | None          |
+| `files`   | A list of files containing terms one per line. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../../../settings.md#policy-files). | None          |
 
 ### Optional Parameters
 
@@ -55,7 +55,7 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
       "dictionaries": [
          {
             "terms": ["john", "jane", "doe"],
-            "files": ["/tmp/dictionary.txt"],
+            "files": ["/opt/philter/policy-files/dictionary.txt"],
             "fuzzy": true,
             "sensitivity": "medium",
             "customFilterStrategies": [

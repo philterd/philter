@@ -34,7 +34,7 @@ In the policy shown below, an ignore list is set at the level of the policy. The
 }
 ```
 
-Terms to be ignored at the policy level can also be read from one or more files located on the local file system. The file must be formatted as one term per line.
+Terms to be ignored at the policy level can also be read from one or more files located on the local file system. The file must be formatted as one term per line. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files).
 
 ```
 {
@@ -42,7 +42,7 @@ Terms to be ignored at the policy level can also be read from one or more files 
      {
        "name": "names to ignore",
        "terms": ["john smith", "jane doe"],
-       "files": ["/tmp/names.txt"],
+       "files": ["/opt/philter/policy-files/names.txt"],
        "caseSensitive": false
      }
    ],   

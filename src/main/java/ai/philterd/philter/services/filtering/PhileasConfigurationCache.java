@@ -50,6 +50,9 @@ final class PhileasConfigurationCache {
 
         // The single switch for the span-disambiguation engine.
         properties.put("span.disambiguation.enabled", Boolean.toString(spanDisambiguationEnabled));
+        // A policy may name only files in POLICY_FILES_DIRECTORIES, and no file when it is unset. Checked at startup
+        // by PolicyFilesConfig.
+        PolicyFilesSettings.fromEnvironment(System::getenv).applyTo(properties);
 
         return new PhileasConfiguration(properties);
 

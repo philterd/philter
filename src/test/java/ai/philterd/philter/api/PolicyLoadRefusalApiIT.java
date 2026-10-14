@@ -81,7 +81,13 @@ class PolicyLoadRefusalApiIT {
                     "A policy cannot set a PhEye bearerToken."},
             "generator", new String[]{"{\"generators\":{\"names\":{\"type\":\"OLLAMA\",\"endpoint\":\"http://127.0.0.1:9\",\"model\":\"m\"}},"
                     + "\"identifiers\":{\"ssn\":{}}}",
-                    "The endpoint of generator 'names' is not one this deployment allows."});
+                    "The endpoint of generator 'names' is not one this deployment allows."},
+            // With POLICY_FILES_DIRECTORIES unset, as here, a policy may name no file.
+            "dictionary-file", new String[]{"{\"identifiers\":{\"dictionaries\":[{\"files\":[\"/etc/hosts\"]}]}}",
+                    "named by identifiers.dictionaries[0].files cannot be read"},
+            "mapping-file", new String[]{"{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"MAP_REPLACE\","
+                    + "\"mappingFiles\":[\"/etc/hosts\"]}]}}}",
+                    "named by identifiers.ssn.ssnFilterStrategies[0].mappingFiles cannot be read"});
 
     @Autowired private Environment environment;
     @Autowired private UserService userService;

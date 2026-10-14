@@ -154,7 +154,7 @@ Every filter accepts the following properties in addition to its strategies list
 |----------|------|---------|-------------|
 | `enabled` | boolean | `true` | Whether this filter is active. |
 | `ignored` | array of strings | | Specific values this filter should ignore. |
-| `ignoredFiles` | array of strings | | Paths to files of values to ignore (one per line). |
+| `ignoredFiles` | array of strings | | Paths to files of values to ignore (one per line). A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files). |
 | `ignoredPatterns` | array | | Regex patterns whose matches this filter ignores. |
 | `windowSize` | integer | | Number of surrounding tokens to consider as context. |
 | `priority` | integer | | Priority relative to other filters. When spans overlap, the longer span wins, then the higher confidence, then the higher priority. |
@@ -189,7 +189,7 @@ Many filters accept properties of their own, besides their strategies list and t
 |----------|------|---------|-------------|
 | `classification` | string | | Classification label assigned to matches. |
 | `terms` | array of strings | | Terms to detect. |
-| `files` | array of strings | | Paths to files of terms to detect. |
+| `files` | array of strings | | Paths to files of terms to detect. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files). |
 | `fuzzy` | boolean | `false` | Enable approximate matching. |
 | `sensitivity` | string | `medium` | Fuzzy-match strictness: `auto`, `off`, `low`, `medium`, `high`. Applies only when `fuzzy` is `true`. The bundled schema lists a default of `off`; the engine's default is `medium`. |
 | `capitalized` | boolean | `false` | Only report a match whose first letter is uppercase. Applies only when `fuzzy` is `true`; with exact matching it has no effect. |
@@ -253,7 +253,7 @@ A filter strategy determines the transformation applied to each match. A filter'
 | `anonymizationMethod` | string | `REALISTIC` | Method for `RANDOM_REPLACE`: `REALISTIC`, `FROM_LIST`, or `UUID`. |
 | `anonymizationCandidates` | array of strings | | Candidate values for the `FROM_LIST` method. |
 | `mappings` | object | | `MAP_REPLACE` lookup table of value to replacement. Takes precedence over `mappingFiles`. |
-| `mappingFiles` | array of strings | | `MAP_REPLACE` tab-delimited files of value and replacement, one pair per line. |
+| `mappingFiles` | array of strings | | `MAP_REPLACE` tab-delimited files of value and replacement, one pair per line. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files). |
 | `caseSensitive` | boolean | `false` | Whether `MAP_REPLACE` lookup keys are matched case-sensitively. |
 | `generator` | string | | Name of a top-level generator `MAP_REPLACE` calls for a value not in the lookup table. |
 | `fallbackStrategy` | string | `REDACT` | Strategy `MAP_REPLACE` applies when no mapping or accepted generated value exists. |
@@ -320,7 +320,7 @@ Top-level lists that apply across all filters.
 |----------|------|---------|-------------|
 | `name` | string | | Name of the ignore list. |
 | `terms` | array of strings | | Terms to ignore. |
-| `files` | array of strings | | Paths to files of terms to ignore. |
+| `files` | array of strings | | Paths to files of terms to ignore. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files). |
 | `caseSensitive` | boolean | `false` | Whether matching is case-sensitive. |
 
 **`ignoredPatterns`** is an array of named regex patterns:
@@ -356,7 +356,7 @@ Fixed bounding-box redaction for images and PDFs.
 | `page` | integer | `1` | Page number (1-based) for PDFs. |
 | `enabled` | boolean | `true` | Whether this box is active. |
 | `ignored` | array of strings | | Specific values to ignore. |
-| `ignoredFiles` | array of strings | | Paths to files of values to ignore. |
+| `ignoredFiles` | array of strings | | Paths to files of values to ignore. A path must be inside a directory in `POLICY_FILES_DIRECTORIES`; see [Policy files](../settings.md#policy-files). |
 | `ignoredPatterns` | array | | Regex patterns whose matches are ignored. |
 | `windowSize` | integer | | Context window size. |
 | `priority` | integer | | Priority relative to other filters. |

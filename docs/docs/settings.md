@@ -235,11 +235,30 @@ These bound the per-context storage so it does not grow without limit. See [Cont
 | `PHEYE_ALLOWED_ENDPOINTS` | Other ph-eye endpoints a policy may name, separated by commas. A trailing slash is ignored. A policy naming any endpoint other than these and `PHEYE_ENDPOINT` is refused. See [Redaction services](#redaction-services). | (none) |
 | `PHEYE_ALLOWED_MODEL_PATHS` | Local GLiNER model directories a policy's ph-eye `modelPath` may name, separated by commas. A policy naming any other path is refused. | (none) |
 | `GENERATOR_ALLOWED_ENDPOINTS` | Endpoints a policy's [replacement generators](policies/filter_strategies.md#the-map_replace-filter-strategy) may name, separated by commas. A trailing slash is ignored. A policy naming any other endpoint is refused. | (none) |
+| `POLICY_FILES_DIRECTORIES` | Directories, separated by commas, that the files a policy names must be inside. Unset, a policy may name no file. Each must exist and be a directory, and cannot be the filesystem root, or Philter refuses to start. See [Policy files](#policy-files). | (none) |
+| `POLICY_FILES_MAX_BYTES` | The largest file, in bytes, a policy may name. Must be a positive number, or Philter refuses to start. | `10485760` (10 MB) |
 | `PHEYE_TIMEOUT` | Connection-request and response timeout, in seconds, for calls to ph-eye, used when the policy sets none. | `600` |
 
 ### Redaction services
 
 Any user can write a policy, so the services and files a policy reaches are the operator's decision, not the policy author's. A policy is refused, when it is saved and before a redaction or asynchronous submission uses it, if it names a ph-eye `endpoint` other than `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, sets a ph-eye `bearerToken`, names a `modelPath` not in `PHEYE_ALLOWED_MODEL_PATHS`, or names a generator `endpoint` not in `GENERATOR_ALLOWED_ENDPOINTS`. Without this, a policy could send the text being redacted, or the deployment's ph-eye token, to a server of its author's choosing. Philter does not follow redirects from these services, so an allowed endpoint cannot redirect a request elsewhere.
+
+### Policy files
+
+A policy can name files of terms and replacements: a custom dictionary's `files`, a filter's `ignoredFiles`, the top-level `ignored` `files`, and a `MAP_REPLACE` strategy's `mappingFiles`. A file must be a regular file inside one of the directories in `POLICY_FILES_DIRECTORIES`, after symbolic links and `..` are resolved, and no larger than `POLICY_FILES_MAX_BYTES`. With `POLICY_FILES_DIRECTORIES` unset, the default, a policy may name no file. A policy naming any other file is refused with `400 Bad Request` when it is saved, and before a redaction or asynchronous submission uses it. The message is the same whether the file is missing, outside these directories, or not a regular file.
+
+**Put only shared reference data in these directories.** The restriction is per deployment, not per user: anyone who can write a policy can use any file in them. A dictionary turns a file's lines into terms whose presence a redaction reveals, and `MAP_REPLACE` returns a mapping file's values outright. Never put secrets or one user's private data there. For terms that belong to one user, use [custom lists](redaction/custom_lists.md), which are stored per user and encrypted.
+
+In Docker, mount a directory, read-only, and name it:
+
+```yaml
+services:
+  philter:
+    environment:
+      POLICY_FILES_DIRECTORIES: /opt/philter/policy-files
+    volumes:
+      - ./policy-files:/opt/philter/policy-files:ro
+```
 
 ## Output Signing
 

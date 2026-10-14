@@ -88,10 +88,12 @@ public class PiiCountsApiController extends AbstractApiController {
 
     @Operation(summary = "List the recorded PII counts.",
             description = "Returns the PII type counts Philter records when the diffuseCountsEnabled setting is on, "
-                    + "for Philter Diffuse to privatize: one entry per context and UTC day, giving for each PII type "
-                    + "how many redactions found at least one of it, and how many found any PII. Only counts, never "
-                    + "any PII. Most recent day first, then by context, paginated. Narrow by day with from and to "
-                    + "(YYYY-MM-DD, UTC, both inclusive) and by context with context. recordingEnabled says whether "
+                    + "for Philter Diffuse to privatize: one entry per user's context and UTC day, with a stable id, giving "
+                    + "for each PII type how many redactions found at least one of it, and how many found any PII. Only "
+                    + "counts, never any PII. Most recent day first, paginated. Another user's context name and username "
+                    + "are returned only with ADMIN_CROSS_USER_ACCESS_ENABLED; their counts always are. Narrow by day "
+                    + "with from and to (YYYY-MM-DD, UTC, both inclusive), by context name with context (only the "
+                    + "caller's own without cross-user access), and by username with owner. recordingEnabled says whether "
                     + "counts are being recorded now, so an empty listing can be told apart from recording being "
                     + "off; counts recorded before it was turned off are still returned. Each read is audited. The "
                     + "counts cover the whole deployment, so this requires an administrator as well as the "
@@ -106,7 +108,9 @@ public class PiiCountsApiController extends AbstractApiController {
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The key does not hold pii-counts:read, or the caller is not an administrator.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "owner names no user, or another user without ADMIN_CROSS_USER_ACCESS_ENABLED.",
+                    content = @Content)
     })
     @RequiresScope(ApiKeyScope.PII_COUNTS_READ)
     @RequestMapping(value = "/api/pii-counts", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)

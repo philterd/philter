@@ -288,7 +288,10 @@ public abstract class StoredAdminSettingsDataService implements AdminSettingsDat
         }
 
         if (stored.key() == null || stored.key().isEmpty()) {
-            return stored.ciphertext();
+            // Written without its data key, so never encrypted: not used, as a key that cannot be decrypted is not.
+            LOGGER.warn("The stored Phield API key has no encryption key, so it is treated as unset. Re-enter it with "
+                    + "PATCH /api/settings if the Phield instance requires one.");
+            return "";
         }
 
         try {

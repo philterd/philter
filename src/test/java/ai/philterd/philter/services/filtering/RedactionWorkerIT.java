@@ -120,14 +120,31 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final String user = MongoIds.newId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenThrow(new RuntimeException("boom"));
+        // An internal failure's message names internal detail, such as the model service's host and port.
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Connect to http://ph-eye.internal:5000 failed: Connection refused"));
 
         worker.poll();
 
         final PendingDocumentEntity failed = pendingDocumentDataService.findOneByDocumentIdAndUserId("doc-1", user);
         assertEquals(PendingDocumentEntity.STATUS_FAILED, failed.getStatus());
-        assertEquals("boom", failed.getErrorMessage());
+        assertEquals(RedactionWorker.GENERIC_FAILURE, failed.getErrorMessage());
         assertNull(failed.getInput(), "input must be cleared once failed");
+    }
+
+    @Test
+    void aFailureTheCallerCanActOnKeepsItsMessage() throws Exception {
+        final String user = MongoIds.newId();
+        pendingDocumentDataService.save(newPending(user, "doc-1"));
+
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new ai.philterd.philter.services.policies.PolicyResolutionException("Context does not exist."));
+
+        worker.poll();
+
+        final PendingDocumentEntity failed = pendingDocumentDataService.findOneByDocumentIdAndUserId("doc-1", user);
+        assertEquals(PendingDocumentEntity.STATUS_FAILED, failed.getStatus());
+        assertEquals("Context does not exist.", failed.getErrorMessage());
     }
 
     @Test

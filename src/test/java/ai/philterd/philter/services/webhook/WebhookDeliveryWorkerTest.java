@@ -85,14 +85,16 @@ class WebhookDeliveryWorkerTest {
         final WebhookDeliveryEntity delivery = delivery("https://example.com/hook");
 
         when(webhookDeliveryDataService.claimNextDue(any())).thenReturn(delivery, (WebhookDeliveryEntity) null);
-        doThrow(new RuntimeException("connection refused")).when(webhookService).deliver(delivery);
-        when(webhookDeliveryDataService.rescheduleOrFail(delivery.getId(), delivery.getClaimToken(), 1, "connection refused"))
+        // The client's own message names the address it reached; the stored error does not.
+        doThrow(new java.net.ConnectException("Connect to http://10.0.0.5:8080 [/10.0.0.5] failed: Connection refused"))
+                .when(webhookService).deliver(delivery);
+        when(webhookDeliveryDataService.rescheduleOrFail(delivery.getId(), delivery.getClaimToken(), 1, WebhookFailures.NOT_CONNECTED))
                 .thenReturn(true);
 
         worker.poll();
 
         verify(webhookDeliveryDataService, never()).markDelivered(any(), any());
-        verify(webhookDeliveryDataService).rescheduleOrFail(eq(delivery.getId()), eq(delivery.getClaimToken()), eq(1), eq("connection refused"));
+        verify(webhookDeliveryDataService).rescheduleOrFail(eq(delivery.getId()), eq(delivery.getClaimToken()), eq(1), eq(WebhookFailures.NOT_CONNECTED));
     }
 
     @Test

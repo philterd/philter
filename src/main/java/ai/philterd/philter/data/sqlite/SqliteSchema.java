@@ -118,7 +118,6 @@ final class SqliteSchema {
                 created_timestamp INTEGER,
                 revision INTEGER NOT NULL DEFAULT 0,
                 last_updated_timestamp INTEGER,
-                shared INTEGER NOT NULL DEFAULT 0,
                 notes TEXT,
                 notes_key TEXT,
                 description TEXT,

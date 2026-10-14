@@ -62,9 +62,6 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
         // User policies are listed/looked up by (user_id, name); managed policies by (managed, name).
         records.ensureIndex(Indexes.ascending("user_id", "name"), new IndexOptions().unique(true));
         records.ensureIndex(Indexes.ascending("managed", "name"));
-        // Listing a user's policies also matches shared policies via an OR branch on shared=true, so
-        // index shared so that branch uses an index instead of scanning the collection.
-        records.ensureIndex(Indexes.ascending("shared", "name"));
     }
 
     @Override
@@ -168,14 +165,13 @@ public class MongoPolicyDataService extends StoredPolicyDataService {
 
     @Override
     public PolicyEntity findOneById(final String id, final String userId) {
-        return first(Filters.and(Filters.eq("_id", MongoIds.objectId(id)),
-                Filters.or(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("shared", true))));
+        return first(Filters.and(Filters.eq("_id", MongoIds.objectId(id)), Filters.eq("user_id", MongoIds.objectId(userId))));
     }
 
     @Override
     public Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort,
                                                final int offset, final int limit) {
-        return MongoListings.page(collection, MongoListings.all(Filters.or(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("shared", true)),
+        return MongoListings.page(collection, MongoListings.all(Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.ne("managed", true), MongoListings.contains("name", q)), sort, offset, limit, this::fromDocument);
     }
 

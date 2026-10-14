@@ -25,7 +25,6 @@ public class PolicyEntity extends AbstractEntity {
     private Date createdTimestamp;
     private int revision;
     private Date lastUpdatedTimestamp;
-    private boolean shared;
     private String notes;
     private String description;
     private boolean managed;
@@ -102,14 +101,6 @@ public class PolicyEntity extends AbstractEntity {
 
     public void setLastUpdatedTimestamp(Date lastUpdatedTimestamp) {
         this.lastUpdatedTimestamp = lastUpdatedTimestamp;
-    }
-
-    public boolean isShared() {
-        return shared;
-    }
-
-    public void setShared(boolean shared) {
-        this.shared = shared;
     }
 
     public String getNotes() {

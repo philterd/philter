@@ -231,7 +231,6 @@ public abstract class StoredUserService implements UserService {
         policyEntity.setCreatedTimestamp(new Date());
         policyEntity.setLastUpdatedTimestamp(new Date());
         policyEntity.setRevision(0);
-        policyEntity.setShared(false);
         policyEntity.setManaged(false);
         policyEntity.setDescription("Default policy");
         policyEntity.setNotes("Default policy for new users that can be modified or used as an example.");

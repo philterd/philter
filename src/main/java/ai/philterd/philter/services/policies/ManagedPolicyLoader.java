@@ -93,7 +93,6 @@ public class ManagedPolicyLoader {
                 policyEntity.setCreatedTimestamp(new Date());
                 policyEntity.setLastUpdatedTimestamp(new Date());
                 policyEntity.setRevision(1);
-                policyEntity.setShared(false);
 
                 managedPolicies.add(policyEntity);
 

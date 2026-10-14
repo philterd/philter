@@ -160,12 +160,12 @@ class AdminSettingsDataServiceIT extends AbstractMongoIT {
     }
 
     @Test
-    void aPhieldApiKeyWrittenBeforeEncryptionIsStillReadable() {
-        // Defensive: a value with no accompanying data key is plaintext from an earlier build.
+    void aPhieldApiKeyStoredWithoutItsDataKeyIsNotUsed() {
+        // A value with no accompanying data key was never encrypted, so it is treated as unset, not used.
         mongoClient.getDatabase("philter").getCollection("admin_settings")
-                .insertOne(new Document("phield_api_key", "legacy-key"));
+                .insertOne(new Document("phield_api_key", "plaintext-key"));
 
-        assertEquals("legacy-key", service.findAdminSettings().getPhieldApiKey());
+        assertEquals("", service.findAdminSettings().getPhieldApiKey());
     }
 
     @Test

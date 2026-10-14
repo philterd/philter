@@ -254,7 +254,6 @@ public final class MongoImport implements AutoCloseable {
                 .append("created_timestamp", date(row, "created_timestamp"))
                 .append("revision", int32(row, "revision"))
                 .append("last_updated_timestamp", date(row, "last_updated_timestamp"))
-                .append("shared", bool(row, "shared"))
                 .append("notes", text(row, "notes"))
                 .append("notes_key", text(row, "notes_key"))
                 .append("description", text(row, "description"))

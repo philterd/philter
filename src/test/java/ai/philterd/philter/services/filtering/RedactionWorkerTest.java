@@ -128,7 +128,7 @@ class RedactionWorkerTest {
 
         worker.poll();
 
-        verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), eq("boom"));
+        verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), eq(RedactionWorker.GENERIC_FAILURE));
         verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
     }
 
@@ -231,8 +231,8 @@ class RedactionWorkerTest {
         job.setPolicyContentHash("missing-snapshot");
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
         worker.poll();
-        verify(pendingDocumentDataService).markFailed(job.getId(), job.getClaimToken(),
-                "Pinned policy snapshot is missing: missing-snapshot");
+        // The snapshot hash is internal, so it goes to the log and not to the job's status.
+        verify(pendingDocumentDataService).markFailed(job.getId(), job.getClaimToken(), RedactionWorker.GENERIC_FAILURE);
         org.mockito.Mockito.verifyNoInteractions(redactionService);
         verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
     }

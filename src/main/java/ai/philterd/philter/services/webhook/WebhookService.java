@@ -67,8 +67,8 @@ public class WebhookService {
             return new TestResult(delivered, code, delivered ? null : "Webhook responded with HTTP " + code,
                     elapsedMillis(started));
         } catch (final Exception e) {
-            final String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            return new TestResult(false, null, message, elapsedMillis(started));
+            LOGGER.warn("Webhook test delivery {} to {} failed: {}", deliveryId, url, e.toString());
+            return new TestResult(false, null, WebhookFailures.describe(e), elapsedMillis(started));
         }
 
     }

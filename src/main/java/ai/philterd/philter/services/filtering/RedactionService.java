@@ -340,7 +340,7 @@ public class RedactionService {
                 final String eventId = UUID.randomUUID().toString();
                 final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
 
-                throw new Exception(errorMessage);
+                throw new ai.philterd.philter.services.policies.PolicyResolutionException(errorMessage);
 
             }
 

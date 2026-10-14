@@ -84,7 +84,7 @@ Requires `webhooks:write`. Sends one `WEBHOOK_TEST` event to the webhook now, si
 
 * `delivered` - Whether your endpoint answered with a `2xx` status.
 * `statusCode` - The status your endpoint answered with, or `null` when there was no answer: the connection failed or timed out, or the destination is not permitted.
-* `error` - Why the test was not delivered, or `null`.
+* `error` - Why the test was not delivered, or `null`. See [Delivery errors](#delivery-errors).
 * `durationMillis` - How long the attempt took.
 * `deliveryId` - The event's `X-Philter-Delivery-Id`, to find it in your endpoint's logs.
 
@@ -129,9 +129,25 @@ Requires `webhooks:read`. Lists your deliveries, newest first, and the total, so
 
 * `id` - The delivery's id, sent as `X-Philter-Delivery-Id` with every attempt.
 * `status` - `PENDING` (waiting for its next attempt), `PROCESSING` (being sent), `DELIVERED`, or `FAILED` (every attempt failed). See [Retry behavior](#retry-behavior).
-* `attempts` and `lastError` - How many attempts have been made, and why the latest one failed.
+* `attempts` and `lastError` - How many attempts have been made, and why the latest one failed. See [Delivery errors](#delivery-errors).
 * `nextAttemptAt` - When a `PENDING` delivery is next attempted.
 * `url` - Where the delivery is sent: the webhook URL when the event was queued.
+
+### Delivery errors
+
+A test's `error` and a delivery's `lastError` say what kind of failure it was, not the HTTP client's own message, which can name the addresses and ports a host resolved to. Philter logs the full error with the delivery's id.
+
+| Error | Meaning |
+|-------|---------|
+| `Webhook responded with HTTP <code>` | Your endpoint answered with a status outside `2xx`. |
+| `Delivery to <host> is not permitted by the webhook allowlist.` | The host is not in the administrator's allowlist. See [Where a webhook may point](#where-a-webhook-may-point). |
+| `Webhook delivery to <host> resolved only to addresses that are not permitted.` | The host resolved only to addresses the destination rules refuse. |
+| `The webhook host could not be resolved.` | The host name did not resolve. |
+| `Could not connect to the webhook URL.` | The connection was refused or could not be made. |
+| `The webhook URL did not respond in time.` | Connecting or waiting for the response took longer than the configured timeouts. |
+| `The TLS connection to the webhook URL failed.` | The TLS handshake failed, for example because the certificate is not trusted. |
+| `The webhook URL closed the connection without a response.` | Your endpoint closed the connection before answering. |
+| `The webhook could not be delivered.` | Any other failure. |
 
 The secret and the event body are not returned. A delivery that is `DELIVERED` or `FAILED` is kept for `WEBHOOK_DELIVERIES_TTL_SECONDS` (default 30 days) and then removed.
 
@@ -173,7 +189,7 @@ X-Philter-Signature: sha256=2c1d9...e7f0
 }
 ```
 
-For `DOCUMENT_REDACTION_FAILED` deliveries, the payload additionally carries an `error` field with the failure message.
+For `DOCUMENT_REDACTION_FAILED` deliveries, the payload additionally carries an `error` field with the same message as the document's [status](documents_api.md): a failure you can act on keeps its message, and any other failure is reported generically.
 
 ### Headers
 

@@ -59,7 +59,6 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
         policy.setCreatedTimestamp(row.date("created_timestamp"));
         policy.setRevision(row.intValue("revision"));
         policy.setLastUpdatedTimestamp(row.date("last_updated_timestamp"));
-        policy.setShared(row.bool("shared"));
         policy.setNotes(SecretFields.open(encryptionService, row.string("notes"), row.string("notes_key")));
         policy.setDescription(SecretFields.open(encryptionService, row.string("description"), row.string("description_key")));
         policy.setDetailsRevision(row.intValue("details_revision"));
@@ -99,10 +98,10 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
         final SecretFields.Sealed notes = seal(policy.getNotes(), policy);
         final SecretFields.Sealed description = seal(policy.getDescription(), policy);
         database.write(connection -> Sql.update(connection, "INSERT INTO policies (id, user_id, name, policy, policy_key, "
-                + "created_timestamp, revision, last_updated_timestamp, shared, notes, notes_key, description, description_key, "
-                + "details_revision, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                + "created_timestamp, revision, last_updated_timestamp, notes, notes_key, description, description_key, "
+                + "details_revision, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 id, policy.getUserId(), policy.getName(), ciphertext(json), key(json), policy.getCreatedTimestamp(),
-                policy.getRevision(), policy.getLastUpdatedTimestamp(), policy.isShared(), ciphertext(notes), key(notes),
+                policy.getRevision(), policy.getLastUpdatedTimestamp(), ciphertext(notes), key(notes),
                 ciphertext(description), key(description), policy.getDetailsRevision(), policy.isManaged()));
         return id;
     }
@@ -113,11 +112,11 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
         final SecretFields.Sealed description = seal(policy.getDescription(), policy);
         final List<Object> params = new ArrayList<>(java.util.Arrays.asList(policy.getUserId(), policy.getName(),
                 ciphertext(json), key(json), policy.getCreatedTimestamp(), policy.getRevision(), policy.getLastUpdatedTimestamp(),
-                policy.isShared(), ciphertext(notes), key(notes), ciphertext(description), key(description),
+                ciphertext(notes), key(notes), ciphertext(description), key(description),
                 policy.getDetailsRevision(), policy.isManaged(), policy.getId()));
         params.addAll(java.util.Arrays.asList(conditionValues));
         return database.write(connection -> Sql.update(connection, "UPDATE policies SET user_id = ?, name = ?, policy = ?, "
-                + "policy_key = ?, created_timestamp = ?, revision = ?, last_updated_timestamp = ?, shared = ?, notes = ?, "
+                + "policy_key = ?, created_timestamp = ?, revision = ?, last_updated_timestamp = ?, notes = ?, "
                 + "notes_key = ?, description = ?, description_key = ?, details_revision = ?, managed = ? WHERE id = ?"
                 + condition, params.toArray())) == 1;
     }
@@ -191,7 +190,7 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
     @Override
     public PolicyEntity findOneById(final String id, final String userId) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policies WHERE id = ? AND "
-                + "(user_id = ? OR shared = 1)", this::read, id, userId));
+                + "user_id = ?", this::read, id, userId));
     }
 
     private Listings.Page<PolicyEntity> page(final String condition, final List<Object> params, final String q,
@@ -204,7 +203,7 @@ public class SqlitePolicyDataService extends StoredPolicyDataService {
     @Override
     public Listings.Page<PolicyEntity> listOwn(final String userId, final String q, final Listings.Sort sort, final int offset,
                                                final int limit) {
-        return page("(user_id = ? OR shared = 1) AND managed = 0", new ArrayList<>(List.of(userId)), q, sort, offset, limit);
+        return page("user_id = ? AND managed = 0", new ArrayList<>(List.of(userId)), q, sort, offset, limit);
     }
 
     @Override

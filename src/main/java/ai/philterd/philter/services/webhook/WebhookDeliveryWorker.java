@@ -63,9 +63,10 @@ public class WebhookDeliveryWorker {
                 LOGGER.info("Ignoring delivery result for webhook {}: its claim is no longer current.", delivery.getId());
             }
         } catch (Exception ex) {
-            final String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+            // The full exception goes to the log; the stored error the user sees is only its kind.
+            final String message = WebhookFailures.describe(ex);
             LOGGER.warn("Webhook delivery {} to {} failed on attempt {}: {}",
-                    delivery.getId(), delivery.getUrl(), delivery.getAttempts(), message);
+                    delivery.getId(), delivery.getUrl(), delivery.getAttempts(), ex.toString());
             if (!webhookDeliveryDataService.rescheduleOrFail(delivery.getId(), delivery.getClaimToken(), delivery.getAttempts(), message)) {
                 LOGGER.info("Ignoring failed attempt for webhook {}: its claim is no longer current.", delivery.getId());
             }

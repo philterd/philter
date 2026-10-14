@@ -168,6 +168,13 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   now recorded per user's context and day; each entry has a stable `id`, and another user's context name and username
   are returned only with `ADMIN_CROSS_USER_ACCESS_ENABLED`, while their counts still are. An `owner` filter was
   added. See [PII Counts API](docs/docs/api_and_sdks/api/pii_counts_api.md).
+- **Failure messages no longer reveal internal details.** A failed document's `error` and its
+  `DOCUMENT_REDACTION_FAILED` webhook carried the raw exception message, which could name the model service's host and
+  port or a policy snapshot hash; webhook test results and delivery errors carried the HTTP client's message, with the
+  addresses a host resolved to. A failure the caller can act on keeps its message, and any other is now reported
+  generically or by its kind, with the full error in Philter's log. See
+  [Documents API](docs/docs/api_and_sdks/api/documents_api.md) and
+  [Delivery errors](docs/docs/api_and_sdks/api/webhooks.md#delivery-errors).
 - **Filling the cache can no longer lock everyone out of sign-in.** Sign-in counts shared the in-memory cache with
   cached data, and when it was full every username was treated as locked, so one user redacting a document with many
   distinct values could lock all sign-ins. An account's failures and lock are now stored with the user, where no other

@@ -47,7 +47,7 @@ public final class WebhookDnsResolver implements DnsResolver {
         final WebhookDestinationPolicy policy = policy();
 
         if (!policy.isHostAllowed(host)) {
-            throw new UnknownHostException("Webhook delivery to " + host + " is not permitted by the administrator's allowlist.");
+            throw new WebhookDestinationRefusedException("Webhook delivery to " + host + " is not permitted by the administrator's allowlist.");
         }
 
         final List<InetAddress> permitted = new ArrayList<>();
@@ -62,7 +62,7 @@ public final class WebhookDnsResolver implements DnsResolver {
         }
 
         if (permitted.isEmpty()) {
-            throw new UnknownHostException("Webhook delivery to " + host + " resolved only to addresses that are not permitted.");
+            throw new WebhookDestinationRefusedException("Webhook delivery to " + host + " resolved only to addresses that are not permitted.");
         }
 
         return permitted.toArray(new InetAddress[0]);

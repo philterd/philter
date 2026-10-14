@@ -36,7 +36,6 @@ public final class PolicyDocuments {
         policyEntity.setCreatedTimestamp(document.getDate("created_timestamp"));
         policyEntity.setRevision(document.getInteger("revision", 0));
         policyEntity.setLastUpdatedTimestamp(document.getDate("last_updated_timestamp"));
-        policyEntity.setShared(document.getBoolean("shared", false));
         policyEntity.setNotes(SecretFields.open(encryptionService, document.getString("notes"), document.getString("notes_key")));
         policyEntity.setDescription(SecretFields.open(encryptionService, document.getString("description"),
                 document.getString("description_key")));
@@ -56,7 +55,6 @@ public final class PolicyDocuments {
         document.put("created_timestamp", entity.getCreatedTimestamp());
         document.put("revision", entity.getRevision());
         document.put("last_updated_timestamp", entity.getLastUpdatedTimestamp());
-        document.put("shared", entity.isShared());
         putSealed(document, "notes", "notes_key", SecretFields.seal(encryptionService, entity.getNotes(), entity.getUserId()));
         putSealed(document, "description", "description_key",
                 SecretFields.seal(encryptionService, entity.getDescription(), entity.getUserId()));

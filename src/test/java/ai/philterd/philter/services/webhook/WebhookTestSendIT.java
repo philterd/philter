@@ -164,7 +164,21 @@ class WebhookTestSendIT {
 
         assertFalse(result.delivered());
         assertNull(result.statusCode());
-        assertNotNull(result.error());
+        // Only the kind of failure, not the client's message naming the address and port it tried.
+        assertEquals(WebhookFailures.NOT_CONNECTED, result.error());
+
+    }
+
+    @Test
+    @DisplayName("A host that does not resolve is reported without the resolver's message")
+    void reportsAnUnresolvableHost() throws Exception {
+
+        // .invalid never resolves (RFC 6761), so this needs no network.
+        final WebhookService.TestResult result = send("hooks.philter-test.invalid", "http://hooks.philter-test.invalid/hook");
+
+        assertFalse(result.delivered());
+        assertNull(result.statusCode());
+        assertEquals(WebhookFailures.UNRESOLVED, result.error());
 
     }
 

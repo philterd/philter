@@ -26,6 +26,8 @@ import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
+import ai.philterd.philter.services.policies.PolicyNotFoundException;
+import ai.philterd.philter.services.policies.PolicyResolutionException;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +45,8 @@ import java.util.concurrent.TimeUnit;
 public class RedactionWorker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedactionWorker.class);
+
+    static final String GENERIC_FAILURE = "The redaction failed. An administrator can find the cause in Philter's log by the document ID.";
 
 
     private final PendingDocumentDataService pendingDocumentDataService;
@@ -188,7 +192,7 @@ public class RedactionWorker {
 
         } catch (Exception ex) {
             LOGGER.error("Redaction failed for document {}", job.getDocumentId(), ex);
-            if (!pendingDocumentDataService.markFailed(job.getId(), job.getClaimToken(), ex.getMessage())) {
+            if (!pendingDocumentDataService.markFailed(job.getId(), job.getClaimToken(), failureMessage(ex))) {
                 LOGGER.warn("Discarding stale failure for document {}", job.getDocumentId());
                 return;
             }
@@ -203,6 +207,18 @@ public class RedactionWorker {
 
     }
 
+
+    /**
+     * What a failed job's status and webhook say. A refusal the caller can act on keeps its message; any other
+     * failure is internal (a document library error, an unreachable model service naming its host) and is
+     * described only in the log, which records it with the document ID.
+     */
+    static String failureMessage(final Exception ex) {
+        if (ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException) {
+            return ex.getMessage();
+        }
+        return GENERIC_FAILURE;
+    }
 
     @Scheduled(fixedDelayString = "${philter.worker.notification-interval-ms:5000}")
     public void reconcileNotifications() {

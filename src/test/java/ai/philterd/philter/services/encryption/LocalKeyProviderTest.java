@@ -79,13 +79,12 @@ public class LocalKeyProviderTest {
     }
 
     @Test
-    public void preReleaseKeysStillRead() {
+    public void aKeyThatIsNotWrappedIsRefused() {
 
-        // Records written before the wrapping fix stored the key itself. They must stay readable so an
-        // existing development database keeps working; nothing writes this form any more.
-        final String legacy = validKey();
-
-        assertEquals(legacy, new LocalKeyProvider(validKey()).decryptKey(legacy));
+        // A data key stored as itself was never protected by the master key, so it must not open a record.
+        final LocalKeyProvider provider = new LocalKeyProvider(validKey());
+        assertThrows(IllegalStateException.class, () -> provider.decryptKey(validKey()));
+        assertThrows(IllegalStateException.class, () -> provider.decryptKey(null));
 
     }
 

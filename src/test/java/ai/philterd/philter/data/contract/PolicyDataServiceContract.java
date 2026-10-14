@@ -63,6 +63,17 @@ public interface PolicyDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void policyAnotherUsersPolicyIsNeitherFoundNorListed() {
+        final String owner = RecordIds.newId();
+        final String other = RecordIds.newId();
+        final PolicyEntity created = createPolicy(owner, "private", POLICY_A);
+        assertNull(storage().policies().findOneById(created.getId(), other));
+        assertNull(storage().policies().findOne("private", other));
+        assertEquals(0, storage().policies().listOwn(other, null, new Listings.Sort("name", false), 0, 10).total());
+        assertEquals(created.getId(), storage().policies().findOneById(created.getId(), owner).getId());
+    }
+
+    @Test
     default void policyNamesAreUniquePerUser() {
         final String owner = RecordIds.newId();
         createPolicy(owner, "claims", POLICY_A);

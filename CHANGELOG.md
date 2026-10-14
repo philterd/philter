@@ -91,6 +91,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   returns `400 Bad Request` with Phileas's reason, which never repeats a condition's text. Previously such a
   policy was saved and every redaction with it failed with `500`. See
   [Filter Strategy Conditions](docs/docs/policies/filter_strategies.md#filter-strategy-conditions).
+- **A context that does not exist is refused with `400`** (`Context does not exist.`) by synchronous `/api/filter`
+  and `/api/explain`, as asynchronous submission already refused it. Previously they returned `500`.
 - **A policy cannot direct Philter's requests or credentials.** A policy that names a ph-eye `endpoint` other than
   `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, sets a ph-eye `bearerToken`, names a `modelPath` not in
   `PHEYE_ALLOWED_MODEL_PATHS`, or names a generator `endpoint` not in `GENERATOR_ALLOWED_ENDPOINTS` is refused

@@ -189,6 +189,33 @@ class StorageFlowsApiIT {
     }
 
     @Test
+    @DisplayName("A request naming a context that does not exist is refused with 400, synchronous or not")
+    void aMissingContextIsRefused() throws Exception {
+
+        savePolicy("ssn-only", SSN_POLICY);
+        final String query = "?p=ssn-only&c=no-such-context";
+
+        final List<HttpResponse<String>> responses = List.of(
+                send(authenticated("/api/filter" + query).header("Content-Type", "text/plain")
+                        .POST(HttpRequest.BodyPublishers.ofString("SSN 123-45-6789")).build()),
+                send(authenticated("/api/explain" + query).header("Content-Type", "text/plain")
+                        .POST(HttpRequest.BodyPublishers.ofString("SSN 123-45-6789")).build()),
+                send(authenticated("/api/filter" + query + "&async=false").header("Content-Type", "application/pdf")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(blankPdf())).build()),
+                send(authenticated("/api/filter" + query).header("Content-Type", "application/pdf")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(blankPdf())).build()),
+                send(authenticated("/api/filter" + query + "&async=false").header("Content-Type", "application/pdf")
+                        .header("Accept", "application/zip").POST(HttpRequest.BodyPublishers.ofByteArray(blankPdf())).build()),
+                send(authenticated("/api/filter" + query).header("Content-Type", "application/pdf")
+                        .header("Accept", "application/zip").POST(HttpRequest.BodyPublishers.ofByteArray(blankPdf())).build()));
+        for (final HttpResponse<String> response : responses) {
+            assertEquals(400, response.statusCode(), response.request().uri() + " " + response.body());
+            assertTrue(response.body().contains("Context does not exist."), response.body());
+        }
+
+    }
+
+    @Test
     @DisplayName("A fairness key that is not valid, or is on a synchronous request, is refused")
     void anUnusableFairnessKeyIsRefused() throws Exception {
 

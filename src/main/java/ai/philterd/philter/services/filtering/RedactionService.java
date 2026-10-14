@@ -324,6 +324,13 @@ public class RedactionService {
 
             if(contextEntity == null) {
 
+                // A request naming a context that does not exist is the caller's mistake, refused as asynchronous
+                // submission refuses it. A queued document carries the context captured when it was accepted, so
+                // the failure below is a safeguard for a job whose captured configuration has no context.
+                if (pinnedPolicy == null) {
+                    throw new ai.philterd.philter.services.policies.PolicyResolutionException("Context does not exist.");
+                }
+
                 final String eventId = UUID.randomUUID().toString();
                 final String errorMessage = "The context specified for this document no longer exists. It may have been deleted after the document was submitted for redaction. Please resubmit the document with a valid context or without a context. (Event ID: " + eventId + ")";
 

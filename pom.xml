@@ -37,18 +37,6 @@
             <organizationUrl>https://www.philterd.ai</organizationUrl>
         </developer>
     </developers>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>philterd-repository-snapshots</id>
-            <name>Philterd Snapshots Repository</name>
-            <url>https://artifacts.philterd.ai/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>philterd-repository-releases</id>
-            <name>Philterd Repository</name>
-            <url>https://artifacts.philterd.ai/releases</url>
-        </repository>
-    </distributionManagement>
     <!-- Resolve Phileas (and other) SNAPSHOT dependencies from the Central Portal snapshot
          repository, where Phileas now publishes its snapshots. -->
     <repositories>

@@ -285,7 +285,13 @@ The secret is encrypted at rest with `PHILTER_ENCRYPTION_KEY` and returned only 
 POST /api/users/me/mfa
 ```
 
-Generates a secret for the calling key's own user. Requires `users:write`; does not require an administrator.
+Generates a secret for the calling key's own user. Takes the user's current password, so a stolen key cannot enroll an authenticator of its own. A wrong password counts toward the [sign-in lockout](sign_in_api.md#lockout-and-rate-limiting). Requires `users:write`; does not require an administrator.
+
+```json
+{
+  "password": "the user's current password"
+}
+```
 
 `200 OK`:
 
@@ -300,7 +306,10 @@ Show `otpauthUri` as a QR code for the app to scan, or have the person type in `
 
 | Status | Meaning |
 |--------|---------|
-| 409 | MFA is not available on this deployment, or the user is already enrolled. |
+| 400 | `password` is missing. |
+| 403 | The password is not correct; `reason` is `wrong_password`. |
+| 409 | MFA is not available on this deployment, the user is already enrolled, or the user has no password. |
+| 429 | The user's sign-in is locked after repeated failures; `reason` is `locked`. |
 
 ### Confirm enrollment
 

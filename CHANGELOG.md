@@ -226,6 +226,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   and failure count before `SIGN_IN_LOCKOUT_MINUTES` ends, audited as `sign_in_unlocked`. Lockout is per username, so
   anyone who can reach sign-in can lock out a known username; [Network placement](docs/docs/sign_in_security.md#network-placement)
   describes restricting who can.
+- **Starting MFA enrollment takes the current password.** A stolen session key could enroll an authenticator of its
+  own, and the person could then not sign in until an administrator removed it. `POST /api/users/me/mfa` now takes
+  `password`, and a wrong one counts toward the sign-in lockout. A user without a password cannot enroll. See
+  [Start enrollment](docs/docs/api_and_sdks/api/users_api.md#start-enrollment).
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
   space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
   ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused

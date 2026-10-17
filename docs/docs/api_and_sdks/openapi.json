@@ -10288,7 +10288,7 @@
           "Users"
         ],
         "summary": "Start MFA enrollment.",
-        "description": "Generates a TOTP secret for the calling key's own user and returns it, with an otpauth:// URI to show as a QR code. The secret is returned only here and is encrypted at rest. Enrollment takes effect only once POST /api/users/me/mfa/confirm sees a valid code; starting again replaces an unconfirmed secret. Requires the mfaAvailable setting, and the scope but not an administrator. Requires the `users:write` scope.",
+        "description": "Generates a TOTP secret for the calling key's own user and returns it, with an otpauth:// URI to show as a QR code. The secret is returned only here and is encrypted at rest. Enrollment takes effect only once POST /api/users/me/mfa/confirm sees a valid code; starting again replaces an unconfirmed secret. Takes the user's current password, so a stolen key cannot enroll an authenticator of its own; a wrong password counts toward the sign-in lockout. Requires the mfaAvailable setting, and the scope but not an administrator. Requires the `users:write` scope.",
         "operationId": "startMfaEnrollment",
         "parameters": [
           {
@@ -10300,6 +10300,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartMfaEnrollmentRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "The secret to set up an authenticator app with.",
@@ -10312,7 +10321,7 @@
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "The password is missing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10332,7 +10341,7 @@
             }
           },
           "403": {
-            "description": "The key does not hold users:write.",
+            "description": "The key does not hold users:write, or the password is not correct (reason wrong_password).",
             "content": {
               "application/json": {
                 "schema": {
@@ -10355,7 +10364,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "MFA is not available on this deployment, or the user is already enrolled.",
+            "description": "MFA is not available on this deployment, the user is already enrolled, or the user has no password.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10380,6 +10389,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The user's sign-in is locked after repeated failures; reason is locked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInThrottledResponse"
                 }
               }
             }
@@ -14800,6 +14819,14 @@
               "locked",
               "rate_limited"
             ]
+          }
+        }
+      },
+      "StartMfaEnrollmentRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string"
           }
         }
       },

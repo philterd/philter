@@ -22,6 +22,7 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.ChangePasswordRequest;
 import ai.philterd.philter.api.requests.CreateUserRequest;
 import ai.philterd.philter.api.requests.MfaCodeRequest;
+import ai.philterd.philter.api.requests.StartMfaEnrollmentRequest;
 import ai.philterd.philter.api.requests.SetPasswordRequest;
 import ai.philterd.philter.api.requests.SetUserEmailRequest;
 import ai.philterd.philter.api.requests.SetUserRoleRequest;
@@ -352,32 +353,16 @@ public class UsersApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
-        // The current password is checked under the same lockout as sign-in, so a key, such as a stolen session key,
-        // cannot be used to guess it, and guesses here and at sign-in count together.
-        final SignInThrottle.Account account = signInThrottle.account(user.getUsername());
-        if (account.isLocked()) {
-            return lockedOut();
-        }
-        final long attempt = account.beginAttempt();
-        if (attempt > signInThrottle.getMaxFailures()) {
-            account.lock();
-            return lockedOut();
+        final PasswordCheck check = beginPasswordCheck(user);
+        if (check.refusal() != null) {
+            return check.refusal();
         }
 
         final ServiceResponse response = userService.changeOwnPassword(requestId, user, request.getCurrentPassword(),
                 request.getNewPassword(), Source.API.getSource(), apiKeyEntity.getId());
 
-        if (ErrorReasons.WRONG_PASSWORD.equals(response.getDetails())) {
-            if (signInThrottle.recordFailure(account, attempt)) {
-                // Names the key that made the guesses, so it can be revoked.
-                auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_LOCKED, apiKeyEntity.getId(), user.getId(),
-                        getClientIpAddress(httpServletRequest), "username: " + AuditDetails.quote(user.getUsername()) + ", after "
-                                + signInThrottle.getMaxFailures() + " wrong passwords, the last when changing the "
-                                + "password, for " + signInThrottle.getLockoutSeconds() / 60 + " minutes");
-            }
-        } else {
-            account.reset();
-        }
+        finishPasswordCheck(check, ErrorReasons.WRONG_PASSWORD.equals(response.getDetails()), requestId, apiKeyEntity,
+                user, "changing the password", httpServletRequest);
 
         if (!response.isSuccessful()) {
             return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
@@ -387,6 +372,40 @@ public class UsersApiController extends AbstractApiController {
 
         return ResponseEntity.noContent().build();
 
+    }
+
+    /**
+     * A current password about to be checked, counted under the same lockout as sign-in, so a key, such as a stolen
+     * session key, cannot be used to guess it, and guesses here and at sign-in count together.
+     */
+    private record PasswordCheck(SignInThrottle.Account account, long attempt, ResponseEntity<Object> refusal) {
+    }
+
+    private PasswordCheck beginPasswordCheck(final UserEntity user) {
+        final SignInThrottle.Account account = signInThrottle.account(user.getUsername());
+        if (account.isLocked()) {
+            return new PasswordCheck(account, 0, lockedOut());
+        }
+        final long attempt = account.beginAttempt();
+        if (attempt > signInThrottle.getMaxFailures()) {
+            account.lock();
+            return new PasswordCheck(account, attempt, lockedOut());
+        }
+        return new PasswordCheck(account, attempt, null);
+    }
+
+    private void finishPasswordCheck(final PasswordCheck check, final boolean wrong, final String requestId,
+                                     final ApiKeyEntity apiKeyEntity, final UserEntity user, final String action,
+                                     final HttpServletRequest httpServletRequest) {
+        if (!wrong) {
+            check.account().reset();
+        } else if (signInThrottle.recordFailure(check.account(), check.attempt())) {
+            // Names the key that made the guesses, so it can be revoked.
+            auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_LOCKED, apiKeyEntity.getId(), user.getId(),
+                    getClientIpAddress(httpServletRequest), "username: " + AuditDetails.quote(user.getUsername()) + ", after "
+                            + signInThrottle.getMaxFailures() + " wrong passwords, the last when " + action
+                            + ", for " + signInThrottle.getLockoutSeconds() / 60 + " minutes");
+        }
     }
 
     private ResponseEntity<Object> lockedOut() {
@@ -472,30 +491,68 @@ public class UsersApiController extends AbstractApiController {
             description = "Generates a TOTP secret for the calling key's own user and returns it, with an otpauth:// URI "
                     + "to show as a QR code. The secret is returned only here and is encrypted at rest. Enrollment takes "
                     + "effect only once POST /api/users/me/mfa/confirm sees a valid code; starting again replaces an "
-                    + "unconfirmed secret. Requires the mfaAvailable setting, and the scope but not an administrator.")
+                    + "unconfirmed secret. Takes the user's current password, so a stolen key cannot enroll an "
+                    + "authenticator of its own; a wrong password counts toward the sign-in lockout. Requires the "
+                    + "mfaAvailable setting, and the scope but not an administrator.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The secret to set up an authenticator app with.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = MfaEnrollmentResponse.class))),
-            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
-            @ApiResponse(responseCode = "403", description = "The key does not hold users:write.",
+            @ApiResponse(responseCode = "400", description = "The password is missing.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "409", description = "MFA is not available on this deployment, or the user is already enrolled.",
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the password is not "
+                    + "correct (reason wrong_password).",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = GenericResponse.class)))
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "409", description = "MFA is not available on this deployment, the user is "
+                    + "already enrolled, or the user has no password.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "429", description = "The user's sign-in is locked after repeated failures; "
+                    + "reason is locked.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = SignInThrottledResponse.class)))
     })
     @RequiresScope(ApiKeyScope.USERS_WRITE)
     @RequestMapping(value = "/api/users/" + SELF + "/mfa", method = RequestMethod.POST,
-            produces = MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody ResponseEntity<Object> startMfaEnrollment(
-            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @RequestBody(required = false) StartMfaEnrollmentRequest request,
+            final HttpServletRequest httpServletRequest) {
 
-        final UserEntity user = callingUser(requireApiKey(authorizationHeader));
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+        final UserEntity user = callingUser(apiKeyEntity);
 
         if (!mfaAvailable()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
                     "MFA is not available. An administrator turns it on with the mfaAvailable setting.", ErrorReasons.MFA_UNAVAILABLE));
+        }
+        if (request == null || request.getPassword() == null) {
+            throw new BadRequestException("password is required.", "password");
+        }
+        if (user.isMfaEnabled()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse("MFA is already enrolled.",
+                    ErrorReasons.MFA_ALREADY_ENROLLED));
+        }
+        // MFA protects password sign-in, which a user without a password cannot use.
+        if (user.getPassword() == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new GenericResponse(
+                    "The user has no password, so cannot sign in with one. An administrator sets the first one."));
+        }
+
+        final PasswordCheck check = beginPasswordCheck(user);
+        if (check.refusal() != null) {
+            return check.refusal();
+        }
+        final boolean wrong = !userService.passwordMatches(user, request.getPassword());
+        finishPasswordCheck(check, wrong, requestId, apiKeyEntity, user, "starting MFA enrollment", httpServletRequest);
+        if (wrong) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse("The password is not correct.",
+                    ErrorReasons.WRONG_PASSWORD));
         }
 
         final String secret = userService.startMfaEnrollment(user);

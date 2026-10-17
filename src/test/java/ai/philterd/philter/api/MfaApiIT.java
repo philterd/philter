@@ -47,6 +47,7 @@ import java.util.Date;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -154,13 +155,17 @@ class MfaApiIT {
         return send("POST", "/api/sign-in/mfa", null, "{\"challenge\":\"" + challenge + "\",\"code\":\"" + code + "\"}");
     }
 
+    private static String passwordBody(final String password) {
+        return "{\"password\":\"" + password + "\"}";
+    }
+
     private static String codeBody(final String code) {
         return "{\"code\":\"" + code + "\"}";
     }
 
     /** Enrolls the user through the API and returns the secret. */
     private String enroll(final String key) throws Exception {
-        final HttpResponse<String> started = send("POST", "/api/users/me/mfa", key, null);
+        final HttpResponse<String> started = send("POST", "/api/users/me/mfa", key, passwordBody(PASSWORD));
         assertEquals(200, started.statusCode(), started.body());
         final String secret = gson.fromJson(started.body(), JsonObject.class).get("secret").getAsString();
         assertEquals(204, send("POST", "/api/users/me/mfa/confirm", key,
@@ -192,7 +197,7 @@ class MfaApiIT {
         final String user = seedUser("user");
         final String key = longLivedKey(user);
 
-        final HttpResponse<String> started = send("POST", "/api/users/me/mfa", key, null);
+        final HttpResponse<String> started = send("POST", "/api/users/me/mfa", key, passwordBody(PASSWORD));
         assertEquals(200, started.statusCode(), started.body());
         final JsonObject enrollment = gson.fromJson(started.body(), JsonObject.class);
         final String secret = enrollment.get("secret").getAsString();
@@ -204,7 +209,7 @@ class MfaApiIT {
         assertEquals(400, send("POST", "/api/users/me/mfa/confirm", key, codeBody("000000")).statusCode());
         assertEquals(204, send("POST", "/api/users/me/mfa/confirm", key,
                 codeBody(totp.codeAt(secret, TotpService.currentTimeStep()))).statusCode());
-        assertEquals(409, send("POST", "/api/users/me/mfa", key, null).statusCode(), "already enrolled");
+        assertEquals(409, send("POST", "/api/users/me/mfa", key, passwordBody(PASSWORD)).statusCode(), "already enrolled");
 
         final HttpResponse<String> read = send("GET", "/api/users/me", key, null);
         assertTrue(gson.fromJson(read.body(), JsonObject.class).get("mfaEnabled").getAsBoolean());
@@ -325,10 +330,56 @@ class MfaApiIT {
     }
 
     @Test
+    @DisplayName("Starting enrollment takes the current password, so a stolen key cannot enroll an authenticator of its own")
+    void enrollmentTakesTheCurrentPassword() throws Exception {
+
+        final String user = seedUser("user");
+        final String key = longLivedKey(user);
+
+        assertEquals(400, send("POST", "/api/users/me/mfa", key, "{}").statusCode(), "no password");
+        final HttpResponse<String> wrong = send("POST", "/api/users/me/mfa", key, passwordBody("not-the-password-0123"));
+        assertEquals(403, wrong.statusCode(), wrong.body());
+        assertEquals("wrong_password", gson.fromJson(wrong.body(), JsonObject.class).get("reason").getAsString());
+        assertFalse(wrong.body().contains("secret"), "no secret without the password");
+        assertNull(userService.findOneById(user).getMfaPendingSecret(), "nothing was started");
+
+        assertEquals(200, send("POST", "/api/users/me/mfa", key, passwordBody(PASSWORD)).statusCode());
+
+        // A user without a password cannot sign in with one, so has nothing for MFA to protect.
+        final String automation = "mfa-automation-" + UUID.randomUUID();
+        assertTrue(userService.createUser("req", automation, "user", policyDataService, contextDataService, "test").isSuccessful());
+        assertEquals(409, send("POST", "/api/users/me/mfa", longLivedKey(userService.findByUsername(automation).getId()),
+                passwordBody(PASSWORD)).statusCode());
+
+    }
+
+    @Test
+    @DisplayName("Wrong passwords when starting enrollment count toward the sign-in lockout")
+    void wrongEnrollmentPasswordsLockTheUser() throws Exception {
+
+        final String user = seedUser("user");
+        final String key = longLivedKey(user);
+
+        // SIGN_IN_MAX_FAILURES defaults to 5.
+        for (int i = 0; i < 5; i++) {
+            assertEquals(403, send("POST", "/api/users/me/mfa", key, passwordBody("guess-" + i + "-0123456789")).statusCode());
+        }
+        final HttpResponse<String> locked = send("POST", "/api/users/me/mfa", key, passwordBody(PASSWORD));
+        assertEquals(429, locked.statusCode(), "even the right password is refused while locked");
+        assertEquals("locked", gson.fromJson(locked.body(), JsonObject.class).get("reason").getAsString());
+
+        final HttpResponse<String> signIn = send("POST", "/api/sign-in", null,
+                "{\"username\":\"" + username(user) + "\",\"password\":\"" + PASSWORD + "\"}");
+        assertEquals(429, signIn.statusCode(), "the lock is the user's sign-in lock");
+        assertEquals(1, audited("sign_in_locked", user));
+
+    }
+
+    @Test
     @DisplayName("Enrollment needs MFA to be available, and requiring it needs it available")
     void settingsGateEnrollment() throws Exception {
         settings(false, false);
-        assertEquals(409, send("POST", "/api/users/me/mfa", longLivedKey(seedUser("user")), null).statusCode());
+        assertEquals(409, send("POST", "/api/users/me/mfa", longLivedKey(seedUser("user")), passwordBody(PASSWORD)).statusCode());
         assertEquals(400, send("PATCH", "/api/settings", adminKey, "{\"mfaRequired\":true}").statusCode());
     }
 
@@ -346,7 +397,7 @@ class MfaApiIT {
         assertEquals(200, send("GET", "/api/limits", restricted, null).statusCode(), "or reading the limits");
 
         final String secret = enroll(restricted);
-        assertEquals(401, send("POST", "/api/users/me/mfa", restricted, null).statusCode(),
+        assertEquals(401, send("POST", "/api/users/me/mfa", restricted, passwordBody(PASSWORD)).statusCode(),
                 "confirming revokes the session keys, so the person signs in again");
 
         final JsonObject second = signIn(user);

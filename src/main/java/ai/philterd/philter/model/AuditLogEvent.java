@@ -60,6 +60,8 @@ public enum AuditLogEvent {
     SIGN_IN_FAILED("sign_in_failed"),
     // A username locked after consecutive failed sign-ins, and a client over the sign-in rate limit.
     SIGN_IN_LOCKED("sign_in_locked"),
+    // An administrator cleared a username's sign-in lock.
+    SIGN_IN_UNLOCKED("sign_in_unlocked"),
     SIGN_IN_RATE_LIMITED("sign_in_rate_limited"),
 
     // Authentication outcomes recorded by the API authentication filter.

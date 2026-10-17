@@ -260,6 +260,19 @@ curl -k -X PUT "https://localhost:8080/api/users/admin/password" \
 | 404 | There is no user with that username. |
 | 409 | The user is the caller and already has a password, or another request changed the password at the same time. |
 
+## Clear a user's sign-in lock
+
+```
+POST /api/users/{username}/sign-in/unlock
+```
+
+Clears a user's [sign-in lock](sign_in_api.md#lockout-and-rate-limiting) before `SIGN_IN_LOCKOUT_MINUTES` ends, resets the count of failed sign-ins, and returns `204 No Content`. The lock returns if sign-in keeps failing, so if someone is locking a user out deliberately, restrict who can reach sign-in; see [Network placement](../../sign_in_security.md#network-placement). Requires `users:write` and an administrator.
+
+| Status | Meaning |
+|--------|---------|
+| 404 | There is no user with that username. |
+| 409 | The user's sign-in is not locked. |
+
 ## Multi-factor authentication
 
 Users who [sign in](sign_in_api.md) with a password can add TOTP multi-factor authentication, with an authenticator app such as Google Authenticator, Authy, or 1Password. Once enrolled, sign-in asks for a code from the app as well as the password. MFA is available only when an administrator turns on `mfaAvailable` in the [settings](settings_api.md); `mfaRequired` makes every user who signs in enroll. A user who is already enrolled is always asked for a code, even if `mfaAvailable` is turned off later.
@@ -377,6 +390,7 @@ Unlocks a user locked after five bad codes, resets the count, and returns `204 N
 | `user_mfa_removed` | A user's MFA was removed, by the user with a code or by an administrator. The principal is whoever removed it, and the details name the calling API key. |
 | `user_mfa_locked` | A user's MFA was locked after five consecutive bad codes. Recorded once per lock. |
 | `user_mfa_unlocked` | An administrator unlocked a user's MFA. The principal is the administrator, and the details name the calling API key. |
+| `sign_in_unlocked` | An administrator cleared a user's sign-in lock. The principal is the administrator, the associated object is the user, and the details name the calling API key. |
 | `api_key_deleted` | A session key was revoked because the password was set, changed, or reset, or MFA was enrolled. The details give the reason. |
 
 No event records a password, its hash, or an MFA secret or code. These are security events, so they cannot be switched off. They are readable through [`GET /api/audit`](audit_api.md). See [Auditing](../../auditing.md).

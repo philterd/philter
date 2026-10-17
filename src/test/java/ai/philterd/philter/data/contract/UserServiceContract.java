@@ -75,6 +75,27 @@ public interface UserServiceContract extends StorageContract {
     }
 
     @Test
+    default void anAdministratorClearsASignInLockAndItsCount() {
+        final UserEntity user = createAndFind("riley", UserService.ROLE_USER);
+        final long now = System.currentTimeMillis();
+        storage().users().beginSignInAttempt(user.getId(), now, 60_000);
+        storage().users().beginSignInAttempt(user.getId(), now, 60_000);
+        storage().users().lockSignIn(user.getId(), now + 60_000);
+
+        final String admin = RecordIds.newId();
+        final String key = RecordIds.newId();
+        assertTrue(storage().users().unlockSignIn("req", user, "test", admin, key).isSuccessful());
+        assertFalse(storage().anotherInstance().users().isSignInLocked(user.getId(), now));
+        assertEquals(1, storage().users().beginSignInAttempt(user.getId(), now, 60_000), "the count starts again");
+        assertEquals(409, storage().users().unlockSignIn("req", user, "test", admin, key).getStatusCode(),
+                "a user who is not locked is refused");
+
+        // A lock that has already ended is not one to clear.
+        storage().users().lockSignIn(user.getId(), now - 1);
+        assertEquals(409, storage().users().unlockSignIn("req", user, "test", admin, key).getStatusCode());
+    }
+
+    @Test
     default void userParallelSignInAttemptsAreAllCounted() throws Exception {
         final String userId = createAndFind("riley", UserService.ROLE_USER).getId();
         final List<Long> counts = StorageContract.concurrently(8, () ->

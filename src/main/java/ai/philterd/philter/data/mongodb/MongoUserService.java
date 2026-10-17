@@ -156,6 +156,14 @@ public class MongoUserService extends StoredUserService {
     }
 
     @Override
+    protected boolean clearSignInLock(final String userId, final long nowMillis) {
+        return collection.updateOne(Filters.and(byId(userId), Filters.gt("sign_in_locked_until", new Date(nowMillis))),
+                new Document("$set", new Document("sign_in_failures", 0))
+                        .append("$unset", new Document("sign_in_locked_until", "").append("sign_in_window_until", "")))
+                .getMatchedCount() == 1;
+    }
+
+    @Override
     protected boolean writePassword(final String userId, final String expectedHash, final String newHash,
                                     final boolean changeRequired) {
         return collection.updateOne(Filters.and(byId(userId), Filters.eq("password", expectedHash)),

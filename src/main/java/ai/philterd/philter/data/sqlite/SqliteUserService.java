@@ -226,6 +226,13 @@ public class SqliteUserService extends StoredUserService {
     }
 
     @Override
+    protected boolean clearSignInLock(final String userId, final long nowMillis) {
+        return database.write(connection -> Sql.update(connection, "UPDATE users SET sign_in_locked_until = NULL, "
+                + "sign_in_failures = 0, sign_in_window_until = NULL WHERE id = ? AND sign_in_locked_until > ?",
+                userId, nowMillis)) == 1;
+    }
+
+    @Override
     protected boolean writePassword(final String userId, final String expectedHash, final String newHash,
                                     final boolean changeRequired) {
         return database.write(connection -> Sql.update(connection, "UPDATE users SET password = ?, password_change_required = ? "

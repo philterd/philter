@@ -122,6 +122,9 @@ public abstract class StoredUserService implements UserService {
     /** Unlocks a locked MFA and clears the failures, and returns whether it was locked. */
     protected abstract boolean unlockMfa(final String userId);
 
+    /** Clears a sign-in lock in force at {@code nowMillis} and the count of failures, and returns whether there was one. */
+    protected abstract boolean clearSignInLock(final String userId, final long nowMillis);
+
     /**
      * Writes a new password hash only if the stored hash is still {@code expectedHash}, so two concurrent changes
      * cannot both succeed against the same current password.
@@ -625,6 +628,21 @@ public abstract class StoredUserService implements UserService {
                 actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
 
         return ServiceResponse.success("MFA unlocked.");
+
+    }
+
+    @Override
+    public ServiceResponse unlockSignIn(final String requestId, final UserEntity user, final String source,
+                                        final String actingUserId, final String actingApiKeyId) {
+
+        if (!clearSignInLock(user.getId(), System.currentTimeMillis())) {
+            return new ServiceResponse("The user's sign-in is not locked.", false, 409);
+        }
+
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_UNLOCKED,
+                actingUserId == null ? user.getId() : actingUserId, user.getId(), source, withApiKey(null, actingApiKeyId));
+
+        return ServiceResponse.success("Sign-in unlocked.");
 
     }
 

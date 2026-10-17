@@ -170,6 +170,37 @@ class SignInThrottleIT {
     }
 
     @Test
+    @DisplayName("An administrator clears a sign-in lock, and only an administrator")
+    void anAdministratorClearsASignInLock() throws Exception {
+
+        final String username = seedUser();
+        for (int i = 0; i < MAX_FAILURES; i++) {
+            assertEquals(401, signIn(username, "not-the-password-0123").statusCode());
+        }
+        assertEquals(429, signIn(username, PASSWORD).statusCode());
+
+        final String other = seedUser();
+        final String otherKey = apiKeyDataService.createApiKey("req", userService.findByUsername(other).getId(), "test",
+                ApiKeyScope.all()).getMessage();
+        assertEquals(403, unlock(username, otherKey).statusCode(), "a user who is not an administrator is refused");
+
+        final String adminKey = apiKeyDataService.createApiKey("req", userService.findByUsername("admin").getId(), "test",
+                ApiKeyScope.all()).getMessage();
+        assertEquals(204, unlock(username, adminKey).statusCode());
+        assertEquals(1, audited("sign_in_unlocked", userService.findByUsername(username).getId()));
+        assertEquals(200, signIn(username, PASSWORD).statusCode(), "signs in without waiting for the lock to lapse");
+        assertEquals(409, unlock(username, adminKey).statusCode(), "nothing to clear");
+        assertEquals(404, unlock("no-such-user-" + UUID.randomUUID(), adminKey).statusCode());
+
+    }
+
+    private HttpResponse<String> unlock(final String username, final String key) throws Exception {
+        return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/users/" + username + "/sign-in/unlock"))
+                .header("Authorization", "Bearer " + key).POST(HttpRequest.BodyPublishers.noBody()).build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
     @DisplayName("A burst of parallel guesses gets no more password checks than the limit")
     void parallelGuessesCannotOutrunTheLimit() throws Exception {
 

@@ -373,4 +373,13 @@ public interface UserService {
     ServiceResponse unlockMfa(final String requestId, final UserEntity user, final String source,
             final String actingUserId, final String actingApiKeyId);
 
+    /**
+     * Clears a user's password sign-in lock and count of failed sign-ins before the lockout period ends. Audited as
+     * {@code sign_in_unlocked}, naming the acting administrator and API key.
+     *
+     * @return a failure with status 409 if the user's sign-in is not locked.
+     */
+    ServiceResponse unlockSignIn(final String requestId, final UserEntity user, final String source,
+            final String actingUserId, final String actingApiKeyId);
+
 }

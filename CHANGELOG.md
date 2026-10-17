@@ -222,6 +222,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   re-identification reason were written into an event's `details` as is, so a value such as `x, owner: admin` read as
   extra fields. A value that could be misread is now written as a quoted, escaped string. See
   [Auditing](docs/docs/auditing.md#where-audit-events-are-stored).
+- **Administrators can clear a sign-in lock.** `POST /api/users/{username}/sign-in/unlock` clears a user's lock
+  and failure count before `SIGN_IN_LOCKOUT_MINUTES` ends, audited as `sign_in_unlocked`. Lockout is per username, so
+  anyone who can reach sign-in can lock out a known username; [Network placement](docs/docs/sign_in_security.md#network-placement)
+  describes restricting who can.
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
   space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
   ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused

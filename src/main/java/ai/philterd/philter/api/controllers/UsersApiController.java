@@ -708,6 +708,54 @@ public class UsersApiController extends AbstractApiController {
 
     }
 
+    @Operation(
+            summary = "Clear a user's sign-in lock.",
+            description = "Clears the lock on a user's password sign-in after repeated failed sign-ins, before "
+                    + "SIGN_IN_LOCKOUT_MINUTES ends, and resets the count of failures. The lock returns if sign-in keeps "
+                    + "failing, so restrict who can reach sign-in when someone is locking a user out deliberately. "
+                    + "Requires an administrator as well as the scope. Recorded as a sign_in_unlocked audit event naming "
+                    + "the calling administrator and API key.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "The user's sign-in was unlocked.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The key does not hold users:write, or the caller is not an administrator.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
+            @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "The user's sign-in is not locked.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class)))
+    })
+    @RequiresScope(ApiKeyScope.USERS_WRITE)
+    @RequestMapping(value = "/api/users/{username}/sign-in/unlock", method = RequestMethod.POST,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody ResponseEntity<Object> unlockSignIn(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestAttribute("requestId") String requestId,
+            final @PathVariable("username") String username) {
+
+        final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);
+
+        final ResponseEntity<Object> refusal = refuseNonAdmin(userService, apiKeyEntity, "Clearing a user's sign-in lock");
+        if (refusal != null) {
+            return refusal;
+        }
+
+        final UserEntity user = userService.findAnyByUsername(username);
+        if (user == null) {
+            throw new NotFoundException();
+        }
+
+        final ServiceResponse response = userService.unlockSignIn(requestId, user, Source.API.getSource(),
+                apiKeyEntity.getUserId(), apiKeyEntity.getId());
+        if (!response.isSuccessful()) {
+            return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage(), response.getDetails()));
+        }
+
+        return ResponseEntity.noContent().build();
+
+    }
+
     private UserEntity callingUser(final ApiKeyEntity apiKeyEntity) {
         final UserEntity user = userService.findOneById(apiKeyEntity.getUserId());
         if (user == null) {

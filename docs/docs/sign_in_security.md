@@ -39,16 +39,26 @@ Philter supports TOTP codes from an authenticator app. See [Multi-factor authent
 * **Enrollment.** It takes effect only once a code for the new secret is confirmed. The secret is encrypted at rest with `PHILTER_ENCRYPTION_KEY` and shown only when enrollment starts.
 * **Sign-in.** For an enrolled user, the password returns a single-use challenge that expires in five minutes, not a key. The challenge and a code are exchanged for the key at [`POST /api/sign-in/mfa`](api_and_sdks/api/sign_in_api.md#complete-sign-in-with-a-code). A key is never issued on the password alone, and any attempt uses up the challenge.
 * **Codes.** Each code is accepted once. Five consecutive bad codes lock the user until an administrator unlocks them or removes the enrollment.
+* **What a right password reveals.** For an enrolled user, a right password returns a challenge, or `403` with the reason `mfa_locked` while their MFA is locked, rather than the `401` a wrong one gets. Whoever sends it learns that the password is right, as with any sign-in in two steps. The second factor is what protects the account, so treat a password that may be known to someone else as compromised.
 * **Removal.** A user removes their own enrollment with a valid code, so a stolen key cannot turn MFA off. An administrator removes another user's, for a person who has lost their device.
 
 ## Lockout and rate limiting
 
-* **Username lockout.** [`SIGN_IN_MAX_FAILURES`](settings.md#api-access) (default 5) failed sign-ins within [`SIGN_IN_LOCKOUT_MINUTES`](settings.md#api-access) (default 15) lock the username for that long. An account's failures and lock are stored with the user, so they cannot be pushed out of a cache. A username with no account is counted and locked the same way, in the cache, so a lock says nothing about which usernames exist. A locked username is refused before its password is checked, even if it is right, and the lock clears on its own. Attempts are counted before their passwords are checked, so parallel guesses get no more checks than the limit.
+* **Username lockout.** [`SIGN_IN_MAX_FAILURES`](settings.md#api-access) (default 5) failed sign-ins within [`SIGN_IN_LOCKOUT_MINUTES`](settings.md#api-access) (default 15) lock the username for that long. An account's failures and lock are stored with the user, so they cannot be pushed out of a cache. A username with no account is counted and locked the same way, in the cache, so a lock says nothing about which usernames exist. A locked username is refused before its password is checked, even if it is right, and the lock clears on its own. An administrator can clear it early with [`POST /api/users/{username}/sign-in/unlock`](api_and_sdks/api/users_api.md#clear-a-users-sign-in-lock). Attempts are counted before their passwords are checked, so parallel guesses get no more checks than the limit.
 * **Rate limiting.** Each client address may make [`SIGN_IN_RATE_LIMIT_PER_MINUTE`](settings.md#api-access) (default 20) sign-in requests a minute. IPv6 clients are counted by their /64, since one network holds that many addresses. The address follows the [trusted-proxy](settings.md#api-access) rules. Behind a load balancer, or with a user interface such as Philter UI on another host, list its address in `TRUSTED_PROXIES`, or every client is counted as it and shares one limit.
 * **Changing a password.** A wrong current password in [`PUT /api/users/me/password`](api_and_sdks/api/users_api.md#change-your-own-password) counts as a failed sign-in, so a stolen key cannot be used to guess its user's password.
 * **Across instances.** Account lockout is shared by every instance through the database. The rate limit, and the count for usernames with no account, are shared through the [Valkey/Redis cache](caching.md) that several instances require.
 
 See [Lockout and rate limiting](api_and_sdks/api/sign_in_api.md#lockout-and-rate-limiting) for the responses.
+
+## Network placement
+
+Lockout counts failures per username, from any address, so anyone who can reach sign-in can lock out a username they know, such as `admin`, by failing to sign in `SIGN_IN_MAX_FAILURES` times every `SIGN_IN_LOCKOUT_MINUTES`. This blocks password sign-in only: a long-lived API key keeps working, and an administrator can [clear the lock](api_and_sdks/api/users_api.md#clear-a-users-sign-in-lock), but it returns while the failures continue. Philter does not lock by address instead, since that would give an attacker with many addresses many more guesses. Limit who can reach sign-in at the network:
+
+* **Allow only the user interface to reach Philter.** With [Philter UI](https://github.com/philterd/philter-ui) or another interface, only its server calls `POST /api/sign-in`. A firewall rule or network policy that admits only that server, and the automation that uses API keys, keeps everyone else away from Philter's sign-in.
+* **Protect the interface's sign-in.** People sign in through the interface, so put it behind a VPN, single sign-on at a reverse proxy, or a web application firewall that rate limits its sign-in page. Do not expose it to the internet without one.
+* **Set `TRUSTED_PROXIES`** to the interface's address, so Philter records and rate limits each person's own address rather than the interface's.
+* **Watch the audit log.** Repeated `sign_in_locked` events for one username, especially `admin`, mean someone is trying its password or locking it out. Each records the client address.
 
 ## Running a user interface
 
@@ -83,6 +93,7 @@ None of these records a password, a password hash, an MFA secret, or a code. The
 | `sign_in_succeeded` | A person signed in. |
 | `sign_in_failed` | A sign-in or MFA code was refused. |
 | `sign_in_locked` | Repeated failures locked a username. |
+| `sign_in_unlocked` | An administrator cleared a user's sign-in lock. |
 | `sign_in_rate_limited` | A client address went over the rate limit, once per minute. |
 | `user_password_set` | A user without a password was given one. |
 | `user_password_changed` | A user changed their own password. |

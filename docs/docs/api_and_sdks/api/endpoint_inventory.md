@@ -97,6 +97,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/users/{username}/mfa/unlock` | application/json | `users:write` | [Details](users_api.md#unlock-a-user) |
 | PUT | `/api/users/{username}/password` | application/json | `users:write` | [Details](users_api.md) |
 | POST | `/api/users/{username}/reactivate` | application/json | `users:write` | [Details](users_api.md) |
+| POST | `/api/users/{username}/sign-in/unlock` | application/json | `users:write` | [Details](users_api.md#clear-a-users-sign-in-lock) |
 | DELETE | `/api/users/{username}/session-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md#revoke-a-users-session-keys) |
 | PUT | `/api/users/{username}/role` | application/json | `users:write` | [Details](users_api.md) |
 | DELETE | `/api/webhook` | See reference | `webhooks:write` | [Details](webhooks.md) |

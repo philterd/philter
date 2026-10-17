@@ -130,6 +130,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   search. `GET /api/policies`, `/versions`, `/api/holds`, and `/api/lists` returned bare arrays;
   `GET /api/lists` is now paged. `GET /api/users` filters by `role` and `active`, `GET /api/documents`
   by `status`, and the ledger's `all_users` listing accepts `q`.
+- **Custom lists are written as a JSON object.** `POST` and `PUT /api/lists/{name}` take
+  `{"items": [...], "description": "..."}` rather than a bare array with `description` in the query string, which is
+  now refused with `400`. A description can have up to 200 characters, reported as
+  `customLists.descriptionMaxLength` by `GET /api/limits`.
 - **Policies and contexts are listed as objects.** Each item from `GET /api/policies` has the policy's `name`,
   `description`, `revision`, `createdAt`, and `updatedAt`, and each from `GET /api/contexts` the context's `name` and
   `createdAt`, rather than a bare name; with `all_users`, each also has its `owner`. Read the name from `name`.

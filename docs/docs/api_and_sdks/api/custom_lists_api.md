@@ -81,27 +81,35 @@ Example response:
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
 | `POST` | `/api/lists/{name}` | Create a custom list. A name you already use is refused; to change an existing list, [replace it](#replace-a-list). |
 
-### Query Parameters
-
-* `description` (optional) - A description of the custom list. Left out, the list has none.
-
 ### Request Body
 
-A JSON array of strings containing the items for the list. A list holds at most 100 items of at most 50 characters each. Items are trimmed; `null` and empty items are dropped.
+A JSON object:
+
+* `items` (required) - The list's items, as an array of strings. A list holds at most 100 items of at most 50 characters each. Items are trimmed; `null` and empty items are dropped.
+* `description` (optional) - A description of the list, of at most 200 characters. Left out, the list has none.
+
+```json
+{
+  "description": "My description",
+  "items": ["item1", "item2"]
+}
+```
+
+`description` is not accepted as a query parameter, and a request that sends it there is refused with `400`.
 
 The name is part of the path, so it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`. Other text, including spaces and periods, is allowed when percent-encoded.
 
 ### Responses
 
 * `201 Created` - The list was created.
-* `400 Bad Request` - The name is empty or breaks the rule above, the list has no items (`List items cannot be empty.`), there are too many items, or an item is too long. The body carries a `message`.
+* `400 Bad Request` - The name is empty or breaks the rule above, the body is not a JSON object, the list has no items (`List items cannot be empty.`), there are too many items, an item or the description is too long, or the request has a `description` parameter. The body carries a `message`.
 * `404 Not Found` - The owner does not exist or may not be reached.
 * `409 Conflict` - You already have a list with this name, including one created by a concurrent request. Nothing is changed. The body carries a `message` and the `reason` `list_exists`.
 
 Example request:
 
 ```
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/lists/my-list?description=My%20description" -d '["item1", "item2"]'
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/lists/my-list" -d '{"description": "My description", "items": ["item1", "item2"]}'
 ```
 
 Example `409` response:
@@ -119,24 +127,23 @@ Example `409` response:
 | ------ |------------------------------|-----------------------------------------------------------------------------------|
 | `PUT` | `/api/lists/{name}` | Replace the items of an existing custom list. |
 
-### Query Parameters
-
-* `description` (optional) - Left out, the list keeps its description. An empty value (`description=`) clears it.
-
 ### Request Body
 
-A JSON array of strings containing the complete new items for the list, with the same limits as [create](#create-a-list).
+A JSON object, with the same limits as [create](#create-a-list):
+
+* `items` (required) - The complete new items for the list.
+* `description` (optional) - Left out, the list keeps its description. An empty string (`"description": ""`) clears it.
 
 ### Responses
 
 * `200 OK` - The list was replaced.
-* `400 Bad Request` - The list has no items (`List items cannot be empty.`), there are too many items, or an item is too long. The body carries a `message`.
+* `400 Bad Request` - The body is not a JSON object, the list has no items (`List items cannot be empty.`), there are too many items, an item or the description is too long, or the request has a `description` parameter. The body carries a `message`.
 * `404 Not Found` - There is no such list, or the owner does not exist or may not be reached. The body carries a `message`.
 
 Example request:
 
 ```
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/lists/my-list" -d '["item1", "item2", "item3"]'
+curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/lists/my-list" -d '{"items": ["item1", "item2", "item3"]}'
 ```
 
 ## Delete a List

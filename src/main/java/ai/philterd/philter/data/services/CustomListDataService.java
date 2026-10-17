@@ -41,6 +41,8 @@ public interface CustomListDataService {
 
     int MAXIMUM_ITEM_LENGTH = 50;
 
+    int MAXIMUM_DESCRIPTION_LENGTH = 200;
+
     /** Why a create is refused with 409, carried in the response's details. */
     String REASON_LIST_EXISTS = "list_exists";
 

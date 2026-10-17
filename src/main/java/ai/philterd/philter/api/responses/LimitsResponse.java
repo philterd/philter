@@ -231,10 +231,12 @@ public class LimitsResponse {
 
         private final int maxItems;
         private final int itemMaxLength;
+        private final int descriptionMaxLength;
 
-        public CustomLists(final int maxItems, final int itemMaxLength) {
+        public CustomLists(final int maxItems, final int itemMaxLength, final int descriptionMaxLength) {
             this.maxItems = maxItems;
             this.itemMaxLength = itemMaxLength;
+            this.descriptionMaxLength = descriptionMaxLength;
         }
 
         @Schema(description = "The most items a custom list can have.")
@@ -242,6 +244,9 @@ public class LimitsResponse {
 
         @Schema(description = "The most characters an item can have.")
         public int getItemMaxLength() { return itemMaxLength; }
+
+        @Schema(description = "The most characters a custom list description can have.")
+        public int getDescriptionMaxLength() { return descriptionMaxLength; }
 
     }
 

@@ -46,7 +46,8 @@ curl -k "https://localhost:8080/api/limits" \
   },
   "customLists": {
     "maxItems": 100,
-    "itemMaxLength": 50
+    "itemMaxLength": 50,
+    "descriptionMaxLength": 200
   },
   "redactLists": {
     "maxTerms": 1000,
@@ -103,7 +104,7 @@ The values above are the defaults. Each one in the response is the value the run
 ### Resources
 
 * `policies` - A [policy](policies_api.md) name can have up to `nameMaxLength` characters, must match `namePattern`, cannot start with `reservedNamePrefix`, which is reserved for managed policies, and cannot be one of `reservedNames`, which the API's paths use for something else. `defaultPolicyName` is the policy every user is given, which cannot be deleted. A description can have up to `descriptionMaxLength` characters and notes up to `notesMaxLength`.
-* `customLists` - A [custom list](custom_lists_api.md) can have up to `maxItems` items of up to `itemMaxLength` characters each.
+* `customLists` - A [custom list](custom_lists_api.md) can have up to `maxItems` items of up to `itemMaxLength` characters each, and a description of up to `descriptionMaxLength` characters.
 * `redactLists` - The [always-redact and never-redact lists](redact_lists_api.md) can each have up to `maxTerms` terms of up to `termMaxLength` characters each.
 * `contexts.maxPerUser` - The most [contexts](contexts_api.md) a user can have. Compare it with `caller.contextCount` to know whether the caller can create another.
 * `contexts.maxEntries` - The most entries a context holds. Adding one more evicts the least-read entry. Set by [`MAX_CONTEXT_SIZE`](../../settings.md#contexts-and-disambiguation).

@@ -154,6 +154,7 @@ class LimitsApiControllerTest {
                 .andExpect(jsonPath("$.policies.notesMaxLength").value(PolicyDataService.POLICY_NOTES_MAX_LENGTH))
                 .andExpect(jsonPath("$.customLists.maxItems").value(CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS))
                 .andExpect(jsonPath("$.customLists.itemMaxLength").value(CustomListDataService.MAXIMUM_ITEM_LENGTH))
+                .andExpect(jsonPath("$.customLists.descriptionMaxLength").value(CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH))
                 .andExpect(jsonPath("$.redactLists.maxTerms").value(RedactListsDataService.MAXIMUM_TERMS_PER_LIST))
                 .andExpect(jsonPath("$.redactLists.termMaxLength").value(RedactListsDataService.MAXIMUM_TERM_LENGTH))
                 .andExpect(jsonPath("$.contexts.maxPerUser").value(ContextDataService.MAXIMUM_CONTEXTS_PER_USER))

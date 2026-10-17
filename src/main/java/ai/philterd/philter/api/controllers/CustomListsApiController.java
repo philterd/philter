@@ -15,8 +15,10 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.requests.CustomListRequest;
 import ai.philterd.philter.api.responses.CustomListConflictResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetCustomListsResponse;
@@ -37,7 +39,6 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -63,6 +64,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static ai.philterd.philter.data.services.CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH;
 import static ai.philterd.philter.data.services.CustomListDataService.MAXIMUM_ITEM_LENGTH;
 import static ai.philterd.philter.data.services.CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS;
 
@@ -211,14 +213,14 @@ public class CustomListsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create a list.", description = "Creates a list whose items are the request body. A name the "
-            + "owner already uses is refused with 409; replace an existing list with PUT /api/lists/{name}. description "
-            + "is optional and defaults to an empty string.")
+    @Operation(summary = "Create a list.", description = "Creates a list from the request body's items and optional "
+            + "description, which defaults to an empty string. A name the owner already uses is refused with 409; replace "
+            + "an existing list with PUT /api/lists/{name}.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The list was created.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The list name is empty or " + PathSafeNames.RULE + ", the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
+            @ApiResponse(responseCode = "400", description = "The list name is empty or " + PathSafeNames.RULE + ", the body is not a list with items, the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters), the description is too long (maximum " + MAXIMUM_DESCRIPTION_LENGTH + " characters), or the request has a description parameter."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
@@ -232,24 +234,22 @@ public class CustomListsApiController extends AbstractApiController {
     public ResponseEntity<Object> createList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String list,
-            final @Parameter(description = "The list's description. Defaults to an empty string.")
-            @RequestParam(value = "description", required = false) String description,
             final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestBody List<String> listItems,
+            final @RequestBody CustomListRequest body,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
-        return write(authorizationHeader, list, description, owner, listItems, requestId, httpServletRequest, false);
+        return write(authorizationHeader, list, owner, body, requestId, httpServletRequest, false);
 
     }
 
-    @Operation(summary = "Replace a list.", description = "Replaces the items of an existing list with the request body. "
-            + "description is optional: left out, the list keeps its description; given as an empty string, it is cleared.")
+    @Operation(summary = "Replace a list.", description = "Replaces the items of an existing list with the request body's "
+            + "items. description is optional: left out, the list keeps its description; given as an empty string, it is cleared.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The list was replaced.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
-            @ApiResponse(responseCode = "400", description = "The list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), or an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters)."),
+            @ApiResponse(responseCode = "400", description = "The body is not a list with items, the list contains too many items (maximum " + MAXIMUM_NUMBER_OF_ITEMS + "), an item is too long (maximum " + MAXIMUM_ITEM_LENGTH + " characters), the description is too long (maximum " + MAXIMUM_DESCRIPTION_LENGTH + " characters), or the request has a description parameter."),
             @ApiResponse(responseCode = "404", description = "There is no such list, or the owner does not exist or the caller may not reach it.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class)))
@@ -259,26 +259,29 @@ public class CustomListsApiController extends AbstractApiController {
     public ResponseEntity<Object> replaceList(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String list,
-            final @Parameter(description = "The list's description. Left out, the list keeps its own; an empty string clears it.")
-            @RequestParam(value = "description", required = false) String description,
             final @RequestParam(value = "owner", required = false) String owner,
-            final @RequestBody List<String> listItems,
+            final @RequestBody CustomListRequest body,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
-        return write(authorizationHeader, list, description, owner, listItems, requestId, httpServletRequest, true);
+        return write(authorizationHeader, list, owner, body, requestId, httpServletRequest, true);
 
     }
 
     /** Creates or replaces a list; neither falls back to the other, so a create never overwrites. */
-    private ResponseEntity<Object> write(final String authorizationHeader, final String list, final String description,
-                                         final String owner, final List<String> listItems, final String requestId,
+    private ResponseEntity<Object> write(final String authorizationHeader, final String list, final String owner,
+                                         final CustomListRequest body, final String requestId,
                                          final HttpServletRequest httpServletRequest, final boolean replace) {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
+        }
+
+        // Refused rather than ignored, so a client still sending it in the URL is not misled.
+        if (httpServletRequest.getParameter("description") != null) {
+            throw new BadRequestException("description is not accepted as a parameter. Send it in the body.", "description");
         }
 
         final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -291,8 +294,8 @@ public class CustomListsApiController extends AbstractApiController {
 
         final String origin = getClientIpAddress(httpServletRequest);
         final ServiceResponse serviceResponse = replace
-                ? customListService.replace(requestId, userId, list, description, listItems, origin)
-                : customListService.saveOrUpdate(requestId, userId, list, description, listItems, false, origin);
+                ? customListService.replace(requestId, userId, list, body.getDescription(), body.getItems(), origin)
+                : customListService.saveOrUpdate(requestId, userId, list, body.getDescription(), body.getItems(), false, origin);
 
         if (serviceResponse.getStatusCode() == HttpStatus.CONFLICT.value()) {
             return new ResponseEntity<>(new CustomListConflictResponse(serviceResponse.getMessage(),

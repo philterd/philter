@@ -18,6 +18,7 @@ package ai.philterd.philter.api;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
+import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -135,8 +136,7 @@ class CustomListsApiIT {
     @DisplayName("A list's description is returned with its items, and listed with its size")
     void readsTheDescription() throws Exception {
 
-        assertEquals(201, send("POST", "/api/lists/projects?description=" + encode("Code names"), key,
-                "[\"Project Cardinal\",\"Project Heron\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/projects", key, "{\"description\":\"Code names\",\"items\":[\"Project Cardinal\",\"Project Heron\"]}").statusCode());
 
         final JsonObject list = getList("/api/lists/projects", key);
         assertEquals("Code names", list.get("description").getAsString());
@@ -153,9 +153,34 @@ class CustomListsApiIT {
     }
 
     @Test
+    @DisplayName("A list is refused with 400 for a description parameter, a bare array, no items, or a long description")
+    void refusesMalformedWrites() throws Exception {
+        final HttpResponse<String> parameter = send("POST", "/api/lists/refused?description=" + encode("In the URL"), key,
+                "{\"items\":[\"one\"]}");
+        assertEquals(400, parameter.statusCode(), parameter.body());
+        assertEquals("description", gson.fromJson(parameter.body(), JsonObject.class).get("field").getAsString());
+        assertEquals(400, send("PUT", "/api/lists/refused?description=", key, "{\"items\":[\"one\"]}").statusCode());
+
+        assertEquals(400, send("POST", "/api/lists/refused", key, "[\"one\"]").statusCode(), "a bare array is not a list");
+        assertEquals(400, send("POST", "/api/lists/refused", key, "null").statusCode());
+        assertEquals(400, send("PUT", "/api/lists/refused", key, "null").statusCode());
+        assertEquals(400, send("POST", "/api/lists/refused", key, "{\"description\":\"No items\"}").statusCode());
+
+        final String tooLong = "x".repeat(CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH + 1);
+        assertEquals(400, send("POST", "/api/lists/refused", key,
+                "{\"description\":\"" + tooLong + "\",\"items\":[\"one\"]}").statusCode());
+        final String longest = "x".repeat(CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH);
+        assertEquals(201, send("POST", "/api/lists/refused", key,
+                "{\"description\":\"" + longest + "\",\"items\":[\"one\"]}").statusCode());
+        assertEquals(400, send("PUT", "/api/lists/refused", key,
+                "{\"description\":\"" + tooLong + "\",\"items\":[\"two\"]}").statusCode());
+        assertEquals(longest, getList("/api/lists/refused", key).get("description").getAsString(), "a refused replace changes nothing");
+    }
+
+    @Test
     @DisplayName("A list created without a description has an empty one")
     void defaultsToAnEmptyDescription() throws Exception {
-        assertEquals(201, send("POST", "/api/lists/plain", key, "[\"one\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/plain", key, "{\"items\":[\"one\"]}").statusCode());
         assertEquals("", getList("/api/lists/plain", key).get("description").getAsString());
     }
 
@@ -163,18 +188,18 @@ class CustomListsApiIT {
     @DisplayName("A replace without a description keeps it; an empty description clears it")
     void keepsOrClearsTheDescription() throws Exception {
 
-        assertEquals(201, send("POST", "/api/lists/terms?description=" + encode("Internal terms"), key, "[\"one\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/terms", key, "{\"description\":\"Internal terms\",\"items\":[\"one\"]}").statusCode());
 
-        assertEquals(200, send("PUT", "/api/lists/terms", key, "[\"two\",\"three\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/terms", key, "{\"items\":[\"two\",\"three\"]}").statusCode());
         JsonObject list = getList("/api/lists/terms", key);
         assertEquals("Internal terms", list.get("description").getAsString(), "left out, the description is kept");
         assertEquals(2, list.getAsJsonArray("lists").size(), "the items are still replaced");
 
-        assertEquals(200, send("PUT", "/api/lists/terms?description=", key, "[\"two\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/terms", key, "{\"description\":\"\",\"items\":[\"two\"]}").statusCode());
         list = getList("/api/lists/terms", key);
         assertEquals("", list.get("description").getAsString(), "an empty description clears it");
 
-        assertEquals(200, send("PUT", "/api/lists/terms?description=" + encode("Renamed"), key, "[\"two\"]").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/terms", key, "{\"description\":\"Renamed\",\"items\":[\"two\"]}").statusCode());
         assertEquals("Renamed", getList("/api/lists/terms", key).get("description").getAsString());
 
     }
@@ -185,7 +210,7 @@ class CustomListsApiIT {
 
         AdminAccessConfig.setOverrideForTesting(true);
         final String adminKey = seedKey(seedUser("admin"));
-        assertEquals(201, send("POST", "/api/lists/owned?description=" + encode("Belongs to a user"), key, "[\"a\",\"b\",\"c\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/owned", key, "{\"description\":\"Belongs to a user\",\"items\":[\"a\",\"b\",\"c\"]}").statusCode());
 
         assertEquals("Belongs to a user",
                 getList("/api/lists/owned?owner=" + encode(username), adminKey).get("description").getAsString());
@@ -218,9 +243,9 @@ class CustomListsApiIT {
     @Test
     @DisplayName("Creating a list whose name is taken is refused with list_exists and changes nothing")
     void createRefusesATakenName() throws Exception {
-        assertEquals(201, send("POST", "/api/lists/taken?description=" + encode("First"), key, "[\"one\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/taken", key, "{\"description\":\"First\",\"items\":[\"one\"]}").statusCode());
 
-        final HttpResponse<String> refused = send("POST", "/api/lists/taken?description=" + encode("Second"), key, "[\"two\"]");
+        final HttpResponse<String> refused = send("POST", "/api/lists/taken", key, "{\"description\":\"Second\",\"items\":[\"two\"]}");
         assertEquals(409, refused.statusCode(), refused.body());
         assertEquals("list_exists", gson.fromJson(refused.body(), JsonObject.class).get("reason").getAsString());
 
@@ -232,7 +257,7 @@ class CustomListsApiIT {
     @Test
     @DisplayName("Replacing a list that does not exist returns 404 and creates nothing")
     void replaceRefusesAMissingList() throws Exception {
-        final HttpResponse<String> refused = send("PUT", "/api/lists/missing", key, "[\"one\"]");
+        final HttpResponse<String> refused = send("PUT", "/api/lists/missing", key, "{\"items\":[\"one\"]}");
         assertEquals(404, refused.statusCode(), refused.body());
         assertEquals("List does not exist.", gson.fromJson(refused.body(), JsonObject.class).get("message").getAsString());
         assertEquals(404, send("GET", "/api/lists/missing", key, null).statusCode(), "nothing was created");
@@ -245,9 +270,9 @@ class CustomListsApiIT {
         final String adminKey = seedKey(seedUser("admin"));
         final String owner = "?owner=" + encode(username);
 
-        assertEquals(201, send("POST", "/api/lists/managed-by-admin" + owner, adminKey, "[\"one\"]").statusCode());
-        assertEquals(409, send("POST", "/api/lists/managed-by-admin" + owner, adminKey, "[\"one\"]").statusCode());
-        assertEquals(200, send("PUT", "/api/lists/managed-by-admin" + owner, adminKey, "[\"two\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/managed-by-admin" + owner, adminKey, "{\"items\":[\"one\"]}").statusCode());
+        assertEquals(409, send("POST", "/api/lists/managed-by-admin" + owner, adminKey, "{\"items\":[\"one\"]}").statusCode());
+        assertEquals(200, send("PUT", "/api/lists/managed-by-admin" + owner, adminKey, "{\"items\":[\"two\"]}").statusCode());
 
         // The list is the user's, not the administrator's.
         assertEquals("two", getList("/api/lists/managed-by-admin", key).getAsJsonArray("lists").get(0).getAsString());

@@ -659,13 +659,13 @@ class ApiFilterChainIT {
 
     @Test
     void customListLifecycleUsesJsonAndPersistsChanges() throws Exception {
-        assertEquals(201, apiRequest("POST", "/api/lists/audit-list", "[\"one\",\"two\"]").statusCode());
+        assertEquals(201, apiRequest("POST", "/api/lists/audit-list", "{\"items\":[\"one\",\"two\"]}").statusCode());
         var fetched = apiRequest("GET", "/api/lists/audit-list", null);
         assertEquals(200, fetched.statusCode());
         assertTrue(fetched.headers().firstValue("Content-Type").orElse("").startsWith("application/json"));
         assertTrue(fetched.body().contains("one"));
-        assertEquals(409, apiRequest("POST", "/api/lists/audit-list", "[\"three\"]").statusCode());
-        assertEquals(200, apiRequest("PUT", "/api/lists/audit-list", "[\"three\"]").statusCode());
+        assertEquals(409, apiRequest("POST", "/api/lists/audit-list", "{\"items\":[\"three\"]}").statusCode());
+        assertEquals(200, apiRequest("PUT", "/api/lists/audit-list", "{\"items\":[\"three\"]}").statusCode());
         fetched = apiRequest("GET", "/api/lists/audit-list", null);
         assertTrue(fetched.body().contains("three"));
         assertFalse(fetched.body().contains("one"));
@@ -724,7 +724,7 @@ class ApiFilterChainIT {
                 .mapToObj(n -> String.format("%03d-", n) + "x".repeat(46)).toList();
         var listResponse = send(authenticated(baseUrl + "/api/lists/audit-expansion")
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(items))).build());
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(java.util.Map.of("items", items)))).build());
         assertEquals(201, listResponse.statusCode());
         var policy = gson.toJson(java.util.Map.of("identifiers", java.util.Map.of("dictionaries", java.util.List.of(
                 java.util.Map.of("terms", java.util.Collections.nCopies(3500, "list:audit-expansion"),

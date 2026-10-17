@@ -72,6 +72,11 @@ public abstract class StoredCustomListDataService implements CustomListDataServi
             return new ServiceResponse("The list name " + PathSafeNames.RULE + ".", false, 400);
         }
 
+        if (description != null && description.length() > CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH) {
+            return new ServiceResponse("The description cannot be longer than "
+                    + CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH + " characters.", false, 400);
+        }
+
         if (listItems.size() > CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS) {
             return new ServiceResponse("List contains too many items. Maximum is " + CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS + ".", false, 400);
         }

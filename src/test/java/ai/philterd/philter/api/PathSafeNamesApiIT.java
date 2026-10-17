@@ -133,7 +133,7 @@ class PathSafeNamesApiIT {
         assertNull(contextDataService.findOne("a/b", userId), "no context was created");
 
         // A list name arrives in the path, so a / never reaches Philter, but a control character does.
-        assertRefusedNamingTheRule(send("POST", "/api/lists/" + encode("a\tb"), "[\"one\"]"));
+        assertRefusedNamingTheRule(send("POST", "/api/lists/" + encode("a\tb"), "{\"items\":[\"one\"]}"));
         assertNull(customListDataService.findOneByName("a\tb", userId), "no list was created");
 
     }
@@ -190,7 +190,7 @@ class PathSafeNamesApiIT {
     @DisplayName("Lists, contexts, and holds are deleted by path only; the name is never taken from the query")
     void deletesByPathOnly() throws Exception {
 
-        assertEquals(201, send("POST", "/api/lists/kept", "[\"one\"]").statusCode());
+        assertEquals(201, send("POST", "/api/lists/kept", "{\"items\":[\"one\"]}").statusCode());
 
         // Every name is checked when it is created, so the path form always reaches it and there is no
         // query-string form to fall back to.

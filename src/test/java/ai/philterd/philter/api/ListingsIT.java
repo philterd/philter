@@ -180,7 +180,7 @@ class ListingsIT {
     @DisplayName("A user's own custom lists are paged with a total")
     void customListsArePaged() throws Exception {
         for (int i = 0; i < 3; i++) {
-            assertEquals(201, send(key, "POST", "/api/lists/list-" + i, "[\"item\"]").statusCode());
+            assertEquals(201, send(key, "POST", "/api/lists/list-" + i, "{\"items\":[\"item\"]}").statusCode());
         }
 
         final JsonObject first = list(key, "/api/lists?limit=2");

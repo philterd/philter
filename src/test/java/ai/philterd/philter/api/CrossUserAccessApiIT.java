@@ -181,7 +181,7 @@ class CrossUserAccessApiIT {
         final String user = seedUser("user");
         final String userKey = keyFor(user);
         assertEquals(201, send(userKey, "POST", "/api/policies?name=theirs", POLICY).statusCode());
-        assertEquals(201, send(userKey, "POST", "/api/lists/terms", "[\"x\"]").statusCode());
+        assertEquals(201, send(userKey, "POST", "/api/lists/terms", "{\"items\":[\"x\"]}").statusCode());
         AdminAccessConfig.setOverrideForTesting(true);
 
         final String owner = "owner=" + user;

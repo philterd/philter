@@ -240,7 +240,7 @@ class CustomListsApiControllerTest {
 
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"alpha\",\"beta\"]")
+                        .content("{\"items\":[\"alpha\",\"beta\"]}")
                         .requestAttr("requestId", "req-create-list"))
                 .andExpect(status().isCreated());
 
@@ -258,7 +258,7 @@ class CustomListsApiControllerTest {
 
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"alpha\"]")
+                        .content("{\"items\":[\"alpha\"]}")
                         .requestAttr("requestId", "req-create-rejected"))
                 .andExpect(status().isBadRequest());
     }
@@ -277,7 +277,7 @@ class CustomListsApiControllerTest {
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"alpha\"]")
+                        .content("{\"items\":[\"alpha\"]}")
                         .requestAttr("requestId", "req-create-forbidden"))
                 .andExpect(status().isNotFound());
 
@@ -293,7 +293,7 @@ class CustomListsApiControllerTest {
 
         mockMvc.perform(post("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"alpha\"]")
+                        .content("{\"items\":[\"alpha\"]}")
                         .requestAttr("requestId", "req-create-taken"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("A list with this name already exists."))
@@ -307,7 +307,7 @@ class CustomListsApiControllerTest {
 
         mockMvc.perform(put("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"gamma\"]")
+                        .content("{\"items\":[\"gamma\"]}")
                         .requestAttr("requestId", "req-replace-list"))
                 .andExpect(status().isOk());
 
@@ -321,7 +321,7 @@ class CustomListsApiControllerTest {
 
         mockMvc.perform(put("/api/lists/missing").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"gamma\"]")
+                        .content("{\"items\":[\"gamma\"]}")
                         .requestAttr("requestId", "req-replace-missing"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("List does not exist."));
@@ -344,7 +344,7 @@ class CustomListsApiControllerTest {
         mockMvc.perform(put("/api/lists/their-list").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"gamma\"]")
+                        .content("{\"items\":[\"gamma\"]}")
                         .requestAttr("requestId", "req-replace-admin"))
                 .andExpect(status().isOk());
     }
@@ -363,7 +363,7 @@ class CustomListsApiControllerTest {
         mockMvc.perform(put("/api/lists/my-list").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[\"alpha\"]")
+                        .content("{\"items\":[\"alpha\"]}")
                         .requestAttr("requestId", "req-replace-forbidden"))
                 .andExpect(status().isNotFound());
 

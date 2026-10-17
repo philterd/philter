@@ -5700,7 +5700,7 @@
           "Custom Lists"
         ],
         "summary": "Create a list.",
-        "description": "Creates a list whose items are the request body. A name the owner already uses is refused with 409; replace an existing list with PUT /api/lists/{name}. description is optional and defaults to an empty string. Requires the `lists:write` scope.",
+        "description": "Creates a list from the request body's items and optional description, which defaults to an empty string. A name the owner already uses is refused with 409; replace an existing list with PUT /api/lists/{name}. Requires the `lists:write` scope.",
         "operationId": "createList",
         "parameters": [
           {
@@ -5720,15 +5720,6 @@
             }
           },
           {
-            "description": "The list's description. Defaults to an empty string.",
-            "name": "description",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "owner",
             "in": "query",
             "required": false,
@@ -5742,10 +5733,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+                "$ref": "#/components/schemas/CustomListRequest"
               }
             }
           }
@@ -5762,7 +5750,7 @@
             }
           },
           "400": {
-            "description": "The list name is empty or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., the list contains too many items (maximum 100), or an item is too long (maximum 50 characters).",
+            "description": "The list name is empty or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., the body is not a list with items, the list contains too many items (maximum 100), an item is too long (maximum 50 characters), the description is too long (maximum 200 characters), or the request has a description parameter.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5854,7 +5842,7 @@
           "Custom Lists"
         ],
         "summary": "Replace a list.",
-        "description": "Replaces the items of an existing list with the request body. description is optional: left out, the list keeps its description; given as an empty string, it is cleared. Requires the `lists:write` scope.",
+        "description": "Replaces the items of an existing list with the request body's items. description is optional: left out, the list keeps its description; given as an empty string, it is cleared. Requires the `lists:write` scope.",
         "operationId": "replaceList",
         "parameters": [
           {
@@ -5874,15 +5862,6 @@
             }
           },
           {
-            "description": "The list's description. Left out, the list keeps its own; an empty string clears it.",
-            "name": "description",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "owner",
             "in": "query",
             "required": false,
@@ -5896,10 +5875,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+                "$ref": "#/components/schemas/CustomListRequest"
               }
             }
           }
@@ -5916,7 +5892,7 @@
             }
           },
           "400": {
-            "description": "The list contains too many items (maximum 100), or an item is too long (maximum 50 characters).",
+            "description": "The body is not a list with items, the list contains too many items (maximum 100), an item is too long (maximum 50 characters), the description is too long (maximum 200 characters), or the request has a description parameter.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13527,9 +13503,33 @@
           }
         }
       },
+      "CustomListRequest": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "The list's description. On create, left out means an empty string. On replace, left out keeps the list's description, and an empty string clears it.",
+            "type": "string"
+          },
+          "items": {
+            "description": "The list's items. Required, with at least one item that is not empty.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "CustomListRules": {
         "type": "object",
         "properties": {
+          "descriptionMaxLength": {
+            "description": "The most characters a custom list description can have.",
+            "type": "integer",
+            "format": "int32"
+          },
           "itemMaxLength": {
             "description": "The most characters an item can have.",
             "type": "integer",

@@ -112,7 +112,7 @@ public class LimitsApiController extends AbstractApiController {
                         PolicyDataService.DEFAULT_POLICY_NAME,
                         PolicyDataService.POLICY_DESCRIPTION_MAX_LENGTH, PolicyDataService.POLICY_NOTES_MAX_LENGTH),
                 new LimitsResponse.CustomLists(CustomListDataService.MAXIMUM_NUMBER_OF_ITEMS,
-                        CustomListDataService.MAXIMUM_ITEM_LENGTH),
+                        CustomListDataService.MAXIMUM_ITEM_LENGTH, CustomListDataService.MAXIMUM_DESCRIPTION_LENGTH),
                 new LimitsResponse.RedactLists(RedactListsDataService.MAXIMUM_TERMS_PER_LIST,
                         RedactListsDataService.MAXIMUM_TERM_LENGTH),
                 new LimitsResponse.Contexts(ContextDataService.MAXIMUM_CONTEXTS_PER_USER,

@@ -26,10 +26,7 @@ public class ApiDocumentationConfig {
                         new ObjectSchema().additionalProperties(true).description("Native Phileas policy. identifiers is required; custom dictionaries use dictionaries.")));
             }
             json(api, "/api/audit", "get", GetAuditResponse.class);
-            // With all_users, these listings name each item's owner.
-            response(op(api, "/api/contexts", "get"), "200", "Context names; with all_users, each context's name and owner.",
-                    content("application/json", new ComposedSchema().oneOf(java.util.List.of(
-                            model(api, GetContextsResponse.class), model(api, GetAllUsersContextsResponse.class)))));
+            json(api, "/api/contexts", "get", GetContextsResponse.class);
             json(api, "/api/contexts/{name}", "get", GetContextResponse.class);
             json(api, "/api/contexts/{name}/entries", "get", GetContextEntriesResponse.class);
             json(api, "/api/contexts/{name}/entries/export", "get", ContextEntriesExport.class);

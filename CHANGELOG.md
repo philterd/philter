@@ -130,6 +130,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   search. `GET /api/policies`, `/versions`, `/api/holds`, and `/api/lists` returned bare arrays;
   `GET /api/lists` is now paged. `GET /api/users` filters by `role` and `active`, `GET /api/documents`
   by `status`, and the ledger's `all_users` listing accepts `q`.
+- **Policies and contexts are listed as objects.** Each item from `GET /api/policies` has the policy's `name`,
+  `description`, `revision`, `createdAt`, and `updatedAt`, and each from `GET /api/contexts` the context's `name` and
+  `createdAt`, rather than a bare name; with `all_users`, each also has its `owner`. Read the name from `name`.
 - **Lists, contexts, and holds are deleted by path only.** `DELETE /api/lists?name=`,
   `DELETE /api/contexts?name=`, and `DELETE /api/holds?reference=` are removed: names are checked when
   they are created, so `DELETE /api/lists/{name}`, `/api/contexts/{name}`, and `/api/holds/{reference}`

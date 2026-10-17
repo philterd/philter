@@ -17,21 +17,27 @@ package ai.philterd.philter.api.responses;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** A built-in managed policy as {@code GET /api/policies?managed=true} lists it: its name and description. */
-public class ManagedPolicySummary {
+import java.util.Date;
+
+/** A context as {@code GET /api/contexts} lists it, without its entries. */
+public class ContextSummary {
 
     private final String name;
-    private final String description;
+    private final Date createdAt;
+    private final String owner;
 
-    public ManagedPolicySummary(final String name, final String description) {
+    public ContextSummary(final String name, final Date createdAt, final String owner) {
         this.name = name;
-        this.description = description == null ? "" : description;
+        this.createdAt = createdAt;
+        this.owner = owner;
     }
 
-    @Schema(description = "The managed policy's name, beginning with managed_.")
     public String getName() { return name; }
 
-    @Schema(description = "What the managed policy redacts, or an empty string if it has no description.")
-    public String getDescription() { return description; }
+    @Schema(description = "When the context was created.")
+    public Date getCreatedAt() { return createdAt; }
+
+    @Schema(description = "The username of the user the context belongs to. Present only in an all_users listing.")
+    public String getOwner() { return owner; }
 
 }

@@ -22,9 +22,9 @@ import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
 import ai.philterd.philter.api.responses.ContextEntryView;
+import ai.philterd.philter.api.responses.ContextSummary;
 import ai.philterd.philter.api.responses.ContextConflictResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
-import ai.philterd.philter.api.responses.GetAllUsersContextsResponse;
 import ai.philterd.philter.api.responses.GetContextEntriesResponse;
 import ai.philterd.philter.api.responses.ImportContextEntriesResponse;
 import ai.philterd.philter.api.responses.GetContextResponse;
@@ -162,12 +162,12 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Get the names of existing contexts.",
-            description = "Get the names of the caller's contexts, paged. Admins may list another user's contexts "
-                    + "with owner, or every user's with all_users=true, which returns each context's name and "
-                    + "owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
+    @Operation(summary = "List existing contexts.",
+            description = "Returns the caller's contexts, paged, each with its name and when it was created. Admins "
+                    + "may list another user's contexts with owner, or every user's with all_users=true, which also "
+                    + "names each context's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The context names; with all_users, each context's name and owner. The schema is set in ApiDocumentationConfig."),
+            @ApiResponse(responseCode = "200", description = "A page of contexts in contexts, and the total. The schema is set in ApiDocumentationConfig."),
             @ApiResponse(responseCode = "400", description = "Both owner and all_users were given."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it; or all_users was given by a caller who is not an administrator, or with cross-user access disabled.")
     })
@@ -202,8 +202,8 @@ public class ContextsApiController extends AbstractApiController {
                     contextService.list(null, q, contextSort, normalizeOffset(offset), normalizeLimit(limit));
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
             auditAllUsersListing(auditEventPublisher, requestId, callerUserId, "list contexts");
-            return new ResponseEntity<>(gson.toJson(new GetAllUsersContextsResponse(ownedNames(userService, page.items(),
-                    ContextEntity::getContextName, ContextEntity::getUserId), page.total())), HttpStatus.OK);
+            return new ResponseEntity<>(gson.toJson(new GetContextsResponse(summaries(page.items(),
+                    ownerNames(userService, page.items(), ContextEntity::getUserId)), page.total())), HttpStatus.OK);
         }
 
         // The caller's own contexts, or — for an admin supplying owner — another user's. A null result
@@ -219,16 +219,15 @@ public class ContextsApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXTS_RETRIEVED, callerUserId, getClientIpAddress(httpServletRequest));
         auditAdminCrossUserAccess(auditEventPublisher, requestId, callerUserId, userId, "list contexts");
 
-        final List<String> contexts = new ArrayList<>();
+        return new ResponseEntity<>(gson.toJson(new GetContextsResponse(summaries(page.items(), null), page.total())),
+                HttpStatus.OK);
 
-        for(final ContextEntity contextEntity : page.items()) {
-            contexts.add(contextEntity.getContextName());
-        }
+    }
 
-        final GetContextsResponse getContextsResponse = new GetContextsResponse(contexts, page.total());
-
-        return new ResponseEntity<>(gson.toJson(getContextsResponse), HttpStatus.OK);
-
+    /** Each context as a listing returns it, naming its owner from {@code owners}, a map of user ids to usernames, when given. */
+    private static List<ContextSummary> summaries(final List<ContextEntity> contexts, final Map<String, String> owners) {
+        return contexts.stream().map(context -> new ContextSummary(context.getContextName(), context.getTimestamp(),
+                owners == null ? null : owners.get(context.getUserId()))).toList();
     }
 
     /** The order a listing of a context's entries can take. */

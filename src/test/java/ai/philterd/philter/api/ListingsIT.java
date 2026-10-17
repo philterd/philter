@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -116,8 +117,7 @@ class ListingsIT {
 
     private static List<String> strings(final JsonArray array) {
         final List<String> values = new ArrayList<>();
-        array.forEach(value -> values.add(value.isJsonObject()
-                ? value.getAsJsonObject().get("name").getAsString() : value.getAsString()));
+        array.forEach(value -> values.add(value.getAsJsonObject().get("name").getAsString()));
         return values;
     }
 
@@ -145,6 +145,24 @@ class ListingsIT {
 
         assertEquals(400, send(key, "GET", "/api/policies?sort=size", null).statusCode());
         assertEquals(400, send(key, "GET", "/api/policies?order=sideways", null).statusCode());
+    }
+
+    @Test
+    @DisplayName("Policies and contexts are listed as objects, naming no owner outside an all_users listing")
+    void listedItemsAreObjects() throws Exception {
+        assertEquals(201, send(key, "POST", "/api/policies?name=shape", POLICY).statusCode());
+        assertEquals(200, send(key, "PUT", "/api/policies/shape/details", "{\"description\":\"Shape check\"}").statusCode());
+        final JsonObject policy = list(key, "/api/policies?q=shape").getAsJsonArray("policies").get(0).getAsJsonObject();
+        assertEquals("shape", policy.get("name").getAsString());
+        assertEquals("Shape check", policy.get("description").getAsString());
+        assertTrue(policy.has("revision") && policy.has("createdAt") && policy.has("updatedAt"), policy.toString());
+        assertFalse(policy.has("owner"), policy.toString());
+
+        assertEquals(200, send(key, "POST", "/api/contexts?name=shape", null).statusCode());
+        final JsonObject context = list(key, "/api/contexts?q=shape").getAsJsonArray("contexts").get(0).getAsJsonObject();
+        assertEquals("shape", context.get("name").getAsString());
+        assertTrue(context.has("createdAt"), context.toString());
+        assertFalse(context.has("owner"), context.toString());
     }
 
     @Test

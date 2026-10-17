@@ -25,10 +25,9 @@ import ai.philterd.philter.api.responses.CompilePolicyResponse;
 import ai.philterd.philter.api.responses.DeletedPolicySummary;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetPoliciesResponse;
-import ai.philterd.philter.api.responses.ManagedPolicySummary;
-import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.api.responses.PolicyConflictResponse;
 import ai.philterd.philter.api.responses.PolicyDetailsResponse;
+import ai.philterd.philter.api.responses.PolicySummary;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -75,6 +74,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Policies", description = "Operations for creating, retrieving, deleting, and compiling redaction policies.")
 @Controller
@@ -98,18 +98,16 @@ public class PoliciesApiController extends AbstractApiController {
         this.gson = gson;
     }
 
-    @Operation(summary = "Get the names of existing policies.",
-            description = "Returns the names of the caller's policies, paged. Admins may list another user's "
+    @Operation(summary = "List existing policies.",
+            description = "Returns the caller's policies, paged, each with its name, description, revision, and when it was created and last changed. Admins may list another user's "
                     + "policies by passing that user's username as owner, or every user's with all_users=true, which "
-                    + "returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With "
-                    + "managed=true, returns the built-in managed policies instead, each with its name and description. "
+                    + "also names each policy's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With "
+                    + "managed=true, returns the built-in managed policies instead. "
                     + "With deleted=true, returns the caller's (or owner's) deleted policies whose version history "
                     + "is kept, by name, each with its latest revision and when and by whom it was deleted; read a "
                     + "deleted policy's history with GET /api/policies/{policyName}/versions.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "A page of policies in policies, and the total. Each is a policy's name; with all_users, an object naming each "
-                    + "policy and its owner; with managed, objects giving each managed policy's name and description; "
-                    + "with deleted, objects describing each deleted policy.",
+            @ApiResponse(responseCode = "200", description = "A page of policies in policies, and the total. With deleted, each item describes a deleted policy.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GetPoliciesResponse.class))),
             @ApiResponse(responseCode = "400", description = "Both owner and all_users were given, managed was combined with either, or deleted was combined with all_users or managed."),
@@ -168,8 +166,7 @@ public class PoliciesApiController extends AbstractApiController {
             }
             final Listings.Page<PolicyEntity> page = policyDataService.listManaged(q,
                     listingSort(sort, order, NAME_SORT, "name", false), pageOffset, pageLimit);
-            return ResponseEntity.ok(new GetPoliciesResponse(page.items().stream()
-                    .map(policy -> new ManagedPolicySummary(policy.getName(), policy.getDescription())).toList(), page.total()));
+            return ResponseEntity.ok(new GetPoliciesResponse(summaries(page.items(), null), page.total()));
         }
 
         final Listings.Sort policySort = listingSort(sort, order, POLICY_SORT, "name", false);
@@ -180,8 +177,8 @@ public class PoliciesApiController extends AbstractApiController {
             }
             final Listings.Page<PolicyEntity> page = policyDataService.listAcrossUsers(q, policySort, pageOffset, pageLimit);
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list policies");
-            return ResponseEntity.ok(new GetPoliciesResponse(
-                    ownedNames(userService, page.items(), PolicyEntity::getName, PolicyEntity::getUserId), page.total()));
+            return ResponseEntity.ok(new GetPoliciesResponse(summaries(page.items(),
+                    ownerNames(userService, page.items(), PolicyEntity::getUserId)), page.total()));
         }
 
         final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -192,9 +189,15 @@ public class PoliciesApiController extends AbstractApiController {
 
         final Listings.Page<PolicyEntity> page = policyDataService.listOwn(userId, q, policySort, pageOffset, pageLimit);
 
-        return ResponseEntity.ok(new GetPoliciesResponse(page.items().stream().map(PolicyEntity::getName).toList(),
-                page.total()));
+        return ResponseEntity.ok(new GetPoliciesResponse(summaries(page.items(), null), page.total()));
 
+    }
+
+    /** Each policy as a listing returns it, naming its owner from {@code owners}, a map of user ids to usernames, when given. */
+    private static List<PolicySummary> summaries(final List<PolicyEntity> policies, final Map<String, String> owners) {
+        return policies.stream().map(policy -> new PolicySummary(policy.getName(), policy.getDescription(),
+                policy.getRevision(), policy.getCreatedTimestamp(), policy.getLastUpdatedTimestamp(),
+                owners == null ? null : owners.get(policy.getUserId()))).toList();
     }
 
     /** The order a listing of policies can take. */

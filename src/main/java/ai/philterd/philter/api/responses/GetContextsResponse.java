@@ -15,19 +15,24 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
+/** A page of contexts and how many there are. With all_users, each context also names its owner. */
 public class GetContextsResponse {
 
-    private final List<String> contexts;
+    private final List<ContextSummary> contexts;
     private final long total;
 
-    public GetContextsResponse(final List<String> contexts, final long total) {
+    public GetContextsResponse(final List<ContextSummary> contexts, final long total) {
         this.contexts = contexts;
         this.total = total;
     }
 
-    public List<String> getContexts() {
+    @ArraySchema(arraySchema = @Schema(description = "The contexts on this page."))
+    public List<ContextSummary> getContexts() {
         return contexts;
     }
 

@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The guarantees of {@link ContextDataService}. */
@@ -69,6 +70,7 @@ public interface ContextDataServiceContract extends StorageContract {
         assertTrue(context.isDisambiguation());
         assertTrue(context.isLedger());
         assertEquals("Context", context.getDisambiguationScope());
+        assertNotNull(context.getTimestamp(), "a context records when it was created");
     }
 
     @Test

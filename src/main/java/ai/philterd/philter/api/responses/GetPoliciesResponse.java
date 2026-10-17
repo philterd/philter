@@ -15,13 +15,14 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
 /**
- * A page of policies and how many there are. Each item is a policy's name; with all_users, its name and
- * owner; with managed, its name and description; with deleted, a {@link DeletedPolicySummary}.
+ * A page of policies and how many there are. Each item is a {@link PolicySummary}, or with deleted, a
+ * {@link DeletedPolicySummary}.
  */
 public class GetPoliciesResponse {
 
@@ -33,7 +34,8 @@ public class GetPoliciesResponse {
         this.total = total;
     }
 
-    @Schema(description = "The policies on this page: names, or with all_users, managed, or deleted, objects describing each.")
+    @ArraySchema(arraySchema = @Schema(description = "The policies on this page. With deleted, each describes a deleted policy."),
+            schema = @Schema(oneOf = {PolicySummary.class, DeletedPolicySummary.class}))
     public List<?> getPolicies() { return policies; }
 
     @Schema(description = "How many policies the listing has across every page.")

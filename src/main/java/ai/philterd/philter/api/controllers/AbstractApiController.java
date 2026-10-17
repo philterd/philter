@@ -20,7 +20,6 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
-import ai.philterd.philter.api.responses.OwnedNameResponse;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
@@ -207,17 +206,6 @@ public abstract class AbstractApiController {
             ids.add(owner.apply(item));
         }
         return userService.findUsernamesByIds(ids);
-    }
-
-    /** Each item's name and its owner's username, in the order given. */
-    protected <T> List<OwnedNameResponse> ownedNames(final UserService userService, final List<T> items,
-                                                     final Function<T, String> name, final Function<T, String> owner) {
-        final Map<String, String> usernames = ownerNames(userService, items, owner);
-        final List<OwnedNameResponse> owned = new ArrayList<>(items.size());
-        for (final T item : items) {
-            owned.add(new OwnedNameResponse(name.apply(item), usernames.get(owner.apply(item))));
-        }
-        return owned;
     }
 
     /** Records an administrator listing a resource across every user. */

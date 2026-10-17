@@ -26,7 +26,10 @@ Every endpoint that lists things returns an object with the items on the request
 
 ```json
 {
-  "policies": ["default", "claims-2025"],
+  "contexts": [
+    { "name": "default", "createdAt": "2026-10-01T12:00:00.000Z" },
+    { "name": "claims-2025", "createdAt": "2026-10-05T10:20:30.000Z" }
+  ],
   "total": 2
 }
 ```

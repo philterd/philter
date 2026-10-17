@@ -181,11 +181,15 @@ class AllUsersListingsIT {
     }
 
     @Test
-    @DisplayName("Per-user listings are unchanged: names only, no owner")
-    void perUserListingsAreUnchanged() throws Exception {
+    @DisplayName("Per-user listings name no owner")
+    void perUserListingsNameNoOwner() throws Exception {
         final String aliceKey = seedKey(userService.findByUsername(alice).getId());
-        assertEquals("{\"policies\":[\"default\"],\"total\":1}", get("/api/policies", aliceKey).body());
-        assertEquals("{\"contexts\":[\"default\"],\"total\":1}", get("/api/contexts", aliceKey).body());
+        final String policies = get("/api/policies", aliceKey).body();
+        assertTrue(policies.startsWith("{\"policies\":[{\"name\":\"default\"") && policies.endsWith("\"total\":1}"), policies);
+        assertFalse(policies.contains("owner"), policies);
+        final String contexts = get("/api/contexts", aliceKey).body();
+        assertTrue(contexts.startsWith("{\"contexts\":[{\"name\":\"default\"") && contexts.endsWith("\"total\":1}"), contexts);
+        assertFalse(contexts.contains("owner"), contexts);
         assertFalse(get("/api/holds", aliceKey).body().contains("owner"));
         assertFalse(get("/api/ledger", aliceKey).body().contains("owner"));
     }

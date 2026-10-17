@@ -24,6 +24,7 @@ import ai.philterd.philter.services.vectors.VectorServices;
 import ai.philterd.philter.utils.PathSafeNames;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -111,6 +112,7 @@ public abstract class StoredContextDataService implements ContextDataService {
         contextEntity.setDisambiguation(disambiguation);
         contextEntity.setDisambiguationScope(scope);
         contextEntity.setLedger(ledger);
+        contextEntity.setTimestamp(new Date());
 
         // Claim the lowest free slot. The checks above are not atomic with the insert, so concurrent
         // creates can race for a slot or a name; the uniqueness constraints settle both, and the loser of a

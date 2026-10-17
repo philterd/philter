@@ -11,9 +11,11 @@ The Policies API provides endpoints for retrieving, uploading, and deleting [pol
 
 | Method | Endpoint        | Description                    |
 | ------ |-----------------|--------------------------------| 
-| `GET` | `/api/policies` | Get the names of policies (paginated). |
+| `GET` | `/api/policies` | List policies (paginated). |
 
 Returns an object with the policies on the requested page in `policies` and `total`, how many there are across every page. See [Listings](../api.md#listings) for paging, sorting, and searching.
+
+Each item in `policies` is an object with the policy's `name`, its `description` (an empty string if it has none), its current `revision`, and when it was created (`createdAt`) and last changed (`updatedAt`). The policy itself is read with [Get a Policy](#get-a-policy).
 
 ### Query Parameters
 
@@ -22,9 +24,9 @@ Returns an object with the policies on the requested page in `policies` and `tot
 * `q` (optional) - Only policies whose name contains `q`, ignoring case.
 * `sort` (optional, default: `name`) - `name`, `created`, or `updated`. The `managed` and `deleted` listings sort by `name` only.
 * `order` (optional, default: `asc`) - `asc` or `desc`.
-* `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item is then an object with the policy's `name` and its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
-* `managed` (optional, default: `false`) - List the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Each item is then an object with the policy's `name` and `description`. Cannot be combined with `owner` or `all_users`.
-* `deleted` (optional, default: `false`) - List the caller's deleted policies whose [version history](#policy-version-history) is kept, by name, instead of the live ones. Each item is then an object with the policy's `name`, its `latestRevision`, when it was deleted (`deletedAt`), and the username of who deleted it (`deletedBy`). `deletedAt` and `deletedBy` are `null` for a policy deleted before Philter recorded deletions. A policy created again under a deleted name is live, and is no longer listed. Can be combined with `owner`, but not with `all_users` or `managed`.
+* `all_users` (optional, default: `false`) - List every user's policies instead of the caller's. Each item then also has its `owner`'s username. Managed policies are not included. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
+* `managed` (optional, default: `false`) - List the built-in [managed policies](../../policies/sample_policies.md#managed-policies) instead of the caller's. Cannot be combined with `owner` or `all_users`.
+* `deleted` (optional, default: `false`) - List the caller's deleted policies whose [version history](#policy-version-history) is kept, by name, instead of the live ones. Each item then has the policy's `name`, its `latestRevision`, when it was deleted (`deletedAt`), and the username of who deleted it (`deletedBy`). `deletedAt` and `deletedBy` are `null` for a policy deleted before Philter recorded deletions. A policy created again under a deleted name is live, and is no longer listed. Can be combined with `owner`, but not with `all_users` or `managed`.
 
 Example request:
 
@@ -32,13 +34,13 @@ Example request:
 curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/policies?offset=0&limit=100"
 ```
 
-Example response, the caller's policy names:
+Example response:
 
 ```json
 {
   "policies": [
-    "default",
-    "my-policy"
+    { "name": "default", "description": "Default policy", "revision": 0, "createdAt": "2026-10-01T12:00:00.000Z", "updatedAt": "2026-10-01T12:00:00.000Z" },
+    { "name": "my-policy", "description": "", "revision": 3, "createdAt": "2026-10-02T09:15:00.000Z", "updatedAt": "2026-10-08T16:42:10.000Z" }
   ],
   "total": 2
 }
@@ -49,8 +51,8 @@ Example response with `all_users=true`:
 ```json
 {
   "policies": [
-    { "name": "default", "owner": "alice" },
-    { "name": "default", "owner": "bob" }
+    { "name": "default", "description": "Default policy", "revision": 0, "createdAt": "2026-10-01T12:00:00.000Z", "updatedAt": "2026-10-01T12:00:00.000Z", "owner": "alice" },
+    { "name": "default", "description": "Default policy", "revision": 0, "createdAt": "2026-10-03T08:30:00.000Z", "updatedAt": "2026-10-03T08:30:00.000Z", "owner": "bob" }
   ],
   "total": 2
 }

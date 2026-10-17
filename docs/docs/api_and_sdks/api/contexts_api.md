@@ -10,11 +10,11 @@ The Contexts API provides endpoints for retrieving, creating, updating, and dele
 
 | Method | Endpoint        | Description                    |
 | ------ |-----------------|--------------------------------| 
-| `GET` | `/api/contexts` | Get the names of contexts (paginated). |
+| `GET` | `/api/contexts` | List contexts (paginated). |
+
+Returns the contexts on the requested page in `contexts` and `total`, how many there are across every page. See [Listings](../api.md#listings) for paging, sorting, and searching. Each item is an object with the context's `name` and when it was created (`createdAt`). Its settings and size are returned by [Get Context Details](#get-context-details).
 
 ### Query Parameters
-
-Returns the contexts on the requested page in `contexts` and `total`, how many there are across every page. See [Listings](../api.md#listings) for paging, sorting, and searching.
 
 * `offset` (optional, default: `0`) - The number of contexts to skip.
 * `limit` (optional, default: `25`, max: `100`) - The maximum number of contexts to return.
@@ -22,7 +22,7 @@ Returns the contexts on the requested page in `contexts` and `total`, how many t
 * `sort` (optional, default: `name`) - `name` or `created`.
 * `order` (optional, default: `asc`) - `asc` or `desc`.
 * `owner` (optional) - The username of the user whose contexts to list. When omitted, the caller's own contexts are listed. Supplying an `owner` other than yourself requires admin privileges and cross-user access being enabled (`ADMIN_CROSS_USER_ACCESS_ENABLED=true`; disabled by default); otherwise it receives `404 Not Found`.
-* `all_users` (optional, default: `false`) - List every user's contexts instead of the caller's. Each item in `contexts` is then an object with the context's `name` and its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
+* `all_users` (optional, default: `false`) - List every user's contexts instead of the caller's. Each item then also has its `owner`'s username. Requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (disabled by default), as `owner` does; otherwise it returns `404 Not Found`. Cannot be combined with `owner`.
 
 Example request:
 
@@ -35,8 +35,8 @@ Example response:
 ```json
 {
   "contexts": [
-    "default",
-    "my-context"
+    { "name": "default", "createdAt": "2026-10-01T12:00:00.000Z" },
+    { "name": "my-context", "createdAt": "2026-10-05T10:20:30.000Z" }
   ],
   "total": 2
 }

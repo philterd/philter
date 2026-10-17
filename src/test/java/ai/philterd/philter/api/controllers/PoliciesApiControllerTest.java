@@ -46,6 +46,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.policies.PhiSqlCompileService;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -131,9 +132,12 @@ class PoliciesApiControllerTest {
     }
 
     @Test
-    void listReturnsNamesWithTheTotalAndPassesSearchAndOrder() throws Exception {
+    void listReturnsSummariesWithTheTotalAndPassesSearchAndOrder() throws Exception {
         final PolicyEntity entity = new PolicyEntity();
         entity.setName("claims");
+        entity.setDescription("Claims intake");
+        entity.setRevision(3);
+        entity.setUserId(userId);
         when(policyDataService.listOwn(eq(userId), eq("cla"), org.mockito.ArgumentMatchers.any(), anyInt(), anyInt()))
                 .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(java.util.List.of(entity), 12));
 
@@ -141,7 +145,9 @@ class PoliciesApiControllerTest {
                         .param("q", "cla").param("sort", "updated").param("order", "desc").requestAttr("requestId", "req-s"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
-        assertTrue(body.contains("\"policies\":[\"claims\"]") && body.contains("\"total\":12"), body);
+        assertTrue(body.contains("\"policies\":[{\"name\":\"claims\"") && body.contains("\"description\":\"Claims intake\"")
+                && body.contains("\"revision\":3") && body.contains("\"total\":12"), body);
+        assertFalse(body.contains("\"owner\""), "only an all_users listing names the owner: " + body);
         verify(policyDataService).listOwn(eq(userId), eq("cla"), eq(new ai.philterd.philter.data.services.Listings.Sort("last_updated_timestamp", true)), eq(0), eq(25));
 
         final String refused = mockMvc.perform(get("/api/policies").header("Authorization", AUTH_HEADER)

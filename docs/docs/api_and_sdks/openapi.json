@@ -1110,8 +1110,8 @@
         "tags": [
           "Contexts"
         ],
-        "summary": "Get the names of existing contexts.",
-        "description": "Get the names of the caller's contexts, paged. Admins may list another user's contexts with owner, or every user's with all_users=true, which returns each context's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `contexts:read` scope.",
+        "summary": "List existing contexts.",
+        "description": "Returns the caller's contexts, paged, each with its name and when it was created. Admins may list another user's contexts with owner, or every user's with all_users=true, which also names each context's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. Requires the `contexts:read` scope.",
         "operationId": "getContexts",
         "parameters": [
           {
@@ -1186,18 +1186,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Context names; with all_users, each context's name and owner.",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/GetContextsResponse"
-                    },
-                    {
-                      "$ref": "#/components/schemas/GetAllUsersContextsResponse"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/GetContextsResponse"
                 }
               }
             }
@@ -6183,8 +6176,8 @@
         "tags": [
           "Policies"
         ],
-        "summary": "Get the names of existing policies.",
-        "description": "Returns the names of the caller's policies, paged. Admins may list another user's policies by passing that user's username as owner, or every user's with all_users=true, which returns each policy's name and owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the built-in managed policies instead, each with its name and description. With deleted=true, returns the caller's (or owner's) deleted policies whose version history is kept, by name, each with its latest revision and when and by whom it was deleted; read a deleted policy's history with GET /api/policies/{policyName}/versions. Requires the `policies:read` scope.",
+        "summary": "List existing policies.",
+        "description": "Returns the caller's policies, paged, each with its name, description, revision, and when it was created and last changed. Admins may list another user's policies by passing that user's username as owner, or every user's with all_users=true, which also names each policy's owner and requires ADMIN_CROSS_USER_ACCESS_ENABLED. With managed=true, returns the built-in managed policies instead. With deleted=true, returns the caller's (or owner's) deleted policies whose version history is kept, by name, each with its latest revision and when and by whom it was deleted; read a deleted policy's history with GET /api/policies/{policyName}/versions. Requires the `policies:read` scope.",
         "operationId": "getPolicyNames",
         "parameters": [
           {
@@ -6277,7 +6270,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A page of policies in policies, and the total. Each is a policy's name; with all_users, an object naming each policy and its owner; with managed, objects giving each managed policy's name and description; with deleted, objects describing each deleted policy.",
+            "description": "A page of policies in policies, and the total. With deleted, each item describes a deleted policy.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13386,6 +13379,22 @@
           }
         }
       },
+      "ContextSummary": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "When the context was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "owner": {
+            "description": "The username of the user the context belongs to. Present only in an all_users listing.",
+            "type": "string"
+          }
+        }
+      },
       "CreateApiKeyRequest": {
         "type": "object",
         "properties": {
@@ -13533,6 +13542,29 @@
           }
         }
       },
+      "DeletedPolicySummary": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The policy's name. Read its history with GET /api/policies/{policyName}/versions.",
+            "type": "string"
+          },
+          "deletedAt": {
+            "description": "When the policy was deleted, or null for a policy deleted before Philter recorded deletions.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedBy": {
+            "description": "The username of the user who deleted it, or null when that is not known.",
+            "type": "string"
+          },
+          "latestRevision": {
+            "description": "The most recent retained revision.",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ExplanationSpan": {
         "type": "object",
         "properties": {
@@ -13619,20 +13651,6 @@
           }
         }
       },
-      "GetAllUsersContextsResponse": {
-        "properties": {
-          "contexts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OwnedNameResponse"
-            }
-          },
-          "total": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
       "GetApiKeysResponse": {
         "type": "object",
         "properties": {
@@ -13711,9 +13729,10 @@
       "GetContextsResponse": {
         "properties": {
           "contexts": {
+            "description": "The contexts on this page.",
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ContextSummary"
             }
           },
           "total": {
@@ -13823,9 +13842,18 @@
         "type": "object",
         "properties": {
           "policies": {
-            "description": "The policies on this page: names, or with all_users, managed, or deleted, objects describing each.",
+            "description": "The policies on this page. With deleted, each describes a deleted policy.",
             "type": "array",
-            "items": {}
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PolicySummary"
+                },
+                {
+                  "$ref": "#/components/schemas/DeletedPolicySummary"
+                }
+              ]
+            }
           },
           "total": {
             "description": "How many policies the listing has across every page.",
@@ -14275,16 +14303,6 @@
           }
         }
       },
-      "OwnedNameResponse": {
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "owner": {
-            "type": "string"
-          }
-        }
-      },
       "PasswordRules": {
         "type": "object",
         "properties": {
@@ -14506,6 +14524,38 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "PolicySummary": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "The policy's description, or an empty string if it has none.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The policy's name. A managed policy's begins with managed_.",
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "When the policy was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "owner": {
+            "description": "The username of the user the policy belongs to. Present only in an all_users listing.",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The policy's current revision.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedAt": {
+            "description": "When the policy was last changed.",
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

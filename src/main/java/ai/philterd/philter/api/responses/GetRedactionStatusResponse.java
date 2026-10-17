@@ -17,6 +17,7 @@ package ai.philterd.philter.api.responses;
 
 public class GetRedactionStatusResponse {
 
+    private final String type;
     private final String status;
     private String error;
     public String getError() { return error; }
@@ -29,9 +30,15 @@ public class GetRedactionStatusResponse {
     private Integer policyVersion;
     private String policyContentHash;
 
-    public GetRedactionStatusResponse(final String status, final String documentId) {
+    public GetRedactionStatusResponse(final String type, final String status, final String documentId) {
+        this.type = type;
         this.status = status;
         this.documentId = documentId;
+    }
+
+    /** What the job produces. redaction, a redacted document, is the only type. */
+    public String getType() {
+        return type;
     }
 
     public String getStatus() {

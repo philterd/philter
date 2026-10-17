@@ -39,6 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -131,14 +132,19 @@ class DocumentsApiControllerTest {
 
     @Test
     void listDocumentsFiltersByStatusAndReportsTheTotal() throws Exception {
+        final PendingDocumentEntity failed = new PendingDocumentEntity();
+        failed.setDocumentId("doc-failed");
+        failed.setFileName("claim.pdf");
+        failed.setStatus(PendingDocumentEntity.STATUS_FAILED);
         when(pendingDocumentDataService.list(eq(userId), eq("FAILED"), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
-                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 4));
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(failed), 4));
 
         final String body = mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER)
                         .param("status", "failed").param("sort", "fileName"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("\"total\":4"), body);
+        org.junit.jupiter.api.Assertions.assertTrue(body.startsWith("{\"documents\":[{\"type\":\"redaction\",\"fileName\":\"claim.pdf\""), body);
         verify(pendingDocumentDataService).list(eq(userId), eq("FAILED"), eq(new ai.philterd.philter.data.services.Listings.Sort("file_name", false)), eq(0), eq(25));
 
         mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER).param("status", "lost"))
@@ -155,9 +161,10 @@ class DocumentsApiControllerTest {
         entity.setStatus(PendingDocumentEntity.STATUS_PENDING);
         when(pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId)).thenReturn(entity);
 
-        mockMvc.perform(get("/api/documents/" + documentId + "/status").header("Authorization", AUTH_HEADER))
-                .andExpect(status().isOk());
+        final String body = mockMvc.perform(get("/api/documents/" + documentId + "/status").header("Authorization", AUTH_HEADER))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("\"type\":\"redaction\""), body);
         verify(pendingDocumentDataService).findOneByDocumentIdAndUserId(documentId, userId);
     }
 

@@ -2541,7 +2541,7 @@
           "Documents"
         ],
         "summary": "List documents submitted for async redaction.",
-        "description": "Requires the `documents:read` scope.",
+        "description": "Lists the caller's submitted documents, whatever their status, each with its type, file name, status, submission time, and policy. Requires the `documents:read` scope.",
         "operationId": "listDocuments",
         "parameters": [
           {
@@ -13581,6 +13581,37 @@
           }
         }
       },
+      "DocumentSummary": {
+        "properties": {
+          "type": {
+            "description": "What the job produces. redaction, a redacted document, is the only type.",
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "policyContentHash": {
+            "type": "string"
+          },
+          "policyName": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ExplanationSpan": {
         "type": "object",
         "properties": {
@@ -13775,10 +13806,11 @@
       },
       "GetDocumentsResponse": {
         "properties": {
-          "pendingRedactedDocuments": {
+          "documents": {
+            "description": "The documents on this page.",
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PendingRedactedDocuments"
+              "$ref": "#/components/schemas/DocumentSummary"
             }
           },
           "total": {
@@ -13882,6 +13914,9 @@
       },
       "GetRedactionStatusResponse": {
         "properties": {
+          "type": {
+            "type": "string"
+          },
           "documentId": {
             "type": "string"
           },
@@ -14343,33 +14378,6 @@
           "rule": {
             "description": "The rule in words, as Philter's error messages state it.",
             "type": "string"
-          }
-        }
-      },
-      "PendingRedactedDocuments": {
-        "properties": {
-          "documentId": {
-            "type": "string"
-          },
-          "fileName": {
-            "type": "string"
-          },
-          "policyContentHash": {
-            "type": "string"
-          },
-          "policyName": {
-            "type": "string"
-          },
-          "policyVersion": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "status": {
-            "type": "string"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },

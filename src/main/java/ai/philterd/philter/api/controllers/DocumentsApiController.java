@@ -22,9 +22,9 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.RefusedException;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.data.services.Listings;
+import ai.philterd.philter.api.responses.DocumentSummary;
 import ai.philterd.philter.api.responses.GetDocumentsResponse;
 import ai.philterd.philter.api.responses.GetRedactionStatusResponse;
-import ai.philterd.philter.api.responses.PendingRedactedDocuments;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -80,7 +80,8 @@ public class DocumentsApiController extends AbstractApiController {
         this.gson = gson;
     }
 
-    @Operation(summary = "List documents submitted for async redaction.")
+    @Operation(summary = "List documents submitted for async redaction.", description = "Lists the caller's submitted "
+            + "documents, whatever their status, each with its type, file name, status, submission time, and policy.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200")})
     @RequiresScope(ApiKeyScope.DOCUMENTS_READ)
     @RequestMapping(value = "/api/documents", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -110,9 +111,10 @@ public class DocumentsApiController extends AbstractApiController {
                 normalizeOffset(offset), normalizeLimit(limit));
         final List<PendingDocumentEntity> entities = page.items();
 
-        final List<PendingRedactedDocuments> documents = new ArrayList<>();
+        final List<DocumentSummary> documents = new ArrayList<>();
         for (final PendingDocumentEntity entity : entities) {
-            documents.add(new PendingRedactedDocuments(
+            documents.add(new DocumentSummary(
+                    PendingDocumentEntity.TYPE_REDACTION,
                     entity.getFileName(),
                     entity.getStatus(),
                     entity.getSubmittedAt(),
@@ -179,7 +181,8 @@ public class DocumentsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        final GetRedactionStatusResponse response = new GetRedactionStatusResponse(entity.getStatus(), entity.getDocumentId());
+        final GetRedactionStatusResponse response = new GetRedactionStatusResponse(PendingDocumentEntity.TYPE_REDACTION,
+                entity.getStatus(), entity.getDocumentId());
         response.setEffectiveConfigurationHash(entity.getEffectiveHash());
         response.setPolicy(entity.getPolicyName(), entity.getPolicyVersion(), entity.getPolicyContentHash());
         response.setError(entity.getErrorMessage());

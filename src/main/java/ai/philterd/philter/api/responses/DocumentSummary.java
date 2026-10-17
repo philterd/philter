@@ -15,9 +15,14 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
-public class PendingRedactedDocuments {
+/** A submitted document as {@code GET /api/documents} lists it. */
+public class DocumentSummary {
+
+    private final String type;
 
     private final String fileName;
     private final String status;
@@ -30,8 +35,10 @@ public class PendingRedactedDocuments {
     /**
      * @param policyVersion The policy's revision when the document was submitted; negative means none was recorded.
      */
-    public PendingRedactedDocuments(final String fileName, final String status, final Date timestamp, final String documentId,
-                                    final String policyName, final int policyVersion, final String policyContentHash) {
+    public DocumentSummary(final String type, final String fileName, final String status, final Date timestamp,
+                           final String documentId, final String policyName, final int policyVersion,
+                           final String policyContentHash) {
+        this.type = type;
         this.fileName = fileName;
         this.status = status;
         this.timestamp = timestamp;
@@ -39,6 +46,11 @@ public class PendingRedactedDocuments {
         this.policyName = policyName;
         this.policyVersion = policyVersion < 0 ? null : policyVersion;
         this.policyContentHash = policyContentHash;
+    }
+
+    @Schema(description = "What the job produces. redaction, a redacted document, is the only type.")
+    public String getType() {
+        return type;
     }
 
     public String getFileName() {

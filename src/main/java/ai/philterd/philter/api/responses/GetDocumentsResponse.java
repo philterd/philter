@@ -15,20 +15,25 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
+/** A page of submitted documents, whatever their status, and how many there are. */
 public class GetDocumentsResponse {
 
-    private final List<PendingRedactedDocuments> pendingRedactedDocuments;
+    private final List<DocumentSummary> documents;
     private final long total;
 
-    public GetDocumentsResponse(final List<PendingRedactedDocuments> pendingRedactedDocuments, final long total) {
-        this.pendingRedactedDocuments = pendingRedactedDocuments;
+    public GetDocumentsResponse(final List<DocumentSummary> documents, final long total) {
+        this.documents = documents;
         this.total = total;
     }
 
-    public List<PendingRedactedDocuments> getPendingRedactedDocuments() {
-        return pendingRedactedDocuments;
+    @ArraySchema(arraySchema = @Schema(description = "The documents on this page."))
+    public List<DocumentSummary> getDocuments() {
+        return documents;
     }
 
     /** How many items the listing has across every page. */

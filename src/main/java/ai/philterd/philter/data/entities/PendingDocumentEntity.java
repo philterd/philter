@@ -24,6 +24,9 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     public static final String STATUS_COMPLETE = "COMPLETE";
     public static final String STATUS_FAILED = "FAILED";
 
+    /** The type of every job today: one that produces a redacted document. */
+    public static final String TYPE_REDACTION = "redaction";
+
     private String id;
     private String userId;
     private String documentId;

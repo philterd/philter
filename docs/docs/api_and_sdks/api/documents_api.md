@@ -65,7 +65,7 @@ When the document's context has the [redaction ledger](../../redaction/ledgers.m
 * `status` (optional) - Only documents with this status: `PENDING`, `PROCESSING`, `COMPLETE`, or `FAILED`, ignoring case. Any other value is refused with `400 Bad Request`.
 * `sort` (optional, default `submitted`) - `submitted`, newest first by default, or `fileName`. With `order` (`asc` or `desc`); see [Listings](../api.md#listings).
 
-Returns the documents on the requested page in `pendingRedactedDocuments` and `total`, how many match across every page.
+Returns the documents on the requested page in `documents`, whatever their status, and `total`, how many match across every page. Each document's `type` says what the job produces: `redaction`, a redacted document, is the only type.
 
 ```bash
 curl -k -H "Authorization: Bearer <token>" \
@@ -74,8 +74,9 @@ curl -k -H "Authorization: Bearer <token>" \
 
 ```json
 {
-  "pendingRedactedDocuments": [
+  "documents": [
     {
+      "type": "redaction",
       "fileName": "patient-record.pdf",
       "status": "COMPLETE",
       "timestamp": "2026-05-22T20:00:00.000Z",
@@ -102,6 +103,7 @@ curl -k -H "Authorization: Bearer <token>" \
 
 ```json
 {
+  "type": "redaction",
   "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f",
   "status": "PROCESSING",
   "effectiveConfigurationHash": "4b1e...",
@@ -111,7 +113,7 @@ curl -k -H "Authorization: Bearer <token>" \
 }
 ```
 
-`policyName`, `policyVersion`, and `policyContentHash` name the policy the document was submitted with, and the same values are in the listing; see [Which policy redacted a document](#which-policy-redacted-a-document).
+`type` is the job's type, as in the listing. `policyName`, `policyVersion`, and `policyContentHash` name the policy the document was submitted with, and the same values are in the listing; see [Which policy redacted a document](#which-policy-redacted-a-document).
 
 Returns `404 Not Found` if no document with that id exists for the calling user.
 

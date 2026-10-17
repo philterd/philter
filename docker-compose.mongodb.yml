@@ -39,8 +39,6 @@ services:
 
   ph-eye:
     image: philterd/ph-eye:1.3.0-pii_en_small
-    ports:
-      - "18080:5000"
     networks:
       - philter
     # runtime: nvidia
@@ -49,12 +47,9 @@ services:
 
   mongodb:
     image: mongo:8.2.12
-    # Published so philter-test, mongosh and Philter Diffuse can reach it. Holds the ledger and encrypted PII.
-    ports:
-      - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: philter
-      # Development password, published port. Real data wants a generated one supplied from outside this file.
+      # Development password. Real data wants a generated one supplied from outside this file.
       MONGO_INITDB_ROOT_USERNAME: philter
       MONGO_INITDB_ROOT_PASSWORD: philter
     networks:

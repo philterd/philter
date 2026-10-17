@@ -187,6 +187,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Security
 
+- **The compose files no longer publish PhEye or MongoDB.** PhEye has no authentication, and the bundled MongoDB's
+  root password is in the file; Philter reaches both on the compose network. Only Philter's port 8080 is published.
 - **The compose files require `PHILTER_ENCRYPTION_KEY`.** They fell back to a key published in the repository,
   which unwraps every encrypted record. `./compose.sh` generates one in `.env`; without it, `docker compose` stops
   with a message saying so.

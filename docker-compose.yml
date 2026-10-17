@@ -39,8 +39,6 @@ services:
 
   ph-eye:
     image: philterd/ph-eye:1.3.0-pii_en_small
-    ports:
-      - "18080:5000"
     networks:
       - philter
     # runtime: nvidia

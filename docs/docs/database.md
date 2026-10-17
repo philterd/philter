@@ -21,7 +21,7 @@ A deployment that sets `MONGODB_CONNECTION_STRING` must also set `STORAGE_TYPE`.
 
 ## Supported MongoDB versions
 
-Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.mongodb.yml` pins (`./compose.sh -f docker-compose.mongodb.yml up`). That MongoDB requires authentication and holds the ledger, the audit log and the encrypted PII. Its port is published so `mongosh` and [Philter Diffuse](diffuse.md) can reach it from your machine, and its development password is written in `docker-compose.mongodb.yml`; for real data, use a generated password and do not publish the port. SQLite storage uses the SQLite library built into Philter; there is nothing to install.
+Philter is developed and tested against **MongoDB 8.2**, which is what the bundled `docker-compose.mongodb.yml` pins (`./compose.sh -f docker-compose.mongodb.yml up`). That MongoDB requires authentication and holds the ledger, the audit log and the encrypted PII. Its port is not published, so only Philter, on the compose network, can reach it. To use `mongosh` or [Philter Diffuse](diffuse.md) from your machine, add `ports: ["127.0.0.1:27017:27017"]` to the `mongodb` service. Its development password is written in `docker-compose.mongodb.yml`; for real data, use a generated password. SQLite storage uses the SQLite library built into Philter; there is nothing to install.
 
 ## What Philter stores
 

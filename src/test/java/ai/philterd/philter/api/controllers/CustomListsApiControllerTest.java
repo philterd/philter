@@ -214,7 +214,7 @@ class CustomListsApiControllerTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertTrue(body.contains("Project Cardinal"), "the list items must be returned: " + body);
+        assertTrue(body.contains("\"items\":[\"Project Cardinal\",\"ACME-1234\"]"), "the list items must be returned: " + body);
         // Scoped to the owning user, so one user cannot read another's list by name.
         verify(customListService).findOneByName("my-list", userId);
     }

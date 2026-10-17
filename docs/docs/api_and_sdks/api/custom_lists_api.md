@@ -64,7 +64,7 @@ Example response:
 
 ```json
 {
-  "lists": [
+  "items": [
     "item1",
     "item2"
   ],
@@ -72,7 +72,7 @@ Example response:
 }
 ```
 
-* `lists` - The list's items.
+* `items` - The list's items.
 * `description` - The list's description, or an empty string if it has none.
 
 ## Create a List

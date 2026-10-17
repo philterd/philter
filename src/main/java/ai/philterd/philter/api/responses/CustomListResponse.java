@@ -19,19 +19,20 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
-public class GetListsResponse {
+/** A custom list as {@code GET /api/lists/{name}} returns it: its items and description. */
+public class CustomListResponse {
 
-    private final List<String> lists;
+    private final List<String> items;
     private final String description;
 
-    public GetListsResponse(List<String> lists, String description) {
-        this.lists = lists;
+    public CustomListResponse(List<String> items, String description) {
+        this.items = items;
         this.description = description == null ? "" : description;
     }
 
-    /** The list's items. */
-    public List<String> getLists() {
-        return lists;
+    @Schema(description = "The list's items.")
+    public List<String> getItems() {
+        return items;
     }
 
     @Schema(description = "The list's description, or an empty string if it has none.")

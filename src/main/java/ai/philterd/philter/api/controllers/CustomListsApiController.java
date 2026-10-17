@@ -20,9 +20,9 @@ import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.CustomListRequest;
 import ai.philterd.philter.api.responses.CustomListConflictResponse;
+import ai.philterd.philter.api.responses.CustomListResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.GetCustomListsResponse;
-import ai.philterd.philter.api.responses.GetListsResponse;
 import ai.philterd.philter.api.responses.ListSummaryResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
@@ -168,14 +168,14 @@ public class CustomListsApiController extends AbstractApiController {
                 entity.getItems() == null ? 0 : entity.getItems().size(), owner);
     }
 
-    @Operation(summary = "Get the contents of a list.", description = "Gets a list's items, in the lists field, and its description.")
+    @Operation(summary = "Get the contents of a list.", description = "Gets a list's items and description.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "The list does not exist, or the owner does not exist or may not be reached. The API does not distinguish these, so a name or owner cannot be used to discover what exists."),
     })
     @RequiresScope(ApiKeyScope.LISTS_READ)
     @RequestMapping(value = "/api/lists/{name}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GetListsResponse> getLists(
+    public ResponseEntity<CustomListResponse> getLists(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("name") String name,
             final @RequestParam(value = "owner", required = false) String owner,
@@ -204,10 +204,8 @@ public class CustomListsApiController extends AbstractApiController {
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CUSTOM_LIST_ITEMS_RETRIEVED, apiKeyEntity.getUserId(), customListEntity.getId(), getClientIpAddress(httpServletRequest));
 
-            final GetListsResponse getListsResponse = new GetListsResponse(customListEntity.getItems(),
-                    customListEntity.getDescription());
-
-            return new ResponseEntity<>(getListsResponse, HttpStatus.OK);
+            return new ResponseEntity<>(new CustomListResponse(customListEntity.getItems(),
+                    customListEntity.getDescription()), HttpStatus.OK);
 
         }
 

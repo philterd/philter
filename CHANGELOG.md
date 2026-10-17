@@ -133,7 +133,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Custom lists are written as a JSON object.** `POST` and `PUT /api/lists/{name}` take
   `{"items": [...], "description": "..."}` rather than a bare array with `description` in the query string, which is
   now refused with `400`. A description can have up to 200 characters, reported as
-  `customLists.descriptionMaxLength` by `GET /api/limits`.
+  `customLists.descriptionMaxLength` by `GET /api/limits`. `GET /api/lists/{name}` returns the items in `items`, as
+  they are sent, rather than in `lists`.
 - **Policies and contexts are listed as objects.** Each item from `GET /api/policies` has the policy's `name`,
   `description`, `revision`, `createdAt`, and `updatedAt`, and each from `GET /api/contexts` the context's `name` and
   `createdAt`, rather than a bare name; with `all_users`, each also has its `owner`. Read the name from `name`.

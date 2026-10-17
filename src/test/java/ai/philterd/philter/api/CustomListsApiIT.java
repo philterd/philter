@@ -140,7 +140,8 @@ class CustomListsApiIT {
 
         final JsonObject list = getList("/api/lists/projects", key);
         assertEquals("Code names", list.get("description").getAsString());
-        assertEquals(2, list.getAsJsonArray("lists").size());
+        assertEquals(2, list.getAsJsonArray("items").size());
+        assertFalse(list.has("lists"), "the items are in items");
 
         final HttpResponse<String> listed = send("GET", "/api/lists", key, null);
         assertEquals(200, listed.statusCode(), listed.body());
@@ -193,7 +194,7 @@ class CustomListsApiIT {
         assertEquals(200, send("PUT", "/api/lists/terms", key, "{\"items\":[\"two\",\"three\"]}").statusCode());
         JsonObject list = getList("/api/lists/terms", key);
         assertEquals("Internal terms", list.get("description").getAsString(), "left out, the description is kept");
-        assertEquals(2, list.getAsJsonArray("lists").size(), "the items are still replaced");
+        assertEquals(2, list.getAsJsonArray("items").size(), "the items are still replaced");
 
         assertEquals(200, send("PUT", "/api/lists/terms", key, "{\"description\":\"\",\"items\":[\"two\"]}").statusCode());
         list = getList("/api/lists/terms", key);
@@ -251,7 +252,7 @@ class CustomListsApiIT {
 
         final JsonObject list = getList("/api/lists/taken", key);
         assertEquals("First", list.get("description").getAsString());
-        assertEquals("one", list.getAsJsonArray("lists").get(0).getAsString());
+        assertEquals("one", list.getAsJsonArray("items").get(0).getAsString());
     }
 
     @Test
@@ -275,7 +276,7 @@ class CustomListsApiIT {
         assertEquals(200, send("PUT", "/api/lists/managed-by-admin" + owner, adminKey, "{\"items\":[\"two\"]}").statusCode());
 
         // The list is the user's, not the administrator's.
-        assertEquals("two", getList("/api/lists/managed-by-admin", key).getAsJsonArray("lists").get(0).getAsString());
+        assertEquals("two", getList("/api/lists/managed-by-admin", key).getAsJsonArray("items").get(0).getAsString());
         assertEquals(404, send("GET", "/api/lists/managed-by-admin", adminKey, null).statusCode());
     }
 

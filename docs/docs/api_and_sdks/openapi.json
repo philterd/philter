@@ -5578,7 +5578,7 @@
           "Custom Lists"
         ],
         "summary": "Get the contents of a list.",
-        "description": "Gets a list's items, in the lists field, and its description. Requires the `lists:read` scope.",
+        "description": "Gets a list's items and description. Requires the `lists:read` scope.",
         "operationId": "getLists",
         "parameters": [
           {
@@ -5612,7 +5612,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetListsResponse"
+                  "$ref": "#/components/schemas/CustomListResponse"
                 }
               }
             }
@@ -13522,6 +13522,22 @@
           }
         }
       },
+      "CustomListResponse": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "The list's description, or an empty string if it has none.",
+            "type": "string"
+          },
+          "items": {
+            "description": "The list's items.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "CustomListRules": {
         "type": "object",
         "properties": {
@@ -13799,21 +13815,6 @@
           "total": {
             "type": "integer",
             "format": "int32"
-          }
-        }
-      },
-      "GetListsResponse": {
-        "type": "object",
-        "properties": {
-          "description": {
-            "description": "The list's description, or an empty string if it has none.",
-            "type": "string"
-          },
-          "lists": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
           }
         }
       },

@@ -20,7 +20,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/contexts` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | DELETE | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | GET | `/api/contexts/{name}` | application/json | `contexts:read` | [Details](contexts_api.md) |
-| PUT | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |
+| PATCH | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | DELETE | `/api/contexts/{name}/entries` | application/json | `contexts:write` | [Details](contexts_api.md) |
 | GET | `/api/contexts/{name}/entries` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | GET | `/api/contexts/{name}/entries/export` | application/json | `contexts:read` | [Details](contexts_api.md) |

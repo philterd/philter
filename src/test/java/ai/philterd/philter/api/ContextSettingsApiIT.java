@@ -107,6 +107,14 @@ class ContextSettingsApiIT {
                 .build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    private HttpResponse<String> patch(final String name, final String apiKey, final String body) throws Exception {
+        return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/contexts/" + name))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body))
+                .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
     private JsonObject read(final String name, final String apiKey, final String query) throws Exception {
         final HttpResponse<String> response = send("GET", "/api/contexts/" + name + query, apiKey);
         assertEquals(200, response.statusCode(), response.body());
@@ -154,18 +162,18 @@ class ContextSettingsApiIT {
 
         final String name = create(false, true);
 
-        assertEquals(200, send("PUT", "/api/contexts/" + name + "?entity_type_disambiguation=true", key).statusCode());
+        assertEquals(200, patch(name, key, "{\"entityTypeDisambiguation\":true}").statusCode());
         JsonObject context = read(name, key, "");
         assertTrue(context.get("entityTypeDisambiguation").getAsBoolean());
         assertTrue(context.get("ledger").getAsBoolean(), "turning disambiguation on leaves the ledger on");
 
-        assertEquals(200, send("PUT", "/api/contexts/" + name + "?ledger=false", key).statusCode());
+        assertEquals(200, patch(name, key, "{\"ledger\":false}").statusCode());
         context = read(name, key, "");
         assertTrue(context.get("entityTypeDisambiguation").getAsBoolean(), "turning the ledger off leaves disambiguation on");
         assertFalse(context.get("ledger").getAsBoolean());
 
         // Sending a setting at its current value is not a change.
-        assertEquals(200, send("PUT", "/api/contexts/" + name + "?ledger=false&entity_type_disambiguation=true", key).statusCode());
+        assertEquals(200, patch(name, key, "{\"ledger\":false,\"entityTypeDisambiguation\":true}").statusCode());
 
         final List<String> details = auditDetails(name);
         assertEquals(2, details.size(), "one event per change: " + details);
@@ -178,11 +186,34 @@ class ContextSettingsApiIT {
     @DisplayName("A request with neither setting is refused and changes nothing")
     void refusesARequestWithNeitherSetting() throws Exception {
         final String name = create(true, true);
-        final HttpResponse<String> response = send("PUT", "/api/contexts/" + name, key);
+        final HttpResponse<String> response = patch(name, key, "{}");
         assertEquals(400, response.statusCode(), response.body());
         final JsonObject context = read(name, key, "");
         assertTrue(context.get("entityTypeDisambiguation").getAsBoolean());
         assertTrue(context.get("ledger").getAsBoolean());
+        assertTrue(auditDetails(name).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Settings in the query string, and PUT, are refused and change nothing")
+    void refusesTheOldRequestShape() throws Exception {
+        final String name = create(false, false);
+        final HttpResponse<String> parameter = httpClient.send(HttpRequest.newBuilder(
+                        URI.create(baseUrl + "/api/contexts/" + name + "?ledger=true"))
+                .header("Authorization", "Bearer " + key)
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString("{\"entityTypeDisambiguation\":true}"))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, parameter.statusCode(), parameter.body());
+        assertEquals("ledger", gson.fromJson(parameter.body(), JsonObject.class).get("field").getAsString());
+
+        assertEquals(405, send("PUT", "/api/contexts/" + name + "?ledger=true", key).statusCode());
+        assertEquals(400, patch(name, key, "{\"ledger\":\"yes\"}").statusCode(), "a setting that is not a boolean");
+        assertEquals(400, patch(name, key, "null").statusCode());
+
+        final JsonObject context = read(name, key, "");
+        assertFalse(context.get("entityTypeDisambiguation").getAsBoolean());
+        assertFalse(context.get("ledger").getAsBoolean());
         assertTrue(auditDetails(name).isEmpty());
     }
 
@@ -214,10 +245,9 @@ class ContextSettingsApiIT {
         assertEquals(404, send("GET", "/api/contexts/" + missing, key).statusCode(), "no context was created");
 
         final String name = create(false, false);
-        final HttpResponse<String> updated = send("PUT", "/api/contexts/" + name
-                + "?disambiguation_scope=global&ledger=true", key);
+        final HttpResponse<String> updated = patch(name, key, "{\"disambiguationScope\":\"global\",\"ledger\":true}");
         assertEquals(400, updated.statusCode(), updated.body());
-        assertEquals("disambiguation_scope must be document or context.",
+        assertEquals("disambiguationScope must be document or context.",
                 gson.fromJson(updated.body(), JsonObject.class).get("message").getAsString());
         final JsonObject context = read(name, key, "");
         assertEquals("document", context.get("disambiguationScope").getAsString());
@@ -230,18 +260,18 @@ class ContextSettingsApiIT {
     void changesTheScopeAlone() throws Exception {
         final String name = create(true, true);
 
-        assertEquals(200, send("PUT", "/api/contexts/" + name + "?disambiguation_scope=context", key).statusCode());
+        assertEquals(200, patch(name, key, "{\"disambiguationScope\":\"context\"}").statusCode());
         JsonObject context = read(name, key, "");
         assertEquals("context", context.get("disambiguationScope").getAsString());
         assertTrue(context.get("entityTypeDisambiguation").getAsBoolean());
         assertTrue(context.get("ledger").getAsBoolean());
 
         // Other settings leave the scope as it is.
-        assertEquals(200, send("PUT", "/api/contexts/" + name + "?entity_type_disambiguation=false", key).statusCode());
+        assertEquals(200, patch(name, key, "{\"entityTypeDisambiguation\":false}").statusCode());
         assertEquals("context", read(name, key, "").get("disambiguationScope").getAsString());
 
         // Sending the scope at its current value is not a change.
-        assertEquals(200, send("PUT", "/api/contexts/" + name + "?disambiguation_scope=CONTEXT", key).statusCode());
+        assertEquals(200, patch(name, key, "{\"disambiguationScope\":\"CONTEXT\"}").statusCode());
 
         final List<String> details = auditDetails(name);
         assertEquals(2, details.size(), "one event per change: " + details);

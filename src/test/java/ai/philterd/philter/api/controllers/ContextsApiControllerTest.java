@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -57,7 +58,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -806,11 +807,12 @@ class ContextsApiControllerTest {
 
     @Test
     void updateContextRefusesAnUnknownDisambiguationScope() throws Exception {
-        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(patch("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-update")
-                        .param("disambiguation_scope", "global"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"disambiguationScope\":\"global\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("disambiguation_scope must be document or context."));
+                .andExpect(jsonPath("$.message").value("disambiguationScope must be document or context."))
+                .andExpect(jsonPath("$.field").value("disambiguationScope"));
 
         verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any(), any());
     }
@@ -820,9 +822,9 @@ class ContextsApiControllerTest {
         when(contextService.updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq("context"), isNull(), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
-        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(patch("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-update")
-                        .param("disambiguation_scope", "context"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"disambiguationScope\":\"context\"}"))
                 .andExpect(status().isOk());
 
         verify(contextService).updateSettings(any(), eq("my-context"), eq(userId), isNull(), eq("context"), isNull(), eq(userId), any());
@@ -833,10 +835,9 @@ class ContextsApiControllerTest {
         when(contextService.updateSettings(any(), eq("my-context"), eq(userId), eq(true), isNull(), eq(true), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
-        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(patch("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-update")
-                        .param("entity_type_disambiguation", "true")
-                        .param("ledger", "true"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"entityTypeDisambiguation\":true,\"ledger\":true}"))
                 .andExpect(status().isOk());
 
         verify(contextService).updateSettings(eq("req-update"), eq("my-context"), eq(userId), eq(true), isNull(), eq(true), eq(userId), any());
@@ -847,9 +848,9 @@ class ContextsApiControllerTest {
         when(contextService.updateSettings(any(), eq("my-context"), eq(userId), isNull(), isNull(), eq(false), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
-        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(patch("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-update")
-                        .param("ledger", "false"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ledger\":false}"))
                 .andExpect(status().isOk());
 
         verify(contextService).updateSettings(any(), eq("my-context"), eq(userId), isNull(), isNull(), eq(false), any(), any());
@@ -857,9 +858,22 @@ class ContextsApiControllerTest {
 
     @Test
     void updateContextRefusesARequestWithNeitherSetting() throws Exception {
-        mockMvc.perform(put("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
-                        .requestAttr("requestId", "req-update"))
+        mockMvc.perform(patch("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
+
+        verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateContextRefusesSettingsGivenAsParameters() throws Exception {
+        mockMvc.perform(patch("/api/contexts/my-context").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-update")
+                        .param("ledger", "true")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ledger\":true}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.field").value("ledger"));
 
         verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any(), any());
     }
@@ -869,9 +883,9 @@ class ContextsApiControllerTest {
         when(contextService.updateSettings(any(), eq("missing"), eq(userId), any(), any(), any(), any(), any()))
                 .thenReturn(ServiceResponse.failure("Context not found."));
 
-        mockMvc.perform(put("/api/contexts/missing").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(patch("/api/contexts/missing").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-update")
-                        .param("ledger", "true"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ledger\":true}"))
                 .andExpect(status().isNotFound());
     }
 
@@ -1008,10 +1022,10 @@ class ContextsApiControllerTest {
         when(contextService.updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), isNull(), any(), any()))
                 .thenReturn(ServiceResponse.success("Context updated."));
 
-        mockMvc.perform(put("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
+        mockMvc.perform(patch("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-update")
                         .param("owner", "other@example.com")
-                        .param("entity_type_disambiguation", "true"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"entityTypeDisambiguation\":true}"))
                 .andExpect(status().isOk());
 
         verify(contextService).updateSettings(any(), eq("ctx"), eq(otherUserId), eq(true), isNull(), isNull(), eq(userId), any());

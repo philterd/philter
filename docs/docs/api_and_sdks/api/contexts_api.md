@@ -124,25 +124,32 @@ curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/c
 
 | Method | Endpoint               | Description                                                                   |
 |--------|------------------------|-------------------------------------------------------------------------------|
-| `PUT`  | `/api/contexts/{name}` | Change a context's `entity_type_disambiguation`, `disambiguation_scope`, and `ledger` settings. |
+| `PATCH` | `/api/contexts/{name}` | Change a context's `entityTypeDisambiguation`, `disambiguationScope`, and `ledger` settings. |
 
 Only the settings given change. A setting left out keeps its current value, so changing one never changes another. Read the current values with [Get Context Details](#get-context-details).
 
+### Request Body
+
+A JSON object with the settings to change. The names are those [Get Context Details](#get-context-details) returns.
+
+* `entityTypeDisambiguation` (optional) - Whether to enable entity type disambiguation. Left out, it is unchanged.
+* `disambiguationScope` (optional) - `document` or `context`, as for [Create a Context](#create-a-context). Left out, it is unchanged.
+* `ledger` (optional) - Whether to enable the redaction ledger. Left out, it is unchanged; turning it off stops recording redaction evidence for the context.
+
+The settings are not accepted as query parameters, and a request that sends one there is refused with `400`.
+
 ### Query Parameters
 
-* `entity_type_disambiguation` (optional) - Whether to enable entity type disambiguation. Left out, it is unchanged.
-* `disambiguation_scope` (optional) - `document` or `context`, as for [Create a Context](#create-a-context). Left out, it is unchanged.
-* `ledger` (optional) - Whether to enable the redaction ledger. Left out, it is unchanged; turning it off stops recording redaction evidence for the context.
 * `owner` (optional, admin only) - Username of another user whose context to update. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 Example request:
 
 ```bash
-curl -X PUT -k -H "Authorization: Bearer <token>" \
-  "https://localhost:8080/api/contexts/my-context?entity_type_disambiguation=false&ledger=true"
+curl -X PATCH -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  "https://localhost:8080/api/contexts/my-context" -d '{"entityTypeDisambiguation": false, "ledger": true}'
 ```
 
-Returns `200 OK` on success, `400 Bad Request` if no setting is given or `disambiguation_scope` is not `document` or `context` (nothing changes, including the other settings given), and `404 Not Found` if no context with that name exists for the calling user. Each change is recorded as a `context_updated` [audit event](../../auditing.md) naming the settings whose values changed.
+Returns `200 OK` on success, `400 Bad Request` if no setting is given, `disambiguationScope` is not `document` or `context` (nothing changes, including the other settings given), or a setting is sent as a query parameter, and `404 Not Found` if no context with that name exists for the calling user. Each change is recorded as a `context_updated` [audit event](../../auditing.md) naming the settings whose values changed.
 
 ## Delete a Context
 

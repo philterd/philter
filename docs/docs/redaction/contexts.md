@@ -30,7 +30,7 @@ A context's name is your own label and can say whose data it holds, so Philter's
 | --- | --- |
 | List your contexts | [`GET /api/contexts`](../api_and_sdks/api/contexts_api.md#get-context-names) |
 | Create a context | [`POST /api/contexts?name=...`](../api_and_sdks/api/contexts_api.md#create-a-context), with optional `entity_type_disambiguation` and `ledger` flags |
-| Change its settings | [`PUT /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#update-a-context) |
+| Change its settings | [`PATCH /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#update-a-context) |
 | Show counts by filter type | [`GET /api/contexts/{name}`](../api_and_sdks/api/contexts_api.md#get-context-details) |
 | List individual mappings | [`GET /api/contexts/{name}/entries`](../api_and_sdks/api/contexts_api.md#list-context-entries) |
 | Clear its mappings | [`DELETE /api/contexts/{name}/entries`](../api_and_sdks/api/contexts_api.md#empty-a-context) |

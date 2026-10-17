@@ -1,6 +1,6 @@
 # Span Disambiguation
 
-Span disambiguation is an optional feature that is enabled per [context](../redaction/contexts.md). It is disabled by default; turn it on with the `entity_type_disambiguation=true` parameter when creating a context (`POST /api/contexts`) or updating one (`PUT /api/contexts/{name}`). The `disambiguation_scope` parameter sets what it learns from: `document` (the default) or `context`. See the [Contexts API](../api_and_sdks/api/contexts_api.md#create-a-context).
+Span disambiguation is an optional feature that is enabled per [context](../redaction/contexts.md). It is disabled by default; turn it on with the `entity_type_disambiguation=true` parameter when creating a context (`POST /api/contexts`), or with `"entityTypeDisambiguation": true` in the body when updating one (`PATCH /api/contexts/{name}`). The `disambiguation_scope` parameter, or `disambiguationScope` when updating, sets what it learns from: `document` (the default) or `context`. See the [Contexts API](../api_and_sdks/api/contexts_api.md#create-a-context).
 
 In Philter, a _span_ is a piece of the input text that Philter has identified as sensitive information. A span has a start and end positions, a confidence, a type, and other attributes. Ideally, each piece of identified sensitive information will only have a single span associated with it. In this case, the type of sensitive information is unambiguous. The goal of span disambiguation is to provide more accurate filtering by removing the potential ambiguities in the types of sensitive information for duplicate spans.
 

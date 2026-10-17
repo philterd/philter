@@ -58,6 +58,7 @@ Items with the same value for the sort field are kept in a stable order, so pagi
 | [`GET /api/users`](api/users_api.md#list-users) | `users` | `username`, `created` | username | `role`, `active` |
 | [`GET /api/api-keys`](api/api_keys_api.md#list-your-keys) and `GET /api/users/{username}/api-keys` | `apiKeys` | `created` (oldest first) | | `session` |
 | [`GET /api/audit`](api/audit_api.md) | `events` | `timestamp` (newest first), by `order` only | | `event`, `from`, `to`, `owner` |
+| [`GET /api/pii-counts`](api/pii_counts_api.md#list-pii-counts) | `counts` | `day` (newest first), `context`, `documents` | | `from`, `to`, `context`, `owner` |
 | [`GET /api/webhook/deliveries`](api/webhooks.md#list-the-deliveries) | `deliveries` | `created` (newest first), by `order` only | | |
 
 ## Errors

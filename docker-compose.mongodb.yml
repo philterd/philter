@@ -19,8 +19,8 @@ services:
       # CACHE_SSL: "false"
       STORAGE_TYPE: mongodb
       MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin
-      # Development key. Real data needs its own (openssl rand -base64 32); changing it later orphans everything encrypted.
-      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
+      # Required, with no default: ./compose.sh generates one in .env. Changing it later orphans everything encrypted.
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?Run ./compose.sh to generate it in .env, or set it with openssl rand -base64 32}
       # Lets an administrator act on other users' data through the owner parameter. Off by default.
       # ADMIN_CROSS_USER_ACCESS_ENABLED: true
       # Lets ledger entries, which are evidence, be deleted. Off by default. Uncomment to run philter-test against this stack.

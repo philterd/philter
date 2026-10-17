@@ -187,6 +187,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Security
 
+- **The compose files require `PHILTER_ENCRYPTION_KEY`.** They fell back to a key published in the repository,
+  which unwraps every encrypted record. `./compose.sh` generates one in `.env`; without it, `docker compose` stops
+  with a message saying so.
 - **The generated TLS keystore is readable only by Philter's user.** The Docker image wrote it world-readable, and its
   default password is public, so anyone who could read the volume had the private key.
 - **`PHILTER_ENCRYPTION_KEY` is required.** Back it up: data cannot be recovered without it.

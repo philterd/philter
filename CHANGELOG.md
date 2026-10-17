@@ -153,7 +153,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   audit event names the changed settings the same way, such as `entityTypeDisambiguation: true`.
 - **Documents are listed in `documents`, each with a `type`.** `GET /api/documents` returns its items in `documents`
   rather than `pendingRedactedDocuments`, since the listing includes finished and failed documents too. Each item, and
-  the response from `GET /api/documents/{documentId}/status`, has a `type`; `redaction` is the only type.
+  the response from `GET /api/documents/{documentId}/status`, has a `type`; `redaction` is the only type. So does each
+  document webhook's payload. A webhook receiver should ignore events it does not recognize, since later releases
+  may add some.
 - **Policies and contexts are listed as objects.** Each item from `GET /api/policies` has the policy's `name`,
   `description`, `revision`, `createdAt`, and `updatedAt`, and each from `GET /api/contexts` the context's `name` and
   `createdAt`, rather than a bare name; with `all_users`, each also has its `owner`. Read the name from `name`.

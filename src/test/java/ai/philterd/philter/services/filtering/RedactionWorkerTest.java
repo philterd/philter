@@ -200,6 +200,9 @@ class RedactionWorkerTest {
         verify(webhookDeliveryDataService).enqueueOnce(captor.capture());
         final WebhookDeliveryEntity delivery = captor.getValue();
         assertEquals(WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE, delivery.getEventType());
+        final com.google.gson.JsonObject payload = com.google.gson.JsonParser.parseString(delivery.getPayload()).getAsJsonObject();
+        assertEquals("DOCUMENT_REDACTION_COMPLETE", payload.get("event").getAsString());
+        assertEquals("redaction", payload.get("type").getAsString(), "the payload names the job type");
         assertEquals("https://example.com/hook", delivery.getUrl());
         assertEquals(WebhookDeliveryEntity.STATUS_PENDING, delivery.getStatus());
     }

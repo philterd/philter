@@ -168,6 +168,10 @@ Setting, removing, and testing a webhook are recorded as `webhook_configured`, `
 | `DOCUMENT_REDACTION_FAILED`        | The async worker could not complete the redaction.         |
 | `WEBHOOK_TEST`                     | Someone [sent a test event](#send-a-test-event). Sent once, never retried. |
 
+New events may be added in later releases, for example for new kinds of asynchronous job. Accept and ignore an event you do not recognize, answering with a `2xx` status so it is not retried, rather than refusing it or handling it as one you know.
+
+A document event's payload has the job's `type`, as the [Documents API](documents_api.md) reports it. `redaction`, a job that produces a redacted document, is the only type.
+
 ## Request shape
 
 Every delivery is a `POST` of `application/json`. Example:
@@ -183,6 +187,7 @@ X-Philter-Signature: sha256=2c1d9...e7f0
 
 {
   "event": "DOCUMENT_REDACTION_COMPLETE",
+  "type": "redaction",
   "documentId": "c0c2c5a8-3a78-4e56-bf2a-44ad8b3a8e9f",
   "fileName": "patient-record.pdf",
   "status": "COMPLETE",

@@ -254,6 +254,7 @@ public class RedactionWorker {
                 ? WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_COMPLETE : WebhookDeliveryEntity.EVENT_DOCUMENT_REDACTION_FAILED;
         final Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("event", event);
+        payload.put("type", PendingDocumentEntity.TYPE_REDACTION);
         payload.put("documentId", job.getDocumentId());
         payload.put("fileName", job.getFileName());
         payload.put("status", job.getStatus());

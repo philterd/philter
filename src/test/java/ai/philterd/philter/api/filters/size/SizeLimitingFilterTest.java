@@ -20,6 +20,8 @@ import ai.philterd.philter.model.Constants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -104,9 +106,19 @@ class SizeLimitingFilterTest {
         assertInstanceOf(PayloadTooLargeException.class, thrown);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"PATCH", "PUT", "DELETE", "GET"})
+    void everyOtherMethodTakesTheConfigurationLimit(final String method) throws Exception {
+        assertNull(filterAndReadBody("/api/settings", method, bytes((int) Constants.MAX_FILE_SIZE_BYTES_OTHER)),
+                "a body at the limit is accepted");
+        assertInstanceOf(PayloadTooLargeException.class,
+                filterAndReadBody("/api/settings", method, bytes((int) Constants.MAX_FILE_SIZE_BYTES_OTHER + 1)));
+    }
+
     @Test
-    void getRequestsAreNotSizeLimited() throws Exception {
-        assertNull(filterAndReadBody("/api/ledger", "GET", bytes(Constants.MAX_FILE_SIZE_BYTES + 1)));
+    void onlyAPostToADocumentEndpointTakesTheDocumentLimit() throws Exception {
+        assertInstanceOf(PayloadTooLargeException.class,
+                filterAndReadBody("/api/filter", "PUT", bytes((int) Constants.MAX_FILE_SIZE_BYTES_OTHER + 1)));
     }
 
     @Test

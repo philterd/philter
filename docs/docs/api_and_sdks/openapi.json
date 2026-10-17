@@ -14573,7 +14573,7 @@
             "format": "int32"
           },
           "maxBodyBytes": {
-            "description": "The largest body any other POST or PUT accepts, in bytes. Set by MAX_FILE_SIZE_BYTES_OTHER.",
+            "description": "The largest body any other request accepts, in bytes. Set by MAX_FILE_SIZE_BYTES_OTHER.",
             "type": "integer",
             "format": "int64"
           },

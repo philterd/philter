@@ -120,7 +120,7 @@ public class LimitsResponse {
                 + "MAX_FILE_SIZE_BYTES.")
         public long getMaxDocumentBytes() { return maxDocumentBytes; }
 
-        @Schema(description = "The largest body any other POST or PUT accepts, in bytes. Set by MAX_FILE_SIZE_BYTES_OTHER.")
+        @Schema(description = "The largest body any other request accepts, in bytes. Set by MAX_FILE_SIZE_BYTES_OTHER.")
         public long getMaxBodyBytes() { return maxBodyBytes; }
 
         @Schema(description = "The page size a listing uses when limit is not given.")

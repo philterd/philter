@@ -60,24 +60,14 @@ public class SizeLimitingFilter extends OncePerRequestFilter {
         final String path = RequestPaths.of(request);
         final String method = request.getMethod();
 
-        // Determine the appropriate size limit based on endpoint and method
-        long sizeLimit = -1;
+        // Endpoints that accept a document to redact take the document limit. Every other request, whatever its
+        // method, carries configuration at most, so a method added later is limited too. The limit applies only
+        // as a body is read, so a request without one is unaffected.
+        final long sizeLimit = "POST".equalsIgnoreCase(method) && FilterConstants.DOCUMENT_ENDPOINTS.contains(path)
+                ? Constants.MAX_FILE_SIZE_BYTES
+                : Constants.MAX_FILE_SIZE_BYTES_OTHER;
 
-        if ("POST".equalsIgnoreCase(method) && FilterConstants.DOCUMENT_ENDPOINTS.contains(path)) {
-
-            // Endpoints that accept a document to redact.
-            sizeLimit = Constants.MAX_FILE_SIZE_BYTES;
-
-        } else if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)) {
-
-            // Everything else carries configuration, not documents.
-            sizeLimit = Constants.MAX_FILE_SIZE_BYTES_OTHER;
-
-        }
-
-        if (sizeLimit > 0) {
-            LOGGER.debug("Applying a {} byte size limit to {} {}", sizeLimit, method, path);
-        }
+        LOGGER.debug("Applying a {} byte size limit to {} {}", sizeLimit, method, path);
 
         if (sizeLimit > 0) {
 
@@ -95,7 +85,7 @@ public class SizeLimitingFilter extends OncePerRequestFilter {
 
         } else {
 
-            // For all other requests (GET, DELETE, etc.), pass through without size limiting
+            // Only when a limit is configured as zero or less.
             filterChain.doFilter(request, response);
 
         }

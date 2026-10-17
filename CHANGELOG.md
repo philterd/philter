@@ -230,6 +230,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   own, and the person could then not sign in until an administrator removed it. `POST /api/users/me/mfa` now takes
   `password`, and a wrong one counts toward the sign-in lockout. A user without a password cannot enroll. See
   [Start enrollment](docs/docs/api_and_sdks/api/users_api.md#start-enrollment).
+- **Every request body is size-limited.** Only `POST` and `PUT` were, so a `PATCH` body had no limit.
+  `MAX_FILE_SIZE_BYTES_OTHER` now applies to every request except a document sent to `/api/filter` or `/api/explain`.
+  An oversized JSON body sent to an endpoint that reads it into an object, such as `POST /api/reidentify`, is now a
+  `413` rather than a `400`.
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
   space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
   ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused

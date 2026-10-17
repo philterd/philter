@@ -89,7 +89,7 @@ The values above are the defaults. Each one in the response is the value the run
 ### Requests
 
 * `requests.maxDocumentBytes` - The largest body [`POST /api/filter`](filtering_api.md) and `POST /api/explain` accept, in bytes. Set by [`MAX_FILE_SIZE_BYTES`](../../settings.md#redaction-engine).
-* `requests.maxBodyBytes` - The largest body any other `POST` or `PUT` accepts, in bytes. Set by [`MAX_FILE_SIZE_BYTES_OTHER`](../../settings.md#redaction-engine).
+* `requests.maxBodyBytes` - The largest body any other request accepts, in bytes. Set by [`MAX_FILE_SIZE_BYTES_OTHER`](../../settings.md#redaction-engine).
 * `requests.defaultPageSize` - The page size a listing uses when `limit` is not given.
 * `requests.maxPageSize` - The largest `limit` a listing honors. A larger `limit` is reduced to this.
 

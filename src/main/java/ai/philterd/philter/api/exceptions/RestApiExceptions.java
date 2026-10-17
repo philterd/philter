@@ -83,11 +83,20 @@ public class RestApiExceptions {
 	 * Not thrown by Philter, so the message is a filesystem path or a parser trace rather than
 	 * anything the caller wrote. A fixed message is returned, and only the exception type is logged.
 	 */
+	// No @ResponseStatus: it would replace the 413 below. The 400 is listed in the specification by the other handlers.
 	@ExceptionHandler({FileNotFoundException.class, HttpMessageNotReadableException.class})
-	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	@ApiResponse(responseCode = "400", description = "Bad Request", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
 			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnreadableRequest(final Exception ex, final HttpServletResponse response) throws IOException {
+		// A JSON converter wraps the size limit's refusal, thrown while it reads the body, so find it in the causes.
+		// Bounded, since a chain of causes can loop.
+		Throwable cause = ex.getCause();
+		for (int depth = 0; cause != null && depth < 10; depth++, cause = cause.getCause()) {
+			if (cause instanceof PayloadTooLargeException tooLarge) {
+				write(response, HttpStatus.PAYLOAD_TOO_LARGE, tooLarge.getMessage());
+				return;
+			}
+		}
 		// Only the type: a parser's message can quote the request body, such as a password.
 		LOGGER.warn("The request could not be read: {}", ex.getClass().getSimpleName());
 		write(response, HttpStatus.BAD_REQUEST, "The request body is missing or could not be read.");

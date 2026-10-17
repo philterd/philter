@@ -24,7 +24,7 @@ public class Constants {
     public static final int MAX_FILE_SIZE_BYTES = (int) getEnvLong("MAX_FILE_SIZE_BYTES", 10L * 1024 * 1024);
 
     /**
-     * Maximum file size in bytes for all other POST and PUT endpoints. Defaults to 256 KB; override
+     * Maximum body size in bytes for every other request, whatever its method. Defaults to 256 KB; override
      * with the {@code MAX_FILE_SIZE_BYTES_OTHER} environment variable.
      *
      * <p>Fits the largest body these endpoints accept: a redact-lists POST replaces both lists at

@@ -149,6 +149,14 @@ class SettingsApiIT {
     }
 
     @Test
+    @DisplayName("A PATCH body over MAX_FILE_SIZE_BYTES_OTHER is a 413, as for POST and PUT")
+    void refusesAnOversizedBody() throws Exception {
+        final String allowlist = "a".repeat((int) ai.philterd.philter.model.Constants.MAX_FILE_SIZE_BYTES_OTHER + 1);
+        final HttpResponse<String> refused = send("PATCH", "/api/settings", adminKey, "{\"webhookAllowlist\":\"" + allowlist + "\"}");
+        assertEquals(413, refused.statusCode(), refused.body());
+    }
+
+    @Test
     @DisplayName("An invalid value is a 400 with the reason, and nothing changes")
     void refusesInvalidValues() throws Exception {
         final HttpResponse<String> refused = send("PATCH", "/api/settings", adminKey,

@@ -19,7 +19,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,18 +70,28 @@ class SealedCacheBackendTest {
     @Test
     @DisplayName("Neither the names nor the values are stored readably")
     void nothingIsStoredReadably() {
-        sealed.setex("apikey_abc", 60, "{\"userId\":\"u1\"}");
-        sealed.hset("context_u1_cohort", "tokenhash", "entry|Jane Roe");
+        // Markers long enough that random ciphertext cannot contain them by chance. A two-letter one, such as a
+        // user ID of u1, appears in the base64 of a random value about once in sixty runs.
+        final String userId = "UserMarker7Qx2Lp9Wz4Kd";
+        final String person = "PersonMarker3Hv8Ns5Rt1";
+        sealed.setex("apikey_abc", 60, "{\"userId\":\"" + userId + "\"}");
+        sealed.hset("context_u1_cohort", "tokenhash", "entry|" + person);
 
         assertNull(store.get("apikey_abc"), "the key name is not used as is");
         assertNull(store.hget("context_u1_cohort", "tokenhash"));
 
         final String storedValue = store.get(sealed.name("apikey_abc"));
         assertTrue(storedValue.startsWith("s1."), storedValue);
-        assertFalse(storedValue.contains("u1"), storedValue);
-        final String storedField = store.hget(sealed.name("context_u1_cohort"), sealed.field("tokenhash"));
-        assertFalse(storedField.contains("Jane"), storedField);
+        assertNotReadable(storedValue, userId);
+        assertNotReadable(store.hget(sealed.name("context_u1_cohort"), sealed.field("tokenhash")), person);
         assertFalse(sealed.name("context_u1_cohort").contains("cohort"));
+    }
+
+    /** Neither the stored text nor the bytes its base64 decodes to contain the marker, so it is encrypted, not encoded. */
+    private static void assertNotReadable(final String stored, final String marker) {
+        assertFalse(stored.contains(marker), stored);
+        final byte[] decoded = Base64.getDecoder().decode(stored.substring("s1.".length()));
+        assertFalse(new String(decoded, StandardCharsets.ISO_8859_1).contains(marker), stored);
     }
 
     @Test

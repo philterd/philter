@@ -28,10 +28,14 @@ Philter on the marketplace image stores its data, including policies, contexts, 
 
 ## Try it out!
 
-Philter has no user interface; it is administered through its [API](../api_and_sdks/api.md). It does not start without two values, which must be set before its first start:
+Philter has no user interface; it is administered through its [API](../api_and_sdks/api.md). It requires two values, which the virtual machine generates on its first boot and keeps in `/opt/philter/.env`, readable only by root. Every virtual machine launched from the image gets its own. Connect to the virtual machine over SSH and read them:
 
-* `PHILTER_ENCRYPTION_KEY`: a base64-encoded 32-byte key (`openssl rand -base64 32`) that encrypts sensitive data at rest. Keep the same value for the life of the deployment and back it up: data encrypted with it cannot be recovered if it is lost or changed. See [Encryption](../settings.md#encryption).
-* `PHILTER_BOOTSTRAP_API_KEY`: the first API key, `sk_` followed by 32 letters and digits (`echo "sk_$(openssl rand -hex 16)"`). Philter seeds it onto the `admin` user with every scope. See [bootstrap settings](../settings.md#bootstrap-and-in-memory-capacity).
+```
+sudo cat /opt/philter/.env
+```
+
+* `PHILTER_ENCRYPTION_KEY` encrypts sensitive data at rest. Back it up, and do not change it for the life of the deployment: data encrypted with it cannot be recovered if it is lost or changed. See [Encryption](../settings.md#encryption).
+* `PHILTER_BOOTSTRAP_API_KEY` is the first API key. Philter seeds it onto the `admin` user with every scope. See [bootstrap settings](../settings.md#bootstrap-and-in-memory-capacity).
 
 Set `API_KEY` in your shell to the bootstrap key. Every request below authenticates with it.
 

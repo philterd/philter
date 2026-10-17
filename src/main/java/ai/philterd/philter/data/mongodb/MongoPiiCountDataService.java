@@ -43,7 +43,22 @@ public class MongoPiiCountDataService implements PiiCountDataService {
 
     @Override
     public Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String userId, final String context,
-                                         final int offset, final int limit) {
+                                         final Listings.Sort sort, final int offset, final int limit) {
+
+        if (!SORT_FIELDS.contains(sort.field())) {
+            throw new IllegalArgumentException("Not a sortable field: " + sort.field());
+        }
+        // The requested field, then the default order without it, since a sort may not name a field twice.
+        final List<Bson> order = new ArrayList<>();
+        order.add(sort.descending() ? Sorts.descending(sort.field()) : Sorts.ascending(sort.field()));
+        if (!"bucket_start".equals(sort.field())) {
+            order.add(Sorts.descending("bucket_start"));
+        }
+        order.add(Sorts.ascending("user_id"));
+        if (!"context".equals(sort.field())) {
+            order.add(Sorts.ascending("context"));
+        }
+        order.add(Sorts.ascending("_id"));
 
         final Bson filter = MongoListings.all(
                 from == null ? null : Filters.gte("bucket_start", startOf(from)),
@@ -53,7 +68,7 @@ public class MongoPiiCountDataService implements PiiCountDataService {
 
         final List<Aggregate> items = new ArrayList<>();
         for (final Document document : collection.find(filter)
-                .sort(Sorts.orderBy(Sorts.descending("bucket_start"), Sorts.ascending("user_id", "context", "_id")))
+                .sort(Sorts.orderBy(order))
                 .skip(offset).limit(limit)) {
             items.add(toAggregate(document));
         }

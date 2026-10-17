@@ -300,7 +300,9 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Create a context.", description = "Creates a context. A user can have at most "
             + ContextDataService.MAXIMUM_CONTEXTS_PER_USER + " contexts, counting default.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The context was created."),
+            @ApiResponse(responseCode = "200", description = "The context was created.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "400", description = "The name is missing or blank, or "
                     + PathSafeNames.RULE + ", since it must be usable in a request path; or disambiguation_scope is not "
                     + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + "."),

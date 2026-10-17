@@ -285,7 +285,8 @@ public class PoliciesApiController extends AbstractApiController {
                     + "validated before it is stored. " + DETAILS_BODY_DESCRIPTION + " Admins may create a policy in "
                     + "another user's account by passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "The policy was created and is now active. The ETag header identifies it. A policy_activated audit event is recorded."),
+            @ApiResponse(responseCode = "201", description = "The policy was created and is now active. The ETag header identifies it. A policy_activated audit event is recorded.",
+                    content = @Content),
             @ApiResponse(responseCode = "400", description = "The policy name is missing or invalid, the policy is invalid, the request has a description or notes parameter, or, with details=true, the body is not a policy with details or the description or notes are too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.",

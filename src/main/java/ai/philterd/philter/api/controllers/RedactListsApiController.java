@@ -154,7 +154,9 @@ public class RedactListsApiController extends AbstractApiController {
                     + "condition that it has not changed, use PUT /api/redact-lists/{list}. "
                     + "Admins may replace another user's lists by passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The lists were replaced."),
+            @ApiResponse(responseCode = "200", description = "The lists were replaced.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, a list has too many terms, or a term is too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")
@@ -227,7 +229,9 @@ public class RedactListsApiController extends AbstractApiController {
                     + "an append that would exceed the limit is rejected. Each list appended to moves to its next "
                     + "revision. Admins may append to another user's lists by passing that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The terms were appended."),
+            @ApiResponse(responseCode = "200", description = "The terms were appended.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "400", description = "The request body is malformed, the resulting list has too many terms, or a term is too long."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "The owner does not exist, or the caller may not reach it. The API does not distinguish the two, so an owner value cannot be used to discover accounts.")

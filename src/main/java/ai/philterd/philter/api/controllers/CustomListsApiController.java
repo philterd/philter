@@ -304,7 +304,7 @@ public class CustomListsApiController extends AbstractApiController {
 
     @Operation(summary = "Delete a list.", description = "Delete a list with the given name.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "The list was deleted."),
+            @ApiResponse(responseCode = "204", description = "The list was deleted.", content = @Content),
             @ApiResponse(responseCode = "404", description = "The given list does not exist.")
     })
     @RequiresScope(ApiKeyScope.LISTS_WRITE)

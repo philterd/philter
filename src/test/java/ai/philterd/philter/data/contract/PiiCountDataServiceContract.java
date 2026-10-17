@@ -85,6 +85,20 @@ public interface PiiCountDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void piiCountDataSortsByContextAndByDocumentsThenByDay() {
+        storeThreeDays();
+        assertEquals(List.of("2026-09-03 claims", "2026-09-02 claims", "2026-09-01 claims",
+                        "2026-09-03 billing", "2026-09-02 billing", "2026-09-01 billing"),
+                keys(storage().piiCountData().list(null, null, null, null, new Listings.Sort("context", true), 0, 10).items()));
+        // billing found PII in 20, 21, and 22 redactions; claims in 9 each day, so those tie and fall back to the day.
+        assertEquals(List.of("2026-09-03 claims", "2026-09-02 claims", "2026-09-01 claims",
+                        "2026-09-01 billing", "2026-09-02 billing", "2026-09-03 billing"),
+                keys(storage().piiCountData().list(null, null, null, null, new Listings.Sort("total_documents", false), 0, 10).items()));
+        assertEquals(List.of("2026-09-01 billing", "2026-09-01 claims"),
+                keys(storage().piiCountData().list(null, null, null, null, new Listings.Sort("bucket_start", false), 0, 2).items()));
+    }
+
+    @Test
     default void piiCountDataNarrowsByDaysAndContext() {
         storeThreeDays();
         final Listings.Page<PiiCountDataService.Aggregate> middle =

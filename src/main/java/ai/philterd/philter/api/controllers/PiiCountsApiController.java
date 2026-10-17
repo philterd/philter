@@ -87,11 +87,16 @@ public class PiiCountsApiController extends AbstractApiController {
         this.gson = gson;
     }
 
+    /** sort: day (default, most recent first), context, or documents (how many redactions found any PII). */
+    private static final Map<String, String> COUNT_SORT = sortFields("day", "bucket_start", "context", "context",
+            "documents", "total_documents");
+
     @Operation(summary = "List the recorded PII counts.",
             description = "Returns the PII type counts Philter records when the diffuseCountsEnabled setting is on, "
                     + "for Philter Diffuse to privatize: one entry per user's context and UTC day, with a stable id, giving "
                     + "for each PII type how many redactions found at least one of it, and how many found any PII. Only "
-                    + "counts, never any PII. Most recent day first, paginated. Another user's context name and username "
+                    + "counts, never any PII. Sorted with sort (day, the default, context, or documents) and order (asc or desc); "
+                    + "the default is the most recent day first. Paginated. Another user's context name and username "
                     + "are returned only with ADMIN_CROSS_USER_ACCESS_ENABLED; their counts always are. Narrow by day "
                     + "with from and to (YYYY-MM-DD, UTC, both inclusive), by context name with context (only the "
                     + "caller's own without cross-user access), and by username with owner. recordingEnabled says whether "
@@ -121,6 +126,8 @@ public class PiiCountsApiController extends AbstractApiController {
             final @RequestParam(value = "to", required = false) String to,
             final @RequestParam(value = "context", required = false) String context,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "sort", required = false) String sort,
+            final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
             final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
@@ -143,6 +150,7 @@ public class PiiCountsApiController extends AbstractApiController {
             throw new BadRequestException("The from date must not be after the to date.");
         }
         final String contextFilter = context == null || context.isBlank() ? null : context.trim();
+        final Listings.Sort countSort = listingSort(sort, order, COUNT_SORT, "day", true);
 
         // Every user's counts are listed, for the deployment-wide totals Philter Diffuse needs, but another user's
         // context names and username only with cross-user access. Without it, naming a context or another user
@@ -160,7 +168,7 @@ public class PiiCountsApiController extends AbstractApiController {
         }
 
         final Listings.Page<PiiCountDataService.Aggregate> page = piiCountDataService.list(fromDay, toDay,
-                userFilter, contextFilter, normalizeOffset(offset), normalizeLimit(limit));
+                userFilter, contextFilter, countSort, normalizeOffset(offset), normalizeLimit(limit));
 
         final Map<String, String> usernames = new HashMap<>();
         boolean namedOtherUsers = false;

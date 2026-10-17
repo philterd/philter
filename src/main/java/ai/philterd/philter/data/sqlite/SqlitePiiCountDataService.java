@@ -41,7 +41,12 @@ public class SqlitePiiCountDataService implements PiiCountDataService {
 
     @Override
     public Listings.Page<Aggregate> list(final LocalDate from, final LocalDate to, final String userId, final String context,
-                                         final int offset, final int limit) {
+                                         final Listings.Sort sort, final int offset, final int limit) {
+        if (!SORT_FIELDS.contains(sort.field())) {
+            throw new IllegalArgumentException("Not a sortable field: " + sort.field());
+        }
+        final String order = " ORDER BY " + sort.field() + (sort.descending() ? " DESC" : " ASC")
+                + ", bucket_start DESC, user_id ASC, context ASC";
         final List<Object> params = new ArrayList<>();
         String start = null;
         String end = null;
@@ -70,7 +75,7 @@ public class SqlitePiiCountDataService implements PiiCountDataService {
             paged.add(offset);
             final List<Aggregate> items = new ArrayList<>();
             for (final Object[] row : Sql.query(connection, "SELECT * FROM pii_count_aggregates" + where
-                            + " ORDER BY bucket_start DESC, user_id ASC, context ASC LIMIT ? OFFSET ?",
+                            + order + " LIMIT ? OFFSET ?",
                     r -> new Object[]{r.string("context"), r.longValue("bucket_start"), r.longValue("total_documents"),
                             r.date("updated_at"), r.string("user_id")}, paged.toArray())) {
                 final Map<String, Long> counts = new LinkedHashMap<>();

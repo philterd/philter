@@ -1014,7 +1014,7 @@
             "content": {
               "text/csv": {
                 "schema": {
-                  "type": "object"
+                  "type": "string"
                 }
               }
             }
@@ -1351,7 +1351,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/GenericResponse"
                 }
               }
             }
@@ -3196,10 +3196,27 @@
                     },
                     "explanation": {
                       "type": "object",
-                      "additionalProperties": true
+                      "properties": {
+                        "appliedSpans": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ExplanationSpan"
+                          }
+                        },
+                        "identifiedSpans": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ExplanationSpan"
+                          }
+                        }
+                      }
                     },
                     "filteredText": {
                       "type": "string"
+                    },
+                    "piece": {
+                      "type": "integer",
+                      "format": "int32"
                     },
                     "policyContentHash": {
                       "type": "string"
@@ -3210,9 +3227,12 @@
                     "policyVersion": {
                       "type": "integer",
                       "format": "int32"
+                    },
+                    "tokens": {
+                      "type": "integer",
+                      "format": "int32"
                     }
-                  },
-                  "additionalProperties": true
+                  }
                 }
               }
             }
@@ -5480,14 +5500,7 @@
         ],
         "responses": {
           "204": {
-            "description": "The list was deleted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
+            "description": "The list was deleted."
           },
           "400": {
             "description": "Bad Request",
@@ -5994,7 +6007,7 @@
           "PII Counts"
         ],
         "summary": "List the recorded PII counts.",
-        "description": "Returns the PII type counts Philter records when the diffuseCountsEnabled setting is on, for Philter Diffuse to privatize: one entry per user's context and UTC day, with a stable id, giving for each PII type how many redactions found at least one of it, and how many found any PII. Only counts, never any PII. Most recent day first, paginated. Another user's context name and username are returned only with ADMIN_CROSS_USER_ACCESS_ENABLED; their counts always are. Narrow by day with from and to (YYYY-MM-DD, UTC, both inclusive), by context name with context (only the caller's own without cross-user access), and by username with owner. recordingEnabled says whether counts are being recorded now, so an empty listing can be told apart from recording being off; counts recorded before it was turned off are still returned. Each read is audited. The counts cover the whole deployment, so this requires an administrator as well as the pii-counts:read scope. Requires the `pii-counts:read` scope.",
+        "description": "Returns the PII type counts Philter records when the diffuseCountsEnabled setting is on, for Philter Diffuse to privatize: one entry per user's context and UTC day, with a stable id, giving for each PII type how many redactions found at least one of it, and how many found any PII. Only counts, never any PII. Sorted with sort (day, the default, context, or documents) and order (asc or desc); the default is the most recent day first. Paginated. Another user's context name and username are returned only with ADMIN_CROSS_USER_ACCESS_ENABLED; their counts always are. Narrow by day with from and to (YYYY-MM-DD, UTC, both inclusive), by context name with context (only the caller's own without cross-user access), and by username with owner. recordingEnabled says whether counts are being recorded now, so an empty listing can be told apart from recording being off; counts recorded before it was turned off are still returned. Each read is audited. The counts cover the whole deployment, so this requires an administrator as well as the pii-counts:read scope. Requires the `pii-counts:read` scope.",
         "operationId": "getPiiCounts",
         "parameters": [
           {
@@ -6031,6 +6044,22 @@
           },
           {
             "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
             "in": "query",
             "required": false,
             "schema": {
@@ -6391,14 +6420,7 @@
         },
         "responses": {
           "201": {
-            "description": "The policy was created and is now active. The ETag header identifies it. A policy_activated audit event is recorded.",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": "The policy was created and is now active. The ETag header identifies it. A policy_activated audit event is recorded."
           },
           "400": {
             "description": "The policy name is missing or invalid, the policy is invalid, the request has a description or notes parameter, or, with details=true, the body is not a policy with details or the description or notes are too long.",
@@ -8320,7 +8342,7 @@
           "200": {
             "description": "The lists were replaced.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
                 }
@@ -8443,7 +8465,7 @@
           "200": {
             "description": "The terms were appended.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenericResponse"
                 }
@@ -9523,7 +9545,25 @@
                     },
                     "jwk": {
                       "type": "object",
-                      "additionalProperties": true
+                      "properties": {
+                        "crv": {
+                          "example": "P-256",
+                          "type": "string"
+                        },
+                        "kid": {
+                          "type": "string"
+                        },
+                        "kty": {
+                          "example": "EC",
+                          "type": "string"
+                        },
+                        "x": {
+                          "type": "string"
+                        },
+                        "y": {
+                          "type": "string"
+                        }
+                      }
                     },
                     "keyId": {
                       "type": "string"
@@ -13490,6 +13530,75 @@
             "description": "The most items a custom list can have.",
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ExplanationSpan": {
+        "type": "object",
+        "properties": {
+          "applied": {
+            "type": "boolean"
+          },
+          "characterEnd": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "characterStart": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "classification": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "context": {
+            "type": "string"
+          },
+          "filterType": {
+            "example": "SSN",
+            "type": "string"
+          },
+          "ignored": {
+            "type": "boolean"
+          },
+          "lineNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lowerLeftX": {
+            "type": "number"
+          },
+          "lowerLeftY": {
+            "type": "number"
+          },
+          "pageNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "paragraphNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "replacement": {
+            "type": "string"
+          },
+          "salt": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "upperRightX": {
+            "type": "number"
+          },
+          "upperRightY": {
+            "type": "number"
           }
         }
       },

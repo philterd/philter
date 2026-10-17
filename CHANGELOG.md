@@ -31,6 +31,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   Philter stopped, copies a SQLite database to an empty MongoDB as stored (ids, ledger signatures,
   and encrypted fields unchanged), verifies the copy, and records it as `storage_migrated`. See
   [Moving from SQLite to MongoDB](docs/docs/database.md#moving-from-sqlite-to-mongodb).
+- **PII counts can be sorted:** `GET /api/pii-counts` takes `sort` (`day`, `context`, or `documents`) and `order`, as the
+  other listings do. See [PII Counts API](docs/docs/api_and_sdks/api/pii_counts_api.md).
 - **Limits API:** `GET /api/limits` returns the limits and rules Philter enforces and what the caller
   may do, and `GET /api/sign-in` gives a sign-in page the password rules.
 - **Per-list redact list endpoints:** `GET` and `PUT /api/redact-lists/{list}` read and replace the
@@ -81,6 +83,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **The OpenAPI specification matches the responses.** The `/api/explain` explanation and its spans, and the signing
+  key's `jwk`, have schemas; the audit export is described as CSV text; and responses that have no body, or a
+  `{message}` body, are described as such.
 - **Java 25 is required.**
 - **No built-in UI.** [Philter UI](https://github.com/philterd/philter-ui), in development, is separate.
 - **PDF redaction is asynchronous by default.** Append `?async=false` for the previous behavior.

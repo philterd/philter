@@ -68,18 +68,37 @@ public class ApiDocumentationConfig {
             response(op(api, "/api/policies/{policyName}/diff", "get"), "200", "Revision diff; value is omitted for removals.",
                     content("application/json", object("from", new IntegerSchema(), "to", new IntegerSchema(),
                             "changes", new ArraySchema().items(change))));
+            // A JSON Web Key (RFC 7517) for the P-256 key Philter signs with.
+            final Schema<?> jwk = object("kid", new StringSchema(), "kty", new StringSchema().example("EC"),
+                    "crv", new StringSchema().example("P-256"), "x", new StringSchema(), "y", new StringSchema());
             response(op(api, "/api/signing-key", "get"), "200", "Active public signing key.",
                     content("application/json", object("keyId", new StringSchema(), "pem", new StringSchema(),
-                            "jwk", new ObjectSchema().additionalProperties(true), "fingerprint", new StringSchema())));
+                            "jwk", jwk, "fingerprint", new StringSchema())));
             response(op(api, "/api/signing-key/regenerate", "post"), "200", "The key that is now active.",
                     content("application/json", object("keyId", new StringSchema())));
             response(op(api, "/api/signing-key/{keyId}", "get"), "200", "Retained public signing key.",
                     content("application/json", object("keyId", new StringSchema(), "pem", new StringSchema(), "active", new BooleanSchema())));
-            // Explanation details are the Phileas result, with Philter's governing-policy metadata.
+            // The Phileas result, with Philter's governing-policy metadata. A span's classification is left out when it
+            // has none; the page and coordinate fields are zero for text.
+            final Schema<?> span = object("characterStart", new IntegerSchema(), "characterEnd", new IntegerSchema(),
+                    "filterType", new StringSchema().example("SSN"), "context", new StringSchema(),
+                    "classification", new StringSchema(), "confidence", new NumberSchema(), "text", new StringSchema(),
+                    "replacement", new StringSchema(), "salt", new StringSchema(), "ignored", new BooleanSchema(),
+                    "applied", new BooleanSchema(), "priority", new IntegerSchema(), "lineNumber", new IntegerSchema(),
+                    "pageNumber", new IntegerSchema(), "paragraphNumber", new IntegerSchema(),
+                    "lowerLeftX", new NumberSchema(), "lowerLeftY", new NumberSchema(),
+                    "upperRightX", new NumberSchema(), "upperRightY", new NumberSchema());
+            api.getComponents().addSchemas("ExplanationSpan", span);
+            final Schema<?> spanRef = new Schema<>().$ref("#/components/schemas/ExplanationSpan");
             response(op(api, "/api/explain", "post"), "200", "Full text filter result with governing policy metadata.",
-                    content("application/json", object("filteredText", new StringSchema(), "context", new StringSchema(),
-                            "explanation", new ObjectSchema().additionalProperties(true), "policyName", new StringSchema(),
-                            "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema()).additionalProperties(true)));
+                    content("application/json", object("filteredText", new StringSchema(), "piece", new IntegerSchema(),
+                            "context", new StringSchema(),
+                            "explanation", object("appliedSpans", new ArraySchema().items(spanRef),
+                                    "identifiedSpans", new ArraySchema().items(spanRef)),
+                            "tokens", new IntegerSchema(), "policyName", new StringSchema(),
+                            "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema())));
+            // CSV text, not a JSON object.
+            op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
             op(api, "/api/documents", "get").getResponses().putIfAbsent("404", new ApiResponse().description("Owner unavailable or inaccessible."));
             final Operation filter = op(api, "/api/filter", "post");
             filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, or sign=true on a PDF request.");

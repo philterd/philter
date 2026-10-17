@@ -18,7 +18,7 @@ Authorization: Bearer <token>
 
 | Method | Endpoint          | Description                                        |
 |--------|-------------------|----------------------------------------------------|
-| `GET`  | `/api/pii-counts` | List the recorded counts, most recent day first. |
+| `GET`  | `/api/pii-counts` | List the recorded counts, most recent day first unless sorted otherwise. |
 
 ### Query Parameters
 
@@ -26,10 +26,12 @@ Authorization: Bearer <token>
 * `to` - Optional. Return only counts for this UTC day or earlier, in the same format. Inclusive.
 * `context` - Optional. Return only counts for contexts of this name. Without [cross-user access](../../settings.md#api-access), only the caller's own.
 * `owner` - Optional. Return only this user's counts, by username. Another user's requires an administrator **and** `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; otherwise `404 Not Found`.
+* `sort` - Optional. `day` (the default), `context`, or `documents` (how many redactions found any PII). Ties are ordered by day, most recent first, then by user and context.
+* `order` - Optional. `asc` or `desc`. The default is `desc` for `day` and `asc` otherwise.
 * `offset` - Optional. Number of entries to skip (default `0`).
 * `limit` - Optional. Maximum entries to return (default `25`, max `100`).
 
-A date that is not `YYYY-MM-DD`, a year outside 1 to 9999, or a `from` after `to`, returns `400 Bad Request`. A refused call returns no counts and records no `pii_counts_retrieved` event.
+A date that is not `YYYY-MM-DD`, a year outside 1 to 9999, a `from` after `to`, or a `sort` or `order` not listed above, returns `400 Bad Request`. A refused call returns no counts and records no `pii_counts_retrieved` event.
 
 Returns `200 OK` with `{ "recordingEnabled": <boolean>, "counts": [ ... ], "total": <count> }`. There is one entry per user's context and day, ordered by day, most recent first: two users' contexts of the same name are separate entries. `total` is the number of entries matching the filters, so paging with `offset` and `limit` always describes the set the returned entries were drawn from.
 

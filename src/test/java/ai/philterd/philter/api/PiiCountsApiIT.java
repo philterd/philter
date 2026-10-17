@@ -335,6 +335,17 @@ class PiiCountsApiIT {
     }
 
     @Test
+    @DisplayName("Sorts by day, context, or documents, and refuses another sort with 400")
+    void sorts() throws Exception {
+
+        final JsonObject byDocuments = read("?context=" + claims + "&sort=documents&order=desc");
+        assertEquals(3, byDocuments.get("total").getAsLong());
+        assertEquals(400, get("?sort=pii", adminKey).statusCode());
+        assertEquals(400, get("?order=sideways", adminKey).statusCode());
+
+    }
+
+    @Test
     @DisplayName("An unfiltered read records no context, so it differs from a filter on a context named any")
     void anUnfilteredReadRecordsNoContext() throws Exception {
 

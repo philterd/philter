@@ -306,7 +306,7 @@ Show `otpauthUri` as a QR code for the app to scan, or have the person type in `
 
 | Status | Meaning |
 |--------|---------|
-| 400 | `password` is missing. |
+| 400 | The body or `password` is missing. |
 | 403 | The password is not correct; `reason` is `wrong_password`. |
 | 409 | MFA is not available on this deployment, the user is already enrolled, or the user has no password. |
 | 429 | The user's sign-in is locked after repeated failures; `reason` is `locked`. |

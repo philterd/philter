@@ -337,6 +337,7 @@ class MfaApiIT {
         final String key = longLivedKey(user);
 
         assertEquals(400, send("POST", "/api/users/me/mfa", key, "{}").statusCode(), "no password");
+        assertEquals(400, send("POST", "/api/users/me/mfa", key, null).statusCode(), "no body");
         final HttpResponse<String> wrong = send("POST", "/api/users/me/mfa", key, passwordBody("not-the-password-0123"));
         assertEquals(403, wrong.statusCode(), wrong.body());
         assertEquals("wrong_password", gson.fromJson(wrong.body(), JsonObject.class).get("reason").getAsString());

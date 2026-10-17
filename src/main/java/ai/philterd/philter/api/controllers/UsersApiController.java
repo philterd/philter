@@ -521,7 +521,7 @@ public class UsersApiController extends AbstractApiController {
     public @ResponseBody ResponseEntity<Object> startMfaEnrollment(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestAttribute("requestId") String requestId,
-            final @RequestBody(required = false) StartMfaEnrollmentRequest request,
+            final @RequestBody StartMfaEnrollmentRequest request,
             final HttpServletRequest httpServletRequest) {
 
         final ApiKeyEntity apiKeyEntity = requireApiKey(authorizationHeader);

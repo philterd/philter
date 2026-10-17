@@ -191,6 +191,11 @@ public class RedactionWorker {
 
             reconcileNotifications();
 
+        } catch (InterruptedException ex) {
+            // Stopped while waiting for a PDF slot, as at shutdown. Not the document's fault: its claim lapses and the
+            // job is recovered and run again, rather than marked failed.
+            Thread.currentThread().interrupt();
+            LOGGER.warn("Interrupted before redacting document {}; it will be retried", job.getDocumentId());
         } catch (Exception ex) {
             LOGGER.error("Redaction failed for document {}", job.getDocumentId(), ex);
             if (!pendingDocumentDataService.markFailed(job.getId(), job.getClaimToken(), failureMessage(ex))) {

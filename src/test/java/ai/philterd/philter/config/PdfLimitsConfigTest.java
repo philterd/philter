@@ -36,6 +36,9 @@ class PdfLimitsConfigTest {
         assertThrows(IllegalStateException.class, () -> PdfLimitsConfig.validate(Map.of("PDF_MAX_PAGES", "2k")::get));
         assertThrows(IllegalStateException.class,
                 () -> PdfLimitsConfig.validate(Map.of("PDF_MAX_PIXELS_PER_PAGE", "5e7")::get));
+        assertThrows(IllegalStateException.class,
+                () -> PdfLimitsConfig.validate(Map.of("PDF_MAX_STREAM_BYTES", "256MB")::get));
+        assertThrows(IllegalStateException.class, () -> PdfLimitsConfig.validate(Map.of("PDF_MAX_CONCURRENT", "two")::get));
         // Pages must fit in an int, as Phileas parses them.
         assertThrows(IllegalStateException.class,
                 () -> PdfLimitsConfig.validate(Map.of("PDF_MAX_PAGES", "3000000000")::get));

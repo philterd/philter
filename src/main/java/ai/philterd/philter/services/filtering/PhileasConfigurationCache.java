@@ -58,6 +58,7 @@ final class PhileasConfigurationCache {
         // these are unset.
         putIfSet(properties, "pdf.max.pages", System.getenv("PDF_MAX_PAGES"));
         putIfSet(properties, "pdf.max.pixels.per.page", System.getenv("PDF_MAX_PIXELS_PER_PAGE"));
+        putIfSet(properties, "pdf.max.stream.bytes", System.getenv("PDF_MAX_STREAM_BYTES"));
 
         return new PhileasConfiguration(properties);
 

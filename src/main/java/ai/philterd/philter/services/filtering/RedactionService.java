@@ -191,6 +191,19 @@ public class RedactionService {
 
     // Returns the warm PdfFilterService for the given span-disambiguation setting, building it on first
     // use. As above, the context and vector services are supplied per call.
+    /** A PDF redaction slot: waited for by the queue worker, refused with 503 to a request when none is free. */
+    private static PdfRenderSlots.Slot pdfSlot(final boolean wait) throws InterruptedException {
+        if (wait) {
+            return PdfRenderSlots.acquire();
+        }
+        final PdfRenderSlots.Slot slot = PdfRenderSlots.tryAcquire();
+        if (slot == null) {
+            throw new ai.philterd.philter.data.services.QueueCapacityException("Philter is already redacting as many PDFs as "
+                    + "it allows at once. Retry shortly, or submit the PDF asynchronously (async=true) to queue it.", 503);
+        }
+        return slot;
+    }
+
     private PdfFilterService pdfFilterService(final boolean disambiguationEnabled) {
         return pdfFilterServices.computeIfAbsent(disambiguationEnabled,
                 flag -> new PdfFilterService(phileasConfigurationCache.get(flag), httpClient));
@@ -214,14 +227,26 @@ public class RedactionService {
      * null generates one. Either way it comes back on the {@link RedactionOutcome}.
      */
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {});
+        // A request waiting on its response is refused when no PDF slot is free, rather than held.
+        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {}, false);
     }
 
-    /** The async publication fence runs after computation and before any completed-result publication. */
+    /**
+     * For the queue worker. The async publication fence runs after computation and before any completed-result
+     * publication. A PDF waits for a free slot.
+     */
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName,
                                    final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
                                    final String filename, final String requestedDocumentId,
                                    final Runnable beforePublication) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId,
+                beforePublication, true);
+    }
+
+    private RedactionOutcome filter(final String policyName, final String userId, final String contextName,
+                                    final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
+                                    final String filename, final String requestedDocumentId,
+                                    final Runnable beforePublication, final boolean waitForPdfSlot) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -396,12 +421,16 @@ public class RedactionService {
 
             PdfInputValidator.validate(body);
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
-            filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.APPLICATION_PDF);
+            try (PdfRenderSlots.Slot ignored = pdfSlot(waitForPdfSlot)) {
+                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.APPLICATION_PDF);
+            }
 
         } else if(mimeType == MimeType.IMAGE_JPEG) {
 
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
-            filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG);
+            try (PdfRenderSlots.Slot ignored = pdfSlot(waitForPdfSlot)) {
+                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG);
+            }
 
         } else {
 

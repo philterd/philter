@@ -133,6 +133,23 @@ class RedactionWorkerTest {
     }
 
     @Test
+    void anInterruptedJobIsLeftForRecoveryNotFailed() throws Exception {
+        final PendingDocumentEntity job = pdfJob();
+
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new InterruptedException());
+
+        try {
+            worker.poll();
+            verify(pendingDocumentDataService, never()).markFailed(any(), any(), any());
+            verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
     void redactionFailureMarksJobFailed() throws Exception {
         final PendingDocumentEntity job = pdfJob();
 

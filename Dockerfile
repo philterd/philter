@@ -58,4 +58,5 @@ EXPOSE 8080
 
 WORKDIR /opt/philter
 ENTRYPOINT ["/opt/philter/docker-entrypoint.sh"]
-CMD ["java", "-jar", "/opt/philter/philter.jar"]
+# The JVM otherwise takes a quarter of the container's memory for its heap. PDF redaction renders pages in memory.
+CMD ["java", "-XX:MaxRAMPercentage=75", "-jar", "/opt/philter/philter.jar"]

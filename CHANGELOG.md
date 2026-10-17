@@ -217,7 +217,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   [Legal Holds API](docs/docs/api_and_sdks/api/legal_holds_api.md#release-a-hold).
 - **PDFs are bounded before rendering.** A small PDF with a huge page, or a policy with a high `dpi`, could exhaust
   memory. A PDF over `PDF_MAX_PAGES` (default 2000) or with a page over `PDF_MAX_PIXELS_PER_PAGE` (default 50 million
-  pixels) is refused with `413`. See [Redaction Engine](docs/docs/settings.md#redaction-engine).
+  pixels) is refused with `413`, as is one using an image over that size or a compressed stream that decompresses past
+  `PDF_MAX_STREAM_BYTES` (default 256 MB). At most `PDF_MAX_CONCURRENT` PDFs (default 2) are redacted at once per
+  instance; a synchronous PDF over that is refused with `503`. The Docker image gives the JVM 75% of the container's
+  memory. See [Redaction Engine](docs/docs/settings.md#redaction-engine) and
+  [Memory](docs/docs/system_requirements.md#memory).
 - **Caller-supplied values cannot forge audit fields.** Names, references, document IDs, usernames, and the
   re-identification reason were written into an event's `details` as is, so a value such as `x, owner: admin` read as
   extra fields. A value that could be misread is now written as a quoted, escaped string. See

@@ -20,6 +20,7 @@ import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
+import ai.philterd.philter.services.filtering.PdfRenderSlots;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -58,13 +59,53 @@ class PdfLimitsApiIT {
     @Autowired private PolicyDataService policyDataService;
     @Autowired private ContextDataService contextDataService;
 
+    private String key() {
+        final String username = "pdf-limits-" + UUID.randomUUID();
+        assertTrue(userService.createUser("req", username, null, "user", policyDataService, contextDataService, "test").isSuccessful());
+        return apiKeyDataService.createApiKey("req", userService.findByUsername(username).getId(), "test",
+                ApiKeyScope.all()).getMessage();
+    }
+
+    private HttpResponse<String> redactSynchronously(final String key, final byte[] pdf) throws Exception {
+        final String baseUrl = "http://localhost:" + environment.getRequiredProperty("local.server.port", Integer.class);
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            return client.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/filter?async=false"))
+                    .header("Authorization", "Bearer " + key).header("Content-Type", "application/pdf")
+                    .header("Accept", "application/pdf").POST(HttpRequest.BodyPublishers.ofByteArray(pdf)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+        }
+    }
+
+    @Test
+    @DisplayName("A synchronous PDF is refused with 503 while every PDF slot is in use, and redacted once one is free")
+    void aSynchronousPdfIsRefusedWhenNoSlotIsFree() throws Exception {
+        final String key = key();
+        final byte[] pdf;
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            document.addPage(new PDPage(PDRectangle.LETTER));
+            document.save(out);
+            pdf = out.toByteArray();
+        }
+
+        PdfRenderSlots.setForTesting(1);
+        try {
+            final PdfRenderSlots.Slot held = PdfRenderSlots.tryAcquire();
+            final HttpResponse<String> busy = redactSynchronously(key, pdf);
+            assertEquals(503, busy.statusCode(), busy.body());
+            assertTrue(busy.headers().firstValue("Retry-After").isPresent());
+            assertTrue(busy.body().contains("async=true"), busy.body());
+
+            held.close();
+            assertEquals(200, redactSynchronously(key, pdf).statusCode());
+        } finally {
+            PdfRenderSlots.setForTesting(PdfRenderSlots.DEFAULT_MAX_CONCURRENT);
+        }
+    }
+
     @Test
     @DisplayName("A PDF with a page too large to render returns 413")
     void aHugePageIsRefused() throws Exception {
-        final String username = "pdf-limits-" + UUID.randomUUID();
-        assertTrue(userService.createUser("req", username, null, "user", policyDataService, contextDataService, "test").isSuccessful());
-        final String key = apiKeyDataService.createApiKey("req", userService.findByUsername(username).getId(), "test",
-                ApiKeyScope.all()).getMessage();
+        final String key = key();
 
         final byte[] pdf;
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {

@@ -20,8 +20,9 @@ import org.springframework.context.annotation.Configuration;
 import java.util.function.Function;
 
 /**
- * Checks {@code PDF_MAX_PAGES} and {@code PDF_MAX_PIXELS_PER_PAGE} when Philter starts. Phileas reads them only when
- * the first PDF is redacted, so a value that is not a number would otherwise fail every PDF request.
+ * Checks {@code PDF_MAX_PAGES}, {@code PDF_MAX_PIXELS_PER_PAGE}, {@code PDF_MAX_STREAM_BYTES}, and
+ * {@code PDF_MAX_CONCURRENT} when Philter starts. Phileas reads its limits only when the first PDF is redacted, so a
+ * value that is not a number would otherwise fail every PDF request.
  */
 @Configuration
 public class PdfLimitsConfig {
@@ -33,6 +34,8 @@ public class PdfLimitsConfig {
     static void validate(final Function<String, String> environment) {
         check(environment, "PDF_MAX_PAGES", Integer::parseInt);
         check(environment, "PDF_MAX_PIXELS_PER_PAGE", Long::parseLong);
+        check(environment, "PDF_MAX_STREAM_BYTES", Long::parseLong);
+        check(environment, "PDF_MAX_CONCURRENT", Integer::parseInt);
     }
 
     private static void check(final Function<String, String> environment, final String name,

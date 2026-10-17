@@ -16,6 +16,7 @@
 package ai.philterd.philter.config;
 
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.model.ErrorReasons;
 import com.google.gson.Gson;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -28,8 +29,8 @@ import java.io.Writer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Writes Tomcat's own error responses as {@code {"message": ...}} JSON, the shape every other Philter error
- * has, instead of Tomcat's HTML page. These are errors Tomcat raises before a request reaches Spring, such as
+ * Writes Tomcat's own error responses as {@code {"message": ..., "reason": ...}} JSON, the shape every other
+ * Philter error has, instead of Tomcat's HTML page. These are errors Tomcat raises before a request reaches Spring, such as
  * a path with an encoded {@code /}, {@code \} or NUL, a malformed request line, or headers over its size limit.
  *
  * <p>Keeps {@link ErrorReportValve}'s guards: nothing is written below 400, after a body has been written,
@@ -59,7 +60,7 @@ public class JsonErrorReportValve extends ErrorReportValve {
             response.setCharacterEncoding("UTF-8");
             final Writer writer = response.getReporter();
             if (writer != null) {
-                writer.write(GSON.toJson(new GenericResponse(message(statusCode))));
+                writer.write(GSON.toJson(new GenericResponse(message(statusCode), ErrorReasons.forStatus(statusCode))));
                 response.finishResponse();
             }
         } catch (final IOException | IllegalStateException e) {

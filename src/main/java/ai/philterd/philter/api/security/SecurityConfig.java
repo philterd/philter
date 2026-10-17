@@ -20,6 +20,7 @@ import org.springframework.security.web.firewall.RequestRejectedHandler;
 import org.springframework.http.MediaType;
 import jakarta.servlet.http.HttpServletResponse;
 import ai.philterd.philter.api.responses.GenericResponse;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.filters.auth.ApiAuthenticationFilter;
 import ai.philterd.philter.api.filters.content.ContentTypeVerifyingFilter;
 import ai.philterd.philter.api.filters.size.SizeLimitingFilter;
@@ -73,7 +74,7 @@ public class SecurityConfig {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            response.getWriter().write(gson.toJson(new GenericResponse(REQUEST_REJECTED)));
+            response.getWriter().write(gson.toJson(new GenericResponse(REQUEST_REJECTED, ErrorReasons.INVALID_REQUEST)));
         };
     }
 

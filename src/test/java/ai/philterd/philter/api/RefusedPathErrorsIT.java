@@ -102,6 +102,10 @@ class RefusedPathErrorsIT {
         return new Gson().fromJson(response.body(), JsonObject.class).get("message").getAsString();
     }
 
+    private static String reason(final RawResponse response) {
+        return new Gson().fromJson(response.body(), JsonObject.class).get("reason").getAsString();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"/api/holds/a%2Fb", "/api/holds/a%5Cb", "/api/holds/a%00b", "/api/holds/a%zzb", "/api/holds/a b"})
     @DisplayName("A path Tomcat refuses is answered with JSON, not Tomcat's HTML page")
@@ -109,6 +113,7 @@ class RefusedPathErrorsIT {
         final RawResponse response = get(path, "text/html");
         assertEquals(400, response.status(), response.body());
         assertTrue(message(response).startsWith("The request could not be processed"), response.body());
+        assertEquals("invalid_request", reason(response), response.body());
     }
 
     @ParameterizedTest
@@ -118,6 +123,7 @@ class RefusedPathErrorsIT {
         final RawResponse response = get(path, "text/html");
         assertEquals(400, response.status(), response.body());
         assertEquals(SecurityConfig.REQUEST_REJECTED, message(response));
+        assertEquals("invalid_request", reason(response), response.body());
     }
 
     @Test
@@ -126,6 +132,7 @@ class RefusedPathErrorsIT {
         final RawResponse response = get("/api/policies?q=" + "x".repeat(10_000), "text/html");
         assertEquals(400, response.status(), response.body());
         assertTrue(message(response).startsWith("The request could not be processed"), response.body());
+        assertEquals("invalid_request", reason(response), response.body());
     }
 
     @Test

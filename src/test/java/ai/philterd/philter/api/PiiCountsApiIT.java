@@ -335,6 +335,29 @@ class PiiCountsApiIT {
     }
 
     @Test
+    @DisplayName("An unfiltered read records no context, so it differs from a filter on a context named any")
+    void anUnfilteredReadRecordsNoContext() throws Exception {
+
+        read("?from=2026-01-01");
+        read("?context=any&from=2026-01-02");
+
+        assertFalse(auditedDetails("from: 2026-01-01").contains("context:"), auditedDetails("from: 2026-01-01"));
+        assertTrue(auditedDetails("from: 2026-01-02").contains(", context: any,"), auditedDetails("from: 2026-01-02"));
+
+    }
+
+    /** The details of the admin's pii_counts_retrieved event that contain {@code marker}. */
+    private String auditedDetails(final String marker) {
+        for (final Document recorded : mongoClient.getDatabase("philter").getCollection("audit_events")
+                .find(new Document("event", "pii_counts_retrieved").append("api_key_id", MongoIds.objectId(adminUserId)))) {
+            if (recorded.getString("details").contains(marker)) {
+                return recorded.getString("details");
+            }
+        }
+        throw new AssertionError("no pii_counts_retrieved event with " + marker);
+    }
+
+    @Test
     @DisplayName("Requires the pii-counts:read scope and an administrator")
     void refusals() throws Exception {
 

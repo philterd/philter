@@ -171,7 +171,7 @@ See [Output Signing](output_signing.md) for the full documentation on key manage
 |-------|---------------------|
 | `audit_log_retrieved` | The audit log was read through `GET /api/audit`. The `details` field records the filters applied and how many events matched. Reading the log is audited like any other access to evidence. |
 | `audit_log_exported` | The audit log was exported as CSV through `GET /api/audit/export`. The `details` field records the date range, time zone, the `offset` or `cursor` the page started at, how many events were exported, whether the export was truncated, and the calling API key. |
-| `pii_counts_retrieved` | The recorded PII counts were read through `GET /api/pii-counts`. The `details` field records the day range and context applied and how many entries matched. |
+| `pii_counts_retrieved` | The recorded PII counts were read through `GET /api/pii-counts`. The `details` field records the day range applied, the context when one was given (left out when the read covered every context), and how many entries matched. |
 
 ## Exporting the audit log
 

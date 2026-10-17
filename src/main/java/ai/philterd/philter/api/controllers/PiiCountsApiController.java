@@ -186,7 +186,8 @@ public class PiiCountsApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.PII_COUNTS_RETRIEVED, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest),
                 "from: " + (fromDay == null ? "any" : fromDay) + ", to: " + (toDay == null ? "any" : toDay)
-                        + ", context: " + (contextFilter == null ? "any" : AuditDetails.quote(contextFilter))
+                        // Left out when not filtered: a context can be named "any", so that cannot mean every context.
+                        + (contextFilter == null ? "" : ", context: " + AuditDetails.quote(contextFilter))
                         + ", owner: " + (userFilter == null ? "any" : userFilter)
                         + ", returned: " + counts.size() + ", total: " + page.total());
 

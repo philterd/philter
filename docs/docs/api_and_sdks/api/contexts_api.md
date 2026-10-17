@@ -101,7 +101,7 @@ The counts are computed in the database in one query and sum to `size`.
 
 ### Responses
 
-* `200 OK` - The context was created.
+* `201 Created` - The context was created.
 * `400 Bad Request` - The `name` parameter is missing or blank or breaks the rule above, or `disambiguation_scope` is not `document` or `context`. The body carries a `message`.
 * `409 Conflict` - The context was not created because of your existing contexts. The body's `reason` says which, so a client need not read the message:
     * `context_exists` - You already have a context with this name.
@@ -165,7 +165,7 @@ A delete is **rejected with `409 Conflict`** if any asynchronously-submitted doc
 
 ### Responses
 
-* `200 OK` - The context was deleted.
+* `204 No Content` - The context was deleted.
 * `404 Not Found` - No context with that name exists for the user (the body's `message` is `Context does not exist.`), or the `owner` does not exist or may not be reached.
 * `409 Conflict` - The context has pending or processing asynchronous jobs.
 
@@ -227,7 +227,7 @@ Emptying a context also deletes the span-disambiguation vectors stored for it un
 
 * `owner` (optional, admin only) - Username of another user whose context to empty. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
-Removes every token-to-replacement mapping in the context but leaves the context itself in place. Returns `200 OK` on success, `404 Not Found` if the context does not exist.
+Removes every token-to-replacement mapping in the context but leaves the context itself in place. Returns `204 No Content` on success, `404 Not Found` if the context does not exist.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \
@@ -244,7 +244,7 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 
 * `owner` (optional, admin only) - Username of another user whose context to delete the entry from. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
-`entryId` is the `id` returned in the `entries` listing. Returns `200 OK` if deleted, `404 Not Found` if no such entry exists for the calling user, `400 Bad Request` if `entryId` is not a valid id.
+`entryId` is the `id` returned in the `entries` listing. Returns `204 No Content` if deleted, `404 Not Found` if no such entry exists for the calling user, `400 Bad Request` if `entryId` is not a valid id.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \

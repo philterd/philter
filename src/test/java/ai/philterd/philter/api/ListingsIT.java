@@ -158,7 +158,7 @@ class ListingsIT {
         assertTrue(policy.has("revision") && policy.has("createdAt") && policy.has("updatedAt"), policy.toString());
         assertFalse(policy.has("owner"), policy.toString());
 
-        assertEquals(200, send(key, "POST", "/api/contexts?name=shape", null).statusCode());
+        assertEquals(201, send(key, "POST", "/api/contexts?name=shape", null).statusCode());
         final JsonObject context = list(key, "/api/contexts?q=shape").getAsJsonArray("contexts").get(0).getAsJsonObject();
         assertEquals("shape", context.get("name").getAsString());
         assertTrue(context.has("createdAt"), context.toString());

@@ -278,7 +278,7 @@ public class LegalHoldsApiController extends AbstractApiController {
                     + "Releasing a hold is audited. Only the user who set the hold, or an administrator, may release "
                     + "it. Admins may release another user's hold via the owner parameter.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The hold was released.", content = @Content),
+            @ApiResponse(responseCode = "204", description = "The hold was released.", content = @Content),
             @ApiResponse(responseCode = "409", description = "The hold was not released because an evidence or hold operation "
                     + "for the owner is active or requires recovery; reason is operation_in_progress.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -330,7 +330,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             return ResponseEntity.status(response.getStatusCode()).body(new GenericResponse(response.getMessage()));
         }
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     private static LegalHoldResponse toResponse(final LegalHoldEntity entity) {

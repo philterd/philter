@@ -91,7 +91,7 @@ DELETE /api/holds/{reference}
 Authorization: Bearer <api-key>
 ```
 
-A successful release returns **HTTP 200 OK**. If the hold does not exist, **HTTP 404 Not Found** is returned. If the caller neither set the hold nor is an administrator, **HTTP 403 Forbidden** is returned.
+A successful release returns **HTTP 204 No Content**. If the hold does not exist, **HTTP 404 Not Found** is returned. If the caller neither set the hold nor is an administrator, **HTTP 403 Forbidden** is returned.
 
 ## How Holds Block Deletions
 

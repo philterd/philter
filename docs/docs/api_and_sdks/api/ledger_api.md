@@ -164,7 +164,7 @@ that produced it. The export schema is **version 3**.
 |----------|----------------------------|----------------------------------------|
 | `DELETE` | `/api/ledger/{documentId}` | Permanently delete a document's chain. |
 
-Removes every entry for the document. Returns `200 OK`.
+Removes every entry for the document. Returns `204 No Content`.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \

@@ -125,12 +125,12 @@ class PoliciesApiIT {
     }
 
     @Test
-    @DisplayName("Deleting a policy returns 200 and the policy is gone")
+    @DisplayName("Deleting a policy returns 204 and the policy is gone")
     void deleteSucceeds() throws Exception {
         assertEquals(201, send("POST", "/api/policies?name=temporary", POLICY).statusCode());
 
         final HttpResponse<String> deleted = send("DELETE", "/api/policies/temporary", null);
-        assertEquals(200, deleted.statusCode(), deleted.body());
+        assertEquals(204, deleted.statusCode(), deleted.body());
         assertEquals(404, send("GET", "/api/policies/temporary", null).statusCode());
     }
 
@@ -290,7 +290,7 @@ class PoliciesApiIT {
         assertEquals(201, send("POST", "/api/policies?name=retired", POLICY).statusCode());
         assertEquals(200, send("PUT", "/api/policies/retired", POLICY.replace("REDACT", "MASK")).statusCode());
         assertEquals(201, send("POST", "/api/policies?name=still-here", POLICY).statusCode());
-        assertEquals(200, send("DELETE", "/api/policies/retired", null).statusCode());
+        assertEquals(204, send("DELETE", "/api/policies/retired", null).statusCode());
 
         final HttpResponse<String> listed = send("GET", "/api/policies?deleted=true", null);
         assertEquals(200, listed.statusCode(), listed.body());

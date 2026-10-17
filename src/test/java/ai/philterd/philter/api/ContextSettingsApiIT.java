@@ -123,7 +123,7 @@ class ContextSettingsApiIT {
 
     private String create(final boolean disambiguation, final boolean ledger) throws Exception {
         final String name = "settings-" + UUID.randomUUID();
-        assertEquals(200, send("POST", "/api/contexts?name=" + name + "&entity_type_disambiguation=" + disambiguation
+        assertEquals(201, send("POST", "/api/contexts?name=" + name + "&entity_type_disambiguation=" + disambiguation
                 + "&ledger=" + ledger, key).statusCode());
         return name;
     }
@@ -223,13 +223,13 @@ class ContextSettingsApiIT {
         assertEquals("document", read(create(true, false), key, "").get("disambiguationScope").getAsString());
 
         final String name = "scope-" + UUID.randomUUID();
-        assertEquals(200, send("POST", "/api/contexts?name=" + name
+        assertEquals(201, send("POST", "/api/contexts?name=" + name
                 + "&entity_type_disambiguation=true&disambiguation_scope=Context", key).statusCode());
         assertEquals("context", read(name, key, "").get("disambiguationScope").getAsString());
 
         AdminAccessConfig.setOverrideForTesting(true);
         final String owned = "scope-owned-" + UUID.randomUUID();
-        assertEquals(200, send("POST", "/api/contexts?name=" + owned + "&disambiguation_scope=context&owner="
+        assertEquals(201, send("POST", "/api/contexts?name=" + owned + "&disambiguation_scope=context&owner="
                 + username, adminKey).statusCode());
         assertEquals("context", read(owned, key, "").get("disambiguationScope").getAsString());
     }

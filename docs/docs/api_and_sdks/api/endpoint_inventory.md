@@ -18,14 +18,14 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/audit/export` | text/csv | `audit:read` | [Details](audit_api.md) |
 | GET | `/api/contexts` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | POST | `/api/contexts` | application/json | `contexts:write` | [Details](contexts_api.md) |
-| DELETE | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |
+| DELETE | `/api/contexts/{name}` | See reference | `contexts:write` | [Details](contexts_api.md) |
 | GET | `/api/contexts/{name}` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | PATCH | `/api/contexts/{name}` | application/json | `contexts:write` | [Details](contexts_api.md) |
-| DELETE | `/api/contexts/{name}/entries` | application/json | `contexts:write` | [Details](contexts_api.md) |
+| DELETE | `/api/contexts/{name}/entries` | See reference | `contexts:write` | [Details](contexts_api.md) |
 | GET | `/api/contexts/{name}/entries` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | GET | `/api/contexts/{name}/entries/export` | application/json | `contexts:read` | [Details](contexts_api.md) |
 | POST | `/api/contexts/{name}/entries/import` | application/json | `contexts:write` | [Details](contexts_api.md) |
-| DELETE | `/api/contexts/{name}/entries/{entryId}` | application/json | `contexts:write` | [Details](contexts_api.md) |
+| DELETE | `/api/contexts/{name}/entries/{entryId}` | See reference | `contexts:write` | [Details](contexts_api.md) |
 | GET | `/api/documents` | application/json | `documents:read` | [Details](documents_api.md) |
 | DELETE | `/api/documents/{documentId}` | See reference | `documents:write` | [Details](documents_api.md) |
 | GET | `/api/documents/{documentId}` | See reference | `documents:read` | [Details](documents_api.md) |
@@ -37,17 +37,17 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/health` | application/json | `Public` | [Details](public_api.md) |
 | GET | `/api/holds` | application/json | `holds:read` | [Details](legal_holds_api.md) |
 | POST | `/api/holds` | application/json | `holds:write` | [Details](legal_holds_api.md) |
-| DELETE | `/api/holds/{reference}` | application/json | `holds:write` | [Details](legal_holds_api.md) |
+| DELETE | `/api/holds/{reference}` | See reference | `holds:write` | [Details](legal_holds_api.md) |
 | GET | `/api/holds/{reference}` | application/json | `holds:read` | [Details](legal_holds_api.md) |
 | DELETE | `/api/ledger` | application/json | `ledger:delete` | [Details](ledger_api.md) |
 | GET | `/api/ledger` | application/json | `ledger:read` | [Details](ledger_api.md) |
-| DELETE | `/api/ledger/{documentId}` | application/json | `ledger:delete` | [Details](ledger_api.md) |
+| DELETE | `/api/ledger/{documentId}` | See reference | `ledger:delete` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}` | application/json | `ledger:read` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}/export` | application/json | `ledger:export` | [Details](ledger_api.md) |
 | GET | `/api/ledger/{documentId}/valid` | application/json | `ledger:read` | [Details](ledger_api.md) |
 | GET | `/api/limits` | application/json | Any key | [Details](limits_api.md) |
 | GET | `/api/lists` | application/json | `lists:read` | [Details](custom_lists_api.md) |
-| DELETE | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
+| DELETE | `/api/lists/{name}` | See reference | `lists:write` | [Details](custom_lists_api.md) |
 | GET | `/api/lists/{name}` | application/json | `lists:read` | [Details](custom_lists_api.md) |
 | POST | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | PUT | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
@@ -93,7 +93,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/users/{username}/api-keys` | application/json | `api-keys:write` | [Details](api_keys_api.md) |
 | POST | `/api/users/{username}/deactivate` | application/json | `users:write` | [Details](users_api.md) |
 | PUT | `/api/users/{username}/email` | application/json | `users:write` | [Details](users_api.md#set-a-users-email-address) |
-| DELETE | `/api/users/{username}/mfa` | application/json | `users:write` | [Details](users_api.md#remove-a-users-enrollment) |
+| DELETE | `/api/users/{username}/mfa` | See reference | `users:write` | [Details](users_api.md#remove-a-users-enrollment) |
 | POST | `/api/users/{username}/mfa/unlock` | application/json | `users:write` | [Details](users_api.md#unlock-a-user) |
 | PUT | `/api/users/{username}/password` | application/json | `users:write` | [Details](users_api.md) |
 | POST | `/api/users/{username}/reactivate` | application/json | `users:write` | [Details](users_api.md) |

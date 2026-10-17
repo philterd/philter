@@ -183,7 +183,7 @@ class AuditPrincipalIT {
 
         assertEquals(200, send(authenticated(baseUrl + "/api/redact-lists").GET().build()).statusCode());
 
-        assertEquals(200, send(authenticated(baseUrl + "/api/policies/" + POLICY_NAME)
+        assertEquals(204, send(authenticated(baseUrl + "/api/policies/" + POLICY_NAME)
                 .DELETE().build()).statusCode(), "the policy must be deleted");
 
     }

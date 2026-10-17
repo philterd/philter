@@ -203,7 +203,7 @@ class PoliciesApiControllerTest {
                 .thenReturn(new ServiceResponse("Policy deleted.", true, 200));
 
         mockMvc.perform(delete("/api/policies/my-policy").header("Authorization", AUTH_HEADER))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(policyDataService).deleteByName(anyString(),
                 eq("my-policy"), eq(userId), eq(Source.API), eq(userId), anyString());

@@ -224,7 +224,7 @@ class ContextsApiControllerTest {
                         .header("Authorization", AUTH_HEADER)
                         .param("name", "ctx")
                         .requestAttr("requestId", "req-2"))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         verify(contextService).create(eq("ctx"), eq(userId), anyBoolean(), anyString(), anyBoolean());
     }
@@ -252,7 +252,7 @@ class ContextsApiControllerTest {
         mockMvc.perform(request(HttpMethod.DELETE, "/api/contexts/ctx")
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-3"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(pendingDocumentDataService).hasOpenJobsForContext(eq(userId), eq("ctx"));
         verify(contextService).deleteByName(eq("ctx"), eq(userId), anyBoolean());
@@ -271,7 +271,7 @@ class ContextsApiControllerTest {
         mockMvc.perform(request(HttpMethod.DELETE, "/api/contexts/ctx")
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-4"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // An admin caller must have the admin flag forwarded to the service.
         verify(contextService).deleteByName(eq("ctx"), eq(userId), eq(true));
@@ -775,7 +775,7 @@ class ContextsApiControllerTest {
                         .param("name", "scoped")
                         .param("entity_type_disambiguation", "true")
                         .param("disambiguation_scope", "context"))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         verify(contextService).create(eq("scoped"), eq(userId), eq(true), eq("context"), eq(false));
     }
@@ -788,7 +788,7 @@ class ContextsApiControllerTest {
         mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-create")
                         .param("name", "plain"))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         verify(contextService).create(eq("plain"), eq(userId), eq(false), eq("document"), eq(false));
     }
@@ -896,7 +896,7 @@ class ContextsApiControllerTest {
 
         mockMvc.perform(delete("/api/contexts/my-context/entries").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-empty"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(contextService).emptyByName("my-context", userId);
         verify(auditEventPublisher).auditEvent(eq("req-empty"), eq(AuditLogEvent.CONTEXT_ENTRIES_PURGED),
@@ -925,7 +925,7 @@ class ContextsApiControllerTest {
         mockMvc.perform(delete("/api/contexts/my-context/entries/" + entryId)
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-del-entry"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Scoped by user id, so one user cannot delete another user's entry by guessing its id.
         verify(contextEntryService).deleteByIdAndUserIdAndContext(entryId, userId, "my-context");
@@ -995,7 +995,7 @@ class ContextsApiControllerTest {
         mockMvc.perform(delete("/api/contexts/ctx").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-x-delete"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // The delete must target the owner, not the calling admin. Before owner= was accepted here,
         // this silently deleted the admin's own context of the same name.
@@ -1041,7 +1041,7 @@ class ContextsApiControllerTest {
         mockMvc.perform(delete("/api/contexts/ctx/entries").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-x-empty"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(contextService).emptyByName("ctx", otherUserId);
         verify(contextService, never()).emptyByName(anyString(), eq(userId));
@@ -1057,7 +1057,7 @@ class ContextsApiControllerTest {
                         .header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-x-entry"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(contextEntryService).deleteByIdAndUserIdAndContext(entryId, otherUserId, "ctx");
         verify(contextEntryService, never()).deleteByIdAndUserIdAndContext(any(), eq(userId), any());
@@ -1073,7 +1073,7 @@ class ContextsApiControllerTest {
                         .param("name", "ctx")
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-x-create"))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         verify(contextService).create(eq("ctx"), eq(otherUserId), anyBoolean(), anyString(), anyBoolean());
     }

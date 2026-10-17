@@ -37,6 +37,7 @@ import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.services.cache.ApiKeyCache;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -246,7 +247,7 @@ public class DocumentsApiController extends AbstractApiController {
 
     @Operation(summary = "Delete an async redaction record.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The record and any stored redacted bytes were deleted."),
+            @ApiResponse(responseCode = "204", description = "The record and any stored redacted bytes were deleted.", content = @Content),
             @ApiResponse(responseCode = "404", description = "Unknown document id.")
     })
     @RequiresScope(ApiKeyScope.DOCUMENTS_WRITE)
@@ -274,7 +275,7 @@ public class DocumentsApiController extends AbstractApiController {
         if (deleted > 0) {
             auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DELETED, apiKeyEntity.getUserId(), null, null,
                     "documentId: " + AuditDetails.quote(documentId));
-            return new ResponseEntity<>(HttpStatus.OK);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         }
 
         throw new NotFoundException();

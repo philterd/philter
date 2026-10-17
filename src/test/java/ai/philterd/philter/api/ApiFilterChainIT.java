@@ -675,7 +675,7 @@ class ApiFilterChainIT {
 
     @Test
     void contextImportExportAndDeletionRespectTheContextRoute() throws Exception {
-        assertEquals(200, apiRequest("POST", "/api/contexts?name=api-audit", null).statusCode());
+        assertEquals(201, apiRequest("POST", "/api/contexts?name=api-audit", null).statusCode());
         String payload = "{\"version\":1,\"entries\":[{\"tokenHash\":\"" + "a".repeat(64) + "\",\"replacement\":\"replacement\",\"filterType\":\"PERSON\"}]}";
         var imported = apiRequest("POST", "/api/contexts/api-audit/entries/import", payload);
         assertEquals(200, imported.statusCode(), imported.body());
@@ -685,8 +685,8 @@ class ApiFilterChainIT {
         var entries = com.google.gson.JsonParser.parseString(apiRequest("GET", "/api/contexts/api-audit/entries", null).body()).getAsJsonObject().getAsJsonArray("entries");
         String id = entries.get(0).getAsJsonObject().get("id").getAsString();
         assertEquals(404, apiRequest("DELETE", "/api/contexts/wrong/entries/" + id, null).statusCode());
-        assertEquals(200, apiRequest("DELETE", "/api/contexts/api-audit/entries/" + id, null).statusCode());
-        assertEquals(200, apiRequest("DELETE", "/api/contexts/api-audit", null).statusCode());
+        assertEquals(204, apiRequest("DELETE", "/api/contexts/api-audit/entries/" + id, null).statusCode());
+        assertEquals(204, apiRequest("DELETE", "/api/contexts/api-audit", null).statusCode());
         assertEquals(404, apiRequest("GET", "/api/contexts/api-audit", null).statusCode());
 
         // Deleting it again is a 404 with a message, as for a missing policy or list.

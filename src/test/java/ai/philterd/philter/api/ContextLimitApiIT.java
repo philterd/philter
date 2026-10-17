@@ -103,7 +103,7 @@ class ContextLimitApiIT {
 
         final String key = newUserKey();
         for (int i = 1; i <= ContextDataService.MAXIMUM_CONTEXTS_PER_USER - 1; i++) {
-            assertEquals(200, send("POST", "/api/contexts?name=c" + i, key).statusCode(), "context " + i + " of 9 after default");
+            assertEquals(201, send("POST", "/api/contexts?name=c" + i, key).statusCode(), "context " + i + " of 9 after default");
         }
 
         final HttpResponse<String> eleventh = send("POST", "/api/contexts?name=one-too-many", key);
@@ -118,11 +118,11 @@ class ContextLimitApiIT {
         final HttpResponse<String> blank = send("POST", "/api/contexts?name=%20", key);
         assertEquals(400, blank.statusCode(), "a blank name is still a bad request: " + blank.body());
 
-        assertEquals(200, send("POST", "/api/contexts?name=c1", newUserKey()).statusCode(),
+        assertEquals(201, send("POST", "/api/contexts?name=c1", newUserKey()).statusCode(),
                 "another user's contexts do not count toward the limit");
 
-        assertEquals(200, send("DELETE", "/api/contexts/c1", key).statusCode());
-        assertEquals(200, send("POST", "/api/contexts?name=one-too-many", key).statusCode(), "deleting one makes room");
+        assertEquals(204, send("DELETE", "/api/contexts/c1", key).statusCode());
+        assertEquals(201, send("POST", "/api/contexts?name=one-too-many", key).statusCode(), "deleting one makes room");
 
     }
 

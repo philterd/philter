@@ -135,6 +135,12 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   now refused with `400`. A description can have up to 200 characters, reported as
   `customLists.descriptionMaxLength` by `GET /api/limits`. `GET /api/lists/{name}` returns the items in `items`, as
   they are sent, rather than in `lists`.
+- **Creates return `201` and deletes `204`.** `POST /api/contexts` returns `201 Created`. Deleting a context, its
+  entries, one entry, a document, a ledger chain, a policy, or releasing a legal hold returns `204 No Content` with no
+  body, as deleting a custom list, API key, or webhook already did. The ledger purge and session key revocations still
+  return `200` with what they removed.
+- **Listing totals are 64-bit.** `total` from `GET /api/ledger` and `GET /api/contexts/{name}/entries` is an `int64`
+  in the OpenAPI specification, as every other listing's is.
 - **A context's settings are changed with `PATCH /api/contexts/{name}` and a JSON body.** `PUT` with the settings in
   the query string is removed. The body takes `entityTypeDisambiguation`, `disambiguationScope`, and `ledger`, the names
   `GET /api/contexts/{name}` returns, and a setting sent as a query parameter is refused with `400`.

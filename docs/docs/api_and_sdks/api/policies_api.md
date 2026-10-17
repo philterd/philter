@@ -285,7 +285,7 @@ Without `If-Match`, or with `If-Match: *`, a write is not checked against an ear
 
 ### Responses
 
-* `200 OK` - The policy was deleted.
+* `204 No Content` - The policy was deleted.
 * `400 Bad Request` - The policy name is missing.
 * `404 Not Found` - There is no such policy. An `owner` that does not exist or may not be reached gets a body that says only not found.
 * `409 Conflict` - The policy was not deleted, and it is kept. The body carries a `message` and a `reason`:

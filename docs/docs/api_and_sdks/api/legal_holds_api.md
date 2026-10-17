@@ -126,7 +126,7 @@ Once released, evidence previously covered by this hold becomes eligible for del
 
 ### Responses
 
-* `200 OK` - The hold was released.
+* `204 No Content` - The hold was released.
 * `403 Forbidden` - The caller neither set the hold nor is an administrator. The `reason` is `admin_required`.
 * `404 Not Found` - No hold with that reference exists for the user. An `owner` that does not exist or may not be reached gets the same `not_found` body.
 * `409 Conflict` - The hold was not released because another evidence or hold operation for the user is active or requires recovery. The body carries a `message` and the `reason` `operation_in_progress`.

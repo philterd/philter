@@ -142,7 +142,7 @@ curl -k -H "Authorization: Bearer <token>" \
 |----------|-----------------------------------|---------------------------------------------------|
 | `DELETE` | `/api/documents/{documentId}`     | Remove the record and any stored redacted bytes.  |
 
-Returns `200 OK` on success, `404 Not Found` if no document with that id exists for the calling user.
+Returns `204 No Content` on success, `404 Not Found` if no document with that id exists for the calling user.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \

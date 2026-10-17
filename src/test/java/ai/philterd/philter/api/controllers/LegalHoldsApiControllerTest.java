@@ -405,12 +405,12 @@ class LegalHoldsApiControllerTest {
     }
 
     @Test
-    void releaseHoldReturns200OnSuccess() throws Exception {
+    void releaseHoldReturns204OnSuccess() throws Exception {
         when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId), eq(userId), anyBoolean()))
                 .thenReturn(new ServiceResponse("Released.", true, 200));
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -447,7 +447,7 @@ class LegalHoldsApiControllerTest {
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(legalHoldDataService).release(anyString(), eq("LIT-001"), eq(otherUserId), eq(userId), eq(true));
     }

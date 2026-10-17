@@ -416,7 +416,7 @@ class LedgerApiControllerTest {
 
         mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-del-ok"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(ledgerService).deleteByDocumentId(any(), eq(userId), eq("doc-1"), any());
     }
@@ -556,7 +556,7 @@ class LedgerApiControllerTest {
         mockMvc.perform(request(HttpMethod.DELETE, "/api/ledger/doc-1").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com")
                         .requestAttr("requestId", "req-del-xuser-on"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
         verify(ledgerService).deleteByDocumentId(any(), eq(otherUser), eq("doc-1"), any());
 
         // An admin reaching into another user's ledger is itself an audited event.

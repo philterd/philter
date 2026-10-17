@@ -20,9 +20,9 @@ import java.util.List;
 public class GetContextEntriesResponse {
 
     private final List<ContextEntryView> entries;
-    private final int total;
+    private final long total;
 
-    public GetContextEntriesResponse(final List<ContextEntryView> entries, final int total) {
+    public GetContextEntriesResponse(final List<ContextEntryView> entries, final long total) {
         this.entries = entries;
         this.total = total;
     }
@@ -31,7 +31,7 @@ public class GetContextEntriesResponse {
         return entries;
     }
 
-    public int getTotal() {
+    public long getTotal() {
         return total;
     }
 

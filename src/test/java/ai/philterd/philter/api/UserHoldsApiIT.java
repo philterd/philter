@@ -140,7 +140,7 @@ class UserHoldsApiIT {
         }
         assertEquals(423, send(adminKey, "DELETE", "/api/ledger?older_than_days=0&" + owner, null).statusCode());
 
-        assertEquals(200, send(adminKey, "DELETE", "/api/holds/leaver-review?" + owner, null).statusCode());
+        assertEquals(204, send(adminKey, "DELETE", "/api/holds/leaver-review?" + owner, null).statusCode());
         final HttpResponse<String> deleted = send(adminKey, "DELETE", "/api/ledger/" + first + "?" + owner, null);
         assertTrue(deleted.statusCode() / 100 == 2, "with the hold released the chain can be deleted: " + deleted.body());
     }

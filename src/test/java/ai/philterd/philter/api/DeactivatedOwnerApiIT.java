@@ -130,7 +130,7 @@ class DeactivatedOwnerApiIT {
         assertEquals(200, send(adminKey, "GET", "/api/holds/case-7?" + owner, null).statusCode());
 
         final HttpResponse<String> released = send(adminKey, "DELETE", "/api/holds/case-7?" + owner, null);
-        assertEquals(200, released.statusCode(), released.body());
+        assertEquals(204, released.statusCode(), released.body());
         assertEquals(404, send(adminKey, "GET", "/api/holds/case-7?" + owner, null).statusCode(), "the hold is gone");
 
     }
@@ -159,7 +159,7 @@ class DeactivatedOwnerApiIT {
     @Test
     @DisplayName("Reaching a deactivated user is audited as cross-user access")
     void audited() throws Exception {
-        assertEquals(200, send(adminKey, "DELETE", "/api/holds/case-7?owner=" + leaver, null).statusCode());
+        assertEquals(204, send(adminKey, "DELETE", "/api/holds/case-7?owner=" + leaver, null).statusCode());
 
         final HttpResponse<String> audit = send(adminKey, "GET", "/api/audit?event=admin_cross_user_access&limit=100", null);
         assertEquals(200, audit.statusCode(), audit.body());

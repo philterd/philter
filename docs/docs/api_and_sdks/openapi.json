@@ -1339,7 +1339,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "The context was created.",
             "content": {
               "application/json": {
@@ -1473,15 +1473,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The context was deleted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "The context was deleted."
           },
           "400": {
             "description": "Bad Request",
@@ -1861,15 +1854,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "The context was emptied."
           },
           "400": {
             "description": "Bad Request",
@@ -2425,15 +2411,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "The entry was deleted."
           },
           "400": {
             "description": "Bad Request",
@@ -2709,7 +2688,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": "The record and any stored redacted bytes were deleted."
           },
           "400": {
@@ -4031,7 +4010,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": "The hold was released."
           },
           "400": {
@@ -4625,15 +4604,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The document's ledger chain was deleted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenericResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "The document's ledger chain was deleted."
           },
           "400": {
             "description": "Bad Request",
@@ -6735,7 +6707,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": "The policy was deleted."
           },
           "400": {
@@ -13716,7 +13688,7 @@
           },
           "total": {
             "type": "integer",
-            "format": "int32"
+            "format": "int64"
           }
         }
       },
@@ -13825,7 +13797,7 @@
           },
           "total": {
             "type": "integer",
-            "format": "int32"
+            "format": "int64"
           }
         }
       },

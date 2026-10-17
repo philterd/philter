@@ -193,7 +193,7 @@ class DocumentsApiControllerTest {
         when(pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, userId)).thenReturn(1L);
 
         mockMvc.perform(delete("/api/documents/" + documentId).header("Authorization", AUTH_HEADER))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         verify(pendingDocumentDataService).deleteByDocumentIdAndUserId(documentId, userId);
         verify(auditEventPublisher).auditEvent(eq(documentId), eq(AuditLogEvent.REDACTED_FILE_DELETED),

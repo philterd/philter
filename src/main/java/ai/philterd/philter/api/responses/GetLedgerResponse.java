@@ -24,9 +24,9 @@ import java.util.List;
 public class GetLedgerResponse {
 
     private final List<LedgerEntryView> chains;
-    private final int total;
+    private final long total;
 
-    public GetLedgerResponse(final List<LedgerEntryView> chains, final int total) {
+    public GetLedgerResponse(final List<LedgerEntryView> chains, final long total) {
         this.chains = chains;
         this.total = total;
     }
@@ -35,7 +35,7 @@ public class GetLedgerResponse {
         return chains;
     }
 
-    public int getTotal() {
+    public long getTotal() {
         return total;
     }
 

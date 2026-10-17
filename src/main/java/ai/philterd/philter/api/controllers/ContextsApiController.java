@@ -300,7 +300,7 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Create a context.", description = "Creates a context. A user can have at most "
             + ContextDataService.MAXIMUM_CONTEXTS_PER_USER + " contexts, counting default.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The context was created.",
+            @ApiResponse(responseCode = "201", description = "The context was created.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "400", description = "The name is missing or blank, or "
@@ -351,7 +351,7 @@ public class ContextsApiController extends AbstractApiController {
         if(serviceResponse.isSuccessful()) {
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_CREATED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
-            return new ResponseEntity<>(new GenericResponse("Context created."), HttpStatus.OK);
+            return new ResponseEntity<>(new GenericResponse("Context created."), HttpStatus.CREATED);
 
         } else {
 
@@ -370,7 +370,7 @@ public class ContextsApiController extends AbstractApiController {
 
     @Operation(summary = "Delete a context.", description = "Delete an existing context.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The context was deleted."),
+            @ApiResponse(responseCode = "204", description = "The context was deleted.", content = @Content),
             @ApiResponse(responseCode = "404", description = "There is no context with that name, or the owner does not exist "
                     + "or the caller may not reach it. The body carries a message."),
             @ApiResponse(responseCode = "409", description = "The context has open asynchronous redaction jobs and cannot be deleted.")
@@ -413,7 +413,7 @@ public class ContextsApiController extends AbstractApiController {
         if(serviceResponse.isSuccessful()) {
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_DELETED, apiKeyEntity.getUserId(), getClientIpAddress(httpServletRequest));
-            return new ResponseEntity<>(new GenericResponse("Context deleted."), HttpStatus.OK);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 
         } else if(serviceResponse.getStatusCode() == 403) {
 
@@ -546,7 +546,8 @@ public class ContextsApiController extends AbstractApiController {
     }
 
     @Operation(summary = "Empty all entries from a context.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {@ApiResponse(responseCode = "204", description = "The context was emptied.", content = @Content),
+            @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}/entries", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> emptyEntries(
@@ -576,13 +577,14 @@ public class ContextsApiController extends AbstractApiController {
                     getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name));
         }
 
-        return new ResponseEntity<>(new GenericResponse(response.getMessage()),
-                response.isSuccessful() ? HttpStatus.OK : HttpStatus.NOT_FOUND);
+        return response.isSuccessful() ? new ResponseEntity<>(HttpStatus.NO_CONTENT)
+                : new ResponseEntity<>(new GenericResponse(response.getMessage()), HttpStatus.NOT_FOUND);
 
     }
 
     @Operation(summary = "Delete a single context entry by id.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
+    @ApiResponses(value = {@ApiResponse(responseCode = "204", description = "The entry was deleted.", content = @Content),
+            @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
     @RequestMapping(value = "/api/contexts/{name}/entries/{entryId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GenericResponse> deleteEntry(
@@ -615,7 +617,7 @@ public class ContextsApiController extends AbstractApiController {
         if (deleted > 0) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getUserId(), null,
                     getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name) + ", entryId: " + AuditDetails.quote(entryId));
-            return new ResponseEntity<>(new GenericResponse("Entry deleted."), HttpStatus.OK);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         }
 
         return new ResponseEntity<>(new GenericResponse("Entry not found."), HttpStatus.NOT_FOUND);

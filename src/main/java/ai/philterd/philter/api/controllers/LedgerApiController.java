@@ -202,7 +202,7 @@ public class LedgerApiController extends AbstractApiController {
                 views.add(signed(buildView(chain, null, owners.get(chain.getUserId())), chain));
             }
             auditAllUsersListing(auditEventPublisher, requestId, apiKeyEntity.getUserId(), "list ledger chains");
-            return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, (int) page.total())), HttpStatus.OK);
+            return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, page.total())), HttpStatus.OK);
         }
 
         final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -225,7 +225,7 @@ public class LedgerApiController extends AbstractApiController {
             views.add(toView(chain));
         }
 
-        return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, (int) page.total())), HttpStatus.OK);
+        return new ResponseEntity<>(gson.toJson(new GetLedgerResponse(views, page.total())), HttpStatus.OK);
 
     }
 
@@ -406,7 +406,7 @@ public class LedgerApiController extends AbstractApiController {
                     + "and LEDGER_DELETION_ENABLED=true. Admins may delete another user's chain by passing that "
                     + "user's username as owner, which additionally requires ADMIN_CROSS_USER_ACCESS_ENABLED=true.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The document's ledger chain was deleted."),
+            @ApiResponse(responseCode = "204", description = "The document's ledger chain was deleted.", content = @Content),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "403", description = "The caller is not an administrator, or ledger deletion is disabled for this deployment."),
             @ApiResponse(responseCode = "404", description = "No ledger chain for that document exists for this user."),
@@ -449,7 +449,7 @@ public class LedgerApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse(deleteResponse.getMessage()), status);
         }
 
-        return new ResponseEntity<>(new GenericResponse("Ledger chain deleted."), HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 
     }
 

@@ -441,7 +441,7 @@ public class PoliciesApiController extends AbstractApiController {
             description = "Deletes the policy with the given name. Admins may delete another user's policy by passing "
                     + "that user's username as owner.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The policy was deleted.", content = @Content),
+            @ApiResponse(responseCode = "204", description = "The policy was deleted.", content = @Content),
             @ApiResponse(responseCode = "400", description = "The policy name is missing."),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
             @ApiResponse(responseCode = "404", description = "There is no such policy, with a message. Also returned, saying only "
@@ -495,7 +495,7 @@ public class PoliciesApiController extends AbstractApiController {
             return refusal.body(new GenericResponse(response.getMessage()));
         }
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
 
     }
 

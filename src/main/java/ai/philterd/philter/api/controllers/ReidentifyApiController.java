@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.phileas.policy.Crypto;
 import ai.philterd.phileas.policy.FPE;
@@ -161,7 +162,7 @@ public class ReidentifyApiController extends AbstractApiController {
         final long successCount = results.stream().filter(r -> r.getError() == null).count();
         // Record the encrypted input values (ciphertexts) as the "what" — they are not sensitive
         // since they are already the distributed replacement tokens.
-        final String valuesDetail = String.join(",", request.getValues());
+        final String valuesDetail = AuditDetails.quoteAll(request.getValues());
         auditEventPublisher.auditEvent(
                 requestId,
                 AuditLogEvent.REDACTION_REVERSED,
@@ -171,8 +172,8 @@ public class ReidentifyApiController extends AbstractApiController {
                 "strategy: " + strategy
                         + ", requested: " + request.getValues().size()
                         + ", succeeded: " + successCount
-                        + ", reason: " + request.getReason()
-                        + ", values: [" + valuesDetail + "]"
+                        + ", reason: " + AuditDetails.quote(request.getReason())
+                        + ", values: " + valuesDetail
                         + (owner != null && !owner.isBlank() ? ", owner: " + targetUserId : "")
         );
 

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.RefusedException;
@@ -165,7 +166,7 @@ public class AuditApiController extends AbstractApiController {
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.AUDIT_LOG_RETRIEVED, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest),
-                "event: " + (eventFilter == null ? "any" : eventFilter)
+                "event: " + (eventFilter == null ? "any" : AuditDetails.quote(eventFilter))
                         + ", owner: " + (principalId == null ? "any" : principalId)
                         + ", returned: " + events.size() + ", total: " + total);
 

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.requests.SignInMfaRequest;
 import ai.philterd.philter.api.requests.SignInRequest;
@@ -221,7 +222,7 @@ public class SignInApiController extends AbstractApiController {
         final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
         final boolean mfaEnrollmentRequired = settings != null && settings.isMfaAvailable() && settings.isMfaRequired();
 
-        return issue(requestId, user, mfaEnrollmentRequired, clientIp, "username: " + user.getUsername());
+        return issue(requestId, user, mfaEnrollmentRequired, clientIp, "username: " + AuditDetails.quote(user.getUsername()));
 
     }
 
@@ -278,11 +279,11 @@ public class SignInApiController extends AbstractApiController {
         }
 
         return switch (userService.checkMfaCode(requestId, user, request.getCode(), Source.API.getSource())) {
-            case ACCEPTED -> issue(requestId, user, false, clientIp, "username: " + user.getUsername() + ", mfa: true");
+            case ACCEPTED -> issue(requestId, user, false, clientIp, "username: " + AuditDetails.quote(user.getUsername()) + ", mfa: true");
             case LOCKED -> locked(requestId, user, clientIp);
             case REFUSED -> {
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_FAILED, user.getId(), user.getId(), clientIp,
-                        "username: " + user.getUsername() + ", reason: invalid MFA code");
+                        "username: " + AuditDetails.quote(user.getUsername()) + ", reason: invalid MFA code");
                 yield ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new GenericResponse(FAILED_MFA));
             }
         };
@@ -331,7 +332,7 @@ public class SignInApiController extends AbstractApiController {
 
     private ResponseEntity<Object> locked(final String requestId, final UserEntity user, final String clientIp) {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_FAILED, user.getId(), user.getId(), clientIp,
-                "username: " + user.getUsername() + ", reason: MFA locked");
+                "username: " + AuditDetails.quote(user.getUsername()) + ", reason: MFA locked");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new GenericResponse(
                 "MFA is locked after repeated bad codes. An administrator must unlock it.", ErrorReasons.MFA_LOCKED));
     }

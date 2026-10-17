@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
@@ -346,7 +347,7 @@ public class FilterApiController extends AbstractApiController {
         // correlation id used by the /api/documents endpoints.
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_INITIATED, userId, null, null,
                 "inputMimeType: " + inputMimeType.name() + ", outputMimeType: " + outputMimeType
-                        + ", policy: " + policyName + ", policyVersion: " + policyVersion);
+                        + ", policy: " + AuditDetails.quote(policyName) + ", policyVersion: " + policyVersion);
 
         final String json = gson.toJson(Map.of("documentId", documentId));
 

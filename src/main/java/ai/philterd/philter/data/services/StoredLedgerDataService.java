@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LedgerEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
@@ -303,6 +304,10 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
         return holds.stream().map(LegalHoldEntity::getReference).reduce((a, b) -> a + ", " + b).orElse("unknown");
     }
 
+    private static String auditedReferences(final List<LegalHoldEntity> holds) {
+        return AuditDetails.quoteAll(holds.stream().map(LegalHoldEntity::getReference).toList());
+    }
+
     @Override
     public ServiceResponse deleteChainsByUserIdAndOlderThan(final String requestId,
                                                              final String userId,
@@ -313,10 +318,11 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
         }
         return evidenceGuard.execute(userId, "purge_by_age", () -> {
             if (legalHoldDataService.hasAnyHold(userId)) {
-                final String refs = references(legalHoldDataService.findAllHoldsForUser(userId));
+                final List<LegalHoldEntity> holds = legalHoldDataService.findAllHoldsForUser(userId);
+                final String refs = references(holds);
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
                         userId, null, null,
-                        "operation: purge_by_age, daysToKeep: " + daysToKeep + ", blocking holds: " + refs);
+                        "operation: purge_by_age, daysToKeep: " + daysToKeep + ", blocking holds: " + auditedReferences(holds));
                 return new ServiceResponse(
                         "Purge blocked by legal hold(s): " + refs + ". Release all holds before purging.",
                         false, 423);
@@ -349,11 +355,12 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
 
         return evidenceGuard.execute(userId, "delete_document_chain", () -> {
             if (legalHoldDataService.isProtectedDocument(userId, documentId)) {
-                final String refs = references(legalHoldDataService.findBlockingHoldsForDocument(userId, documentId));
+                final List<LegalHoldEntity> holds = legalHoldDataService.findBlockingHoldsForDocument(userId, documentId);
+                final String refs = references(holds);
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_BLOCKED_DELETION,
                         userId, null, null,
-                        "operation: delete_document_chain, documentId: " + documentId
-                                + ", blocking holds: " + refs);
+                        "operation: delete_document_chain, documentId: " + AuditDetails.quote(documentId)
+                                + ", blocking holds: " + auditedReferences(holds));
                 return new ServiceResponse(
                         "Deletion blocked by legal hold(s): " + refs
                                 + ". Release the hold(s) before deleting this chain.",
@@ -374,7 +381,7 @@ public abstract class StoredLedgerDataService implements LedgerDataService {
             }
             deleteEntries(userId, documentId);
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_DELETED, userId,
-                    null, source, "documentId: " + documentId);
+                    null, source, "documentId: " + AuditDetails.quote(documentId));
 
             return ServiceResponse.success();
         });

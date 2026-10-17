@@ -218,6 +218,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **PDFs are bounded before rendering.** A small PDF with a huge page, or a policy with a high `dpi`, could exhaust
   memory. A PDF over `PDF_MAX_PAGES` (default 2000) or with a page over `PDF_MAX_PIXELS_PER_PAGE` (default 50 million
   pixels) is refused with `413`. See [Redaction Engine](docs/docs/settings.md#redaction-engine).
+- **Caller-supplied values cannot forge audit fields.** Names, references, document IDs, usernames, and the
+  re-identification reason were written into an event's `details` as is, so a value such as `x, owner: admin` read as
+  extra fields. A value that could be misread is now written as a quoted, escaped string. See
+  [Auditing](docs/docs/auditing.md#where-audit-events-are-stored).
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
   space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
   ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused

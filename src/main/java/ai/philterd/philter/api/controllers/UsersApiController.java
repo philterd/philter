@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -370,7 +371,7 @@ public class UsersApiController extends AbstractApiController {
             if (signInThrottle.recordFailure(account, attempt)) {
                 // Names the key that made the guesses, so it can be revoked.
                 auditEventPublisher.auditEvent(requestId, AuditLogEvent.SIGN_IN_LOCKED, apiKeyEntity.getId(), user.getId(),
-                        getClientIpAddress(httpServletRequest), "username: " + user.getUsername() + ", after "
+                        getClientIpAddress(httpServletRequest), "username: " + AuditDetails.quote(user.getUsername()) + ", after "
                                 + signInThrottle.getMaxFailures() + " wrong passwords, the last when changing the "
                                 + "password, for " + signInThrottle.getLockoutSeconds() / 60 + " minutes");
             }

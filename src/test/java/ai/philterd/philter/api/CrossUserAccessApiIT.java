@@ -169,7 +169,7 @@ class CrossUserAccessApiIT {
 
         final HttpResponse<String> created = mint(user);
         assertEquals(201, created.statusCode(), created.body());
-        assertTrue(crossUserActionsOn(user).contains("action: create API key with scopes [policies:read]"),
+        assertTrue(crossUserActionsOn(user).contains("action: \"create API key with scopes [policies:read]\""),
                 crossUserActionsOn(user).toString());
 
     }

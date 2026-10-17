@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -188,7 +189,7 @@ public abstract class StoredContextDataService implements ContextDataService {
 
         if (!changed.isEmpty()) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_UPDATED, actingUserId, existing.getId(), null,
-                    "context: " + contextName + ", " + String.join(", ", changed) + ", api_key: " + actingApiKeyId);
+                    "context: " + AuditDetails.quote(contextName) + ", " + String.join(", ", changed) + ", api_key: " + actingApiKeyId);
         }
 
         return new ServiceResponse("Context updated.", true);

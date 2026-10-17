@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.model.AuditLogEvent;
@@ -92,8 +93,8 @@ public abstract class StoredLegalHoldDataService implements LegalHoldDataService
             }
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_SET, userId, null,
-                    null, "reference: " + reference + ", scopeType: " + scopeType
-                            + ", scopeValue: " + scopeValue);
+                    null, "reference: " + AuditDetails.quote(reference) + ", scopeType: " + AuditDetails.quote(scopeType)
+                            + ", scopeValue: " + AuditDetails.quote(scopeValue));
 
             return new ServiceResponse("Legal hold '" + reference + "' set.", true, 201);
         });
@@ -119,7 +120,7 @@ public abstract class StoredLegalHoldDataService implements LegalHoldDataService
             delete(reference, userId);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_RELEASED, userId, null,
-                    null, "reference: " + reference + ", releasedBy: " + releasedByUserId);
+                    null, "reference: " + AuditDetails.quote(reference) + ", releasedBy: " + releasedByUserId);
 
             return new ServiceResponse("Legal hold '" + reference + "' released.", true, 200);
         });

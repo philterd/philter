@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
@@ -426,7 +427,7 @@ public class PoliciesApiController extends AbstractApiController {
         // Policies saved via the API become active immediately. Record the activation so it is
         // attributable to the specific API key even when no approval step exists.
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
-                apiKeyEntity.getUserId(), null, null, "policy: " + name);
+                apiKeyEntity.getUserId(), null, null, "policy: " + AuditDetails.quote(name));
 
         return ResponseEntity.status(replace ? HttpStatus.OK : HttpStatus.CREATED).eTag(eTag(outcome.policy())).build();
 
@@ -705,7 +706,7 @@ public class PoliciesApiController extends AbstractApiController {
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ACTIVATED,
-                apiKeyEntity.getUserId(), null, null, "policy: " + name + ", copied from: " + policyName);
+                apiKeyEntity.getUserId(), null, null, "policy: " + AuditDetails.quote(name) + ", copied from: " + AuditDetails.quote(policyName));
 
         return ResponseEntity.status(HttpStatus.CREATED).eTag(eTag(outcome.policy()))
                 .body(new PolicyDetailsResponse(outcome.policy()));

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -185,7 +186,7 @@ public class PiiCountsApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.PII_COUNTS_RETRIEVED, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest),
                 "from: " + (fromDay == null ? "any" : fromDay) + ", to: " + (toDay == null ? "any" : toDay)
-                        + ", context: " + (contextFilter == null ? "any" : contextFilter)
+                        + ", context: " + (contextFilter == null ? "any" : AuditDetails.quote(contextFilter))
                         + ", owner: " + (userFilter == null ? "any" : userFilter)
                         + ", returned: " + counts.size() + ", total: " + page.total());
 

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -159,7 +160,7 @@ public class PolicyVersionsApiController extends AbstractApiController {
         auditEventPublisher.auditEvent(requestId,
                 AuditLogEvent.POLICY_VERSION_HISTORY_RETRIEVED, apiKeyEntity.getUserId(), null,
                 getClientIpAddress(httpServletRequest),
-                "policy: " + policyName + ", versions returned: " + summaries.size());
+                "policy: " + AuditDetails.quote(policyName) + ", versions returned: " + summaries.size());
 
         return ResponseEntity.ok(new GetPolicyVersionsResponse(summaries, page.total()));
     }

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -562,7 +563,7 @@ public class ContextsApiController extends AbstractApiController {
 
         if (response.isSuccessful()) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_PURGED, apiKeyEntity.getUserId(), null,
-                    getClientIpAddress(httpServletRequest), "context: " + name);
+                    getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name));
         }
 
         return new ResponseEntity<>(new GenericResponse(response.getMessage()),
@@ -603,7 +604,7 @@ public class ContextsApiController extends AbstractApiController {
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRY_DELETED, apiKeyEntity.getUserId(), null,
-                    getClientIpAddress(httpServletRequest), "context: " + name + ", entryId: " + entryId);
+                    getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name) + ", entryId: " + AuditDetails.quote(entryId));
             return new ResponseEntity<>(new GenericResponse("Entry deleted."), HttpStatus.OK);
         }
 
@@ -641,7 +642,7 @@ public class ContextsApiController extends AbstractApiController {
             // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
             // the response does not reveal whether the context exists.
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_EXPORT_DENIED, userId, null,
-                    getClientIpAddress(httpServletRequest), "context: " + name);
+                    getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name));
             throw new NotFoundException();
         }
 
@@ -659,7 +660,7 @@ public class ContextsApiController extends AbstractApiController {
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_EXPORTED, userId, null,
-                getClientIpAddress(httpServletRequest), "context: " + name + ", owner: " + ownerUserId + ", count: " + exported.size());
+                getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name) + ", owner: " + ownerUserId + ", count: " + exported.size());
 
         final HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "-context-export.json\"");
@@ -705,7 +706,7 @@ public class ContextsApiController extends AbstractApiController {
             // Audit the denied/not-found attempt. The two cases are deliberately indistinguishable so
             // the response does not reveal whether the context exists.
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORT_DENIED, userId, null,
-                    getClientIpAddress(httpServletRequest), "context: " + name);
+                    getClientIpAddress(httpServletRequest), "context: " + AuditDetails.quote(name));
             return new ResponseEntity<>(new GenericResponse("Context not found."), HttpStatus.NOT_FOUND);
         }
 
@@ -756,7 +757,7 @@ public class ContextsApiController extends AbstractApiController {
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORTED, userId, null,
                 getClientIpAddress(httpServletRequest),
-                "context: " + name + ", owner: " + ownerUserId + ", inserted: " + inserted + ", overwritten: " + overwritten + ", skipped: " + skipped);
+                "context: " + AuditDetails.quote(name) + ", owner: " + ownerUserId + ", inserted: " + inserted + ", overwritten: " + overwritten + ", skipped: " + skipped);
 
         return new ResponseEntity<>(
                 new ImportContextEntriesResponse(payload.getEntries().size(), inserted, overwritten, skipped),

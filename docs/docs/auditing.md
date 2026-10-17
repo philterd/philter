@@ -20,7 +20,7 @@ Audit events are written to `audit_events` in Philter's database: a collection w
 | `associated_object` | The id of the entity the action concerned (for example, the policy or user affected), when applicable. |
 | `client_ip_address` | The address of the client whose request caused the event: the address of the connection or, for a request from a [trusted proxy](settings.md#api-access), the client address its `X-Forwarded-For` header names. It is recorded for every event a request causes, including a redaction completed later by the asynchronous worker, which records the address of the request that submitted the document. It is empty for an event with no request behind it, and never holds anything but an address. |
 | `source` | Where the event came from: `api` for an event a request caused, or `system` for one Philter recorded on its own, such as at startup or when a session key expires in the background. |
-| `details` | A short, non-sensitive description with extra context (for example, a role name or a counter). |
+| `details` | A short, non-sensitive description with extra context (for example, a role name or a counter), usually as `key: value` pairs separated by `, `. A value supplied by a caller, such as a policy or context name, a hold reference, a document ID, a username, or a re-identification reason, is written in double quotes, escaped as a JSON string, when it is empty, begins or ends with a space, or contains `,`, `:`, `"`, `\`, `[`, `]`, or a control, invisible formatting, private-use, or unassigned character, so it cannot be read as more than one field. Otherwise it is written as is. |
 | `timestamp` | When the event occurred. |
 
 Audit events never contain the sensitive values themselves. For example, when a ledger is searched, the audit record stores a hash of the search term rather than the term; webhook configuration changes are recorded without the webhook URL or secret.
@@ -121,8 +121,8 @@ The `redaction_reversed` event is recorded every time `/api/reidentify` is calle
 - `strategy`: `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE`.
 - `requested`: the number of values submitted.
 - `succeeded`: the number successfully decrypted.
-- `reason`: the caller's verbatim stated authority for the reversal.
-- `values`: the list of encrypted input values (ciphertexts). These are the replacement tokens, not the decrypted originals. The originals are **never** written to the audit log.
+- `reason`: the caller's verbatim stated authority for the reversal, quoted as described for [`details`](#where-audit-events-are-stored) when it contains a separator.
+- `values`: the list of encrypted input values (ciphertexts), in square brackets and separated by `, `, each quoted the same way. These are the replacement tokens, not the decrypted originals. The originals are **never** written to the audit log.
 - `owner`: the target user id, present only when an admin used the `owner` parameter to act on behalf of another user.
 
 This provides a full, auditable history of who un-redacted what, when, and under what stated authority. See [Re-identification](redaction/re-identification.md) for the full endpoint documentation.

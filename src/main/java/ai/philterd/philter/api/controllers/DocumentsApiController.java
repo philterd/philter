@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
@@ -232,7 +233,7 @@ public class DocumentsApiController extends AbstractApiController {
 
         // Audit access to the redacted output.
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DOWNLOAD, apiKeyEntity.getUserId(), null, null,
-                "documentId: " + documentId);
+                "documentId: " + AuditDetails.quote(documentId));
 
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(mediaType)
@@ -269,7 +270,7 @@ public class DocumentsApiController extends AbstractApiController {
 
         if (deleted > 0) {
             auditEventPublisher.auditEvent(documentId, AuditLogEvent.REDACTED_FILE_DELETED, apiKeyEntity.getUserId(), null, null,
-                    "documentId: " + documentId);
+                    "documentId: " + AuditDetails.quote(documentId));
             return new ResponseEntity<>(HttpStatus.OK);
         }
 

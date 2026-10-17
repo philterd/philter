@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.services;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.PolicyEntity;
@@ -522,7 +523,7 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
         redactionCache.evictPolicy(userId, policyName);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_ROLLED_BACK, principalId, live.getId(),
-                clientIpAddress, "policy: " + policyName + ", rolled back to revision: " + targetRevision
+                clientIpAddress, "policy: " + AuditDetails.quote(policyName) + ", rolled back to revision: " + targetRevision
                         + ", new revision: " + newRevision);
 
         return new WriteOutcome(new ServiceResponse("Policy rolled back to revision " + targetRevision
@@ -554,7 +555,7 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
             policyVersionDataService.recordDeletion(userId, policyName, policyEntity.getRevision(), principalId, new Date());
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.POLICY_DELETED, principalId, policyEntity.getId(),
-                    clientIpAddress, "policy: " + policyName + ", source: " + source.getSource());
+                    clientIpAddress, "policy: " + AuditDetails.quote(policyName) + ", source: " + source.getSource());
 
             return new ServiceResponse("Policy deleted.", true, 200);
 

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
@@ -264,7 +265,7 @@ public class LedgerApiController extends AbstractApiController {
         final LedgerDataService.ChainValidation chainValidation = ledgerService.validateChain(userId, documentId);
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_QUERY, apiKeyEntity.getUserId(), null,
-                getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId);
+                getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + AuditDetails.quote(documentId));
 
         // The entries could not be read or checked, so none are returned.
         if (chainValidation.error() != null) {
@@ -360,7 +361,7 @@ public class LedgerApiController extends AbstractApiController {
             // out or blanked would not verify while looking complete. Audited as an export attempt.
             LOGGER.warn("Refused to export the ledger chain for document {}: an entry could not be read.", documentId, e);
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_EXPORTED, apiKeyEntity.getUserId(), null,
-                    getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId
+                    getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + AuditDetails.quote(documentId)
                             + ", count: 0, refused: " + LedgerRefusalResponse.REASON_ENTRY_UNREADABLE);
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).contentType(MediaType.APPLICATION_JSON)
                     .body(gson.toJson(new LedgerRefusalResponse("An entry in this chain could not be read, so the chain "
@@ -376,7 +377,7 @@ public class LedgerApiController extends AbstractApiController {
         }
 
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEDGER_EXPORTED, apiKeyEntity.getUserId(), null,
-                getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + documentId + ", count: " + entries.size());
+                getClientIpAddress(httpServletRequest), "owner: " + userId + ", documentId: " + AuditDetails.quote(documentId) + ", count: " + entries.size());
 
         final HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ledger-" + documentId + "-export.json\"");

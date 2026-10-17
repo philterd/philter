@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.controllers;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.model.ErrorReasons;
@@ -223,7 +224,7 @@ public abstract class AbstractApiController {
     protected void auditAllUsersListing(final AuditEventPublisher auditEventPublisher, final String requestId,
                                         final String callerUserId, final String action) {
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.ADMIN_CROSS_USER_ACCESS, callerUserId, null,
-                null, "action: " + action + " across all users");
+                null, "action: " + AuditDetails.quote(action + " across all users"));
     }
 
     /**
@@ -361,7 +362,7 @@ public abstract class AbstractApiController {
                                              final String callerUserId, final String targetUserId, final String action) {
         if (targetUserId != null && !targetUserId.equals(callerUserId)) {
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.ADMIN_CROSS_USER_ACCESS, callerUserId, targetUserId,
-                    null, "action: " + action);
+                    null, "action: " + AuditDetails.quote(action));
         }
     }
 

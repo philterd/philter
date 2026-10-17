@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.data.contract;
 
+import ai.philterd.philter.model.AuditLogEvent;
+import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
 import ai.philterd.philter.data.services.LegalHoldDataService;
@@ -76,6 +78,19 @@ public interface LegalHoldDataServiceContract extends StorageContract {
                 "litigation", owner, administrator).getStatusCode());
         assertEquals(200, storage().legalHolds().release("req", "case-2", owner, RecordIds.newId(), true).getStatusCode());
         assertFalse(storage().legalHolds().hasAnyHold(owner));
+    }
+
+    @Test
+    default void aReferenceCannotAddFieldsToTheAuditDetails() {
+        final String owner = RecordIds.newId();
+        final String reference = "case-9, releasedBy: someone-else";
+        assertEquals(201, storage().legalHolds().create("req", reference, LegalHoldEntity.SCOPE_USER, "jordan",
+                "litigation", owner, owner).getStatusCode());
+        assertEquals(200, storage().legalHolds().release("req", reference, owner, owner, false).getStatusCode());
+        final List<AuditLogService.AuditEvent> released = storage().auditLog().find(owner,
+                AuditLogEvent.LEGAL_HOLD_RELEASED.getAuditLogEvent(), null, null, 0, 10);
+        assertEquals(1, released.size());
+        assertEquals("reference: \"case-9, releasedBy: someone-else\", releasedBy: " + owner, released.get(0).details());
     }
 
     @Test

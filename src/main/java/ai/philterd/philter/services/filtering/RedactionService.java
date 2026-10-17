@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.IncrementalRedaction;
 import ai.philterd.phileas.model.filtering.MimeType;
@@ -473,7 +474,7 @@ public class RedactionService {
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED,
                 userEntity.getId(), null, null,
                 "redactions: " + filterResult.getExplanation().appliedSpans().size()
-                        + ", policy: " + appliedPolicy.name() + ", policyVersion: " + appliedPolicy.version());
+                        + ", policy: " + AuditDetails.quote(appliedPolicy.name()) + ", policyVersion: " + appliedPolicy.version());
 
         return new RedactionOutcome(documentId, filterResult, appliedPolicy);
 

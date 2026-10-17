@@ -119,6 +119,20 @@ class RedactionWorkerTest {
     }
 
     @Test
+    void aPdfOverTheLimitsKeepsItsReason() throws Exception {
+        final PendingDocumentEntity job = pdfJob();
+
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new ai.philterd.phileas.services.pdf.PdfLimitExceededException("The PDF has 3 pages, more than the limit of 2."));
+
+        worker.poll();
+
+        verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()),
+                eq("The PDF has 3 pages, more than the limit of 2."));
+    }
+
+    @Test
     void redactionFailureMarksJobFailed() throws Exception {
         final PendingDocumentEntity job = pdfJob();
 

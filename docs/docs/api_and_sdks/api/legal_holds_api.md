@@ -118,7 +118,7 @@ curl -k -H "Authorization: Bearer <token>" "https://localhost:8080/api/holds/LIT
 |----------|--------------------------|-----------------------------------|
 | `DELETE` | `/api/holds/{reference}` | Release (delete) the named hold. |
 
-Once released, evidence previously covered by this hold becomes eligible for deletion if no other hold remains. Releasing a hold does not delete any ledger data. Every release is recorded in the [audit log](../../auditing.md) as `legal_hold_released`.
+Once released, evidence previously covered by this hold becomes eligible for deletion if no other hold remains. Only the user who set the hold, or an administrator, can release it, so a user cannot release a hold an administrator placed on their evidence. Releasing a hold does not delete any ledger data. Every release is recorded in the [audit log](../../auditing.md) as `legal_hold_released`.
 
 ### Query Parameters
 
@@ -127,6 +127,7 @@ Once released, evidence previously covered by this hold becomes eligible for del
 ### Responses
 
 * `200 OK` - The hold was released.
+* `403 Forbidden` - The caller neither set the hold nor is an administrator. The `reason` is `admin_required`.
 * `404 Not Found` - No hold with that reference exists for the user. An `owner` that does not exist or may not be reached gets the same `not_found` body.
 * `409 Conflict` - The hold was not released because another evidence or hold operation for the user is active or requires recovery. The body carries a `message` and the `reason` `operation_in_progress`.
 

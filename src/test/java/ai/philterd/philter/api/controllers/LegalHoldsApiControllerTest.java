@@ -385,7 +385,7 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void releaseHoldReturns404WhenNotFound() throws Exception {
-        when(legalHoldDataService.release(anyString(), eq("MISSING"), eq(userId)))
+        when(legalHoldDataService.release(anyString(), eq("MISSING"), eq(userId), eq(userId), anyBoolean()))
                 .thenReturn(new ServiceResponse("Not found.", false, 404));
 
         mockMvc.perform(delete("/api/holds/MISSING").header("Authorization", AUTH))
@@ -395,7 +395,7 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void releaseHoldReturns409WhenOperationActive() throws Exception {
-        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId)))
+        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId), eq(userId), anyBoolean()))
                 .thenReturn(new ServiceResponse("Busy.", false, 409, LegalHoldDataService.REASON_OPERATION_IN_PROGRESS));
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH))
@@ -406,11 +406,22 @@ class LegalHoldsApiControllerTest {
 
     @Test
     void releaseHoldReturns200OnSuccess() throws Exception {
-        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId)))
+        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId), eq(userId), anyBoolean()))
                 .thenReturn(new ServiceResponse("Released.", true, 200));
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void releaseHoldReturns403WhenTheCallerDidNotSetIt() throws Exception {
+        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(userId), eq(userId), eq(false)))
+                .thenReturn(new ServiceResponse("Only the user who set this hold or an administrator can release it.",
+                        false, 403));
+
+        mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.reason").value("admin_required"));
     }
 
     @Test
@@ -431,14 +442,14 @@ class LegalHoldsApiControllerTest {
         final String otherUserId = MongoIds.newId();
         makeCallerAdmin();
         when(userService.findAnyByUsername("other@example.com")).thenReturn(userWithId("other@example.com", otherUserId));
-        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(otherUserId)))
+        when(legalHoldDataService.release(anyString(), eq("LIT-001"), eq(otherUserId), eq(userId), anyBoolean()))
                 .thenReturn(new ServiceResponse("Released.", true, 200));
 
         mockMvc.perform(delete("/api/holds/LIT-001").header("Authorization", AUTH)
                         .param("owner", "other@example.com"))
                 .andExpect(status().isOk());
 
-        verify(legalHoldDataService).release(anyString(), eq("LIT-001"), eq(otherUserId));
+        verify(legalHoldDataService).release(anyString(), eq("LIT-001"), eq(otherUserId), eq(userId), eq(true));
     }
 
     // -------------------------------------------------------------------------

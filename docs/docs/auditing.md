@@ -132,7 +132,7 @@ This provides a full, auditable history of who un-redacted what, when, and under
 | Event | When it is recorded |
 |-------|---------------------|
 | `legal_hold_set` | A legal hold was created. The `details` field includes the hold's reference, scope type, and scope value. |
-| `legal_hold_released` | A legal hold was released. The `details` field includes the hold's reference. |
+| `legal_hold_released` | A legal hold was released. The `details` field includes the hold's reference and the id of the user who released it (`releasedBy`). |
 | `legal_hold_blocked_deletion` | A deletion was blocked because one or more active holds cover the data. The `details` field lists the references of all blocking holds. This event is recorded on every blocked attempt: per-document delete, bulk purge, and age-based purge. |
 
 See [Legal Holds](redaction/legal_holds.md) for full documentation on the hold lifecycle and how holds block deletions.

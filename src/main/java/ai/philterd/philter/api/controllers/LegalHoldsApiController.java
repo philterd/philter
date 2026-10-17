@@ -30,6 +30,7 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.entities.LegalHoldEntity;
+import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.Listings;
@@ -274,7 +275,8 @@ public class LegalHoldsApiController extends AbstractApiController {
     @Operation(summary = "Release a legal hold.",
             description = "Removes the hold with the given reference. Once released, evidence previously covered by "
                     + "this hold may become eligible for deletion or purge if no other holds remain. "
-                    + "Releasing a hold is audited. Admins may release another user's hold via the owner parameter.")
+                    + "Releasing a hold is audited. Only the user who set the hold, or an administrator, may release "
+                    + "it. Admins may release another user's hold via the owner parameter.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The hold was released.", content = @Content),
             @ApiResponse(responseCode = "409", description = "The hold was not released because an evidence or hold operation "
@@ -282,6 +284,10 @@ public class LegalHoldsApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = LegalHoldConflictResponse.class))),
             @ApiResponse(responseCode = "401", description = "The Authorization header is absent or the API key is not recognized."),
+            @ApiResponse(responseCode = "403", description = "The caller neither set the hold nor is an administrator; "
+                    + "reason is admin_required.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "No hold with the given reference exists for this user, or the owner does not exist or may "
                     + "not be reached. An unreachable owner gets the same not_found body as anything else not found, so an "
                     + "owner value cannot be used to discover accounts.",
@@ -310,7 +316,12 @@ public class LegalHoldsApiController extends AbstractApiController {
         auditAdminCrossUserAccess(auditEventPublisher, requestId,
                 apiKeyEntity.getUserId(), userId, "release legal hold '" + reference + "'");
 
-        final ServiceResponse response = legalHoldDataService.release(requestId, reference, userId);
+        final ServiceResponse response = legalHoldDataService.release(requestId, reference, userId,
+                apiKeyEntity.getUserId(), isAdmin(userService, apiKeyEntity.getUserId()));
+        if (response.getStatusCode() == 403) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new GenericResponse(response.getMessage(), ErrorReasons.ADMIN_REQUIRED));
+        }
         if (response.getStatusCode() == 409) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new LegalHoldConflictResponse(response.getMessage(), response.getDetails()));

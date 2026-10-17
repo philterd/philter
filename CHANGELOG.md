@@ -210,6 +210,14 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   traffic can push them out; usernames with no account and the per-address rate limit use a store of
   their own; IPv6 clients are rate limited per /64; and a full in-memory store drops its entries nearest to expiring
   instead of refusing. See [Lockout and rate limiting](docs/docs/sign_in_security.md#lockout-and-rate-limiting).
+- **Tomcat no longer reads `X-Forwarded-For` on Kubernetes.** On a detected cloud platform, Spring Boot trusted the
+  header from any private address before `TRUSTED_PROXIES` was consulted. Only `TRUSTED_PROXIES` now decides.
+- **Only the user who set a legal hold, or an administrator, can release it.** A user could release a hold an
+  administrator placed on their evidence; that is now refused with `403` (`admin_required`). See
+  [Legal Holds API](docs/docs/api_and_sdks/api/legal_holds_api.md#release-a-hold).
+- **PDFs are bounded before rendering.** A small PDF with a huge page, or a policy with a high `dpi`, could exhaust
+  memory. A PDF over `PDF_MAX_PAGES` (default 2000) or with a page over `PDF_MAX_PIXELS_PER_PAGE` (default 50 million
+  pixels) is refused with `413`. See [Redaction Engine](docs/docs/settings.md#redaction-engine).
 - **Webhooks refuse every special-purpose address.** Without an allowlist, a webhook could reach shared address
   space (100.64/10, which holds Alibaba Cloud's metadata service at 100.100.100.200), reserved and benchmarking
   ranges, and private IPv4 addresses through NAT64, 6to4, or IPv4-compatible IPv6 forms. These are now refused

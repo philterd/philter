@@ -101,17 +101,25 @@ public abstract class StoredLegalHoldDataService implements LegalHoldDataService
 
     @Override
     public ServiceResponse release(final String requestId, final String reference,
-                                    final String userId) {
+                                    final String userId, final String releasedByUserId,
+                                    final boolean releasedByAdministrator) {
 
         return guard.execute(userId, "release_hold", () -> {
-            if (findByReference(reference, userId) == null) {
+            final LegalHoldEntity hold = findByReference(reference, userId);
+            if (hold == null) {
                 return new ServiceResponse("Hold '" + reference + "' not found.", false, 404);
+            }
+
+            if (!releasedByAdministrator
+                    && (hold.getSetByUserId() == null || !hold.getSetByUserId().equals(releasedByUserId))) {
+                return new ServiceResponse("Only the user who set this hold or an administrator can release it.",
+                        false, 403);
             }
 
             delete(reference, userId);
 
             auditEventPublisher.auditEvent(requestId, AuditLogEvent.LEGAL_HOLD_RELEASED, userId, null,
-                    null, "reference: " + reference);
+                    null, "reference: " + reference + ", releasedBy: " + releasedByUserId);
 
             return new ServiceResponse("Legal hold '" + reference + "' released.", true, 200);
         });

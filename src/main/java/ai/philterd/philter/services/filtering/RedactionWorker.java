@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.services.filtering;
 
+import ai.philterd.phileas.services.pdf.PdfLimitExceededException;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
@@ -214,7 +215,8 @@ public class RedactionWorker {
      * described only in the log, which records it with the document ID.
      */
     static String failureMessage(final Exception ex) {
-        if (ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException) {
+        if (ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException
+                || ex instanceof PdfLimitExceededException) {
             return ex.getMessage();
         }
         return GENERIC_FAILURE;

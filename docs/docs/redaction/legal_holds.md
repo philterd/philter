@@ -82,7 +82,7 @@ Authorization: Bearer <api-key>
 
 ### 3. Release a hold
 
-Once a matter is resolved, the hold must be explicitly released. Releasing a hold is audited.
+Once a matter is resolved, the hold must be explicitly released. Only the user who set the hold, or an administrator, can release it. Releasing a hold is audited.
 
 Release a hold with the [Legal Holds API](../api_and_sdks/api/legal_holds_api.md#release-a-hold):
 
@@ -91,7 +91,7 @@ DELETE /api/holds/{reference}
 Authorization: Bearer <api-key>
 ```
 
-A successful release returns **HTTP 200 OK**. If the hold does not exist, **HTTP 404 Not Found** is returned.
+A successful release returns **HTTP 200 OK**. If the hold does not exist, **HTTP 404 Not Found** is returned. If the caller neither set the hold nor is an administrator, **HTTP 403 Forbidden** is returned.
 
 ## How Holds Block Deletions
 

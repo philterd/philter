@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.exceptions;
 
+import ai.philterd.phileas.services.pdf.PdfLimitExceededException;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
@@ -144,14 +145,15 @@ public class RestApiExceptions {
 		write(response, HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage());
 	}
 
-	@ExceptionHandler(PayloadTooLargeException.class)
+	@ExceptionHandler({PayloadTooLargeException.class, PdfLimitExceededException.class})
 	@ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
 	@ApiResponse(responseCode = "413", description = "Content Too Large", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
 			schema = @Schema(implementation = GenericResponse.class)))
-	public void handlePayloadTooLargeException(final PayloadTooLargeException ex, final HttpServletResponse response)
+	public void handlePayloadTooLargeException(final RuntimeException ex, final HttpServletResponse response)
 			throws IOException {
-		// The caller sent too much data, which is a client error. Without this it reached the
-		// catch-all below and came back as a 500 that named nothing.
+		// The caller sent too much data, or a PDF with more pages or larger pages than PDF_MAX_PAGES and
+		// PDF_MAX_PIXELS_PER_PAGE allow, which is a client error. Without this it reached the catch-all below
+		// and came back as a 500 that named nothing.
 		write(response, HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage());
 	}
 

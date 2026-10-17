@@ -143,7 +143,7 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
             try {
                 assertTrue(inserted.await(5, TimeUnit.SECONDS));
                 for (int path = 0; path < 2; path++) assertEquals(409, delete(ledger, path).getStatusCode());
-                final var release = holds.release("req", "hold", owner);
+                final var release = holds.release("req", "hold", owner, owner, false);
                 assertEquals(409, release.getStatusCode());
                 assertEquals(LegalHoldDataService.REASON_OPERATION_IN_PROGRESS, release.getDetails());
                 assertEquals(1, entries());
@@ -188,9 +188,9 @@ class LegalHoldConcurrencyIT extends AbstractMongoIT {
         assertEquals(201, create(holds, true).getStatusCode());
         assertEquals(201, holds.create("req", "second", LegalHoldEntity.SCOPE_DOCUMENT_CHAIN,
                 "doc", "", owner, owner).getStatusCode());
-        assertEquals(200, holds.release("req", "hold", owner).getStatusCode());
+        assertEquals(200, holds.release("req", "hold", owner, owner, false).getStatusCode());
         assertEquals(423, delete(ledger, 0).getStatusCode());
-        assertEquals(200, holds.release("req", "second", owner).getStatusCode());
+        assertEquals(200, holds.release("req", "second", owner, owner, false).getStatusCode());
         assertTrue(delete(ledger, 0).isSuccessful());
     }
 }

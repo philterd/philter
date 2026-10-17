@@ -4010,7 +4010,7 @@
           "Legal Holds"
         ],
         "summary": "Release a legal hold.",
-        "description": "Removes the hold with the given reference. Once released, evidence previously covered by this hold may become eligible for deletion or purge if no other holds remain. Releasing a hold is audited. Admins may release another user's hold via the owner parameter. Requires the `holds:write` scope.",
+        "description": "Removes the hold with the given reference. Once released, evidence previously covered by this hold may become eligible for deletion or purge if no other holds remain. Releasing a hold is audited. Only the user who set the hold, or an administrator, may release it. Admins may release another user's hold via the owner parameter. Requires the `holds:write` scope.",
         "operationId": "releaseHold",
         "parameters": [
           {
@@ -4063,7 +4063,14 @@
             }
           },
           "403": {
-            "description": "Insufficient scope, disabled API, or access denied."
+            "description": "The caller neither set the hold nor is an administrator; reason is admin_required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
           },
           "404": {
             "description": "No hold with the given reference exists for this user, or the owner does not exist or may not be reached. An unreachable owner gets the same not_found body as anything else not found, so an owner value cannot be used to discover accounts.",

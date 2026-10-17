@@ -83,7 +83,7 @@ public interface LedgerDataServiceContract extends StorageContract {
                 "litigation", owner, owner).getStatusCode());
         assertFalse(storage().ledger().deleteByDocumentId("req", owner, "doc", "test").isSuccessful());
         assertTrue(storage().ledger().chainExists(owner, "doc"));
-        assertTrue(storage().legalHolds().release("req", "case-1", owner).isSuccessful());
+        assertTrue(storage().legalHolds().release("req", "case-1", owner, owner, false).isSuccessful());
         assertTrue(storage().ledger().deleteByDocumentId("req", owner, "doc", "test").isSuccessful());
         assertFalse(storage().ledger().chainExists(owner, "doc"));
     }
@@ -134,7 +134,7 @@ public interface LedgerDataServiceContract extends StorageContract {
         assertTrue(blocked.get(0).details().contains("case-1"), blocked.get(0).details());
         assertTrue(audited(owner, AuditLogEvent.REDACTION_LEDGER_DELETED).isEmpty());
 
-        assertTrue(storage().legalHolds().release("req", "case-1", owner).isSuccessful());
+        assertTrue(storage().legalHolds().release("req", "case-1", owner, owner, false).isSuccessful());
         assertTrue(storage().ledger().deleteByDocumentId("req", owner, "doc", "test").isSuccessful());
         final List<AuditLogService.AuditEvent> deleted = audited(owner, AuditLogEvent.REDACTION_LEDGER_DELETED);
         assertEquals(1, deleted.size());

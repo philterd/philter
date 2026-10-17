@@ -54,8 +54,19 @@ final class PhileasConfigurationCache {
         // by PolicyFilesConfig.
         PolicyFilesSettings.fromEnvironment(System::getenv).applyTo(properties);
 
+        // Bound the PDFs Phileas renders, which are held in memory a page at a time. Phileas's defaults apply when
+        // these are unset.
+        putIfSet(properties, "pdf.max.pages", System.getenv("PDF_MAX_PAGES"));
+        putIfSet(properties, "pdf.max.pixels.per.page", System.getenv("PDF_MAX_PIXELS_PER_PAGE"));
+
         return new PhileasConfiguration(properties);
 
+    }
+
+    private static void putIfSet(final Properties properties, final String property, final String value) {
+        if (value != null && !value.isBlank()) {
+            properties.put(property, value.strip());
+        }
     }
 
 }

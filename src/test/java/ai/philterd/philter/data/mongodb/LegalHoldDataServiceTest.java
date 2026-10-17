@@ -164,7 +164,7 @@ class LegalHoldDataServiceTest {
         when(fi.first()).thenReturn(null);
         when(mongoCollection.find(any(Bson.class))).thenReturn(fi);
 
-        final ServiceResponse r = service.release("req", "MISSING", userId);
+        final ServiceResponse r = service.release("req", "MISSING", userId, setByUserId, false);
         assertFalse(r.isSuccessful());
         assertEquals(404, r.getStatusCode());
     }
@@ -178,7 +178,7 @@ class LegalHoldDataServiceTest {
         final DeleteResult deleteResult = mock(DeleteResult.class);
         when(mongoCollection.deleteOne(any(Bson.class))).thenReturn(deleteResult);
 
-        final ServiceResponse r = service.release("req", "REF-1", userId);
+        final ServiceResponse r = service.release("req", "REF-1", userId, setByUserId, false);
 
         assertTrue(r.isSuccessful());
         assertEquals(200, r.getStatusCode());

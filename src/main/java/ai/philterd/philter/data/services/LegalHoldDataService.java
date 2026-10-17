@@ -64,12 +64,15 @@ public interface LegalHoldDataService {
             final String setByUserId);
 
     /**
-     * Releases (removes) the hold with the given reference for the given owner.
+     * Releases (removes) the hold with the given reference for the given owner. Only the user who set the
+     * hold, or an administrator, may release it, so an owner cannot release a hold an administrator placed on
+     * them.
      *
-     * @return 200 on success; 404 if no such hold exists for this owner.
+     * @return 200 on success; 404 if no such hold exists for this owner; 403 if the caller neither set the
+     *         hold nor is an administrator.
      */
     ServiceResponse release(final String requestId, final String reference,
-            final String userId);
+            final String userId, final String releasedByUserId, final boolean releasedByAdministrator);
 
     /**
      * Returns the hold with the given reference for the given owner, or {@code null} if none exists.

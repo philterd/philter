@@ -54,12 +54,28 @@ public interface LegalHoldDataServiceContract extends StorageContract {
         assertTrue(hold(owner, "case-2", "doc").isSuccessful());
         assertTrue(storage().legalHolds().isProtectedDocument(owner, "doc"));
         assertFalse(storage().legalHolds().isProtectedDocument(owner, "another-doc"));
-        assertTrue(storage().legalHolds().release("req", "case-1", owner).isSuccessful());
+        assertTrue(storage().legalHolds().release("req", "case-1", owner, owner, false).isSuccessful());
         // Releasing one hold never unblocks what another still covers.
         assertTrue(storage().legalHolds().isProtectedDocument(owner, "doc"));
-        assertTrue(storage().legalHolds().release("req", "case-2", owner).isSuccessful());
+        assertTrue(storage().legalHolds().release("req", "case-2", owner, owner, false).isSuccessful());
         assertFalse(storage().legalHolds().isProtectedDocument(owner, "doc"));
-        assertFalse(storage().legalHolds().release("req", "case-2", owner).isSuccessful());
+        assertFalse(storage().legalHolds().release("req", "case-2", owner, owner, false).isSuccessful());
+    }
+
+    @Test
+    default void onlyTheSetterOrAnAdministratorReleasesAHold() {
+        final String owner = RecordIds.newId();
+        final String administrator = RecordIds.newId();
+        assertEquals(201, storage().legalHolds().create("req", "case-1", LegalHoldEntity.SCOPE_USER, "jordan",
+                "litigation", owner, administrator).getStatusCode());
+        assertEquals(403, storage().legalHolds().release("req", "case-1", owner, owner, false).getStatusCode());
+        assertTrue(storage().legalHolds().hasAnyHold(owner));
+        assertEquals(200, storage().legalHolds().release("req", "case-1", owner, administrator, false).getStatusCode());
+
+        assertEquals(201, storage().legalHolds().create("req", "case-2", LegalHoldEntity.SCOPE_USER, "jordan",
+                "litigation", owner, administrator).getStatusCode());
+        assertEquals(200, storage().legalHolds().release("req", "case-2", owner, RecordIds.newId(), true).getStatusCode());
+        assertFalse(storage().legalHolds().hasAnyHold(owner));
     }
 
     @Test

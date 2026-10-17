@@ -39,7 +39,10 @@ if [ "${SSL_ENABLED:-true}" = "true" ] && [ ! -f "${KEYSTORE}" ]; then
         SAN="${SAN},DNS:localhost"
     fi
 
-    keytool -genkeypair \
+    # Readable only by Philter's user. The keystore password is a known default, so these permissions,
+    # not the password, are what keep the private key from anyone else who can read the volume.
+    # A subshell, so the umask does not carry over to Philter itself.
+    (umask 077 && keytool -genkeypair \
         -alias "${KEY_ALIAS}" \
         -keyalg RSA \
         -keysize 2048 \
@@ -50,7 +53,7 @@ if [ "${SSL_ENABLED:-true}" = "true" ] && [ ! -f "${KEYSTORE}" ]; then
         -storepass "${KEYSTORE_PASSWORD}" \
         -dname "CN=${CERTIFICATE_HOSTNAME}, O=Philterd, C=US" \
         -ext "SAN=${SAN}" \
-        -ext "BasicConstraints=ca:false"
+        -ext "BasicConstraints=ca:false")
 
 fi
 

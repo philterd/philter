@@ -185,6 +185,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Security
 
+- **The generated TLS keystore is readable only by Philter's user.** The Docker image wrote it world-readable, and its
+  default password is public, so anyone who could read the volume had the private key.
 - **`PHILTER_ENCRYPTION_KEY` is required.** Back it up: data cannot be recovered without it.
 - **Policies are encrypted at rest.** A policy's content, every revision of it, and its description and notes are
   encrypted under `PHILTER_ENCRYPTION_KEY`, as list items and ledger tokens are, since a policy can hold the terms it

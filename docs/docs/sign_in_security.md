@@ -22,6 +22,8 @@ Automation does not sign in. It uses long-lived [API keys](account/api_keys.md),
 
 A user who must change their password, or must enroll in MFA, gets a session key that can only do that, read the [limits](api_and_sdks/api/limits_api.md), and sign out; any other request is refused with `403 Forbidden`. The [sign-in response](api_and_sdks/api/sign_in_api.md#sign-in) says which with `passwordChangeRequired` and `mfaEnrollmentRequired`. Changing the password, or confirming MFA enrollment, revokes the key, and the person signs in again.
 
+An administrator can reset any user's password and remove their MFA, so an administrator can sign in as any user. [`ADMIN_CROSS_USER_ACCESS_ENABLED`](settings.md#api-access) does not prevent this: it limits reaching other users' resources with `owner`, not account administration. A reset revokes the user's session keys and their old password stops working, so they notice, and it is recorded as `user_password_reset`, with `user_mfa_removed` for the MFA. Review those events in the [audit log](auditing.md).
+
 ## Session keys
 
 A [session key](account/api_keys.md#session-keys) is the key issued at sign-in.

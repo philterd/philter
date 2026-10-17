@@ -257,7 +257,7 @@ curl -X DELETE -k -H "Authorization: Bearer <token>" \
 |--------|-----------------------------------------|-------------------------------------------------------------|
 | `GET`  | `/api/contexts/{name}/entries/export`   | Export the complete mapping table for a context as JSON.    |
 
-Exports every token-to-replacement mapping in the context in a JSON form that can be re-imported into another of the same user's contexts, in this deployment or another with the same `PHILTER_ENCRYPTION_KEY` and a user with the same username (see [Import](#import-a-mapping-table-into-a-context) below). Imported anywhere else, it will not match the original tokens during redaction.
+Exports every token-to-replacement mapping in the context, at most [`MAX_CONTEXT_SIZE`](../../settings.md#contexts-and-disambiguation) entries, in a JSON form that can be re-imported into another of the same user's contexts, in this deployment or another with the same `PHILTER_ENCRYPTION_KEY` and a user with the same username (see [Import](#import-a-mapping-table-into-a-context) below). Imported anywhere else, it will not match the original tokens during redaction.
 
 **Authorization:** only the user that **created** the context or an **admin** may export it. Any other caller receives `404 Not Found`, which is also returned when the context does not exist. The endpoint does not reveal the existence of a context you are not allowed to access.
 

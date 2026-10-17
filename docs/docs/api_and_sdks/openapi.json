@@ -4717,7 +4717,7 @@
           "Redaction Ledger"
         ],
         "summary": "Get a document's ledger chain.",
-        "description": "Returns the full ordered chain of ledger entries for a document, along with whether the hash chain currently verifies. A chain that cannot be validated, such as one with an entry that can no longer be read, returns valid false with a validationError and no entries. Requires the `ledger:read` scope.",
+        "description": "Returns a page of a document's ledger entries, in chain order, with how many the chain has and whether the whole chain currently verifies. Page with offset and limit; read every entry at once with the export. A chain that cannot be validated, such as one with an entry that can no longer be read, returns valid false with a validationError and no entries. Requires the `ledger:read` scope.",
         "operationId": "getChain",
         "parameters": [
           {
@@ -4742,6 +4742,26 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
             }
           }
         ],
@@ -13933,6 +13953,7 @@
             "type": "string"
           },
           "entries": {
+            "description": "The entries on this page, in chain order. Left out by the validity endpoint and for a chain that could not be validated.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LedgerEntryView"
@@ -13947,6 +13968,11 @@
           "signedEntries": {
             "type": "integer",
             "format": "int32"
+          },
+          "total": {
+            "description": "How many entries the whole chain has, across every page. Left out with entries.",
+            "type": "integer",
+            "format": "int64"
           },
           "unsignedEntries": {
             "type": "integer",

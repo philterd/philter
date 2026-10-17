@@ -291,6 +291,42 @@ class LedgerApiControllerTest {
     }
 
     @Test
+    void getChainReturnsAPageOfEntriesWithTheChainsTotal() throws Exception {
+        final List<LedgerEntity> chain = new java.util.ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            final LedgerEntity entry = chainHead("doc-1", "a.txt");
+            entry.setHash("hash-" + i);
+            chain.add(entry);
+        }
+        when(ledgerService.chainExists(userId, "doc-1")).thenReturn(true);
+        when(ledgerService.getChain(userId, "doc-1")).thenReturn(chain);
+        when(ledgerService.validateChain(userId, "doc-1"))
+                .thenReturn(new LedgerDataService.ChainValidation(true, true, 30, 0));
+
+        final com.google.gson.JsonObject first = com.google.gson.JsonParser.parseString(mockMvc.perform(get("/api/ledger/doc-1")
+                        .header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-page"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).getAsJsonObject();
+        assertEquals(25, first.getAsJsonArray("entries").size(), "the default page");
+        assertEquals(30, first.get("total").getAsLong());
+        assertTrue(first.get("valid").getAsBoolean(), "validity covers the whole chain");
+
+        final com.google.gson.JsonObject rest = com.google.gson.JsonParser.parseString(mockMvc.perform(get("/api/ledger/doc-1")
+                        .header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-page")
+                        .param("offset", "25").param("limit", "10"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).getAsJsonObject();
+        assertEquals(5, rest.getAsJsonArray("entries").size());
+        assertEquals("hash-25", rest.getAsJsonArray("entries").get(0).getAsJsonObject().get("hash").getAsString(),
+                "pages follow chain order");
+
+        final com.google.gson.JsonObject beyond = com.google.gson.JsonParser.parseString(mockMvc.perform(get("/api/ledger/doc-1")
+                        .header("Authorization", AUTH_HEADER).requestAttr("requestId", "req-page")
+                        .param("offset", String.valueOf(Integer.MAX_VALUE)).param("limit", "100"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).getAsJsonObject();
+        assertEquals(0, beyond.getAsJsonArray("entries").size(), "an offset past the end is an empty page");
+        assertEquals(30, beyond.get("total").getAsLong());
+    }
+
+    @Test
     void getChainReturns404WhenEmpty() throws Exception {
         when(ledgerService.chainExists(userId, "missing")).thenReturn(false);
 

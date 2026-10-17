@@ -53,6 +53,7 @@ Items with the same value for the sort field are kept in a stable order, so pagi
 | [`GET /api/lists`](api/custom_lists_api.md) | `lists` | `name` | name | `all_users` |
 | [`GET /api/holds`](api/legal_holds_api.md) | `holds` | `set` (newest first), `reference` | reference | `all_users` |
 | [`GET /api/documents`](api/documents_api.md) | `documents` | `submitted` (newest first), `fileName` | | `status` |
+| [`GET /api/ledger/{documentId}`](api/ledger_api.md#get-a-documents-ledger-chain) | `entries` | chain order only | | |
 | [`GET /api/ledger`](api/ledger_api.md) | `chains` | `created` (newest first), `filename` | document id or file name | `all_users` |
 | [`GET /api/users`](api/users_api.md#list-users) | `users` | `username`, `created` | username | `role`, `active` |
 | [`GET /api/api-keys`](api/api_keys_api.md#list-your-keys) and `GET /api/users/{username}/api-keys` | `apiKeys` | `created` (oldest first) | | `session` |

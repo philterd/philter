@@ -175,7 +175,7 @@ A document's full ledger chain can be exported as a portable JSON document so it
 Ledgers are read with the [Ledger API](../api_and_sdks/api/ledger_api.md):
 
 * [`GET /api/ledger`](../api_and_sdks/api/ledger_api.md#list-ledger-chains) lists your chains, most recent first. Each item is the chain's genesis entry, which carries the document ID, the original filename, and the time the chain was started. Use `q` to filter by all or part of a filename or document ID, and `offset` and `limit` to page.
-* [`GET /api/ledger/{documentId}`](../api_and_sdks/api/ledger_api.md#get-a-documents-ledger-chain) returns a document's entries in order, with whether the chain currently verifies. Each entry records its timestamp, its hash and the previous entry's hash, the replacement applied, and the type of information identified (for example, `SSN` or `PERSON`). The original values are returned only by an [export](#exporting-ledger-entries).
+* [`GET /api/ledger/{documentId}`](../api_and_sdks/api/ledger_api.md#get-a-documents-ledger-chain) returns a document's entries in order, a page at a time, with how many there are and whether the whole chain currently verifies. Each entry records its timestamp, its hash and the previous entry's hash, the replacement applied, and the type of information identified (for example, `SSN` or `PERSON`). The original values are returned only by an [export](#exporting-ledger-entries).
 * [`GET /api/ledger/{documentId}/valid`](../api_and_sdks/api/ledger_api.md#verify-a-documents-ledger-chain) checks whether the chain still verifies.
 
 An administrator can list every user's chains with `GET /api/ledger?all_users=true`, which requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`.

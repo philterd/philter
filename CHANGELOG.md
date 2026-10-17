@@ -139,6 +139,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   entries, one entry, a document, a ledger chain, a policy, or releasing a legal hold returns `204 No Content` with no
   body, as deleting a custom list, API key, or webhook already did. The ledger purge and session key revocations still
   return `200` with what they removed.
+- **A document's ledger chain is read a page at a time.** `GET /api/ledger/{documentId}` takes `offset` and `limit`
+  (25 by default, at most 100) and returns `total`, how many entries the chain has; `valid` still covers the whole
+  chain. Export the chain to read every entry at once.
 - **Listing totals are 64-bit.** `total` from `GET /api/ledger` and `GET /api/contexts/{name}/entries` is an `int64`
   in the OpenAPI specification, as every other listing's is.
 - **A context's settings are changed with `PATCH /api/contexts/{name}` and a JSON body.** `PUT` with the settings in

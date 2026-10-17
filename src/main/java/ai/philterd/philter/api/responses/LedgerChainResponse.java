@@ -21,7 +21,8 @@ import java.util.List;
 
 /**
  * A document's redaction-ledger chain: its document id, whether the hash chain currently verifies,
- * and the ordered entries. The validity endpoint returns this with {@code entries} omitted. A chain
+ * a page of its ordered entries, and how many entries it has. The validity endpoint returns this with
+ * {@code entries} and {@code total} omitted. A chain
  * that could not be checked has {@code valid} false and a {@code validationError}, and leaves out the
  * results of the checks, which did not complete.
  */
@@ -36,14 +37,19 @@ public class LedgerChainResponse {
     private final Integer unsignedEntries;
     private final String validationError;
     private final List<LedgerEntryView> entries;
+    private final Long total;
 
     public LedgerChainResponse(final String documentId, final boolean valid, final List<LedgerEntryView> entries) {
-        this(documentId, valid, valid, valid, 0, 0, entries);
+        this(documentId, valid, valid, valid, 0, 0, entries, entries == null ? null : (long) entries.size());
     }
 
+    /**
+     * @param entries The page of entries to return, or null to leave them out.
+     * @param total How many entries the whole chain has, or null when {@code entries} is left out.
+     */
     public LedgerChainResponse(final String documentId, final boolean valid, final boolean hashChainValid,
                                final boolean signaturesValid, final int signedEntries,
-                               final int unsignedEntries, final List<LedgerEntryView> entries) {
+                               final int unsignedEntries, final List<LedgerEntryView> entries, final Long total) {
         this.documentId = documentId;
         this.valid = valid;
         this.hashChainValid = hashChainValid;
@@ -52,6 +58,7 @@ public class LedgerChainResponse {
         this.unsignedEntries = unsignedEntries;
         this.validationError = null;
         this.entries = entries;
+        this.total = total;
     }
 
     private LedgerChainResponse(final String documentId, final String validationError) {
@@ -63,6 +70,7 @@ public class LedgerChainResponse {
         this.unsignedEntries = null;
         this.validationError = validationError;
         this.entries = null;
+        this.total = null;
     }
 
     /** A chain whose validation could not be completed. Gson leaves out the null fields. */
@@ -100,8 +108,15 @@ public class LedgerChainResponse {
         return valid;
     }
 
+    @Schema(description = "The entries on this page, in chain order. Left out by the validity endpoint and for a "
+            + "chain that could not be validated.")
     public List<LedgerEntryView> getEntries() {
         return entries;
+    }
+
+    @Schema(description = "How many entries the whole chain has, across every page. Left out with entries.")
+    public Long getTotal() {
+        return total;
     }
 
 }

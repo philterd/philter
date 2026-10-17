@@ -233,8 +233,9 @@ public class LedgerApiController extends AbstractApiController {
     private static final Map<String, String> CHAIN_SORT = sortFields("created", "timestamp", "filename", "filename");
 
     @Operation(summary = "Get a document's ledger chain.",
-            description = "Returns the full ordered chain of ledger entries for a document, along with whether the "
-                    + "hash chain currently verifies. A chain that cannot be validated, such as one with an entry that "
+            description = "Returns a page of a document's ledger entries, in chain order, with how many the chain has "
+                    + "and whether the whole chain currently verifies. Page with offset and limit; read every entry "
+                    + "at once with the export. A chain that cannot be validated, such as one with an entry that "
                     + "can no longer be read, returns valid false with a validationError and no entries.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "404")})
     @RequiresScope(ApiKeyScope.LEDGER_READ)
@@ -243,6 +244,8 @@ public class LedgerApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @PathVariable("documentId") String documentId,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestParam(value = "offset", defaultValue = "0") int offset,
+            final @RequestParam(value = "limit", defaultValue = "25") int limit,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) throws Exception {
 
@@ -256,6 +259,9 @@ public class LedgerApiController extends AbstractApiController {
             throw new NotFoundException();
         }
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId, "read ledger '" + documentId + "'");
+
+        final int pageOffset = normalizeOffset(offset);
+        final int pageLimit = normalizeLimit(limit);
 
         // Checked without reading an entry, so a damaged one is reported by validation rather than thrown here.
         if (!ledgerService.chainExists(userId, documentId)) {
@@ -273,15 +279,19 @@ public class LedgerApiController extends AbstractApiController {
                     HttpStatus.OK);
         }
 
+        // Validity covers the whole chain; only the page is returned.
         final List<LedgerEntity> chain = ledgerService.getChain(userId, documentId);
-        final List<LedgerEntryView> entries = new ArrayList<>(chain.size());
-        for (final LedgerEntity entry : chain) {
+        final List<LedgerEntity> page = chain.subList(Math.min(pageOffset, chain.size()),
+                (int) Math.min((long) pageOffset + pageLimit, chain.size()));
+        final List<LedgerEntryView> entries = new ArrayList<>(page.size());
+        for (final LedgerEntity entry : page) {
             entries.add(toView(entry));
         }
 
         return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, chainValidation.valid(),
                 chainValidation.hashChainValid(), chainValidation.signaturesValid(),
-                chainValidation.signedEntries(), chainValidation.unsignedEntries(), entries)), HttpStatus.OK);
+                chainValidation.signedEntries(), chainValidation.unsignedEntries(), entries, (long) chain.size())),
+                HttpStatus.OK);
 
     }
 
@@ -320,7 +330,7 @@ public class LedgerApiController extends AbstractApiController {
 
         return new ResponseEntity<>(gson.toJson(new LedgerChainResponse(documentId, validation.valid(),
                 validation.hashChainValid(), validation.signaturesValid(),
-                validation.signedEntries(), validation.unsignedEntries(), null)), HttpStatus.OK);
+                validation.signedEntries(), validation.unsignedEntries(), null, null)), HttpStatus.OK);
 
     }
 

@@ -40,9 +40,12 @@ curl -k -H "Authorization: Bearer <token>" \
 
 | Method | Endpoint                    | Description                                          |
 |--------|-----------------------------|-----------------------------------------------------|
-| `GET`  | `/api/ledger/{documentId}`  | Return the full ordered chain for a document.        |
+| `GET`  | `/api/ledger/{documentId}`  | Return a page of a document's chain.                 |
 
-Returns `200 OK` with the chain and whether it currently verifies, or `404 Not Found` if no chain exists for that document id.
+Returns `200 OK` with a page of the chain's entries in chain order, `total`, how many entries the whole chain has, and whether the whole chain currently verifies, or `404 Not Found` if no chain exists for that document id. A chain has one entry per redacted span, so a long document can have many; [export the chain](#export-a-documents-ledger-chain) to read every entry at once, for example to verify it offline.
+
+* `offset` (optional, default `0`) - The number of entries to skip.
+* `limit` (optional, default `25`, max `100`) - The maximum number of entries to return.
 
 ```json
 {
@@ -70,7 +73,8 @@ Returns `200 OK` with the chain and whether it currently verifies, or `404 Not F
       "signature": "…",
       "signingKeyId": "…"
     }
-  ]
+  ],
+  "total": 1
 }
 ```
 

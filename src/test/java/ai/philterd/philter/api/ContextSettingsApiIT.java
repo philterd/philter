@@ -185,8 +185,8 @@ class ContextSettingsApiIT {
 
         final List<String> details = auditDetails(name);
         assertEquals(2, details.size(), "one event per change: " + details);
-        assertTrue(details.stream().anyMatch(d -> d.contains("entity_type_disambiguation: true") && !d.contains("ledger:")), details.toString());
-        assertTrue(details.stream().anyMatch(d -> d.contains("ledger: false") && !d.contains("entity_type_disambiguation")), details.toString());
+        assertTrue(details.stream().anyMatch(d -> d.contains("entityTypeDisambiguation: true") && !d.contains("ledger:")), details.toString());
+        assertTrue(details.stream().anyMatch(d -> d.contains("ledger: false") && !d.contains("entityTypeDisambiguation")), details.toString());
 
     }
 
@@ -297,8 +297,8 @@ class ContextSettingsApiIT {
 
         final List<String> details = auditDetails(name);
         assertEquals(2, details.size(), "one event per change: " + details);
-        assertTrue(details.stream().anyMatch(d -> d.contains("disambiguation_scope: context")
-                && !d.contains("entity_type_disambiguation") && !d.contains("ledger:")), details.toString());
+        assertTrue(details.stream().anyMatch(d -> d.contains("disambiguationScope: context")
+                && !d.contains("entityTypeDisambiguation") && !d.contains("ledger:")), details.toString());
     }
 
 }

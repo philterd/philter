@@ -149,7 +149,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   parameters; a name or setting sent as a query parameter is refused with `400`.
 - **A context's settings are changed with `PATCH /api/contexts/{name}` and a JSON body.** `PUT` with the settings in
   the query string is removed. The body takes `entityTypeDisambiguation`, `disambiguationScope`, and `ledger`, the names
-  `GET /api/contexts/{name}` returns, and a setting sent as a query parameter is refused with `400`.
+  `GET /api/contexts/{name}` returns, and a setting sent as a query parameter is refused with `400`. The `context_updated`
+  audit event names the changed settings the same way, such as `entityTypeDisambiguation: true`.
 - **Documents are listed in `documents`, each with a `type`.** `GET /api/documents` returns its items in `documents`
   rather than `pendingRedactedDocuments`, since the listing includes finished and failed documents too. Each item, and
   the response from `GET /api/documents/{documentId}/status`, has a `type`; `redaction` is the only type.

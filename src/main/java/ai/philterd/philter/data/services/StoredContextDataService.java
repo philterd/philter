@@ -178,10 +178,10 @@ public abstract class StoredContextDataService implements ContextDataService {
 
         final List<String> changed = new ArrayList<>();
         if (disambiguation != null && disambiguation != existing.isDisambiguation()) {
-            changed.add("entity_type_disambiguation: " + disambiguation);
+            changed.add("entityTypeDisambiguation: " + disambiguation);
         }
         if (scope != null && !scope.equals(existing.getDisambiguationScope())) {
-            changed.add("disambiguation_scope: " + scope.toLowerCase(Locale.ROOT));
+            changed.add("disambiguationScope: " + scope.toLowerCase(Locale.ROOT));
         }
         if (ledger != null && ledger != existing.isLedger()) {
             changed.add("ledger: " + ledger);

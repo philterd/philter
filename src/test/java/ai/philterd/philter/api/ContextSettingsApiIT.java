@@ -115,6 +115,14 @@ class ContextSettingsApiIT {
                 .build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    private HttpResponse<String> createContext(final String body, final String apiKey, final String query) throws Exception {
+        return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/contexts" + query))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
     private JsonObject read(final String name, final String apiKey, final String query) throws Exception {
         final HttpResponse<String> response = send("GET", "/api/contexts/" + name + query, apiKey);
         assertEquals(200, response.statusCode(), response.body());
@@ -123,8 +131,8 @@ class ContextSettingsApiIT {
 
     private String create(final boolean disambiguation, final boolean ledger) throws Exception {
         final String name = "settings-" + UUID.randomUUID();
-        assertEquals(201, send("POST", "/api/contexts?name=" + name + "&entity_type_disambiguation=" + disambiguation
-                + "&ledger=" + ledger, key).statusCode());
+        assertEquals(201, createContext("{\"name\":\"" + name + "\",\"entityTypeDisambiguation\":" + disambiguation
+                + ",\"ledger\":" + ledger + "}", key, "").statusCode());
         return name;
     }
 
@@ -208,6 +216,19 @@ class ContextSettingsApiIT {
         assertEquals("ledger", gson.fromJson(parameter.body(), JsonObject.class).get("field").getAsString());
 
         assertEquals(405, send("PUT", "/api/contexts/" + name + "?ledger=true", key).statusCode());
+
+        // Creating takes the name and settings in the body too.
+        final String fresh = "settings-" + UUID.randomUUID();
+        final HttpResponse<String> queryName = createContext("{}", key, "?name=" + fresh);
+        assertEquals(400, queryName.statusCode(), queryName.body());
+        assertEquals("name", gson.fromJson(queryName.body(), JsonObject.class).get("field").getAsString());
+        final HttpResponse<String> querySetting = createContext("{\"name\":\"" + fresh + "\"}", key, "?ledger=true");
+        assertEquals(400, querySetting.statusCode(), querySetting.body());
+        assertEquals("ledger", gson.fromJson(querySetting.body(), JsonObject.class).get("field").getAsString());
+        final HttpResponse<String> noName = createContext("{\"ledger\":true}", key, "");
+        assertEquals(400, noName.statusCode(), noName.body());
+        assertEquals("name", gson.fromJson(noName.body(), JsonObject.class).get("field").getAsString());
+        assertEquals(404, send("GET", "/api/contexts/" + fresh, key).statusCode(), "no context was created");
         assertEquals(400, patch(name, key, "{\"ledger\":\"yes\"}").statusCode(), "a setting that is not a boolean");
         assertEquals(400, patch(name, key, "null").statusCode());
 
@@ -223,14 +244,14 @@ class ContextSettingsApiIT {
         assertEquals("document", read(create(true, false), key, "").get("disambiguationScope").getAsString());
 
         final String name = "scope-" + UUID.randomUUID();
-        assertEquals(201, send("POST", "/api/contexts?name=" + name
-                + "&entity_type_disambiguation=true&disambiguation_scope=Context", key).statusCode());
+        assertEquals(201, createContext("{\"name\":\"" + name
+                + "\",\"entityTypeDisambiguation\":true,\"disambiguationScope\":\"Context\"}", key, "").statusCode());
         assertEquals("context", read(name, key, "").get("disambiguationScope").getAsString());
 
         AdminAccessConfig.setOverrideForTesting(true);
         final String owned = "scope-owned-" + UUID.randomUUID();
-        assertEquals(201, send("POST", "/api/contexts?name=" + owned + "&disambiguation_scope=context&owner="
-                + username, adminKey).statusCode());
+        assertEquals(201, createContext("{\"name\":\"" + owned + "\",\"disambiguationScope\":\"context\"}", adminKey,
+                "?owner=" + username).statusCode());
         assertEquals("context", read(owned, key, "").get("disambiguationScope").getAsString());
     }
 
@@ -238,9 +259,10 @@ class ContextSettingsApiIT {
     @DisplayName("An unknown disambiguation scope is refused, naming the allowed values, and creates or changes nothing")
     void refusesAnUnknownDisambiguationScope() throws Exception {
         final String missing = "scope-bad-" + UUID.randomUUID();
-        final HttpResponse<String> created = send("POST", "/api/contexts?name=" + missing + "&disambiguation_scope=global", key);
+        final HttpResponse<String> created = createContext("{\"name\":\"" + missing + "\",\"disambiguationScope\":\"global\"}",
+                key, "");
         assertEquals(400, created.statusCode(), created.body());
-        assertEquals("disambiguation_scope must be document or context.",
+        assertEquals("disambiguationScope must be document or context.",
                 gson.fromJson(created.body(), JsonObject.class).get("message").getAsString());
         assertEquals(404, send("GET", "/api/contexts/" + missing, key).statusCode(), "no context was created");
 

@@ -128,8 +128,8 @@ class PathSafeNamesApiIT {
         assertRefusedNamingTheRule(send("POST", "/api/holds", hold("..")));
         assertNull(legalHoldDataService.findByReference("LIT/2026/001", userId), "no hold was created");
 
-        assertRefusedNamingTheRule(send("POST", "/api/contexts?name=" + encode("a/b"), null));
-        assertRefusedNamingTheRule(send("POST", "/api/contexts?name=" + encode("a;b"), null));
+        assertRefusedNamingTheRule(send("POST", "/api/contexts", "{\"name\":\"a/b\"}"));
+        assertRefusedNamingTheRule(send("POST", "/api/contexts", "{\"name\":\"a;b\"}"));
         assertNull(contextDataService.findOne("a/b", userId), "no context was created");
 
         // A list name arrives in the path, so a / never reaches Philter, but a control character does.

@@ -121,7 +121,7 @@ The applied policy name and version are also returned at redaction time, on the 
 
 ## Enabling Redaction Ledgers
 
-Redaction ledgers are controlled on a per-context basis. Pass `ledger=true` when creating a [context](contexts.md) (`POST /api/contexts`), or `"ledger": true` in the body when updating one (`PATCH /api/contexts/{name}`), to turn the ledger on for that context. It is `false` by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.
+Redaction ledgers are controlled on a per-context basis. Pass `"ledger": true` in the body when creating a [context](contexts.md) (`POST /api/contexts`) or updating one (`PATCH /api/contexts/{name}`), to turn the ledger on for that context. It is `false` by default, so a new context does not record a ledger until you enable it. Redactions performed in a context with the ledger enabled are recorded; redactions in a context with it disabled are not.
 
 ## How and When Ledger Entries Are Deleted
 

@@ -144,6 +144,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   chain. Export the chain to read every entry at once.
 - **Listing totals are 64-bit.** `total` from `GET /api/ledger` and `GET /api/contexts/{name}/entries` is an `int64`
   in the OpenAPI specification, as every other listing's is.
+- **A context is created with a JSON body.** `POST /api/contexts` takes `{"name", "entityTypeDisambiguation",
+  "disambiguationScope", "ledger"}`, the names `GET` and `PATCH /api/contexts/{name}` use, rather than query
+  parameters; a name or setting sent as a query parameter is refused with `400`.
 - **A context's settings are changed with `PATCH /api/contexts/{name}` and a JSON body.** `PUT` with the settings in
   the query string is removed. The body takes `entityTypeDisambiguation`, `disambiguationScope`, and `ledger`, the names
   `GET /api/contexts/{name}` returns, and a setting sent as a query parameter is refused with `400`.

@@ -1278,7 +1278,7 @@
           "Contexts"
         ],
         "summary": "Create a context.",
-        "description": "Creates a context. A user can have at most 10 contexts, counting default. Requires the `contexts:write` scope.",
+        "description": "Creates a context from the name and settings in the body. A setting left out takes its default. A user can have at most 10 contexts, counting default. Requires the `contexts:write` scope.",
         "operationId": "createContext",
         "parameters": [
           {
@@ -1290,46 +1290,6 @@
             }
           },
           {
-            "name": "name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "entity_type_disambiguation",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false
-            }
-          },
-          {
-            "description": "Whether span disambiguation learns within each document (document) or across every document redacted in the context (context). Applies when entity_type_disambiguation is on.",
-            "name": "disambiguation_scope",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "document",
-              "enum": [
-                "document",
-                "context"
-              ]
-            }
-          },
-          {
-            "name": "ledger",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false
-            }
-          },
-          {
             "name": "owner",
             "in": "query",
             "required": false,
@@ -1338,6 +1298,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContextRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "The context was created.",
@@ -1350,7 +1320,7 @@
             }
           },
           "400": {
-            "description": "The name is missing or blank, or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., since it must be usable in a request path; or disambiguation_scope is not document or context.",
+            "description": "The name is missing or blank, or cannot contain /, \\, ;, %, or control characters, and cannot be . or .., since it must be usable in a request path; disambiguationScope is not document or context; or the name or a setting was given as a query parameter.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13350,6 +13320,37 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "CreateContextRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The context's name.",
+            "type": "string"
+          },
+          "disambiguationScope": {
+            "description": "Whether span disambiguation learns within each document (document) or across every document redacted in the context (context). Applies when entityTypeDisambiguation is on.",
+            "type": "string",
+            "default": "document",
+            "enum": [
+              "document",
+              "context"
+            ]
+          },
+          "entityTypeDisambiguation": {
+            "description": "Whether to apply entity-type span disambiguation.",
+            "type": "boolean",
+            "default": false
+          },
+          "ledger": {
+            "description": "Whether to record redactions in the ledger.",
+            "type": "boolean",
+            "default": false
           }
         }
       },

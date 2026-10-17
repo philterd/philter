@@ -675,7 +675,7 @@ class ApiFilterChainIT {
 
     @Test
     void contextImportExportAndDeletionRespectTheContextRoute() throws Exception {
-        assertEquals(201, apiRequest("POST", "/api/contexts?name=api-audit", null).statusCode());
+        assertEquals(201, apiRequest("POST", "/api/contexts", "{\"name\":\"api-audit\"}").statusCode());
         String payload = "{\"version\":1,\"entries\":[{\"tokenHash\":\"" + "a".repeat(64) + "\",\"replacement\":\"replacement\",\"filterType\":\"PERSON\"}]}";
         var imported = apiRequest("POST", "/api/contexts/api-audit/entries/import", payload);
         assertEquals(200, imported.statusCode(), imported.body());

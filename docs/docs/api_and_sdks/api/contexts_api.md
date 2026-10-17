@@ -75,7 +75,7 @@ Example response:
 ```
 
 * `entityTypeDisambiguation` - Whether entity type disambiguation is enabled for the context.
-* `disambiguationScope` - `document` or `context`: whether disambiguation learns within each document or across the context. See `disambiguation_scope` under [Create a Context](#create-a-context).
+* `disambiguationScope` - `document` or `context`: whether disambiguation learns within each document or across the context. See `disambiguationScope` under [Create a Context](#create-a-context).
 * `ledger` - Whether the context records redactions in the [ledger](../../redaction/ledgers.md).
 * `size` - The number of entries in the context.
 * `filterTypes` - The number of entries for each filter type, sorted by filter type.
@@ -89,20 +89,27 @@ The counts are computed in the database in one query and sum to `size`.
 | ------ |------------------------------|-----------------------------------------------------------------------------------| 
 | `POST` | `/api/contexts` | Create a new context. |
 
-### Query Parameters
+### Request Body
+
+A JSON object. The settings use the names [Get Context Details](#get-context-details) returns, and one left out takes its default.
 
 * `name` (required) - The name of the context to create. Context names are **unique per user**: if you already have a context with this name the request is rejected with `409 Conflict`. A name you use does not prevent another user from using the same name. Each user can have at most 10 contexts; see [Capacity](#capacity). Because the name is how the context is addressed in a request path, it cannot contain `/`, `\`, `;`, `%`, or control characters, and cannot be `.` or `..`.
-* `entity_type_disambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
-* `disambiguation_scope` (optional, default: `document`) - What [span disambiguation](../../other_features/span_disambiguation.md) learns from, when `entity_type_disambiguation` is enabled. Case does not matter.
+* `entityTypeDisambiguation` (optional, default: `false`) - Whether to enable entity type disambiguation for this context.
+* `disambiguationScope` (optional, default: `document`) - What [span disambiguation](../../other_features/span_disambiguation.md) learns from, when `entityTypeDisambiguation` is enabled. Case does not matter.
     * `document` - Each document is disambiguated on its own, from what Philter learns in that document. Nothing is stored.
     * `context` - What Philter learns is stored in Philter's database and used for every later document redacted in the context, up to `MAX_VECTORS_PER_CONTEXT` vectors. Stored vectors are kept if the scope or disambiguation changes, and deleted when the context is [emptied](#empty-a-context) or deleted.
 * `ledger` (optional, default: `false`) - Whether to enable the redaction ledger for this context.
+
+The name and settings are not accepted as query parameters, and a request that sends one there is refused with `400`.
+
+### Query Parameters
+
 * `owner` (optional, admin only) - Username of another user whose context to create the context for. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
 ### Responses
 
 * `201 Created` - The context was created.
-* `400 Bad Request` - The `name` parameter is missing or blank or breaks the rule above, or `disambiguation_scope` is not `document` or `context`. The body carries a `message`.
+* `400 Bad Request` - The `name` is missing or blank or breaks the rule above, `disambiguationScope` is not `document` or `context`, or the name or a setting is sent as a query parameter. The body carries a `message`, and a `field` naming what was refused.
 * `409 Conflict` - The context was not created because of your existing contexts. The body's `reason` says which, so a client need not read the message:
     * `context_exists` - You already have a context with this name.
     * `context_limit_reached` - You already have 10 contexts.
@@ -117,7 +124,9 @@ The counts are computed in the database in one query and sum to `size`.
 Example request:
 
 ```bash
-curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/contexts?name=my-context&entity_type_disambiguation=true&disambiguation_scope=context"
+curl -X POST -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  "https://localhost:8080/api/contexts" \
+  -d '{"name": "my-context", "entityTypeDisambiguation": true, "disambiguationScope": "context"}'
 ```
 
 ## Update a Context

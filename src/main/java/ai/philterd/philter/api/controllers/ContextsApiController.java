@@ -19,6 +19,7 @@ import ai.philterd.philter.audit.AuditDetails;
 import ai.philterd.philter.api.exceptions.NotFoundException;
 import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
+import ai.philterd.philter.api.requests.CreateContextRequest;
 import ai.philterd.philter.api.requests.UpdateContextRequest;
 import ai.philterd.philter.api.responses.ContextEntriesExport;
 import ai.philterd.philter.api.responses.ContextEntryExport;
@@ -51,7 +52,6 @@ import ai.philterd.philter.services.cache.ApiKeyCache;
 import ai.philterd.philter.utils.PathSafeNames;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -225,6 +225,20 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
+    /**
+     * Refused rather than ignored, so a client still sending the name or settings in the URL is not misled.
+     * {@code bodyFields} names where they go instead.
+     */
+    private static void refuseSettingsAsParameters(final HttpServletRequest request, final String bodyFields,
+                                                   final String... parameters) {
+        for (final String parameter : parameters) {
+            if (request.getParameter(parameter) != null) {
+                throw new BadRequestException(parameter + " is not accepted as a parameter. Send it in the body as "
+                        + bodyFields + ".", parameter);
+            }
+        }
+    }
+
     /** Each context as a listing returns it, naming its owner from {@code owners}, a map of user ids to usernames, when given. */
     private static List<ContextSummary> summaries(final List<ContextEntity> contexts, final Map<String, String> owners) {
         return contexts.stream().map(context -> new ContextSummary(context.getContextName(), context.getTimestamp(),
@@ -297,15 +311,17 @@ public class ContextsApiController extends AbstractApiController {
 
     }
 
-    @Operation(summary = "Create a context.", description = "Creates a context. A user can have at most "
+    @Operation(summary = "Create a context.", description = "Creates a context from the name and settings in the body. "
+            + "A setting left out takes its default. A user can have at most "
             + ContextDataService.MAXIMUM_CONTEXTS_PER_USER + " contexts, counting default.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "The context was created.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "400", description = "The name is missing or blank, or "
-                    + PathSafeNames.RULE + ", since it must be usable in a request path; or disambiguation_scope is not "
-                    + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + "."),
+                    + PathSafeNames.RULE + ", since it must be usable in a request path; disambiguationScope is not "
+                    + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + "; or the name or a setting was given as a query "
+                    + "parameter."),
             @ApiResponse(responseCode = "409", description = "The context was not created, and reason says why: "
                     + "context_exists (the caller already has a context with this name) or context_limit_reached "
                     + "(the caller already has the most contexts a user may have).",
@@ -313,18 +329,12 @@ public class ContextsApiController extends AbstractApiController {
                             schema = @Schema(implementation = ContextConflictResponse.class)))
     })
     @RequiresScope(ApiKeyScope.CONTEXTS_WRITE)
-    @RequestMapping(value = "/api/contexts", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/api/contexts", method = RequestMethod.POST,
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Object> createContext(
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            final @RequestParam("name") String name,
-            final @RequestParam(value = "entity_type_disambiguation", required = false, defaultValue = "false") boolean disambiguation,
-            final @Parameter(description = "Whether span disambiguation learns within each document (document) or "
-                    + "across every document redacted in the context (context). Applies when "
-                    + "entity_type_disambiguation is on.",
-                    schema = @Schema(allowableValues = {"document", "context"}, defaultValue = "document"))
-            @RequestParam(value = "disambiguation_scope", required = false, defaultValue = "document") String disambiguationScope,
-            final @RequestParam(value = "ledger", required = false, defaultValue = "false") boolean ledger,
             final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestBody CreateContextRequest request,
             final @RequestAttribute("requestId") String requestId,
             final HttpServletRequest httpServletRequest) {
 
@@ -339,8 +349,20 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
 
+        refuseSettingsAsParameters(httpServletRequest, "name, entityTypeDisambiguation, disambiguationScope, or ledger",
+                "name", "entity_type_disambiguation", "disambiguation_scope", "ledger");
+
+        final String name = request.getName();
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("name is required.", "name");
+        }
+        final boolean disambiguation = Boolean.TRUE.equals(request.getEntityTypeDisambiguation());
+        final String disambiguationScope = request.getDisambiguationScope() == null
+                ? "document" : request.getDisambiguationScope();
+        final boolean ledger = Boolean.TRUE.equals(request.getLedger());
+
         if (ContextEntity.disambiguationScopeOf(disambiguationScope) == null) {
-            throw new BadRequestException(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL);
+            throw new BadRequestException(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL, "disambiguationScope");
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,
@@ -462,13 +484,8 @@ public class ContextsApiController extends AbstractApiController {
             return new ResponseEntity<>(new GenericResponse("Not found."), HttpStatus.NOT_FOUND);
         }
 
-        // Refused rather than ignored, so a client still sending the settings in the URL is not misled.
-        for (final String parameter : List.of("entity_type_disambiguation", "disambiguation_scope", "ledger")) {
-            if (httpServletRequest.getParameter(parameter) != null) {
-                throw new BadRequestException(parameter + " is not accepted as a parameter. Send the settings in the "
-                        + "body as entityTypeDisambiguation, disambiguationScope, and ledger.", parameter);
-            }
-        }
+        refuseSettingsAsParameters(httpServletRequest, "entityTypeDisambiguation, disambiguationScope, or ledger",
+                "entity_type_disambiguation", "disambiguation_scope", "ledger");
 
         final Boolean disambiguation = request.getEntityTypeDisambiguation();
         final String disambiguationScope = request.getDisambiguationScope();
@@ -479,8 +496,7 @@ public class ContextsApiController extends AbstractApiController {
             throw new BadRequestException("Give at least one of entityTypeDisambiguation, disambiguationScope, or ledger.");
         }
         if (disambiguationScope != null && ContextEntity.disambiguationScopeOf(disambiguationScope) == null) {
-            throw new BadRequestException("disambiguationScope must be " + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + ".",
-                    "disambiguationScope");
+            throw new BadRequestException(ContextDataService.DISAMBIGUATION_SCOPE_REFUSAL, "disambiguationScope");
         }
 
         auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), userId,

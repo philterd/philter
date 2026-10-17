@@ -128,7 +128,8 @@ class ContextsApiControllerTest {
     @Test
     void createWithoutANameReturns400NamingTheParameterAndCreatesNothing() throws Exception {
         final String body = mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
-                        .requestAttr("requestId", "req-create-missing-name"))
+                        .requestAttr("requestId", "req-create-missing-name")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
 
@@ -222,8 +223,8 @@ class ContextsApiControllerTest {
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
                         .header("Authorization", AUTH_HEADER)
-                        .param("name", "ctx")
-                        .requestAttr("requestId", "req-2"))
+                        .requestAttr("requestId", "req-2")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"ctx\"}"))
                 .andExpect(status().isCreated());
 
         verify(contextService).create(eq("ctx"), eq(userId), anyBoolean(), anyString(), anyBoolean());
@@ -237,8 +238,8 @@ class ContextsApiControllerTest {
 
         mockMvc.perform(request(HttpMethod.POST, "/api/contexts")
                         .header("Authorization", AUTH_HEADER)
-                        .param("name", "dup")
-                        .requestAttr("requestId", "req-dup"))
+                        .requestAttr("requestId", "req-dup")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"dup\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.reason").value("context_exists"));
     }
@@ -772,9 +773,7 @@ class ContextsApiControllerTest {
 
         mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-create")
-                        .param("name", "scoped")
-                        .param("entity_type_disambiguation", "true")
-                        .param("disambiguation_scope", "context"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"scoped\",\"entityTypeDisambiguation\":true,\"disambiguationScope\":\"context\"}"))
                 .andExpect(status().isCreated());
 
         verify(contextService).create(eq("scoped"), eq(userId), eq(true), eq("context"), eq(false));
@@ -787,7 +786,7 @@ class ContextsApiControllerTest {
 
         mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-create")
-                        .param("name", "plain"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"plain\"}"))
                 .andExpect(status().isCreated());
 
         verify(contextService).create(eq("plain"), eq(userId), eq(false), eq("document"), eq(false));
@@ -797,10 +796,9 @@ class ContextsApiControllerTest {
     void createRefusesAnUnknownDisambiguationScope() throws Exception {
         mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
                         .requestAttr("requestId", "req-create")
-                        .param("name", "scoped")
-                        .param("disambiguation_scope", "global"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"scoped\",\"disambiguationScope\":\"global\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("disambiguation_scope must be document or context."));
+                .andExpect(jsonPath("$.message").value("disambiguationScope must be document or context."));
 
         verify(contextService, never()).create(anyString(), any(), anyBoolean(), anyString(), anyBoolean());
     }
@@ -873,7 +871,9 @@ class ContextsApiControllerTest {
                         .param("ledger", "true")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"ledger\":true}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.field").value("ledger"));
+                .andExpect(jsonPath("$.field").value("ledger"))
+                .andExpect(jsonPath("$.message").value("ledger is not accepted as a parameter. Send it in the body as "
+                        + "entityTypeDisambiguation, disambiguationScope, or ledger."));
 
         verify(contextService, never()).updateSettings(any(), any(), any(), any(), any(), any(), any(), any());
     }
@@ -1070,9 +1070,9 @@ class ContextsApiControllerTest {
                 .thenReturn(ServiceResponse.success("Context created."));
 
         mockMvc.perform(post("/api/contexts").header("Authorization", AUTH_HEADER)
-                        .param("name", "ctx")
                         .param("owner", "other@example.com")
-                        .requestAttr("requestId", "req-x-create"))
+                        .requestAttr("requestId", "req-x-create")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"ctx\"}"))
                 .andExpect(status().isCreated());
 
         verify(contextService).create(eq("ctx"), eq(otherUserId), anyBoolean(), anyString(), anyBoolean());

@@ -90,6 +90,18 @@ class ContextLimitApiIT {
         return body.has("reason") ? body.get("reason").getAsString() : null;
     }
 
+    private HttpResponse<String> createContext(final String body, final String apiKey, final String query) throws Exception {
+        return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/contexts" + query))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> create(final String name, final String key) throws Exception {
+        return createContext("{\"name\":\"" + name + "\"}", key, "");
+    }
+
     private HttpResponse<String> send(final String method, final String path, final String key) throws Exception {
         return httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .header("Authorization", "Bearer " + key)
@@ -103,26 +115,26 @@ class ContextLimitApiIT {
 
         final String key = newUserKey();
         for (int i = 1; i <= ContextDataService.MAXIMUM_CONTEXTS_PER_USER - 1; i++) {
-            assertEquals(201, send("POST", "/api/contexts?name=c" + i, key).statusCode(), "context " + i + " of 9 after default");
+            assertEquals(201, create("c" + i, key).statusCode(), "context " + i + " of 9 after default");
         }
 
-        final HttpResponse<String> eleventh = send("POST", "/api/contexts?name=one-too-many", key);
+        final HttpResponse<String> eleventh = create("one-too-many", key);
         assertEquals(409, eleventh.statusCode());
         assertEquals("context_limit_reached", reason(eleventh), eleventh.body());
         assertTrue(eleventh.body().contains("Maximum number of contexts reached."), eleventh.body());
 
-        final HttpResponse<String> duplicate = send("POST", "/api/contexts?name=c1", key);
+        final HttpResponse<String> duplicate = create("c1", key);
         assertEquals(409, duplicate.statusCode());
         assertEquals("context_exists", reason(duplicate), "at the limit, a name in use is still reported as a duplicate");
 
-        final HttpResponse<String> blank = send("POST", "/api/contexts?name=%20", key);
+        final HttpResponse<String> blank = create(" ", key);
         assertEquals(400, blank.statusCode(), "a blank name is still a bad request: " + blank.body());
 
-        assertEquals(201, send("POST", "/api/contexts?name=c1", newUserKey()).statusCode(),
+        assertEquals(201, create("c1", newUserKey()).statusCode(),
                 "another user's contexts do not count toward the limit");
 
         assertEquals(204, send("DELETE", "/api/contexts/c1", key).statusCode());
-        assertEquals(201, send("POST", "/api/contexts?name=one-too-many", key).statusCode(), "deleting one makes room");
+        assertEquals(201, create("one-too-many", key).statusCode(), "deleting one makes room");
 
     }
 

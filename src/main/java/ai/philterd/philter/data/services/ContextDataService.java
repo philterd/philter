@@ -44,7 +44,7 @@ public interface ContextDataService {
 
     /** The refusal of a disambiguation scope that is not one of the allowed values. */
     String DISAMBIGUATION_SCOPE_REFUSAL =
-            "disambiguation_scope must be " + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + ".";
+            "disambiguationScope must be " + ContextEntity.DISAMBIGUATION_SCOPE_VALUES + ".";
 
     ServiceResponse create(final String contextName, final String userId);
 

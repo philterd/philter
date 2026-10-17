@@ -164,8 +164,16 @@ class OpenApiExportIT {
             final Path output = Path.of("target", "openapi.json");
             Files.writeString(output, gson.toJson(canonicalize(specification)));
             if (!Boolean.getBoolean("philter.test.updateOpenApi")) {
-                assertEquals(canonicalize(specification), canonicalize(JsonParser.parseString(Files.readString(
-                        Path.of("docs/docs/api_and_sdks/openapi.json")))),
+                final JsonObject committed = JsonParser.parseString(Files.readString(
+                        Path.of("docs/docs/api_and_sdks/openapi.json"))).getAsJsonObject();
+                // The spec carries the build version, so every version change changes it. Said apart from
+                // other drift, since a release's version bump is the usual cause.
+                final String committedVersion = committed.getAsJsonObject("info").get("version").getAsString();
+                final String buildVersion = specification.getAsJsonObject("info").get("version").getAsString();
+                assertEquals(buildVersion, committedVersion, "The committed OpenAPI specification's version is "
+                        + committedVersion + " but this build is " + buildVersion + ". Regenerate it with "
+                        + "-Dphilter.test.updateOpenApi=true and commit it with the version change.");
+                assertEquals(canonicalize(specification), canonicalize(committed),
                         "Committed OpenAPI drifted. Inspect target/openapi.json and refresh the published artifact.");
             }
 

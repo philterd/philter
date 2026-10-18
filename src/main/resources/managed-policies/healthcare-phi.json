@@ -31,6 +31,11 @@
       ]
     },
     "person": {
+      "phEyeConfiguration": {
+        "modelPath": "ph-eye-pii-en-small",
+        "labels": ["name"],
+        "threshold": 0.9
+      },
       "phEyeFilterStrategies": [
         { "strategy": "REDACT" }
       ]

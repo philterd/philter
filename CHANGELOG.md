@@ -89,6 +89,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **A PhEye service that cannot be reached is reported as `503`** with a message saying how to fix the policy
+  or the deployment, and an asynchronous document fails with the same message. Previously the request failed
+  with `500` and `An unknown error has occurred.`
+- **The managed policies `managed_common_pii` and `managed_healthcare_phi` detect names with
+  `ph-eye-pii-en-small`,** as the default policy does.
 - **The default policy detects names with a model inside Philter.** Its person-name filter names
   `ph-eye-pii-en-small` (label `name`, threshold 0.9), which the Docker image includes in
   `PHEYE_MODELS_DIRECTORY` at a pinned revision, so names are redacted with no PhEye service. This applies

@@ -16,6 +16,8 @@
 package ai.philterd.philter.api.exceptions;
 
 import ai.philterd.phileas.services.pdf.PdfLimitExceededException;
+import ai.philterd.phileas.services.filters.ai.pheye.PhEyeUnavailableException;
+import ai.philterd.philter.services.filtering.PhEyeFailures;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
@@ -188,6 +190,16 @@ public class RestApiExceptions {
 		// The parameter name is declared in the controller; the submitted value is not echoed back.
 		ApiErrors.write(response, HttpStatus.BAD_REQUEST.value(), "The parameter '" + ex.getName() + "' has an invalid value.",
 				ErrorReasons.INVALID_REQUEST, ex.getName());
+	}
+
+	@ExceptionHandler(PhEyeUnavailableException.class)
+	@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+	@ApiResponse(responseCode = "503", description = "Service Unavailable", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+			schema = @Schema(implementation = GenericResponse.class)))
+	public void handlePhEyeUnavailableException(final PhEyeUnavailableException ex, final HttpServletResponse response)
+			throws IOException {
+		LOGGER.error("A PhEye filter could not get detections from the PhEye service at {}.", ex.getEndpoint(), ex);
+		write(response, HttpStatus.SERVICE_UNAVAILABLE, PhEyeFailures.message(ex));
 	}
 
 	@ExceptionHandler(ServiceUnavailableException.class)

@@ -19,6 +19,7 @@ import ai.philterd.phileas.services.pdf.PdfLimitExceededException;
 import ai.philterd.phileas.model.filtering.AbstractFilterResult;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
+import ai.philterd.phileas.services.filters.ai.pheye.PhEyeUnavailableException;
 import ai.philterd.philter.audit.ClientAddress;
 import ai.philterd.philter.data.entities.PendingDocumentEntity;
 import ai.philterd.philter.data.entities.UserEntity;
@@ -223,6 +224,10 @@ public class RedactionWorker {
         if (ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException
                 || ex instanceof PdfLimitExceededException) {
             return ex.getMessage();
+        }
+        final PhEyeUnavailableException pheye = PhEyeFailures.find(ex);
+        if (pheye != null) {
+            return PhEyeFailures.message(pheye);
         }
         return GENERIC_FAILURE;
     }

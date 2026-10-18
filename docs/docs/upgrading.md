@@ -77,6 +77,18 @@ curl -k -X PUT "https://localhost:8080/api/policies/default" \
   --data-binary @policies/default.json
 ```
 
+A 3.x `person` or `pheyes` filter has no `modelPath`, so it calls a PhEye service at [`PHEYE_ENDPOINT`](settings.md#redaction-engine). Philter 4's Docker image includes the `ph-eye-pii-en-small` model, which the default policy uses, and its compose files run no PhEye service. To use the included model, add this to each such filter:
+
+```json
+"phEyeConfiguration": {
+  "modelPath": "ph-eye-pii-en-small",
+  "labels": ["name"],
+  "threshold": 0.9
+}
+```
+
+The model's label is `name`, so a redaction format with `%t` shows `name`. To keep using a PhEye service instead, run one and set `PHEYE_ENDPOINT`. A PhEye filter whose service cannot be reached refuses the request with `503`.
+
 Policies belong to the user whose API key uploads them. Upload them with a key belonging to the user your clients act as. An administrator can upload them for another user with `owner`, which requires `ADMIN_CROSS_USER_ACCESS_ENABLED=true`.
 
 ### Contexts

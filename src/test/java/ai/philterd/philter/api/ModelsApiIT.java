@@ -199,4 +199,26 @@ class ModelsApiIT {
         assertFalse(redacted.body().contains("Alice Bob"), redacted.body());
     }
 
+    @Test
+    @DisplayName("A policy that uses a PhEye service no deployment runs is refused with 503 and what to change")
+    void anUnreachablePhEyeServiceIsServiceUnavailable() throws Exception {
+        // The tests set no PHEYE_ENDPOINT, so the filter calls the default host, which does not exist here.
+        final HttpResponse<String> saved = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies?name=remote"))
+                .header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"identifiers\":{\"person\":{\"phEyeFilterStrategies\":" + REDACT + "}}}"))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(201, saved.statusCode(), saved.body());
+
+        final HttpResponse<String> refused = httpClient.send(HttpRequest.newBuilder(
+                        URI.create(baseUrl + "/api/filter?p=remote")).header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "text/plain")
+                .POST(HttpRequest.BodyPublishers.ofString("George Washington went home.")).build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(503, refused.statusCode(), refused.body());
+        assertTrue(refused.body().contains("could not get detections from its PhEye service"), refused.body());
+        assertTrue(refused.body().contains("PHEYE_ENDPOINT"), refused.body());
+        assertFalse(refused.body().contains("philter-ph-eye-1"), "the service's host is not disclosed: " + refused.body());
+    }
+
 }

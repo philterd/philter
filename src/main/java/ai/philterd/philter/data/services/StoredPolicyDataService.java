@@ -25,7 +25,9 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.model.Source;
 import ai.philterd.philter.services.cache.RedactionCache;
 import ai.philterd.philter.services.filtering.PolicyLoadCheck;
+import ai.philterd.philter.services.models.PhEyeModels;
 import ai.philterd.philter.services.policies.ManagedPolicyLoader;
+import ai.philterd.philter.services.policies.PolicyResolutionException;
 import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -367,6 +369,14 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
 
             // Confirm the policy is structurally compatible with the native Phileas policy model.
             final Policy policy = gson.fromJson(policyJson, Policy.class);
+
+            // A ph-eye modelPath may name a model in PHEYE_MODELS_DIRECTORY, as redaction resolves it.
+            try {
+                PhEyeModels.shared().resolveNames(policy);
+            } catch (final PolicyResolutionException ex) {
+                LOGGER.warn("Policy validation failed: it names a model that does not exist.");
+                return PolicyValidation.invalid(ex.getMessage());
+            }
 
             // And that Phileas will load it: Phileas checks conditions, patterns, and some values only when it
             // builds the filters, so a policy it refuses would otherwise be saved and fail every redaction.

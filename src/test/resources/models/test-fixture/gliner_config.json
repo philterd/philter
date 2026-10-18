@@ -1,0 +1,8 @@
+{
+  "max_width": 12,
+  "max_len": 384,
+  "ent_token": "<<ENT>>",
+  "sep_token": "<<SEP>>",
+  "words_splitter_type": "whitespace",
+  "encoder_config": {"_name_or_path": "synthetic-test-fixture"}
+}

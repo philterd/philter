@@ -151,6 +151,7 @@ nav:
       - 'Documents API': 'api_and_sdks/api/documents_api.md'
       - 'Webhooks': 'api_and_sdks/api/webhooks.md'
       - 'Policies API': 'api_and_sdks/api/policies_api.md'
+      - 'Models API': 'api_and_sdks/api/models_api.md'
       - 'Custom Lists API': 'api_and_sdks/api/custom_lists_api.md'
       - 'Always/Never Redact Lists API': 'api_and_sdks/api/redact_lists_api.md'
       - 'Contexts API': 'api_and_sdks/api/contexts_api.md'

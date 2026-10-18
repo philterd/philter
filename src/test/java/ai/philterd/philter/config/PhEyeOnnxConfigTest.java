@@ -16,7 +16,10 @@
 package ai.philterd.philter.config;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -42,6 +45,17 @@ class PhEyeOnnxConfigTest {
             assertThrows(IllegalStateException.class,
                     () -> PhEyeOnnxConfig.validate(NONE::get, Map.of("pheye.onnx.threads", value)::get));
         }
+    }
+
+    @Test
+    void refusesAModelsDirectoryThatIsNotADirectory(@TempDir final Path directory) throws Exception {
+        assertDoesNotThrow(() -> PhEyeOnnxConfig.validate(Map.of("PHEYE_MODELS_DIRECTORY", directory.toString())::get,
+                NONE::get));
+        assertThrows(IllegalStateException.class, () -> PhEyeOnnxConfig.validate(
+                Map.of("PHEYE_MODELS_DIRECTORY", directory.resolve("absent").toString())::get, NONE::get));
+        final Path file = Files.writeString(directory.resolve("file"), "x");
+        assertThrows(IllegalStateException.class,
+                () -> PhEyeOnnxConfig.validate(Map.of("PHEYE_MODELS_DIRECTORY", file.toString())::get, NONE::get));
     }
 
 }

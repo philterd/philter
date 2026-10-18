@@ -22,7 +22,7 @@ RUN apt-get update && apt-get -y upgrade \
     && apt-get -y install openjdk-25-jre \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /opt/philter/ssl && mkdir -p /opt/philter/policies && mkdir -p /opt/philter/data
+RUN mkdir -p /opt/philter/ssl && mkdir -p /opt/philter/policies && mkdir -p /opt/philter/data && mkdir -p /opt/philter/models
 
 COPY ./README.md /opt/philter/
 COPY ./LICENSE.txt /opt/philter/

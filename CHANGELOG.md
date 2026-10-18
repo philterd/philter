@@ -78,7 +78,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `policyVersion`, and `policyContentHash`, and that revision can be read through the policy versions API. See
   [Which policy redacted a document](docs/docs/api_and_sdks/api/documents_api.md#which-policy-redacted-a-document).
 - **Local PhEye models:** a ph-eye filter with `modelPath` runs a GLiNER model in-process through
-  ONNX Runtime, with no PhEye service. The path must be in `PHEYE_ALLOWED_MODEL_PATHS`, and
+  ONNX Runtime, with no PhEye service. `modelPath` names a model in `PHEYE_MODELS_DIRECTORY`, which
+  `GET /api/models` lists, or is a path in `PHEYE_ALLOWED_MODEL_PATHS`, and
   `PHEYE_ONNX_THREADS` sets its thread count; Philter does not start if that is not a positive whole number.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
@@ -102,8 +103,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **A context that does not exist is refused with `400`** (`Context does not exist.`) by synchronous `/api/filter`
   and `/api/explain`, as asynchronous submission already refused it. Previously they returned `500`.
 - **A policy cannot direct Philter's requests or credentials.** A policy that names a ph-eye `endpoint` other than
-  `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, sets a ph-eye `bearerToken`, names a `modelPath` not in
-  `PHEYE_ALLOWED_MODEL_PATHS`, or names a generator `endpoint` not in `GENERATOR_ALLOWED_ENDPOINTS` is refused
+  `PHEYE_ENDPOINT` or one in `PHEYE_ALLOWED_ENDPOINTS`, sets a ph-eye `bearerToken`, names a `modelPath` that is not
+  a model in `PHEYE_MODELS_DIRECTORY` or in `PHEYE_ALLOWED_MODEL_PATHS`, or names a generator `endpoint` not in `GENERATOR_ALLOWED_ENDPOINTS` is refused
   with `400`. Previously any user's policy could send the text being redacted, and the deployment's
   `PHEYE_BEARER_TOKEN`, to a server of its choosing. Requests to these services no longer follow redirects, and
   connecting is bounded at 10 seconds. See [Redaction services](docs/docs/settings.md#redaction-services).

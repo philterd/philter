@@ -21,6 +21,7 @@ import ai.philterd.phileas.policy.Identifiers;
 import ai.philterd.phileas.policy.Ignored;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CustomDictionary;
+import ai.philterd.philter.services.models.PhEyeModels;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +73,8 @@ public class PolicyResolver {
     public Policy resolve(final String policyJson, final String userId, final String fpeKey, final String fpeTweak) {
 
         final Policy policy = gson.fromJson(policyJson, Policy.class);
+
+        PhEyeModels.shared().resolveNames(policy);
 
         // Ensure the ignored list is mutable and non-null so callers can append global ignore terms.
         if (policy.getIgnored() == null) {

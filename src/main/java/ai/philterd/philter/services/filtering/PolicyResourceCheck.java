@@ -16,6 +16,7 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.policy.filters.pheye.PhEyeConfiguration;
+import ai.philterd.philter.services.models.PhEyeModels;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -30,7 +31,8 @@ import java.util.stream.Stream;
  * Keeps a policy from directing Philter's requests or credentials. Any user can write a policy, so the services a
  * policy reaches are the operator's decision: a PhEye {@code endpoint} must be the deployment's own
  * ({@code PHEYE_ENDPOINT}) or one listed in {@code PHEYE_ALLOWED_ENDPOINTS}; a policy may not set a PhEye
- * {@code bearerToken}; a PhEye {@code modelPath} must be listed in {@code PHEYE_ALLOWED_MODEL_PATHS}; and a
+ * {@code bearerToken}; a PhEye {@code modelPath} must be a model in {@code PHEYE_MODELS_DIRECTORY} or listed in
+ * {@code PHEYE_ALLOWED_MODEL_PATHS}; and a
  * generator's {@code endpoint} must be listed in {@code GENERATOR_ALLOWED_ENDPOINTS}. Without these, a policy could
  * send the text being redacted, or the deployment's PhEye token, to a server of its author's choosing.
  */
@@ -38,6 +40,7 @@ public final class PolicyResourceCheck {
 
     private final Set<String> pheyeEndpoints;
     private final Set<String> pheyeModelPaths;
+    private final PhEyeModels models;
     private final Set<String> generatorEndpoints;
 
     /**
@@ -48,6 +51,7 @@ public final class PolicyResourceCheck {
         this.pheyeEndpoints = union(Set.of(normalize(new PhEyeConfiguration().getEndpoint())),
                 list(environment.apply("PHEYE_ALLOWED_ENDPOINTS")));
         this.pheyeModelPaths = list(environment.apply("PHEYE_ALLOWED_MODEL_PATHS"));
+        this.models = PhEyeModels.fromEnvironment(environment);
         this.generatorEndpoints = list(environment.apply("GENERATOR_ALLOWED_ENDPOINTS"));
     }
 
@@ -117,9 +121,12 @@ public final class PolicyResourceCheck {
             return "A policy cannot set a PhEye bearerToken. The deployment's PHEYE_BEARER_TOKEN is used for its "
                     + "PhEye service.";
         }
-        if (isSet(configuration, "modelPath") && !pheyeModelPaths.contains(configuration.get("modelPath").getAsString())) {
-            return "The PhEye modelPath is not one this deployment allows. An administrator can allow it with "
-                    + "PHEYE_ALLOWED_MODEL_PATHS.";
+        if (isSet(configuration, "modelPath")) {
+            final String modelPath = configuration.get("modelPath").getAsString();
+            if (!pheyeModelPaths.contains(modelPath) && !models.contains(modelPath)) {
+                return "The PhEye modelPath is not a model this deployment has. Name one that GET /api/models "
+                        + "lists, or an administrator can allow the path with PHEYE_ALLOWED_MODEL_PATHS.";
+            }
         }
         return null;
     }

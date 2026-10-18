@@ -15,25 +15,40 @@
  */
 package ai.philterd.philter.config;
 
+import ai.philterd.philter.services.models.PhEyeModels;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.function.Function;
 
 /**
  * Checks {@code PHEYE_ONNX_THREADS}, and the {@code pheye.onnx.threads} system property that overrides it, when
  * Philter starts. phileas-pheye-onnx reads them only when it loads a local model, so a value that is not a positive
- * whole number would otherwise fail every redaction that uses one.
+ * whole number would otherwise fail every redaction that uses one. Also checks that a {@code PHEYE_MODELS_DIRECTORY}
+ * that is set is a directory, and logs the models in it.
  */
 @Configuration
 public class PhEyeOnnxConfig {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PhEyeOnnxConfig.class);
+
     public PhEyeOnnxConfig() {
         validate(System::getenv, System::getProperty);
+        final PhEyeModels models = PhEyeModels.shared();
+        LOGGER.info("Local PhEye models in {}: {}", models.getDirectory(),
+                models.list().stream().map(PhEyeModels.PhEyeModel::name).toList());
     }
 
     static void validate(final Function<String, String> environment, final Function<String, String> properties) {
         check("PHEYE_ONNX_THREADS", environment.apply("PHEYE_ONNX_THREADS"));
         check("pheye.onnx.threads", properties.apply("pheye.onnx.threads"));
+        final String directory = environment.apply(PhEyeModels.DIRECTORY_ENV);
+        if (directory != null && !directory.isBlank() && !Files.isDirectory(Path.of(directory.strip()))) {
+            throw new IllegalStateException(PhEyeModels.DIRECTORY_ENV + " must be a directory.");
+        }
     }
 
     private static void check(final String name, final String value) {

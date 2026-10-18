@@ -51,6 +51,8 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/lists/{name}` | application/json | `lists:read` | [Details](custom_lists_api.md) |
 | POST | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
 | PUT | `/api/lists/{name}` | application/json | `lists:write` | [Details](custom_lists_api.md) |
+| GET | `/api/models` | application/json | `policies:read` | [Details](models_api.md#list-the-models) |
+| GET | `/api/models/{modelName}` | application/json | `policies:read` | [Details](models_api.md#get-a-model) |
 | GET | `/api/pii-counts` | application/json | `pii-counts:read` | [Details](pii_counts_api.md) |
 | GET | `/api/policies` | application/json | `policies:read` | [Details](policies_api.md) |
 | POST | `/api/policies` | See reference | `policies:write` | [Details](policies_api.md) |

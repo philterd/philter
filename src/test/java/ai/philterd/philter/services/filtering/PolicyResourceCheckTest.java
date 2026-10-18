@@ -19,7 +19,10 @@ import ai.philterd.phileas.policy.filters.pheye.PhEyeConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -79,7 +82,7 @@ class PolicyResourceCheckTest {
     @Test
     void aModelPathMustBeAllowlisted() {
         assertNull(check.refusal(policy(pheye("{\"modelPath\":\"/opt/models/gliner\"}"))));
-        assertTrue(check.refusal(policy(pheye("{\"modelPath\":\"/etc\"}"))).startsWith("The PhEye modelPath is not one"));
+        assertTrue(check.refusal(policy(pheye("{\"modelPath\":\"/etc\"}"))).startsWith("The PhEye modelPath is not a model"));
     }
 
     @Test
@@ -102,6 +105,22 @@ class PolicyResourceCheckTest {
         assertNull(strict.refusal(policy(pheye("{\"endpoint\":\"" + DEFAULT_ENDPOINT + "\"}"))));
         assertTrue(strict.refusal(policy(pheye("{\"endpoint\":\"https://pheye-two.internal:5000\"}"))) != null);
         assertTrue(strict.refusal(policy(pheye("{\"modelPath\":\"/opt/models/gliner\"}"))) != null);
+    }
+
+    @Test
+    void aModelInTheModelsDirectoryIsAllowedByNameOrPath(@TempDir final Path models) throws Exception {
+        final Path model = Files.createDirectory(models.resolve("pii-en-small"));
+        for (final String file : new String[] {"gliner_config.json", "tokenizer.json", "model.onnx"}) {
+            Files.writeString(model.resolve(file), "{}");
+        }
+        final PolicyResourceCheck withModels = new PolicyResourceCheck(
+                Map.of("PHEYE_MODELS_DIRECTORY", models.toString())::get);
+
+        assertNull(withModels.refusal(policy(pheye("{\"modelPath\":\"pii-en-small\"}"))));
+        assertNull(withModels.refusal(policy(pheye("{\"modelPath\":\"" + model.toRealPath() + "\"}"))));
+        assertTrue(withModels.refusal(policy(pheye("{\"modelPath\":\"pii-en-large\"}"))).startsWith(
+                "The PhEye modelPath is not a model"));
+        assertTrue(withModels.refusal(policy(pheye("{\"modelPath\":\"" + models.toRealPath() + "\"}"))) != null);
     }
 
 }

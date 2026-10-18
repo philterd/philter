@@ -12,7 +12,7 @@ This filter has no required parameters.
 
 | Parameter                   | Description                                                      | Default Value |
 | --------------------------- | ---------------------------------------------------------------- | ------------- |
-| `phEyeConfiguration`        | Connection settings for the PhEye service, or a `modelPath` to run a local model in-process. A policy may name only an endpoint the deployment allows, and may not set a `bearerToken`; see [Redaction services](../../../settings.md#redaction-services) and the [Policy Schema](../../policy_schema.md#filters-with-extra-properties). | None |
+| `phEyeConfiguration`        | Connection settings for the PhEye service, or a `modelPath` naming a local model to run in-process (see the [Models API](../../../api_and_sdks/api/models_api.md)). A policy may name only an endpoint the deployment allows, and may not set a `bearerToken`; see [Redaction services](../../../settings.md#redaction-services) and the [Policy Schema](../../policy_schema.md#filters-with-extra-properties). | None |
 | `removePunctuation`         | When set to true, punctuation will be removed prior to analysis. | `false`       |
 | `phEyeFilterStrategies`     | A list of filter strategies.                                     | None          |
 | `enabled`                   | When set to false, the filter will be disabled and not applied   | `true`        |

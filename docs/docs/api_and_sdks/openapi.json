@@ -5911,6 +5911,224 @@
         }
       }
     },
+    "/api/models": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "List the local PhEye models.",
+        "description": "Returns the models in the deployment's models directory (PHEYE_MODELS_DIRECTORY), ordered by name. A ph-eye filter uses one by giving its name as phEyeConfiguration.modelPath; the model then runs inside Philter. The directory is read on each request, so a model an administrator adds is listed without a restart. The models are the deployment's, the same for every user. Requires the `policies:read` scope.",
+        "operationId": "getModels",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every model, which may be none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetModelsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{modelName}": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get a local PhEye model.",
+        "description": "Returns one model in the deployment's models directory by name. Requires the `policies:read` scope.",
+        "operationId": "getModel",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "modelName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The model.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The Authorization header is absent or the API key is not recognized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "There is no model with the given name.",
+            "content": {}
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pii-counts": {
       "get": {
         "tags": [
@@ -13822,6 +14040,18 @@
           }
         }
       },
+      "GetModelsResponse": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "description": "Every model, ordered by name. Empty when the deployment has none.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelResponse"
+            }
+          }
+        }
+      },
       "GetPiiCountsResponse": {
         "type": "object",
         "properties": {
@@ -14252,6 +14482,43 @@
           "secret": {
             "description": "The setup key, Base32, for entering by hand. Returned only here.",
             "type": "string"
+          }
+        }
+      },
+      "ModelResponse": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The model's name, which a policy gives as a ph-eye filter's phEyeConfiguration.modelPath.",
+            "type": "string"
+          },
+          "encoder": {
+            "description": "The encoder the model was trained from, from its gliner_config.json, for example microsoft/deberta-v3-small. Absent when the configuration does not say.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maxLength": {
+            "description": "The most words of a text the model reads; later words are not examined. Absent when the configuration does not say.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "maxWidth": {
+            "description": "The most words one detected entity can span. Absent when the configuration does not say.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "sizeBytes": {
+            "description": "The size of the model's files, in bytes.",
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -15323,6 +15590,10 @@
     {
       "description": "Read, set, and remove the user's webhook for asynchronous redaction results.",
       "name": "Webhook"
+    },
+    {
+      "description": "The local PhEye models a policy can name.",
+      "name": "Models"
     },
     {
       "description": "Sign in with a username and password to get a session key. Disabled by default.",

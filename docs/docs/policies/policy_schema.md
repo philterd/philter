@@ -228,7 +228,7 @@ Many filters accept properties of their own, besides their strategies list and t
 | `timeout` | integer | `600` | Request timeout in seconds. |
 | `maxIdleConnections` | integer | `30` | Maximum idle HTTP connections. |
 | `labels` | array of strings | | Entity labels to detect (for example, "PER", "LOC", "ORG"). |
-| `modelPath` | string | | Path to a local GLiNER model directory. When set, entities are detected in-process instead of through `endpoint`. The directory holds `model.onnx` (or `onnx/model.onnx`), `tokenizer.json`, and `gliner_config.json`. Must be a path an administrator allows with `PHEYE_ALLOWED_MODEL_PATHS`; any other path refuses the policy. |
+| `modelPath` | string | | A local GLiNER model, run in-process instead of through `endpoint`. Either the name of a model in `PHEYE_MODELS_DIRECTORY`, as [`GET /api/models`](../api_and_sdks/api/models_api.md) lists them, or the path of a model directory, which holds `model.onnx` (or `onnx/model.onnx`), `tokenizer.json`, and `gliner_config.json`. A value with no `/` or `\` is a name. A name the deployment does not have, or a path that is neither a model in `PHEYE_MODELS_DIRECTORY` nor listed in `PHEYE_ALLOWED_MODEL_PATHS`, refuses the policy. |
 
 ## Filter strategies
 

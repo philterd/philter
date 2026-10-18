@@ -91,6 +91,7 @@
         <!-- The integration tests run with SQLite storage: those that reach storage only through Philter's API. -->
         <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT,FilterOptionsApiIT,CurrencyAndStreetAddressFiltersApiIT,PolicyLoadRefusalApiIT,EncodedPathAuthorizationIT,CrossUserAccessApiIT</sqlite.it.test>
         <phileas.version>4.5.0-SNAPSHOT</phileas.version>
+        <phileas-pheye-onnx.version>1.1.0-SNAPSHOT</phileas-pheye-onnx.version>
         <springdoc.version>3.1.0</springdoc.version>
         <!-- Build plugin versions -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
@@ -511,6 +512,12 @@
             <groupId>ai.philterd</groupId>
             <artifactId>phileas</artifactId>
             <version>${phileas.version}</version>
+        </dependency>
+        <!-- Runs a ph-eye policy's modelPath in-process through ONNX Runtime. -->
+        <dependency>
+            <groupId>ai.philterd</groupId>
+            <artifactId>phileas-pheye-onnx</artifactId>
+            <version>${phileas-pheye-onnx.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

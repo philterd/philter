@@ -211,7 +211,7 @@ Many filters accept properties of their own, besides their strategies list and t
 | `startPattern` | string | Java regex marking the start of a section to redact. |
 | `endPattern` | string | Java regex marking the end of a section to redact. |
 
-**`pheyes` (PhEye AI filters)** detect entities using a remote PhEye AI model. PhEye filters use `phEyeFilterStrategies` and add:
+**`pheyes` (PhEye AI filters)** detect entities using a PhEye AI model, either through a PhEye service or, with `modelPath`, in-process from a local model directory. PhEye filters use `phEyeFilterStrategies` and add:
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -228,7 +228,7 @@ Many filters accept properties of their own, besides their strategies list and t
 | `timeout` | integer | `600` | Request timeout in seconds. |
 | `maxIdleConnections` | integer | `30` | Maximum idle HTTP connections. |
 | `labels` | array of strings | | Entity labels to detect (for example, "PER", "LOC", "ORG"). |
-| `modelPath` | string | | Path to a local GLiNER model directory. When set, entities are detected on-device instead of through `endpoint`. Must be a path an administrator allows with `PHEYE_ALLOWED_MODEL_PATHS`; any other path refuses the policy. |
+| `modelPath` | string | | Path to a local GLiNER model directory. When set, entities are detected in-process instead of through `endpoint`. The directory holds `model.onnx` (or `onnx/model.onnx`), `tokenizer.json`, and `gliner_config.json`. Must be a path an administrator allows with `PHEYE_ALLOWED_MODEL_PATHS`; any other path refuses the policy. |
 
 ## Filter strategies
 

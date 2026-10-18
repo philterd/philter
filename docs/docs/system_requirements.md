@@ -14,6 +14,8 @@ Philter also requires an encryption key to be configured via the `PHILTER_ENCRYP
 
 ## Memory
 
+A local PhEye model is held in native memory, outside the JVM heap, once a policy that names it is first used. The default policy's model, `ph-eye-pii-en-small`, brought Philter's container to about 1.5 GB in total when loaded and in use. When choosing a container memory limit, leave room for that beside the heap: the Docker image's heap setting below takes 75% of the limit for the heap alone.
+
 PDF redaction renders each page it redacts to an image in memory, so memory use grows with how many PDFs are redacted at once. At the default limits, allow about 500 MB of heap for each PDF in [`PDF_MAX_CONCURRENT`](settings.md#redaction-engine) (2 by default), on top of what Philter otherwise uses. The Docker image gives the JVM 75% of the container's memory for its heap (`-XX:MaxRAMPercentage=75`); when running the jar directly, set `-Xmx` or `-XX:MaxRAMPercentage`, since the JVM otherwise takes only a quarter.
 
 Philter refuses PDFs that exceed its [PDF limits](settings.md#redaction-engine) before rendering them, but a PDF built to exhaust memory can still find a case the limits do not cover. Run Philter with a container memory limit and a restart policy, so such a document stops one instance rather than the host, and send PDFs from untrusted sources [asynchronously](api_and_sdks/api/filtering_api.md), where they are redacted one at a time.

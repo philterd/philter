@@ -130,7 +130,7 @@ Example response:
 
 Returns a template: native policy JSON that Philter accepts for its running policy schema version, to edit and then save with [Save a Policy](#save-a-policy). Use it instead of keeping your own starting policy, which can fall behind the schema as filters are added. Requires `policies:read`.
 
-The template named `default` is the one every new user's `default` policy is created from: it is configured to redact person names (detected by [PhEye](../../policies/policy_schema.md)), Social Security numbers, and email addresses. A template is not a policy, and cannot be used to redact until it is saved as one.
+The template named `default` is the one every new user's `default` policy is created from: it is configured to redact person names, Social Security numbers, and email addresses. Names are detected in-process by `ph-eye-pii-en-small`, the PhEye model the Philter Docker image includes in `PHEYE_MODELS_DIRECTORY`, at the model's recommended threshold of 0.9; no PhEye service is needed. Outside the image, the policy needs a model by that name in `PHEYE_MODELS_DIRECTORY` (see the [Models API](models_api.md)). A template is not a policy, and cannot be used to redact until it is saved as one.
 
 Example request:
 
@@ -144,6 +144,11 @@ Example response:
 {
   "identifiers": {
     "person": {
+      "phEyeConfiguration": {
+        "modelPath": "ph-eye-pii-en-small",
+        "labels": ["name"],
+        "threshold": 0.9
+      },
       "phEyeFilterStrategies": [
         { "strategy": "REDACT" }
       ]

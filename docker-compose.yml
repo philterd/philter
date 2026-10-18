@@ -3,9 +3,6 @@
 services:
 
   philter:
-    depends_on:
-      ph-eye:
-        condition: service_started
     build:
       context: .
     environment:
@@ -36,14 +33,6 @@ services:
       - "8080:8080"
     networks:
       - philter
-
-  ph-eye:
-    image: philterd/ph-eye:1.3.0-pii_en_small
-    networks:
-      - philter
-    # runtime: nvidia
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
 
 volumes:
   philter-data:

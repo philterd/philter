@@ -89,6 +89,13 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **The default policy detects names with a model inside Philter.** Its person-name filter names
+  `ph-eye-pii-en-small` (label `name`, threshold 0.9), which the Docker image includes in
+  `PHEYE_MODELS_DIRECTORY` at a pinned revision, so names are redacted with no PhEye service. This applies
+  to the `default` template and to users created from now on; an existing user's `default` policy is
+  unchanged. The model is CC-BY-4.0 (trained on NVIDIA Nemotron-PII), and its model card, with the attribution
+  that license requires, ships beside it. The image is about 620 MB larger. Outside the image, a model by that name must be in
+  `PHEYE_MODELS_DIRECTORY`, or redaction with the default policy is refused.
 - **PhEye filters examine all of a long text.** A PhEye model reads at most its `max_len` words (512 for the
   `ph-eye-pii-en-*` models) in one call, and a name after that point in a request was not detected, whether the
   model ran in-process or in the PhEye service. The filter now detects in overlapping windows that fit the model.

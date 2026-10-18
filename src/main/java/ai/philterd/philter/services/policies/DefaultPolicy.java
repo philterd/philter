@@ -17,7 +17,9 @@ package ai.philterd.philter.services.policies;
 
 /**
  * The default redaction policy used as a starting point for new users and the policy editor.
- * Expressed in the native Phileas policy format that Philter parses.
+ * Expressed in the native Phileas policy format that Philter parses. Its person-name filter runs
+ * ph-eye-pii-en-small in-process, the model the Docker image includes in PHEYE_MODELS_DIRECTORY, at the
+ * threshold the model recommends.
  */
 public final class DefaultPolicy {
 
@@ -25,6 +27,11 @@ public final class DefaultPolicy {
             {
               "identifiers": {
                 "person": {
+                  "phEyeConfiguration": {
+                    "modelPath": "ph-eye-pii-en-small",
+                    "labels": ["name"],
+                    "threshold": 0.9
+                  },
                   "phEyeFilterStrategies": [
                     { "strategy": "REDACT" }
                   ]

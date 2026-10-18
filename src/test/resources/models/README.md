@@ -5,3 +5,7 @@ trained one: `model.onnx` is the graph from phileas-pheye-onnx's `src/test/resou
 which scores the span of the first two words of any input as the first label and nothing else, and
 `tokenizer.json` is a minimal word-level tokenizer that maps every word to `[UNK]` except the
 `<<ENT>>` and `<<SEP>>` prompt tokens the graph counts.
+
+`ph-eye-pii-en-small` is a copy of `test-fixture` under the name of the model the default policy names,
+so the default policy and template resolve in the tests as they do in the Docker image, which includes
+the real model.

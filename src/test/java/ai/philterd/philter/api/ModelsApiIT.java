@@ -108,8 +108,9 @@ class ModelsApiIT {
 
         assertEquals(200, response.statusCode(), response.body());
         final JsonArray models = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonArray("models");
-        assertEquals(1, models.size(), response.body());
-        final JsonObject model = models.get(0).getAsJsonObject();
+        assertEquals(2, models.size(), response.body());
+        assertEquals("ph-eye-pii-en-small", models.get(0).getAsJsonObject().get("name").getAsString(), "ordered by name");
+        final JsonObject model = models.get(1).getAsJsonObject();
         assertEquals("test-fixture", model.get("name").getAsString());
         assertEquals("synthetic-test-fixture", model.get("encoder").getAsString());
         assertEquals(384, model.get("maxLength").getAsInt());
@@ -178,6 +179,24 @@ class ModelsApiIT {
 
         assertEquals(400, refused.statusCode(), refused.body());
         assertTrue(refused.body().contains("not a model this deployment has"), refused.body());
+    }
+
+    @Test
+    @DisplayName("A new user's default policy redacts names with the model the image includes, with no PhEye service")
+    void theDefaultPolicyUsesTheIncludedModel() throws Exception {
+        final HttpResponse<String> policy = get("/api/policies/default", apiKey);
+        assertEquals(200, policy.statusCode(), policy.body());
+        assertTrue(policy.body().contains("ph-eye-pii-en-small"), policy.body());
+
+        // The stand-in model reports the first two words of any text as a name.
+        final HttpResponse<String> redacted = httpClient.send(HttpRequest.newBuilder(
+                        URI.create(baseUrl + "/api/filter?p=default")).header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "text/plain")
+                .POST(HttpRequest.BodyPublishers.ofString("Alice Bob went home.")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, redacted.statusCode(), redacted.body());
+        assertTrue(redacted.body().endsWith(" went home."), redacted.body());
+        assertFalse(redacted.body().contains("Alice Bob"), redacted.body());
     }
 
 }

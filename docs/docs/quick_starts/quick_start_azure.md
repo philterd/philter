@@ -51,7 +51,7 @@ In the command below, replace `<PUBLIC_IP>` with the virtual machine’s public 
 curl -k -X POST https://<PUBLIC_IP>:8080/api/filter --data "George Washington was a patient and his SSN is 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
-With this command we are sending the text in the command to Philter for filtering. The selected policy controls which values are detected. The default policy includes person-name, SSN, and email filters; name detection requires a reachable PhEye service. Confirm that service is configured before expecting names to be removed. You can always use curl to send text to Philter as in these examples but there are also [SDKs](../api_and_sdks/sdks.md) you can use, too, to integrate Philter with your applications.
+With this command we are sending the text in the command to Philter for filtering. The selected policy controls which values are detected. The default policy includes person-name, SSN, and email filters; names are detected by the `ph-eye-pii-en-small` model included in the Philter image, with no PhEye service. You can always use curl to send text to Philter as in these examples but there are also [SDKs](../api_and_sdks/sdks.md) you can use, too, to integrate Philter with your applications.
 
 ### Redacting Sensitive Information from Text
 

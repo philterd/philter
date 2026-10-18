@@ -27,7 +27,7 @@ Policies are managed with the [Policies API](../api_and_sdks/api/policies_api.md
 | Copy a policy | [`POST /api/policies/{name}/copy`](../api_and_sdks/api/policies_api.md#copy-a-policy) |
 | Delete a policy | [`DELETE /api/policies/{name}`](../api_and_sdks/api/policies_api.md#delete-a-policy) |
 
-Each account has a **default** policy that is used if no other policy is specified. The default policy cannot be deleted.
+Each account has a **default** policy that is used if no other policy is specified. The default policy cannot be deleted. It redacts person names, detected by the `ph-eye-pii-en-small` model the Philter image includes, Social Security numbers, and email addresses; see the [default template](../api_and_sdks/api/policies_api.md#get-a-policy-template).
 
 ## Best Practices for Policy Management
 

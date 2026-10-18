@@ -78,7 +78,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `policyVersion`, and `policyContentHash`, and that revision can be read through the policy versions API. See
   [Which policy redacted a document](docs/docs/api_and_sdks/api/documents_api.md#which-policy-redacted-a-document).
 - **Local PhEye models:** a ph-eye filter with `modelPath` runs a GLiNER model in-process through
-  ONNX Runtime, with no PhEye service. The path must be in `PHEYE_ALLOWED_MODEL_PATHS`.
+  ONNX Runtime, with no PhEye service. The path must be in `PHEYE_ALLOWED_MODEL_PATHS`, and
+  `PHEYE_ONNX_THREADS` sets its thread count.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
   trusted-proxy handling.

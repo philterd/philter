@@ -1,6 +1,10 @@
 # Splitting Input Text
 
-On a per-policy basis, Philter can split input text to process each split individually. This can improve performance and allows for handling long input text. Splitting is disabled by default.
+On a per-policy basis, Philter can split input text and filter each piece. Splitting is disabled by default.
+
+Use it for very large text. Each match attempt of a filter's pattern is limited to one second, and one attempt scans from the end of the previous match to the next match, so a text of several megabytes with long stretches containing no match can exceed it. The request then fails rather than return text that is only partly redacted. Splitting limits each scan to one piece. For text of ordinary size, splitting adds work without changing the result.
+
+[PhEye filters](filters/persons_names/persons-names-ner.md#long-text) do not need splitting: each divides the text it receives into windows that fit its model, whether or not the policy splits the text.
 
 An example split configuration in a policy is shown below
 

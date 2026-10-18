@@ -87,6 +87,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **PhEye filters examine all of a long text.** A PhEye model reads at most its `max_len` words (512 for the
+  `ph-eye-pii-en-*` models) in one call, and a name after that point in a request was not detected, whether the
+  model ran in-process or in the PhEye service. The filter now detects in overlapping windows that fit the model.
+  See [Long Text](docs/docs/policies/filters/persons_names/persons-names-ner.md#long-text).
 - **The OpenAPI specification matches the responses.** The `/api/explain` explanation and its spans, and the signing
   key's `jwk`, have schemas; the audit export is described as CSV text; and responses that have no body, or a
   `{message}` body, are described as such.

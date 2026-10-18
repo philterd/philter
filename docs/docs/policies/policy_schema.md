@@ -211,7 +211,7 @@ Many filters accept properties of their own, besides their strategies list and t
 | `startPattern` | string | Java regex marking the start of a section to redact. |
 | `endPattern` | string | Java regex marking the end of a section to redact. |
 
-**`pheyes` (PhEye AI filters)** detect entities using a PhEye AI model, either through a PhEye service or, with `modelPath`, in-process from a local model directory. PhEye filters use `phEyeFilterStrategies` and add:
+**`pheyes` (PhEye AI filters)** detect entities using a PhEye AI model, either through a PhEye service or, with `modelPath`, in-process from a local model directory. Text longer than the model examines in one call is detected in overlapping windows that fit; see [Long Text](filters/persons_names/persons-names-ner.md#long-text). PhEye filters use `phEyeFilterStrategies` and add:
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|

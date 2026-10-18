@@ -41,6 +41,12 @@ Each filter strategy may have one condition. See [Conditions](../../filter_strat
 | `CONTEXT`    | Compares the filtering context.                                          | `==` , `!=`                        |
 | `CONFIDENCE` | Compares the confidence in the sensitive text against a threshold value. | `<` , `<=`, `>` , `>=`, `==`, `!=` |
 
+## Long Text
+
+A PhEye model examines at most a fixed number of words in one call, its `max_len` (512 for the `ph-eye-pii-en-*` models), and ignores the rest. The filter divides longer text into overlapping windows that each fit, detects in each, and reports every name once, so a name anywhere in the text is examined. Words are counted as the model counts them, so each punctuation mark is a word. Text that fits is sent in one call.
+
+The window size comes from the model: a model run in-process (`modelPath`) has its `max_len` read from its `gliner_config.json`, and the PhEye service, which does not report its model's limit, is sent windows of 256 words. Windows overlap so that a name at a window's edge is found whole. No policy setting is needed, and [text splitting](../../splitting_input_text.md) is not required for this filter.
+
 ## Example Policy
 
 ```

@@ -14516,7 +14516,7 @@
             "format": "int32"
           },
           "sizeBytes": {
-            "description": "The size of the model's files, in bytes.",
+            "description": "The combined size, in bytes, of its gliner_config.json, tokenizer.json, and model.onnx.",
             "type": "integer",
             "format": "int64"
           }

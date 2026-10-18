@@ -50,7 +50,7 @@ public class ModelResponse {
             nullable = true)
     public Integer getMaxWidth() { return maxWidth; }
 
-    @Schema(description = "The size of the model's files, in bytes.")
+    @Schema(description = "The combined size, in bytes, of its gliner_config.json, tokenizer.json, and model.onnx.")
     public long getSizeBytes() { return sizeBytes; }
 
 }

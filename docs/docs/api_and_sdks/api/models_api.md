@@ -36,7 +36,7 @@ Example response:
 * `encoder` - The encoder the model was trained from, from its `gliner_config.json`. Absent when the configuration does not say.
 * `maxLength` - The most words of a text the model reads; later words are not examined. Absent when the configuration does not say.
 * `maxWidth` - The most words one detected entity can span. Absent when the configuration does not say.
-* `sizeBytes` - The size of the model's files.
+* `sizeBytes` - The combined size of its `gliner_config.json`, `tokenizer.json`, and `model.onnx`.
 
 Models are ordered by name. A subdirectory missing one of the files, or whose `gliner_config.json` cannot be read, is not listed.
 
@@ -83,4 +83,4 @@ A `modelPath` with no `/` or `\` is a model name. A policy naming a model the de
 {"message":"There is no model named 'pii-en-large'. GET /api/models lists the models this deployment has.","reason":"invalid_request"}
 ```
 
-The stored policy keeps the name, so it uses whatever model has that name when it redacts. A `modelPath` that is a path is still accepted when it is the directory of a model in `PHEYE_MODELS_DIRECTORY` or is listed in `PHEYE_ALLOWED_MODEL_PATHS`.
+The stored policy keeps the name, so a model added under that name later is used, and a removed one refuses the policy. Replacing the files of a model Philter has already loaded takes effect only after a restart. A `modelPath` that is a path is still accepted when it is the directory of a model in `PHEYE_MODELS_DIRECTORY` or is listed in `PHEYE_ALLOWED_MODEL_PATHS`.

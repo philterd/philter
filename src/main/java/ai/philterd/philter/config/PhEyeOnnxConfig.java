@@ -27,7 +27,8 @@ import java.util.function.Function;
 /**
  * Checks {@code PHEYE_ONNX_THREADS}, and the {@code pheye.onnx.threads} system property that overrides it, when
  * Philter starts. phileas-pheye-onnx reads them only when it loads a local model, so a value that is not a positive
- * whole number would otherwise fail every redaction that uses one. Also checks that a {@code PHEYE_MODELS_DIRECTORY}
+ * whole number would otherwise fail every redaction that uses one. {@code PHEYE_ONNX_DEVICE} and
+ * {@code pheye.onnx.device} are checked the same way. Also checks that a {@code PHEYE_MODELS_DIRECTORY}
  * that is set is a directory, and logs the models in it.
  */
 @Configuration
@@ -45,10 +46,20 @@ public class PhEyeOnnxConfig {
     static void validate(final Function<String, String> environment, final Function<String, String> properties) {
         check("PHEYE_ONNX_THREADS", environment.apply("PHEYE_ONNX_THREADS"));
         check("pheye.onnx.threads", properties.apply("pheye.onnx.threads"));
+        checkDevice("PHEYE_ONNX_DEVICE", environment.apply("PHEYE_ONNX_DEVICE"));
+        checkDevice("pheye.onnx.device", properties.apply("pheye.onnx.device"));
         final String directory = environment.apply(PhEyeModels.DIRECTORY_ENV);
         if (directory != null && !directory.isBlank() && !Files.isDirectory(Path.of(directory.strip()))) {
             throw new IllegalStateException(PhEyeModels.DIRECTORY_ENV + " must be a directory.");
         }
+    }
+
+    /** {@code cpu}, {@code cuda}, or {@code cuda:<n>}, as phileas-pheye-onnx reads it, ignoring case. */
+    private static void checkDevice(final String name, final String value) {
+        if (value == null || value.isBlank() || value.strip().toLowerCase(java.util.Locale.ROOT).matches("cpu|cuda|cuda:\\d{1,9}")) {
+            return;
+        }
+        throw new IllegalStateException(name + " must be cpu, cuda, or cuda:<device number>.");
     }
 
     private static void check(final String name, final String value) {

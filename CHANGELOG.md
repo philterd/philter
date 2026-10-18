@@ -81,6 +81,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   ONNX Runtime, with no PhEye service. `modelPath` names a model in `PHEYE_MODELS_DIRECTORY`, which
   `GET /api/models` lists, or is a path in `PHEYE_ALLOWED_MODEL_PATHS`, and
   `PHEYE_ONNX_THREADS` sets its thread count; Philter does not start if that is not a positive whole number.
+  `PHEYE_ONNX_DEVICE` can run it on a GPU, with ONNX Runtime's GPU package in place of the CPU package Philter
+  includes.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
   trusted-proxy handling.

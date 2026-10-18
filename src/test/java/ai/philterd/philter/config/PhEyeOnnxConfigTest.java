@@ -58,4 +58,22 @@ class PhEyeOnnxConfigTest {
                 () -> PhEyeOnnxConfig.validate(Map.of("PHEYE_MODELS_DIRECTORY", file.toString())::get, NONE::get));
     }
 
+    @Test
+    void acceptsTheDevicesPhileasPheyeOnnxReads() {
+        for (final String value : new String[] {"cpu", "CPU", "cuda", "Cuda", "cuda:0", " cuda:3 ", ""}) {
+            assertDoesNotThrow(() -> PhEyeOnnxConfig.validate(Map.of("PHEYE_ONNX_DEVICE", value)::get, NONE::get), value);
+            assertDoesNotThrow(() -> PhEyeOnnxConfig.validate(NONE::get, Map.of("pheye.onnx.device", value)::get), value);
+        }
+    }
+
+    @Test
+    void refusesAnyOtherDevice() {
+        for (final String value : new String[] {"gpu", "cuda:", "cuda:-1", "cuda:+1", "cuda:one", "cuda1", "cuda:1234567890"}) {
+            assertThrows(IllegalStateException.class,
+                    () -> PhEyeOnnxConfig.validate(Map.of("PHEYE_ONNX_DEVICE", value)::get, NONE::get), value);
+            assertThrows(IllegalStateException.class,
+                    () -> PhEyeOnnxConfig.validate(NONE::get, Map.of("pheye.onnx.device", value)::get), value);
+        }
+    }
+
 }

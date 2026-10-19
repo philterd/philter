@@ -273,7 +273,9 @@ public final class MongoImport implements AutoCloseable {
                     .append("content_hash", text(row, "content_hash"))
                     .append("policy", text(row, "policy"))
                     .append("policy_key", text(row, "policy_key"))
-                    .append("captured_timestamp", date(row, "captured_timestamp"));
+                    .append("captured_timestamp", date(row, "captured_timestamp"))
+                    // Absent from a database made before the column, whose versions were all applied.
+                    .append("applied", row.get("applied") == null || bool(row, "applied"));
             putIfPresent(version, "author_id", id(row, "author_id"));
             return version;
         }));

@@ -34,14 +34,7 @@ public abstract class StoredPiiCountAggregatePublisher implements PiiCountAggreg
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PiiCountAggregatePublisher.class);
 
-    private static final long ENABLED_CACHE_MILLIS = 30_000L;
-
     private final AdminSettingsDataService adminSettingsDataService;
-
-    // The admin setting is cached briefly so the common (disabled) path does not read the settings
-    // on every redaction.
-    private volatile boolean cachedEnabled = false;
-    private volatile long cacheExpiresAt = 0L;
 
     protected StoredPiiCountAggregatePublisher(final AdminSettingsDataService adminSettingsDataService) {
         this.adminSettingsDataService = adminSettingsDataService;
@@ -69,19 +62,18 @@ public abstract class StoredPiiCountAggregatePublisher implements PiiCountAggreg
         }
     }
 
+    /**
+     * Read on every redaction through the admin settings' own cache, which a settings change evicts, so
+     * turning recording on or off applies at once on the instance that made the change.
+     */
     private boolean isEnabled() {
-        final long now = System.currentTimeMillis();
-        if (now >= cacheExpiresAt) {
-            try {
-                final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
-                cachedEnabled = settings != null && settings.isDiffuseCountsEnabled();
-            } catch (final Exception ex) {
-                LOGGER.debug("Unable to read admin settings for diffuse counts; treating as disabled: {}", ex.getMessage());
-                cachedEnabled = false;
-            }
-            cacheExpiresAt = now + ENABLED_CACHE_MILLIS;
+        try {
+            final AdminSettingsEntity settings = adminSettingsDataService.findAdminSettings();
+            return settings != null && settings.isDiffuseCountsEnabled();
+        } catch (final Exception ex) {
+            LOGGER.debug("Unable to read admin settings for diffuse counts; treating as disabled: {}", ex.getMessage());
+            return false;
         }
-        return cachedEnabled;
     }
 
 }

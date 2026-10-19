@@ -47,8 +47,20 @@ public abstract class StoredPolicyVersionDataService implements PolicyVersionDat
      */
     protected abstract void insertVersion(final PolicyVersionEntity version);
 
+    /** The revision's snapshot, applied or not, or null. */
+    protected abstract PolicyVersionEntity findVersion(final String name, final String userId, final int revision);
+
     @Override
     public String snapshot(final PolicyEntity policyEntity) {
+        return snapshot(policyEntity, true);
+    }
+
+    @Override
+    public String snapshotUnapplied(final PolicyEntity policyEntity) {
+        return snapshot(policyEntity, false);
+    }
+
+    private String snapshot(final PolicyEntity policyEntity, final boolean applied) {
 
         if (policyEntity == null) {
             return null;
@@ -67,11 +79,15 @@ public abstract class StoredPolicyVersionDataService implements PolicyVersionDat
         } catch (final DuplicateRecordException e) {
             if (!hash.equals(PolicyVersionDataService.contentHash(findContent(hash)))) throw e;
         }
-        final PolicyVersionEntity existing = findByNameAndRevision(policyEntity.getName(),
+        final PolicyVersionEntity existing = findVersion(policyEntity.getName(),
                 policyEntity.getUserId(), policyEntity.getRevision());
         if (existing != null) {
             if (!hash.equals(existing.getContentHash())) {
                 throw new IllegalStateException(DIFFERENT_CONTENT);
+            }
+            // Snapshotting the live policy, as a redaction does, shows the revision was applied.
+            if (applied && !existing.isApplied()) {
+                markApplied(policyEntity.getName(), policyEntity.getUserId(), policyEntity.getRevision());
             }
             return hash;
         }
@@ -84,15 +100,19 @@ public abstract class StoredPolicyVersionDataService implements PolicyVersionDat
         version.setUserId(policyEntity.getUserId());
         version.setCapturedTimestamp(new Date());
         version.setAuthorId(policyEntity.getAuthorId());
+        version.setApplied(applied);
 
         try {
             insertVersion(version);
         } catch (final DuplicateRecordException e) {
-            final PolicyVersionEntity winner = findByNameAndRevision(policyEntity.getName(),
+            final PolicyVersionEntity winner = findVersion(policyEntity.getName(),
                     policyEntity.getUserId(), policyEntity.getRevision());
             if (winner == null) throw e;
             // Lost a race to a snapshot of the same revision: refused the same way as above when it differs.
             if (!hash.equals(winner.getContentHash())) throw new IllegalStateException(DIFFERENT_CONTENT, e);
+            if (applied && !winner.isApplied()) {
+                markApplied(policyEntity.getName(), policyEntity.getUserId(), policyEntity.getRevision());
+            }
         }
 
         return hash;

@@ -25,6 +25,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** The guarantees of {@link PolicyVersionDataService}. */
@@ -91,6 +94,43 @@ public interface PolicyVersionDataServiceContract extends StorageContract {
         assertEquals(List.of(5, 4), newest.items().stream().map(PolicyVersionEntity::getRevision).toList());
         assertEquals(List.of(3, 4, 5), storage().policyVersions().listByName("claims", owner, false, 2, 10)
                 .items().stream().map(PolicyVersionEntity::getRevision).toList());
+    }
+
+    @Test
+    default void unappliedPolicyVersionsAreHiddenUntilMarkedApplied() {
+        final String owner = RecordIds.newId();
+        storage().policyVersions().snapshot(policy(owner, "claims", 1, "{\"identifiers\":{},\"r\":1}"));
+        // A conditional write's snapshot, before the write lands.
+        storage().policyVersions().snapshotUnapplied(policy(owner, "claims", 2, "{\"identifiers\":{},\"r\":2}"));
+
+        assertNull(storage().policyVersions().findByNameAndRevision("claims", owner, 2));
+        assertEquals(1, storage().policyVersions().listByName("claims", owner, true, 0, 10).total());
+        assertEquals(List.of(1), storage().policyVersions().findAllByName("claims", owner, 0, 10)
+                .stream().map(PolicyVersionEntity::getRevision).toList());
+        // It still holds its revision.
+        assertThrows(IllegalStateException.class,
+                () -> storage().policyVersions().snapshot(policy(owner, "claims", 2, "{\"identifiers\":{\"x\":{}}}")));
+
+        storage().policyVersions().markApplied("claims", owner, 2);
+        assertEquals("{\"identifiers\":{},\"r\":2}", storage().policyVersions().findByNameAndRevision("claims", owner, 2).getPolicy());
+        assertEquals(2, storage().policyVersions().listByName("claims", owner, true, 0, 10).total());
+    }
+
+    @Test
+    default void aRefusedWriteLeavesNoPolicyVersion() {
+        final String owner = RecordIds.newId();
+        storage().policyVersions().snapshotUnapplied(policy(owner, "refused-only", 1, "{\"identifiers\":{}}"));
+        assertEquals(0, storage().policyVersions().listByName("refused-only", owner, true, 0, 10).total());
+        assertFalse(storage().policyVersions().findNames(owner).contains("refused-only"));
+    }
+
+    @Test
+    default void snapshottingTheLivePolicyMarksItsVersionApplied() {
+        final String owner = RecordIds.newId();
+        storage().policyVersions().snapshotUnapplied(policy(owner, "claims", 1, "{\"identifiers\":{}}"));
+        // As a redaction does, with the policy at that revision.
+        storage().policyVersions().snapshot(policy(owner, "claims", 1, "{\"identifiers\":{}}"));
+        assertNotNull(storage().policyVersions().findByNameAndRevision("claims", owner, 1));
     }
 
 }

@@ -437,7 +437,7 @@ curl -X POST -H "Authorization: Bearer <token>" -k "https://localhost:8080/api/p
 
 ## Policy Version History
 
-Every time a policy's content changes, Philter automatically retains an immutable snapshot of it and advances the policy's revision. Saving a policy without changing its content, or changing only its description or notes, is not a new revision. The following endpoints expose that history and allow any prior revision to be restored.
+Every time a policy's content changes, Philter automatically retains an immutable snapshot of it and advances the policy's revision. Saving a policy without changing its content, or changing only its description or notes, is not a new revision. Revision numbers increase but can skip: a write refused because the policy changed at the same time uses a number and leaves no version. The following endpoints expose that history and allow any prior revision to be restored.
 
 ### List Versions
 

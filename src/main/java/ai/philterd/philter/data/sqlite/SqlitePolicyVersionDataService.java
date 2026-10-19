@@ -49,6 +49,7 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
         version.setPolicy(SecretFields.open(encryptionService, row.string("policy"), row.string("policy_key")));
         version.setCapturedTimestamp(row.date("captured_timestamp"));
         version.setAuthorId(row.string("author_id"));
+        version.setApplied(row.intValue("applied") != 0);
         return version;
     }
 
@@ -71,10 +72,22 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
         final SecretFields.Sealed sealed = SecretFields.seal(encryptionService, version.getPolicy(), version.getUserId());
         database.write(connection -> Sql.update(connection,
                 "INSERT INTO policy_versions (id, user_id, name, revision, content_hash, policy, policy_key, captured_timestamp, "
-                        + "author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "author_id, applied) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 RecordIds.newId(), version.getUserId(), version.getName(), version.getRevision(), version.getContentHash(),
                 sealed == null ? null : sealed.ciphertext(), sealed == null ? null : sealed.key(),
-                version.getCapturedTimestamp(), version.getAuthorId()));
+                version.getCapturedTimestamp(), version.getAuthorId(), version.isApplied() ? 1 : 0));
+    }
+
+    @Override
+    protected PolicyVersionEntity findVersion(final String name, final String userId, final int revision) {
+        return database.read(connection -> Sql.first(connection, "SELECT * FROM policy_versions WHERE " + owner(userId)
+                + " AND name = ? AND revision = ?", this::read, ownerParams(userId, name, revision).toArray()));
+    }
+
+    @Override
+    public void markApplied(final String name, final String userId, final int revision) {
+        database.write(connection -> Sql.update(connection, "UPDATE policy_versions SET applied = 1 WHERE " + owner(userId)
+                + " AND name = ? AND revision = ? AND applied = 0", ownerParams(userId, name, revision).toArray()));
     }
 
     private static String owner(final String userId) {
@@ -93,14 +106,14 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
     @Override
     public List<PolicyVersionEntity> findAllByName(final String name, final String userId, final int offset, final int limit) {
         return database.read(connection -> Sql.query(connection, "SELECT * FROM policy_versions WHERE " + owner(userId)
-                + " AND name = ? ORDER BY revision DESC LIMIT ? OFFSET ?", this::read,
+                + " AND name = ? AND applied = 1 ORDER BY revision DESC LIMIT ? OFFSET ?", this::read,
                 ownerParams(userId, name, limit, offset).toArray()));
     }
 
     @Override
     public Listings.Page<PolicyVersionEntity> listByName(final String name, final String userId, final boolean descending,
                                                          final int offset, final int limit) {
-        return database.read(connection -> Sql.page(connection, "policy_versions", Sql.where(owner(userId), "name = ?"),
+        return database.read(connection -> Sql.page(connection, "policy_versions", Sql.where(owner(userId), "name = ?", "applied = 1"),
                 ownerParams(userId, name), new Listings.Sort("revision", descending), offset, limit,
                 this::read));
     }
@@ -108,7 +121,7 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
     @Override
     public PolicyVersionEntity findByNameAndRevision(final String name, final String userId, final int revision) {
         return database.read(connection -> Sql.first(connection, "SELECT * FROM policy_versions WHERE " + owner(userId)
-                + " AND name = ? AND revision = ?", this::read,
+                + " AND name = ? AND revision = ? AND applied = 1", this::read,
                 ownerParams(userId, name, revision).toArray()));
     }
 
@@ -125,7 +138,7 @@ public class SqlitePolicyVersionDataService extends StoredPolicyVersionDataServi
     @Override
     public List<String> findNames(final String userId) {
         return database.read(connection -> Sql.query(connection,
-                "SELECT DISTINCT name FROM policy_versions WHERE user_id = ?", row -> row.string("name"), userId));
+                "SELECT DISTINCT name FROM policy_versions WHERE user_id = ? AND applied = 1", row -> row.string("name"), userId));
     }
 
     @Override

@@ -91,4 +91,23 @@ public interface PiiCountAggregatePublisherContract extends StorageContract {
         assertDoesNotThrow(() -> storage().piiCounts().record(OWNER, "claims", Set.of()));
     }
 
+    @Test
+    default void piiCountRecordingFollowsTheSettingAtOnce() {
+        enable(true);
+        storage().piiCounts().record(OWNER, "toggled", Set.of("SSN"));
+        // Turned off and on again straight away: each change applies to the next redaction.
+        setRecording(false);
+        storage().piiCounts().record(OWNER, "toggled", Set.of("SSN"));
+        assertEquals(1L, today("toggled").get("SSN"), "a redaction was counted after recording was turned off");
+        setRecording(true);
+        storage().piiCounts().record(OWNER, "toggled", Set.of("SSN"));
+        assertEquals(2L, today("toggled").get("SSN"), "a redaction was not counted after recording was turned back on");
+    }
+
+    /** Changes the recording setting, once {@link #enable} has created the administrator. */
+    private void setRecording(final boolean enabled) {
+        storage().adminSettings().update(new AdminSettingsDataService.Update(enabled, null, null, null, null, null, null,
+                null, null, null), storage().users().findByUsername("admin").getId(), null);
+    }
+
 }

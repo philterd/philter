@@ -37,6 +37,8 @@ public final class PolicyVersionDocuments {
         entity.setUserId(MongoIds.hex(document.getObjectId("user_id")));
         entity.setCapturedTimestamp(document.getDate("captured_timestamp"));
         entity.setAuthorId(MongoIds.hex(document.getObjectId("author_id")));
+        // Absent on snapshots written before conditional writes recorded it, all of which were applied.
+        entity.setApplied(document.getBoolean("applied", true));
         return entity;
     }
 
@@ -55,6 +57,7 @@ public final class PolicyVersionDocuments {
         if (entity.getAuthorId() != null) {
             document.put("author_id", MongoIds.objectId(entity.getAuthorId()));
         }
+        document.put("applied", entity.isApplied());
         return document;
     }
 

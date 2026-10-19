@@ -142,7 +142,8 @@ final class SqliteSchema {
                 policy TEXT,
                 policy_key TEXT,
                 captured_timestamp INTEGER,
-                author_id TEXT)""",
+                author_id TEXT,
+                applied INTEGER NOT NULL DEFAULT 1)""",
             "CREATE UNIQUE INDEX policy_versions_revision ON policy_versions (ifnull(user_id, ''), name, revision)",
             "CREATE INDEX policy_versions_content ON policy_versions (content_hash)",
             """

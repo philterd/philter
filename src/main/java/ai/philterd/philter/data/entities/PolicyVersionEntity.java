@@ -36,6 +36,13 @@ public class PolicyVersionEntity extends AbstractEntity {
     private Date capturedTimestamp;
     private String authorId;
 
+    /**
+     * Whether the policy was ever at this revision. A conditional write snapshots its revision before
+     * it writes, so that a live revision always has its snapshot, and marks it applied once the write
+     * lands; a refused write leaves a snapshot that is not applied, which listings do not show.
+     */
+    private boolean applied = true;
+
     @Override
     public String getId() {
         return id;
@@ -100,6 +107,14 @@ public class PolicyVersionEntity extends AbstractEntity {
 
     public void setCapturedTimestamp(final Date capturedTimestamp) {
         this.capturedTimestamp = capturedTimestamp;
+    }
+
+    public boolean isApplied() {
+        return applied;
+    }
+
+    public void setApplied(final boolean applied) {
+        this.applied = applied;
     }
 
 }

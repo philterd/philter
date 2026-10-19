@@ -93,10 +93,32 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
         records.insert(version);
     }
 
+    /** Applied snapshots. A missing field is applied: it was written before the field existed. */
+    private static Bson applied() {
+        return Filters.ne("applied", false);
+    }
+
+    private static Bson revision(final String name, final String userId, final int revision) {
+        return Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name),
+                Filters.eq("revision", revision));
+    }
+
+    @Override
+    protected PolicyVersionEntity findVersion(final String name, final String userId, final int revision) {
+        final Document document = collection.find(revision(name, userId, revision)).first();
+        return document != null ? PolicyVersionDocuments.fromDocument(document, encryptionService) : null;
+    }
+
+    @Override
+    public void markApplied(final String name, final String userId, final int revision) {
+        collection.updateOne(Filters.and(revision(name, userId, revision), Filters.eq("applied", false)),
+                new Document("$set", new Document("applied", true)));
+    }
+
     @Override
     public List<PolicyVersionEntity> findAllByName(final String name, final String userId,
                                                     final int offset, final int limit) {
-        final Bson query = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name));
+        final Bson query = Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name), applied());
         final FindIterable<Document> documents = collection.find(query)
                 .sort(Sorts.descending("revision"))
                 .skip(offset)
@@ -111,18 +133,14 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
     @Override
     public Listings.Page<PolicyVersionEntity> listByName(final String name, final String userId,
                                                          final boolean descending, final int offset, final int limit) {
-        return MongoListings.page(collection, Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name)),
+        return MongoListings.page(collection, Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), Filters.eq("name", name), applied()),
                 new Listings.Sort("revision", descending), offset, limit, document -> PolicyVersionDocuments.fromDocument(document, encryptionService));
     }
 
     @Override
     public PolicyVersionEntity findByNameAndRevision(final String name, final String userId,
                                                       final int revision) {
-        final Bson query = Filters.and(
-                Filters.eq("user_id", MongoIds.objectId(userId)),
-                Filters.eq("name", name),
-                Filters.eq("revision", revision));
-        final Document document = collection.find(query).first();
+        final Document document = collection.find(Filters.and(revision(name, userId, revision), applied())).first();
         return document != null ? PolicyVersionDocuments.fromDocument(document, encryptionService) : null;
     }
 
@@ -138,7 +156,7 @@ public class MongoPolicyVersionDataService extends StoredPolicyVersionDataServic
     @Override
     public List<String> findNames(final String userId) {
         final List<String> names = new ArrayList<>();
-        collection.distinct("name", Filters.eq("user_id", MongoIds.objectId(userId)), String.class).into(names);
+        collection.distinct("name", Filters.and(Filters.eq("user_id", MongoIds.objectId(userId)), applied()), String.class).into(names);
         return names;
     }
 

@@ -42,6 +42,8 @@ import java.util.List;
  *   entries carry it.</li>
  *   <li>Listings return their total, page by offset without repeating or skipping revisions, and order by
  *   revision.</li>
+ *   <li>Listings and lookups by revision return only applied snapshots. A snapshot that is not applied still
+ *   holds its revision, so the revision is never given other content.</li>
  * </ul>
  */
 public interface PolicyVersionDataService {
@@ -67,6 +69,15 @@ public interface PolicyVersionDataService {
      */
     String snapshot(final PolicyEntity policyEntity);
 
+    /**
+     * As {@link #snapshot}, for a conditional write that may yet be refused: the snapshot is not
+     * applied, and is not listed or resolved by revision, until {@link #markApplied} marks it.
+     */
+    String snapshotUnapplied(final PolicyEntity policyEntity);
+
+    /** Marks the revision's snapshot applied, once the policy is at that revision. */
+    void markApplied(final String name, final String userId, final int revision);
+
     /** Any retained snapshot with this content, since several revisions may share it. */
     PolicyVersionEntity findByContentHash(final String contentHash);
 
@@ -83,7 +94,8 @@ public interface PolicyVersionDataService {
 
     /**
      * Resolves a specific retained snapshot by policy name, owner, and revision number, or
-     * {@code null} if no snapshot for that revision has been retained.
+     * {@code null} if no snapshot for that revision has been retained. Listings and this method
+     * return only applied snapshots.
      */
     PolicyVersionEntity findByNameAndRevision(final String name, final String userId,
             final int revision);

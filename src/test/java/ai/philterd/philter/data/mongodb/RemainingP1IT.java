@@ -93,7 +93,7 @@ class RemainingP1IT extends AbstractMongoIT {
         var versions = spy(new MongoPolicyVersionDataService(mongoClient, new ai.philterd.philter.testutil.TestEncryptionService(), audit)); var service = policies(versions);
         String owner = MongoIds.newId(); service.create("req", owner, json("base"), "", "", "policy", "test");
         var initial = service.findOne("policy", owner);
-        doThrow(new IllegalStateException("storage unavailable")).when(versions).snapshot(any());
+        doThrow(new IllegalStateException("storage unavailable")).when(versions).snapshotUnapplied(any());
         assertThrows(IllegalStateException.class, () -> service.update("req", owner, initial.getId(), json("new"), "", "", "test"));
         assertEquals(json("base"), service.findOne("policy", owner).getPolicy());
     }

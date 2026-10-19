@@ -113,8 +113,11 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
     @Override
     public String save(final PolicyEntity policy) {
         policy.setRevision(reserveRevision(policy.getUserId(), policy.getName(), 0));
-        policyVersionDataService.snapshot(policy);
-        return insert(policy);
+        // Applied once the insert lands: a create that loses a race for the name leaves no version.
+        policyVersionDataService.snapshotUnapplied(policy);
+        final String id = insert(policy);
+        policyVersionDataService.markApplied(policy.getName(), policy.getUserId(), policy.getRevision());
+        return id;
     }
 
     @Override
@@ -194,10 +197,12 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
         PolicyKeyWarnings.warnAboutLiteralKeys(policyEntity.getName(), policyJson);
 
         policyEntity.setAuthorId(authorId);
-        policyVersionDataService.snapshot(policyEntity);
+        // Before the write, so a live revision always has its snapshot; applied only once the write lands.
+        policyVersionDataService.snapshotUnapplied(policyEntity);
         if (!replaceIfUnchanged(policyEntity, expectedRevision, expectedDetailsRevision)) {
             return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
         }
+        markApplied(policyEntity, expectedRevision);
 
         redactionCache.evictPolicy(userId, policyEntity.getName());
 
@@ -229,6 +234,15 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
             return new ServiceResponse("The notes cannot be longer than " + POLICY_NOTES_MAX_LENGTH + " characters.", false, 400);
         }
         return null;
+    }
+
+    /**
+     * Marks the written revision's snapshot applied, and the revision it replaced, which was live: that
+     * one is unmarked if Philter stopped between an earlier write and its marking.
+     */
+    private void markApplied(final PolicyEntity written, final int replacedRevision) {
+        policyVersionDataService.markApplied(written.getName(), written.getUserId(), written.getRevision());
+        policyVersionDataService.markApplied(written.getName(), written.getUserId(), replacedRevision);
     }
 
     /** A 409 when {@code expectedETag} is given and is not the policy's current one, otherwise null. */
@@ -525,10 +539,11 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
 
         final int newRevision = live.getRevision();
         live.setAuthorId(principalId);
-        policyVersionDataService.snapshot(live);
+        policyVersionDataService.snapshotUnapplied(live);
         if (!replaceIfUnchanged(live, expectedRevision, live.getDetailsRevision())) {
             return WriteOutcome.refused(new ServiceResponse("Policy changed concurrently. Reload and retry.", false, 409, REASON_POLICY_CHANGED));
         }
+        markApplied(live, expectedRevision);
 
         redactionCache.evictPolicy(userId, policyName);
 
@@ -626,10 +641,11 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
                 existingPolicy.setLastUpdatedTimestamp(new Date());
                 existingPolicy.setRevision(reserveRevision(existingPolicy.getUserId(), existingPolicy.getName(), expectedRevision + 1));
 
-                policyVersionDataService.snapshot(existingPolicy);
+                policyVersionDataService.snapshotUnapplied(existingPolicy);
                 if (!replaceIfAtRevision(existingPolicy, expectedRevision)) {
                     throw new IllegalStateException("Managed policy changed concurrently; restart initialization.");
                 }
+                markApplied(existingPolicy, expectedRevision);
                 LOGGER.info("Updated managed policy: {}", managedPolicy.getName());
 
             } else {

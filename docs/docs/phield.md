@@ -12,9 +12,9 @@ When the integration is enabled, Philter posts one message to Phield's `/ingest`
   "organization": "philter",
   "context": "claims-intake",
   "pii_types": {
-    "SSN": 6,
-    "EMAIL_ADDRESS": 110,
-    "CREDIT_CARD": 24
+    "ssn": 6,
+    "email-address": 110,
+    "credit-card": 24
   }
 }
 ```

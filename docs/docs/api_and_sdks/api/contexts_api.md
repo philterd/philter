@@ -64,8 +64,8 @@ Example response:
 {
   "size": 125,
   "filterTypes": {
-    "EMAIL_ADDRESS": 40,
-    "PERSON": 83
+    "email-address": 40,
+    "person": 83
   },
   "untyped": 2,
   "entityTypeDisambiguation": true,

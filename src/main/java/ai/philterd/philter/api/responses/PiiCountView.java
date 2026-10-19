@@ -66,7 +66,7 @@ public class PiiCountView {
     }
 
     @Schema(description = "For each PII type, how many redactions that day found at least one of it.",
-            example = "{\"SSN\": 1240, \"EMAIL_ADDRESS\": 8900}")
+            example = "{\"ssn\": 1240, \"email-address\": 8900}")
     public Map<String, Long> getCounts() {
         return counts;
     }

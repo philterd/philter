@@ -59,7 +59,7 @@ Returns `200 OK` with a page of the chain's entries in chain order, `total`, how
     {
       "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
       "filename": "note.txt",
-      "type": "PERSON",
+      "type": "person",
       "replacement": "{{{REDACTED-person}}}",
       "startPosition": 11,
       "documentHash": "…",
@@ -131,7 +131,7 @@ The export body has the shape:
     {
       "documentId": "7a906866-4fc9-44d6-9bc3-22728b93a602",
       "filename": "note.txt",
-      "type": "PERSON",
+      "type": "person",
       "token": "George Washington",
       "replacement": "{{{REDACTED-person}}}",
       "startPosition": 11,

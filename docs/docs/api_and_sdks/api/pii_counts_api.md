@@ -49,7 +49,7 @@ curl -k -H "Authorization: Bearer <token>" \
       "owner": "jordan",
       "context": "claims-intake",
       "day": "2026-09-30",
-      "counts": { "SSN": 1240, "EMAIL_ADDRESS": 8900, "PERSON": 9500 },
+      "counts": { "ssn": 1240, "email-address": 8900, "person": 9500 },
       "totalDocuments": 10000,
       "updatedAt": "2026-09-30T18:42:10.000Z"
     }

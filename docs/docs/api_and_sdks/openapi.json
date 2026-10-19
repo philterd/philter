@@ -14636,8 +14636,8 @@
           "counts": {
             "description": "For each PII type, how many redactions that day found at least one of it.",
             "example": {
-              "EMAIL_ADDRESS": 8900,
-              "SSN": 1240
+              "email-address": 8900,
+              "ssn": 1240
             },
             "type": "object",
             "additionalProperties": {

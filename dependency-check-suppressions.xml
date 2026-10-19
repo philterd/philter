@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes>phileas-pheye-onnx is Philterd's Java library, not the onnx/onnx Python framework; the CPE is guessed from its name.</notes>
+        <packageUrl regex="true">^pkg:maven/ai\.philterd/phileas-pheye-onnx@.*$</packageUrl>
+        <cpe>cpe:/a:onnx:onnx</cpe>
+    </suppress>
+</suppressions>

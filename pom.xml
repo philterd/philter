@@ -478,6 +478,7 @@
                             <format>xml</format>
                             <skipProvidedScope>true</skipProvidedScope>
                             <skipTestScope>true</skipTestScope>
+                            <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
                         </configuration>
                         <executions>
                             <execution>

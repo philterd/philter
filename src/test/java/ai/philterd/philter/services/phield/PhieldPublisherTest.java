@@ -75,6 +75,18 @@ class PhieldPublisherTest {
     }
 
     @Test
+    void followsASettingsChangeAtOnce() {
+        when(adminSettingsDataService.findAdminSettings())
+                .thenReturn(settings(true, "http://phield:8080"), settings(false, "http://phield:8080"),
+                        settings(true, "http://phield:8080"));
+        final PhieldPublisher publisher = new PhieldPublisher(adminSettingsDataService);
+
+        assertTrue(publisher.isEnabled());
+        assertFalse(publisher.isEnabled());
+        assertTrue(publisher.isEnabled());
+    }
+
+    @Test
     void payloadContainsCountsAndMetadataOnly() {
         final PhieldPublisher publisher = new PhieldPublisher(adminSettingsDataService);
 

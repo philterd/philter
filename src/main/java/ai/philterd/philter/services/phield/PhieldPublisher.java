@@ -37,17 +37,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * it, so it is the one field that carries whatever the caller put in it.
  *
  * <p>Whether to publish, the Phield endpoint, the reported source/organization, and the optional API
- * key are configured by an administrator (see the Admin settings); they are read from
- * {@code admin_settings} and cached briefly so the common (disabled) path does no per-redaction
- * lookup. Publishing is fire-and-forget: the request is sent asynchronously with a short timeout and
+ * key are configured by an administrator (see the Admin settings); they are read on each redaction
+ * through the admin settings' cache, so a change made through the Settings API applies at once.
+ * Publishing is fire-and-forget: the request is sent asynchronously with a short timeout and
  * any failure is swallowed, so a slow or unavailable Phield can never affect redaction latency or
  * availability.
  */
 public class PhieldPublisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PhieldPublisher.class);
-
-    private static final long CONFIG_CACHE_MILLIS = 30_000L;
 
     private final AdminSettingsDataService adminSettingsDataService;
     private final HttpClient httpClient;
@@ -59,9 +57,6 @@ public class PhieldPublisher {
 
     // Warns once for a configuration that sends the API key over cleartext http.
     private final AtomicBoolean clearTextKeyWarned = new AtomicBoolean(false);
-
-    private volatile Config cachedConfig = Config.DISABLED;
-    private volatile long cacheExpiresAt = 0L;
 
     public PhieldPublisher(final AdminSettingsDataService adminSettingsDataService) {
         this.adminSettingsDataService = adminSettingsDataService;
@@ -159,18 +154,15 @@ public class PhieldPublisher {
     }
 
     private Config config() {
-        final long now = System.currentTimeMillis();
-        if (now >= cacheExpiresAt) {
-            try {
-                cachedConfig = Config.from(adminSettingsDataService.findAdminSettings());
-            } catch (final Exception ex) {
-                LOGGER.debug("Unable to read admin settings for Phield; treating as disabled: {}", ex.getMessage());
-                cachedConfig = Config.DISABLED;
-            }
-            cacheExpiresAt = now + CONFIG_CACHE_MILLIS;
-            warnIfApiKeyInTheClear(cachedConfig);
+        Config config;
+        try {
+            config = Config.from(adminSettingsDataService.findAdminSettings());
+        } catch (final Exception ex) {
+            LOGGER.debug("Unable to read admin settings for Phield; treating as disabled: {}", ex.getMessage());
+            config = Config.DISABLED;
         }
-        return cachedConfig;
+        warnIfApiKeyInTheClear(config);
+        return config;
     }
 
     /**

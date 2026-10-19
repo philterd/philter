@@ -198,7 +198,12 @@ public class RedactionWorker {
             Thread.currentThread().interrupt();
             LOGGER.warn("Interrupted before redacting document {}; it will be retried", job.getDocumentId());
         } catch (Exception ex) {
-            LOGGER.error("Redaction failed for document {}", job.getDocumentId(), ex);
+            // A failure the caller caused, such as a PDF over the limits, is logged like a refused request.
+            if (callerCaused(ex)) {
+                LOGGER.warn("Redaction failed for document {}: {}", job.getDocumentId(), ex.getMessage());
+            } else {
+                LOGGER.error("Redaction failed for document {}", job.getDocumentId(), ex);
+            }
             if (!pendingDocumentDataService.markFailed(job.getId(), job.getClaimToken(), failureMessage(ex))) {
                 LOGGER.warn("Discarding stale failure for document {}", job.getDocumentId());
                 return;
@@ -220,9 +225,14 @@ public class RedactionWorker {
      * failure is internal (a document library error, an unreachable model service naming its host) and is
      * described only in the log, which records it with the document ID.
      */
+    /** A failure the caller can act on: the policy or context it named, or a PDF over the limits. */
+    static boolean callerCaused(final Exception ex) {
+        return ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException
+                || ex instanceof PdfLimitExceededException;
+    }
+
     static String failureMessage(final Exception ex) {
-        if (ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException
-                || ex instanceof PdfLimitExceededException) {
+        if (callerCaused(ex)) {
             return ex.getMessage();
         }
         final PhEyeUnavailableException pheye = PhEyeFailures.find(ex);

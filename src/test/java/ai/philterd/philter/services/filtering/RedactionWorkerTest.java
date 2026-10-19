@@ -27,7 +27,9 @@ import ai.philterd.philter.data.services.PendingDocumentDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.data.services.WebhookDeliveryDataService;
+import ai.philterd.philter.testutil.LogCapture;
 import com.google.gson.Gson;
+import org.apache.logging.log4j.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -126,7 +129,13 @@ class RedactionWorkerTest {
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new ai.philterd.phileas.services.pdf.PdfLimitExceededException("The PDF has 3 pages, more than the limit of 2."));
 
-        worker.poll();
+        try (LogCapture log = new LogCapture()) {
+            worker.poll();
+            // The caller's doing, so logged like a refused request: WARN, without a trace.
+            final LogCapture.Entry failure = failureLogged(log);
+            assertEquals(Level.WARN, failure.level());
+            assertFalse(failure.thrown());
+        }
 
         verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()),
                 eq("The PDF has 3 pages, more than the limit of 2."));
@@ -157,7 +166,12 @@ class RedactionWorkerTest {
         when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
 
-        worker.poll();
+        try (LogCapture log = new LogCapture()) {
+            worker.poll();
+            final LogCapture.Entry failure = failureLogged(log);
+            assertEquals(Level.ERROR, failure.level());
+            assertTrue(failure.thrown());
+        }
 
         verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), eq(RedactionWorker.GENERIC_FAILURE));
         verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
@@ -286,4 +300,9 @@ class RedactionWorkerTest {
                     "a worker must renew before its own lease expires; lease " + lease);
         }
     }
+    private static LogCapture.Entry failureLogged(final LogCapture log) {
+        return log.entries().stream().filter(e -> e.message().startsWith("Redaction failed for document"))
+                .findFirst().orElseThrow();
+    }
+
 }

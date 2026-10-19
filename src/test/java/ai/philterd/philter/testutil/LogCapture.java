@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.testutil;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.Logger;
@@ -28,6 +29,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class LogCapture implements AutoCloseable {
 
     private final List<String> messages = new CopyOnWriteArrayList<>();
+    private final List<Entry> entries = new CopyOnWriteArrayList<>();
     private final Logger root = (Logger) LogManager.getRootLogger();
     private final AbstractAppender appender;
 
@@ -36,6 +38,7 @@ public final class LogCapture implements AutoCloseable {
             @Override
             public void append(final LogEvent event) {
                 messages.add(event.getMessage().getFormattedMessage());
+                entries.add(new Entry(event.getLevel(), event.getMessage().getFormattedMessage(), event.getThrown() != null));
             }
         };
         appender.start();
@@ -49,6 +52,14 @@ public final class LogCapture implements AutoCloseable {
 
     public List<String> messages() {
         return List.copyOf(messages);
+    }
+
+    /** Each message logged so far, with its level and whether a stack trace was attached. */
+    public List<Entry> entries() {
+        return List.copyOf(entries);
+    }
+
+    public record Entry(Level level, String message, boolean thrown) {
     }
 
     @Override

@@ -64,6 +64,9 @@ public class RestApiExceptions {
 		ApiErrors.write(response, status.value(), message, null);
 	}
 
+	// A refusal of what the caller sent is logged at WARN without a trace, and only Philter's own failures at
+	// ERROR, so alerting on ERROR is not set off by other people's bad requests.
+
 	// Each handler sets its status itself. @ResponseStatus states the same status so the generated OpenAPI
 	// specification lists the response, which ApiDocumentationConfig then describes, and @ApiResponse
 	// documents the JSON body the handler writes.
@@ -75,7 +78,7 @@ public class RestApiExceptions {
 			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleBadRequestException(final BadRequestException ex, final HttpServletResponse response)
 			throws IOException {
-		LOGGER.error("Bad request: {}", ex.getMessage());
+		LOGGER.warn("Bad request: {}", ex.getMessage());
 		ApiErrors.write(response, HttpStatus.BAD_REQUEST.value(), ex.getMessage() == null || ex.getMessage().isBlank()
 				? "A required parameter is missing or contains an invalid value."
 				: ex.getMessage(), ErrorReasons.INVALID_REQUEST, ex.getField());
@@ -117,7 +120,7 @@ public class RestApiExceptions {
 			schema = @Schema(implementation = GenericResponse.class)))
 	public void handlePolicyResolutionException(final PolicyResolutionException ex, final HttpServletResponse response)
 			throws IOException {
-		LOGGER.error("Unable to resolve redaction policy.", ex);
+		LOGGER.warn("Unable to resolve redaction policy: {}", ex.getMessage());
 		write(response, HttpStatus.BAD_REQUEST, ex.getMessage());
 	}
 
@@ -141,7 +144,7 @@ public class RestApiExceptions {
 	@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
 			schema = @Schema(implementation = GenericResponse.class)))
 	public void handlePolicyNotFoundException(final Exception ex, final HttpServletResponse response) throws IOException {
-		LOGGER.error("The named policy does not exist.", ex);
+		LOGGER.warn("The named policy does not exist: {}", ex.getMessage());
 		write(response, HttpStatus.NOT_FOUND, ex.getMessage());
 	}
 
@@ -218,7 +221,7 @@ public class RestApiExceptions {
 			schema = @Schema(implementation = GenericResponse.class)))
 	public void handleUnauthorizedException(final UnauthorizedException ex, final HttpServletResponse response)
 			throws IOException {
-		LOGGER.error("Unauthorized access.", ex);
+		LOGGER.warn("Unauthorized access: {}", ex.getMessage());
 		write(response, HttpStatus.UNAUTHORIZED, ex.getMessage());
 	}
 
@@ -232,7 +235,7 @@ public class RestApiExceptions {
 			write(response, HttpStatus.UNAUTHORIZED, "Unauthorized.");
 			return;
 		}
-		LOGGER.error("A required header is missing: {}", ex.getHeaderName(), ex);
+		LOGGER.warn("A required header is missing: {}", ex.getHeaderName());
 		write(response, HttpStatus.UNAUTHORIZED, "A required header is missing.");
 	}
 

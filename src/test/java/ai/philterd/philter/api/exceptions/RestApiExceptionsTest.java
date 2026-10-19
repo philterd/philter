@@ -15,6 +15,10 @@
  */
 package ai.philterd.philter.api.exceptions;
 
+import ai.philterd.philter.services.policies.PolicyNotFoundException;
+import ai.philterd.philter.services.policies.PolicyResolutionException;
+import ai.philterd.philter.testutil.LogCapture;
+import org.apache.logging.log4j.Level;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -26,6 +30,8 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,6 +46,37 @@ class RestApiExceptionsTest {
     private final RestApiExceptions handler = new RestApiExceptions();
 
     // ----- Unit tests: handler logic -----
+
+    @Test
+    void aRefusalIsLoggedAtWarnWithoutATrace() throws Exception {
+        final MissingRequestHeaderException missingHeader = mock(MissingRequestHeaderException.class);
+        when(missingHeader.getHeaderName()).thenReturn("X-Example");
+
+        final List<HandlerCall> refusals = List.of(
+                response -> handler.handleBadRequestException(new BadRequestException("name is required."), response),
+                response -> handler.handlePolicyResolutionException(new PolicyResolutionException("Context does not exist."), response),
+                response -> handler.handlePolicyNotFoundException(new PolicyNotFoundException("The policy 'p' does not exist."), response),
+                response -> handler.handleUnauthorizedException(new UnauthorizedException("Unauthorized."), response),
+                response -> handler.handleMissingRequestHeaderException(missingHeader, response));
+
+        for (final HandlerCall refusal : refusals) {
+            try (LogCapture log = new LogCapture()) {
+                written(refusal);
+                assertEquals(1, log.entries().size(), log.entries().toString());
+                assertEquals(Level.WARN, log.entries().get(0).level(), log.entries().toString());
+                assertFalse(log.entries().get(0).thrown(), log.entries().toString());
+            }
+        }
+    }
+
+    @Test
+    void anUnknownErrorIsLoggedAtErrorWithItsTrace() throws Exception {
+        try (LogCapture log = new LogCapture()) {
+            written(response -> handler.handleUnknownException(new IllegalStateException("boom"), response));
+            assertEquals(Level.ERROR, log.entries().get(0).level());
+            assertTrue(log.entries().get(0).thrown());
+        }
+    }
 
     @Test
     void missingAuthorizationHeaderReturnsUnauthorizedMessage() throws Exception {

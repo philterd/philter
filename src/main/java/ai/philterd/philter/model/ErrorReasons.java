@@ -64,6 +64,8 @@ public final class ErrorReasons {
     public static final String MFA_NOT_ENROLLED = "mfa_not_enrolled";
     /** The state changed between reading and writing it, such as a password changed by another request. */
     public static final String CHANGED_CONCURRENTLY = "changed_concurrently";
+    /** Another change to the administrators is in progress; retry after Retry-After seconds. */
+    public static final String ADMIN_CHANGE_IN_PROGRESS = "admin_change_in_progress";
     /** The thing already exists, such as a username already in use. */
     public static final String ALREADY_EXISTS = "already_exists";
     /** The key is not a session key, so it cannot sign out. */

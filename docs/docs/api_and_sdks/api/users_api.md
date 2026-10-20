@@ -140,6 +140,7 @@ Sets the role to `user` or `admin` and returns the user. Requires `users:write` 
 | 400 | The role is missing or is not `user` or `admin`. |
 | 404 | There is no user with that username. |
 | 409 | The user is the last active administrator. Make another user an administrator first. This holds when several administrators are demoted or deactivated at once: at least one always remains. |
+| 409 | Another change to the administrators is in progress; nothing was changed, and `reason` is `admin_change_in_progress`. `Retry-After` gives the seconds to wait. MongoDB storage only. |
 
 ## Set a user's email address
 
@@ -183,6 +184,7 @@ Deactivates the user and returns it. The user's API keys stop working at once. T
 |--------|---------|
 | 404 | There is no user with that username. |
 | 409 | The user is already deactivated, is the calling key's own user, or is the last active administrator. |
+| 409 | Another change to the administrators is in progress; nothing was changed, and `reason` is `admin_change_in_progress`. `Retry-After` gives the seconds to wait. MongoDB storage only. |
 
 ## Reactivate a user
 

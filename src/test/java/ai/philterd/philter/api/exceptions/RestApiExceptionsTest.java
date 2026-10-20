@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.exceptions;
 
+import ai.philterd.philter.data.services.AdministratorChangeInProgressException;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.policies.PolicyResolutionException;
 import ai.philterd.philter.testutil.LogCapture;
@@ -57,7 +58,8 @@ class RestApiExceptionsTest {
                 response -> handler.handlePolicyResolutionException(new PolicyResolutionException("Context does not exist."), response),
                 response -> handler.handlePolicyNotFoundException(new PolicyNotFoundException("The policy 'p' does not exist."), response),
                 response -> handler.handleUnauthorizedException(new UnauthorizedException("Unauthorized."), response),
-                response -> handler.handleMissingRequestHeaderException(missingHeader, response));
+                response -> handler.handleMissingRequestHeaderException(missingHeader, response),
+                response -> handler.handleAdministratorChangeInProgress(new AdministratorChangeInProgressException(12), response));
 
         for (final HandlerCall refusal : refusals) {
             try (LogCapture log = new LogCapture()) {
@@ -67,6 +69,18 @@ class RestApiExceptionsTest {
                 assertFalse(log.entries().get(0).thrown(), log.entries().toString());
             }
         }
+    }
+
+    @Test
+    void aBusyAdministratorChangeGuardAsksTheCallerToRetry() throws Exception {
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        handler.handleAdministratorChangeInProgress(new AdministratorChangeInProgressException(12), response);
+
+        assertEquals(HttpStatus.CONFLICT.value(), response.getStatus());
+        assertEquals("12", response.getHeader(HttpHeaders.RETRY_AFTER));
+        final com.google.gson.JsonObject body = com.google.gson.JsonParser.parseString(response.getContentAsString()).getAsJsonObject();
+        assertEquals("admin_change_in_progress", body.get("reason").getAsString());
+        assertEquals("Another change to the administrators is still in progress; try again.", body.get("message").getAsString());
     }
 
     @Test

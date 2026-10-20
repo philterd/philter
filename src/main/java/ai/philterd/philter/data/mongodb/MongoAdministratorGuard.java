@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.mongodb;
 
+import ai.philterd.philter.data.services.AdministratorChangeInProgressException;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
@@ -46,8 +47,14 @@ final class MongoAdministratorGuard {
     private static final String ID = "administrators";
 
     private final MongoCollection<Document> guards;
+    private final Duration wait;
 
     MongoAdministratorGuard(final MongoClient client) {
+        this(client, WAIT);
+    }
+
+    MongoAdministratorGuard(final MongoClient client, final Duration wait) {
+        this.wait = wait;
         guards = client.getDatabase("philter").getCollection("administrator_change_guard")
                 .withReadPreference(ReadPreference.primary()).withWriteConcern(WriteConcern.MAJORITY);
     }
@@ -55,7 +62,7 @@ final class MongoAdministratorGuard {
     /**
      * Runs {@code work} holding the guard.
      *
-     * @throws IllegalStateException when another change holds the guard for longer than the wait.
+     * @throws AdministratorChangeInProgressException when another change holds the guard for longer than the wait.
      */
     <T> T execute(final Supplier<T> work) {
         final String token = acquire();
@@ -71,7 +78,7 @@ final class MongoAdministratorGuard {
         guards.updateOne(Filters.eq("_id", ID), Updates.setOnInsert("created_at", new Date()),
                 new UpdateOptions().upsert(true));
         final String token = UUID.randomUUID().toString();
-        final long giveUp = System.currentTimeMillis() + WAIT.toMillis();
+        final long giveUp = System.currentTimeMillis() + wait.toMillis();
         while (true) {
             final Date now = new Date();
             final boolean acquired = guards.updateOne(
@@ -84,7 +91,7 @@ final class MongoAdministratorGuard {
                 return token;
             }
             if (System.currentTimeMillis() > giveUp) {
-                throw new IllegalStateException("Another change to the administrators is still in progress; try again.");
+                throw new AdministratorChangeInProgressException(secondsLeftOnLease());
             }
             try {
                 Thread.sleep(20);
@@ -93,6 +100,14 @@ final class MongoAdministratorGuard {
                 throw new IllegalStateException("Interrupted while waiting to change the administrators.", ex);
             }
         }
+    }
+
+    /** Seconds until the current holder's lease ends, so the caller knows when the guard is free at the latest. */
+    private long secondsLeftOnLease() {
+        final Document guard = guards.find(Filters.eq("_id", ID)).first();
+        final Date expiresAt = guard == null ? null : guard.getDate("expires_at");
+        final long millis = expiresAt == null ? 0 : expiresAt.getTime() - System.currentTimeMillis();
+        return Math.max(1, (millis + 999) / 1000);
     }
 
 }

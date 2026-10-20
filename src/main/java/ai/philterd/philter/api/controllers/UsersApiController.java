@@ -841,7 +841,9 @@ public class UsersApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content),
-            @ApiResponse(responseCode = "409", description = "The user is the last active administrator.",
+            @ApiResponse(responseCode = "409", description = "The user is the last active administrator, or, with "
+                    + "MongoDB storage, another change to the administrators is in progress (reason "
+                    + "admin_change_in_progress; Retry-After gives the seconds to wait).",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class)))
     })
@@ -949,7 +951,9 @@ public class UsersApiController extends AbstractApiController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class))),
             @ApiResponse(responseCode = "404", description = "There is no user with that username.", content = @Content),
-            @ApiResponse(responseCode = "409", description = "The user is already deactivated, is the caller, or is the last active administrator.",
+            @ApiResponse(responseCode = "409", description = "The user is already deactivated, is the caller, or is the "
+                    + "last active administrator, or, with MongoDB storage, another change to the administrators is in "
+                    + "progress (reason admin_change_in_progress; Retry-After gives the seconds to wait).",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = GenericResponse.class)))
     })

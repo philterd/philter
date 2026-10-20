@@ -17,6 +17,7 @@ package ai.philterd.philter.api.exceptions;
 
 import ai.philterd.phileas.services.pdf.PdfLimitExceededException;
 import ai.philterd.phileas.services.filters.ai.pheye.PhEyeUnavailableException;
+import ai.philterd.philter.data.services.AdministratorChangeInProgressException;
 import ai.philterd.philter.services.filtering.PhEyeFailures;
 import ai.philterd.philter.model.ErrorReasons;
 import ai.philterd.philter.api.responses.GenericResponse;
@@ -112,6 +113,15 @@ public class RestApiExceptions {
 	                                final HttpServletResponse response) throws IOException {
 		response.setHeader("Retry-After", "5");
 		write(response, HttpStatus.valueOf(ex.getStatus()), ex.getMessage());
+	}
+
+	/** The administrator change guard is busy: the guard working, not a fault, so it is logged at WARN. */
+	@ExceptionHandler(AdministratorChangeInProgressException.class)
+	public void handleAdministratorChangeInProgress(final AdministratorChangeInProgressException ex,
+	                                                final HttpServletResponse response) throws IOException {
+		LOGGER.warn("Refused a change to the administrators: {}", ex.getMessage());
+		response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()));
+		ApiErrors.write(response, HttpStatus.CONFLICT.value(), ex.getMessage(), ErrorReasons.ADMIN_CHANGE_IN_PROGRESS);
 	}
 
 	@ExceptionHandler(PolicyResolutionException.class)

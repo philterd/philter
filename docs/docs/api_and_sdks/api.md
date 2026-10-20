@@ -98,6 +98,7 @@ A refusal with a specific reason gives it, as listed below. Any other error give
 | 409 | `already_exists` | A user with that username already exists, active or deactivated. |
 | 409 | `mfa_unavailable`, `mfa_already_enrolled`, `mfa_not_enrolled` | MFA is not turned on in this deployment, or the user is already enrolled, or not enrolled. |
 | 409 | `changed_concurrently` | Another request changed the same thing first, such as the password. Read it again and retry. |
+| 409 | `admin_change_in_progress` | Another change to the administrators is in progress, such as a role change or deactivation through another instance. `Retry-After` gives the seconds to wait. MongoDB storage only. |
 | 409 | `not_a_session_key` | Only a session key can sign itself out. |
 | 409 | `webhook_not_set` | No webhook is set, so there is nothing to test. |
 | 409 | `externally_managed` | The signing key is managed outside Philter. |

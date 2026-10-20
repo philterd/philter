@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.controllers;
 
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
+import ai.philterd.philter.data.services.AdministratorChangeInProgressException;
 import ai.philterd.philter.api.security.ApiKeyScopeInterceptor;
 import ai.philterd.philter.data.entities.ApiKeyEntity;
 import ai.philterd.philter.data.entities.UserEntity;
@@ -60,6 +61,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -479,6 +482,25 @@ class UsersApiControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(body.contains("last active administrator"), body);
+    }
+
+    @Test
+    @DisplayName("A busy administrator change guard asks the caller to retry a role change or deactivation")
+    void aBusyAdministratorChangeGuardIsRetryable() throws Exception {
+        callerIsAdministrator(true);
+        final UserEntity alice = storedUser("alice", "admin", false);
+        when(userService.findAnyByUsername("alice")).thenReturn(alice);
+        when(userService.setUserRole(anyString(), eq(alice), eq("user"), anyString(), any(), any()))
+                .thenThrow(new AdministratorChangeInProgressException(7));
+        when(userService.deactivateUser(anyString(), eq(alice), anyString(), any(), any()))
+                .thenThrow(new AdministratorChangeInProgressException(7));
+
+        for (final ResultActions refused : List.of(setRole("alice", "{\"role\":\"user\"}"),
+                perform(post("/api/users/alice/deactivate")))) {
+            refused.andExpect(status().isConflict())
+                    .andExpect(header().string("Retry-After", "7"))
+                    .andExpect(jsonPath("$.reason").value("admin_change_in_progress"));
+        }
     }
 
     @Test

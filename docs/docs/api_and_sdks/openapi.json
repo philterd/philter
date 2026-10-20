@@ -11709,7 +11709,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The user is already deactivated, is the caller, or is the last active administrator.",
+            "description": "The user is already deactivated, is the caller, or is the last active administrator, or, with MongoDB storage, another change to the administrators is in progress (reason admin_change_in_progress; Retry-After gives the seconds to wait).",
             "content": {
               "application/json": {
                 "schema": {
@@ -12470,7 +12470,7 @@
             "description": "No representation matches Accept."
           },
           "409": {
-            "description": "The user is the last active administrator.",
+            "description": "The user is the last active administrator, or, with MongoDB storage, another change to the administrators is in progress (reason admin_change_in_progress; Retry-After gives the seconds to wait).",
             "content": {
               "application/json": {
                 "schema": {

@@ -20,6 +20,7 @@ import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.policies.PolicyResolutionException;
 import ai.philterd.philter.testutil.LogCapture;
 import org.apache.logging.log4j.Level;
+import org.apache.tomcat.util.http.InvalidParameterException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -59,7 +60,8 @@ class RestApiExceptionsTest {
                 response -> handler.handlePolicyNotFoundException(new PolicyNotFoundException("The policy 'p' does not exist."), response),
                 response -> handler.handleUnauthorizedException(new UnauthorizedException("Unauthorized."), response),
                 response -> handler.handleMissingRequestHeaderException(missingHeader, response),
-                response -> handler.handleAdministratorChangeInProgress(new AdministratorChangeInProgressException(12), response));
+                response -> handler.handleAdministratorChangeInProgress(new AdministratorChangeInProgressException(12), response),
+                response -> handler.handleInvalidParameterException(new InvalidParameterException("Invalid chunk [=] ignored"), response));
 
         for (final HandlerCall refusal : refusals) {
             try (LogCapture log = new LogCapture()) {
@@ -81,6 +83,35 @@ class RestApiExceptionsTest {
         final com.google.gson.JsonObject body = com.google.gson.JsonParser.parseString(response.getContentAsString()).getAsJsonObject();
         assertEquals("admin_change_in_progress", body.get("reason").getAsString());
         assertEquals("Another change to the administrators is still in progress; try again.", body.get("message").getAsString());
+    }
+
+    @Test
+    void unparseableParametersAreABadRequestThatDoesNotQuoteThem() throws Exception {
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        try (LogCapture log = new LogCapture()) {
+            handler.handleInvalidParameterException(new InvalidParameterException("Invalid chunk with a value of [secret=]"), response);
+            assertFalse(log.entries().toString().contains("secret"), log.entries().toString());
+        }
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+        final com.google.gson.JsonObject body = com.google.gson.JsonParser.parseString(response.getContentAsString()).getAsJsonObject();
+        assertEquals("invalid_request", body.get("reason").getAsString());
+        assertEquals("The request parameters could not be read.", body.get("message").getAsString());
+    }
+
+    @Test
+    void aFormBodyOverTheConnectorLimitIsTooLarge() throws Exception {
+        // Tomcat gives 413 when a form body exceeds maxPostSize.
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        try (LogCapture log = new LogCapture()) {
+            handler.handleInvalidParameterException(new InvalidParameterException("too big",
+                    HttpStatus.PAYLOAD_TOO_LARGE.value()), response);
+            assertEquals(Level.WARN, log.entries().get(0).level());
+        }
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE.value(), response.getStatus());
+        final com.google.gson.JsonObject body = com.google.gson.JsonParser.parseString(response.getContentAsString()).getAsJsonObject();
+        assertEquals("payload_too_large", body.get("reason").getAsString());
     }
 
     @Test

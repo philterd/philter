@@ -78,6 +78,8 @@ Every error Philter returns under `/api` is a JSON object with the same fields, 
 
 A refusal with a specific reason gives it, as listed below. Any other error gives the reason its status implies: `invalid_request` (400), `invalid_credentials` (401), `forbidden` (403), `not_found` (404), `method_not_allowed` (405), `not_acceptable` (406), `conflict` (409), `payload_too_large` (413), `unsupported_media_type` (415), `rate_limited` (429), `service_unavailable` (503), or `internal_error` (500).
 
+Request parameters that cannot be parsed are refused on any endpoint with `400 Bad Request` and `invalid_request`: a parameter with no name (`?=`) in the query string or a form body, or more than 1,000 parameters. A form body too large to parse is refused with `413` and `payload_too_large`.
+
 | Status | `reason` | Meaning |
 |--------|----------|---------|
 | 401 | `invalid_credentials` | The API key is missing, malformed, or unknown, or is a revoked long-lived key. Sign-in also gives it for a wrong username or password, without saying which. |

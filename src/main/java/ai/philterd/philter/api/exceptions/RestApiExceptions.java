@@ -25,6 +25,7 @@ import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.policies.PolicyResolutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tomcat.util.http.InvalidParameterException;
 import com.google.gson.Gson;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
@@ -203,6 +204,25 @@ public class RestApiExceptions {
 		// The parameter name is declared in the controller; the submitted value is not echoed back.
 		ApiErrors.write(response, HttpStatus.BAD_REQUEST.value(), "The parameter '" + ex.getName() + "' has an invalid value.",
 				ErrorReasons.INVALID_REQUEST, ex.getName());
+	}
+
+	/**
+	 * Tomcat throws this the first time a parameter is read if the parameters cannot be parsed: a parameter
+	 * with no name such as {@code ?=}, in the query string or a form body, too many parameters, or a form body
+	 * over the connector's size limit, for which it gives 413. Its message can quote the request, so only the
+	 * status is logged.
+	 */
+	// No @ResponseStatus: it would replace the 413. The 400 is listed in the specification by the other handlers.
+	@ExceptionHandler(InvalidParameterException.class)
+	public void handleInvalidParameterException(final InvalidParameterException ex, final HttpServletResponse response)
+			throws IOException {
+		final boolean tooLarge = ex.getErrorCode() == HttpStatus.PAYLOAD_TOO_LARGE.value();
+		LOGGER.warn("The request parameters could not be read{}.", tooLarge ? ": the body is too large" : "");
+		if (tooLarge) {
+			write(response, HttpStatus.PAYLOAD_TOO_LARGE, "The request body is too large to read its parameters.");
+		} else {
+			write(response, HttpStatus.BAD_REQUEST, "The request parameters could not be read.");
+		}
 	}
 
 	@ExceptionHandler(PhEyeUnavailableException.class)

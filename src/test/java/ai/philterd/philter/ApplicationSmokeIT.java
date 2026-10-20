@@ -182,6 +182,21 @@ class ApplicationSmokeIT {
     }
 
     @Test
+    @DisplayName("Parameters Tomcat cannot parse are a 400, not a 500")
+    void unparseableParametersAreABadRequest() throws Exception {
+
+        // InvalidParameterException is Tomcat's own, so only a real server raises it.
+        final HttpResponse<String> response = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/policies?="))
+                .header("Authorization", "Bearer " + apiKey)
+                .GET()
+                .build());
+
+        assertEquals(400, response.statusCode(), response.body());
+        assertTrue(response.body().contains("\"reason\":\"invalid_request\""), response.body());
+
+    }
+
+    @Test
     @DisplayName("The API reference is served")
     void swaggerUiIsServed() throws Exception {
 

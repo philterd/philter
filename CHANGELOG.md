@@ -83,6 +83,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   `PHEYE_ONNX_THREADS` sets its thread count; Philter does not start if that is not a positive whole number.
   `PHEYE_ONNX_DEVICE` can run it on a GPU, with ONNX Runtime's GPU package in place of the CPU package Philter
   includes.
+- **Search queued documents:** `GET /api/documents` takes `q`, matching document IDs and file names by part,
+  ignoring case, as the ledger listing does, so a document can be found by the file name it was submitted with. See
+  [List Documents](docs/docs/api_and_sdks/api/documents_api.md#list-documents).
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
   trusted-proxy handling.

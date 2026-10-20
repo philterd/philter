@@ -108,12 +108,12 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         service.save(newPending(user, "new", "default", new Date(base + 2000)));
         service.save(newPending(other, "other", "default", new Date(base + 3000)));
 
-        final List<PendingDocumentEntity> page = service.list(user, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 2).items();
+        final List<PendingDocumentEntity> page = service.list(user, null, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 2).items();
         assertEquals(2, page.size());
         assertEquals("new", page.get(0).getDocumentId());
         assertEquals("mid", page.get(1).getDocumentId());
 
-        final List<PendingDocumentEntity> next = service.list(user, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 2, 2).items();
+        final List<PendingDocumentEntity> next = service.list(user, null, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 2, 2).items();
         assertEquals(1, next.size());
         assertEquals("old", next.get(0).getDocumentId());
     }
@@ -280,9 +280,9 @@ class PendingDocumentDataServiceIT extends AbstractMongoIT {
         service.save(newPending(user, "b"));
         service.save(newPending(other, "c"));
 
-        assertEquals(2, service.list(user, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 1).total());
-        assertEquals(1, service.list(other, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 1).total());
-        assertEquals(0, service.list(MongoIds.newId(), null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 1).total());
+        assertEquals(2, service.list(user, null, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 1).total());
+        assertEquals(1, service.list(other, null, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 1).total());
+        assertEquals(0, service.list(MongoIds.newId(), null, null, new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true), 0, 1).total());
     }
 
     @Test

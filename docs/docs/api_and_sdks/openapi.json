@@ -2469,7 +2469,7 @@
           "Documents"
         ],
         "summary": "List documents submitted for async redaction.",
-        "description": "Lists the caller's submitted documents, whatever their status, each with its type, file name, status, submission time, and policy. Requires the `documents:read` scope.",
+        "description": "Lists the caller's submitted documents, whatever their status, each with its type, file name, status, submission time, and policy. q filters to documents whose document ID or file name contains it, ignoring case; status filters by status. Requires the `documents:read` scope.",
         "operationId": "listDocuments",
         "parameters": [
           {
@@ -2490,6 +2490,14 @@
           },
           {
             "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
             "in": "query",
             "required": false,
             "schema": {

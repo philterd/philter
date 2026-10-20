@@ -82,7 +82,8 @@ public class DocumentsApiController extends AbstractApiController {
     }
 
     @Operation(summary = "List documents submitted for async redaction.", description = "Lists the caller's submitted "
-            + "documents, whatever their status, each with its type, file name, status, submission time, and policy.")
+            + "documents, whatever their status, each with its type, file name, status, submission time, and policy. "
+            + "q filters to documents whose document ID or file name contains it, ignoring case; status filters by status.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200")})
     @RequiresScope(ApiKeyScope.DOCUMENTS_READ)
     @RequestMapping(value = "/api/documents", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -90,6 +91,7 @@ public class DocumentsApiController extends AbstractApiController {
             final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
             final @RequestParam(value = "owner", required = false) String owner,
             final @RequestParam(value = "status", required = false) String status,
+            final @RequestParam(value = "q", required = false) String query,
             final @RequestParam(value = "sort", required = false) String sort,
             final @RequestParam(value = "order", required = false) String order,
             final @RequestParam(value = "offset", defaultValue = "0") int offset,
@@ -108,7 +110,7 @@ public class DocumentsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
         auditAdminCrossUserAccess(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), userId, "list documents");
-        final Listings.Page<PendingDocumentEntity> page = pendingDocumentDataService.list(userId, statusFilter, documentSort,
+        final Listings.Page<PendingDocumentEntity> page = pendingDocumentDataService.list(userId, statusFilter, query, documentSort,
                 normalizeOffset(offset), normalizeLimit(limit));
         final List<PendingDocumentEntity> entities = page.items();
 

@@ -180,6 +180,13 @@ class StorageFlowsApiIT {
         assertTrue(listed.body().contains(documentId), listed.body());
         assertTrue(listed.body().contains("\"policyName\":\"ssn-only\""), listed.body());
 
+        // Found by part of the file name it was submitted with, ignoring case, and not by a name it does not have.
+        final HttpResponse<String> found = send(authenticated("/api/documents?q=CLAIM").GET().build());
+        assertEquals(200, found.statusCode(), found.body());
+        assertTrue(found.body().contains(documentId), found.body());
+        final HttpResponse<String> missed = send(authenticated("/api/documents?q=invoice").GET().build());
+        assertEquals(0, gson.fromJson(missed.body(), JsonObject.class).get("total").getAsInt(), missed.body());
+
         assertEquals(1, storedJobRecords(documentId), "the check reads the job's record before it is deleted");
 
         // Deleting waits until the completion notification has been dispatched.

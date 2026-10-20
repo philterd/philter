@@ -136,10 +136,10 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
             submit(owner, new byte[]{1});
         }
         submit(RecordIds.newId(), new byte[]{1});
-        assertEquals(5, storage().pendingDocuments().list(owner, null, new Listings.Sort("submitted_at", false), 0, 1).total());
+        assertEquals(5, storage().pendingDocuments().list(owner, null, null, new Listings.Sort("submitted_at", false), 0, 1).total());
         final Set<String> seen = new HashSet<>();
         for (int offset = 0; offset < 5; offset += 2) {
-            storage().pendingDocuments().list(owner, null, new Listings.Sort("submitted_at", false), offset, 2).items()
+            storage().pendingDocuments().list(owner, null, null, new Listings.Sort("submitted_at", false), offset, 2).items()
                     .forEach(job -> assertTrue(seen.add(job.getDocumentId())));
         }
         assertEquals(5, seen.size());
@@ -506,6 +506,37 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
         final PendingDocumentEntity claim = jobs.claimNextPending("worker");
         assertTrue(jobs.markFailed(claim.getId(), claim.getClaimToken(), "The redaction failed."));
         assertFalse(storage().storageContainsBytes(failingInput), "a failed document keeps no input");
+    }
+
+    @Test
+    default void pendingDocumentListingsSearchDocumentIdsAndFileNames() {
+        final String owner = RecordIds.newId();
+        final PendingDocumentEntity claim = job(owner, 1);
+        claim.setFileName("Claim-42 Intake.pdf");
+        storage().pendingDocuments().save(claim);
+        final PendingDocumentEntity invoice = job(owner, 1);
+        invoice.setFileName("invoice-7.pdf");
+        storage().pendingDocuments().save(invoice);
+        // Another owner's document of the same name is never found.
+        final PendingDocumentEntity theirs = job(RecordIds.newId(), 1);
+        theirs.setFileName("claim-42 intake.pdf");
+        storage().pendingDocuments().save(theirs);
+
+        final Listings.Sort sort = new Listings.Sort("submitted_at", false);
+        final Listings.Page<PendingDocumentEntity> byName = storage().pendingDocuments().list(owner, null, "claim-42 in", sort, 0, 10);
+        assertEquals(1, byName.total(), "file names match by part, ignoring case");
+        assertEquals(claim.getDocumentId(), byName.items().get(0).getDocumentId());
+
+        final String part = invoice.getDocumentId().substring(4, 14).toUpperCase(java.util.Locale.ROOT);
+        final Listings.Page<PendingDocumentEntity> byId = storage().pendingDocuments().list(owner, null, part, sort, 0, 10);
+        assertEquals(1, byId.total(), "document IDs match by part, ignoring case");
+        assertEquals(invoice.getDocumentId(), byId.items().get(0).getDocumentId());
+
+        assertEquals(0, storage().pendingDocuments().list(owner, null, ".*", sort, 0, 10).total(), "matched as text, not a pattern");
+        assertEquals(2, storage().pendingDocuments().list(owner, null, "  ", sort, 0, 10).total(), "a blank search is no search");
+        assertEquals(1, storage().pendingDocuments().list(owner, PendingDocumentEntity.STATUS_PENDING, "invoice", sort, 0, 10).total(),
+                "and it combines with the status filter");
+        assertEquals(0, storage().pendingDocuments().list(owner, PendingDocumentEntity.STATUS_FAILED, "invoice", sort, 0, 10).total());
     }
 
 }

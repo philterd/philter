@@ -38,10 +38,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
@@ -98,11 +98,6 @@ public class SecurityConfig {
         };
     }
 
-    @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers("/public/**");
-    }
-
     /**
      * Security chain for the stateless, Bearer-token API ({@code /api/**}).
      *
@@ -113,6 +108,10 @@ public class SecurityConfig {
      * itself (returning 401/403 JSON and handing the resolved key to controllers via a request
      * attribute), so Spring Security authorization here is permissive and CSRF is disabled (token auth
      * does not rely on cookies).
+     *
+     * <p>Every response carries {@code Cross-Origin-Resource-Policy: same-origin}, so a page on another site
+     * cannot load it as an image, script, or frame. That applies only to loads made without CORS; it does
+     * not change how a client that is not a browser calls the API.
      */
     @Bean
     @Order(1)
@@ -127,6 +126,8 @@ public class SecurityConfig {
                 .securityMatcher("/api/**")
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        .crossOriginResourcePolicy(corp -> corp.policy(CrossOriginResourcePolicy.SAME_ORIGIN)))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new ApiAuthenticationFilter(apiKeyDataService, auditEventPublisher, meterRegistry, gson, apiKeyCache, userService), UsernamePasswordAuthenticationFilter.class);
@@ -136,13 +137,39 @@ public class SecurityConfig {
     }
 
     /**
-     * Security chain for everything that is not the API: the actuator endpoints, the OpenAPI
-     * specification and Swagger UI, and the documentation under {@code /public/docs}. All are public and
-     * hold no session, so nothing here sets a cookie, and any other path answers 404 because no handler
-     * serves it.
+     * Security chain for the documentation under {@code /public/docs}. It is public, static, and holds no
+     * session. It carries the same security headers as the chain below, including
+     * {@code Cross-Origin-Resource-Policy: same-origin}, except that it leaves out the {@code Cache-Control},
+     * {@code Pragma}, and {@code Expires} headers that forbid caching, so a browser can cache the pages.
      */
     @Bean
     @Order(2)
+    public SecurityFilterChain docsFilterChain(final HttpSecurity http) throws Exception {
+
+        http
+                .securityMatcher("/public/**")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(cache -> cache.disable())
+                .headers(headers -> headers
+                        .cacheControl(cacheControl -> cacheControl.disable())
+                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'"))
+                        .crossOriginResourcePolicy(corp -> corp.policy(CrossOriginResourcePolicy.SAME_ORIGIN)))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+
+        return http.build();
+
+    }
+
+    /**
+     * Security chain for everything else: the actuator endpoints and the OpenAPI specification and
+     * Swagger UI. All are public and hold no session, so nothing here sets a cookie, and any other path
+     * answers 404 because no handler serves it. Swagger UI loads only its own assets, so
+     * {@code Cross-Origin-Resource-Policy: same-origin} applies here too.
+     */
+    @Bean
+    @Order(3)
     public SecurityFilterChain filterChain(final HttpSecurity http, final SizeLimitingFilter sizeLimitingFilter) throws Exception {
 
         http
@@ -152,7 +179,8 @@ public class SecurityConfig {
                 .requestCache(cache -> cache.disable())
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())
-                        .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'")))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'self'"))
+                        .crossOriginResourcePolicy(corp -> corp.policy(CrossOriginResourcePolicy.SAME_ORIGIN)))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .addFilterBefore(sizeLimitingFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -135,16 +135,18 @@ class RefusedPathErrorsIT {
 
     /** The headers the security chains write; HSTS only over HTTPS, so it is checked separately below. */
     private static final List<String> SECURITY_HEADERS = List.of("X-Content-Type-Options", "X-Frame-Options",
-            "Content-Security-Policy", "Cache-Control", "Pragma", "Expires", "X-XSS-Protection");
+            "Content-Security-Policy", "Cache-Control", "Pragma", "Expires", "X-XSS-Protection", "Cross-Origin-Resource-Policy");
 
     @ParameterizedTest
-    @CsvSource({"/api/policies//details, /api/policies/x/details", "/actuator//health, /actuator/nope"})
+    @CsvSource({"/api/policies//details, /api/policies/x/details", "/actuator//health, /actuator/nope",
+            "/public//docs/index.html, /public/docs/nope.html"})
     @DisplayName("A path the firewall refuses carries the same security headers as its chain's other responses")
     void firewallRefusalsCarryTheSecurityHeaders(final String refusedPath, final String ordinaryPath) throws Exception {
         final RawResponse refused = get(refusedPath, "application/json");
         assertEquals(400, refused.status(), refused.body());
         assertEquals(SecurityConfig.REQUEST_REJECTED, message(refused));
         assertEquals("nosniff", refused.headers().get("X-Content-Type-Options"), refused.headers().toString());
+        assertEquals("same-origin", refused.headers().get("Cross-Origin-Resource-Policy"), refused.headers().toString());
 
         final RawResponse ordinary = get(ordinaryPath, "application/json");
         assertEquals("nosniff", ordinary.headers().get("X-Content-Type-Options"), ordinary.headers().toString());
@@ -165,6 +167,7 @@ class RefusedPathErrorsIT {
         assertEquals(400, response.getStatus());
         assertEquals("max-age=31536000 ; includeSubDomains", response.getHeader("Strict-Transport-Security"));
         assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
+        assertEquals("same-origin", response.getHeader("Cross-Origin-Resource-Policy"));
         assertEquals(SecurityConfig.REQUEST_REJECTED,
                 new Gson().fromJson(response.getContentAsString(), JsonObject.class).get("message").getAsString());
     }

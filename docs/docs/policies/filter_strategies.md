@@ -44,6 +44,8 @@ The filter strategies are described below. Each filter type can specify zero or 
 * [ZERO_LEADING](#the-zero_leading-filter-strategy)
 * [Date strategies](#date-filter-strategies) (`TRUNCATE_TO_YEAR`, `SHIFT`, `RELATIVE`)
 
+Only `CRYPTO_REPLACE` and `FPE_ENCRYPT_REPLACE` can be reversed through [re-identification](../redaction/re-identification.md). The other strategies do not encode the original value in their output; to keep originals for them, enable the [redaction ledger](../redaction/ledgers.md).
+
 ### The `REDACT` Filter Strategy
 
 The REDACT filter strategy replaces sensitive information with a given redaction format. You can put variables in the redaction format that Philter will replace when performing the redaction.
@@ -77,7 +79,7 @@ An example filter using the `REDACT` filter strategy:
 
 ### The `CRYPTO_REPLACE` Filter Strategy
 
-The `CRYPTO_REPLACE` filter strategy replaces each identified piece of sensitive information with its encrypted value. Philter encrypts using AES in GCM mode (authenticated encryption) with a freshly generated random nonce for each value. As a result the same input encrypts to a different value each time (so equal values cannot be matched across the output), and each encrypted value carries an authentication tag that detects tampering. The encryption is reversible: an encrypted value can be decrypted later using the same key.
+The `CRYPTO_REPLACE` filter strategy replaces each identified piece of sensitive information with its encrypted value. Philter encrypts using AES in GCM mode (authenticated encryption) with a freshly generated random nonce for each value. As a result the same input encrypts to a different value each time (so equal values cannot be matched across the output), and each encrypted value carries an authentication tag that detects tampering. The encryption is reversible: an encrypted value can be decrypted later using the same key, through [re-identification](../redaction/re-identification.md).
 
 To use this filter strategy, the policy must provide an encryption `key` in a top-level `crypto` object:
 
@@ -166,7 +168,7 @@ By default you do not need to supply a key. Philter manages a stable format-pres
 }
 ```
 
-Because the key is stable, the encryption is deterministic and reversible: the same input always encrypts to the same value (referential integrity across documents), and the value can be decrypted with the user's key.
+Because the key is stable, the encryption is deterministic and reversible: the same input always encrypts to the same value (referential integrity across documents), and the value can be decrypted with the user's key, through [re-identification](../redaction/re-identification.md).
 
 To use your own key instead of the managed one, supply a top-level `fpe` object with a `key` and a `tweak`:
 

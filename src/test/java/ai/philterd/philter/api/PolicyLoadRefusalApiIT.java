@@ -247,4 +247,20 @@ class PolicyLoadRefusalApiIT {
         }
     }
 
+    @Test
+    @DisplayName("Re-identifying a text with a stored policy that names an environment variable not allowed returns 400 without reading it")
+    void reidentifyingATextWithADisallowedEnvironmentVariableIsRefused() throws Exception {
+        storeUnchecked("reidentify-text", REFUSED.get("crypto-env")[0], 1);
+        final JsonObject request = new JsonObject();
+        request.addProperty("text", "Hello {{AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}}");
+        request.addProperty("policyName", "reidentify-text");
+        request.addProperty("reason", "test");
+        final HttpResponse<String> response = send("POST", "/api/reidentify/text", "application/json", request.toString());
+        assertRefused(response, REFUSED.get("crypto-env")[1]);
+        final String path = System.getenv("PATH");
+        if (path != null && !path.isBlank()) {
+            assertFalse(response.body().contains(path), "the variable's value is never returned: " + response.body());
+        }
+    }
+
 }

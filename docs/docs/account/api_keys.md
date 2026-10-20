@@ -92,7 +92,7 @@ Two scopes are separated from the resources they belong to because they return t
 | `pii-counts:read` | `GET /api/pii-counts` |
 | `webhooks:read` | `GET /api/webhook`<br>`GET /api/webhook/deliveries` |
 | `webhooks:write` | `DELETE /api/webhook`<br>`POST /api/webhook/test`<br>`PUT /api/webhook` |
-| `reidentify` | `POST /api/reidentify` |
+| `reidentify` | `POST /api/reidentify`<br>`POST /api/reidentify/text` |
 
 `/api/health` and `/api/signing-key` take no API key at all and therefore need no scope. See [Unauthenticated endpoints](#unauthenticated-endpoints).
 

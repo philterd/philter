@@ -86,6 +86,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 - **Phield and Diffuse integrations,** off by default.
 - **Operations:** Prometheus metrics, HTTPS by default, an optional shared Valkey/Redis cache, and
   trusted-proxy handling.
+- **Re-identifying a text:** `POST /api/reidentify/text` restores the `CRYPTO_REPLACE` values in a text,
+  such as an LLM's response to a redacted prompt, under the `reidentify` scope. Tokens that do not
+  decrypt are left as they are and counted. See
+  [Re-identification](docs/docs/redaction/re-identification.md#re-identifying-a-text).
 
 ### Changed
 

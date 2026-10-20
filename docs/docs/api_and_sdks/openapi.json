@@ -9078,6 +9078,132 @@
         }
       }
     },
+    "/api/reidentify/text": {
+      "post": {
+        "tags": [
+          "Re-identification"
+        ],
+        "summary": "Re-identify the CRYPTO_REPLACE values in a text.",
+        "description": "Finds every CRYPTO_REPLACE token ({{...}}) in the text, decrypts it with the crypto key of the named policy, and returns the text with each token that decrypted replaced by its original value. A token that does not decrypt, because it was altered or encrypted under another key, is left as it is and counted as failed. FPE_ENCRYPT_REPLACE and other strategies are not restored. The caller must supply a stated reason, which is recorded in the audit log with the tokens and the counts. An admin may act for another user by supplying that user's username via the owner parameter. Requires the `reidentify` scope.",
+        "operationId": "reidentifyText",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReidentifyTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReidentifyTextResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid request fields, or the policy has no crypto key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, disabled API, or access denied."
+          },
+          "404": {
+            "description": "Named policy not found, or owner not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "No representation matches Accept."
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/settings": {
       "get": {
         "tags": [
@@ -14973,6 +15099,39 @@
             "type": "string"
           },
           "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ReidentifyTextRequest": {
+        "type": "object",
+        "properties": {
+          "policyName": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "ReidentifyTextResponse": {
+        "properties": {
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "found": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "restored": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "text": {
             "type": "string"
           }
         }

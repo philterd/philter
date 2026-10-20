@@ -67,6 +67,10 @@ class StorageFlowsApiIT {
     private static final String FPE_POLICY =
             "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"FPE_ENCRYPT_REPLACE\"}]}}}";
 
+    private static final String CRYPTO_POLICY = "{\"crypto\":{\"key\":\"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\"},"
+            + "\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"CRYPTO_REPLACE\"}]},"
+            + "\"emailAddress\":{\"emailAddressFilterStrategies\":[{\"strategy\":\"CRYPTO_REPLACE\"}]}}}";
+
     private static final String SSN_POLICY =
             "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
@@ -90,6 +94,7 @@ class StorageFlowsApiIT {
     private HttpClient httpClient;
     private String baseUrl;
     private String apiKey;
+    private String userId;
 
     @BeforeEach
     void setUp() {
@@ -100,8 +105,8 @@ class StorageFlowsApiIT {
         final ServiceResponse created = userService.createUser("req", username, "admin", policyDataService,
                 contextDataService, "test");
         assertTrue(created.isSuccessful(), "the test user must be created");
-        apiKey = apiKeyDataService.createApiKey("req", userService.findByUsername(username).getId(), "test",
-                ApiKeyScope.all()).getMessage();
+        userId = userService.findByUsername(username).getId();
+        apiKey = apiKeyDataService.createApiKey("req", userId, "test", ApiKeyScope.all()).getMessage();
     }
 
     @AfterEach
@@ -256,6 +261,41 @@ class StorageFlowsApiIT {
                 .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(request.toString())).build());
         assertEquals(200, reversed.statusCode(), reversed.body());
         assertTrue(reversed.body().contains("123-45-6789"), reversed.body());
+
+    }
+
+    @Test
+    @DisplayName("A redacted text is restored to the original by re-identifying its CRYPTO_REPLACE values")
+    void aRedactedTextIsReidentified() throws Exception {
+
+        savePolicy("crypto", CRYPTO_POLICY);
+        final String original = "Write to jane.doe@example.com about SSN 123-45-6789 today.";
+
+        final HttpResponse<String> redacted = send(authenticated("/api/filter?p=crypto&c=default")
+                .header("Content-Type", "text/plain").POST(HttpRequest.BodyPublishers.ofString(original)).build());
+        assertEquals(200, redacted.statusCode(), redacted.body());
+        assertFalse(redacted.body().contains("123-45-6789") || redacted.body().contains("jane.doe"), redacted.body());
+
+        final JsonObject request = new JsonObject();
+        request.addProperty("text", redacted.body());
+        request.addProperty("policyName", "crypto");
+        request.addProperty("reason", "storage test");
+        final HttpResponse<String> restored = send(authenticated("/api/reidentify/text")
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(request.toString())).build());
+        assertEquals(200, restored.statusCode(), restored.body());
+        final JsonObject body = gson.fromJson(restored.body(), JsonObject.class);
+        assertEquals(original, body.get("text").getAsString());
+        assertEquals(2, body.get("found").getAsInt());
+        assertEquals(2, body.get("restored").getAsInt());
+        assertEquals(0, body.get("failed").getAsInt());
+
+        // Redacting needs only the redact scope; restoring needs reidentify.
+        final String redactOnly = apiKeyDataService.createApiKey("req", userId, "test",
+                java.util.Set.of(ApiKeyScope.REDACT.getScope())).getMessage();
+        final HttpResponse<String> refused = send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/reidentify/text"))
+                .header("Authorization", "Bearer " + redactOnly).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(request.toString())).build());
+        assertEquals(403, refused.statusCode(), refused.body());
 
     }
 

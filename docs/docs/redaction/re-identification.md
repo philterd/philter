@@ -17,7 +17,8 @@ Strategies that produce random or static replacements (such as `REDACT`, `RANDOM
 
 ## Making a re-identification request
 
-Send a `POST` request to `/api/reidentify` with a JSON body:
+To reverse chosen values, send a `POST` request to `/api/reidentify` with a JSON body. To restore every `CRYPTO_REPLACE` value in a text, see [Re-identifying a text](#re-identifying-a-text).
+
 
 ```json
 {
@@ -132,12 +133,53 @@ A successful reversal has `decrypted` set and no `error` field. A failed reversa
 | `404 Not Found` | The specified `policyName` does not exist, or a non-admin caller supplied an `owner` that is not their own account. |
 | `500 Internal Server Error` | An unexpected server-side error occurred. |
 
+## Re-identifying a text
+
+`POST /api/reidentify/text` takes a text, such as a redacted document or an LLM's response to a redacted prompt, and returns it with each `CRYPTO_REPLACE` value restored. Philter finds every `{{...}}` token in the text, decrypts it with the named policy's `crypto` key, and puts the original value in its place.
+
+```bash
+curl -s -X POST https://philter:8080/api/reidentify/text \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Write to {{k7Xv2...base64ciphertext...==}} about the claim.",
+    "policyName": "my-policy",
+    "reason": "Restore LLM response for authorized claims review"
+  }'
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `text` | Yes | The text to restore. |
+| `policyName` | Yes | The policy whose `crypto` key was used during redaction. |
+| `reason` | Yes | A free-text statement of why the reversal is authorized. Recorded verbatim in the audit log. |
+
+The response carries the restored text and how many tokens were found, restored, and left unchanged:
+
+```json
+{
+  "text": "Write to jane.doe@example.com about the claim.",
+  "found": 1,
+  "restored": 1,
+  "failed": 0
+}
+```
+
+Limits:
+
+- Only `CRYPTO_REPLACE` tokens are restored. `FPE_ENCRYPT_REPLACE` replacements look like ordinary data and cannot be told apart from it in a text, so reverse them by value with `/api/reidentify`. Other strategies cannot be reversed.
+- A token that does not decrypt is left in the text as it is and counted in `failed`. This includes a token encrypted under another policy's key and one whose ciphertext was altered after redaction, for example shortened by an LLM.
+- A token altered so that it is no longer `{{` followed by Base64 and `}}`, for example split by a space or missing a brace, is not found, so it is counted in neither `found` nor `failed`. A model's response may therefore come back partly restored with `failed` at `0`; check the result rather than the counts alone.
+- The request body is limited by `MAX_FILE_SIZE_BYTES_OTHER`.
+
+Authorization, the `owner` parameter, and the status codes are the same as for `/api/reidentify`, except that `policyName` is always required and `text` takes the place of `values`. The response is `200` even when some tokens fail.
+
 ## Audit trail
 
-Every call to `/api/reidentify` produces an audit event of type `redaction_reversed`, whether or not all values succeed. The event records:
+Every call to `/api/reidentify` or `/api/reidentify/text` produces an audit event of type `redaction_reversed`, whether or not all values succeed. The event records:
 
 - **Who**: the API key (and therefore the user) that made the call.
-- **What**: the list of encrypted input values (ciphertexts), the strategy used, and how many reversals succeeded.
+- **What**: the list of encrypted input values (ciphertexts), the strategy used, and how many reversals succeeded. For a text, the tokens found in it, never the text.
 - **When**: the timestamp of the event.
 - **Authority**: the `reason` field supplied in the request, verbatim.
 

@@ -53,6 +53,7 @@ public class ApiDocumentationConfig {
             response(op(api, "/api/lists", "get"), "200", "A page of lists, each with its name, description, and size (with all_users, its owner too), and the total.",
                     content("application/json", model(api, GetCustomListsResponse.class)));
             json(api, "/api/reidentify", "post", ReidentifyResponse.class);
+            json(api, "/api/reidentify/text", "post", ReidentifyTextResponse.class);
             response(op(api, "/api/policies/compile", "post"), "200", "Compiled native policy; does not save it.",
                     content("application/json", object("name", new StringSchema(), "description", new StringSchema(),
                             "policy", new ObjectSchema().additionalProperties(true))));

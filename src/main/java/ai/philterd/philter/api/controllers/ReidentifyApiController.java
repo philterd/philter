@@ -24,8 +24,10 @@ import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.utils.Encryption;
 import ai.philterd.philter.api.exceptions.UnauthorizedException;
 import ai.philterd.philter.api.requests.ReidentifyRequest;
+import ai.philterd.philter.api.requests.ReidentifyTextRequest;
 import ai.philterd.philter.api.responses.GenericResponse;
 import ai.philterd.philter.api.responses.ReidentifyResponse;
+import ai.philterd.philter.api.responses.ReidentifyTextResponse;
 import ai.philterd.philter.api.security.RequiresScope;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -59,7 +61,11 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Tag(name = "Re-identification", description = "Governed, audited reversal of cryptographically-redacted values.")
 @Controller
@@ -69,6 +75,9 @@ public class ReidentifyApiController extends AbstractApiController {
 
     private static final String STRATEGY_CRYPTO = "CRYPTO_REPLACE";
     private static final String STRATEGY_FPE = "FPE_ENCRYPT_REPLACE";
+
+    // A CRYPTO_REPLACE replacement as Phileas writes it: Base64 ciphertext in double braces.
+    private static final Pattern CRYPTO_TOKEN = Pattern.compile("\\{\\{([A-Za-z0-9+/]+={0,2})}}");
 
     private final UserService userService;
     private final PolicyDataService policyDataService;
@@ -180,23 +189,137 @@ public class ReidentifyApiController extends AbstractApiController {
         return new ResponseEntity<>(gson.toJson(new ReidentifyResponse(results)), HttpStatus.OK);
     }
 
-    private List<ReidentifyResponse.ReidentifyResult> reidentifyCrypto(
-            final ReidentifyRequest request, final String userId) {
+    @Operation(
+            summary = "Re-identify the CRYPTO_REPLACE values in a text.",
+            description = "Finds every CRYPTO_REPLACE token ({{...}}) in the text, decrypts it with the crypto key of "
+                    + "the named policy, and returns the text with each token that decrypted replaced by its "
+                    + "original value. A token that does not decrypt, because it was altered or encrypted under "
+                    + "another key, is left as it is and counted as failed. FPE_ENCRYPT_REPLACE and other "
+                    + "strategies are not restored. The caller must supply a stated reason, which is recorded in "
+                    + "the audit log with the tokens and the counts. An admin may act for another user by "
+                    + "supplying that user's username via the owner parameter."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Request processed; failed counts tokens left unchanged."),
+            @ApiResponse(responseCode = "400", description = "Missing or invalid request fields, or the policy has no crypto key."),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid API key."),
+            @ApiResponse(responseCode = "404", description = "Named policy not found, or owner not found.")
+    })
+    @RequiresScope(ApiKeyScope.REIDENTIFY)
+    @RequestMapping(value = "/api/reidentify/text", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> reidentifyText(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            final @RequestBody ReidentifyTextRequest request,
+            final @RequestParam(value = "owner", required = false) String owner,
+            final @RequestAttribute("requestId") String requestId,
+            final HttpServletRequest httpServletRequest) {
 
-        final PolicyEntity policyEntity = policyDataService.findOne(request.getPolicyName(), userId);
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+        if (apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        if (request == null || request.getText() == null) {
+            return badRequest("'text' is required.");
+        }
+        if (request.getReason() == null || request.getReason().isBlank()) {
+            return badRequest("'reason' is required.");
+        }
+        if (request.getPolicyName() == null || request.getPolicyName().isBlank()) {
+            return badRequest("'policyName' is required.");
+        }
+
+        final String targetUserId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
+        if (targetUserId == null) {
+            throw new NotFoundException();
+        }
+
+        auditAdminCrossUserAccess(auditEventPublisher, requestId, apiKeyEntity.getUserId(), targetUserId,
+                "re-identify the CRYPTO_REPLACE values in a text");
+
+        final Crypto crypto;
+        try {
+            crypto = resolveCrypto(request.getPolicyName(), targetUserId);
+        } catch (PolicyNotFoundException e) {
+            return new ResponseEntity<>(gson.toJson(new GenericResponse(e.getMessage())), HttpStatus.NOT_FOUND);
+        } catch (MissingCryptoKeyException | InvalidPolicyEnvironmentException e) {
+            return badRequest(e.getMessage());
+        }
+
+        final List<String> tokens = new ArrayList<>();
+        final Map<String, String> decrypted = new HashMap<>();
+        final StringBuilder restoredText = new StringBuilder(request.getText().length());
+        final Matcher matcher = CRYPTO_TOKEN.matcher(request.getText());
+        int restored = 0;
+        while (matcher.find()) {
+            final String token = matcher.group(1);
+            tokens.add(token);
+            // A token that does not decrypt maps to null and keeps its place in the text.
+            final String original = decrypted.computeIfAbsent(token, t -> {
+                try {
+                    return Encryption.decrypt(t, crypto);
+                } catch (Exception e) {
+                    return null;
+                }
+            });
+            if (original != null) {
+                restored++;
+            }
+            matcher.appendReplacement(restoredText, Matcher.quoteReplacement(original != null ? original : matcher.group()));
+        }
+        matcher.appendTail(restoredText);
+
+        final int failed = tokens.size() - restored;
+        if (failed > 0) {
+            LOGGER.warn("{} of {} CRYPTO_REPLACE token(s) in a text could not be decrypted.", failed, tokens.size());
+        }
+
+        auditEventPublisher.auditEvent(
+                requestId,
+                AuditLogEvent.REDACTION_REVERSED,
+                apiKeyEntity.getUserId(),
+                null,
+                getClientIpAddress(httpServletRequest),
+                "strategy: " + STRATEGY_CRYPTO
+                        + ", input: text"
+                        + ", requested: " + tokens.size()
+                        + ", succeeded: " + restored
+                        + ", reason: " + AuditDetails.quote(request.getReason())
+                        + ", values: " + AuditDetails.quoteAll(tokens)
+                        + (owner != null && !owner.isBlank() ? ", owner: " + targetUserId : "")
+        );
+
+        return new ResponseEntity<>(gson.toJson(new ReidentifyTextResponse(restoredText.toString(), tokens.size(),
+                restored, failed)), HttpStatus.OK);
+    }
+
+    /**
+     * The named policy's {@code crypto} settings, refusing an environment variable outside
+     * {@code POLICY_ALLOWED_ENV_KEYS} before anything is decrypted.
+     */
+    private Crypto resolveCrypto(final String policyName, final String userId) {
+
+        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
         if (policyEntity == null) {
-            throw new PolicyNotFoundException("Policy '" + request.getPolicyName() + "' not found.");
+            throw new PolicyNotFoundException("Policy '" + policyName + "' not found.");
         }
 
         final Policy policy = gson.fromJson(policyEntity.getPolicy(), Policy.class);
         if (policy.getCrypto() == null || policy.getCrypto().getKey() == null) {
-            throw new MissingCryptoKeyException(
-                    "Policy '" + request.getPolicyName() + "' has no crypto key configured.");
+            throw new MissingCryptoKeyException("Policy '" + policyName + "' has no crypto key configured.");
         }
 
         final Crypto crypto = policy.getCrypto();
         // getKey() above refuses an environment variable outside POLICY_ALLOWED_ENV_KEYS; so does the IV.
         crypto.getIv();
+        return crypto;
+
+    }
+
+    private List<ReidentifyResponse.ReidentifyResult> reidentifyCrypto(
+            final ReidentifyRequest request, final String userId) {
+
+        final Crypto crypto = resolveCrypto(request.getPolicyName(), userId);
         final List<ReidentifyResponse.ReidentifyResult> results = new ArrayList<>(request.getValues().size());
 
         for (final String encryptedValue : request.getValues()) {

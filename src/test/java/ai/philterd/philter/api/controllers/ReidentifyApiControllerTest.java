@@ -20,7 +20,9 @@ import ai.philterd.phileas.policy.FPE;
 import ai.philterd.phileas.utils.Encryption;
 import ai.philterd.philter.api.exceptions.RestApiExceptions;
 import ai.philterd.philter.api.requests.ReidentifyRequest;
+import ai.philterd.philter.api.requests.ReidentifyTextRequest;
 import ai.philterd.philter.api.responses.ReidentifyResponse;
+import ai.philterd.philter.api.responses.ReidentifyTextResponse;
 import ai.philterd.philter.data.mongodb.MongoIds;
 import ai.philterd.philter.services.policies.PolicyResolver;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -634,7 +636,197 @@ class ReidentifyApiControllerTest {
         verify(policyDataService, never()).findOne(any(), eq(otherUserId));
     }
 
+    // ----- Text -----
+
+    @Test
+    void textRestoresEveryTokenInPlace() throws Exception {
+        storeCryptoPolicy("p", userId);
+        final String alice = token("Alice Jones");
+        final String ssn = token("123-45-6789");
+        final String text = "Patient " + alice + " (SSN " + ssn + ") was seen by " + alice + ".";
+
+        final ReidentifyTextResponse response = postText(text, "p", "authorized review", null, "req-text-ok");
+
+        assertEquals("Patient Alice Jones (SSN 123-45-6789) was seen by Alice Jones.", response.getText());
+        assertEquals(3, response.getFound());
+        assertEquals(3, response.getRestored());
+        assertEquals(0, response.getFailed());
+    }
+
+    @Test
+    void textLeavesTokensThatDoNotDecryptUnchanged() throws Exception {
+        storeCryptoPolicy("p", userId);
+        final String good = token("Alice Jones");
+        final String foreign = "{{" + Encryption.encrypt("Bob Smith",
+                new Crypto("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100", null)) + "}}";
+        // An LLM dropping part of a token leaves Base64 that no longer authenticates.
+        final String truncated = good.substring(0, good.length() - 6) + "}}";
+        final String text = good + " met " + foreign + " and " + truncated + ".";
+
+        final ReidentifyTextResponse response = postText(text, "p", "mixed", null, "req-text-mixed");
+
+        assertEquals("Alice Jones met " + foreign + " and " + truncated + ".", response.getText());
+        assertEquals(3, response.getFound());
+        assertEquals(1, response.getRestored());
+        assertEquals(2, response.getFailed());
+    }
+
+    @Test
+    void textWithoutTokensIsReturnedUnchangedAndStillAudited() throws Exception {
+        storeCryptoPolicy("p", userId);
+        final String text = "Nothing here, not even {{{REDACTED-ssn}}} or {{a template}}.";
+
+        final ReidentifyTextResponse response = postText(text, "p", "check", null, "req-text-none");
+
+        assertEquals(text, response.getText());
+        assertEquals(0, response.getFound());
+        assertEquals(0, response.getRestored());
+        assertEquals(0, response.getFailed());
+        verify(auditEventPublisher).auditEvent(eq("req-text-none"), eq(AuditLogEvent.REDACTION_REVERSED),
+                eq(userId), any(), any(), org.mockito.ArgumentMatchers.argThat(detail ->
+                        detail.contains("requested: 0") && detail.contains("succeeded: 0")));
+    }
+
+    @Test
+    void textAuditRecordsTokensAndCountsButNeverTheOriginals() throws Exception {
+        storeCryptoPolicy("p", userId);
+        final String alice = token("Alice Jones");
+
+        postText("Hello " + alice + " and {{bm90LWEtdG9rZW4=}}", "p", "legal hold review", null, "req-text-audit");
+
+        verify(auditEventPublisher).auditEvent(eq("req-text-audit"), eq(AuditLogEvent.REDACTION_REVERSED),
+                eq(userId), any(), any(), org.mockito.ArgumentMatchers.argThat(detail ->
+                        detail.contains("strategy: CRYPTO_REPLACE") && detail.contains("input: text")
+                                && detail.contains("requested: 2") && detail.contains("succeeded: 1")
+                                && detail.contains("legal hold review")
+                                && detail.contains(alice.substring(2, alice.length() - 2))
+                                && !detail.contains("Alice") && !detail.contains("Hello")));
+    }
+
+    @Test
+    void textRequiresTextReasonAndPolicyName() throws Exception {
+        for (final String[] missing : new String[][]{
+                {null, "p", "r", "text"}, {"t", "p", " ", "reason"}, {"t", null, "r", "policyName"}}) {
+            final String body = mockMvc.perform(post("/api/reidentify/text")
+                            .header("Authorization", AUTH_HEADER)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(gson.toJson(textRequest(missing[0], missing[1], missing[2])))
+                            .requestAttr("requestId", "req-text-missing"))
+                    .andExpect(status().isBadRequest())
+                    .andReturn().getResponse().getContentAsString();
+            assertTrue(body.contains(missing[3]), body);
+        }
+        verify(auditEventPublisher, never()).auditEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void textWithUnknownPolicyReturns404() throws Exception {
+        when(policyDataService.findOne("missing", userId)).thenReturn(null);
+
+        mockMvc.perform(post("/api/reidentify/text")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(gson.toJson(textRequest("t", "missing", "r")))
+                        .requestAttr("requestId", "req-text-no-policy"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void textWithPolicyWithoutCryptoKeyReturns400() throws Exception {
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setPolicy("{\"name\":\"p\",\"identifiers\":{}}");
+        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+
+        mockMvc.perform(post("/api/reidentify/text")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(gson.toJson(textRequest("t", "p", "r")))
+                        .requestAttr("requestId", "req-text-no-key"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void textWithoutApiKeyReturns401() throws Exception {
+        mockMvc.perform(post("/api/reidentify/text")
+                        .header("Authorization", UNKNOWN_AUTH_HEADER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(gson.toJson(textRequest("t", "p", "r")))
+                        .requestAttr("requestId", "req-text-bad-key"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminCanRestoreAnotherUsersText() throws Exception {
+        final String otherUserId = MongoIds.newId();
+        makeCallerAdmin();
+        makeOwnerLookup("other@example.com", otherUserId);
+        storeCryptoPolicy("p", otherUserId);
+
+        final ReidentifyTextResponse response = postText("Hi " + token("Secret"), "p", "admin review",
+                "other@example.com", "req-text-admin");
+
+        assertEquals("Hi Secret", response.getText());
+        verify(policyDataService, never()).findOne(any(), eq(userId));
+        verify(auditEventPublisher).auditEvent(eq("req-text-admin"), eq(AuditLogEvent.REDACTION_REVERSED),
+                eq(userId), any(), any(), org.mockito.ArgumentMatchers.argThat(detail ->
+                        detail.contains("owner: " + otherUserId)));
+    }
+
+    @Test
+    void nonAdminNamingAnotherOwnerForTextGets404() throws Exception {
+        makeOwnerLookup("other@example.com", MongoIds.newId());
+        final UserEntity caller = new UserEntity();
+        caller.setId(userId);
+        caller.setRole("user");
+        when(userService.findOneById(userId)).thenReturn(caller);
+
+        mockMvc.perform(post("/api/reidentify/text")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("owner", "other@example.com")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(gson.toJson(textRequest("t", "p", "r")))
+                        .requestAttr("requestId", "req-text-forbidden"))
+                .andExpect(status().isNotFound());
+
+        verify(policyDataService, never()).findOne(any(), any());
+    }
+
     // ----- Helpers -----
+
+    private void storeCryptoPolicy(final String name, final String ownerId) {
+        final PolicyEntity policyEntity = new PolicyEntity();
+        policyEntity.setPolicy("{\"name\":\"" + name + "\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}");
+        when(policyDataService.findOne(name, ownerId)).thenReturn(policyEntity);
+    }
+
+    /** A CRYPTO_REPLACE replacement as Phileas writes it. */
+    private static String token(final String original) throws Exception {
+        return "{{" + Encryption.encrypt(original, new Crypto(CRYPTO_HEX_KEY, null)) + "}}";
+    }
+
+    private ReidentifyTextRequest textRequest(final String text, final String policyName, final String reason) {
+        final ReidentifyTextRequest req = new ReidentifyTextRequest();
+        req.setText(text);
+        req.setPolicyName(policyName);
+        req.setReason(reason);
+        return req;
+    }
+
+    private ReidentifyTextResponse postText(final String text, final String policyName, final String reason,
+                                            final String owner, final String requestId) throws Exception {
+        final var builder = post("/api/reidentify/text")
+                .header("Authorization", AUTH_HEADER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(gson.toJson(textRequest(text, policyName, reason)))
+                .requestAttr("requestId", requestId);
+        if (owner != null) {
+            builder.param("owner", owner);
+        }
+        final String body = mockMvc.perform(builder)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return gson.fromJson(body, ReidentifyTextResponse.class);
+    }
 
     private ReidentifyRequest request(final List<String> values, final String strategy,
                                       final String policyName, final String reason) {

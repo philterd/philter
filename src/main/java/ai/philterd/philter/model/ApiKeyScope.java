@@ -85,7 +85,8 @@ public enum ApiKeyScope {
     WEBHOOKS_READ("webhooks:read", "Read a user's webhook URL and whether a secret is set."),
     WEBHOOKS_WRITE("webhooks:write", "Set and remove a user's webhook URL and secret."),
 
-    REIDENTIFY("reidentify", "Reverse a replacement to its original value.");
+    REIDENTIFY("reidentify", "Reverse a replacement to its original value, one value at a time or every "
+            + "CRYPTO_REPLACE value in a text.");
 
     private final String scope;
     private final String description;

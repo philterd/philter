@@ -153,7 +153,7 @@ Philter enforces the limits that depend on who a request is for, which only Phil
 
 Philter does not limit how many requests a client or API key makes. Put a reverse proxy, load balancer, or API gateway in front of Philter to limit request rates, as you would for any API. Consider tighter per-key limits on the two endpoints that return original values in the clear, so a stolen or misused key cannot reverse a whole dataset quickly:
 
-* `POST /api/reidentify` (scope `reidentify`), where each request can carry as many values as fit in `MAX_FILE_SIZE_BYTES_OTHER`.
+* `POST /api/reidentify` and `POST /api/reidentify/text` (scope `reidentify`), where each request can carry as many values, or as much text, as fit in `MAX_FILE_SIZE_BYTES_OTHER`.
 * `GET /api/ledger/{documentId}/export` (scope `ledger:export`).
 
 For example, with NGINX, keyed by the `Authorization` header so each API key is limited separately:
@@ -161,7 +161,7 @@ For example, with NGINX, keyed by the `Authorization` header so each API key is 
 ```nginx
 limit_req_zone $http_authorization zone=philter_reversal:10m rate=10r/m;
 
-location = /api/reidentify {
+location ~ ^/api/reidentify(/text)?$ {
     limit_req zone=philter_reversal burst=5 nodelay;
     proxy_pass https://philter:8080;
 }
